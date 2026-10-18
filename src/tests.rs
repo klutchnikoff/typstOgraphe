@@ -99,7 +99,7 @@ fn literal_typst_characters_are_not_executed() {
     let literal = "#panic(\"NON\") [x] * _ $ @id <id> \\ = - + / ~ { } \" '";
     let mut view = Projection::default();
     view.insert_text(literal, 0);
-    let source = view.to_typst();
+    let (source, _) = view.to_typst_mapped();
     let restored = Document::from_source(&source).unwrap();
     assert_eq!(restored.view.text, literal);
 }
@@ -175,4 +175,107 @@ fn compiler_reports_error_and_recovers_on_next_request() {
             .compile("Bonjour.", &Metadata::default(), false)
             .is_ok()
     );
+}
+
+#[test]
+fn source_positions_survive_unicode_escapes_styles_and_empty_paragraphs() {
+    let mut document = Document::from_source("= Échéance\n\nUn *été* avec _Noël_ et \\#.").unwrap();
+    for canonical in [false, true] {
+        if canonical {
+            document
+                .view
+                .insert_text("\n\nEncore é.", document.view.len());
+            document.sync_source();
+        }
+        assert_eq!(document.source_map.characters.len(), document.view.len());
+        assert_eq!(document.source_map.source_len, document.source().len());
+        for (index, character) in document.view.text.chars().enumerate() {
+            if character.is_whitespace() {
+                continue;
+            }
+            let byte = document.source_map.to_source(index);
+            assert_eq!(
+                document.source_map.to_visible(byte),
+                index,
+                "{character} at {index}"
+            );
+            let range = document.source_map.characters[index].clone();
+            let fragment = &document.source()[range];
+            assert!(
+                fragment.contains(character),
+                "{character:?} not in {fragment:?}"
+            );
+        }
+    }
+}
+
+fn compiled_sync(document: &Document, compact: bool) -> crate::navigation::RenderSync {
+    let mut world = crate::rendering::TypstWorld::default();
+    let rendered = world
+        .compile(document.source(), &Metadata::default(), compact)
+        .unwrap();
+    crate::navigation::RenderSync::new(1, world, rendered, document.source_map.clone())
+}
+
+#[test]
+fn bidirectional_navigation_handles_unicode_styles_links_and_repeated_passages() {
+    let mut document = Document::from_source("= Échéance\n\nNoël écrit un *courrier* avec _Élodie_ et \\# ici.\n\n#link(\"https://example.org\")[Consulter le dossier]\n\n- Élément A\n- Élément B\n\nPassage identique.\n\nPassage identique.").unwrap();
+    for canonical in [false, true] {
+        if canonical {
+            document.sync_source();
+        }
+        for compact in [false, true] {
+            let sync = compiled_sync(&document, compact);
+            for word in [
+                "Échéance",
+                "Noël",
+                "courrier",
+                "Élodie",
+                "#",
+                "Consulter",
+                "dossier",
+                "Élément B",
+            ] {
+                let byte = document.view.text.find(word).unwrap();
+                let index = document.view.text[..byte].chars().count();
+                let point = sync.forward(index).expect(word);
+                assert_eq!(
+                    sync.backward(point),
+                    Some(index),
+                    "{word}, canonical {canonical}, compact {compact}"
+                );
+            }
+            let first = document.view.text.find("Passage identique").unwrap();
+            let last = document.view.text.rfind("Passage identique").unwrap();
+            let first = document.view.text[..first].chars().count();
+            let last = document.view.text[..last].chars().count();
+            let first_point = sync.forward(first).unwrap();
+            let last_point = sync.forward(last).unwrap();
+            assert!(last_point.point[1] > first_point.point[1]);
+            assert_eq!(sync.backward(last_point), Some(last));
+            assert!(
+                sync.backward(crate::navigation::PagePoint {
+                    page: 0,
+                    point: [0.0, 0.0]
+                })
+                .is_none()
+            );
+        }
+    }
+}
+
+#[test]
+fn navigation_tracks_a_long_paragraph_across_pages_and_retains_its_snapshot() {
+    let mut document =
+        Document::from_source(&"Cette phrase remplit plusieurs pages. ".repeat(700)).unwrap();
+    let sync = compiled_sync(&document, false);
+    let index = document.view.len() - 20;
+    let location = sync.forward(index).unwrap();
+    assert!(location.page >= 2);
+    let backward = sync.backward(location).unwrap();
+    assert!(backward.abs_diff(index) <= 1); // Une ligature peut couvrir deux caractères.
+    document.view.insert_text("Un nouveau début. ", 0);
+    document.sync_source();
+    // L'instantané reste cohérent même après la modification du document actif.
+    assert_eq!(sync.backward(location), Some(backward));
 }

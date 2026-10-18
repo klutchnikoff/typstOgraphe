@@ -1,5 +1,8 @@
 //! Moteur Typst embarqué : fichiers virtuels et polices embarquées, sans réseau.
-use crate::document::Metadata;
+use crate::{
+    document::{Metadata, SourceMap},
+    navigation::RenderSync,
+};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -19,6 +22,7 @@ use typst_layout::PagedDocument;
 
 pub const TEMPLATE: &str = include_str!("../templates/courrier.typ");
 
+#[derive(Clone)]
 pub struct TypstWorld {
     library: LazyHash<Library>,
     book: LazyHash<FontBook>,
@@ -43,7 +47,7 @@ impl Default for TypstWorld {
         }
     }
 }
-fn file_id(path: &str) -> FileId {
+pub(crate) fn file_id(path: &str) -> FileId {
     FileId::new(RootedPath::new(
         VirtualRoot::Project,
         VirtualPath::new(path).expect("chemin embarqué valide"),
@@ -129,10 +133,17 @@ impl World for TypstWorld {
     }
 }
 
+impl typst_ide::IdeWorld for TypstWorld {
+    fn upcast(&self) -> &dyn World {
+        self
+    }
+}
+
 #[derive(Clone)]
 pub struct RenderRequest {
     pub revision: u64,
     pub source: String,
+    pub source_map: SourceMap,
     pub metadata: Metadata,
     pub compact: bool,
     pub export_dir: Option<PathBuf>,
@@ -143,6 +154,7 @@ pub struct PageImage {
 }
 pub struct Rendered {
     pub pages: Vec<PageImage>,
+    pub sync: RenderSync,
     pub elapsed: StdDuration,
     pub export_dir: Option<PathBuf>,
 }
@@ -203,6 +215,12 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
     comemo::evict(10);
     Ok(Rendered {
         pages,
+        sync: RenderSync::new(
+            request.revision,
+            world.clone(),
+            document,
+            request.source_map.clone(),
+        ),
         elapsed: start.elapsed(),
         export_dir: request.export_dir.clone(),
     })

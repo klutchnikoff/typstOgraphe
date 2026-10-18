@@ -1,6 +1,7 @@
 use crate::{
     document::{BlockKind, Document, InlineStyle, Mark, Metadata},
     editor,
+    navigation::{PagePoint, RenderSync},
     rendering::{RenderRequest, RenderWorker},
 };
 use eframe::egui::{
@@ -61,6 +62,9 @@ pub struct App {
     rendering_time: Option<Duration>,
     rendering_error: Option<String>,
     rendered_revision: Option<u64>,
+    sync: Option<RenderSync>,
+    forward_pending: bool,
+    editor_scroll_pending: bool,
     information_open: bool,
     palette_open: bool,
     palette_query: String,
@@ -107,6 +111,9 @@ impl App {
             rendering_time: None,
             rendering_error: None,
             rendered_revision: None,
+            sync: None,
+            forward_pending: true,
+            editor_scroll_pending: false,
             information_open: false,
             palette_open: false,
             palette_query: String::new(),
@@ -223,6 +230,7 @@ impl App {
         RenderRequest {
             revision: self.revision,
             source: self.document.source().to_owned(),
+            source_map: self.document.source_map.clone(),
             metadata: self.metadata.clone(),
             compact: self.compact,
             export_dir,
@@ -259,6 +267,8 @@ impl App {
                         self.rendering_time = Some(rendered.elapsed);
                         self.rendering_error = None;
                         self.rendered_revision = Some(response.revision);
+                        self.sync = Some(rendered.sync);
+                        self.forward_pending = true;
                     }
                 }
                 Err(error) => {
@@ -549,6 +559,15 @@ impl App {
                         if let Some(range) = output.cursor_range {
                             self.selection = range;
                         }
+                        if self.editor_scroll_pending {
+                            output.response.request_focus();
+                            let cursor = output.galley.pos_from_cursor(self.selection.primary);
+                            ui.scroll_to_rect(
+                                cursor.translate(output.galley_pos.to_vec2()),
+                                Some(egui::Align::Center),
+                            );
+                            self.editor_scroll_pending = false;
+                        }
                         let changed = output.response.changed();
                         let mut state = output.state;
                         state.clear_undoer();
@@ -568,12 +587,17 @@ impl App {
                             };
                             self.typing_group = false;
                         }
+                        if self.selection != old_range {
+                            self.forward_pending = true;
+                            ui.ctx().request_repaint();
+                        }
                     });
             });
     }
     fn preview_ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Aperçu Typst").strong());
+            ui.label(RichText::new("Aperçu Typst").strong())
+                .on_hover_text("Double-cliquez sur un passage pour le retrouver dans l’éditeur.");
             if self.rendered_revision != Some(self.revision) {
                 ui.spinner();
                 ui.weak("Actualisation…");
@@ -595,6 +619,16 @@ impl App {
                 ui.label(error);
             });
         }
+        let current = self.sync_is_current();
+        let target = if self.forward_pending && current {
+            self.forward_pending = false;
+            self.sync
+                .as_ref()
+                .and_then(|sync| sync.forward(self.selection.primary.index))
+        } else {
+            None
+        };
+        let mut clicked = None;
         egui::ScrollArea::vertical()
             .id_salt("preview-scroll")
             .show(ui, |ui| {
@@ -606,17 +640,79 @@ impl App {
                         ui.label("Composition du courrier…");
                     });
                 }
-                for page in &self.pages {
+                for (index, page) in self.pages.iter().enumerate() {
                     let size = page.size_vec2();
                     let displayed = egui::vec2(width, width * size.y / size.x);
                     ui.add_space(10.0);
                     ui.horizontal(|ui| {
                         ui.add_space(8.0);
-                        ui.add(egui::Image::new(page).fit_to_exact_size(displayed));
+                        let response = ui.add(
+                            egui::Image::new(page)
+                                .fit_to_exact_size(displayed)
+                                .sense(egui::Sense::click()),
+                        );
+                        if let Some(size) =
+                            self.sync.as_ref().and_then(|sync| sync.page_size(index))
+                        {
+                            if let Some(target) = target.filter(|target| target.page == index) {
+                                let point = response.rect.min
+                                    + egui::vec2(
+                                        target.point[0] / size[0] * displayed.x,
+                                        target.point[1] / size[1] * displayed.y,
+                                    );
+                                let passage =
+                                    egui::Rect::from_center_size(point, egui::vec2(8.0, 32.0));
+                                if !ui.clip_rect().contains_rect(passage) {
+                                    ui.scroll_to_rect(passage, Some(egui::Align::Center));
+                                }
+                            }
+                            if current
+                                && response.double_clicked()
+                                && let Some(pointer) = response.interact_pointer_pos()
+                            {
+                                let relative = pointer - response.rect.min;
+                                clicked = Some(PagePoint {
+                                    page: index,
+                                    point: [
+                                        relative.x / displayed.x * size[0],
+                                        relative.y / displayed.y * size[1],
+                                    ],
+                                });
+                            }
+                        }
                     });
                     ui.add_space(10.0);
                 }
             });
+        if let Some(location) = clicked {
+            self.navigate_backward(location, ui.ctx());
+        }
+    }
+    fn sync_is_current(&self) -> bool {
+        self.rendering_error.is_none()
+            && self
+                .sync
+                .as_ref()
+                .is_some_and(|sync| sync.revision == self.revision)
+    }
+    fn navigate_backward(&mut self, location: PagePoint, ctx: &egui::Context) {
+        if !self.sync_is_current() {
+            return;
+        }
+        if let Some(character) = self.sync.as_ref().and_then(|sync| sync.backward(location)) {
+            self.selection =
+                CCursorRange::one(CCursor::new(character.min(self.document.view.len())));
+            self.document.view.typing_style = if character > 0 {
+                self.document.view.style_at(character - 1)
+            } else {
+                InlineStyle::default()
+            };
+            self.force_selection = true;
+            self.editor_scroll_pending = true;
+            self.forward_pending = false;
+            self.typing_group = false;
+            ctx.request_repaint();
+        }
     }
     fn dialogs(&mut self, ctx: &egui::Context) {
         if self.information_open {
@@ -1003,6 +1099,199 @@ mod interaction_tests {
             ..Default::default()
         };
         let _ = ctx.run(raw, |ctx| app.ui_frame(ctx));
+    }
+
+    #[test]
+    fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.document =
+            Document::from_source(&"Un paragraphe à retrouver.\n\n".repeat(100)).unwrap();
+        let mut world = crate::rendering::TypstWorld::default();
+        let rendered = world
+            .compile(app.document.source(), &app.metadata, false)
+            .unwrap();
+        for page in 0..rendered.pages().len() {
+            app.pages.push(ctx.load_texture(
+                format!("test-page-{page}"),
+                egui::ColorImage::new([2, 3], vec![Color32::WHITE; 6]),
+                egui::TextureOptions::LINEAR,
+            ));
+        }
+        app.sync = Some(RenderSync::new(
+            app.revision,
+            world,
+            rendered,
+            app.document.source_map.clone(),
+        ));
+        let end = app.document.view.len() - 12;
+        app.selection = editor::cursor(end..end);
+        let location = app.sync.as_ref().unwrap().forward(end).unwrap();
+
+        let mut draw_pane = |preview: bool, time: f64| {
+            let mut offset = 0.0;
+            let _ = ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(600.0, 500.0),
+                    )),
+                    time: Some(time),
+                    ..Default::default()
+                },
+                |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        let id = ui.make_persistent_id(egui::Id::new(if preview {
+                            "preview-scroll"
+                        } else {
+                            "editor-scroll"
+                        }));
+                        if preview {
+                            app.preview_ui(ui);
+                        } else {
+                            app.editor_ui(ui);
+                        }
+                        offset = egui::scroll_area::State::load(ctx, id).unwrap().offset.y;
+                    });
+                },
+            );
+            offset
+        };
+        let mut offset = 0.0;
+        for i in 0..10 {
+            offset = draw_pane(true, f64::from(i) / 10.0);
+        }
+        assert!(offset > 1000.0, "preview offset {offset}");
+
+        app.selection = editor::cursor(0..0);
+        app.revision += 1;
+        app.navigate_backward(location, &ctx);
+        assert_eq!(app.selection.primary.index, 0);
+        app.revision -= 1;
+        app.rendering_error = Some("essai".into());
+        app.navigate_backward(location, &ctx);
+        assert_eq!(app.selection.primary.index, 0);
+        app.rendering_error = None;
+        app.navigate_backward(location, &ctx);
+        assert!(app.selection.primary.index.abs_diff(end) <= 1);
+        assert!(!app.forward_pending);
+
+        for i in 10..20 {
+            let _ = ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(600.0, 500.0),
+                    )),
+                    time: Some(f64::from(i) / 10.0),
+                    ..Default::default()
+                },
+                |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        let id = ui.make_persistent_id(egui::Id::new("editor-scroll"));
+                        app.editor_ui(ui);
+                        offset = egui::scroll_area::State::load(ctx, id).unwrap().offset.y;
+                    });
+                },
+            );
+        }
+        assert!(offset > 1000.0, "editor offset {offset}");
+        assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
+        assert!(app.selection.primary.index.abs_diff(end) <= 1);
+        assert!(!app.editor_scroll_pending);
+        assert!(!app.forward_pending);
+    }
+
+    #[test]
+    fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let mut world = crate::rendering::TypstWorld::default();
+        let rendered = world
+            .compile(app.document.source(), &app.metadata, false)
+            .unwrap();
+        let texture = ctx.load_texture(
+            "click-test",
+            egui::ColorImage::new([2, 3], vec![Color32::WHITE; 6]),
+            egui::TextureOptions::LINEAR,
+        );
+        let texture_id = texture.id();
+        app.pages = vec![texture];
+        app.sync = Some(RenderSync::new(
+            app.revision,
+            world,
+            rendered,
+            app.document.source_map.clone(),
+        ));
+        app.submitted = app.revision;
+        app.rendered_revision = Some(app.revision);
+        let index = app
+            .document
+            .view
+            .text
+            .find("Notre")
+            .map(|byte| app.document.view.text[..byte].chars().count())
+            .unwrap();
+        let location = app.sync.as_ref().unwrap().forward(index).unwrap();
+        let size = app.sync.as_ref().unwrap().page_size(location.page).unwrap();
+        let draw = |app: &mut App, time, events| {
+            ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1240.0, 900.0),
+                    )),
+                    time: Some(time),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| app.ui_frame(ctx),
+            )
+        };
+        draw(&mut app, 0.0, vec![]);
+        let output = draw(&mut app, 0.1, vec![]);
+        let rect = output
+            .shapes
+            .iter()
+            .find_map(|shape| match &shape.shape {
+                egui::epaint::Shape::Rect(rect)
+                    if rect
+                        .brush
+                        .as_ref()
+                        .is_some_and(|brush| brush.fill_texture_id == texture_id) =>
+                {
+                    Some(rect.rect)
+                }
+                _ => None,
+            })
+            .expect("image de l’aperçu");
+        let pointer = rect.min
+            + egui::vec2(
+                location.point[0] / size[0] * rect.width(),
+                location.point[1] / size[1] * rect.height(),
+            );
+        for (step, pressed) in [true, false, true, false].into_iter().enumerate() {
+            draw(
+                &mut app,
+                0.2 + step as f64 * 0.05,
+                vec![
+                    egui::Event::PointerMoved(pointer),
+                    egui::Event::PointerButton {
+                        pos: pointer,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+        assert_eq!(app.selection.primary.index, index);
+        assert!(app.selection.is_empty());
+        assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
+        let mut expected = app.document.view.text.clone();
+        expected.insert_str(app.document.view.byte_index(index), "Ajout ");
+        draw(&mut app, 0.5, vec![egui::Event::Text("Ajout ".into())]);
+        assert_eq!(app.document.view.text, expected);
     }
 
     #[test]

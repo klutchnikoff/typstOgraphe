@@ -52,6 +52,22 @@ Les accents et les caractères Unicode sont traités avec les mêmes indices de
 caractères que les curseurs egui. Le gras et l’italique utilisent de véritables
 variantes de police dans l’éditeur.
 
+## Se déplacer entre le texte et l’aperçu
+
+- Déplacer le curseur dans l’éditeur : l’aperçu défile vers le passage
+  correspondant, si celui-ci n’est pas déjà visible.
+- Double-cliquer sur un passage de l’aperçu : le curseur revient dans le texte
+  et le panneau de rédaction défile pour le rendre visible. Cela fonctionne
+  aussi sur le texte des liens.
+- Le défilement manuel reste libre. Les coordonnées et les éléments fixes du
+  modèle n’ont pas de destination dans le corps du courrier.
+
+Les correspondances suivent les caractères du source Typst et les glyphes du
+rendu, y compris sur plusieurs pages et après une mise en forme. Pendant une
+modification, la navigation attend le rendu correspondant à la nouvelle version
+du document. Elle est suspendue si le dernier rendu a échoué. Le surlignage des
+sélections dans l’aperçu viendra dans une prochaine étape.
+
 ## Composition et export
 
 Le moteur travaille sur un thread dédié, après une courte pause de saisie
@@ -93,8 +109,7 @@ et les expressions calculées qu’il ne sait pas éditer.
 Le travail reste en mémoire jusqu’à un export. Ce prototype n’inclut pas encore
 la réouverture des exports, l’archive unique du document, l’enregistrement
 automatique, les préférences personnelles, l’image de signature, le manifeste
-extensible des types de document ni le travail collaboratif. Le repérage de la
-sélection dans les pages de l’aperçu reste également à construire.
+extensible des types de document ni le travail collaboratif.
 
 Les paragraphes vides successifs et les espaces sont normalisés à la relecture
 d’un source. L’indentation des listes sur plusieurs lignes et les entrées IME
@@ -112,6 +127,9 @@ Les tests couvrent la projection du source, les sélections entre paragraphes,
 les remplacements Unicode dans le composant egui, les styles superposés,
 l’annulation, l’échappement des caractères Typst et des métadonnées, la
 compilation des deux présentations, le PDF et le rendu des pages.
+Ils vérifient également la navigation dans les deux sens, les liens, les passages
+répétés, un paragraphe réparti sur plusieurs pages, le défilement des deux panneaux
+et le refus des correspondances devenues obsolètes.
 
 Une capture de l’application peut être produite après le premier rendu réussi :
 

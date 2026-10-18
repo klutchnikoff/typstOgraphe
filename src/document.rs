@@ -65,23 +65,62 @@ impl Default for Projection {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Document {
     source: String,
+    pub source_map: SourceMap,
     pub view: Projection,
+}
+
+/// Chaque caractère visible pointe vers sa plage d'octets dans le source réel.
+/// Les commandes et les délimiteurs ne sont jamais comptés comme du texte.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SourceMap {
+    pub characters: Vec<Range<usize>>,
+    pub source_len: usize,
+}
+impl SourceMap {
+    pub fn to_source(&self, character: usize) -> usize {
+        self.characters
+            .get(character)
+            .map_or_else(|| self.characters.last().map_or(0, |r| r.end), |r| r.start)
+    }
+    pub fn to_visible(&self, byte: usize) -> usize {
+        self.characters
+            .iter()
+            .enumerate()
+            .min_by_key(|(_, r)| {
+                if byte < r.start {
+                    r.start - byte
+                } else if byte >= r.end {
+                    byte.saturating_sub(r.end) + 1
+                } else {
+                    0
+                }
+            })
+            .map_or(0, |(i, r)| if byte >= r.end { i + 1 } else { i })
+    }
 }
 
 impl Document {
     pub fn from_source(source: &str) -> Result<Self, String> {
-        let tree = typst_syntax::parse(source);
+        let parsed = typst_syntax::Source::detached(source);
+        let tree = parsed.root();
         if tree.diagnosis().errors {
             return Err("Le source Typst contient une erreur de syntaxe.".into());
         }
         let markup = tree
             .cast::<ast::Markup>()
             .ok_or("Document Typst illisible")?;
-        let mut parser = Projector::default();
+        let mut parser = Projector {
+            source: Some(parsed.clone()),
+            ..Default::default()
+        };
         parser.markup(markup, &InlineStyle::default())?;
         parser.view.typing_style = InlineStyle::default();
         Ok(Self {
             source: source.to_owned(),
+            source_map: SourceMap {
+                characters: parser.origins,
+                source_len: source.len(),
+            },
             view: parser.view,
         })
     }
@@ -97,7 +136,7 @@ impl Document {
 
     /// Toute opération d'édition actualise le source qui sera compilé/exporté.
     pub fn sync_source(&mut self) {
-        self.source = self.view.to_typst();
+        (self.source, self.source_map) = self.view.to_typst_mapped();
     }
 }
 
@@ -222,13 +261,15 @@ impl Projection {
             text.matches('\n').count(),
         ));
     }
-    pub fn to_typst(&self) -> String {
+    pub fn to_typst_mapped(&self) -> (String, SourceMap) {
         let mut result = String::new();
+        let mut origins = Vec::with_capacity(self.len());
         let lines: Vec<_> = self.text.split('\n').collect();
         let ranges = self.line_ranges();
         for (index, text) in lines.iter().enumerate() {
             let kind = self.blocks[index];
             if index > 0 {
+                let separator_start = result.len();
                 let previous = self.blocks[index - 1];
                 result.push_str(
                     if matches!(
@@ -241,6 +282,7 @@ impl Projection {
                         "\n\n"
                     },
                 );
+                origins.push(separator_start..result.len());
             }
             match kind {
                 BlockKind::Heading(level) => {
@@ -259,22 +301,37 @@ impl Projection {
                 while end < characters.len() && self.styles[ranges[index].start + end] == *style {
                     end += 1;
                 }
-                let escaped = escape_markup(&characters[position..end].iter().collect::<String>());
-                let mut content = escaped;
-                if style.italic {
-                    content = format!("#emph[{content}]");
+                if let Some(url) = &style.link {
+                    result.push_str(&format!("#link({})[", typst_string(url)));
                 }
                 if style.bold {
-                    content = format!("#strong[{content}]");
+                    result.push_str("#strong[");
                 }
-                if let Some(url) = &style.link {
-                    content = format!("#link({})[{content}]", typst_string(url));
+                if style.italic {
+                    result.push_str("#emph[");
                 }
-                result.push_str(&content);
+                for character in &characters[position..end] {
+                    let start = result.len();
+                    result.push_str(&escape_markup(&character.to_string()));
+                    origins.push(start..result.len());
+                }
+                for _ in 0..usize::from(style.bold)
+                    + usize::from(style.italic)
+                    + usize::from(style.link.is_some())
+                {
+                    result.push(']');
+                }
                 position = end;
             }
         }
-        result
+        let source_len = result.len();
+        (
+            result,
+            SourceMap {
+                characters: origins,
+                source_len,
+            },
+        )
     }
 }
 
@@ -363,11 +420,15 @@ fn escape_markup(text: &str) -> String {
 struct Projector {
     view: Projection,
     pending_break: bool,
+    source: Option<typst_syntax::Source>,
+    origin: Range<usize>,
+    origins: Vec<Range<usize>>,
 }
 impl Projector {
     fn ensure_block(&mut self, kind: BlockKind) {
         if self.pending_break && !self.view.text.is_empty() {
             self.view.push("\n", &InlineStyle::default());
+            self.origins.push(self.origin.start..self.origin.start);
         }
         if let Some(last) = self.view.blocks.last_mut() {
             *last = kind;
@@ -379,9 +440,26 @@ impl Projector {
             self.ensure_block(BlockKind::Paragraph);
         }
         self.view.push(text, style);
+        let exact = self
+            .source
+            .as_ref()
+            .and_then(|s| s.text().get(self.origin.clone()))
+            == Some(text);
+        for (offset, c) in text.char_indices() {
+            self.origins.push(if exact {
+                self.origin.start + offset..self.origin.start + offset + c.len_utf8()
+            } else {
+                self.origin.clone()
+            });
+        }
     }
     fn markup(&mut self, markup: ast::Markup<'_>, style: &InlineStyle) -> Result<(), String> {
         for expr in markup.exprs() {
+            self.origin = self
+                .source
+                .as_ref()
+                .and_then(|s| s.find(expr.span()))
+                .map_or(0..0, |node| node.range());
             match expr {
                 Expr::Text(text) => self.append(text.get(), style),
                 Expr::Escape(escaped) => self.append(&escaped.get().to_string(), style),

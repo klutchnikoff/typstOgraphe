@@ -1,6 +1,7 @@
 mod app;
 mod document;
 mod editor;
+mod navigation;
 mod rendering;
 #[cfg(test)]
 mod tests;
@@ -19,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let request = rendering::RenderRequest {
                     revision: 1,
                     source: document.source().into(),
+                    source_map: document.source_map.clone(),
                     metadata: document::Metadata::default(),
                     compact: false,
                     export_dir: Some(PathBuf::from(dir)),
