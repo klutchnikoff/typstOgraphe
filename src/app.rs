@@ -15,6 +15,7 @@ use std::{
 };
 
 const ACCENT: Color32 = Color32::from_rgb(40, 92, 119);
+const PREVIEW_SELECTION: Color32 = Color32::from_rgba_premultiplied(16, 33, 59, 65);
 #[derive(Clone)]
 struct Snapshot {
     document: Document,
@@ -620,6 +621,14 @@ impl App {
             });
         }
         let current = self.sync_is_current();
+        let highlights = if current {
+            self.sync
+                .as_ref()
+                .map(|sync| sync.selection_highlights(self.range()))
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         let target = if self.forward_pending && current {
             self.forward_pending = false;
             self.sync
@@ -654,6 +663,30 @@ impl App {
                         if let Some(size) =
                             self.sync.as_ref().and_then(|sync| sync.page_size(index))
                         {
+                            let painter = ui
+                                .painter()
+                                .with_clip_rect(ui.clip_rect().intersect(response.rect));
+                            for highlight in highlights
+                                .iter()
+                                .filter(|highlight| highlight.page == index)
+                            {
+                                let points = highlight
+                                    .corners
+                                    .iter()
+                                    .map(|point| {
+                                        response.rect.min
+                                            + egui::vec2(
+                                                point[0] / size[0] * response.rect.width(),
+                                                point[1] / size[1] * response.rect.height(),
+                                            )
+                                    })
+                                    .collect();
+                                painter.add(egui::Shape::convex_polygon(
+                                    points,
+                                    PREVIEW_SELECTION,
+                                    egui::Stroke::NONE,
+                                ));
+                            }
                             if let Some(target) = target.filter(|target| target.page == index) {
                                 let point = response.rect.min
                                     + egui::vec2(
@@ -1292,6 +1325,78 @@ mod interaction_tests {
         expected.insert_str(app.document.view.byte_index(index), "Ajout ");
         draw(&mut app, 0.5, vec![egui::Event::Text("Ajout ".into())]);
         assert_eq!(app.document.view.text, expected);
+    }
+
+    #[test]
+    fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let mut world = crate::rendering::TypstWorld::default();
+        let rendered = world
+            .compile(app.document.source(), &app.metadata, false)
+            .unwrap();
+        app.pages = vec![ctx.load_texture(
+            "highlight-test",
+            egui::ColorImage::new([2, 3], vec![Color32::WHITE; 6]),
+            egui::TextureOptions::LINEAR,
+        )];
+        app.sync = Some(RenderSync::new(
+            app.revision,
+            world,
+            rendered,
+            app.document.source_map.clone(),
+        ));
+        app.submitted = app.revision;
+        app.rendered_revision = Some(app.revision);
+        let byte = app.document.view.text.find("jeudi").unwrap();
+        let index = app.document.view.text[..byte].chars().count();
+        app.selection = editor::cursor(index..index + 5);
+        let draw = |app: &mut App, width| {
+            let output = ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(width, 900.0),
+                    )),
+                    ..Default::default()
+                },
+                |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| app.preview_ui(ui));
+                },
+            );
+            output
+                .shapes
+                .into_iter()
+                .filter_map(|shape| match shape.shape {
+                    egui::epaint::Shape::Path(path) if path.fill == PREVIEW_SELECTION => {
+                        Some((shape.clip_rect, path))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        draw(&mut app, 600.0);
+        let wide = draw(&mut app, 600.0);
+        assert_eq!(wide.len(), 1);
+        let (clip, path) = &wide[0];
+        assert!(path.points.iter().all(|point| clip.contains(*point)));
+        let wide_width = path.points[1].x - path.points[0].x;
+        let narrow = draw(&mut app, 400.0);
+        assert_eq!(narrow.len(), 1);
+        assert!(narrow[0].1.points[1].x - narrow[0].1.points[0].x < wide_width);
+        // Le sens de la sélection ne change pas le passage surligné.
+        app.selection = editor::cursor(index + 5..index);
+        assert_eq!(draw(&mut app, 400.0)[0].1.points, narrow[0].1.points);
+        app.selection = editor::cursor(index..index);
+        assert!(draw(&mut app, 400.0).is_empty());
+        app.selection = editor::cursor(index..index + 5);
+        app.revision += 1;
+        assert!(draw(&mut app, 400.0).is_empty());
+        app.revision -= 1;
+        app.rendering_error = Some("essai".into());
+        assert!(draw(&mut app, 400.0).is_empty());
+        app.rendering_error = None;
+        assert!(!draw(&mut app, 400.0).is_empty());
     }
 
     #[test]

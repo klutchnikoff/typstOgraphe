@@ -59,14 +59,19 @@ variantes de police dans l’éditeur.
 - Double-cliquer sur un passage de l’aperçu : le curseur revient dans le texte
   et le panneau de rédaction défile pour le rendre visible. Cela fonctionne
   aussi sur le texte des liens.
+- Sélectionner du texte dans l’éditeur : une surbrillance bleue translucide
+  repère le passage dans l’aperçu, sur toutes les lignes et pages concernées.
+  Elle disparaît quand la sélection est vide et suit le redimensionnement du
+  panneau. Le PDF exporté conserve sa présentation habituelle.
 - Le défilement manuel reste libre. Les coordonnées et les éléments fixes du
   modèle n’ont pas de destination dans le corps du courrier.
 
 Les correspondances suivent les caractères du source Typst et les glyphes du
 rendu, y compris sur plusieurs pages et après une mise en forme. Pendant une
 modification, la navigation attend le rendu correspondant à la nouvelle version
-du document. Elle est suspendue si le dernier rendu a échoué. Le surlignage des
-sélections dans l’aperçu viendra dans une prochaine étape.
+du document. La navigation et le surlignage sont suspendus si le dernier rendu a
+échoué. Une ligature peut être surlignée en entier lorsqu’un de ses caractères
+est sélectionné.
 
 ## Composition et export
 
@@ -130,6 +135,8 @@ compilation des deux présentations, le PDF et le rendu des pages.
 Ils vérifient également la navigation dans les deux sens, les liens, les passages
 répétés, un paragraphe réparti sur plusieurs pages, le défilement des deux panneaux
 et le refus des correspondances devenues obsolètes.
+Le surlignage est vérifié sur les styles, les liens, les ligatures et plusieurs
+pages, ainsi qu’après un redimensionnement ou la disparition de la sélection.
 
 Une capture de l’application peut être produite après le premier rendu réussi :
 

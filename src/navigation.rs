@@ -19,10 +19,18 @@ pub struct PagePoint {
     pub point: [f32; 2],
 }
 
+pub struct SelectionHighlight {
+    pub page: usize,
+    /// Coins dans l'ordre haut gauche, haut droit, bas droit, bas gauche,
+    /// après les transformations du modèle, en points Typst.
+    pub corners: [[f32; 2]; 4],
+}
+
 struct Anchor {
     source: Range<usize>,
     point: Point,
     page: usize,
+    corners: [Point; 4],
 }
 
 pub struct RenderSync {
@@ -91,6 +99,47 @@ impl RenderSync {
             _ => None,
         }
     }
+
+    pub fn selection_highlights(&self, characters: Range<usize>) -> Vec<SelectionHighlight> {
+        let start = characters.start.min(self.map.characters.len());
+        let end = characters.end.min(self.map.characters.len());
+        if start >= end {
+            return Vec::new();
+        }
+        let source = self.map.characters[start].start..self.map.characters[end - 1].end;
+        let mut highlights: Vec<SelectionHighlight> = Vec::new();
+        for anchor in &self.anchors {
+            if anchor.source.is_empty()
+                || anchor.source.start >= source.end
+                || anchor.source.end <= source.start
+            {
+                continue;
+            }
+            let corners = anchor
+                .corners
+                .map(|point| [point.x.to_pt() as f32, point.y.to_pt() as f32]);
+            // Réunir les cellules contiguës d'une ligne évite les jointures
+            // visibles et conserve les espaces justifiés dans la sélection.
+            if let Some(previous) = highlights.last_mut()
+                && previous.page == anchor.page
+                && adjacent(previous.corners[1], corners[0])
+                && adjacent(previous.corners[2], corners[3])
+            {
+                previous.corners[1] = corners[1];
+                previous.corners[2] = corners[2];
+            } else {
+                highlights.push(SelectionHighlight {
+                    page: anchor.page,
+                    corners,
+                });
+            }
+        }
+        highlights
+    }
+}
+
+fn adjacent(a: [f32; 2], b: [f32; 2]) -> bool {
+    (a[0] - b[0]).abs() < 0.01 && (a[1] - b[1]).abs() < 0.01
 }
 
 fn remove_links(frame: &mut Frame) {
@@ -110,6 +159,9 @@ fn collect_anchors(world: &TypstWorld, frame: &Frame, page: usize, anchors: &mut
                 collect_anchors(world, &group.frame, page, anchors);
                 for anchor in &mut anchors[start..] {
                     anchor.point = pos + anchor.point.transform(group.transform);
+                    anchor.corners = anchor
+                        .corners
+                        .map(|point| pos + point.transform(group.transform));
                 }
             }
             FrameItem::Text(text) => {
@@ -132,6 +184,17 @@ fn collect_anchors(world: &TypstWorld, frame: &Frame, page: usize, anchors: &mut
                             source,
                             page,
                             point: Point::new(pos.x + width / 4.0, pos.y - text.size / 2.0),
+                            corners: {
+                                let metrics = text.font.metrics();
+                                let top = pos.y - metrics.ascender.at(text.size);
+                                let bottom = pos.y - metrics.descender.at(text.size);
+                                [
+                                    Point::new(pos.x, top),
+                                    Point::new(pos.x + width, top),
+                                    Point::new(pos.x + width, bottom),
+                                    Point::new(pos.x, bottom),
+                                ]
+                            },
                         });
                     }
                     pos.x += width;

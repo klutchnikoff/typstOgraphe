@@ -279,3 +279,108 @@ fn navigation_tracks_a_long_paragraph_across_pages_and_retains_its_snapshot() {
     // L'instantané reste cohérent même après la modification du document actif.
     assert_eq!(sync.backward(location), Some(backward));
 }
+
+fn highlighted(
+    highlights: &[crate::navigation::SelectionHighlight],
+    point: crate::navigation::PagePoint,
+) -> bool {
+    highlights.iter().any(|highlight| {
+        if highlight.page != point.page {
+            return false;
+        }
+        let corners = &highlight.corners;
+        let cross: Vec<_> = (0..4)
+            .map(|i| {
+                let a = corners[i];
+                let b = corners[(i + 1) % 4];
+                (b[0] - a[0]) * (point.point[1] - a[1]) - (b[1] - a[1]) * (point.point[0] - a[0])
+            })
+            .collect();
+        cross.iter().all(|&value| value >= -0.01) || cross.iter().all(|&value| value <= 0.01)
+    })
+}
+
+#[test]
+fn selection_highlights_follow_visible_unicode_text_across_styles_and_links() {
+    let mut document = Document::from_source("= Échéance\n\nBonjour *Noël*, _Élodie_ écrit \\# ici.\n\n#link(\"https://example.org\")[Consulter le dossier]\n\nTexte identique.\n\nTexte identique.").unwrap();
+    for canonical in [false, true] {
+        if canonical {
+            document.sync_source();
+        }
+        for compact in [false, true] {
+            let sync = compiled_sync(&document, compact);
+            let start = document.view.text.find("jour").unwrap();
+            let start = document.view.text[..start].chars().count();
+            let end = document.view.text.find("dossier").unwrap() + "dossier".len();
+            let end = document.view.text[..end].chars().count();
+            let highlights = sync.selection_highlights(start..end);
+            assert!(!highlights.is_empty());
+            for index in start..end {
+                if document
+                    .view
+                    .text
+                    .chars()
+                    .nth(index)
+                    .unwrap()
+                    .is_whitespace()
+                {
+                    continue;
+                }
+                assert!(
+                    highlighted(&highlights, sync.forward(index).unwrap()),
+                    "character {index}, canonical {canonical}, compact {compact}"
+                );
+            }
+            for word in ["Échéance", "Bon", "Texte identique"] {
+                let byte = document.view.text.find(word).unwrap();
+                let index = document.view.text[..byte].chars().count();
+                assert!(
+                    !highlighted(&highlights, sync.forward(index).unwrap()),
+                    "{word}"
+                );
+            }
+            assert!(highlights.len() < end - start); // Les glyphes voisins sont réunis en bandes.
+            assert!(sync.selection_highlights(start..start).is_empty());
+            assert!(
+                sync.selection_highlights(document.view.len()..usize::MAX)
+                    .is_empty()
+            );
+            let last = document.view.text.rfind("Texte identique").unwrap();
+            let last = document.view.text[..last].chars().count();
+            let repeated = sync.selection_highlights(last..document.view.len());
+            assert!(highlighted(&repeated, sync.forward(last).unwrap()));
+            let first = document.view.text.find("Texte identique").unwrap();
+            let first = document.view.text[..first].chars().count();
+            assert!(!highlighted(&repeated, sync.forward(first).unwrap()));
+        }
+    }
+}
+
+#[test]
+fn selection_highlights_span_pages_and_include_partial_ligatures() {
+    let document =
+        Document::from_source(&"Une lettre à Élodie avec une formule officielle. ".repeat(250))
+            .unwrap();
+    let sync = compiled_sync(&document, false);
+    let highlights = sync.selection_highlights(10..document.view.len() - 10);
+    assert!(highlights.iter().any(|highlight| highlight.page >= 1));
+    assert!(highlighted(&highlights, sync.forward(15).unwrap()));
+    assert!(highlighted(
+        &highlights,
+        sync.forward(document.view.len() - 15).unwrap()
+    ));
+    assert!(!highlighted(&highlights, sync.forward(0).unwrap()));
+    assert!(!highlighted(
+        &highlights,
+        sync.forward(document.view.len() - 1).unwrap()
+    ));
+
+    let document = Document::from_source("Office efficace.").unwrap();
+    let sync = compiled_sync(&document, false);
+    // « ffi » peut former un seul glyphe : un seul caractère sélectionné
+    // suffit à surligner le glyphe, sans englober le reste du mot.
+    let partial = sync.selection_highlights(2..3);
+    assert!(highlighted(&partial, sync.forward(2).unwrap()));
+    assert!(!highlighted(&partial, sync.forward(0).unwrap()));
+    assert!(!highlighted(&partial, sync.forward(5).unwrap()));
+}
