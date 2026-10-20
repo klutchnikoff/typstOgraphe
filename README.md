@@ -50,11 +50,21 @@ Linux restent nécessaires avant de déclarer ces plateformes validées.
 
 Les **Informations du courrier** se déplient avec le chevron sous la barre de
 mise en forme, dans la colonne de rédaction. Le panneau reste fixé au-dessus du
-texte pendant son défilement. Ses champs sont regroupés en Correspondance et
+texte pendant son défilement. Ses champs sont regroupés en Général, Correspondance et
 Expéditeur ; sa hauteur est limitée, avec un défilement propre pour garder le
 texte accessible. Les modifications actualisent l’aperçu et sont enregistrées
 dans le courrier. La commande Informations du menu Affichage ou de la palette
 permet également de déplier ou replier ce panneau, sans bloquer la rédaction.
+
+**Général** regroupe le type du document (en lecture seule), le modèle, le format
+du papier, l’orientation et la langue du document. Le choix du modèle remplace
+le modèle embarqué par l’un des deux modèles fournis, en conservant le texte et
+les métadonnées. Les formats proposés sont A3, A4, A5, Lettre US et Légal US,
+avec les orientations portrait et paysage. Les langues proposées sont le
+français, l’anglais, l’allemand, l’espagnol, l’italien, le portugais et le néerlandais.
+Un nouveau courrier utilise A4, portrait et français, indépendamment de la langue
+de l’interface. La langue du document règle la composition Typst et les libellés
+du modèle ; elle ne traduit pas le texte ou les métadonnées saisis.
 
 Les accents et les caractères Unicode sont traités avec les mêmes indices de
 caractères que les curseurs egui. Le gras et l’italique utilisent de véritables
@@ -84,8 +94,10 @@ egui pour éviter une double exécution ; les raccourcis secondaires restent
 disponibles. Les raccourcis natifs suivent aussi les personnalisations en mémoire.
 
 Le nom du fichier et l’étoile signalant des modifications apparaissent uniquement
-dans le titre de la fenêtre. L’en-tête conserve le nom de l’application et le
-contexte du document, sans rangée de boutons à droite. Le module `src/menus.rs`
+dans le titre de la fenêtre, sans suffixe contenant le nom de l’application.
+Le menu application macOS conserve le nom fixe « typstOgraphe ». L’en-tête ne
+contient plus le sélecteur de modèle ni la mention de l’organisation ; ces choix
+appartiennent au document. Le module `src/menus.rs`
 sépare le modèle commun des menus de leur intégration AppKit ; muda n’est une
 dépendance que sur macOS et n’ajoute pas de dépendance GTK sous Linux.
 
@@ -96,8 +108,8 @@ dépendance que sur macOS et n’ajoute pas de dépendance GTK sous Linux.
 défaut. Les menus, la palette, les infobulles et le traitement des touches
 utilisent ce même registre.
 
-Cela comprend les fichiers, les informations du courrier, les deux choix de
-présentation, les styles de paragraphes, la mise en forme, les liens (dont leur
+Cela comprend les fichiers, les informations du courrier, les deux modèles
+fournis, les styles de paragraphes, la mise en forme, les liens (dont leur
 retrait), l’annulation/rétablissement et l’ouverture de la palette. Les boutons
 et listes déroulantes déclenchent les mêmes commandes que la palette et les
 raccourcis. Les clés de traduction des libellés complets et de leurs variantes
@@ -196,19 +208,26 @@ enregistrer ou d’annuler. Un brouillon incomplet peut être enregistré.
 Le fichier est une archive ZIP standard contenant :
 
 - `contenu.typ` : source de référence du corps du courrier ;
-- `metadonnees.json` : champs du courrier ;
+- `metadonnees.json` : champs du courrier et réglages généraux dans `options` ;
 - `modele.typ` : copie exacte du modèle utilisé, réutilisée à la réouverture
   et lors de l’export ;
 - `main.typ` : en-tête généré à partir des métadonnées ;
-- `manifest.json` : identifiant du format, version 1, type « courrier » et
-  choix de présentation.
+- `manifest.json` : identifiant du format, version 2, type « courrier »,
+  choix de présentation et contrat du modèle (`template_contract`).
 
 Le modèle embarqué permet de retrouver la présentation du courrier indépendamment
 des modèles fournis par une future version de l’application. L’enregistrement
 écrit un fichier temporaire voisin puis remplace atomiquement la cible. Une
-archive invalide est refusée sans remplacer le courrier ouvert. Le format v1
+archive invalide est refusée sans remplacer le courrier ouvert. Le format
 accepte uniquement ces cinq fichiers, pour un total décompressé de 16 Mio maximum.
 Il ne contient pas encore de pièces jointes ou d’images.
+
+Les fichiers v1 restent lisibles. Leur modèle est conservé exactement, avec le
+contrat `legacy` : ses réglages de format et de langue restent ceux qu’il définit.
+Le panneau Général explique cette limite et propose les modèles actuels pour
+activer les nouveaux réglages. Le modèle n’est jamais remplacé automatiquement
+à l’ouverture. Un réenregistrement écrit le format v2, même si le modèle ancien
+est conservé. Les anciennes versions de l’application ne lisent pas les fichiers v2.
 
 Pour les développeurs : `main.typ` est dérivé du manifeste et des métadonnées ;
 une modification manuelle de son en-tête doit rester cohérente avec ces fichiers.
@@ -268,6 +287,16 @@ Le modèle de `templates/courrier.typ` est entièrement écrit en Typst et expos
 la fonction `courrier`, avec des arguments nommés pour les métadonnées et le
 corps du document. Les exemples et le catalogue d’organisation sont fictifs.
 
+Le contrat `document-options` ajoute un argument nommé `options`, indépendant
+des métadonnées propres au type de document. L’en-tête exporté lui transmet par
+exemple `options: (paper: "a4", landscape: false, language: "fr")`. Le modèle
+applique ces valeurs avec `set page(paper: options.paper, flipped: options.landscape)`
+et `set text(lang: options.language)`. Il reste responsable des libellés et de
+la mise en page dans chaque langue ; aucun code d’interface n’est inséré dans
+le modèle. Le manifeste permet de distinguer ce contrat du contrat ancien, qui
+ne reçoit pas cet argument. Les réglages sont conservés à l’enregistrement et
+utilisés de la même façon dans l’aperçu et l’export PDF/Typst.
+
 ## Source et périmètre
 
 Le source Typst restreint est la référence pour le corps du document. Le parseur
@@ -312,6 +341,9 @@ Les tests de fichiers vérifient l’aller-retour du source, des métadonnées e
 modèle personnalisé, l’export avec le modèle rouvert, le remplacement atomique,
 le refus des archives invalides, les erreurs d’écriture et la protection des
 modifications non enregistrées.
+Ils couvrent aussi la lecture des archives v1 sans modification du modèle, leur
+réenregistrement en v2, les réglages généraux, les dimensions réelles des cinq
+formats dans les deux orientations, et la langue des éléments de texte Typst.
 Les tests du registre vérifient les contextes, les modificateurs sur macOS et
 Windows/Linux, les conflits, les remplacements et la désactivation de raccourcis,
 ainsi que la cohérence entre le raccourci actif et son affichage.

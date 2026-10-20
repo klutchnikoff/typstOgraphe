@@ -1,6 +1,9 @@
 use crate::{
     commands::{Command, DEFINITIONS, FileCommand, Keymap, Presentation, ShortcutOverrides},
-    document::{BlockKind, Document, InlineStyle, Mark, Metadata, Projection},
+    document::{
+        BlockKind, Document, DocumentLanguage, InlineStyle, Mark, Metadata, PaperFormat,
+        Projection, TemplateContract,
+    },
     editor, menus,
     navigation::{PagePoint, RenderSync},
     rendering::{RenderRequest, RenderWorker},
@@ -40,6 +43,7 @@ pub struct App {
     metadata: Metadata,
     compact: bool,
     template: String,
+    template_contract: TemplateContract,
     file_path: Option<PathBuf>,
     saved: Letter,
     file_command: Option<FileCommand>,
@@ -120,6 +124,7 @@ impl App {
             metadata: saved.metadata.clone(),
             compact: saved.compact,
             template: saved.template.clone(),
+            template_contract: saved.template_contract,
             file_path: None,
             saved,
             file_command: None,
@@ -176,6 +181,7 @@ impl App {
             source: self.document.source().into(),
             metadata: self.metadata.clone(),
             template: self.template.clone(),
+            template_contract: self.template_contract,
             compact: self.compact,
         }
     }
@@ -183,6 +189,7 @@ impl App {
         self.saved.source != self.document.source()
             || self.saved.metadata != self.metadata
             || self.saved.template != self.template
+            || self.saved.template_contract != self.template_contract
             || self.saved.compact != self.compact
     }
     fn modal_open(&self) -> bool {
@@ -271,6 +278,7 @@ impl App {
         self.document = document;
         self.metadata = letter.metadata.clone();
         self.template = letter.template.clone();
+        self.template_contract = letter.template_contract;
         self.compact = letter.compact;
         self.saved = letter;
         self.file_path = path;
@@ -372,8 +380,13 @@ impl App {
             }
             Command::Information => self.information_open = !self.information_open,
             Command::Presentation(presentation) => {
-                if self.compact != presentation.compact() {
+                if self.compact != presentation.compact()
+                    || self.template != crate::rendering::TEMPLATE
+                    || self.template_contract != TemplateContract::DocumentOptions
+                {
                     self.compact = presentation.compact();
+                    self.template = crate::rendering::TEMPLATE.into();
+                    self.template_contract = TemplateContract::DocumentOptions;
                     self.revision += 1;
                     self.changed_at = Instant::now();
                 }
@@ -458,6 +471,7 @@ impl App {
             metadata: self.metadata.clone(),
             compact: self.compact,
             template: self.template.clone(),
+            template_contract: self.template_contract,
             export_dir,
         }
     }
@@ -829,6 +843,76 @@ impl App {
                     .auto_shrink([false, true])
                     .show(ui, |ui| {
                         let field_width = (ui.available_width() - 120.0).max(80.0);
+                        egui::CollapsingHeader::new(crate::tr!("group-general"))
+                            .id_salt("information-general")
+                            .default_open(true)
+                            .show(ui, |ui| {
+                                egui::Grid::new("general-fields")
+                                    .num_columns(2)
+                                    .show(ui, |ui| {
+                                        ui.label(crate::tr!("field-document-type"));
+                                        ui.weak(crate::tr!("letter-type"));
+                                        ui.end_row();
+                                        ui.label(crate::tr!("field-template"));
+                                        self.template_selector(ui);
+                                        ui.end_row();
+                                        if self.template_contract
+                                            == TemplateContract::DocumentOptions
+                                        {
+                                            ui.label(crate::tr!("field-paper"));
+                                            egui::ComboBox::from_id_salt("document-paper")
+                                                .selected_text(self.metadata.options.paper.label())
+                                                .show_ui(ui, |ui| {
+                                                    for paper in PaperFormat::ALL {
+                                                        ui.selectable_value(
+                                                            &mut self.metadata.options.paper,
+                                                            paper,
+                                                            paper.label(),
+                                                        );
+                                                    }
+                                                });
+                                            ui.end_row();
+                                            ui.label(crate::tr!("field-orientation"));
+                                            egui::ComboBox::from_id_salt("document-orientation")
+                                                .selected_text(if self.metadata.options.landscape {
+                                                    crate::tr!("orientation-landscape")
+                                                } else {
+                                                    crate::tr!("orientation-portrait")
+                                                })
+                                                .show_ui(ui, |ui| {
+                                                    ui.selectable_value(
+                                                        &mut self.metadata.options.landscape,
+                                                        false,
+                                                        crate::tr!("orientation-portrait"),
+                                                    );
+                                                    ui.selectable_value(
+                                                        &mut self.metadata.options.landscape,
+                                                        true,
+                                                        crate::tr!("orientation-landscape"),
+                                                    );
+                                                });
+                                            ui.end_row();
+                                            ui.label(crate::tr!("field-document-language"));
+                                            egui::ComboBox::from_id_salt("document-language")
+                                                .selected_text(
+                                                    self.metadata.options.language.label(),
+                                                )
+                                                .show_ui(ui, |ui| {
+                                                    for language in DocumentLanguage::ALL {
+                                                        ui.selectable_value(
+                                                            &mut self.metadata.options.language,
+                                                            language,
+                                                            language.label(),
+                                                        );
+                                                    }
+                                                });
+                                            ui.end_row();
+                                        }
+                                    });
+                                if self.template_contract == TemplateContract::Legacy {
+                                    ui.weak(crate::tr!("legacy-template-options"));
+                                }
+                            });
                         egui::CollapsingHeader::new(crate::tr!("group-correspondence"))
                             .id_salt("information-correspondence")
                             .default_open(true)
@@ -939,6 +1023,37 @@ impl App {
             self.revision += 1;
             self.changed_at = Instant::now();
             ui.ctx().request_repaint();
+        }
+    }
+    fn template_selector(&mut self, ui: &mut egui::Ui) {
+        let current = (self.template == crate::rendering::TEMPLATE
+            && self.template_contract == TemplateContract::DocumentOptions)
+            .then(|| Presentation::from_compact(self.compact));
+        let mut selected = current;
+        egui::ComboBox::from_id_salt("template")
+            .selected_text(current.map_or_else(
+                || crate::tr!("embedded-template"),
+                |p| Command::Presentation(p).short_label(),
+            ))
+            .show_ui(ui, |ui| {
+                if current.is_none() {
+                    ui.selectable_value(&mut selected, None, crate::tr!("embedded-template"));
+                }
+                for definition in DEFINITIONS.iter().filter(|d| d.in_presentation_menu()) {
+                    if let Command::Presentation(option) = definition.command {
+                        ui.selectable_value(
+                            &mut selected,
+                            Some(option),
+                            definition.command.short_label(),
+                        )
+                        .on_hover_text(self.keymap.hint(ui.ctx(), definition.command));
+                    }
+                }
+            });
+        if selected != current
+            && let Some(selected) = selected
+        {
+            self.apply(Command::Presentation(selected));
         }
     }
     fn editor_ui(&mut self, ui: &mut egui::Ui) {
@@ -1447,7 +1562,7 @@ impl App {
             self.window_title = title;
         }
         egui::TopBottomPanel::top("header")
-            .exact_height(64.0)
+            .exact_height(34.0)
             .show(ctx, |ui| {
                 if modal {
                     ui.disable();
@@ -1473,36 +1588,6 @@ impl App {
                             self.dispatch_action(command, ctx);
                         }
                     }
-                });
-                ui.horizontal(|ui| {
-                    ui.weak(crate::tr!("letter-type"));
-                    ui.separator();
-                    let mut presentation = Presentation::from_compact(self.compact);
-                    egui::ComboBox::from_id_salt("template")
-                        .selected_text(Command::Presentation(presentation).short_label())
-                        .show_ui(ui, |ui| {
-                            for definition in DEFINITIONS
-                                .iter()
-                                .filter(|definition| definition.in_presentation_menu())
-                            {
-                                if let Command::Presentation(option) = definition.command {
-                                    ui.selectable_value(
-                                        &mut presentation,
-                                        option,
-                                        definition.command.short_label(),
-                                    )
-                                    .on_hover_text(self.keymap.hint(ui.ctx(), definition.command));
-                                }
-                            }
-                        });
-                    if presentation.compact() != self.compact {
-                        self.apply(Command::Presentation(presentation));
-                    }
-                    ui.weak(if self.template == crate::rendering::TEMPLATE {
-                        "Ville de Valmont".to_owned()
-                    } else {
-                        crate::tr!("embedded-template")
-                    });
                 });
             });
         egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
@@ -1610,6 +1695,114 @@ impl eframe::App for App {
 #[cfg(test)]
 mod interaction_tests {
     use super::*;
+
+    #[test]
+    fn general_settings_change_the_letter_and_legacy_model_selection_is_explicit() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.information_open = true;
+        ctx.style_mut(|s| s.animation_time = 0.0);
+        let source = app.document.source().to_owned();
+        let revision = app.revision;
+        let mut time = 0.0;
+        let mut draw = |app: &mut App, events| {
+            time += 0.1;
+            ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1240.0, 900.0),
+                    )),
+                    time: Some(time),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| app.ui_frame(ctx),
+            )
+        };
+        fn point(output: &egui::FullOutput, value: &str) -> egui::Pos2 {
+            output
+                .shapes
+                .iter()
+                .find_map(|shape| match &shape.shape {
+                    egui::Shape::Text(text) if text.galley.text() == value => {
+                        Some(text.pos + text.galley.rect.center().to_vec2())
+                    }
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("champ ou choix absent : {value}"))
+        }
+        fn click(
+            app: &mut App,
+            draw: &mut impl FnMut(&mut App, Vec<egui::Event>) -> egui::FullOutput,
+            pos: egui::Pos2,
+        ) {
+            for pressed in [true, false] {
+                draw(
+                    app,
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        },
+                    ],
+                );
+            }
+        }
+        fn choose(
+            app: &mut App,
+            draw: &mut impl FnMut(&mut App, Vec<egui::Event>) -> egui::FullOutput,
+            current: &str,
+            next: &str,
+        ) {
+            draw(app, vec![]);
+            let output = draw(app, vec![]);
+            click(app, draw, point(&output, current));
+            let output = draw(app, vec![]);
+            click(app, draw, point(&output, next));
+        }
+        choose(&mut app, &mut draw, "A4", "A3");
+        choose(&mut app, &mut draw, "Portrait", "Paysage");
+        choose(&mut app, &mut draw, "Français", "Anglais");
+        choose(
+            &mut app,
+            &mut draw,
+            "Courrier institutionnel",
+            "Courrier de service",
+        );
+        assert_eq!(app.metadata.options.paper, PaperFormat::A3);
+        assert!(app.metadata.options.landscape);
+        assert_eq!(app.metadata.options.language, DocumentLanguage::English);
+        assert!(app.compact);
+        assert!(app.is_dirty());
+        assert_eq!(app.revision, revision + 4);
+        assert_eq!(app.document.source(), source);
+
+        let mut legacy = Letter::demo();
+        legacy.template = include_str!("../tests/fixtures/courrier-v1.typ").into();
+        legacy.template_contract = TemplateContract::Legacy;
+        let old_model = legacy.template.clone();
+        let document = Document::from_source(&legacy.source).unwrap();
+        app.install_letter(legacy, document, None);
+        draw(&mut app, vec![]);
+        assert_eq!(app.template, old_model); // Aucun remplacement à l’ouverture.
+        assert!(!app.is_dirty());
+        choose(
+            &mut app,
+            &mut draw,
+            "Modèle du document",
+            "Courrier institutionnel",
+        );
+        assert_eq!(app.template_contract, TemplateContract::DocumentOptions);
+        assert_eq!(app.template, crate::rendering::TEMPLATE);
+        assert_eq!(app.saved.template, old_model);
+        assert_eq!(app.document.source(), source);
+        assert!(app.is_dirty());
+        assert!(!app.window_title.contains("typstOgraphe"));
+    }
 
     #[test]
     fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplicates() {
@@ -1777,8 +1970,13 @@ mod interaction_tests {
         // colonne de gauche et laisse une zone de rédaction utilisable.
         let body = text_rect(&opened, &app.document.view.text);
         assert!(body.height() > 150.0, "zone de rédaction : {body:?}");
+        // Les nouveaux réglages occupent Général ; replier ce groupe permet
+        // d’accéder aux champs de correspondance dans la petite fenêtre.
+        click(&mut app, &mut draw, text_rect(&opened, "Général").center());
+        draw(&mut app, vec![]);
+        let correspondence = draw(&mut app, vec![]);
         let original_subject = app.metadata.objet.clone();
-        let subject = text_rect(&opened, &app.metadata.objet);
+        let subject = text_rect(&correspondence, &app.metadata.objet);
         assert!(subject.is_positive());
         assert!(subject.right() < preview.left());
         click(&mut app, &mut draw, subject.center());
@@ -1865,7 +2063,7 @@ mod interaction_tests {
             }],
         );
         app.apply(Command::Palette);
-        app.palette_query = "présentation de service".into();
+        app.palette_query = "modèle de courrier de service".into();
         frame(&mut app, &ctx, vec![]);
         frame(
             &mut app,

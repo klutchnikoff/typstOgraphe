@@ -562,8 +562,114 @@ impl Projector {
     }
 }
 
+/// Contrat explicitement enregistré avec le modèle. Les anciens modèles sont
+/// conservés tels quels, sans leur passer des arguments qu’ils ne connaissent pas.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum TemplateContract {
+    #[default]
+    Legacy,
+    DocumentOptions,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PaperFormat {
+    A3,
+    #[default]
+    A4,
+    A5,
+    #[serde(rename = "us-letter")]
+    Letter,
+    #[serde(rename = "us-legal")]
+    Legal,
+}
+impl PaperFormat {
+    pub const ALL: [Self; 5] = [Self::A3, Self::A4, Self::A5, Self::Letter, Self::Legal];
+    pub fn typst_name(self) -> &'static str {
+        match self {
+            Self::A3 => "a3",
+            Self::A4 => "a4",
+            Self::A5 => "a5",
+            Self::Letter => "us-letter",
+            Self::Legal => "us-legal",
+        }
+    }
+    pub fn label(self) -> String {
+        match self {
+            Self::A3 => "A3".into(),
+            Self::A4 => "A4".into(),
+            Self::A5 => "A5".into(),
+            Self::Letter => crate::tr!("paper-letter"),
+            Self::Legal => crate::tr!("paper-legal"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub enum DocumentLanguage {
+    #[default]
+    #[serde(rename = "fr")]
+    French,
+    #[serde(rename = "en")]
+    English,
+    #[serde(rename = "de")]
+    German,
+    #[serde(rename = "es")]
+    Spanish,
+    #[serde(rename = "it")]
+    Italian,
+    #[serde(rename = "pt")]
+    Portuguese,
+    #[serde(rename = "nl")]
+    Dutch,
+}
+impl DocumentLanguage {
+    pub const ALL: [Self; 7] = [
+        Self::French,
+        Self::English,
+        Self::German,
+        Self::Spanish,
+        Self::Italian,
+        Self::Portuguese,
+        Self::Dutch,
+    ];
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::French => "fr",
+            Self::English => "en",
+            Self::German => "de",
+            Self::Spanish => "es",
+            Self::Italian => "it",
+            Self::Portuguese => "pt",
+            Self::Dutch => "nl",
+        }
+    }
+    pub fn label(self) -> String {
+        match self {
+            Self::French => crate::tr!("language-french"),
+            Self::English => crate::tr!("language-english"),
+            Self::German => crate::tr!("language-german"),
+            Self::Spanish => crate::tr!("language-spanish"),
+            Self::Italian => crate::tr!("language-italian"),
+            Self::Portuguese => crate::tr!("language-portuguese"),
+            Self::Dutch => crate::tr!("language-dutch"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct DocumentOptions {
+    pub paper: PaperFormat,
+    pub landscape: bool,
+    pub language: DocumentLanguage,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Metadata {
+    #[serde(default)]
+    pub options: DocumentOptions,
     pub expediteur: String,
     pub fonction: String,
     pub service: String,
@@ -578,6 +684,7 @@ pub struct Metadata {
 impl Default for Metadata {
     fn default() -> Self {
         Self {
+            options: DocumentOptions::default(),
             expediteur: "Camille Martin".into(),
             fonction: "Responsable de la vie associative".into(),
             service: "Vie associative".into(),
@@ -592,7 +699,11 @@ impl Default for Metadata {
     }
 }
 impl Metadata {
+    #[cfg(test)]
     pub fn main_source(&self, compact: bool) -> String {
+        self.main_source_for(compact, TemplateContract::DocumentOptions)
+    }
+    pub fn main_source_for(&self, compact: bool, contract: TemplateContract) -> String {
         let mut source = String::from("#import \"modele.typ\": courrier\n#show: courrier.with(\n");
         for (key, value) in [
             ("expediteur", &self.expediteur),
@@ -607,6 +718,14 @@ impl Metadata {
             ("date", &self.date),
         ] {
             source.push_str(&format!("  {key}: {},\n", typst_string(value)));
+        }
+        if contract == TemplateContract::DocumentOptions {
+            source.push_str(&format!(
+                "  options: (paper: {}, landscape: {}, language: {}),\n",
+                typst_string(self.options.paper.typst_name()),
+                self.options.landscape,
+                typst_string(self.options.language.code()),
+            ));
         }
         source.push_str(&format!(
             "  compact: {compact},\n)\n#include \"contenu.typ\"\n"

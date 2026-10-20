@@ -162,6 +162,70 @@ fn real_typst_composes_both_models_and_metadata_escapes() {
 }
 
 #[test]
+fn document_options_control_real_page_dimensions_and_text_language() {
+    use crate::document::{DocumentLanguage, PaperFormat};
+    use typst::layout::{Frame, FrameItem};
+    fn collect(frame: &Frame, language: &str, text: &mut String) {
+        for (_, item) in frame.items() {
+            match item {
+                FrameItem::Group(group) => collect(&group.frame, language, text),
+                FrameItem::Text(run) => {
+                    assert_eq!(run.lang.as_str(), language);
+                    text.push_str(&run.text);
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut world = crate::rendering::TypstWorld::default();
+    let mut metadata = Metadata::default();
+    for (paper, width, height) in [
+        (PaperFormat::A3, 297.0, 420.0),
+        (PaperFormat::A4, 210.0, 297.0),
+        (PaperFormat::A5, 148.0, 210.0),
+        (PaperFormat::Letter, 215.9, 279.4),
+        (PaperFormat::Legal, 215.9, 355.6),
+    ] {
+        for landscape in [false, true] {
+            metadata.options.paper = paper;
+            metadata.options.landscape = landscape;
+            for compact in [false, true] {
+                let document = world
+                    .compile("A short letter.", &metadata, compact)
+                    .unwrap();
+                for page in document.pages() {
+                    let size = page.frame.size();
+                    let (expected_width, expected_height) = if landscape {
+                        (height, width)
+                    } else {
+                        (width, height)
+                    };
+                    assert!((size.x.to_mm() - expected_width).abs() < 0.05);
+                    assert!((size.y.to_mm() - expected_height).abs() < 0.05);
+                }
+            }
+        }
+    }
+    metadata.options.paper = PaperFormat::A4;
+    metadata.options.landscape = false;
+    for language in DocumentLanguage::ALL {
+        metadata.options.language = language;
+        let document = world.compile("A short letter.", &metadata, false).unwrap();
+        let mut text = String::new();
+        for page in document.pages() {
+            collect(&page.frame, language.code(), &mut text);
+        }
+        assert!(text.contains("A short letter."));
+        if language == DocumentLanguage::English {
+            assert!(text.contains("Subject"));
+        }
+        if language == DocumentLanguage::French {
+            assert!(text.contains("Objet"));
+        }
+    }
+}
+
+#[test]
 fn compiler_reports_error_and_recovers_on_next_request() {
     let mut world = crate::rendering::TypstWorld::default();
     assert!(

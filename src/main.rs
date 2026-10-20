@@ -31,6 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     metadata: document::Metadata::default(),
                     compact: false,
                     template: rendering::TEMPLATE.into(),
+                    template_contract: document::TemplateContract::DocumentOptions,
                     export_dir: Some(PathBuf::from(dir)),
                 };
                 let result = rendering::render(&mut world, &request)?;
@@ -62,11 +63,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
-            .with_title(crate::tr!(
-                "window-title",
-                name = crate::tr!("letter-type"),
-                marker = ""
-            ))
+            // eframe emploie aussi ce titre initial pour le menu de l’application
+            // macOS. Le titre du document est renseigné à la première frame.
+            .with_title("typstOgraphe")
             .with_inner_size([1240.0, 900.0])
             .with_min_inner_size([960.0, 640.0]),
         ..Default::default()
