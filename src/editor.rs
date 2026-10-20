@@ -7,6 +7,7 @@ use eframe::egui::{
 use std::{ops::Range, sync::Arc};
 
 pub const EDITOR_ID: &str = "corps-courrier";
+const DESCRIPTION_LABEL_SCALE: f32 = 0.9;
 
 pub fn install_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
@@ -131,7 +132,7 @@ pub fn layout(
     }
     let colors = EditorColors::from_visuals(ui.visuals());
     let placeholder = description_placeholder(ui, editor);
-    let placeholder_space = placeholder.size().x + editor.size * 0.35;
+    let placeholder_space = placeholder.size().x + editor.size * DESCRIPTION_LABEL_SCALE * 0.35;
     let mut empty_terms = Vec::new();
     let mut job = LayoutJob::default();
     job.wrap.max_width = width;
@@ -146,6 +147,9 @@ pub fn layout(
             term_style.bold = true;
         }
         let mut format = text_format(kind, &term_style, &colors, editor);
+        if kind == BlockKind::Description && in_term {
+            format.font_id.size *= DESCRIPTION_LABEL_SCALE;
+        }
         if character == '\n' {
             format.line_height = Some(editor.size * 2.0);
         }
@@ -270,7 +274,9 @@ fn layout_quote_paragraphs(
 fn description_placeholder(ui: &egui::Ui, editor: EditorStyle) -> Arc<Galley> {
     ui.painter().layout_no_wrap(
         crate::tr!("description-placeholder"),
-        editor.font.font_id(editor.size, 1),
+        editor
+            .font
+            .font_id(editor.size * DESCRIPTION_LABEL_SCALE, 1),
         EditorColors::from_visuals(ui.visuals())
             .bold
             .gamma_multiply(0.7),
@@ -334,7 +340,10 @@ fn description_boxes(
                         egui::pos2(left, top),
                         egui::pos2(right, bottom),
                     )
-                    .expand2(egui::vec2(size * 0.28, size * 0.12)),
+                    .expand2(egui::vec2(
+                        size * DESCRIPTION_LABEL_SCALE * 0.28,
+                        size * DESCRIPTION_LABEL_SCALE * 0.12,
+                    )),
                     placeholder: empty.then_some(egui::pos2(left, top)),
                     start: range.start,
                 });
