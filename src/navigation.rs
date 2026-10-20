@@ -164,6 +164,23 @@ fn collect_anchors(world: &TypstWorld, frame: &Frame, page: usize, anchors: &mut
                         .map(|point| pos + point.transform(group.transform));
                 }
             }
+            FrameItem::Image(_, size, span) if span.id() == Some(file_id("contenu.typ")) => {
+                if let Ok(source) = world.source(file_id("contenu.typ"))
+                    && let Some(node) = source.find(*span)
+                {
+                    anchors.push(Anchor {
+                        source: node.range(),
+                        page,
+                        point: pos + Point::new(size.x / 2.0, size.y / 2.0),
+                        corners: [
+                            pos,
+                            pos + Point::new(size.x, Abs::zero()),
+                            pos + size.to_point(),
+                            pos + Point::new(Abs::zero(), size.y),
+                        ],
+                    });
+                }
+            }
             FrameItem::Text(text) => {
                 for glyph in &text.glyphs {
                     let width = glyph.x_advance.at(text.size);

@@ -12,8 +12,8 @@ use std::{
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 pub const EXTENSION: &str = "typsto";
-const FORMAT_VERSION: u32 = 4;
-const LIMIT: u64 = 16 * 1024 * 1024;
+const FORMAT_VERSION: u32 = 5;
+const LIMIT: u64 = crate::assets::MAX_DOCUMENT_BYTES;
 const ENTRIES: [&str; 5] = [
     "manifest.json",
     "main.typ",
@@ -27,6 +27,7 @@ pub struct StoredDocument {
     pub source: String,
     pub metadata: Metadata,
     pub template: String,
+    pub assets: crate::assets::Assets,
 }
 impl StoredDocument {
     pub fn demo(kind: DocumentType) -> Self {
@@ -34,6 +35,7 @@ impl StoredDocument {
             source: kind.demo_source().into(),
             metadata: Metadata::demo(kind),
             template: kind.default_model(),
+            assets: Default::default(),
         }
     }
     pub fn blank(kind: DocumentType) -> Self {
@@ -41,6 +43,7 @@ impl StoredDocument {
             source: String::new(),
             metadata: Metadata::blank(kind),
             template: kind.default_model(),
+            assets: Default::default(),
         }
     }
 }
@@ -64,7 +67,7 @@ impl Manifest {
 pub fn read(path: &Path) -> Result<StoredDocument, String> {
     let file =
         File::open(path).map_err(|e| crate::tr!("storage-open-failed", error = e.to_string()))?;
-    if file.metadata().map_err(|e| e.to_string())?.len() > LIMIT + 65536 {
+    if file.metadata().map_err(|e| e.to_string())?.len() > LIMIT + 512 * 1024 {
         return Err(crate::tr!("storage-file-too-large"));
     }
     decode(file).map_err(|e| crate::tr!("storage-invalid", error = e))
@@ -73,14 +76,16 @@ pub fn read(path: &Path) -> Result<StoredDocument, String> {
 fn decode(reader: impl Read + std::io::Seek) -> Result<StoredDocument, String> {
     let mut zip = ZipArchive::new(reader)
         .map_err(|e| crate::tr!("storage-zip-unreadable", error = e.to_string()))?;
-    if zip.len() != ENTRIES.len() {
+    if zip.len() < ENTRIES.len() || zip.len() > 1024 {
         return Err(crate::tr!("storage-file-count"));
     }
     let mut total = 0_u64;
     let mut names = std::collections::HashSet::new();
     for index in 0..zip.len() {
         let file = zip.by_index(index).map_err(|e| e.to_string())?;
-        if !ENTRIES.contains(&file.name()) || !names.insert(file.name().to_owned()) {
+        if (!ENTRIES.contains(&file.name()) && !crate::assets::valid_path(file.name()))
+            || !names.insert(file.name().to_owned())
+        {
             return Err(crate::tr!("storage-unknown-entry"));
         }
         total = total
@@ -95,11 +100,22 @@ fn decode(reader: impl Read + std::io::Seek) -> Result<StoredDocument, String> {
     if manifest.format != "typstOgraphe" || manifest.version != FORMAT_VERSION {
         return Err(crate::tr!("storage-unsupported"));
     }
+    let mut assets = crate::assets::Assets::new();
+    for name in names.iter().filter(|name| crate::assets::valid_path(name)) {
+        let mut data = Vec::new();
+        zip.by_name(name)
+            .map_err(|e| e.to_string())?
+            .take(crate::assets::MAX_IMAGE_BYTES as u64 + 1)
+            .read_to_end(&mut data)
+            .map_err(|e| e.to_string())?;
+        assets.insert(name.clone(), data.into());
+    }
     let letter = StoredDocument {
         source: entry(&mut zip, "contenu.typ")?,
         metadata: serde_json::from_str(&entry(&mut zip, "metadonnees.json")?)
             .map_err(|e| crate::tr!("storage-metadata-unreadable", error = e.to_string()))?,
         template: entry(&mut zip, "modele.typ")?,
+        assets,
     };
     if manifest.document_type != letter.metadata.document_type() {
         return Err(crate::tr!("storage-unsupported"));
@@ -132,7 +148,21 @@ fn entry<R: Read + std::io::Seek>(zip: &mut ZipArchive<R>, name: &str) -> Result
 }
 
 fn validate(letter: &StoredDocument) -> Result<(), String> {
-    Document::from_source(&letter.source)?;
+    let document = Document::from_source(&letter.source)?;
+    for image in document.view.images.values() {
+        if !letter.assets.contains_key(&image.path) {
+            return Err(crate::tr!(
+                "image-resource-missing",
+                path = image.path.clone()
+            ));
+        }
+    }
+    for (path, data) in &letter.assets {
+        if !crate::assets::valid_path(path) {
+            return Err(crate::tr!("storage-unknown-entry"));
+        }
+        crate::assets::decode(data, path.rsplit('.').next().unwrap())?;
+    }
     if letter.template.trim().is_empty()
         || typst_syntax::Source::detached(&letter.template)
             .root()
@@ -148,6 +178,9 @@ fn validate(letter: &StoredDocument) -> Result<(), String> {
 /// par renommage atomique. Une erreur d'écriture conserve le courrier précédent.
 pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
     validate(letter)?;
+    if letter.assets.len() + ENTRIES.len() > 1024 {
+        return Err(crate::tr!("storage-file-count"));
+    }
     let manifest = serde_json::to_string_pretty(&Manifest::new(letter.metadata.document_type()))
         .map_err(|e| e.to_string())?;
     let metadata = serde_json::to_string_pretty(&letter.metadata).map_err(|e| e.to_string())?;
@@ -159,7 +192,14 @@ pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
         metadata.as_str(),
         letter.template.as_str(),
     ];
-    if files.iter().map(|text| text.len() as u64).sum::<u64>() > LIMIT {
+    if files.iter().map(|text| text.len() as u64).sum::<u64>()
+        + letter
+            .assets
+            .values()
+            .map(|data| data.len() as u64)
+            .sum::<u64>()
+        > LIMIT
+    {
         return Err(crate::tr!("storage-letter-too-large"));
     }
     let parent = path
@@ -175,6 +215,10 @@ pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
         for (name, text) in ENTRIES.into_iter().zip(files) {
             zip.start_file(name, options).map_err(|e| e.to_string())?;
             zip.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
+        }
+        for (name, data) in &letter.assets {
+            zip.start_file(name, options).map_err(|e| e.to_string())?;
+            zip.write_all(data).map_err(|e| e.to_string())?;
         }
         zip.finish().map_err(|e| e.to_string())?;
     }
@@ -214,6 +258,73 @@ mod tests {
             writer.write_all(&bytes).unwrap();
         }
         writer.finish().unwrap();
+    }
+
+    #[test]
+    fn image_archive_is_self_contained_and_exported_sources_recompile() {
+        let dir = tempfile::tempdir().unwrap();
+        let archive = dir.path().join("Images.typsto");
+        let mut letter = StoredDocument::demo(DocumentType::Courrier);
+        letter.source =
+            "#figure(image(\"images/parc.svg\", alt: \"Un parc arboré\"), caption: [Le *parc*.])"
+                .into();
+        letter.assets.insert(
+            "images/parc.svg".into(),
+            include_bytes!("../tests/fixtures/parc.svg")
+                .as_slice()
+                .into(),
+        );
+        save(&archive, &letter).unwrap();
+        let restored = read(&archive).unwrap();
+        assert_eq!(restored, letter);
+        let mut world = crate::rendering::TypstWorld::default();
+        let document = Document::from_source(&restored.source).unwrap();
+        let export = dir.path().join("Export");
+        let request = crate::rendering::RenderRequest {
+            revision: 1,
+            source: restored.source,
+            source_map: document.source_map,
+            metadata: restored.metadata,
+            template: restored.template,
+            assets: restored.assets,
+            export_dir: Some(export.clone()),
+        };
+        let output = crate::rendering::render(&mut world, &request).unwrap();
+        assert!(!output.pages.is_empty());
+        assert_eq!(
+            std::fs::read(export.join("images/parc.svg")).unwrap(),
+            include_bytes!("../tests/fixtures/parc.svg")
+        );
+        // Le moteur ne lit aucun fichier local : réinjecter uniquement l’export
+        // vérifie que toutes les ressources nécessaires ont bien été exportées.
+        let mut exported = crate::assets::Assets::new();
+        exported.insert(
+            "images/parc.svg".into(),
+            std::fs::read(export.join("images/parc.svg"))
+                .unwrap()
+                .into(),
+        );
+        let mut other_world = crate::rendering::TypstWorld::default();
+        other_world.set_assets(&exported);
+        other_world
+            .compile_with_template(
+                &std::fs::read_to_string(export.join("contenu.typ")).unwrap(),
+                &request.metadata,
+                &std::fs::read_to_string(export.join("modele.typ")).unwrap(),
+            )
+            .unwrap();
+        for corrupt in 0..4 {
+            save(&archive, &letter).unwrap();
+            rewrite(&archive, |files| match corrupt {
+                0 => {
+                    files.pop();
+                }
+                1 => files.last_mut().unwrap().0 = "images/../escape.svg".into(),
+                2 => files.last_mut().unwrap().1 = b"invalide".to_vec(),
+                _ => files.last_mut().unwrap().0 = "images/parc.png".into(),
+            });
+            assert!(read(&archive).is_err(), "cas {corrupt}");
+        }
     }
 
     #[test]
@@ -257,6 +368,7 @@ mod tests {
             &mut world,
             &crate::rendering::RenderRequest {
                 revision: 1,
+                assets: restored.assets.clone(),
                 source: restored.source.clone(),
                 source_map: document.source_map,
                 metadata: restored.metadata,

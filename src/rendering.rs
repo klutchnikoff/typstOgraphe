@@ -29,6 +29,7 @@ pub struct TypstWorld {
     book: LazyHash<FontBook>,
     fonts: Vec<Font>,
     files: HashMap<FileId, Source>,
+    assets: HashMap<FileId, Bytes>,
     main: FileId,
 }
 
@@ -44,6 +45,7 @@ impl Default for TypstWorld {
             book: LazyHash::new(book),
             fonts,
             files: HashMap::new(),
+            assets: HashMap::new(),
             main,
         }
     }
@@ -56,6 +58,12 @@ pub(crate) fn file_id(path: &str) -> FileId {
 }
 
 impl TypstWorld {
+    pub fn set_assets(&mut self, assets: &crate::assets::Assets) {
+        self.assets = assets
+            .iter()
+            .map(|(path, data)| (file_id(path), Bytes::new(data.to_vec())))
+            .collect();
+    }
     fn set_source(&mut self, name: &str, text: &str) {
         let id = file_id(name);
         self.files
@@ -191,8 +199,10 @@ impl World for TypstWorld {
             .ok_or_else(|| FileError::NotFound(id.vpath().get_with_slash().into()))
     }
     fn file(&self, id: FileId) -> FileResult<Bytes> {
-        self.source(id)
-            .map(|s| Bytes::new(s.text().as_bytes().to_vec()))
+        self.assets.get(&id).cloned().map(Ok).unwrap_or_else(|| {
+            self.source(id)
+                .map(|s| Bytes::new(s.text().as_bytes().to_vec()))
+        })
     }
     fn font(&self, index: usize) -> Option<Font> {
         self.fonts.get(index).cloned()
@@ -212,6 +222,7 @@ impl typst_ide::IdeWorld for TypstWorld {
 pub struct RenderRequest {
     pub revision: u64,
     pub source: String,
+    pub assets: crate::assets::Assets,
     pub source_map: SourceMap,
     pub metadata: Metadata,
     pub template: String,
@@ -236,6 +247,7 @@ pub struct RenderResponse {
 
 pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendered, String> {
     let start = Instant::now();
+    world.set_assets(&request.assets);
     let document =
         world.compile_with_template(&request.source, &request.metadata, &request.template)?;
     let presentation = world.model_presentation(&request.template)?;
@@ -259,6 +271,15 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
         write(path, "courrier.pdf", &pdf)?;
         write(path, "main.typ", request.metadata.main_source().as_bytes())?;
         write(path, "contenu.typ", request.source.as_bytes())?;
+        if !request.assets.is_empty() {
+            std::fs::create_dir(path.join("images")).map_err(|e| e.to_string())?;
+        }
+        for (name, data) in &request.assets {
+            if !crate::assets::valid_path(name) {
+                return Err(crate::tr!("storage-unknown-entry"));
+            }
+            write(path, name, data)?;
+        }
         write(path, "modele.typ", request.template.as_bytes())?;
         write(
             path,

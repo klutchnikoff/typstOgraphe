@@ -2,7 +2,12 @@
 use crate::commands::{Command, FileCommand, Keymap, MenuGroup, Registry};
 use eframe::egui;
 
-pub const GROUPS: [MenuGroup; 3] = [MenuGroup::File, MenuGroup::Edit, MenuGroup::View];
+pub const GROUPS: [MenuGroup; 4] = [
+    MenuGroup::File,
+    MenuGroup::Edit,
+    MenuGroup::Insert,
+    MenuGroup::View,
+];
 
 impl MenuGroup {
     pub fn label(self) -> String {
@@ -10,6 +15,7 @@ impl MenuGroup {
             Self::File => crate::tr!("file-menu"),
             Self::Edit => crate::tr!("edit-menu"),
             Self::View => crate::tr!("view-menu"),
+            Self::Insert => crate::tr!("insert-menu"),
         }
     }
 }

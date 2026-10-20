@@ -1,4 +1,5 @@
 mod app;
+mod assets;
 mod commands;
 mod document;
 mod document_types;
@@ -29,6 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let document = document::Document::from_source(kind.demo_source())?;
                 let request = rendering::RenderRequest {
                     revision: 1,
+                    assets: Default::default(),
                     source: document.source().into(),
                     source_map: document.source_map.clone(),
                     metadata: document_types::Metadata::demo(

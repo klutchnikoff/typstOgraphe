@@ -302,14 +302,16 @@ Le fichier est une archive ZIP standard contenant :
 - `modele.typ` : copie exacte du modèle utilisé, réutilisée à la réouverture
   et lors de l’export ;
 - `main.typ` : en-tête généré à partir des métadonnées ;
-- `manifest.json` : identifiant du format, version 4 et type « courrier ».
+- `manifest.json` : identifiant du format, version 5 et type « courrier » ;
+- `images/` : images PNG, JPEG ou SVG embarquées dans le courrier.
 
 Le modèle embarqué permet de retrouver la présentation du courrier indépendamment
 des modèles fournis par une future version de l’application. L’enregistrement
 écrit un fichier temporaire voisin puis remplace atomiquement la cible. Une
 archive invalide est refusée sans remplacer le courrier ouvert. Le format
-accepte uniquement ces cinq fichiers, pour un total décompressé de 16 Mio maximum.
-Il ne contient pas encore de pièces jointes ou d’images.
+accepte ces cinq fichiers et les images sous des chemins relatifs contrôlés,
+pour un total décompressé de 64 Mio maximum (16 Mio par image). Les images sont
+lues directement dans l’archive, sans extraction ni dépendance au fichier original.
 
 Le prototype évolue sans exigence de rétrocompatibilité. Le format de fichier et
 les signatures des fonctions Typst sont affinés au fil du développement ; seul
@@ -454,6 +456,56 @@ texte et l’attribution, même si l’attribution précède le corps dans l’a
 La sélection, l’annulation, l’enregistrement et la synchronisation avec l’aperçu
 utilisent ces mêmes correspondances.
 
+## Images et légendes
+
+**Insertion → Insérer une image…**, la palette de commandes et le dépôt d’un
+fichier dans la fenêtre permettent d’ajouter une image PNG, JPEG ou SVG à la
+position de rédaction. L’image est copiée dans le courrier ; déplacer ou supprimer
+son fichier d’origine ne change donc pas le document enregistré.
+
+Dans l’éditeur, chaque image forme un bloc avec une vignette proportionnelle
+et une légende facultative juste dessous. **Ajouter une légende…** est un texte
+indicatif, jamais enregistré dans le source. La légende accepte les styles et
+les liens. Un clic sur l’image la sélectionne et affiche **Remplacer…**,
+**Informations** et **Supprimer**. Remplacer conserve la légende et le texte
+alternatif ; supprimer le bloc retire aussi sa légende. Ces actions s’annulent
+et se rétablissent avec l’historique du document.
+
+`Tab` rejoint le début de la légende. `Entrée` poursuit la rédaction dans un
+paragraphe normal après l’image. Au début de la légende, `Retour arrière`
+sélectionne l’objet ; une seconde pression supprime le bloc. L’éditeur reste
+une zone de sélection continue, avec un caractère objet interne par image.
+Ce caractère n’est jamais exporté dans le source Typst.
+
+Le dialogue **Informations** contient un **Texte alternatif**, indépendant de
+la légende, transmis à l’image pour les lecteurs d’écran. Il n’apparaît pas dans
+la composition imprimée. Le source de référence utilise les éléments natifs :
+
+```typst
+#figure(
+  image("images/image-1.svg", alt: "Trois arbres bordent un chemin."),
+  caption: [Le *parc* municipal.],
+)
+```
+
+Sans légende, `caption` est omis ; sans texte alternatif, `alt` vaut `none`.
+Le sous-ensemble éditable ne contient pas de réglages de taille ou de placement
+par image : ces choix relèvent du modèle. Les modèles fournis utilisent des
+images centrées, limitées au cadre de composition, des légendes plus petites
+et sans numérotation. Ils peuvent être remplacés par des modèles qui définissent
+d’autres règles `set image`, `set figure` et `show figure.caption`.
+
+Une `figure` Typst reste dans le flux par défaut (`placement: none`). Un modèle
+peut la rendre flottante avec `placement: top`, `bottom` ou `auto`, sans modifier
+le contenu du document. Le courrier fourni garde le placement dans le flux.
+La navigation dans les deux sens et le surlignage de sélection concernent aussi
+les images et leur légende.
+
+L’export contient le dossier `images/` nécessaire à la recompilation des sources,
+en plus du PDF, des PNG de pages et des fichiers Typst. L’import de modèles avec
+des ressources supplémentaires, le recadrage, les renvois à des figures et le
+collage d’images depuis le presse-papiers restent à développer.
+
 ## Source et périmètre
 
 Le source Typst restreint est la référence pour le corps du document. Le parseur
@@ -465,7 +517,8 @@ de rédaction mettent à jour le source. Le source est normalisé lors d’une
 
 Le sous-ensemble de ce prototype comprend les paragraphes, les titres 1–3,
 le gras, l’italique, les liens, les puces, les listes numérotées, les listes de descriptions simples et les
-citations en bloc avec attribution facultative.
+citations en bloc avec attribution facultative, et les images avec légende et
+texte alternatif.
 Le corps n’expose jamais de code à l’utilisateur. Le parseur refuse les fonctions
 et les expressions calculées qu’il ne sait pas éditer.
 

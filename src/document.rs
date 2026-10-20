@@ -1,6 +1,14 @@
 //! Projection éditable du sous-ensemble Typst. Les indices publics sont des
 //! indices de caractères Unicode (comme les curseurs egui), jamais des octets.
-use std::ops::Range;
+use std::{collections::BTreeMap, ops::Range};
+
+pub const IMAGE_OBJECT: char = '\u{fffc}';
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ImageBlock {
+    pub path: String,
+    pub alt: String,
+}
 
 use eframe::egui::TextBuffer;
 use serde::{Deserialize, Serialize};
@@ -23,16 +31,17 @@ pub enum BlockKind {
     Description,
     Quote,
     QuoteAttribution,
+    Image(u64),
 }
 impl BlockKind {
     pub fn is_list(self) -> bool {
         matches!(self, Self::Bullet | Self::Numbered | Self::Description)
     }
     pub fn public_kind(self) -> Self {
-        if self == Self::QuoteAttribution {
-            Self::Quote
-        } else {
-            self
+        match self {
+            Self::QuoteAttribution => Self::Quote,
+            Self::Image(_) => Self::Paragraph,
+            _ => self,
         }
     }
 }
@@ -56,6 +65,7 @@ pub struct Projection {
     pub styles: Vec<InlineStyle>,
     pub blocks: Vec<BlockKind>,
     pub typing_style: InlineStyle,
+    pub images: BTreeMap<u64, ImageBlock>,
 }
 
 impl Default for Projection {
@@ -65,6 +75,7 @@ impl Default for Projection {
             styles: vec![],
             blocks: vec![BlockKind::Paragraph],
             typing_style: InlineStyle::default(),
+            images: BTreeMap::new(),
         }
     }
 }
@@ -74,6 +85,7 @@ pub struct Document {
     source: String,
     pub source_map: SourceMap,
     pub view: Projection,
+    pub assets: crate::assets::Assets,
 }
 
 /// Chaque caractère visible pointe vers sa plage d'octets dans le source réel.
@@ -129,6 +141,7 @@ impl Document {
                 source_len: source.len(),
             },
             view: parser.view,
+            assets: Default::default(),
         })
     }
 
@@ -203,6 +216,9 @@ impl Projection {
     }
     pub fn set_block(&mut self, range: Range<usize>, kind: BlockKind) {
         for index in self.selected_lines(range) {
+            if matches!(self.blocks[index], BlockKind::Image(_)) {
+                continue;
+            }
             if kind == BlockKind::Quote && self.blocks[index] == BlockKind::QuoteAttribution {
                 continue;
             }
@@ -220,6 +236,69 @@ impl Projection {
                 }
             }
             self.blocks[index] = kind;
+        }
+    }
+    /// Un caractère objet représente l’image ; le reste du paragraphe est sa légende.
+    pub fn insert_image(&mut self, at: usize, image: ImageBlock) -> usize {
+        let id = self.images.keys().next_back().copied().unwrap_or(0) + 1;
+        let at = at.min(self.len());
+        let line = self.line_at(at);
+        let start = self.line_ranges()[line].start;
+        let prefix = if at == start { "" } else { "\n" };
+        let text = format!("{prefix}{IMAGE_OBJECT}\n");
+        self.insert_text(&text, at);
+        let position = at + prefix.len();
+        let line = self.line_at(position);
+        self.blocks[line] = BlockKind::Image(id);
+        if !matches!(self.blocks[line + 1], BlockKind::Image(_)) {
+            self.blocks[line + 1] = BlockKind::Paragraph;
+        }
+        self.images.insert(id, image);
+        position
+    }
+    pub fn image_range(&self, id: u64) -> Option<Range<usize>> {
+        let line = self
+            .blocks
+            .iter()
+            .position(|kind| *kind == BlockKind::Image(id))?;
+        Some(self.line_ranges()[line].clone())
+    }
+    // Une jonction de paragraphes ou la suppression du caractère objet libère
+    // le texte de légende. Aucun marqueur interne n’est exporté comme du texte.
+    fn clean_images(&mut self) {
+        let ranges = self.line_ranges();
+        let characters: Vec<_> = self.text.chars().collect();
+        for (line, kind) in self.blocks.iter_mut().enumerate() {
+            if matches!(kind, BlockKind::Image(_))
+                && characters.get(ranges[line].start) != Some(&IMAGE_OBJECT)
+            {
+                *kind = BlockKind::Paragraph;
+            }
+        }
+        let active: std::collections::BTreeSet<_> = self
+            .blocks
+            .iter()
+            .filter_map(|k| {
+                if let BlockKind::Image(id) = k {
+                    Some(*id)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        self.images.retain(|id, _| active.contains(id));
+        // Une suppression qui rejoint le paragraphe précédent retire aussi
+        // l’objet orphelin, tout en conservant le texte de sa légende.
+        for at in (0..characters.len()).rev() {
+            let line = self.line_at(at);
+            if characters[at] == IMAGE_OBJECT
+                && !(at == ranges[line].start && matches!(self.blocks[line], BlockKind::Image(_)))
+            {
+                let byte = self.byte_index(at);
+                self.text
+                    .replace_range(byte..byte + IMAGE_OBJECT.len_utf8(), "");
+                self.styles.remove(at);
+            }
         }
     }
     pub fn quote_groups(&self) -> Vec<QuoteGroup> {
@@ -295,7 +374,7 @@ impl Projection {
             .zip(self.text.chars())
             .skip(range.start.min(self.len()))
             .take(range.end.min(self.len()) - range.start.min(self.len()))
-            .filter(|(_, c)| !matches!(*c, '\n' | '\t'))
+            .filter(|(_, c)| !matches!(*c, '\n' | '\t' | IMAGE_OBJECT))
             .map(|(style, _)| style)
             .collect();
         let any = items.iter().any(|style| enabled(style));
@@ -317,7 +396,7 @@ impl Projection {
                 .iter_mut()
                 .zip(self.text.chars().skip(range.start))
             {
-                if !matches!(c, '\n' | '\t') {
+                if !matches!(c, '\n' | '\t' | IMAGE_OBJECT) {
                     apply(s);
                 }
             }
@@ -328,7 +407,7 @@ impl Projection {
             .iter_mut()
             .zip(self.text.chars().skip(range.start))
         {
-            if !matches!(c, '\n' | '\t') {
+            if !matches!(c, '\n' | '\t' | IMAGE_OBJECT) {
                 s.link.clone_from(&link);
             }
         }
@@ -370,6 +449,29 @@ impl Projection {
                     "\n\n"
                 });
                 origins[ranges[index].start - 1] = start..result.len();
+            }
+            if let BlockKind::Image(id) = kind {
+                let image = &self.images[&id];
+                result.push_str("#figure(");
+                let start = result.len();
+                result.push_str(&format!(
+                    "image({}, alt: {}),",
+                    typst_string(&image.path),
+                    if image.alt.is_empty() {
+                        "none".into()
+                    } else {
+                        typst_string(&image.alt)
+                    }
+                ));
+                origins[ranges[index].start] = start..result.len();
+                if ranges[index].len() > 1 {
+                    result.push_str(" caption: [");
+                    self.write_inline_line(index, &mut result, &mut origins);
+                    result.push_str("],");
+                }
+                result.push(')');
+                index += 1;
+                continue;
             }
             if kind == BlockKind::Quote {
                 let mut end = index + 1;
@@ -433,7 +535,7 @@ impl Projection {
         let description_separator = (kind == BlockKind::Description)
             .then(|| characters.iter().position(|c| *c == '\t'))
             .flatten();
-        let mut position = 0;
+        let mut position = usize::from(matches!(kind, BlockKind::Image(_)));
         while position < characters.len() {
             if Some(position) == description_separator {
                 let start = result.len();
@@ -461,6 +563,11 @@ impl Projection {
             }
             for (offset, character) in characters[position..end].iter().enumerate() {
                 let start = result.len();
+                // Un point après un appel (#strong[...].texte) serait analysé
+                // comme un accès à un champ, et doit rester du texte littéral.
+                if *character == '.' && result.ends_with(']') {
+                    result.push('\\');
+                }
                 result.push_str(&escape_markup(&character.to_string()));
                 origins[ranges[index].start + position + offset] = start..result.len();
             }
@@ -489,12 +596,24 @@ impl TextBuffer for Projection {
         &self.text
     }
     fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
-        let text = text.replace("\r\n", "\n").replace('\r', "\n");
+        let mut text = text.replace("\r\n", "\n").replace('\r', "\n");
         let count = text.chars().count();
+        if count == 0 {
+            return 0;
+        }
         let at = char_index.min(self.len());
         let line = self.line_at(at);
+        let image_before = match self.blocks[line] {
+            BlockKind::Image(id) if at == self.line_ranges()[line].start => Some(id),
+            _ => None,
+        };
+        if image_before.is_some() && !text.ends_with('\n') {
+            text.push('\n');
+        }
         let next_kind = match self.blocks[line] {
-            BlockKind::Heading(_) | BlockKind::QuoteAttribution => BlockKind::Paragraph,
+            BlockKind::Heading(_) | BlockKind::QuoteAttribution | BlockKind::Image(_) => {
+                BlockKind::Paragraph
+            }
             kind => kind,
         };
         let newlines = text.matches('\n').count();
@@ -511,6 +630,10 @@ impl TextBuffer for Projection {
                 }
             }),
         );
+        if let Some(id) = image_before {
+            self.blocks[line] = BlockKind::Paragraph;
+            self.blocks[line + newlines] = BlockKind::Image(id);
+        }
         count
     }
     fn delete_char_range(&mut self, range: Range<usize>) {
@@ -519,9 +642,13 @@ impl TextBuffer for Projection {
         let line = self.line_at(start);
         let bytes = self.byte_index(start)..self.byte_index(end);
         let newlines = self.text[bytes.clone()].matches('\n').count();
+        if start == self.line_ranges()[line].start && newlines > 0 {
+            self.blocks[line] = self.blocks[line + newlines];
+        }
         self.blocks.drain(line + 1..line + newlines + 1);
         self.text.replace_range(bytes, "");
         self.styles.drain(start..end);
+        self.clean_images();
     }
     fn replace_with(&mut self, text: &str) {
         *self = Self::default();
@@ -689,6 +816,9 @@ impl Projector {
             return Err(crate::tr!("source-computed-call"));
         };
         let args: Vec<_> = call.args().items().collect();
+        if callee.as_str() == "figure" {
+            return self.figure(&args);
+        }
         if callee.as_str() == "quote" {
             return self.quote(&args, style);
         }
@@ -720,6 +850,81 @@ impl Projector {
             }
         };
         self.inline_markup(body.body(), &nested)
+    }
+    fn figure(&mut self, args: &[ast::Arg<'_>]) -> Result<(), String> {
+        let invalid = || crate::tr!("source-image-signature");
+        let mut image = None;
+        let mut caption = None;
+        for arg in args {
+            match arg {
+                ast::Arg::Pos(Expr::FuncCall(call)) if image.is_none() => image = Some(*call),
+                ast::Arg::Named(named)
+                    if named.name().as_str() == "caption" && caption.is_none() =>
+                {
+                    let Expr::ContentBlock(content) = named.expr() else {
+                        return Err(invalid());
+                    };
+                    caption = Some(content);
+                }
+                _ => return Err(invalid()),
+            }
+        }
+        let image = image.ok_or_else(invalid)?;
+        if !matches!(image.callee(), Expr::Ident(name) if name.as_str() == "image") {
+            return Err(invalid());
+        }
+        let mut path = None;
+        let mut alt = None;
+        for arg in image.args().items() {
+            match arg {
+                ast::Arg::Pos(Expr::Str(value)) if path.is_none() => {
+                    path = Some(value.get().to_string())
+                }
+                ast::Arg::Named(named) if named.name().as_str() == "alt" && alt.is_none() => {
+                    alt = Some(match named.expr() {
+                        Expr::Str(value) => value.get().to_string(),
+                        Expr::None(_) => String::new(),
+                        _ => return Err(invalid()),
+                    });
+                }
+                _ => return Err(invalid()),
+            }
+        }
+        let path = path.ok_or_else(invalid)?;
+        if !crate::assets::valid_path(&path) {
+            return Err(invalid());
+        }
+        let mut projected = Projector {
+            source: self.source.clone(),
+            ..Default::default()
+        };
+        if let Some(caption) = caption {
+            projected.inline_markup(caption.body(), &InlineStyle::default())?;
+        }
+        if projected.view.blocks.len() != 1 {
+            return Err(invalid());
+        }
+        let id = self.view.images.keys().next_back().copied().unwrap_or(0) + 1;
+        self.pending_break = !self.view.text.is_empty();
+        self.ensure_block(BlockKind::Image(id));
+        let figure_origin = self.origin.clone();
+        self.origin = self
+            .source
+            .as_ref()
+            .and_then(|s| s.find(image.span()))
+            .map_or(figure_origin, |node| node.range());
+        self.append(&IMAGE_OBJECT.to_string(), &InlineStyle::default());
+        self.view.images.insert(
+            id,
+            ImageBlock {
+                path,
+                alt: alt.unwrap_or_default(),
+            },
+        );
+        projected.view.blocks[0] = BlockKind::Image(id);
+        self.extend(projected);
+        self.pending_break = true;
+        Ok(())
     }
     fn quote(&mut self, args: &[ast::Arg<'_>], style: &InlineStyle) -> Result<(), String> {
         let invalid = || crate::tr!("source-quote-signature");
@@ -791,7 +996,7 @@ impl Projector {
                 expr,
                 Expr::Heading(_) | Expr::ListItem(_) | Expr::EnumItem(_) | Expr::TermItem(_)
             )
-            || matches!(expr, Expr::FuncCall(call) if matches!(call.callee(), Expr::Ident(name) if name.as_str() == "quote"))
+            || matches!(expr, Expr::FuncCall(call) if matches!(call.callee(), Expr::Ident(name) if matches!(name.as_str(), "quote" | "figure")))
         }) {
             return Err(crate::tr!("source-nested-blocks"));
         }

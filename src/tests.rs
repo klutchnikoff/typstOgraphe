@@ -340,7 +340,8 @@ fn literal_typst_characters_are_not_executed() {
     let mut view = Projection::default();
     view.insert_text(literal, 0);
     let (source, _) = view.to_typst_mapped();
-    let restored = Document::from_source(&source).unwrap();
+    let restored =
+        Document::from_source(&source).unwrap_or_else(|error| panic!("{error}: {source:?}"));
     assert_eq!(restored.view.text, literal);
 }
 
@@ -721,4 +722,157 @@ fn selection_highlights_span_pages_and_include_partial_ligatures() {
     assert!(highlighted(&partial, sync.forward(2).unwrap()));
     assert!(!highlighted(&partial, sync.forward(0).unwrap()));
     assert!(!highlighted(&partial, sync.forward(5).unwrap()));
+}
+
+#[test]
+fn image_figures_round_trip_optional_styled_captions_alt_and_source_positions() {
+    let source = "Avant.\n\n#figure(image(\"images/parc.svg\", alt: \"Parc à Noël — \\\"ouvert\\\"\"), caption: [Un *parc* et #link(\"https://example.org\")[sa source]])\n\n#figure(image(\"images/autre.png\"))\n\nAprès.";
+    let mut document = Document::from_source(source).unwrap();
+    assert_eq!(document.view.images.len(), 2);
+    assert_eq!(document.view.images[&1].alt, "Parc à Noël — \"ouvert\"");
+    assert!(document.view.text.contains("Un parc et sa source"));
+    assert!(!document.view.text.contains("#figure"));
+    document.sync_source();
+    assert_eq!(
+        Document::from_source(document.source()).unwrap().view,
+        document.view
+    );
+    for (index, c) in document.view.text.chars().enumerate() {
+        assert_eq!(
+            document
+                .source_map
+                .to_visible(document.source_map.to_source(index)),
+            index,
+            "{index}: {c}"
+        );
+        if !c.is_whitespace() && c != crate::document::IMAGE_OBJECT {
+            assert!(document.source()[document.source_map.characters[index].clone()].contains(c));
+        }
+    }
+    for invalid in [
+        "#figure(image(\"../secret.png\"))",
+        "#figure(image(\"/tmp/secret.png\"))",
+        "#figure(image(\"images/parc.svg\", width: 20%))",
+        "#figure(rect())",
+        "#figure(image(\"images/parc.svg\"), placement: top)",
+        "#figure(image(\"images/parc.svg\"), caption: [Un\n\nDeux])",
+        "#quote(block: true)[#figure(image(\"images/parc.svg\"))]",
+    ] {
+        assert!(Document::from_source(invalid).is_err(), "{invalid}");
+    }
+}
+
+#[test]
+fn image_models_control_size_caption_and_navigation_and_embed_alt_in_pdf() {
+    use crate::navigation::RenderSync;
+    use typst::layout::{Frame, FrameItem};
+    fn images(frame: &Frame, out: &mut Vec<(f64, f64, Option<String>)>) {
+        for (_, item) in frame.items() {
+            match item {
+                FrameItem::Image(image, size, _) => out.push((
+                    size.x.to_pt(),
+                    size.y.to_pt(),
+                    image.alt().map(str::to_owned),
+                )),
+                FrameItem::Group(group) => images(&group.frame, out),
+                _ => {}
+            }
+        }
+    }
+    let mut document = Document::from_source("Avant.\n\n#figure(image(\"images/parc.svg\", alt: \"Un chemin et trois arbres\"), caption: [Le *parc* municipal.])\n\nAprès.").unwrap();
+    document.sync_source();
+    document.assets.insert(
+        "images/parc.svg".into(),
+        include_bytes!("../tests/fixtures/parc.svg")
+            .as_slice()
+            .into(),
+    );
+    let mut world = crate::rendering::TypstWorld::default();
+    world.set_assets(&document.assets);
+    let metadata = Metadata::demo(DocumentType::Courrier);
+    for model in Model::ALL {
+        let template = model.source();
+        let page = world
+            .compile_with_template(document.source(), &metadata, &template)
+            .unwrap();
+        let mut found = Vec::new();
+        for p in page.pages() {
+            images(&p.frame, &mut found);
+        }
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].2.as_deref(), Some("Un chemin et trois arbres"));
+        assert!((found[0].0 / found[0].1 - 2.4).abs() < 0.01);
+        let sync = RenderSync::new(1, world.clone(), page.clone(), document.source_map.clone());
+        let at = document.view.image_range(1).unwrap().start;
+        let location = sync.forward(at).unwrap();
+        assert_eq!(sync.backward(location), Some(at));
+        assert_eq!(sync.selection_highlights(at..at + 1).len(), 1);
+        assert!(
+            !typst_pdf::pdf(&page, &typst_pdf::PdfOptions::default())
+                .unwrap()
+                .is_empty()
+        );
+        let custom = template.replace(
+            "set image(width: 100%, height: 65mm, fit: \"contain\")",
+            "set image(width: 60pt)",
+        );
+        let custom_page = world
+            .compile_with_template(document.source(), &metadata, &custom)
+            .unwrap();
+        let mut custom_images = Vec::new();
+        for p in custom_page.pages() {
+            images(&p.frame, &mut custom_images);
+        }
+        assert!((custom_images[0].0 - 60.0).abs() < 0.01);
+    }
+}
+
+#[test]
+fn image_insertions_and_cross_block_deletions_keep_the_projection_valid() {
+    use crate::document::ImageBlock;
+    let original = Document::from_source("A.\n\n#figure(image(\"images/parc.svg\"), caption: [Un *parc*.])\n\n#figure(image(\"images/second.png\"), caption: [B.])\n\nFin.").unwrap();
+    let check = |view: &Projection| {
+        assert_eq!(view.len(), view.text.chars().count());
+        assert_eq!(view.blocks.len(), view.text.matches('\n').count() + 1);
+        for (index, line) in view.line_ranges().iter().enumerate() {
+            if let BlockKind::Image(id) = view.blocks[index] {
+                assert!(view.images.contains_key(&id));
+                assert_eq!(
+                    view.text.chars().nth(line.start),
+                    Some(crate::document::IMAGE_OBJECT)
+                );
+            }
+        }
+        let source = view.to_typst_mapped().0;
+        assert!(
+            !source.contains(crate::document::IMAGE_OBJECT),
+            "{source:?}\n{view:?}"
+        );
+        Document::from_source(&source).unwrap_or_else(|error| panic!("{error}: {source:?}"));
+    };
+    for start in 0..original.view.len() {
+        let mut edited = original.view.clone();
+        edited.insert_text("é\n漢", start);
+        check(&edited);
+        let mut inserted = original.view.clone();
+        inserted.insert_image(
+            start,
+            ImageBlock {
+                path: "images/new.svg".into(),
+                alt: String::new(),
+            },
+        );
+        check(&inserted);
+        assert_eq!(inserted.images.len(), 3);
+        for end in start + 1..=original.view.len() {
+            let mut deleted = original.view.clone();
+            deleted.delete_char_range(start..end);
+            check(&deleted);
+        }
+    }
+    let mut adjacent = original.view.clone();
+    let first = adjacent.image_range(1).unwrap();
+    adjacent.delete_char_range(first.start..first.end + 1);
+    assert_eq!(adjacent.images.len(), 1);
+    assert_eq!(adjacent.images[&2].path, "images/second.png");
 }

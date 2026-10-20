@@ -8,6 +8,7 @@ use std::{ops::Range, sync::Arc};
 
 pub const EDITOR_ID: &str = "corps-courrier";
 const DESCRIPTION_LABEL_SCALE: f32 = 0.9;
+const IMAGE_HEIGHT: f32 = 220.0;
 
 pub fn install_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
@@ -83,7 +84,7 @@ fn text_format(
     };
     let size = match kind {
         BlockKind::Heading(level) => editor.size * 1.2_f32.powi(4 - i32::from(level)),
-        BlockKind::QuoteAttribution => editor.size * 0.9,
+        BlockKind::QuoteAttribution | BlockKind::Image(_) => editor.size * 0.9,
         _ => editor.size,
     };
     TextFormat {
@@ -181,7 +182,11 @@ pub fn layout(
             text_format(aligned.blocks[0], &aligned.typing_style, &colors, editor),
         );
     }
-    let mut galley = if aligned.blocks.contains(&BlockKind::Quote) {
+    let mut galley = if aligned
+        .blocks
+        .iter()
+        .any(|k| matches!(k, BlockKind::Quote | BlockKind::Image(_)))
+    {
         layout_quote_paragraphs(ui, job, &aligned, editor)
     } else {
         ui.fonts_mut(|fonts| fonts.layout_job(job))
@@ -250,6 +255,11 @@ fn layout_quote_paragraphs(
                 ),
             );
         }
+        if matches!(kind, BlockKind::Image(_)) && text.starts_with(crate::document::IMAGE_OBJECT) {
+            paragraphs.push(layout_image(ui, local, editor));
+            start = end + 1;
+            continue;
+        }
         let mut galley = ui.fonts_mut(|fonts| fonts.layout_job(local));
         let composed = Arc::make_mut(&mut galley);
         for row in &mut composed.rows {
@@ -269,6 +279,200 @@ fn layout_quote_paragraphs(
         start = end + 1;
     }
     Arc::new(Galley::concat(job, &paragraphs, ui.pixels_per_point()))
+}
+
+/// L’objet reste un seul caractère sélectionnable. Sa ligne visuelle précède
+/// les lignes de légende, sans ajouter de saut de paragraphe au texte réel.
+fn layout_image(ui: &egui::Ui, job: LayoutJob, editor: EditorStyle) -> Arc<Galley> {
+    let object_bytes = crate::document::IMAGE_OBJECT.len_utf8();
+    let mut object = LayoutJob::default();
+    object.append(
+        &crate::document::IMAGE_OBJECT.to_string(),
+        0.0,
+        TextFormat {
+            font_id: editor.font.font_id(editor.size, 0),
+            color: Color32::TRANSPARENT,
+            line_height: Some(IMAGE_HEIGHT),
+            ..Default::default()
+        },
+    );
+    let mut image = ui.fonts_mut(|f| f.layout_job(object));
+    let width = job.wrap.max_width.max(1.0);
+    let composed = Arc::make_mut(&mut image);
+    for row in &mut composed.rows {
+        let row = Arc::make_mut(&mut row.row);
+        row.glyphs[0].pos.x = 0.0;
+        row.glyphs[0].advance_width = width;
+        row.size.x = width;
+        row.visuals.mesh.clear();
+        row.visuals.mesh_bounds = egui::Rect::NOTHING;
+        row.visuals.glyph_index_start = 0;
+        row.visuals.glyph_vertex_range = 0..0;
+        row.glyphs[0].first_vertex = 0;
+    }
+    composed.rect.max.x = width;
+    composed.mesh_bounds = egui::Rect::NOTHING;
+    composed.num_vertices = 0;
+    composed.num_indices = 0;
+    let mut caption = LayoutJob {
+        text: job.text[object_bytes..].into(),
+        wrap: job.wrap.clone(),
+        ..Default::default()
+    };
+    for section in &job.sections {
+        let start = section.byte_range.start.max(object_bytes);
+        if start < section.byte_range.end {
+            let mut part = section.clone();
+            part.byte_range = start - object_bytes..section.byte_range.end - object_bytes;
+            caption.sections.push(part);
+        }
+    }
+    if caption.sections.is_empty() {
+        caption.append(
+            "",
+            0.0,
+            TextFormat {
+                font_id: editor.font.font_id(editor.size * 0.9, 0),
+                line_height: Some(editor.size * 1.55),
+                ..Default::default()
+            },
+        );
+    }
+    let caption = ui.fonts_mut(|f| f.layout_job(caption));
+    let mut merged = Galley::concat(Arc::new(job), &[image, caption], ui.pixels_per_point());
+    // concat sépare normalement des paragraphes. Ici la frontière est seulement
+    // un repli de ligne : aucun caractère supplémentaire ne doit être compté.
+    Arc::make_mut(&mut merged.rows[0].row).ends_with_newline = false;
+    Arc::new(merged)
+}
+
+#[derive(Clone, Copy)]
+pub enum ImageAction {
+    Select(usize),
+    Replace,
+    Information,
+    Remove,
+}
+
+pub fn paint_images(
+    ui: &mut egui::Ui,
+    view: &Projection,
+    output: &egui::text_edit::TextEditOutput,
+    textures: &std::collections::HashMap<String, egui::TextureHandle>,
+    selection: Range<usize>,
+    editor: EditorStyle,
+) -> Option<(u64, ImageAction)> {
+    let mut action = None;
+    let painter = ui.painter_at(output.text_clip_rect);
+    for (line, range) in view.line_ranges().iter().enumerate() {
+        let BlockKind::Image(id) = view.blocks[line] else {
+            continue;
+        };
+        let Some(image) = view.images.get(&id) else {
+            continue;
+        };
+        let at = output.galley.pos_from_cursor(CCursor::new(range.start));
+        let rect = egui::Rect::from_min_size(
+            output.galley_pos + at.min.to_vec2(),
+            egui::vec2(output.galley.rect.width(), IMAGE_HEIGHT - 4.0),
+        );
+        if !rect.intersects(output.text_clip_rect) {
+            continue;
+        }
+        let selected = selection.start <= range.end && selection.end >= range.start;
+        painter.rect_filled(rect, 5.0, ui.visuals().faint_bg_color);
+        painter.rect_stroke(
+            rect,
+            5.0,
+            Stroke::new(
+                if selected { 1.5_f32 } else { 0.75 },
+                if selected {
+                    ui.visuals().selection.stroke.color
+                } else {
+                    ui.visuals().widgets.noninteractive.bg_stroke.color
+                },
+            ),
+            egui::StrokeKind::Inside,
+        );
+        if let Some(texture) = textures.get(&image.path) {
+            let available = egui::Rect::from_min_max(
+                rect.min + egui::vec2(10.0, 34.0),
+                rect.max - egui::vec2(10.0, 10.0),
+            );
+            let native = texture.size_vec2();
+            let factor = (available.width() / native.x).min(available.height() / native.y);
+            let picture = egui::Rect::from_center_size(available.center(), native * factor);
+            painter.image(
+                texture.id(),
+                picture,
+                egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0)),
+                Color32::WHITE,
+            );
+        }
+        let response = ui.interact(
+            rect.intersect(output.text_clip_rect),
+            ui.id().with(("image", id)),
+            egui::Sense::click(),
+        );
+        response.widget_info(|| {
+            egui::WidgetInfo::labeled(
+                egui::WidgetType::Image,
+                true,
+                if image.alt.is_empty() {
+                    crate::tr!("image-label")
+                } else {
+                    image.alt.clone()
+                },
+            )
+        });
+        if response.clicked() {
+            action = Some((id, ImageAction::Select(range.start)));
+        }
+        if selected {
+            let mut x = rect.left() + 7.0;
+            for (label, kind, width) in [
+                (crate::tr!("image-replace"), ImageAction::Replace, 90.0),
+                (
+                    crate::tr!("image-information"),
+                    ImageAction::Information,
+                    112.0,
+                ),
+                (crate::tr!("image-remove"), ImageAction::Remove, 90.0),
+            ] {
+                let button = egui::Rect::from_min_size(
+                    egui::pos2(x, rect.top() + 5.0),
+                    egui::vec2(width, 24.0),
+                );
+                if button.intersects(output.text_clip_rect)
+                    && ui.put(button, egui::Button::new(label).small()).clicked()
+                {
+                    action = Some((id, kind));
+                }
+                x += width + 5.0;
+            }
+        } else {
+            painter.text(
+                rect.min + egui::vec2(10.0, 8.0),
+                egui::Align2::LEFT_TOP,
+                crate::tr!("image-label"),
+                editor.font.font_id(editor.size * 0.8, 0),
+                ui.visuals().weak_text_color(),
+            );
+        }
+        if range.len() == 1 {
+            let mut cursor = CCursor::new(range.start + 1);
+            cursor.prefer_next_row = true;
+            let point = output.galley.pos_from_cursor(cursor);
+            painter.text(
+                output.galley_pos + point.min.to_vec2(),
+                egui::Align2::LEFT_TOP,
+                crate::tr!("image-caption-placeholder"),
+                editor.font.font_id(editor.size * 0.9, 2),
+                ui.visuals().weak_text_color(),
+            );
+        }
+    }
+    action
 }
 
 fn description_placeholder(ui: &egui::Ui, editor: EditorStyle) -> Arc<Galley> {
@@ -581,6 +785,44 @@ pub fn paint_decorations(
 mod tests {
     use super::*;
     use crate::document::Document;
+
+    #[test]
+    fn image_layout_keeps_native_indices_wrapping_and_caption_below_the_object() {
+        let ctx = egui::Context::default();
+        install_fonts(&ctx);
+        let document = crate::document::Document::from_source("= Visite\n\n#figure(image(\"images/parc.svg\"), caption: [Une longue légende à lire et à sélectionner dans son intégralité.])\n\nSuite.").unwrap();
+        let range = document.view.image_range(1).unwrap();
+        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let galley = layout(
+                    ui,
+                    &document.view,
+                    &document.view.text,
+                    250.0,
+                    EditorStyle::default(),
+                );
+                assert_eq!(
+                    galley
+                        .rows
+                        .iter()
+                        .map(|r| r.glyphs.len() + usize::from(r.ends_with_newline))
+                        .sum::<usize>(),
+                    document.view.len()
+                );
+                let object = galley.pos_from_cursor(CCursor::new(range.start));
+                let mut caption = CCursor::new(range.start + 1);
+                caption.prefer_next_row = true;
+                let position = galley.pos_from_cursor(caption);
+                assert!(position.top() >= object.bottom());
+                assert!(position.height() < object.height() / 4.0);
+                for index in range.start + 2..range.end {
+                    let cursor = CCursor::new(index);
+                    let rect = galley.pos_from_cursor(cursor);
+                    assert_eq!(galley.cursor_from_pos(rect.center().to_vec2()).index, index);
+                }
+            });
+        });
+    }
 
     #[test]
     fn quote_wrapping_keeps_the_indent_and_native_cursors_for_body_and_attribution() {

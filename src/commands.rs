@@ -25,6 +25,7 @@ pub enum MenuGroup {
     File,
     Edit,
     View,
+    Insert,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,6 +41,7 @@ pub enum Command {
     Block(BlockKind),
     Link,
     RemoveLink,
+    InsertImage,
     Undo,
     Redo,
 }
@@ -103,6 +105,7 @@ impl Definition {
             Command::Palette => (MenuGroup::Edit, 20),
             Command::Preferences => (MenuGroup::Edit, 30),
             Command::Information => (MenuGroup::View, 0),
+            Command::InsertImage => (MenuGroup::Insert, 0),
             _ => return None,
         })
     }
@@ -155,6 +158,13 @@ pub(crate) const fn short(mut definition: Definition, label: &'static str) -> De
 
 /// Chaque commande, y compris sans raccourci, est définie une seule fois ici.
 pub const COMMON_COMMANDS: &[Definition] = &[
+    define(
+        "insert.image",
+        "cmd-insert-image",
+        Command::InsertImage,
+        Scope::Global,
+        &[],
+    ),
     define(
         "application.preferences",
         "cmd-preferences",

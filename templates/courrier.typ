@@ -53,6 +53,10 @@
   } else {
     options.bullet-marker
   })
+  // La charte du courrier décide des dimensions et des légendes, sans flottants.
+  set image(width: 100%, height: 65mm, fit: "contain")
+  set figure(placement: none, numbering: none, supplement: none, gap: 5pt)
+  show figure.caption: set text(size: 9pt, fill: rgb("586578"))
   show heading: set text(fill: accent)
   show link: set text(fill: accent)
   // Les citations restent sémantiques dans le contenu ; le modèle les compose.

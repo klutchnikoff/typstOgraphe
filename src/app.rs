@@ -1,6 +1,9 @@
 use crate::{
     commands::{Command, FileCommand, Keymap, Registry, ShortcutOverrides},
-    document::{BlockKind, Document, DocumentLanguage, InlineStyle, Mark, PaperFormat, Projection},
+    document::{
+        BlockKind, Document, DocumentLanguage, ImageBlock, InlineStyle, Mark, PaperFormat,
+        Projection,
+    },
     document_types::{
         DocumentType, Metadata, ModelPresentation, courrier::Command as CourrierCommand,
     },
@@ -74,6 +77,9 @@ pub struct App {
     palette_open: bool,
     palette_query: String,
     palette_index: usize,
+    image_info: Option<u64>,
+    image_alt: String,
+    image_textures: std::collections::HashMap<String, egui::TextureHandle>,
     link_open: bool,
     link_url: String,
     link_error: Option<String>,
@@ -175,6 +181,9 @@ impl App {
             palette_open: false,
             palette_query: String::new(),
             palette_index: 0,
+            image_info: None,
+            image_alt: String::new(),
+            image_textures: Default::default(),
             link_open: false,
             link_url: String::new(),
             link_error: None,
@@ -203,15 +212,18 @@ impl App {
             source: self.document.source().into(),
             metadata: self.metadata.clone(),
             template: self.template.clone(),
+            assets: self.document.assets.clone(),
         }
     }
     fn is_dirty(&self) -> bool {
         self.saved.source != self.document.source()
             || self.saved.metadata != self.metadata
             || self.saved.template != self.template
+            || self.saved.assets != self.document.assets
     }
     fn modal_open(&self) -> bool {
-        self.preferences_open
+        self.image_info.is_some()
+            || self.preferences_open
             || self.palette_open
             || self.link_open
             || self.export_open
@@ -305,6 +317,9 @@ impl App {
         self.history_field = None;
         self.field_history_action = None;
         self.document = document;
+        self.document.assets = letter.assets.clone();
+        self.image_textures.clear();
+        self.image_info = None;
         self.metadata = letter.metadata.clone();
         self.template = letter.template.clone();
         self.presentation = ModelPresentation::default();
@@ -393,6 +408,9 @@ impl App {
                 }
             }
         }
+        for cursor in [&mut self.selection.primary, &mut self.selection.secondary] {
+            cursor.index = cursor.index.min(self.document.view.len());
+        }
         self.force_selection |= !inserted.is_empty();
         self.revision += 1;
         self.changed_at = Instant::now();
@@ -414,6 +432,7 @@ impl App {
             return;
         }
         match command {
+            Command::InsertImage => self.choose_image(None),
             Command::Preferences => self.preferences_open = true,
             Command::File(command) => self.file_command = Some(command),
             Command::Palette => {
@@ -465,6 +484,7 @@ impl App {
                 self.undo.push(current);
             }
             self.document = item.document;
+            self.image_textures.clear();
             self.selection = item.selection;
             self.force_selection = true;
             self.typing_group = false;
@@ -482,6 +502,85 @@ impl App {
         }
         self.remember(before, false);
         self.force_selection = true;
+    }
+    fn choose_image(&mut self, replace: Option<u64>) {
+        if let Some(path) = rfd::FileDialog::new()
+            .add_filter(crate::tr!("image-files"), &["png", "jpg", "jpeg", "svg"])
+            .pick_file()
+            && let Err(error) = self.import_image(&path, replace)
+        {
+            self.file_error = Some(error);
+        }
+    }
+    fn import_image(&mut self, path: &std::path::Path, replace: Option<u64>) -> Result<(), String> {
+        let extension = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let extension = if extension == "jpeg" {
+            "jpg"
+        } else {
+            extension.as_str()
+        };
+        // Lire au plus la limite, même si le fichier a grandi depuis sa sélection.
+        use std::io::Read;
+        let mut data = Vec::new();
+        std::fs::File::open(path)
+            .map_err(|e| e.to_string())?
+            .take(crate::assets::MAX_IMAGE_BYTES as u64 + 1)
+            .read_to_end(&mut data)
+            .map_err(|e| e.to_string())?;
+        crate::assets::decode(&data, extension)?;
+        let total: usize = self.document.assets.values().map(|v| v.len()).sum();
+        if total + data.len() > crate::assets::MAX_DOCUMENT_BYTES as usize {
+            return Err(crate::tr!("storage-letter-too-large"));
+        }
+        let before = self.snapshot();
+        let mut number = 1;
+        let asset_path = loop {
+            let name = format!("images/image-{number}.{extension}");
+            if !self.document.assets.contains_key(&name) {
+                break name;
+            }
+            number += 1;
+        };
+        self.document.assets.insert(asset_path.clone(), data.into());
+        let at = if let Some(id) = replace {
+            let Some(image) = self.document.view.images.get_mut(&id) else {
+                self.document = before.document;
+                return Ok(());
+            };
+            image.path = asset_path;
+            self.document.view.image_range(id).unwrap().start
+        } else {
+            let range = self.range();
+            self.document.view.delete_char_range(range.clone());
+            self.document.view.insert_image(
+                range.start,
+                ImageBlock {
+                    path: asset_path,
+                    alt: String::new(),
+                },
+            )
+        };
+        let mut cursor = CCursor::new(at + 1);
+        cursor.prefer_next_row = true;
+        self.selection = CCursorRange::one(cursor);
+        self.force_selection = true;
+        self.editor_scroll_pending = true;
+        self.remember(before, false);
+        Ok(())
+    }
+    fn remove_image(&mut self, id: u64) {
+        if let Some(range) = self.document.view.image_range(id) {
+            let before = self.snapshot();
+            let end = (range.end + 1).min(self.document.view.len());
+            self.document.view.delete_char_range(range.start..end);
+            self.selection = editor::cursor(range.start..range.start);
+            self.force_selection = true;
+            self.remember(before, false);
+        }
     }
     fn open_link(&mut self) {
         let range = self.range();
@@ -511,6 +610,7 @@ impl App {
             source_map: self.document.source_map.clone(),
             metadata: self.metadata.clone(),
             template: self.template.clone(),
+            assets: self.document.assets.clone(),
             export_dir,
         }
     }
@@ -693,6 +793,52 @@ impl App {
                 }
             })
         });
+        if let BlockKind::Image(id) = self.document.view.blocks[line] {
+            let object_selected = range == (start..start + 1);
+            let deleting = ctx
+                .input(|i| i.key_pressed(egui::Key::Backspace) || i.key_pressed(egui::Key::Delete));
+            if object_selected && deleting {
+                ctx.input_mut(|i| {
+                    i.events.retain(|e| {
+                        !matches!(
+                            e,
+                            egui::Event::Key {
+                                key: egui::Key::Backspace | egui::Key::Delete,
+                                ..
+                            }
+                        )
+                    })
+                });
+                self.remove_image(id);
+                return;
+            }
+            if range.is_empty()
+                && range.start == start + 1
+                && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Backspace))
+            {
+                self.selection = editor::cursor(start..start + 1);
+                self.force_selection = true;
+                return;
+            }
+            let tab = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab));
+            let enter = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
+            if tab || enter {
+                ctx.memory_mut(|m| m.move_focus(egui::FocusDirection::None));
+                if tab {
+                    let mut cursor = CCursor::new(start + 1);
+                    cursor.prefer_next_row = true;
+                    self.selection = CCursorRange::one(cursor);
+                } else {
+                    let before = self.snapshot();
+                    let end = lines[line].end;
+                    self.document.view.insert_text("\n", end);
+                    self.selection = editor::cursor(end + 1..end + 1);
+                    self.remember(before, false);
+                }
+                self.force_selection = true;
+                return;
+            }
+        }
         if typed.as_deref() == Some(" ") {
             let kind = match prefix.as_str() {
                 "=" => Some(BlockKind::Heading(1)),
@@ -1216,15 +1362,32 @@ impl App {
             editor::restore_cursor(ui.ctx(), self.selection);
             self.force_selection = false;
         }
+        for image in self.document.view.images.values() {
+            if !self.image_textures.contains_key(&image.path)
+                && let Some(data) = self.document.assets.get(&image.path)
+                && let Ok(thumbnail) =
+                    crate::assets::thumbnail(data, image.path.rsplit('.').next().unwrap())
+            {
+                self.image_textures.insert(
+                    image.path.clone(),
+                    ui.ctx()
+                        .load_texture(&image.path, thumbnail, egui::TextureOptions::LINEAR),
+                );
+            }
+        }
         let view = self.document.view.clone();
         let description = matches!(
             view.blocks[view.line_at(self.selection.primary.index)],
-            BlockKind::Description | BlockKind::Quote | BlockKind::QuoteAttribution
+            BlockKind::Description
+                | BlockKind::Quote
+                | BlockKind::QuoteAttribution
+                | BlockKind::Image(_)
         );
         let editor_style = self.preferences.editor;
         let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, width: f32| {
             editor::layout(ui, &view, text.as_str(), width, editor_style)
         };
+        let mut image_action = None;
         egui::ScrollArea::vertical()
             .id_salt("editor-scroll")
             .show(ui, |ui| {
@@ -1267,6 +1430,14 @@ impl App {
                             );
                             self.editor_scroll_pending = false;
                         }
+                        image_action = editor::paint_images(
+                            ui,
+                            &self.document.view,
+                            &output,
+                            &self.image_textures,
+                            self.range(),
+                            editor_style,
+                        );
                         let changed = output.response.changed();
                         let mut state = output.state;
                         state.clear_undoer();
@@ -1292,6 +1463,22 @@ impl App {
                         }
                     });
             });
+        if let Some((id, action)) = image_action {
+            match action {
+                editor::ImageAction::Select(at) => {
+                    self.selection = editor::cursor(at..at + 1);
+                    self.force_selection = true;
+                    self.forward_pending = true;
+                }
+                editor::ImageAction::Replace => self.choose_image(Some(id)),
+                editor::ImageAction::Information => {
+                    self.image_alt
+                        .clone_from(&self.document.view.images[&id].alt);
+                    self.image_info = Some(id);
+                }
+                editor::ImageAction::Remove => self.remove_image(id),
+            }
+        }
     }
     fn preview_ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
@@ -1576,6 +1763,56 @@ impl App {
         [editor_rect, preview_rect]
     }
     fn dialogs(&mut self, ctx: &egui::Context) {
+        if let Some(id) = self.image_info {
+            let mut open = true;
+            let mut apply = false;
+            let mut cancel = false;
+            egui::Window::new(crate::tr!("image-information"))
+                .open(&mut open)
+                .collapsible(false)
+                .default_width(420.0)
+                .show(ctx, |ui| {
+                    ui.label(crate::tr!("image-alt-label"));
+                    ui.add(
+                        egui::TextEdit::multiline(&mut self.image_alt)
+                            .desired_width(f32::INFINITY)
+                            .desired_rows(3),
+                    );
+                    ui.label(
+                        egui::RichText::new(crate::tr!("image-alt-help"))
+                            .small()
+                            .weak(),
+                    );
+                    ui.horizontal(|ui| {
+                        apply = ui.button(crate::tr!("image-apply")).clicked();
+                        cancel = ui.button(crate::tr!("image-cancel")).clicked();
+                    });
+                });
+            if cancel {
+                open = false;
+            }
+            if apply {
+                let before = self.snapshot();
+                if let Some(image) = self.document.view.images.get_mut(&id) {
+                    image.alt.clone_from(&self.image_alt);
+                    self.remember(before, false);
+                }
+                open = false;
+                self.force_selection = true;
+                self.editor_scroll_pending = true;
+            }
+            if !open {
+                self.image_info = None;
+                if let Some(range) = self.document.view.image_range(id) {
+                    let mut cursor = CCursor::new(range.start + 1);
+                    cursor.prefer_next_row = true;
+                    self.selection = CCursorRange::one(cursor);
+                }
+                self.force_selection = true;
+                self.editor_scroll_pending = true;
+            }
+        }
+
         if self.link_open {
             let mut open = true;
             let mut apply = false;
@@ -1829,6 +2066,17 @@ impl App {
             self.pending_action = Some(PendingAction::Close);
         }
         self.rendering(ctx);
+        if !self.modal_open() {
+            let dropped = ctx.input(|i| i.raw.dropped_files.clone());
+            for file in dropped {
+                if let Some(path) = file.path
+                    && let Err(error) = self.import_image(&path, None)
+                {
+                    self.file_error = Some(error);
+                    break;
+                }
+            }
+        }
         self.track_history_focus(ctx);
         self.shortcuts(ctx);
         #[cfg(target_os = "macos")]
@@ -2000,6 +2248,174 @@ impl eframe::App for App {
 mod interaction_tests {
     use super::*;
     use crate::document_types::courrier::Model;
+
+    #[test]
+    fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.document = Document::from_source("").unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("parc.svg");
+        std::fs::write(&path, include_bytes!("../tests/fixtures/parc.svg")).unwrap();
+        app.import_image(&path, None).unwrap();
+        frame(&mut app, &ctx, vec![]);
+        let output = ctx.run(egui::RawInput::default(), |ctx| app.ui_frame(ctx));
+        let text_point = |output: &egui::FullOutput, label: &str| {
+            output
+                .shapes
+                .iter()
+                .find_map(|shape| {
+                    if let egui::Shape::Text(text) = &shape.shape
+                        && text.galley.text() == label
+                    {
+                        Some(text.pos + text.galley.rect.center().to_vec2())
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_else(|| panic!("Texte absent : {label}"))
+        };
+        let click = |app: &mut App, pos| {
+            frame(
+                app,
+                &ctx,
+                vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed: true,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+            );
+            frame(
+                app,
+                &ctx,
+                vec![egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed: false,
+                    modifiers: egui::Modifiers::NONE,
+                }],
+            );
+        };
+        click(
+            &mut app,
+            text_point(&output, &crate::tr!("image-information")),
+        );
+        assert_eq!(app.image_info, Some(1));
+        app.image_alt = "Des arbres et un chemin".into();
+        let output = ctx.run(egui::RawInput::default(), |ctx| app.ui_frame(ctx));
+        click(&mut app, text_point(&output, &crate::tr!("image-apply")));
+        assert!(app.image_info.is_none());
+        assert!(app.document.source().contains("Des arbres et un chemin"));
+        frame(&mut app, &ctx, vec![egui::Event::Text("Le parc.".into())]);
+        assert!(
+            app.document.source().contains("caption: [Le parc.]"),
+            "{} / {:?}",
+            app.document.source(),
+            app.range()
+        );
+        let before = app.document.source().to_owned();
+        let at = app.document.view.image_range(1).unwrap().start + 1;
+        app.selection = editor::cursor(at..at);
+        app.force_selection = true;
+        frame(&mut app, &ctx, vec![]);
+        let backspace = || egui::Event::Key {
+            key: egui::Key::Backspace,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        frame(&mut app, &ctx, vec![backspace()]);
+        assert_eq!(app.range(), at - 1..at);
+        frame(&mut app, &ctx, vec![backspace()]);
+        assert!(app.document.view.images.is_empty());
+        assert!(!app.document.view.text.contains("Le parc."));
+        app.apply(Command::Undo);
+        assert_eq!(app.document.source(), before);
+    }
+
+    #[test]
+    fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.document = Document::from_source("Avant.\n\nAprès.").unwrap();
+        app.selection = editor::cursor(6..6);
+        let dir = tempfile::tempdir().unwrap();
+        let original = dir.path().join("Parc.svg");
+        std::fs::write(&original, include_bytes!("../tests/fixtures/parc.svg")).unwrap();
+        app.import_image(&original, None).unwrap();
+        assert_eq!(app.document.view.images.len(), 1);
+        let id = *app.document.view.images.keys().next().unwrap();
+        let object = app.document.view.image_range(id).unwrap().start;
+        assert_eq!(app.range(), object + 1..object + 1);
+        frame(&mut app, &ctx, vec![]);
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Text("Le parc municipal.".into())],
+        );
+        assert!(
+            app.document
+                .source()
+                .contains("caption: [Le parc municipal.]"),
+            "{}",
+            app.document.source()
+        );
+        let key = |key| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        frame(&mut app, &ctx, vec![key(egui::Key::Tab)]);
+        assert_eq!(app.range(), object + 1..object + 1);
+        let before_alt = app.snapshot();
+        app.document.view.images.get_mut(&id).unwrap().alt =
+            "Trois arbres autour d’un chemin".into();
+        app.remember(before_alt, false);
+        app.import_image(&original, Some(id)).unwrap();
+        assert_eq!(
+            app.document.view.images[&id].alt,
+            "Trois arbres autour d’un chemin"
+        );
+        assert!(app.document.source().contains("Le parc municipal."));
+        app.apply(Command::Undo);
+        assert_eq!(app.document.view.images[&id].path, "images/image-1.svg");
+        app.apply(Command::Redo);
+        assert_eq!(app.document.view.images[&id].path, "images/image-2.svg");
+        let archive = dir.path().join("Courrier.typsto");
+        assert!(app.save_path(archive.clone()));
+        std::fs::remove_file(&original).unwrap();
+        let saved_source = app.document.source().to_owned();
+        app.remove_image(id);
+        assert!(app.document.view.images.is_empty());
+        app.apply(Command::Undo);
+        assert_eq!(app.document.source(), saved_source);
+        assert!(app.open_path(archive));
+        assert!(!app.is_dirty());
+        assert_eq!(app.document.source(), saved_source);
+        assert_eq!(app.document.assets.len(), 2);
+        app.selection = editor::cursor(object + 1..object + 1);
+        app.force_selection = true;
+        frame(&mut app, &ctx, vec![]);
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        assert_eq!(
+            app.document.view.blocks[app.document.view.line_at(app.range().start)],
+            BlockKind::Paragraph
+        );
+        assert!(app.document.source().contains("Le parc municipal."));
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Text("Suite du courrier.".into())],
+        );
+        assert!(app.document.source().contains("Suite du courrier."));
+    }
 
     #[test]
     fn column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_cap() {
