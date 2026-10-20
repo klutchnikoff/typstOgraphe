@@ -701,6 +701,7 @@ impl App {
                 "-" => Some(BlockKind::Bullet),
                 "+" | "1." => Some(BlockKind::Numbered),
                 "/" => Some(BlockKind::Description),
+                ">" => Some(BlockKind::Quote),
                 _ => None,
             };
             if let Some(kind) = kind {
@@ -718,6 +719,74 @@ impl App {
                         .retain(|e| !matches!(e,egui::Event::Text(t) if t==" "))
                 });
                 return;
+            }
+        }
+        if matches!(
+            self.document.view.blocks[line],
+            BlockKind::Quote | BlockKind::QuoteAttribution
+        ) {
+            let group = self
+                .document
+                .view
+                .quote_groups()
+                .into_iter()
+                .find(|g| g.body.contains(&line) || g.attribution == Some(line));
+            if let Some(group) = group {
+                let shift = ctx.input(|i| i.events.iter().any(|event| matches!(event,
+                    egui::Event::Key { key: egui::Key::Tab, pressed: true, modifiers, .. } if modifiers.shift
+                )));
+                if ctx.input_mut(|i| {
+                    i.consume_key(
+                        if shift {
+                            egui::Modifiers::SHIFT
+                        } else {
+                            egui::Modifiers::NONE
+                        },
+                        egui::Key::Tab,
+                    )
+                }) {
+                    ctx.memory_mut(|m| m.move_focus(egui::FocusDirection::None));
+                    let target = if shift {
+                        group.body.start
+                    } else {
+                        group.attribution.unwrap_or(group.body.end - 1)
+                    };
+                    let at = lines[target].start;
+                    self.selection = editor::cursor(at..at);
+                    self.force_selection = true;
+                    return;
+                }
+                if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
+                    let before = self.snapshot();
+                    let attribution = group.attribution.unwrap_or(group.body.end - 1);
+                    let leave = self.document.view.blocks[line] == BlockKind::QuoteAttribution
+                        || (lines[line].is_empty() && range.is_empty());
+                    if leave {
+                        let mut attribution = attribution;
+                        // Retirer le paragraphe vide qui a servi à terminer la citation.
+                        if self.document.view.blocks[line] == BlockKind::Quote
+                            && lines[line].is_empty()
+                            && group.body.len() > 1
+                        {
+                            self.document
+                                .view
+                                .delete_char_range(lines[line].start..lines[line].start + 1);
+                            attribution -= 1;
+                            self.document.view.blocks[attribution] = BlockKind::QuoteAttribution;
+                        }
+                        let at = self.document.view.line_ranges()[attribution].end;
+                        self.document.view.insert_text("\n", at);
+                        self.document.view.blocks[attribution + 1] = BlockKind::Paragraph;
+                        self.selection = editor::cursor(at + 1..at + 1);
+                    } else {
+                        self.document.view.delete_char_range(range.clone());
+                        self.document.view.insert_text("\n", range.start);
+                        self.selection = editor::cursor(range.start + 1..range.start + 1);
+                    }
+                    self.remember(before, false);
+                    self.force_selection = true;
+                    return;
+                }
             }
         }
         if self.document.view.blocks[line] == BlockKind::Description {
@@ -849,8 +918,10 @@ impl App {
     fn toolbar(&mut self, ui: &mut egui::Ui) {
         let range = self.range();
         let lines = self.document.view.selected_lines(range.clone());
-        let kind = self.document.view.blocks[lines.start];
-        let mixed = self.document.view.blocks[lines].iter().any(|k| *k != kind);
+        let kind = self.document.view.blocks[lines.start].public_kind();
+        let mixed = self.document.view.blocks[lines]
+            .iter()
+            .any(|k| k.public_kind() != kind);
         let mut selected = kind;
         ui.horizontal_wrapped(|ui| {
             egui::ComboBox::from_id_salt("paragraph-style")
@@ -1146,8 +1217,10 @@ impl App {
             self.force_selection = false;
         }
         let view = self.document.view.clone();
-        let description =
-            view.blocks[view.line_at(self.selection.primary.index)] == BlockKind::Description;
+        let description = matches!(
+            view.blocks[view.line_at(self.selection.primary.index)],
+            BlockKind::Description | BlockKind::Quote | BlockKind::QuoteAttribution
+        );
         let editor_style = self.preferences.editor;
         let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, width: f32| {
             editor::layout(ui, &view, text.as_str(), width, editor_style)
@@ -3110,6 +3183,7 @@ mod interaction_tests {
         for (source, closing, expected, kind) in [
             ("\\=", " ", "= ", Some(BlockKind::Heading(1))),
             ("\\/", " ", "/ ", Some(BlockKind::Description)),
+            ("\\>", " ", "> ", Some(BlockKind::Quote)),
             ("\\*Bonjour", "*", "*Bonjour*", None),
         ] {
             let ctx = egui::Context::default();
@@ -3214,6 +3288,119 @@ mod interaction_tests {
                 [BlockKind::Description, BlockKind::Paragraph]
             );
         }
+    }
+
+    #[test]
+    fn quote_keyboard_edits_body_and_attribution_and_exits_without_losing_source() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.document = Document::from_source("Bonjour").unwrap();
+        app.selection = editor::cursor(7..7);
+        app.apply(Command::Block(BlockKind::Quote));
+        frame(&mut app, &ctx, vec![]);
+        assert_eq!(
+            app.document.view.blocks,
+            [BlockKind::Quote, BlockKind::QuoteAttribution]
+        );
+        let key = |key| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        frame(&mut app, &ctx, vec![key(egui::Key::Tab)]);
+        frame(&mut app, &ctx, vec![egui::Event::Text("Élodie".into())]);
+        assert_eq!(app.document.view.text, "Bonjour\nÉlodie");
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::Tab,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::SHIFT,
+            }],
+        );
+        assert_eq!(app.selection.primary.index, 0);
+        app.selection = editor::cursor(7..7);
+        app.force_selection = true;
+        frame(&mut app, &ctx, vec![]);
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Text("Deuxième pensée.".into())],
+        );
+        assert_eq!(app.document.view.text, "Bonjour\nDeuxième pensée.\nÉlodie");
+        assert_eq!(
+            app.document.view.blocks,
+            [
+                BlockKind::Quote,
+                BlockKind::Quote,
+                BlockKind::QuoteAttribution
+            ]
+        );
+        let source = app.document.source().to_owned();
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        assert_eq!(
+            app.document.view.blocks,
+            [
+                BlockKind::Quote,
+                BlockKind::Quote,
+                BlockKind::QuoteAttribution,
+                BlockKind::Paragraph
+            ]
+        );
+        frame(&mut app, &ctx, vec![egui::Event::Text("Suite.".into())]);
+        let restored = Document::from_source(app.document.source()).unwrap();
+        assert_eq!(restored.view, app.document.view);
+        app.apply(Command::Undo);
+        app.apply(Command::Undo);
+        app.apply(Command::Undo);
+        assert_eq!(app.document.source(), source);
+    }
+
+    #[test]
+    fn converting_multiple_paragraphs_to_quote_preserves_selection_and_can_be_undone() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx, None);
+        app.document = Document::from_source("Un.\n\nDeux.\n\nTrois.").unwrap();
+        let original = app.document.clone();
+        app.selection = CCursorRange::two(CCursor::new(3), CCursor::new(0));
+        app.apply(Command::Block(BlockKind::Quote));
+        assert_eq!(app.selection.primary.index, 0);
+        assert_eq!(app.selection.secondary.index, 3);
+        assert_eq!(app.document.view.text, "Un.\n\nDeux.\nTrois.");
+        assert_eq!(
+            app.document.view.blocks,
+            [
+                BlockKind::Quote,
+                BlockKind::QuoteAttribution,
+                BlockKind::Paragraph,
+                BlockKind::Paragraph
+            ]
+        );
+        assert_eq!(
+            Document::from_source(app.document.source()).unwrap().view,
+            app.document.view
+        );
+        app.apply(Command::Undo);
+        assert_eq!(app.document, original);
+        app.selection = editor::cursor(0..8);
+        app.apply(Command::Block(BlockKind::Quote));
+        assert_eq!(app.document.view.quote_groups()[0].body, 0..2);
+        app.selection = editor::cursor(0..app.document.view.len());
+        app.apply(Command::Block(BlockKind::Paragraph));
+        assert!(
+            !app.document
+                .view
+                .blocks
+                .iter()
+                .any(|kind| matches!(kind, BlockKind::Quote | BlockKind::QuoteAttribution))
+        );
     }
 
     #[test]

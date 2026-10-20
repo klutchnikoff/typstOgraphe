@@ -207,3 +207,7 @@ bullet-marker-restore-automatic = Revenir au choix du modèle
 
 list-menu = Liste
 description-placeholder = Description
+
+cmd-quote = Citation en bloc
+quote-attribution-placeholder = Attribution / source (facultatif)
+source-quote-signature = Une citation doit être un bloc de texte, avec une attribution facultative sur un seul paragraphe.

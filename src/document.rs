@@ -21,11 +21,25 @@ pub enum BlockKind {
     Bullet,
     Numbered,
     Description,
+    Quote,
+    QuoteAttribution,
 }
 impl BlockKind {
     pub fn is_list(self) -> bool {
         matches!(self, Self::Bullet | Self::Numbered | Self::Description)
     }
+    pub fn public_kind(self) -> Self {
+        if self == Self::QuoteAttribution {
+            Self::Quote
+        } else {
+            self
+        }
+    }
+}
+
+pub struct QuoteGroup {
+    pub body: Range<usize>,
+    pub attribution: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -129,10 +143,11 @@ impl Document {
     }
 
     /// Toute opération d'édition actualise le source qui sera compilé/exporté.
-    /// Renvoie les séparateurs ajoutés (positions décroissantes) afin que l’UI
-    /// puisse conserver la sélection lors de la création d’étiquettes vides.
+    /// Renvoie les séparateurs dans l’ordre des insertions afin que l’UI puisse
+    /// conserver la sélection en créant les zones de description et d’attribution.
     pub fn sync_source(&mut self) -> Vec<usize> {
-        let inserted = self.view.ensure_description_separators();
+        let mut inserted = self.view.ensure_description_separators();
+        inserted.extend(self.view.ensure_quote_attributions());
         (self.source, self.source_map) = self.view.to_typst_mapped();
         inserted
     }
@@ -188,6 +203,9 @@ impl Projection {
     }
     pub fn set_block(&mut self, range: Range<usize>, kind: BlockKind) {
         for index in self.selected_lines(range) {
+            if kind == BlockKind::Quote && self.blocks[index] == BlockKind::QuoteAttribution {
+                continue;
+            }
             if self.blocks[index] == BlockKind::Description && kind != BlockKind::Description {
                 let line = self.line_ranges()[index].clone();
                 if let Some(at) = self
@@ -203,6 +221,50 @@ impl Projection {
             }
             self.blocks[index] = kind;
         }
+    }
+    pub fn quote_groups(&self) -> Vec<QuoteGroup> {
+        let mut groups = Vec::new();
+        let mut line = 0;
+        while line < self.blocks.len() {
+            if self.blocks[line] != BlockKind::Quote {
+                line += 1;
+                continue;
+            }
+            let start = line;
+            while self.blocks.get(line) == Some(&BlockKind::Quote) {
+                line += 1;
+            }
+            let attribution =
+                (self.blocks.get(line) == Some(&BlockKind::QuoteAttribution)).then_some(line);
+            groups.push(QuoteGroup {
+                body: start..line,
+                attribution,
+            });
+            line += usize::from(attribution.is_some());
+        }
+        groups
+    }
+    fn ensure_quote_attributions(&mut self) -> Vec<usize> {
+        for index in 0..self.blocks.len() {
+            if self.blocks[index] == BlockKind::QuoteAttribution
+                && (index == 0 || self.blocks[index - 1] != BlockKind::Quote)
+            {
+                self.blocks[index] = BlockKind::Paragraph;
+            }
+        }
+        let mut inserted = Vec::new();
+        for group in self
+            .quote_groups()
+            .into_iter()
+            .rev()
+            .filter(|g| g.attribution.is_none())
+        {
+            let end = self.line_ranges()[group.body.end - 1].end;
+            self.insert_text("\n", end);
+            self.blocks[group.body.end] = BlockKind::QuoteAttribution;
+            inserted.push(end);
+        }
+        inserted
     }
     /// Le séparateur est une frontière éditable, jamais un texte indicatif.
     /// Les insertions sont renvoyées dans l’ordre pour réaligner les curseurs.
@@ -294,27 +356,51 @@ impl Projection {
     }
     pub fn to_typst_mapped(&self) -> (String, SourceMap) {
         let mut result = String::new();
-        let mut origins = Vec::with_capacity(self.len());
-        let lines: Vec<_> = self.text.split('\n').collect();
+        let mut origins = vec![0..0; self.len()];
         let ranges = self.line_ranges();
-        for (index, text) in lines.iter().enumerate() {
+        let mut index = 0;
+        while index < ranges.len() {
             let kind = self.blocks[index];
             if index > 0 {
-                let separator_start = result.len();
+                let start = result.len();
                 let previous = self.blocks[index - 1];
-                result.push_str(
-                    if matches!(
-                        (previous, kind),
-                        (BlockKind::Bullet, BlockKind::Bullet)
-                            | (BlockKind::Numbered, BlockKind::Numbered)
-                            | (BlockKind::Description, BlockKind::Description)
-                    ) {
-                        "\n"
-                    } else {
-                        "\n\n"
-                    },
-                );
-                origins.push(separator_start..result.len());
+                result.push_str(if previous == kind && kind.is_list() {
+                    "\n"
+                } else {
+                    "\n\n"
+                });
+                origins[ranges[index].start - 1] = start..result.len();
+            }
+            if kind == BlockKind::Quote {
+                let mut end = index + 1;
+                while self.blocks.get(end) == Some(&BlockKind::Quote) {
+                    end += 1;
+                }
+                let attribution =
+                    (self.blocks.get(end) == Some(&BlockKind::QuoteAttribution)).then_some(end);
+                result.push_str("#quote(block: true");
+                if let Some(line) = attribution
+                    && !ranges[line].is_empty()
+                {
+                    result.push_str(", attribution: [");
+                    self.write_inline_line(line, &mut result, &mut origins);
+                    result.push(']');
+                }
+                result.push_str(")[");
+                for line in index..end {
+                    if line > index {
+                        let start = result.len();
+                        result.push_str("\n\n");
+                        origins[ranges[line].start - 1] = start..result.len();
+                    }
+                    self.write_inline_line(line, &mut result, &mut origins);
+                }
+                result.push(']');
+                if let Some(line) = attribution {
+                    origins[ranges[line].start - 1] = result.len()..result.len();
+                }
+                index = end + usize::from(attribution.is_some());
+                continue;
             }
             match kind {
                 BlockKind::Heading(level) => {
@@ -324,54 +410,10 @@ impl Projection {
                 BlockKind::Bullet => result.push_str("- "),
                 BlockKind::Numbered => result.push_str("+ "),
                 BlockKind::Description => result.push_str("/ "),
-                BlockKind::Paragraph => {}
+                _ => {}
             }
-            let characters: Vec<_> = text.chars().collect();
-            let description_separator = (kind == BlockKind::Description)
-                .then(|| characters.iter().position(|c| *c == '\t'))
-                .flatten();
-            let mut position = 0;
-            while position < characters.len() {
-                if Some(position) == description_separator {
-                    let start = result.len();
-                    result.push_str(": ");
-                    origins.push(start..result.len());
-                    position += 1;
-                    continue;
-                }
-                let style = &self.styles[ranges[index].start + position];
-                let mut end = position + 1;
-                while end < characters.len()
-                    && Some(end) != description_separator
-                    && self.styles[ranges[index].start + end] == *style
-                {
-                    end += 1;
-                }
-                if let Some(url) = &style.link {
-                    result.push_str(&format!("#link({})[", typst_string(url)));
-                }
-                if style.bold {
-                    result.push_str("#strong[");
-                }
-                if style.italic {
-                    result.push_str("#emph[");
-                }
-                for character in &characters[position..end] {
-                    let start = result.len();
-                    result.push_str(&escape_markup(&character.to_string()));
-                    origins.push(start..result.len());
-                }
-                for _ in 0..usize::from(style.bold)
-                    + usize::from(style.italic)
-                    + usize::from(style.link.is_some())
-                {
-                    result.push(']');
-                }
-                position = end;
-            }
-            if kind == BlockKind::Description && !characters.contains(&'\t') {
-                result.push_str(": ");
-            }
+            self.write_inline_line(index, &mut result, &mut origins);
+            index += 1;
         }
         let source_len = result.len();
         (
@@ -381,6 +423,58 @@ impl Projection {
                 source_len,
             },
         )
+    }
+    fn write_inline_line(&self, index: usize, result: &mut String, origins: &mut [Range<usize>]) {
+        let ranges = self.line_ranges();
+        let text =
+            &self.text[self.byte_index(ranges[index].start)..self.byte_index(ranges[index].end)];
+        let kind = self.blocks[index];
+        let characters: Vec<_> = text.chars().collect();
+        let description_separator = (kind == BlockKind::Description)
+            .then(|| characters.iter().position(|c| *c == '\t'))
+            .flatten();
+        let mut position = 0;
+        while position < characters.len() {
+            if Some(position) == description_separator {
+                let start = result.len();
+                result.push_str(": ");
+                origins[ranges[index].start + position] = start..result.len();
+                position += 1;
+                continue;
+            }
+            let style = &self.styles[ranges[index].start + position];
+            let mut end = position + 1;
+            while end < characters.len()
+                && Some(end) != description_separator
+                && self.styles[ranges[index].start + end] == *style
+            {
+                end += 1;
+            }
+            if let Some(url) = &style.link {
+                result.push_str(&format!("#link({})[", typst_string(url)));
+            }
+            if style.bold {
+                result.push_str("#strong[");
+            }
+            if style.italic {
+                result.push_str("#emph[");
+            }
+            for (offset, character) in characters[position..end].iter().enumerate() {
+                let start = result.len();
+                result.push_str(&escape_markup(&character.to_string()));
+                origins[ranges[index].start + position + offset] = start..result.len();
+            }
+            for _ in 0..usize::from(style.bold)
+                + usize::from(style.italic)
+                + usize::from(style.link.is_some())
+            {
+                result.push(']');
+            }
+            position = end;
+        }
+        if kind == BlockKind::Description && !characters.contains(&'\t') {
+            result.push_str(": ");
+        }
     }
 }
 
@@ -400,7 +494,7 @@ impl TextBuffer for Projection {
         let at = char_index.min(self.len());
         let line = self.line_at(at);
         let next_kind = match self.blocks[line] {
-            BlockKind::Heading(_) => BlockKind::Paragraph,
+            BlockKind::Heading(_) | BlockKind::QuoteAttribution => BlockKind::Paragraph,
             kind => kind,
         };
         let newlines = text.matches('\n').count();
@@ -595,6 +689,9 @@ impl Projector {
             return Err(crate::tr!("source-computed-call"));
         };
         let args: Vec<_> = call.args().items().collect();
+        if callee.as_str() == "quote" {
+            return self.quote(&args, style);
+        }
         let mut nested = style.clone();
         let body = match (callee.as_str(), args.as_slice()) {
             ("strong", [ast::Arg::Pos(Expr::ContentBlock(body))]) => {
@@ -624,6 +721,66 @@ impl Projector {
         };
         self.inline_markup(body.body(), &nested)
     }
+    fn quote(&mut self, args: &[ast::Arg<'_>], style: &InlineStyle) -> Result<(), String> {
+        let invalid = || crate::tr!("source-quote-signature");
+        let mut block = false;
+        let mut body = None;
+        let mut attribution = None;
+        let mut names = std::collections::HashSet::new();
+        for arg in args {
+            match arg {
+                ast::Arg::Pos(Expr::ContentBlock(content)) if body.is_none() => {
+                    body = Some(*content)
+                }
+                ast::Arg::Named(named) if names.insert(named.name().as_str()) => {
+                    match (named.name().as_str(), named.expr()) {
+                        ("block", Expr::Bool(value)) if value.get() => block = true,
+                        ("attribution", Expr::ContentBlock(content)) => attribution = Some(content),
+                        _ => return Err(invalid()),
+                    }
+                }
+                _ => return Err(invalid()),
+            }
+        }
+        if !block {
+            return Err(invalid());
+        }
+        let body = body.ok_or_else(invalid)?;
+        let mut quoted = Projector {
+            source: self.source.clone(),
+            ..Default::default()
+        };
+        quoted.inline_markup(body.body(), style)?;
+        quoted.view.blocks.fill(BlockKind::Quote);
+        self.pending_break = !self.view.blocks.is_empty()
+            && (!self.view.text.is_empty() || self.view.blocks[0] != BlockKind::Paragraph);
+        self.ensure_block(BlockKind::Quote);
+        self.extend(quoted);
+        self.view.push("\n", &InlineStyle::default());
+        self.origins.push(self.origin.start..self.origin.start);
+        *self.view.blocks.last_mut().unwrap() = BlockKind::QuoteAttribution;
+        if let Some(content) = attribution {
+            let mut author = Projector {
+                source: self.source.clone(),
+                ..Default::default()
+            };
+            author.inline_markup(content.body(), &InlineStyle::default())?;
+            if author.view.blocks.len() != 1 {
+                return Err(invalid());
+            }
+            author.view.blocks[0] = BlockKind::QuoteAttribution;
+            self.extend(author);
+        }
+        self.pending_break = true;
+        Ok(())
+    }
+    fn extend(&mut self, other: Projector) {
+        self.view.text.push_str(&other.view.text);
+        self.view.styles.extend(other.view.styles);
+        self.view.blocks.pop();
+        self.view.blocks.extend(other.view.blocks);
+        self.origins.extend(other.origins);
+    }
     fn inline_markup(
         &mut self,
         markup: ast::Markup<'_>,
@@ -634,6 +791,7 @@ impl Projector {
                 expr,
                 Expr::Heading(_) | Expr::ListItem(_) | Expr::EnumItem(_) | Expr::TermItem(_)
             )
+            || matches!(expr, Expr::FuncCall(call) if matches!(call.callee(), Expr::Ident(name) if name.as_str() == "quote"))
         }) {
             return Err(crate::tr!("source-nested-blocks"));
         }

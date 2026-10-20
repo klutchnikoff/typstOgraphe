@@ -55,6 +55,20 @@
   })
   show heading: set text(fill: accent)
   show link: set text(fill: accent)
+  // Les citations restent sémantiques dans le contenu ; le modèle les compose.
+  show quote.where(block: true): it => block(
+    width: 100%,
+    inset: (left: 10pt, top: 5pt, bottom: 5pt),
+    stroke: (left: (if compact { 0.5pt } else { 1pt }) + accent),
+    above: 0.8em,
+    below: 0.8em,
+  )[
+    #text(style: "italic")[#it.body]
+    #if it.attribution != none {
+      v(4pt)
+      align(right, text(size: 9pt, fill: rgb("586578"))[#it.attribution])
+    }
+  ]
 
   text(size: 16pt, weight: "bold", fill: accent)[VILLE DE VALMONT]
   linebreak()

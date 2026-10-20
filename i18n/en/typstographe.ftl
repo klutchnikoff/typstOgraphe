@@ -207,3 +207,7 @@ bullet-marker-restore-automatic = Restore template choice
 
 list-menu = List
 description-placeholder = Description
+
+cmd-quote = Block quote
+quote-attribution-placeholder = Attribution / source (optional)
+source-quote-signature = A quote must be a text block, with an optional single-paragraph attribution.

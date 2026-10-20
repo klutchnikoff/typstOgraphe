@@ -25,6 +25,93 @@ fn demo_projects_native_typst_without_exposing_source() {
 }
 
 #[test]
+fn block_quotes_round_trip_multiple_paragraphs_styled_attributions_and_exact_positions() {
+    let source = "Avant.\n\n#quote(block: true, attribution: [Élodie, _Rapport_ et #link(\"https://example.org\")[source]])[Un *été* à Noël.\n\nDeuxième paragraphe.]\n\nAprès.\n\n#quote(block: true)[Sans attribution.]\n\n#quote(block: true)[Autre citation.]";
+    let mut document = Document::from_source(source).unwrap();
+    assert_eq!(document.view.quote_groups().len(), 3);
+    assert!(document.view.text.contains("Deuxième paragraphe.\nÉlodie"));
+    assert!(!document.view.text.contains("#quote"));
+    document.sync_source();
+    let restored = Document::from_source(document.source()).unwrap();
+    assert_eq!(restored.view, document.view);
+    for (index, c) in document.view.text.chars().enumerate() {
+        if c.is_whitespace() {
+            continue;
+        }
+        let byte = document.source_map.to_source(index);
+        assert_eq!(
+            document.source_map.to_visible(byte),
+            index,
+            "{c} at {index}"
+        );
+        assert!(document.source()[document.source_map.characters[index].clone()].contains(c));
+    }
+    for invalid in [
+        "#quote[Texte]",
+        "#quote(block: false)[Texte]",
+        "#quote(block: true, quotes: true)[Texte]",
+        "#quote(block: true)[#quote(block: true)[Imbriquée]]",
+        "#quote(block: true, attribution: [Un\n\nDeux])[Texte]",
+    ] {
+        assert!(Document::from_source(invalid).is_err(), "{invalid}");
+    }
+}
+
+#[test]
+fn quote_models_control_rendering_and_navigation_also_covers_attribution() {
+    use crate::navigation::RenderSync;
+    use typst::layout::{Frame, FrameItem};
+    fn collect(frame: &Frame, out: &mut String) {
+        for (_, item) in frame.items() {
+            match item {
+                FrameItem::Group(g) => collect(&g.frame, out),
+                FrameItem::Text(t) => out.push_str(&t.text),
+                _ => {}
+            }
+        }
+    }
+    let mut document = Document::from_source("#quote(block: true, attribution: [Élodie et #link(\"https://example.org\")[son rapport]])[Un *été* à Noël.\n\nUne seconde pensée.]\n\nSuite.").unwrap();
+    document.sync_source();
+    let mut world = crate::rendering::TypstWorld::default();
+    let metadata = Metadata::demo(DocumentType::Courrier);
+    for model in Model::ALL {
+        let template = model.source();
+        let output = world
+            .compile_with_template(document.source(), &metadata, &template)
+            .unwrap();
+        let sync = RenderSync::new(1, world.clone(), output, document.source_map.clone());
+        for needle in ["été", "seconde", "Élodie", "rapport", "Suite"] {
+            let start = document.view.text[..document.view.text.find(needle).unwrap()]
+                .chars()
+                .count();
+            let point = sync.forward(start).unwrap();
+            assert!(
+                sync.backward(point).unwrap().abs_diff(start) <= 1,
+                "{needle}"
+            );
+            assert!(
+                !sync
+                    .selection_highlights(start..start + needle.chars().count())
+                    .is_empty()
+            );
+        }
+        let custom = template.replace(
+            "#text(style: \"italic\")[#it.body]",
+            "MODÈLE PERSONNALISÉ #it.body",
+        );
+        let output = world
+            .compile_with_template(document.source(), &metadata, &custom)
+            .unwrap();
+        let mut text = String::new();
+        for page in output.pages() {
+            collect(&page.frame, &mut text);
+        }
+        assert!(text.contains("MODÈLE PERSONNALISÉ"));
+        assert!(text.contains("Élodie"));
+    }
+}
+
+#[test]
 fn description_lists_preserve_terms_styles_unicode_and_source_positions() {
     let mut document = Document::from_source(
         "/ Échéance: Le *12 novembre*.\n/ Contact\\: service: #link(\"https://example.org\")[Élodie].",

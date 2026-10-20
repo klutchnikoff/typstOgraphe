@@ -72,7 +72,8 @@ fn text_format(
 ) -> TextFormat {
     let heading = matches!(kind, BlockKind::Heading(_));
     let bold = style.bold || matches!(kind, BlockKind::Heading(1 | 2));
-    let italic = style.italic || kind == BlockKind::Heading(3);
+    let italic =
+        style.italic || matches!(kind, BlockKind::Heading(3) | BlockKind::QuoteAttribution);
     let variant = match (bold, italic) {
         (false, false) => 0,
         (true, false) => 1,
@@ -81,6 +82,7 @@ fn text_format(
     };
     let size = match kind {
         BlockKind::Heading(level) => editor.size * 1.2_f32.powi(4 - i32::from(level)),
+        BlockKind::QuoteAttribution => editor.size * 0.9,
         _ => editor.size,
     };
     TextFormat {
@@ -91,6 +93,8 @@ fn text_format(
             colors.bold
         } else if style.italic {
             colors.italic
+        } else if kind == BlockKind::QuoteAttribution {
+            colors.accent.gamma_multiply(0.85)
         } else {
             colors.text
         },
@@ -173,7 +177,11 @@ pub fn layout(
             text_format(aligned.blocks[0], &aligned.typing_style, &colors, editor),
         );
     }
-    let mut galley = ui.fonts_mut(|fonts| fonts.layout_job(job));
+    let mut galley = if aligned.blocks.contains(&BlockKind::Quote) {
+        layout_quote_paragraphs(ui, job, &aligned, editor)
+    } else {
+        ui.fonts_mut(|fonts| fonts.layout_job(job))
+    };
     if !empty_terms.is_empty() {
         let mut character = 0;
         for row in &mut Arc::make_mut(&mut galley).rows {
@@ -190,6 +198,73 @@ pub fn layout(
         }
     }
     space_headings(galley, &aligned.blocks, editor.size)
+}
+
+/// Chaque paragraphe est composé avec sa largeur disponible, puis assemblé avec
+/// l’API egui. Les lignes repliées des citations gardent ainsi le même retrait.
+fn layout_quote_paragraphs(
+    ui: &egui::Ui,
+    job: LayoutJob,
+    view: &Projection,
+    editor: EditorStyle,
+) -> Arc<Galley> {
+    let job = Arc::new(job);
+    let mut paragraphs = Vec::new();
+    let mut start = 0;
+    for (line, text) in job.text.split('\n').enumerate() {
+        let end = start + text.len();
+        let kind = view.blocks[line];
+        let indent = if matches!(kind, BlockKind::Quote | BlockKind::QuoteAttribution) {
+            editor.size * 1.2
+        } else {
+            0.0
+        };
+        let mut local = LayoutJob {
+            text: text.into(),
+            wrap: job.wrap.clone(),
+            ..Default::default()
+        };
+        local.wrap.max_width = (job.wrap.max_width - indent).max(1.0);
+        for section in &job.sections {
+            let first = section.byte_range.start.max(start);
+            let last = section.byte_range.end.min(end);
+            if first < last {
+                let mut section = section.clone();
+                section.byte_range = first - start..last - start;
+                local.sections.push(section);
+            }
+        }
+        if local.sections.is_empty() {
+            local.append(
+                "",
+                0.0,
+                text_format(
+                    kind,
+                    &view.typing_style,
+                    &EditorColors::from_visuals(ui.visuals()),
+                    editor,
+                ),
+            );
+        }
+        let mut galley = ui.fonts_mut(|fonts| fonts.layout_job(local));
+        let composed = Arc::make_mut(&mut galley);
+        for row in &mut composed.rows {
+            let row = Arc::make_mut(&mut row.row);
+            for glyph in &mut row.glyphs {
+                glyph.pos.x += indent;
+            }
+            for vertex in &mut row.visuals.mesh.vertices {
+                vertex.pos.x += indent;
+            }
+            row.visuals.mesh_bounds = row.visuals.mesh_bounds.translate(egui::vec2(indent, 0.0));
+            row.size.x += indent;
+        }
+        composed.rect.max.x += indent;
+        composed.mesh_bounds = composed.mesh_bounds.translate(egui::vec2(indent, 0.0));
+        paragraphs.push(galley);
+        start = end + 1;
+    }
+    Arc::new(Galley::concat(job, &paragraphs, ui.pixels_per_point()))
 }
 
 fn description_placeholder(ui: &egui::Ui, editor: EditorStyle) -> Arc<Galley> {
@@ -379,6 +454,44 @@ pub fn paint_decorations(
     let boxes = description_boxes(view, &output.galley, placeholder.size().x, editor.size);
     let mut backgrounds = Vec::new();
     let mut clicked_term = None;
+    let ranges = view.line_ranges();
+    for group in view.quote_groups() {
+        let first = output
+            .galley
+            .pos_from_cursor(CCursor::new(ranges[group.body.start].start));
+        let last_line = group.attribution.unwrap_or(group.body.end - 1);
+        let last = output
+            .galley
+            .pos_from_cursor(CCursor::new(ranges[last_line].end));
+        let x = output.galley_pos.x + editor.size * 0.15;
+        let top = output.galley_pos.y + first.top() + editor.size * 0.1;
+        let bottom = output.galley_pos.y + last.bottom() - editor.size * 0.1;
+        backgrounds.push(egui::Shape::rect_filled(
+            egui::Rect::from_min_max(
+                egui::pos2(x, top),
+                egui::pos2(x + editor.size * 0.25, bottom),
+            ),
+            1.0,
+            colors.accent,
+        ));
+        if let Some(line) = group.attribution
+            && ranges[line].is_empty()
+        {
+            let point = output
+                .galley
+                .pos_from_cursor(CCursor::new(ranges[line].start));
+            let hint = painter.layout_no_wrap(
+                crate::tr!("quote-attribution-placeholder"),
+                editor.font.font_id(editor.size * 0.9, 2),
+                ui.visuals().weak_text_color(),
+            );
+            backgrounds.push(egui::Shape::galley(
+                output.galley_pos + point.min.to_vec2(),
+                hint,
+                ui.visuals().weak_text_color(),
+            ));
+        }
+    }
     for label in boxes {
         let rect = label.rect.translate(output.galley_pos.to_vec2());
         backgrounds.push(egui::Shape::rect_filled(rect, 3.0, colors.term_fill));
@@ -459,6 +572,60 @@ pub fn paint_decorations(
 mod tests {
     use super::*;
     use crate::document::Document;
+
+    #[test]
+    fn quote_wrapping_keeps_the_indent_and_native_cursors_for_body_and_attribution() {
+        let ctx = egui::Context::default();
+        install_fonts(&ctx);
+        let mut document = Document::from_source("Avant.\n\n#quote(block: true, attribution: [Service des équipements, _rapport_])[Une citation assez longue pour occuper plusieurs lignes dans une colonne étroite, avec du *gras*.\n\nUn second paragraphe.]\n\n#quote(block: true)[Sans attribution.]\n\nAprès.").unwrap();
+        let original = document.clone();
+        for theme in [egui::Theme::Light, egui::Theme::Dark] {
+            ctx.set_theme(theme);
+            for width in [180.0, 500.0] {
+                let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        let view = document.view.clone();
+                        let editor = EditorStyle::default();
+                        let mut layouter = |ui: &egui::Ui, text: &dyn TextBuffer, _| {
+                            layout(ui, &view, text.as_str(), width, editor)
+                        };
+                        let background = ui.painter().add(egui::Shape::Noop);
+                        let output = egui::TextEdit::multiline(&mut document.view)
+                            .desired_width(width)
+                            .layouter(&mut layouter)
+                            .show(ui);
+                        assert_eq!(output.galley.text(), view.text);
+                        let mut line = 0;
+                        for row in &output.galley.rows {
+                            if matches!(
+                                view.blocks[line],
+                                BlockKind::Quote | BlockKind::QuoteAttribution
+                            ) {
+                                assert!((row.x_offset(0) - editor.size * 1.2).abs() <= 1.0);
+                                assert!(row.rect().right() <= width + 1.0);
+                            } else {
+                                assert_eq!(row.pos.x, 0.0);
+                            }
+                            line += usize::from(row.ends_with_newline);
+                        }
+                        for (index, c) in view.text.chars().enumerate() {
+                            if c.is_whitespace() {
+                                continue;
+                            }
+                            let rect = output.galley.pos_from_cursor(CCursor::new(index));
+                            assert_eq!(
+                                output.galley.cursor_from_pos(rect.center().to_vec2()).index,
+                                index,
+                                "{c} at {index}"
+                            );
+                        }
+                        paint_decorations(ui, &document.view, &output, editor, background);
+                    });
+                });
+            }
+        }
+        assert_eq!(document, original);
+    }
 
     #[test]
     fn description_boxes_and_placeholders_keep_native_cursor_indices_and_source() {

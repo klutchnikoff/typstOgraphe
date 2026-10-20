@@ -229,6 +229,9 @@ mod tests {
         letter
             .source
             .push_str("\n\n/ Échéance: Réponse avant vendredi.\n");
+        letter.source.push_str(
+            "\n#quote(block: true, attribution: [Service _municipal_])[Message à conserver.]\n",
+        );
         letter.template = crate::document_types::courrier::Model::Service.source();
         letter
             .template

@@ -42,7 +42,8 @@ Linux restent nécessaires avant de déclarer ces plateformes validées.
 - Ouvrir la palette avec `⌘⇧P` / `Ctrl+Shift+P`. Rechercher une commande,
   utiliser les flèches, puis Entrée.
 - En début de paragraphe : `= `, `== `, `=== ` pour les titres, `- ` pour
-  les puces, `+ ` ou `1. ` pour une liste numérotée, `/ ` pour une liste de descriptions.
+  les puces, `+ ` ou `1. ` pour une liste numérotée, `/ ` pour une liste de descriptions,
+  `> ` pour une citation en bloc.
 - Le menu **Liste** regroupe les listes à puces, numérotées et de descriptions.
   Choisir à nouveau le type actif retire la liste. Les trois commandes restent
   accessibles dans la palette.
@@ -55,6 +56,13 @@ Linux restent nécessaires avant de déclarer ces plateformes validées.
   entièrement vide termine la liste.
   Les puces, encadrés, couleurs et textes indicatifs appartiennent uniquement
   à l’éditeur ; le modèle garde la maîtrise de la présentation finale.
+- Choisir **Citation en bloc** dans le sélecteur de style ou dans la palette.
+  La citation peut couvrir plusieurs paragraphes ; une bordure gauche épaisse
+  la repère dans l’éditeur, y compris les lignes repliées. La zone facultative
+  **Attribution / source** apparaît sous son texte, dans un style distinct.
+  `Tab` rejoint cette zone et `Maj+Tab` revient au début de la citation.
+  Entrée poursuit la citation ; sur un paragraphe vide ou dans l’attribution,
+  Entrée crée un paragraphe normal après le bloc.
 - Saisir `*texte*` ou `_texte_` pour convertir la saisie en gras ou italique.
 - Entrée sur un élément de liste vide permet de sortir de la liste.
 - Modifier les informations du courrier ou changer de présentation. Les
@@ -414,6 +422,38 @@ rétablit le mode automatique pour appliquer la nouvelle charte.
 Les choix d’interface autorisés et les conventions typographiques sont ainsi
 définis dans le modèle, sans ajouter une nouvelle commande par forme de puce.
 
+## Citations en bloc
+
+Le contenu utilise l’élément natif Typst `quote`, avec `block: true` et un
+argument facultatif `attribution` contenant du texte, des styles et des liens :
+
+```typst
+#quote(block: true, attribution: [Service des équipements, _Rapport_])[
+  Premier paragraphe cité.
+
+  Deuxième paragraphe cité.
+]
+```
+
+Le modèle définit les guillemets, les retraits, la typographie et la présentation
+de l’attribution avec ses règles `set` / `show`. Les deux modèles fournis ont
+une règle `show quote.where(block: true)` : texte en italique, retrait et filet
+fin, attribution alignée à droite. L’éditeur conserve sa propre présentation
+commune, avec une bordure plus large et un champ d’attribution plus petit.
+Les textes indicatifs de l’éditeur ne sont jamais ajoutés au source ou au PDF.
+
+L’attribution est un seul contenu libre ; auteur, titre, date, page ou lien
+peuvent y être réunis. Le prototype prend en charge une attribution sur un seul
+paragraphe, les citations sans attribution et les citations successives. Il
+n’expose pas encore les références bibliographiques, les citations dans le fil
+du texte ni les blocs imbriqués à l’intérieur d’une citation. Les choix visuels
+du rendu se règlent dans le modèle.
+
+La correspondance entre caractères visibles et source reste exacte pour le
+texte et l’attribution, même si l’attribution précède le corps dans l’appel Typst.
+La sélection, l’annulation, l’enregistrement et la synchronisation avec l’aperçu
+utilisent ces mêmes correspondances.
+
 ## Source et périmètre
 
 Le source Typst restreint est la référence pour le corps du document. Le parseur
@@ -424,7 +464,8 @@ de rédaction mettent à jour le source. Le source est normalisé lors d’une
 échappées avant d’être transmises à Typst.
 
 Le sous-ensemble de ce prototype comprend les paragraphes, les titres 1–3,
-le gras, l’italique, les liens, les puces, les listes numérotées et les listes de descriptions simples.
+le gras, l’italique, les liens, les puces, les listes numérotées, les listes de descriptions simples et les
+citations en bloc avec attribution facultative.
 Le corps n’expose jamais de code à l’utilisateur. Le parseur refuse les fonctions
 et les expressions calculées qu’il ne sait pas éditer.
 

@@ -112,7 +112,7 @@ impl Definition {
     pub fn in_block_style_menu(&self) -> bool {
         matches!(
             self.command,
-            Command::Block(BlockKind::Paragraph | BlockKind::Heading(_))
+            Command::Block(BlockKind::Paragraph | BlockKind::Heading(_) | BlockKind::Quote)
         )
     }
     pub fn in_list_menu(&self) -> bool {
@@ -300,6 +300,13 @@ pub const COMMON_COMMANDS: &[Definition] = &[
         "block.heading_3",
         "cmd-heading-3",
         Command::Block(BlockKind::Heading(3)),
+        Scope::Editor,
+        &[],
+    ),
+    define(
+        "block.quote",
+        "cmd-quote",
+        Command::Block(BlockKind::Quote),
         Scope::Editor,
         &[],
     ),
