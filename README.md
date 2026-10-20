@@ -70,6 +70,20 @@ Les accents et les caractères Unicode sont traités avec les mêmes indices de
 caractères que les curseurs egui. Le gras et l’italique utilisent de véritables
 variantes de police dans l’éditeur.
 
+L’éditeur emploie une représentation commune à tous les documents, indépendante
+du type et du modèle Typst. Pour une taille courante `x`, les titres utilisent
+`1.2^(4-h) × x`, où `h` est leur niveau : H1 et H2 sont bleus et gras, H3 est
+bleu et italique. Un filet bleu fin occupe la largeur du texte sous les H1,
+y compris lorsque leur titre se répartit sur plusieurs lignes. L’espace avant
+les titres est plus grand que l’espace après eux.
+
+Le gras est rouille, l’italique vert bouteille ; le gras italique conserve la
+couleur rouille. Les teintes sont plus lumineuses en thème sombre. Les titres
+et les liens gardent leur couleur bleue ; les liens restent soulignés. Les
+filets, les espacements et l’italique visuel des H3 n’ajoutent aucun contenu ou
+style au source : le modèle reste responsable de toute la présentation produite
+dans l’aperçu et les exports.
+
 ## Menus de l’application
 
 Sur macOS, les menus sont natifs, dans la barre système, grâce à **muda**.

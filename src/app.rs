@@ -1042,26 +1042,9 @@ impl App {
             self.force_selection = false;
         }
         let view = self.document.view.clone();
-        let color = ui.visuals().text_color();
-        let strong_color = color.lerp_to_gamma(ui.visuals().strong_text_color(), 0.65);
-        let accent = if ui.visuals().dark_mode {
-            Color32::from_rgb(148, 199, 224)
-        } else {
-            ACCENT
-        };
         let editor_style = self.preferences.editor;
         let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, width: f32| {
-            ui.fonts_mut(|fonts| {
-                fonts.layout_job(editor::layout(
-                    &view,
-                    text.as_str(),
-                    width,
-                    color,
-                    strong_color,
-                    accent,
-                    editor_style,
-                ))
-            })
+            editor::layout(ui, &view, text.as_str(), width, editor_style)
         };
         egui::ScrollArea::vertical()
             .id_salt("editor-scroll")
@@ -1080,7 +1063,7 @@ impl App {
                             .font(editor_style.font.font_id(editor_style.size, 0))
                             .layouter(&mut layouter)
                             .show(ui);
-                        editor::paint_list_markers(ui, &self.document.view, &output, editor_style);
+                        editor::paint_decorations(ui, &self.document.view, &output, editor_style);
                         if let Some(range) = output.cursor_range {
                             self.selection = range;
                         }
@@ -1983,22 +1966,22 @@ mod interaction_tests {
         let mut view = Document::from_source("Normal\n\n= Titre").unwrap().view;
         view.toggle_mark(0..3, Mark::Bold);
         view.toggle_mark(0..3, Mark::Italic);
-        let job = editor::layout(
-            &view,
-            &view.text,
-            500.0,
-            Color32::BLACK,
-            Color32::BLACK,
-            ACCENT,
-            app.preferences.editor,
-        );
-        assert_eq!(
-            job.sections[0].format.font_id,
-            EditorFont::Monospace.font_id(24.0, 3)
-        );
-        assert!(job.sections.iter().any(|s| s.format.font_id.size == 32.0));
         let _ = ctx.run(egui::RawInput::default(), |ctx| {
-            ctx.fonts_mut(|fonts| fonts.layout_job(job.clone()));
+            egui::CentralPanel::default().show(ctx, |ui| {
+                let galley = editor::layout(ui, &view, &view.text, 500.0, app.preferences.editor);
+                assert_eq!(
+                    galley.job.sections[0].format.font_id,
+                    EditorFont::Monospace.font_id(24.0, 3)
+                );
+                let h1_size = 24.0 * 1.2_f32.powi(3);
+                assert!(
+                    galley
+                        .job
+                        .sections
+                        .iter()
+                        .any(|s| (s.format.font_id.size - h1_size).abs() < 0.001)
+                );
+            });
         });
         assert_eq!(app.letter(), letter);
         assert_eq!(app.revision, revision);
