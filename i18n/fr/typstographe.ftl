@@ -181,5 +181,3 @@ language-spanish = Espagnol
 language-italian = Italien
 language-portuguese = Portugais
 language-dutch = Néerlandais
-legacy-template-options = Ce modèle ancien gère lui-même le format et la langue. Choisissez un modèle fourni pour utiliser les réglages généraux.
-legacy-options-unsupported = Ce modèle ancien ne prend pas en charge les réglages généraux du document.

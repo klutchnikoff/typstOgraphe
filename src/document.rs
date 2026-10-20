@@ -562,16 +562,6 @@ impl Projector {
     }
 }
 
-/// Contrat explicitement enregistré avec le modèle. Les anciens modèles sont
-/// conservés tels quels, sans leur passer des arguments qu’ils ne connaissent pas.
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
-pub enum TemplateContract {
-    #[default]
-    Legacy,
-    DocumentOptions,
-}
-
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum PaperFormat {
@@ -659,7 +649,6 @@ impl DocumentLanguage {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(default)]
 pub struct DocumentOptions {
     pub paper: PaperFormat,
     pub landscape: bool,
@@ -668,7 +657,6 @@ pub struct DocumentOptions {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Metadata {
-    #[serde(default)]
     pub options: DocumentOptions,
     pub expediteur: String,
     pub fonction: String,
@@ -699,11 +687,7 @@ impl Default for Metadata {
     }
 }
 impl Metadata {
-    #[cfg(test)]
     pub fn main_source(&self, compact: bool) -> String {
-        self.main_source_for(compact, TemplateContract::DocumentOptions)
-    }
-    pub fn main_source_for(&self, compact: bool, contract: TemplateContract) -> String {
         let mut source = String::from("#import \"modele.typ\": courrier\n#show: courrier.with(\n");
         for (key, value) in [
             ("expediteur", &self.expediteur),
@@ -719,14 +703,12 @@ impl Metadata {
         ] {
             source.push_str(&format!("  {key}: {},\n", typst_string(value)));
         }
-        if contract == TemplateContract::DocumentOptions {
-            source.push_str(&format!(
-                "  options: (paper: {}, landscape: {}, language: {}),\n",
-                typst_string(self.options.paper.typst_name()),
-                self.options.landscape,
-                typst_string(self.options.language.code()),
-            ));
-        }
+        source.push_str(&format!(
+            "  options: (paper: {}, landscape: {}, language: {}),\n",
+            typst_string(self.options.paper.typst_name()),
+            self.options.landscape,
+            typst_string(self.options.language.code()),
+        ));
         source.push_str(&format!(
             "  compact: {compact},\n)\n#include \"contenu.typ\"\n"
         ));

@@ -1,6 +1,6 @@
 //! Moteur Typst embarqué : fichiers virtuels et polices embarquées, sans réseau.
 use crate::{
-    document::{Metadata, SourceMap, TemplateContract},
+    document::{Metadata, SourceMap},
     navigation::RenderSync,
 };
 use std::{
@@ -71,13 +71,7 @@ impl TypstWorld {
         metadata: &Metadata,
         compact: bool,
     ) -> Result<PagedDocument, String> {
-        self.compile_with_template(
-            source,
-            metadata,
-            compact,
-            TEMPLATE,
-            TemplateContract::DocumentOptions,
-        )
+        self.compile_with_template(source, metadata, compact, TEMPLATE)
     }
     pub fn compile_with_template(
         &mut self,
@@ -85,9 +79,8 @@ impl TypstWorld {
         metadata: &Metadata,
         compact: bool,
         template: &str,
-        contract: TemplateContract,
     ) -> Result<PagedDocument, String> {
-        self.set_source("main.typ", &metadata.main_source_for(compact, contract));
+        self.set_source("main.typ", &metadata.main_source(compact));
         self.set_source("modele.typ", template);
         self.set_source("contenu.typ", source);
         let result = typst::compile::<PagedDocument>(self);
@@ -164,7 +157,6 @@ pub struct RenderRequest {
     pub metadata: Metadata,
     pub compact: bool,
     pub template: String,
-    pub template_contract: TemplateContract,
     pub export_dir: Option<PathBuf>,
 }
 pub struct PageImage {
@@ -190,7 +182,6 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
         &request.metadata,
         request.compact,
         &request.template,
-        request.template_contract,
     )?;
     if let Some(path) = &request.export_dir {
         std::fs::create_dir_all(path).map_err(|e| e.to_string())?;
@@ -213,10 +204,7 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
         write(
             path,
             "main.typ",
-            request
-                .metadata
-                .main_source_for(request.compact, request.template_contract)
-                .as_bytes(),
+            request.metadata.main_source(request.compact).as_bytes(),
         )?;
         write(path, "contenu.typ", request.source.as_bytes())?;
         write(path, "modele.typ", request.template.as_bytes())?;

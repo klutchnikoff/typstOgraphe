@@ -1,6 +1,6 @@
-//! Archive ZIP autonome, jamais extraite sur le disque. Lecture v1/v2, écriture v2.
+//! Archive ZIP autonome, jamais extraite sur le disque. Seul le format actuel est pris en charge.
 use crate::{
-    document::{Document, DocumentOptions, Metadata, TemplateContract},
+    document::{Document, Metadata},
     rendering::TEMPLATE,
 };
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,6 @@ pub struct Letter {
     pub source: String,
     pub metadata: Metadata,
     pub template: String,
-    pub template_contract: TemplateContract,
     pub compact: bool,
 }
 impl Letter {
@@ -35,7 +34,6 @@ impl Letter {
             source: Document::demo().source().into(),
             metadata: Metadata::default(),
             template: TEMPLATE.into(),
-            template_contract: TemplateContract::DocumentOptions,
             compact: false,
         }
     }
@@ -51,7 +49,6 @@ impl Letter {
                 ..Metadata::default()
             },
             template: TEMPLATE.into(),
-            template_contract: TemplateContract::DocumentOptions,
             compact: false,
         }
     }
@@ -63,17 +60,14 @@ struct Manifest {
     version: u32,
     document_type: String,
     compact: bool,
-    #[serde(default)]
-    template_contract: TemplateContract,
 }
 impl Manifest {
-    fn new(compact: bool, template_contract: TemplateContract) -> Self {
+    fn new(compact: bool) -> Self {
         Self {
             format: "typstOgraphe".into(),
             version: 2,
             document_type: "courrier".into(),
             compact,
-            template_contract,
         }
     }
 }
@@ -110,9 +104,8 @@ fn decode(reader: impl Read + std::io::Seek) -> Result<Letter, String> {
     let manifest: Manifest = serde_json::from_str(&entry(&mut zip, "manifest.json")?)
         .map_err(|e| crate::tr!("storage-manifest-unreadable", error = e.to_string()))?;
     if manifest.format != "typstOgraphe"
-        || !matches!(manifest.version, 1 | 2)
+        || manifest.version != 2
         || manifest.document_type != "courrier"
-        || (manifest.version == 1 && manifest.template_contract != TemplateContract::Legacy)
     {
         return Err(crate::tr!("storage-unsupported"));
     }
@@ -121,15 +114,10 @@ fn decode(reader: impl Read + std::io::Seek) -> Result<Letter, String> {
         metadata: serde_json::from_str(&entry(&mut zip, "metadonnees.json")?)
             .map_err(|e| crate::tr!("storage-metadata-unreadable", error = e.to_string()))?,
         template: entry(&mut zip, "modele.typ")?,
-        template_contract: manifest.template_contract,
         compact: manifest.compact,
     };
     validate(&letter)?;
-    if entry(&mut zip, "main.typ")?
-        != letter
-            .metadata
-            .main_source_for(letter.compact, letter.template_contract)
-    {
+    if entry(&mut zip, "main.typ")? != letter.metadata.main_source(letter.compact) {
         return Err(crate::tr!("storage-main-mismatch"));
     }
     Ok(letter)
@@ -157,11 +145,6 @@ fn entry<R: Read + std::io::Seek>(zip: &mut ZipArchive<R>, name: &str) -> Result
 
 fn validate(letter: &Letter) -> Result<(), String> {
     Document::from_source(&letter.source)?;
-    if letter.template_contract == TemplateContract::Legacy
-        && letter.metadata.options != DocumentOptions::default()
-    {
-        return Err(crate::tr!("legacy-options-unsupported"));
-    }
     if letter.template.trim().is_empty()
         || typst_syntax::Source::detached(&letter.template)
             .root()
@@ -178,12 +161,9 @@ fn validate(letter: &Letter) -> Result<(), String> {
 pub fn save(path: &Path, letter: &Letter) -> Result<(), String> {
     validate(letter)?;
     let manifest =
-        serde_json::to_string_pretty(&Manifest::new(letter.compact, letter.template_contract))
-            .map_err(|e| e.to_string())?;
+        serde_json::to_string_pretty(&Manifest::new(letter.compact)).map_err(|e| e.to_string())?;
     let metadata = serde_json::to_string_pretty(&letter.metadata).map_err(|e| e.to_string())?;
-    let main = letter
-        .metadata
-        .main_source_for(letter.compact, letter.template_contract);
+    let main = letter.metadata.main_source(letter.compact);
     let files = [
         manifest.as_str(),
         main.as_str(),
@@ -283,7 +263,6 @@ mod tests {
                 source_map: document.source_map,
                 metadata: restored.metadata,
                 template: restored.template.clone(),
-                template_contract: restored.template_contract,
                 compact: restored.compact,
                 export_dir: Some(export.clone()),
             },
@@ -300,51 +279,6 @@ mod tests {
                 .text(),
             letter.template
         );
-    }
-
-    #[test]
-    fn legacy_archives_keep_their_exact_model_and_can_be_saved_as_v2() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("ancien.typsto");
-        let mut legacy = Letter::demo();
-        legacy.template = include_str!("../tests/fixtures/courrier-v1.typ").into();
-        legacy.template_contract = TemplateContract::Legacy;
-        save(&path, &legacy).unwrap();
-        // Reconstituer exactement le manifeste et les métadonnées de la v1.
-        rewrite(&path, |files| {
-            files[0].1 = br#"{"format":"typstOgraphe","version":1,"document_type":"courrier","compact":false}"#.to_vec();
-            let mut metadata = serde_json::to_value(&legacy.metadata).unwrap();
-            metadata.as_object_mut().unwrap().remove("options");
-            files[3].1 = serde_json::to_vec_pretty(&metadata).unwrap();
-        });
-        let restored = read(&path).unwrap();
-        assert_eq!(restored, legacy);
-        let mut world = crate::rendering::TypstWorld::default();
-        assert!(
-            world
-                .compile_with_template(
-                    &restored.source,
-                    &restored.metadata,
-                    restored.compact,
-                    &restored.template,
-                    restored.template_contract
-                )
-                .is_ok()
-        );
-        save(&path, &restored).unwrap();
-        let mut zip = ZipArchive::new(File::open(&path).unwrap()).unwrap();
-        let manifest: serde_json::Value =
-            serde_json::from_str(&entry(&mut zip, "manifest.json").unwrap()).unwrap();
-        assert_eq!(manifest["version"], 2);
-        assert_eq!(entry(&mut zip, "modele.typ").unwrap(), legacy.template);
-        assert!(!entry(&mut zip, "main.typ").unwrap().contains("options:"));
-        assert_eq!(read(&path).unwrap(), restored);
-        // Un réglage non géré ne doit jamais être enregistré comme s’il était appliqué.
-        let previous = std::fs::read(&path).unwrap();
-        let mut unsupported = restored;
-        unsupported.metadata.options.landscape = true;
-        assert!(save(&path, &unsupported).is_err());
-        assert_eq!(std::fs::read(&path).unwrap(), previous);
     }
 
     #[test]

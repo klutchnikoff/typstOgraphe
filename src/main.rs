@@ -31,7 +31,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     metadata: document::Metadata::default(),
                     compact: false,
                     template: rendering::TEMPLATE.into(),
-                    template_contract: document::TemplateContract::DocumentOptions,
                     export_dir: Some(PathBuf::from(dir)),
                 };
                 let result = rendering::render(&mut world, &request)?;

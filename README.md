@@ -213,7 +213,7 @@ Le fichier est une archive ZIP standard contenant :
   et lors de l’export ;
 - `main.typ` : en-tête généré à partir des métadonnées ;
 - `manifest.json` : identifiant du format, version 2, type « courrier »,
-  choix de présentation et contrat du modèle (`template_contract`).
+  choix de présentation.
 
 Le modèle embarqué permet de retrouver la présentation du courrier indépendamment
 des modèles fournis par une future version de l’application. L’enregistrement
@@ -222,12 +222,11 @@ archive invalide est refusée sans remplacer le courrier ouvert. Le format
 accepte uniquement ces cinq fichiers, pour un total décompressé de 16 Mio maximum.
 Il ne contient pas encore de pièces jointes ou d’images.
 
-Les fichiers v1 restent lisibles. Leur modèle est conservé exactement, avec le
-contrat `legacy` : ses réglages de format et de langue restent ceux qu’il définit.
-Le panneau Général explique cette limite et propose les modèles actuels pour
-activer les nouveaux réglages. Le modèle n’est jamais remplacé automatiquement
-à l’ouverture. Un réenregistrement écrit le format v2, même si le modèle ancien
-est conservé. Les anciennes versions de l’application ne lisent pas les fichiers v2.
+Le prototype évolue sans exigence de rétrocompatibilité. Le format de fichier et
+les signatures des fonctions Typst sont affinés au fil du développement ; seul
+le format actuel est pris en charge, sans mécanisme de migration des anciens
+fichiers. Cette règle privilégie la simplicité tant que l’application reste
+dans sa phase préliminaire, sans utilisateurs.
 
 Pour les développeurs : `main.typ` est dérivé du manifeste et des métadonnées ;
 une modification manuelle de son en-tête doit rester cohérente avec ces fichiers.
@@ -287,14 +286,13 @@ Le modèle de `templates/courrier.typ` est entièrement écrit en Typst et expos
 la fonction `courrier`, avec des arguments nommés pour les métadonnées et le
 corps du document. Les exemples et le catalogue d’organisation sont fictifs.
 
-Le contrat `document-options` ajoute un argument nommé `options`, indépendant
-des métadonnées propres au type de document. L’en-tête exporté lui transmet par
+La fonction reçoit un argument nommé `options`, indépendant des métadonnées
+propres au type de document. L’en-tête exporté lui transmet par
 exemple `options: (paper: "a4", landscape: false, language: "fr")`. Le modèle
 applique ces valeurs avec `set page(paper: options.paper, flipped: options.landscape)`
 et `set text(lang: options.language)`. Il reste responsable des libellés et de
 la mise en page dans chaque langue ; aucun code d’interface n’est inséré dans
-le modèle. Le manifeste permet de distinguer ce contrat du contrat ancien, qui
-ne reçoit pas cet argument. Les réglages sont conservés à l’enregistrement et
+le modèle. Les réglages sont conservés à l’enregistrement et
 utilisés de la même façon dans l’aperçu et l’export PDF/Typst.
 
 ## Source et périmètre
@@ -341,8 +339,7 @@ Les tests de fichiers vérifient l’aller-retour du source, des métadonnées e
 modèle personnalisé, l’export avec le modèle rouvert, le remplacement atomique,
 le refus des archives invalides, les erreurs d’écriture et la protection des
 modifications non enregistrées.
-Ils couvrent aussi la lecture des archives v1 sans modification du modèle, leur
-réenregistrement en v2, les réglages généraux, les dimensions réelles des cinq
+Ils couvrent aussi les réglages généraux, les dimensions réelles des cinq
 formats dans les deux orientations, et la langue des éléments de texte Typst.
 Les tests du registre vérifient les contextes, les modificateurs sur macOS et
 Windows/Linux, les conflits, les remplacements et la désactivation de raccourcis,

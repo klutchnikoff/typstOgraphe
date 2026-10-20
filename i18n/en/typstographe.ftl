@@ -181,5 +181,3 @@ language-spanish = Spanish
 language-italian = Italian
 language-portuguese = Portuguese
 language-dutch = Dutch
-legacy-template-options = This older template controls its own paper size and language. Choose a supplied template to use the general settings.
-legacy-options-unsupported = This older template does not support the document’s general settings.
