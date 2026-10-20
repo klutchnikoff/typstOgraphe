@@ -174,7 +174,6 @@ impl App {
         self.palette_open
             || self.link_open
             || self.export_open
-            || self.information_open
             || self.pending_action.is_some()
             || self.file_error.is_some()
     }
@@ -352,7 +351,7 @@ impl App {
                 self.palette_query.clear();
                 self.palette_index = 0;
             }
-            Command::Information => self.information_open = true,
+            Command::Information => self.information_open = !self.information_open,
             Command::Presentation(presentation) => {
                 if self.compact != presentation.compact() {
                     self.compact = presentation.compact();
@@ -715,8 +714,137 @@ impl App {
             }
         });
     }
+    fn information_ui(&mut self, ui: &mut egui::Ui) {
+        let old = self.metadata.clone();
+        // L’en-tête et le corps ont des défilements distincts. Même sur une petite
+        // fenêtre, le formulaire ne doit pas occuper toute la zone de rédaction.
+        let max_height = (ui.available_height() * 0.45).min(320.0);
+        let response = egui::CollapsingHeader::new(Command::Information.label())
+            .id_salt("document-information")
+            .open(Some(self.information_open))
+            .show(ui, |ui| {
+                egui::ScrollArea::vertical()
+                    .id_salt("information-scroll")
+                    .max_height(max_height)
+                    .auto_shrink([false, true])
+                    .show(ui, |ui| {
+                        let field_width = (ui.available_width() - 120.0).max(80.0);
+                        egui::CollapsingHeader::new(crate::tr!("group-correspondence"))
+                            .id_salt("information-correspondence")
+                            .default_open(true)
+                            .show(ui, |ui| {
+                                egui::Grid::new("correspondence-fields")
+                                    .num_columns(2)
+                                    .show(ui, |ui| {
+                                        for (id, label, value, multiline) in [
+                                            (
+                                                "recipient",
+                                                crate::tr!("field-recipient"),
+                                                &mut self.metadata.destinataire,
+                                                false,
+                                            ),
+                                            (
+                                                "address",
+                                                crate::tr!("field-address"),
+                                                &mut self.metadata.adresse,
+                                                true,
+                                            ),
+                                            (
+                                                "subject",
+                                                crate::tr!("field-subject"),
+                                                &mut self.metadata.objet,
+                                                false,
+                                            ),
+                                            (
+                                                "reference",
+                                                crate::tr!("field-reference"),
+                                                &mut self.metadata.reference,
+                                                false,
+                                            ),
+                                            (
+                                                "place",
+                                                crate::tr!("field-place"),
+                                                &mut self.metadata.lieu,
+                                                false,
+                                            ),
+                                            (
+                                                "date",
+                                                crate::tr!("field-date"),
+                                                &mut self.metadata.date,
+                                                false,
+                                            ),
+                                        ] {
+                                            let label = ui.label(label);
+                                            let field = if multiline {
+                                                egui::TextEdit::multiline(value).desired_rows(3)
+                                            } else {
+                                                egui::TextEdit::singleline(value)
+                                            };
+                                            ui.add(field.id_salt(id).desired_width(field_width))
+                                                .labelled_by(label.id);
+                                            ui.end_row();
+                                        }
+                                    });
+                            });
+                        egui::CollapsingHeader::new(crate::tr!("group-sender"))
+                            .id_salt("information-sender")
+                            .show(ui, |ui| {
+                                egui::Grid::new("sender-fields")
+                                    .num_columns(2)
+                                    .show(ui, |ui| {
+                                        for (id, label, value) in [
+                                            (
+                                                "name",
+                                                crate::tr!("field-full-name"),
+                                                &mut self.metadata.expediteur,
+                                            ),
+                                            (
+                                                "role",
+                                                crate::tr!("field-role"),
+                                                &mut self.metadata.fonction,
+                                            ),
+                                            (
+                                                "department",
+                                                crate::tr!("field-service"),
+                                                &mut self.metadata.service,
+                                            ),
+                                            (
+                                                "email",
+                                                crate::tr!("field-email"),
+                                                &mut self.metadata.email,
+                                            ),
+                                        ] {
+                                            let label = ui.label(label);
+                                            ui.add(
+                                                egui::TextEdit::singleline(value)
+                                                    .id_salt(id)
+                                                    .desired_width(field_width),
+                                            )
+                                            .labelled_by(label.id);
+                                            ui.end_row();
+                                        }
+                                    });
+                            });
+                    });
+            });
+        if response
+            .header_response
+            .on_hover_text(self.keymap.hint(ui.ctx(), Command::Information))
+            .clicked()
+        {
+            self.apply(Command::Information);
+            ui.ctx().request_repaint();
+        }
+        if self.metadata != old {
+            self.revision += 1;
+            self.changed_at = Instant::now();
+            ui.ctx().request_repaint();
+        }
+    }
     fn editor_ui(&mut self, ui: &mut egui::Ui) {
         self.toolbar(ui);
+        ui.separator();
+        self.information_ui(ui);
         ui.separator();
         let before = self.snapshot();
         let old_range = self.selection;
@@ -939,77 +1067,6 @@ impl App {
         }
     }
     fn dialogs(&mut self, ctx: &egui::Context) {
-        if self.information_open {
-            let old = self.metadata.clone();
-            let mut open = true;
-            egui::Window::new(Command::Information.label())
-                .id(egui::Id::new("info"))
-                .open(&mut open)
-                .collapsible(false)
-                .resizable(false)
-                .default_width(370.0)
-                .show(ctx, |ui| {
-                    egui::CollapsingHeader::new(crate::tr!("group-correspondence"))
-                        .default_open(true)
-                        .show(ui, |ui| {
-                            for (label, value, multiline) in [
-                                (
-                                    crate::tr!("field-recipient"),
-                                    &mut self.metadata.destinataire,
-                                    false,
-                                ),
-                                (
-                                    crate::tr!("field-address"),
-                                    &mut self.metadata.adresse,
-                                    true,
-                                ),
-                                (crate::tr!("field-subject"), &mut self.metadata.objet, false),
-                                (
-                                    crate::tr!("field-reference"),
-                                    &mut self.metadata.reference,
-                                    false,
-                                ),
-                                (crate::tr!("field-place"), &mut self.metadata.lieu, false),
-                                (crate::tr!("field-date"), &mut self.metadata.date, false),
-                            ] {
-                                ui.label(label);
-                                if multiline {
-                                    ui.add(
-                                        egui::TextEdit::multiline(value)
-                                            .desired_rows(3)
-                                            .desired_width(f32::INFINITY),
-                                    );
-                                } else {
-                                    ui.add(
-                                        egui::TextEdit::singleline(value)
-                                            .desired_width(f32::INFINITY),
-                                    );
-                                }
-                            }
-                        });
-                    egui::CollapsingHeader::new(crate::tr!("group-sender")).show(ui, |ui| {
-                        for (label, value) in [
-                            (crate::tr!("field-full-name"), &mut self.metadata.expediteur),
-                            (crate::tr!("field-role"), &mut self.metadata.fonction),
-                            (crate::tr!("field-service"), &mut self.metadata.service),
-                            (crate::tr!("field-email"), &mut self.metadata.email),
-                        ] {
-                            ui.label(label);
-                            ui.add(egui::TextEdit::singleline(value).desired_width(f32::INFINITY));
-                        }
-                    });
-                    ui.add_space(8.0);
-                    if ui.button(crate::tr!("back-to-text")).clicked() {
-                        self.information_open = false;
-                        self.force_selection = true;
-                    }
-                });
-            self.information_open &= open;
-            if self.metadata != old {
-                self.revision += 1;
-                self.changed_at = Instant::now();
-            }
-        }
         if self.link_open {
             let mut open = true;
             let mut apply = false;
@@ -1334,13 +1391,6 @@ impl App {
                             self.apply(Command::File(FileCommand::Export));
                         }
                         if ui
-                            .button(Command::Information.short_label())
-                            .on_hover_text(self.keymap.hint(ui.ctx(), Command::Information))
-                            .clicked()
-                        {
-                            self.apply(Command::Information);
-                        }
-                        if ui
                             .button(Command::File(FileCommand::Save).short_label())
                             .on_hover_text(
                                 self.keymap.hint(ui.ctx(), Command::File(FileCommand::Save)),
@@ -1483,6 +1533,114 @@ impl eframe::App for App {
 #[cfg(test)]
 mod interaction_tests {
     use super::*;
+
+    #[test]
+    fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_document() {
+        fn text_rect(output: &egui::FullOutput, value: &str) -> egui::Rect {
+            output
+                .shapes
+                .iter()
+                .find_map(|shape| match &shape.shape {
+                    egui::Shape::Text(text) if text.galley.text() == value => Some(
+                        text.galley
+                            .rect
+                            .translate(text.pos.to_vec2())
+                            .intersect(shape.clip_rect),
+                    ),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("texte absent de l’interface : {value}"))
+        }
+        fn click(
+            app: &mut App,
+            draw: &mut impl FnMut(&mut App, Vec<egui::Event>) -> egui::FullOutput,
+            pos: egui::Pos2,
+        ) {
+            for pressed in [true, false] {
+                draw(
+                    app,
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        },
+                    ],
+                );
+            }
+        }
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        ctx.style_mut(|style| style.animation_time = 0.0);
+        app.selection = editor::cursor(10..20);
+        app.force_selection = true;
+        let source = app.document.source().to_owned();
+        let selection = app.selection;
+        let revision = app.revision;
+        let mut time = 0.0;
+        let mut draw = |app: &mut App, events| {
+            time += 0.1;
+            ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(960.0, 640.0),
+                    )),
+                    time: Some(time),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| app.ui_frame(ctx),
+            )
+        };
+        draw(&mut app, vec![]);
+        let closed = draw(&mut app, vec![]);
+        let header = text_rect(&closed, "Informations du courrier");
+        assert!(header.top() > text_rect(&closed, "Paragraphe").bottom());
+        let preview = text_rect(&closed, "Aperçu Typst");
+        click(&mut app, &mut draw, header.center());
+        draw(&mut app, vec![]);
+        let opened = draw(&mut app, vec![]);
+        assert!(app.information_open);
+        assert!(!app.modal_open());
+        assert!(!app.is_dirty());
+        assert_eq!(app.revision, revision);
+        assert_eq!(text_rect(&opened, "Aperçu Typst"), preview);
+        // Même à la taille minimale de la fenêtre, le formulaire reste dans la
+        // colonne de gauche et laisse une zone de rédaction utilisable.
+        let body = text_rect(&opened, &app.document.view.text);
+        assert!(body.height() > 150.0, "zone de rédaction : {body:?}");
+        let subject = text_rect(&opened, &app.metadata.objet);
+        assert!(subject.is_positive());
+        assert!(subject.right() < preview.left());
+        click(&mut app, &mut draw, subject.center());
+        draw(
+            &mut app,
+            vec![
+                egui::Event::Key {
+                    key: egui::Key::A,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers: egui::Modifiers::COMMAND,
+                },
+                egui::Event::Text("Objet modifié".into()),
+            ],
+        );
+        assert_eq!(app.metadata.objet, "Objet modifié");
+        assert_eq!(app.document.source(), source);
+        assert_eq!(app.selection, selection);
+        assert_eq!(app.revision, revision + 1);
+        assert!(app.is_dirty());
+        assert!(app.information_open);
+        click(&mut app, &mut draw, header.center());
+        draw(&mut app, vec![]);
+        assert!(!app.information_open);
+        assert_eq!(app.metadata.objet, "Objet modifié");
+        assert_eq!(app.revision, revision + 1);
+    }
 
     #[test]
     fn information_and_presentations_work_from_palette_and_custom_shortcuts() {

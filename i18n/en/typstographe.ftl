@@ -30,7 +30,6 @@ field-full-name = Full name
 field-role = Role
 field-service = Department
 field-email = Email
-back-to-text = Back to text
 link-title = Link
 apply = Apply
 link-invalid-url = Use an https://, http:// or mailto: address.

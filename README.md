@@ -48,6 +48,14 @@ Linux restent nécessaires avant de déclarer ces plateformes validées.
 - Modifier les informations du courrier ou changer de présentation. Les
   en-têtes et les coordonnées en marge sont produits par le modèle Typst.
 
+Les **Informations du courrier** se déplient avec le chevron sous la barre de
+mise en forme, dans la colonne de rédaction. Le panneau reste fixé au-dessus du
+texte pendant son défilement. Ses champs sont regroupés en Correspondance et
+Expéditeur ; sa hauteur est limitée, avec un défilement propre pour garder le
+texte accessible. Les modifications actualisent l’aperçu et sont enregistrées
+dans le courrier. La commande Informations du menu Fichier ou de la palette
+permet également de déplier ou replier ce panneau, sans bloquer la rédaction.
+
 Les accents et les caractères Unicode sont traités avec les mêmes indices de
 caractères que les curseurs egui. Le gras et l’italique utilisent de véritables
 variantes de police dans l’éditeur.
