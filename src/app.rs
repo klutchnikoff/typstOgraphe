@@ -385,7 +385,15 @@ impl App {
         range.start.min(self.document.view.len())..range.end.min(self.document.view.len())
     }
     fn changed(&mut self) {
-        self.document.sync_source();
+        let inserted = self.document.sync_source();
+        for at in &inserted {
+            for cursor in [&mut self.selection.primary, &mut self.selection.secondary] {
+                if cursor.index > *at {
+                    cursor.index += 1;
+                }
+            }
+        }
+        self.force_selection |= !inserted.is_empty();
         self.revision += 1;
         self.changed_at = Instant::now();
     }
@@ -662,9 +670,6 @@ impl App {
     }
     fn text_shortcuts(&mut self, ctx: &egui::Context) {
         let range = self.range();
-        if !range.is_empty() {
-            return;
-        }
         let line = self.document.view.line_at(range.start);
         let lines = self.document.view.line_ranges();
         let start = lines[line].start;
@@ -677,6 +682,9 @@ impl App {
             .take(range.start - start)
             .collect();
         let typed = ctx.input(|i| {
+            if !range.is_empty() {
+                return None;
+            }
             i.events.iter().find_map(|event| {
                 if let egui::Event::Text(text) = event {
                     Some(text.clone())
@@ -745,7 +753,10 @@ impl App {
                 self.force_selection = true;
                 return;
             }
-            if separator.is_none() && prefix.ends_with(':') && typed.as_deref() == Some(" ") {
+            if (separator.is_none() || separator == Some(range.start))
+                && prefix.ends_with(':')
+                && typed.as_deref() == Some(" ")
+            {
                 let mut before = self.snapshot();
                 before.document.view.insert_text(" ", range.start);
                 before.document.sync_source();
@@ -753,7 +764,9 @@ impl App {
                 self.document
                     .view
                     .delete_char_range(range.start - 1..range.start);
-                self.document.view.insert_text("\t", range.start - 1);
+                if separator.is_none() {
+                    self.document.view.insert_text("\t", range.start - 1);
+                }
                 self.selection = editor::cursor(range.start..range.start);
                 self.force_selection = true;
                 self.remember(before, false);
@@ -763,6 +776,29 @@ impl App {
                 });
                 return;
             }
+            if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
+                let before = self.snapshot();
+                if text.trim().is_empty() && range.is_empty() {
+                    self.document.view.delete_char_range(lines[line].clone());
+                    self.document
+                        .view
+                        .set_block(start..start, BlockKind::Paragraph);
+                    self.selection = editor::cursor(start..start);
+                } else {
+                    let in_text = separator.is_some_and(|at| range.start > at);
+                    self.document.view.delete_char_range(range.clone());
+                    self.document
+                        .view
+                        .insert_text(if in_text { "\n\t" } else { "\n" }, range.start);
+                    self.selection = editor::cursor(range.start + 1..range.start + 1);
+                }
+                self.remember(before, false);
+                self.force_selection = true;
+                return;
+            }
+        }
+        if !range.is_empty() {
+            return;
         }
         if typed.as_deref() == Some("*") || typed.as_deref() == Some("_") {
             let delimiter = typed.as_ref().and_then(|s| s.chars().next()).unwrap_or('*');
@@ -822,7 +858,12 @@ impl App {
                 .selected_text(if mixed {
                     crate::tr!("multiple-styles")
                 } else {
-                    Command::Block(kind).short_label()
+                    Command::Block(if kind.is_list() {
+                        BlockKind::Paragraph
+                    } else {
+                        kind
+                    })
+                    .short_label()
                 })
                 .show_ui(ui, |ui| {
                     for definition in self
@@ -879,19 +920,34 @@ impl App {
                 self.apply(Command::Link);
             }
             ui.separator();
-            for kind in [BlockKind::Bullet, BlockKind::Numbered] {
-                let command = Command::Block(kind);
-                if ui
-                    .selectable_label(selected == kind, command.short_label())
-                    .on_hover_text(self.keymap.hint(ui.ctx(), command))
-                    .clicked()
+            let mut list_command = None;
+            ui.menu_button(crate::tr!("list-menu"), |ui| {
+                for definition in self
+                    .keymap
+                    .registry()
+                    .definitions()
+                    .filter(|d| d.in_list_menu())
                 {
-                    self.apply(Command::Block(if selected == kind {
-                        BlockKind::Paragraph
-                    } else {
-                        kind
-                    }));
+                    let command = definition.command;
+                    if ui
+                        .selectable_label(
+                            !mixed && command == Command::Block(kind),
+                            command.label(),
+                        )
+                        .on_hover_text(self.keymap.hint(ui.ctx(), command))
+                        .clicked()
+                    {
+                        list_command = Some(if !mixed && command == Command::Block(kind) {
+                            Command::Block(BlockKind::Paragraph)
+                        } else {
+                            command
+                        });
+                        ui.close();
+                    }
                 }
+            });
+            if let Some(command) = list_command {
+                self.apply(command);
             }
         });
     }
@@ -1105,6 +1161,7 @@ impl App {
                         12,
                     ))
                     .show(ui, |ui| {
+                        let background = ui.painter().add(egui::Shape::Noop);
                         let output = egui::TextEdit::multiline(&mut self.document.view)
                             .lock_focus(description)
                             .id(egui::Id::new(editor::EDITOR_ID))
@@ -1114,9 +1171,19 @@ impl App {
                             .font(editor_style.font.font_id(editor_style.size, 0))
                             .layouter(&mut layouter)
                             .show(ui);
-                        editor::paint_decorations(ui, &self.document.view, &output, editor_style);
+                        let clicked_term = editor::paint_decorations(
+                            ui,
+                            &self.document.view,
+                            &output,
+                            editor_style,
+                            background,
+                        );
                         if let Some(range) = output.cursor_range {
                             self.selection = range;
+                        }
+                        if let Some(at) = clicked_term {
+                            self.selection = editor::cursor(at..at);
+                            self.force_selection = true;
                         }
                         if self.editor_scroll_pending {
                             output.response.request_focus();
@@ -3146,6 +3213,117 @@ mod interaction_tests {
                 app.document.view.blocks,
                 [BlockKind::Description, BlockKind::Paragraph]
             );
+        }
+    }
+
+    #[test]
+    fn description_tab_with_a_selection_and_enter_in_text_create_an_empty_label() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.document = Document::from_source("/ Échéance: Vendredi").unwrap();
+        app.selection = editor::cursor(2..5);
+        app.force_selection = true;
+        frame(&mut app, &ctx, vec![]);
+        let key = |key| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        frame(&mut app, &ctx, vec![key(egui::Key::Tab)]);
+        assert_eq!(app.selection.as_sorted_char_range(), 9..9);
+        assert_eq!(app.document.view.text, "Échéance\tVendredi");
+        app.selection = editor::cursor(12..12);
+        app.force_selection = true;
+        frame(&mut app, &ctx, vec![]);
+        let before = app.document.source().to_owned();
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        assert_eq!(app.document.view.text, "Échéance\tVen\n\tdredi");
+        assert_eq!(app.selection.primary.index, 13);
+        assert_eq!(app.document.view.blocks, [BlockKind::Description; 2]);
+        app.apply(Command::Undo);
+        assert_eq!(app.document.source(), before);
+        app.apply(Command::Redo);
+        frame(&mut app, &ctx, vec![]);
+        frame(&mut app, &ctx, vec![egui::Event::Text("Contact".into())]);
+        assert_eq!(app.document.view.text, "Échéance\tVen\nContact\tdredi");
+        let restored = Document::from_source(app.document.source()).unwrap();
+        assert_eq!(restored.view, app.document.view);
+    }
+
+    #[test]
+    fn toolbar_groups_the_three_list_commands_in_a_single_menu() {
+        let ctx = egui::Context::default();
+        ctx.style_mut(|s| s.animation_time = 0.0);
+        let mut app = App::with_context(ctx.clone(), None);
+        let draw = |app: &mut App, events| {
+            ctx.run(
+                egui::RawInput {
+                    events,
+                    ..Default::default()
+                },
+                |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| app.toolbar(ui));
+                },
+            )
+        };
+        fn point(output: &egui::FullOutput, label: &str) -> Option<egui::Pos2> {
+            output.shapes.iter().find_map(|s| match &s.shape {
+                egui::Shape::Text(text) if text.galley.text() == label => {
+                    Some(text.pos + text.galley.rect.center().to_vec2())
+                }
+                _ => None,
+            })
+        }
+        for kind in [
+            BlockKind::Bullet,
+            BlockKind::Numbered,
+            BlockKind::Description,
+        ] {
+            draw(&mut app, vec![]);
+            let output = draw(&mut app, vec![]);
+            assert!(point(&output, "• Liste").is_none());
+            assert!(point(&output, "1. Liste").is_none());
+            let pos = point(&output, "Liste").unwrap();
+            for pressed in [true, false] {
+                draw(
+                    &mut app,
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        },
+                    ],
+                );
+            }
+            let output = draw(&mut app, vec![]);
+            for list in [
+                BlockKind::Bullet,
+                BlockKind::Numbered,
+                BlockKind::Description,
+            ] {
+                assert!(point(&output, &Command::Block(list).label()).is_some());
+            }
+            let pos = point(&output, &Command::Block(kind).label()).unwrap();
+            for pressed in [true, false] {
+                draw(
+                    &mut app,
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        },
+                    ],
+                );
+            }
+            assert_eq!(app.document.view.blocks[0], kind);
         }
     }
 

@@ -204,3 +204,6 @@ column-divider-hint = Drag to resize the columns. Double-click to restore equal 
 
 description-edit-hint = Enter the term, then Tab or a colon followed by a space to enter its description. Shift+Tab returns to the term.
 bullet-marker-restore-automatic = Restore template choice
+
+list-menu = List
+description-placeholder = Description

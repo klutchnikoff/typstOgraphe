@@ -43,11 +43,18 @@ Linux restent nécessaires avant de déclarer ces plateformes validées.
   utiliser les flèches, puis Entrée.
 - En début de paragraphe : `= `, `== `, `=== ` pour les titres, `- ` pour
   les puces, `+ ` ou `1. ` pour une liste numérotée, `/ ` pour une liste de descriptions.
-- Choisir **Description** dans le sélecteur de style ou dans la palette. Saisir
-  le terme, puis `Tab` (ou `:` suivi d’une espace) pour passer à la description.
-  `Maj+Tab` revient au terme ; Entrée crée un autre élément, puis Entrée sur
-  un élément vide termine la liste. Le terme est distingué visuellement dans
-  l’éditeur, sans ajouter de gras au source ; le modèle règle sa présentation.
+- Le menu **Liste** regroupe les listes à puces, numérotées et de descriptions.
+  Choisir à nouveau le type actif retire la liste. Les trois commandes restent
+  accessibles dans la palette.
+- Dans une liste de descriptions, chaque élément possède une puce et une étiquette
+  encadrée avec un fond et un texte distincts. L’étiquette vide affiche
+  **Description** comme texte indicatif. Saisir le terme, puis `Tab` (ou `:` suivi
+  d’une espace) pour passer au texte. `Tab` rejoint le début du texte depuis
+  n’importe où dans l’élément, même avec une sélection ; `Maj+Tab` revient au terme.
+  Entrée crée un nouvel élément avec une étiquette vide ; Entrée sur un élément
+  entièrement vide termine la liste.
+  Les puces, encadrés, couleurs et textes indicatifs appartiennent uniquement
+  à l’éditeur ; le modèle garde la maîtrise de la présentation finale.
 - Saisir `*texte*` ou `_texte_` pour convertir la saisie en gras ou italique.
 - Entrée sur un élément de liste vide permet de sortir de la liste.
 - Modifier les informations du courrier ou changer de présentation. Les

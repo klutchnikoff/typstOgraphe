@@ -112,8 +112,11 @@ impl Definition {
     pub fn in_block_style_menu(&self) -> bool {
         matches!(
             self.command,
-            Command::Block(BlockKind::Paragraph | BlockKind::Heading(_) | BlockKind::Description)
+            Command::Block(BlockKind::Paragraph | BlockKind::Heading(_))
         )
+    }
+    pub fn in_list_menu(&self) -> bool {
+        matches!(self.command, Command::Block(kind) if kind.is_list())
     }
 }
 

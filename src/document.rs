@@ -22,6 +22,11 @@ pub enum BlockKind {
     Numbered,
     Description,
 }
+impl BlockKind {
+    pub fn is_list(self) -> bool {
+        matches!(self, Self::Bullet | Self::Numbered | Self::Description)
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mark {
@@ -124,8 +129,12 @@ impl Document {
     }
 
     /// Toute opération d'édition actualise le source qui sera compilé/exporté.
-    pub fn sync_source(&mut self) {
+    /// Renvoie les séparateurs ajoutés (positions décroissantes) afin que l’UI
+    /// puisse conserver la sélection lors de la création d’étiquettes vides.
+    pub fn sync_source(&mut self) -> Vec<usize> {
+        let inserted = self.view.ensure_description_separators();
         (self.source, self.source_map) = self.view.to_typst_mapped();
+        inserted
     }
 }
 
@@ -179,8 +188,36 @@ impl Projection {
     }
     pub fn set_block(&mut self, range: Range<usize>, kind: BlockKind) {
         for index in self.selected_lines(range) {
+            if self.blocks[index] == BlockKind::Description && kind != BlockKind::Description {
+                let line = self.line_ranges()[index].clone();
+                if let Some(at) = self
+                    .text
+                    .chars()
+                    .skip(line.start)
+                    .take(line.len())
+                    .position(|c| c == '\t')
+                {
+                    let byte = self.byte_index(line.start + at);
+                    self.text.replace_range(byte..byte + 1, " ");
+                }
+            }
             self.blocks[index] = kind;
         }
+    }
+    /// Le séparateur est une frontière éditable, jamais un texte indicatif.
+    /// Les insertions sont renvoyées dans l’ordre pour réaligner les curseurs.
+    fn ensure_description_separators(&mut self) -> Vec<usize> {
+        let mut inserted = Vec::new();
+        for (index, range) in self.line_ranges().into_iter().enumerate().rev() {
+            if self.blocks[index] == BlockKind::Description
+                && !self.text[self.byte_index(range.start)..self.byte_index(range.end)]
+                    .contains('\t')
+            {
+                self.insert_text("\t", range.end);
+                inserted.push(range.end);
+            }
+        }
+        inserted
     }
     pub fn mark_state(&self, range: Range<usize>, mark: Mark) -> (bool, bool) {
         let enabled = |s: &InlineStyle| match mark {
@@ -531,14 +568,9 @@ impl Projector {
                     self.inline_markup(item.term(), style)?;
                     // Une tabulation sépare les deux zones éditables sans
                     // exposer la syntaxe Typst. Les deux restent sélectionnables.
-                    let start = self.view.len();
                     self.origin = separator;
                     self.append("\t", &InlineStyle::default());
                     self.inline_markup(item.description(), style)?;
-                    if self.view.len() == start + 1 {
-                        self.view.delete_char_range(start..start + 1);
-                        self.origins.pop();
-                    }
                     self.pending_break = true;
                 }
                 Expr::FuncCall(call) => self.call(call, style)?,

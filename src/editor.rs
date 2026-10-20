@@ -40,6 +40,7 @@ struct EditorColors {
     accent: Color32,
     bold: Color32,
     italic: Color32,
+    term_fill: Color32,
 }
 impl EditorColors {
     fn from_visuals(visuals: &egui::Visuals) -> Self {
@@ -49,6 +50,7 @@ impl EditorColors {
                 accent: Color32::from_rgb(148, 199, 224),
                 bold: Color32::from_rgb(226, 154, 119),
                 italic: Color32::from_rgb(139, 198, 158),
+                term_fill: Color32::from_rgb(62, 43, 34),
             }
         } else {
             Self {
@@ -56,6 +58,7 @@ impl EditorColors {
                 accent: Color32::from_rgb(40, 92, 119),
                 bold: Color32::from_rgb(153, 67, 38),
                 italic: Color32::from_rgb(37, 99, 74),
+                term_fill: Color32::from_rgb(251, 237, 224),
             }
         }
     }
@@ -123,6 +126,9 @@ pub fn layout(
         );
     }
     let colors = EditorColors::from_visuals(ui.visuals());
+    let placeholder = description_placeholder(ui, editor);
+    let placeholder_space = placeholder.size().x + editor.size * 0.35;
+    let mut empty_terms = Vec::new();
     let mut job = LayoutJob::default();
     job.wrap.max_width = width;
     let mut line = 0;
@@ -139,11 +145,17 @@ pub fn layout(
         if character == '\n' {
             format.line_height = Some(editor.size * 2.0);
         }
-        let leading = if at_line_start && matches!(kind, BlockKind::Bullet | BlockKind::Numbered) {
+        let mut leading = if at_line_start && kind.is_list() {
             editor.size * 22.0 / 18.0
         } else {
             0.0
         };
+        if at_line_start && kind == BlockKind::Description && character == '\t' {
+            // Réserver l’espace du texte indicatif sans l’insérer dans le texte
+            // éditable. Le séparateur garde un seul indice de caractère.
+            leading += placeholder_space;
+            empty_terms.push(index);
+        }
         job.append(&character.to_string(), leading, format);
         at_line_start = character == '\n';
         if character == '\t' {
@@ -161,8 +173,101 @@ pub fn layout(
             text_format(aligned.blocks[0], &aligned.typing_style, &colors, editor),
         );
     }
-    let galley = ui.fonts_mut(|fonts| fonts.layout_job(job));
+    let mut galley = ui.fonts_mut(|fonts| fonts.layout_job(job));
+    if !empty_terms.is_empty() {
+        let mut character = 0;
+        for row in &mut Arc::make_mut(&mut galley).rows {
+            for glyph in &mut Arc::make_mut(&mut row.row).glyphs {
+                if empty_terms.contains(&character) {
+                    // Le blanc de la tabulation couvre aussi l’étiquette vide :
+                    // clics et curseurs restent gérés par le TextEdit standard.
+                    glyph.pos.x -= placeholder_space;
+                    glyph.advance_width += placeholder_space;
+                }
+                character += 1;
+            }
+            character += usize::from(row.ends_with_newline);
+        }
+    }
     space_headings(galley, &aligned.blocks, editor.size)
+}
+
+fn description_placeholder(ui: &egui::Ui, editor: EditorStyle) -> Arc<Galley> {
+    ui.painter().layout_no_wrap(
+        crate::tr!("description-placeholder"),
+        editor.font.font_id(editor.size, 1),
+        EditorColors::from_visuals(ui.visuals())
+            .bold
+            .gamma_multiply(0.7),
+    )
+}
+
+struct DescriptionBox {
+    rect: egui::Rect,
+    placeholder: Option<egui::Pos2>,
+    start: usize,
+}
+
+fn description_boxes(
+    view: &Projection,
+    galley: &Galley,
+    placeholder_width: f32,
+    size: f32,
+) -> Vec<DescriptionBox> {
+    let mut boxes = Vec::new();
+    for (line, range) in view.line_ranges().iter().enumerate() {
+        if view.blocks[line] != BlockKind::Description {
+            continue;
+        }
+        let end = view
+            .text
+            .chars()
+            .skip(range.start)
+            .take(range.len())
+            .position(|c| c == '\t')
+            .map_or(range.end, |offset| range.start + offset);
+        let mut character = 0;
+        for row in &galley.rows {
+            let row_end = character + row.glyphs.len();
+            let empty = end == range.start;
+            let first = range.start.max(character);
+            let last = end.min(row_end);
+            let glyphs = if empty && (character..row_end).contains(&range.start) {
+                &row.glyphs[range.start - character..range.start - character + 1]
+            } else if first < last {
+                &row.glyphs[first - character..last - character]
+            } else {
+                &[]
+            };
+            if let Some(first) = glyphs.first() {
+                let left = row.pos.x + first.pos.x;
+                let right = if empty {
+                    left + placeholder_width
+                } else {
+                    row.pos.x + glyphs.last().unwrap().max_x()
+                };
+                let top = glyphs
+                    .iter()
+                    .map(|g| row.pos.y + g.pos.y - g.font_ascent)
+                    .fold(f32::INFINITY, f32::min);
+                let bottom = glyphs
+                    .iter()
+                    .map(|g| row.pos.y + g.pos.y - g.font_ascent + g.font_height)
+                    .fold(f32::NEG_INFINITY, f32::max);
+                boxes.push(DescriptionBox {
+                    rect: egui::Rect::from_min_max(
+                        egui::pos2(left, top),
+                        egui::pos2(right, bottom),
+                    )
+                    .expand2(egui::vec2(size * 0.28, size * 0.12)),
+                    placeholder: empty.then_some(egui::pos2(left, top)),
+                    start: range.start,
+                });
+            }
+            character = row_end + usize::from(row.ends_with_newline);
+        }
+    }
+    boxes
 }
 
 fn heading_spacing(kind: BlockKind, size: f32) -> (f32, f32) {
@@ -266,8 +371,40 @@ pub fn paint_decorations(
     view: &Projection,
     output: &egui::text_edit::TextEditOutput,
     editor: EditorStyle,
-) {
+    background: egui::layers::ShapeIdx,
+) -> Option<usize> {
     let painter = ui.painter_at(output.text_clip_rect);
+    let colors = EditorColors::from_visuals(ui.visuals());
+    let placeholder = description_placeholder(ui, editor);
+    let boxes = description_boxes(view, &output.galley, placeholder.size().x, editor.size);
+    let mut backgrounds = Vec::new();
+    let mut clicked_term = None;
+    for label in boxes {
+        let rect = label.rect.translate(output.galley_pos.to_vec2());
+        backgrounds.push(egui::Shape::rect_filled(rect, 3.0, colors.term_fill));
+        backgrounds.push(egui::Shape::rect_stroke(
+            rect,
+            3.0,
+            Stroke::new(0.75_f32, colors.bold.gamma_multiply(0.5)),
+            egui::StrokeKind::Inside,
+        ));
+        if let Some(position) = label.placeholder {
+            backgrounds.push(egui::Shape::galley(
+                output.galley_pos + position.to_vec2(),
+                placeholder.clone(),
+                colors.bold,
+            ));
+            if output.response.clicked()
+                && output
+                    .response
+                    .interact_pointer_pos()
+                    .is_some_and(|pos| rect.contains(pos))
+            {
+                clicked_term = Some(label.start);
+            }
+        }
+    }
+    painter.set(background, egui::Shape::Vec(backgrounds));
     let stroke = Stroke::new(0.8_f32, EditorColors::from_visuals(ui.visuals()).accent);
     for points in link_underlines(view, &output.galley) {
         painter.line_segment(
@@ -301,7 +438,7 @@ pub fn paint_decorations(
             );
         }
         let text = match kind {
-            BlockKind::Bullet => "•".to_owned(),
+            BlockKind::Bullet | BlockKind::Description => "•".to_owned(),
             BlockKind::Numbered => format!("{number}."),
             _ => continue,
         };
@@ -315,12 +452,85 @@ pub fn paint_decorations(
             ui.visuals().text_color(),
         );
     }
+    clicked_term
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::document::Document;
+
+    #[test]
+    fn description_boxes_and_placeholders_keep_native_cursor_indices_and_source() {
+        let ctx = egui::Context::default();
+        install_fonts(&ctx);
+        let mut document = Document::from_source(
+            "/ Échéance: Le vendredi.\n/ : Un texte dont le terme est vide.\n/ : ",
+        )
+        .unwrap();
+        let original = document.clone();
+        for theme in [egui::Theme::Light, egui::Theme::Dark] {
+            ctx.set_theme(theme);
+            for width in [200.0, 500.0] {
+                let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        let view = document.view.clone();
+                        let editor = EditorStyle::default();
+                        let mut layouter = |ui: &egui::Ui, text: &dyn TextBuffer, _| {
+                            layout(ui, &view, text.as_str(), width, editor)
+                        };
+                        let background = ui.painter().add(egui::Shape::Noop);
+                        let output = egui::TextEdit::multiline(&mut document.view)
+                            .desired_width(width)
+                            .layouter(&mut layouter)
+                            .show(ui);
+                        let placeholder = description_placeholder(ui, editor);
+                        let boxes = description_boxes(
+                            &document.view,
+                            &output.galley,
+                            placeholder.size().x,
+                            editor.size,
+                        );
+                        assert_eq!(
+                            boxes
+                                .iter()
+                                .filter(|label| label.placeholder.is_some())
+                                .count(),
+                            2
+                        );
+                        assert_eq!(output.galley.text(), document.view.text);
+                        for label in boxes.iter().filter(|label| label.placeholder.is_some()) {
+                            let before = output.galley.pos_from_cursor(CCursor::new(label.start));
+                            let after =
+                                output.galley.pos_from_cursor(CCursor::new(label.start + 1));
+                            assert!(before.left() <= label.rect.left() + editor.size * 0.3);
+                            if (before.top() - after.top()).abs() < 0.1 {
+                                assert!(after.left() - before.left() > placeholder.size().x);
+                            }
+                        }
+                        for (index, c) in document.view.text.chars().enumerate() {
+                            if c.is_whitespace() {
+                                continue;
+                            }
+                            let rect = output.galley.pos_from_cursor(CCursor::new(index));
+                            assert_eq!(
+                                output.galley.cursor_from_pos(rect.center().to_vec2()).index,
+                                index
+                            );
+                        }
+                        paint_decorations(ui, &document.view, &output, editor, background);
+                    });
+                });
+            }
+        }
+        assert_eq!(document, original);
+        document.sync_source();
+        assert!(!document.source().contains("Description"));
+        assert_eq!(
+            Document::from_source(document.source()).unwrap().view,
+            document.view
+        );
+    }
 
     fn format_at<'a>(galley: &'a Galley, text: &str) -> &'a TextFormat {
         let byte = galley.job.text.find(text).unwrap();
@@ -406,6 +616,7 @@ mod tests {
                     let mut layouter = |ui: &egui::Ui, text: &dyn TextBuffer, width| {
                         layout(ui, &view, text.as_str(), width, editor)
                     };
+                    let background = ui.painter().add(egui::Shape::Noop);
                     let output = egui::TextEdit::multiline(&mut document.view)
                         .desired_width(280.0)
                         .layouter(&mut layouter)
@@ -451,7 +662,7 @@ mod tests {
                             .min(output.text_clip_rect.right()),
                         output.galley_pos.y + title_bottom + editor.size * 0.12,
                     ));
-                    paint_decorations(ui, &document.view, &output, editor);
+                    paint_decorations(ui, &document.view, &output, editor, background);
                     // Le cache brut ne doit pas accumuler les espacements du rendu.
                     let repeated = layout(ui, &document.view, &document.view.text, 280.0, editor);
                     let again = layout(ui, &document.view, &document.view.text, 280.0, editor);
