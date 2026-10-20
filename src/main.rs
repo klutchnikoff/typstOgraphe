@@ -5,6 +5,7 @@ mod editor;
 mod i18n;
 mod menus;
 mod navigation;
+mod preferences;
 mod rendering;
 mod storage;
 #[cfg(test)]

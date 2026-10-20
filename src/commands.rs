@@ -46,6 +46,7 @@ impl Presentation {
 pub enum Command {
     File(FileCommand),
     Palette,
+    Preferences,
     Information,
     Presentation(Presentation),
     Bold,
@@ -104,7 +105,9 @@ impl Definition {
             Command::File(FileCommand::Quit) => (MenuGroup::File, 31),
             Command::Undo => (MenuGroup::Edit, 0),
             Command::Redo => (MenuGroup::Edit, 1),
-            Command::Palette => (MenuGroup::Edit, 10),
+            Command::Clear => (MenuGroup::Edit, 10),
+            Command::Palette => (MenuGroup::Edit, 20),
+            Command::Preferences => (MenuGroup::Edit, 30),
             Command::Information => (MenuGroup::View, 0),
             _ => return None,
         })
@@ -155,6 +158,13 @@ const fn short(mut definition: Definition, label: &'static str) -> Definition {
 
 /// Chaque commande, y compris sans raccourci, est définie une seule fois ici.
 pub static DEFINITIONS: &[Definition] = &[
+    define(
+        "application.preferences",
+        "cmd-preferences",
+        Command::Preferences,
+        Scope::Global,
+        &[primary(Key::Comma)],
+    ),
     define(
         "document.new",
         "cmd-new",
@@ -281,15 +291,12 @@ pub static DEFINITIONS: &[Definition] = &[
         Scope::Editor,
         &[],
     ),
-    short(
-        define(
-            "text.clear",
-            "cmd-clear",
-            Command::Clear,
-            Scope::Editor,
-            &[],
-        ),
-        "cmd-clear-short",
+    define(
+        "text.clear",
+        "cmd-clear",
+        Command::Clear,
+        Scope::Editor,
+        &[],
     ),
     define(
         "block.paragraph",

@@ -78,7 +78,7 @@ Les deux présentations utilisent les mêmes identifiants, libellés traduits,
 raccourcis et actions du registre :
 
 - **Fichier** : Nouveau, Ouvrir, Enregistrer, Enregistrer sous, Exporter et Fermer.
-- **Édition** : Annuler, Rétablir et Palette de commandes.
+- **Édition** : Annuler, Rétablir, Retirer la mise en forme et Palette de commandes.
 - **Affichage** : Informations du courrier, avec indication de son état déplié.
 
 Sur macOS, **Quitter typstOgraphe** se trouve dans le menu de l’application ; sur
@@ -101,6 +101,27 @@ appartiennent au document. Le module `src/menus.rs`
 sépare le modèle commun des menus de leur intégration AppKit ; muda n’est une
 dépendance que sur macOS et n’ajoute pas de dépendance GTK sous Linux.
 
+## Préférences de rédaction et colonnes
+
+Les **Préférences…** sont accessibles dans le menu **typstOgraphe** sur macOS
+(`⌘,`) et dans **Édition** sur Windows/Linux (`Ctrl+,`), ainsi que par la palette.
+On peut choisir la police de l’éditeur (Libertinus Serif, New Computer Modern ou
+DejaVu Sans Mono), sa taille de 10 à 36 points et le thème Clair, Sombre ou
+Système. Le mode Système suit les changements d’apparence du système.
+Les variantes grasses et italiques restent disponibles dans les trois polices.
+Ces réglages s’appliquent immédiatement ; la mise en page du document reste
+définie par le modèle Typst.
+
+La séparation des colonnes se déplace à la souris. Leur proportion est conservée
+lors du redimensionnement de la fenêtre ; le double-clic sur la séparation
+rétablit deux largeurs égales. L’aperçu s’adapte à l’espace choisi, sans les
+anciennes limites de 300 et 1 100 points. Une petite zone de 48 points est gardée
+à chaque bord pour que les deux colonnes restent accessibles.
+
+Les préférences et la proportion des colonnes sont enregistrées par eframe
+entre les sessions, dans les données locales de l’application. Elles restent
+indépendantes du fichier de courrier et ne déclenchent pas d’état « modifié ».
+
 ## Registre des commandes et raccourcis
 
 `src/commands.rs` centralise toutes les actions publiques autonomes dans une table : identifiant stable
@@ -110,7 +131,7 @@ utilisent ce même registre.
 
 Cela comprend les fichiers, les informations du courrier, les deux modèles
 fournis, les styles de paragraphes, la mise en forme, les liens (dont leur
-retrait), l’annulation/rétablissement et l’ouverture de la palette. Les boutons
+retrait), l’annulation/rétablissement, les préférences et l’ouverture de la palette. Les boutons
 et listes déroulantes déclenchent les mêmes commandes que la palette et les
 raccourcis. Les clés de traduction des libellés complets et de leurs variantes
 courtes (« Informations », « G », « I »…) sont définies dans le registre.

@@ -25,8 +25,13 @@ pub fn items(group: MenuGroup, macos: bool) -> Vec<(Command, bool)> {
         .iter()
         .filter_map(|definition| {
             let (menu, order) = definition.menu_position()?;
-            (menu == group && !(macos && definition.command == Command::File(FileCommand::Quit)))
-                .then_some((order, definition.command))
+            (menu == group
+                && !(macos
+                    && matches!(
+                        definition.command,
+                        Command::File(FileCommand::Quit) | Command::Preferences
+                    )))
+            .then_some((order, definition.command))
         })
         .collect();
     commands.sort_by_key(|(order, _)| *order);
@@ -161,6 +166,8 @@ pub mod native {
             let menu = Menu::new();
             let mut entries = Vec::new();
             let application = Submenu::new("typstOgraphe", true);
+            Self::append(&application, Command::Preferences, keymap, &mut entries)?;
+            application.append(&PredefinedMenuItem::separator())?;
             application.append_items(&[
                 &PredefinedMenuItem::services(Some(&crate::tr!("mac-services"))),
                 &PredefinedMenuItem::separator(),
@@ -308,7 +315,9 @@ mod tests {
             vec![
                 (Command::Undo, false),
                 (Command::Redo, false),
+                (Command::Clear, true),
                 (Command::Palette, true),
+                (Command::Preferences, true),
             ]
         );
         assert_eq!(
@@ -326,6 +335,7 @@ mod tests {
                 }
             }
             assert_eq!(seen.contains("application.quit"), !macos);
+            assert_eq!(seen.contains("application.preferences"), !macos);
             assert!(seen.contains("document.close"));
         }
     }
@@ -351,6 +361,7 @@ mod tests {
             (Key::P, "p"),
             (Key::Minus, "-"),
             (Key::Space, " "),
+            (Key::Comma, ","),
             (Key::Quote, "'"),
             (Key::Plus, "+"),
         ] {

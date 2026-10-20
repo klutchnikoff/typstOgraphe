@@ -1,6 +1,7 @@
 use crate::document::{BlockKind, Projection};
+use crate::preferences::{EditorFont, EditorStyle};
 use eframe::egui::{
-    self, Color32, FontFamily, FontId, Stroke, TextBuffer, TextFormat,
+    self, Color32, FontFamily, Stroke, TextBuffer, TextFormat,
     text::{CCursor, CCursorRange, LayoutJob},
 };
 use std::ops::Range;
@@ -9,14 +10,25 @@ pub const EDITOR_ID: &str = "corps-courrier";
 
 pub fn install_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
-    for (index, bytes) in typst_assets::fonts().take(4).enumerate() {
-        let name = format!("editor-{index}");
-        fonts
-            .font_data
-            .insert(name.clone(), egui::FontData::from_static(bytes).into());
-        fonts
-            .families
-            .insert(FontFamily::Name(name.clone().into()), vec![name]);
+    let bundled: Vec<_> = typst_assets::fonts().collect();
+    // Ordre des variantes régulière, grasse, italique et grasse italique dans
+    // les ressources de typst-assets 0.15.1, version fixée par Cargo.toml.
+    for (family, faces) in [
+        (EditorFont::Libertinus, [0, 1, 2, 3]),
+        (EditorFont::ComputerModern, [9, 10, 11, 12]),
+        (EditorFont::Monospace, [16, 13, 15, 14]),
+    ] {
+        for (variant, index) in faces.into_iter().enumerate() {
+            let font_family = family.font_id(18.0, variant).family;
+            let name = format!("{family:?}-{variant}");
+            fonts.font_data.insert(
+                name.clone(),
+                egui::FontData::from_static(bundled[index]).into(),
+            );
+            let mut fallback = vec![name];
+            fallback.extend(fonts.families[&FontFamily::Proportional].clone());
+            fonts.families.insert(font_family, fallback);
+        }
     }
     ctx.set_fonts(fonts);
 }
@@ -27,6 +39,7 @@ pub fn layout(
     width: f32,
     color: Color32,
     accent: Color32,
+    editor: EditorStyle,
 ) -> LayoutJob {
     // Le TextEdit relance le layouter après ses mutations. Réaligner la copie
     // des styles sur le nouveau texte évite un décalage visuel pendant la saisie.
@@ -63,29 +76,29 @@ pub fn layout(
             (true, true) => 3,
         };
         let size = match kind {
-            BlockKind::Heading(1) => 24.0,
-            BlockKind::Heading(2) => 21.0,
-            BlockKind::Heading(_) => 18.0,
-            _ => 18.0,
+            BlockKind::Heading(1) => editor.size * 4.0 / 3.0,
+            BlockKind::Heading(2) => editor.size * 7.0 / 6.0,
+            _ => editor.size,
         };
         let mut format = TextFormat {
-            font_id: FontId::new(
-                size,
-                FontFamily::Name(format!("editor-{font_index}").into()),
-            ),
+            font_id: editor.font.font_id(size, font_index),
             color: if heading || style.link.is_some() {
                 accent
             } else {
                 color
             },
-            line_height: Some(if character == '\n' { 36.0 } else { size * 1.55 }),
+            line_height: Some(if character == '\n' {
+                editor.size * 2.0
+            } else {
+                size * 1.55
+            }),
             ..Default::default()
         };
         if style.link.is_some() {
             format.underline = Stroke::new(0.8_f32, accent);
         }
         let leading = if at_line_start && matches!(kind, BlockKind::Bullet | BlockKind::Numbered) {
-            22.0
+            editor.size * 22.0 / 18.0
         } else {
             0.0
         };
@@ -100,7 +113,7 @@ pub fn layout(
             "",
             0.0,
             TextFormat {
-                font_id: FontId::proportional(18.0),
+                font_id: editor.font.font_id(editor.size, 0),
                 color,
                 ..Default::default()
             },
@@ -126,6 +139,7 @@ pub fn paint_list_markers(
     ui: &egui::Ui,
     view: &Projection,
     output: &egui::text_edit::TextEditOutput,
+    editor: EditorStyle,
 ) {
     let mut number = 0;
     for (index, range) in view.line_ranges().iter().enumerate() {
@@ -146,7 +160,7 @@ pub fn paint_list_markers(
             point,
             egui::Align2::LEFT_CENTER,
             text,
-            FontId::proportional(16.0),
+            editor.font.font_id(editor.size * 8.0 / 9.0, 0),
             ui.visuals().text_color(),
         );
     }

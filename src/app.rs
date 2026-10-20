@@ -5,11 +5,12 @@ use crate::{
     },
     editor, menus,
     navigation::{PagePoint, RenderSync},
+    preferences::{Appearance, EditorFont, Preferences},
     rendering::{RenderRequest, RenderWorker},
     storage::{self, Letter},
 };
 use eframe::egui::{
-    self, Color32, FontId, RichText, TextBuffer,
+    self, Color32, RichText, TextBuffer,
     text::{CCursor, CCursorRange},
 };
 use std::{
@@ -33,6 +34,8 @@ enum PendingAction {
 }
 
 pub struct App {
+    preferences: Preferences,
+    preferences_open: bool,
     keymap: Keymap,
     #[cfg(target_os = "macos")]
     native_menus: Option<menus::native::NativeMenus>,
@@ -89,6 +92,8 @@ impl App {
         path: Option<PathBuf>,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let mut app = Self::with_context(cc.egui_ctx.clone(), capture);
+        app.preferences = Preferences::load(cc.storage);
+        cc.egui_ctx.set_theme(app.preferences.appearance.theme());
         if let Some(path) = path {
             app.open_path(path);
         }
@@ -103,16 +108,29 @@ impl App {
     }
     pub fn with_context(ctx: egui::Context, capture: Option<PathBuf>) -> Self {
         editor::install_fonts(&ctx);
-        let mut style = (*ctx.style()).clone();
-        style.spacing.item_spacing = egui::vec2(8.0, 8.0);
-        style.visuals.selection.bg_fill = Color32::from_rgb(174, 211, 235);
-        style.visuals.selection.stroke = egui::Stroke::new(1.0_f32, ACCENT);
-        ctx.set_style(style);
+        ctx.all_styles_mut(|style| {
+            style.spacing.item_spacing = egui::vec2(8.0, 8.0);
+            style.visuals.selection.bg_fill = if style.visuals.dark_mode {
+                Color32::from_rgb(40, 80, 108)
+            } else {
+                Color32::from_rgb(174, 211, 235)
+            };
+            style.visuals.selection.stroke = egui::Stroke::new(
+                1.0_f32,
+                if style.visuals.dark_mode {
+                    Color32::LIGHT_BLUE
+                } else {
+                    ACCENT
+                },
+            );
+        });
         let keymap = Keymap::new(ctx.os().is_mac(), &ShortcutOverrides::default())
             .expect("raccourcis par défaut cohérents");
         let worker = RenderWorker::spawn(ctx);
         let saved = Letter::demo();
         Self {
+            preferences: Preferences::default(),
+            preferences_open: false,
             keymap,
             #[cfg(target_os = "macos")]
             native_menus: None,
@@ -188,7 +206,8 @@ impl App {
             || self.saved.compact != self.compact
     }
     fn modal_open(&self) -> bool {
-        self.palette_open
+        self.preferences_open
+            || self.palette_open
             || self.link_open
             || self.export_open
             || self.pending_action.is_some()
@@ -366,6 +385,7 @@ impl App {
     }
     fn apply(&mut self, command: Command) {
         match command {
+            Command::Preferences => self.preferences_open = true,
             Command::File(command) => self.file_command = Some(command),
             Command::Palette => {
                 self.palette_open = !self.palette_open;
@@ -569,6 +589,7 @@ impl App {
                     && match d.command {
                         Command::Undo => self.history_field.is_some() || !self.undo.is_empty(),
                         Command::Redo => self.history_field.is_some() || !self.redo.is_empty(),
+                        Command::Clear => self.history_field.is_none(),
                         _ => true,
                     };
                 (
@@ -788,34 +809,6 @@ impl App {
                         kind
                     }));
                 }
-            }
-            if ui
-                .button(Command::Clear.short_label())
-                .on_hover_text(self.keymap.hint(ui.ctx(), Command::Clear))
-                .clicked()
-            {
-                self.apply(Command::Clear);
-            }
-            ui.separator();
-            if ui
-                .add_enabled(
-                    !self.undo.is_empty(),
-                    egui::Button::new(Command::Undo.short_label()),
-                )
-                .on_hover_text(self.keymap.hint(ui.ctx(), Command::Undo))
-                .clicked()
-            {
-                self.apply(Command::Undo);
-            }
-            if ui
-                .add_enabled(
-                    !self.redo.is_empty(),
-                    egui::Button::new(Command::Redo.short_label()),
-                )
-                .on_hover_text(self.keymap.hint(ui.ctx(), Command::Redo))
-                .clicked()
-            {
-                self.apply(Command::Redo);
             }
         });
     }
@@ -1055,26 +1048,37 @@ impl App {
         } else {
             ACCENT
         };
+        let editor_style = self.preferences.editor;
         let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, width: f32| {
             ui.fonts_mut(|fonts| {
-                fonts.layout_job(editor::layout(&view, text.as_str(), width, color, accent))
+                fonts.layout_job(editor::layout(
+                    &view,
+                    text.as_str(),
+                    width,
+                    color,
+                    accent,
+                    editor_style,
+                ))
             })
         };
         egui::ScrollArea::vertical()
             .id_salt("editor-scroll")
             .show(ui, |ui| {
                 egui::Frame::NONE
-                    .inner_margin(egui::Margin::symmetric(22, 12))
+                    .inner_margin(egui::Margin::symmetric(
+                        (editor_style.size * 22.0 / 18.0).round() as i8,
+                        12,
+                    ))
                     .show(ui, |ui| {
                         let output = egui::TextEdit::multiline(&mut self.document.view)
                             .id(egui::Id::new(editor::EDITOR_ID))
                             .desired_width(f32::INFINITY)
                             .desired_rows(25)
                             .frame(false)
-                            .font(FontId::proportional(18.0))
+                            .font(editor_style.font.font_id(editor_style.size, 0))
                             .layouter(&mut layouter)
                             .show(ui);
-                        editor::paint_list_markers(ui, &self.document.view, &output);
+                        editor::paint_list_markers(ui, &self.document.view, &output, editor_style);
                         if let Some(range) = output.cursor_range {
                             self.selection = range;
                         }
@@ -1156,7 +1160,7 @@ impl App {
         egui::ScrollArea::vertical()
             .id_salt("preview-scroll")
             .show(ui, |ui| {
-                let width = (ui.available_width() - 24.0).max(100.0);
+                let width = (ui.available_width() - 24.0).max(1.0);
                 if self.pages.is_empty() {
                     ui.add_space(60.0);
                     ui.vertical_centered(|ui| {
@@ -1261,6 +1265,139 @@ impl App {
             self.typing_group = false;
             ctx.request_repaint();
         }
+    }
+    fn preferences_ui(&mut self, ctx: &egui::Context) {
+        if !self.preferences_open {
+            return;
+        }
+        let response = egui::Modal::new(egui::Id::new("preferences")).show(ctx, |ui| {
+            ui.set_width(360.0);
+            ui.heading(crate::tr!("preferences-title"));
+            ui.add_space(8.0);
+            egui::Grid::new("appearance-preferences")
+                .num_columns(2)
+                .show(ui, |ui| {
+                    ui.label(crate::tr!("editor-font"));
+                    egui::ComboBox::from_id_salt("editor-font")
+                        .selected_text(self.preferences.editor.font.label())
+                        .show_ui(ui, |ui| {
+                            for font in EditorFont::ALL {
+                                ui.selectable_value(
+                                    &mut self.preferences.editor.font,
+                                    font,
+                                    font.label(),
+                                );
+                            }
+                        });
+                    ui.end_row();
+                    ui.label(crate::tr!("editor-font-size"));
+                    ui.add(
+                        egui::Slider::new(&mut self.preferences.editor.size, 10.0..=36.0)
+                            .step_by(1.0),
+                    );
+                    ui.end_row();
+                    ui.label(crate::tr!("appearance"));
+                    egui::ComboBox::from_id_salt("appearance")
+                        .selected_text(self.preferences.appearance.label())
+                        .show_ui(ui, |ui| {
+                            for appearance in Appearance::ALL {
+                                ui.selectable_value(
+                                    &mut self.preferences.appearance,
+                                    appearance,
+                                    appearance.label(),
+                                );
+                            }
+                        });
+                    ui.end_row();
+                });
+            ui.add_space(8.0);
+            ui.weak(crate::tr!("preferences-help"));
+            ui.add_space(8.0);
+            if ui.button(crate::tr!("close")).clicked() {
+                self.preferences_open = false;
+            }
+        });
+        ctx.set_theme(self.preferences.appearance.theme());
+        if response.should_close() {
+            self.preferences_open = false;
+        }
+        if !self.preferences_open {
+            self.force_selection = true;
+        }
+    }
+    /// La proportion appartient aux préférences, les rectangles à la frame.
+    /// Seuls les bords gardent une petite zone accessible pour chaque colonne.
+    fn columns_ui(&mut self, ui: &mut egui::Ui, disabled: bool) -> [egui::Rect; 2] {
+        let bounds = ui.available_rect_before_wrap();
+        let divider_width = 8.0;
+        let usable = (bounds.width() - divider_width).max(1.0);
+        let minimum = 48.0_f32.min(usable * 0.25);
+        let mut left_width =
+            (usable * self.preferences.editor_fraction).clamp(minimum, usable - minimum);
+        let divider = egui::Rect::from_min_size(
+            egui::pos2(bounds.left() + left_width, bounds.top()),
+            egui::vec2(divider_width, bounds.height()),
+        );
+        let response = ui.interact(
+            divider,
+            ui.id().with("column-divider"),
+            if disabled {
+                egui::Sense::hover()
+            } else {
+                egui::Sense::click_and_drag()
+            },
+        );
+        if response.dragged()
+            && let Some(pointer) = response.interact_pointer_pos()
+        {
+            left_width =
+                (pointer.x - bounds.left() - divider_width / 2.0).clamp(minimum, usable - minimum);
+            self.preferences.editor_fraction = left_width / usable;
+        } else if response.double_clicked() {
+            self.preferences.editor_fraction = 0.5;
+            left_width = usable * 0.5;
+        }
+        let editor_rect = egui::Rect::from_min_max(
+            bounds.min,
+            egui::pos2(bounds.left() + left_width, bounds.bottom()),
+        );
+        let preview_rect = egui::Rect::from_min_max(
+            egui::pos2(editor_rect.right() + divider_width, bounds.top()),
+            bounds.max,
+        );
+        for (id, rect, preview) in [
+            ("preview-column", preview_rect, true),
+            ("editor-column", editor_rect, false),
+        ] {
+            ui.scope_builder(egui::UiBuilder::new().id_salt(id).max_rect(rect), |ui| {
+                ui.set_clip_rect(rect);
+                if disabled {
+                    ui.disable();
+                }
+                egui::Frame::central_panel(ui.style()).show(ui, |ui| {
+                    ui.set_min_size(ui.available_size());
+                    if preview {
+                        self.preview_ui(ui);
+                    } else {
+                        self.editor_ui(ui);
+                    }
+                });
+            });
+        }
+        let stroke = if response.hovered() || response.dragged() {
+            ui.visuals().widgets.hovered.fg_stroke
+        } else {
+            ui.visuals().widgets.noninteractive.bg_stroke
+        };
+        ui.painter().vline(
+            editor_rect.right() + divider_width / 2.0,
+            bounds.y_range(),
+            stroke,
+        );
+        response
+            .on_hover_cursor(egui::CursorIcon::ResizeHorizontal)
+            .on_hover_text(crate::tr!("column-divider-hint"));
+        [editor_rect, preview_rect]
     }
     fn dialogs(&mut self, ctx: &egui::Context) {
         if self.link_open {
@@ -1508,6 +1645,7 @@ impl App {
             && self.is_dirty()
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.preferences_open = false;
             self.palette_open = false;
             self.link_open = false;
             self.export_open = false;
@@ -1600,22 +1738,12 @@ impl App {
                 }
             });
         });
-        egui::SidePanel::right("preview")
-            .resizable(true)
-            .default_width(520.0)
-            .width_range(300.0..=1100.0)
+        egui::CentralPanel::default()
+            .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
-                if modal {
-                    ui.disable();
-                }
-                self.preview_ui(ui)
+                self.columns_ui(ui, modal);
             });
-        egui::CentralPanel::default().show(ctx, |ui| {
-            if modal {
-                ui.disable();
-            }
-            self.editor_ui(ui)
-        });
+        self.preferences_ui(ctx);
         self.dialogs(ctx);
         if let Some(command) = self.file_command.take() {
             self.handle_file_command(command, ctx);
@@ -1668,6 +1796,12 @@ impl App {
     }
 }
 impl eframe::App for App {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        self.preferences.save(storage);
+    }
+    fn persist_egui_memory(&self) -> bool {
+        false
+    }
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.ui_frame(ctx);
     }
@@ -1676,6 +1810,197 @@ impl eframe::App for App {
 #[cfg(test)]
 mod interaction_tests {
     use super::*;
+
+    #[test]
+    fn column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_cap() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let mut time = 0.0;
+        let mut draw = |app: &mut App, width, events| {
+            time += 0.1;
+            let mut rects = [egui::Rect::NOTHING; 2];
+            let _ = ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(width, 900.0),
+                    )),
+                    time: Some(time),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| {
+                    egui::CentralPanel::default()
+                        .frame(egui::Frame::NONE)
+                        .show(ctx, |ui| {
+                            rects = app.columns_ui(ui, false);
+                        });
+                },
+            );
+            rects
+        };
+        let initial = draw(&mut app, 1240.0, vec![]);
+        assert!((initial[0].width() / initial[1].width() - 1.0).abs() < 0.01);
+        let start = egui::pos2(initial[0].right() + 4.0, 450.0);
+        draw(
+            &mut app,
+            1240.0,
+            vec![
+                egui::Event::PointerMoved(start),
+                egui::Event::PointerButton {
+                    pos: start,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        let end = egui::pos2(374.0, 450.0);
+        draw(&mut app, 1240.0, vec![egui::Event::PointerMoved(end)]);
+        draw(
+            &mut app,
+            1240.0,
+            vec![egui::Event::PointerButton {
+                pos: end,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+        );
+        let fraction = app.preferences.editor_fraction;
+        assert!((fraction - 0.3).abs() < 0.02, "{fraction}");
+        for width in [960.0, 2400.0, 1240.0] {
+            let rects = draw(&mut app, width, vec![]);
+            let actual = rects[0].width() / (rects[0].width() + rects[1].width());
+            assert!((actual - fraction).abs() < 0.001);
+            if width > 2000.0 {
+                assert!(rects[1].width() > 1100.0);
+            }
+        }
+        app.preferences.editor_fraction = 0.9;
+        let rects = draw(&mut app, 1240.0, vec![]);
+        assert!(rects[1].width() < 300.0);
+        let divider = egui::pos2(rects[0].right() + 4.0, 450.0);
+        for _ in 0..2 {
+            for pressed in [true, false] {
+                draw(
+                    &mut app,
+                    1240.0,
+                    vec![
+                        egui::Event::PointerMoved(divider),
+                        egui::Event::PointerButton {
+                            pos: divider,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        },
+                    ],
+                );
+            }
+        }
+        assert_eq!(app.preferences.editor_fraction, 0.5);
+    }
+
+    #[test]
+    fn editor_preferences_change_glyphs_and_theme_without_touching_the_letter() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let letter = app.letter();
+        let revision = app.revision;
+        app.dispatch_action(Command::Preferences, &ctx);
+        assert!(app.preferences_open);
+        let mut time = 0.0;
+        let mut draw = |app: &mut App, events| {
+            time += 0.1;
+            ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1240.0, 900.0),
+                    )),
+                    time: Some(time),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| app.preferences_ui(ctx),
+            )
+        };
+        for (current, next) in [
+            ("Libertinus Serif", "DejaVu Sans Mono"),
+            ("Système", "Sombre"),
+        ] {
+            for label in [current, next] {
+                draw(&mut app, vec![]);
+                let output = draw(&mut app, vec![]);
+                let pos = output
+                    .shapes
+                    .iter()
+                    .find_map(|shape| match &shape.shape {
+                        egui::Shape::Text(text) if text.galley.text() == label => {
+                            Some(text.pos + text.galley.rect.center().to_vec2())
+                        }
+                        _ => None,
+                    })
+                    .unwrap_or_else(|| panic!("choix absent : {label}"));
+                for pressed in [true, false] {
+                    draw(
+                        &mut app,
+                        vec![
+                            egui::Event::PointerMoved(pos),
+                            egui::Event::PointerButton {
+                                pos,
+                                button: egui::PointerButton::Primary,
+                                pressed,
+                                modifiers: egui::Modifiers::NONE,
+                            },
+                        ],
+                    );
+                }
+            }
+        }
+        assert_eq!(app.preferences.editor.font, EditorFont::Monospace);
+        app.preferences.editor.size = 24.0;
+        let _ = ctx.run(egui::RawInput::default(), |ctx| app.preferences_ui(ctx));
+        assert_eq!(ctx.theme(), egui::Theme::Dark);
+        app.preferences.appearance = Appearance::System;
+        let _ = ctx.run(
+            egui::RawInput {
+                system_theme: Some(egui::Theme::Light),
+                ..Default::default()
+            },
+            |ctx| app.preferences_ui(ctx),
+        );
+        let _ = ctx.run(
+            egui::RawInput {
+                system_theme: Some(egui::Theme::Light),
+                ..Default::default()
+            },
+            |_| {},
+        );
+        assert_eq!(ctx.theme(), egui::Theme::Light);
+        let mut view = Document::from_source("Normal\n\n= Titre").unwrap().view;
+        view.toggle_mark(0..3, Mark::Bold);
+        view.toggle_mark(0..3, Mark::Italic);
+        let job = editor::layout(
+            &view,
+            &view.text,
+            500.0,
+            Color32::BLACK,
+            ACCENT,
+            app.preferences.editor,
+        );
+        assert_eq!(
+            job.sections[0].format.font_id,
+            EditorFont::Monospace.font_id(24.0, 3)
+        );
+        assert!(job.sections.iter().any(|s| s.format.font_id.size == 32.0));
+        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            ctx.fonts_mut(|fonts| fonts.layout_job(job.clone()));
+        });
+        assert_eq!(app.letter(), letter);
+        assert_eq!(app.revision, revision);
+        assert!(!app.is_dirty());
+    }
 
     #[test]
     fn general_settings_and_template_selection_preserve_letter_content() {
@@ -1800,6 +2125,12 @@ mod interaction_tests {
         assert!(text_point(&output, "exemple.typsto").is_none());
         assert!(text_point(&output, "Enregistrer").is_none());
         assert!(text_point(&output, "Exporter").is_none());
+        for label in ["Effacer", "Retirer la mise en forme", "Annuler", "Rétablir"] {
+            assert!(
+                text_point(&output, label).is_none(),
+                "{label} reste dans la barre d’outils"
+            );
+        }
         assert!(app.window_title.contains("exemple.typsto"));
         let pos = text_point(&output, "Fichier").unwrap();
         for pressed in [true, false] {
