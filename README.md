@@ -125,7 +125,9 @@ Le moteur travaille sur un thread dédié, après une courte pause de saisie
 ne remplace pas un aperçu plus récent. Les polices et les sources sont mises
 en cache. En cas d’erreur, le dernier aperçu réussi reste visible.
 
-Le bouton **Exporter** produit dans un nouveau dossier :
+Le bouton **Exporter**, la commande du menu Fichier ou le raccourci `⌘E` sur
+macOS / `Ctrl+E` sur Windows et Linux ouvre la fenêtre d’export. La commande est
+aussi accessible dans la palette. L’export produit dans un nouveau dossier :
 
 - `courrier.pdf` et les pages PNG ;
 - `main.typ`, dont l’en-tête renseigne `#show: courrier.with(...)` ;

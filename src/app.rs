@@ -54,6 +54,7 @@ enum FileCommand {
     Open,
     Save,
     SaveAs,
+    Export,
     Close,
 }
 impl FileCommand {
@@ -63,6 +64,7 @@ impl FileCommand {
             Self::Open => "Ouvrir un courrier…",
             Self::Save => "Enregistrer",
             Self::SaveAs => "Enregistrer sous…",
+            Self::Export => "Exporter le courrier…",
             Self::Close => "Fermer",
         }
     }
@@ -357,6 +359,7 @@ impl App {
             FileCommand::SaveAs => {
                 self.save_document(true);
             }
+            FileCommand::Export => self.export_open = true,
         }
         ctx.request_repaint();
     }
@@ -528,6 +531,7 @@ impl App {
             (egui::Modifiers::COMMAND, egui::Key::S, FileCommand::Save),
             (egui::Modifiers::COMMAND, egui::Key::O, FileCommand::Open),
             (egui::Modifiers::COMMAND, egui::Key::N, FileCommand::New),
+            (egui::Modifiers::COMMAND, egui::Key::E, FileCommand::Export),
         ] {
             if ctx.input_mut(|input| input.consume_key(modifiers, key)) {
                 self.file_command = Some(command);
@@ -1126,6 +1130,7 @@ impl App {
                         Command::File(FileCommand::Open),
                         Command::File(FileCommand::Save),
                         Command::File(FileCommand::SaveAs),
+                        Command::File(FileCommand::Export),
                         Command::Bold,
                         Command::Italic,
                         Command::Link,
@@ -1326,9 +1331,19 @@ impl App {
                             FileCommand::Open,
                             FileCommand::Save,
                             FileCommand::SaveAs,
+                            FileCommand::Export,
                             FileCommand::Close,
                         ] {
-                            if ui.button(command.label()).clicked() {
+                            let mut button = egui::Button::new(command.label());
+                            if matches!(command, FileCommand::Export) {
+                                button = button.shortcut_text(ui.ctx().format_shortcut(
+                                    &egui::KeyboardShortcut::new(
+                                        egui::Modifiers::COMMAND,
+                                        egui::Key::E,
+                                    ),
+                                ));
+                            }
+                            if ui.add(button).clicked() {
                                 self.file_command = Some(command);
                                 ui.close();
                             }
@@ -1343,8 +1358,12 @@ impl App {
                         .truncate(),
                     );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button("Exporter").clicked() {
-                            self.export_open = true;
+                        let shortcut = ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(
+                            egui::Modifiers::COMMAND,
+                            egui::Key::E,
+                        ));
+                        if ui.button("Exporter").on_hover_text(shortcut).clicked() {
+                            self.file_command = Some(FileCommand::Export);
                         }
                         if ui.button("Informations").clicked() {
                             self.information_open = true;
