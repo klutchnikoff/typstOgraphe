@@ -38,6 +38,7 @@ pub fn layout(
     text: &str,
     width: f32,
     color: Color32,
+    strong_color: Color32,
     accent: Color32,
     editor: EditorStyle,
 ) -> LayoutJob {
@@ -84,6 +85,8 @@ pub fn layout(
             font_id: editor.font.font_id(size, font_index),
             color: if heading || style.link.is_some() {
                 accent
+            } else if style.bold {
+                strong_color
             } else {
                 color
             },

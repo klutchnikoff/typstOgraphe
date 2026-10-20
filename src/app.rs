@@ -1043,6 +1043,7 @@ impl App {
         }
         let view = self.document.view.clone();
         let color = ui.visuals().text_color();
+        let strong_color = color.lerp_to_gamma(ui.visuals().strong_text_color(), 0.65);
         let accent = if ui.visuals().dark_mode {
             Color32::from_rgb(148, 199, 224)
         } else {
@@ -1056,6 +1057,7 @@ impl App {
                     text.as_str(),
                     width,
                     color,
+                    strong_color,
                     accent,
                     editor_style,
                 ))
@@ -1985,6 +1987,7 @@ mod interaction_tests {
             &view,
             &view.text,
             500.0,
+            Color32::BLACK,
             Color32::BLACK,
             ACCENT,
             app.preferences.editor,
