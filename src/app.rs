@@ -1,4 +1,5 @@
 use crate::{
+    commands::{Command, DEFINITIONS, FileCommand, Keymap, ShortcutOverrides},
     document::{BlockKind, Document, InlineStyle, Mark, Metadata},
     editor,
     navigation::{PagePoint, RenderSync},
@@ -23,54 +24,6 @@ struct Snapshot {
     selection: CCursorRange,
 }
 #[derive(Clone, Copy)]
-enum Command {
-    File(FileCommand),
-    Bold,
-    Italic,
-    Clear,
-    Block(BlockKind),
-    Link,
-    Undo,
-    Redo,
-}
-impl Command {
-    fn label(self) -> &'static str {
-        match self {
-            Self::File(command) => command.label(),
-            Self::Bold => "Gras",
-            Self::Italic => "Italique",
-            Self::Clear => "Retirer la mise en forme",
-            Self::Block(kind) => kind.label(),
-            Self::Link => "Insérer ou modifier un lien",
-            Self::Undo => "Annuler",
-            Self::Redo => "Rétablir",
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum FileCommand {
-    New,
-    Open,
-    Save,
-    SaveAs,
-    Export,
-    Close,
-}
-impl FileCommand {
-    fn label(self) -> &'static str {
-        match self {
-            Self::New => "Nouveau courrier",
-            Self::Open => "Ouvrir un courrier…",
-            Self::Save => "Enregistrer",
-            Self::SaveAs => "Enregistrer sous…",
-            Self::Export => "Exporter le courrier…",
-            Self::Close => "Fermer",
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
 enum PendingAction {
     New,
     Open,
@@ -78,6 +31,7 @@ enum PendingAction {
 }
 
 pub struct App {
+    keymap: Keymap,
     pub document: Document,
     metadata: Metadata,
     compact: bool,
@@ -141,9 +95,12 @@ impl App {
         style.visuals.selection.bg_fill = Color32::from_rgb(174, 211, 235);
         style.visuals.selection.stroke = egui::Stroke::new(1.0_f32, ACCENT);
         ctx.set_style(style);
+        let keymap = Keymap::new(ctx.os().is_mac(), &ShortcutOverrides::default())
+            .expect("raccourcis par défaut cohérents");
         let worker = RenderWorker::spawn(ctx);
         let saved = Letter::demo();
         Self {
+            keymap,
             document: Document::demo(),
             metadata: saved.metadata.clone(),
             compact: saved.compact,
@@ -385,6 +342,12 @@ impl App {
         self.changed();
     }
     fn apply(&mut self, command: Command) {
+        if command == Command::Palette {
+            self.palette_open = !self.palette_open;
+            self.palette_query.clear();
+            self.palette_index = 0;
+            return;
+        }
         if let Command::File(command) = command {
             self.file_command = Some(command);
             return;
@@ -518,56 +481,20 @@ impl App {
         }
     }
     fn shortcuts(&mut self, ctx: &egui::Context) {
-        let modal = self.modal_open();
-        if modal {
+        if self.modal_open() {
             return;
         }
-        for (modifiers, key, command) in [
-            (
-                egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
-                egui::Key::S,
-                FileCommand::SaveAs,
-            ),
-            (egui::Modifiers::COMMAND, egui::Key::S, FileCommand::Save),
-            (egui::Modifiers::COMMAND, egui::Key::O, FileCommand::Open),
-            (egui::Modifiers::COMMAND, egui::Key::N, FileCommand::New),
-            (egui::Modifiers::COMMAND, egui::Key::E, FileCommand::Export),
-        ] {
-            if ctx.input_mut(|input| input.consume_key(modifiers, key)) {
-                self.file_command = Some(command);
+        let focused = ctx.memory(|memory| memory.has_focus(egui::Id::new(editor::EDITOR_ID)));
+        let commands = ctx.input_mut(|input| self.keymap.consume(input, focused));
+        for command in commands {
+            if self.modal_open() {
+                break;
             }
+            self.apply(command);
         }
-        if ctx.input_mut(|i| {
-            i.consume_key(
-                egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
-                egui::Key::P,
-            )
-        }) {
-            self.palette_open = !self.palette_open;
-            self.palette_query.clear();
-            self.palette_index = 0;
+        if focused && !self.modal_open() {
+            self.text_shortcuts(ctx);
         }
-        let focused = ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID)));
-        if !focused {
-            return;
-        }
-        for (modifiers, key, command) in [
-            (
-                egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
-                egui::Key::Z,
-                Command::Redo,
-            ),
-            (egui::Modifiers::COMMAND, egui::Key::Z, Command::Undo),
-            (egui::Modifiers::COMMAND, egui::Key::Y, Command::Redo),
-            (egui::Modifiers::COMMAND, egui::Key::B, Command::Bold),
-            (egui::Modifiers::COMMAND, egui::Key::I, Command::Italic),
-            (egui::Modifiers::COMMAND, egui::Key::K, Command::Link),
-        ] {
-            if ctx.input_mut(|i| i.consume_key(modifiers, key)) {
-                self.apply(command);
-            }
-        }
-        self.text_shortcuts(ctx);
     }
     fn text_shortcuts(&mut self, ctx: &egui::Context) {
         let range = self.range();
@@ -709,7 +636,7 @@ impl App {
                     .add(button)
                     .on_hover_text(format!(
                         "{}{}",
-                        command.label(),
+                        self.keymap.hint(ui.ctx(), command),
                         if mixed { " (sélection mixte)" } else { "" }
                     ))
                     .clicked()
@@ -719,7 +646,7 @@ impl App {
             }
             if ui
                 .button("Lien")
-                .on_hover_text("Insérer ou modifier un lien · ⌘K / Ctrl+K")
+                .on_hover_text(self.keymap.hint(ui.ctx(), Command::Link))
                 .clicked()
             {
                 self.apply(Command::Link);
@@ -739,7 +666,7 @@ impl App {
             }
             if ui
                 .button("Effacer")
-                .on_hover_text("Retirer le gras, l’italique et les liens")
+                .on_hover_text(self.keymap.hint(ui.ctx(), Command::Clear))
                 .clicked()
             {
                 self.apply(Command::Clear);
@@ -747,14 +674,14 @@ impl App {
             ui.separator();
             if ui
                 .add_enabled(!self.undo.is_empty(), egui::Button::new("Annuler"))
-                .on_hover_text("Annuler")
+                .on_hover_text(self.keymap.hint(ui.ctx(), Command::Undo))
                 .clicked()
             {
                 self.apply(Command::Undo);
             }
             if ui
                 .add_enabled(!self.redo.is_empty(), egui::Button::new("Rétablir"))
-                .on_hover_text("Rétablir")
+                .on_hover_text(self.keymap.hint(ui.ctx(), Command::Redo))
                 .clicked()
             {
                 self.apply(Command::Redo);
@@ -1125,25 +1052,10 @@ impl App {
                     if response.changed() {
                         self.palette_index = 0;
                     }
-                    let commands = [
-                        Command::File(FileCommand::New),
-                        Command::File(FileCommand::Open),
-                        Command::File(FileCommand::Save),
-                        Command::File(FileCommand::SaveAs),
-                        Command::File(FileCommand::Export),
-                        Command::Bold,
-                        Command::Italic,
-                        Command::Link,
-                        Command::Clear,
-                        Command::Block(BlockKind::Paragraph),
-                        Command::Block(BlockKind::Heading(1)),
-                        Command::Block(BlockKind::Heading(2)),
-                        Command::Block(BlockKind::Heading(3)),
-                        Command::Block(BlockKind::Bullet),
-                        Command::Block(BlockKind::Numbered),
-                        Command::Undo,
-                        Command::Redo,
-                    ];
+                    let commands = DEFINITIONS
+                        .iter()
+                        .filter(|definition| definition.in_palette())
+                        .map(|definition| definition.command);
                     let query = self.palette_query.to_lowercase();
                     let filtered: Vec<_> = commands
                         .into_iter()
@@ -1166,7 +1078,12 @@ impl App {
                     }
                     for (index, command) in filtered.into_iter().enumerate() {
                         if ui
-                            .selectable_label(index == self.palette_index, command.label())
+                            .add(
+                                egui::Button::new(command.label())
+                                    .frame(false)
+                                    .selected(index == self.palette_index)
+                                    .shortcut_text(self.keymap.shortcut_text(ui.ctx(), command)),
+                            )
                             .clicked()
                         {
                             choice = Some(command);
@@ -1326,25 +1243,15 @@ impl App {
                     ));
                     ui.separator();
                     ui.menu_button("Fichier", |ui| {
-                        for command in [
-                            FileCommand::New,
-                            FileCommand::Open,
-                            FileCommand::Save,
-                            FileCommand::SaveAs,
-                            FileCommand::Export,
-                            FileCommand::Close,
-                        ] {
-                            let mut button = egui::Button::new(command.label());
-                            if matches!(command, FileCommand::Export) {
-                                button = button.shortcut_text(ui.ctx().format_shortcut(
-                                    &egui::KeyboardShortcut::new(
-                                        egui::Modifiers::COMMAND,
-                                        egui::Key::E,
-                                    ),
-                                ));
-                            }
+                        for definition in DEFINITIONS
+                            .iter()
+                            .filter(|definition| definition.in_file_menu())
+                        {
+                            let command = definition.command;
+                            let button = egui::Button::new(definition.label)
+                                .shortcut_text(self.keymap.shortcut_text(ui.ctx(), command));
                             if ui.add(button).clicked() {
-                                self.file_command = Some(command);
+                                self.apply(command);
                                 ui.close();
                             }
                         }
@@ -1358,30 +1265,34 @@ impl App {
                         .truncate(),
                     );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let shortcut = ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(
-                            egui::Modifiers::COMMAND,
-                            egui::Key::E,
-                        ));
-                        if ui.button("Exporter").on_hover_text(shortcut).clicked() {
-                            self.file_command = Some(FileCommand::Export);
+                        if ui
+                            .button("Exporter")
+                            .on_hover_text(
+                                self.keymap
+                                    .hint(ui.ctx(), Command::File(FileCommand::Export)),
+                            )
+                            .clicked()
+                        {
+                            self.apply(Command::File(FileCommand::Export));
                         }
                         if ui.button("Informations").clicked() {
                             self.information_open = true;
                         }
                         if ui
                             .button("Enregistrer")
-                            .on_hover_text("⌘S / Ctrl+S")
+                            .on_hover_text(
+                                self.keymap.hint(ui.ctx(), Command::File(FileCommand::Save)),
+                            )
                             .clicked()
                         {
                             self.file_command = Some(FileCommand::Save);
                         }
                         if ui
                             .button("Commandes")
-                            .on_hover_text("⌘⇧P / Ctrl+Shift+P")
+                            .on_hover_text(self.keymap.hint(ui.ctx(), Command::Palette))
                             .clicked()
                         {
-                            self.palette_open = true;
-                            self.palette_query.clear();
+                            self.apply(Command::Palette);
                         }
                     });
                 });
@@ -1505,6 +1416,40 @@ impl eframe::App for App {
 #[cfg(test)]
 mod interaction_tests {
     use super::*;
+
+    #[test]
+    fn shortcut_override_updates_dispatch_and_hints_without_changing_the_document() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        frame(&mut app, &ctx, vec![]);
+        let command = Command::File(FileCommand::Export);
+        let original = app.keymap.hint(&ctx, command);
+        let config = serde_json::from_str(r#"{"document.export":[{"key":"F6"}]}"#).unwrap();
+        app.keymap = Keymap::new(ctx.os().is_mac(), &config).unwrap();
+        let hint = app.keymap.hint(&ctx, command);
+        assert_ne!(hint, original);
+        assert!(hint.ends_with("F6"));
+        let source = app.document.source().to_owned();
+        for (key, modifiers) in [
+            (egui::Key::E, egui::Modifiers::COMMAND),
+            (egui::Key::F6, egui::Modifiers::NONE),
+        ] {
+            frame(
+                &mut app,
+                &ctx,
+                vec![egui::Event::Key {
+                    key,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers,
+                }],
+            );
+            assert_eq!(app.export_open, key == egui::Key::F6);
+        }
+        assert_eq!(app.document.source(), source);
+        assert!(!app.is_dirty());
+    }
 
     #[test]
     fn save_reopen_restores_the_letter_and_failed_open_preserves_current_work() {

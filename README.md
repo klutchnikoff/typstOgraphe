@@ -52,6 +52,41 @@ Les accents et les caractères Unicode sont traités avec les mêmes indices de
 caractères que les curseurs egui. Le gras et l’italique utilisent de véritables
 variantes de police dans l’éditeur.
 
+## Registre des commandes et raccourcis
+
+`src/commands.rs` centralise les commandes dans une table : identifiant stable
+(par exemple `document.export`), libellé, action, contexte et raccourcis par
+défaut. Les menus, la palette, les infobulles et le traitement des touches
+utilisent ce même registre.
+
+Le modificateur principal correspond à `⌘` sous macOS et à `Ctrl` sous Windows
+et Linux. Des valeurs par plateforme sont possibles ; par exemple, le raccourci
+de rétablissement affiché est `⌘⇧Z` sur macOS et `Ctrl+Y` ailleurs. Les raccourcis
+de mise en forme s’appliquent lorsque l’éditeur a le focus. Les fenêtres de
+dialogue suspendent les raccourcis de commande.
+
+Le moteur accepte déjà une couche de personnalisation en mémoire. Une commande
+absente conserve ses raccourcis par défaut ; une liste vide les désactive ; une
+liste non vide les remplace. Exemple de données pour les futures préférences :
+
+```json
+{
+  "document.export": [{ "key": "E", "primary": true, "shift": true }],
+  "text.bold": []
+}
+```
+
+Ici, l’export serait affecté à `⌘⇧E` / `Ctrl+Shift+E` et le gras resterait
+accessible par les boutons et la palette. Les conflits entre commandes sont
+refusés avant activation, en tenant compte des équivalences de modificateurs
+sur chaque plateforme. Les touches de fonction sont également acceptées.
+L’écran des préférences et l’enregistrement de ces choix seront ajoutés plus
+tard ; l’application utilise actuellement les raccourcis par défaut.
+
+Les touches de navigation des composants (flèches, Entrée, Échap…) et les
+conversions textuelles (`= `, `*texte*`…) restent traitées par l’éditeur et les
+dialogues, séparément des commandes personnalisables.
+
 ## Enregistrer et rouvrir un courrier
 
 Le menu **Fichier** propose Nouveau, Ouvrir, Enregistrer et Enregistrer sous,
@@ -188,6 +223,9 @@ Les tests de fichiers vérifient l’aller-retour du source, des métadonnées e
 modèle personnalisé, l’export avec le modèle rouvert, le remplacement atomique,
 le refus des archives invalides, les erreurs d’écriture et la protection des
 modifications non enregistrées.
+Les tests du registre vérifient les contextes, les modificateurs sur macOS et
+Windows/Linux, les conflits, les remplacements et la désactivation de raccourcis,
+ainsi que la cohérence entre le raccourci actif et son affichage.
 
 Une capture de l’application peut être produite après le premier rendu réussi :
 

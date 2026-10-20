@@ -1,4 +1,5 @@
 mod app;
+mod commands;
 mod document;
 mod editor;
 mod navigation;
