@@ -56,12 +56,12 @@ impl Command {
             .find(|definition| definition.command == self)
             .expect("commande enregistrée")
     }
-    pub fn label(self) -> &'static str {
-        self.definition().label
+    pub fn label(self) -> String {
+        crate::i18n::text(self.definition().label_key)
     }
-    pub fn short_label(self) -> &'static str {
+    pub fn short_label(self) -> String {
         let definition = self.definition();
-        definition.short_label.unwrap_or(definition.label)
+        crate::i18n::text(definition.short_label_key.unwrap_or(definition.label_key))
     }
 }
 
@@ -73,10 +73,10 @@ pub enum Scope {
 
 pub struct Definition {
     pub id: &'static str,
-    pub label: &'static str,
+    pub label_key: &'static str, // Clé Fluent, distincte de l’identifiant de commande.
     pub command: Command,
     pub scope: Scope,
-    short_label: Option<&'static str>,
+    pub short_label_key: Option<&'static str>,
     defaults: &'static [KeyboardShortcut],
     macos: Option<&'static [KeyboardShortcut]>,
 }
@@ -111,23 +111,23 @@ const fn primary_shift(key: Key) -> KeyboardShortcut {
 }
 const fn define(
     id: &'static str,
-    label: &'static str,
+    label_key: &'static str,
     command: Command,
     scope: Scope,
     defaults: &'static [KeyboardShortcut],
 ) -> Definition {
     Definition {
         id,
-        label,
+        label_key,
         command,
         scope,
         defaults,
         macos: None,
-        short_label: None,
+        short_label_key: None,
     }
 }
 const fn short(mut definition: Definition, label: &'static str) -> Definition {
-    definition.short_label = Some(label);
+    definition.short_label_key = Some(label);
     definition
 }
 
@@ -135,28 +135,28 @@ const fn short(mut definition: Definition, label: &'static str) -> Definition {
 pub static DEFINITIONS: &[Definition] = &[
     define(
         "document.new",
-        "Nouveau courrier",
+        "cmd-new",
         Command::File(FileCommand::New),
         Scope::Global,
         &[primary(Key::N)],
     ),
     define(
         "document.open",
-        "Ouvrir un courrier…",
+        "cmd-open",
         Command::File(FileCommand::Open),
         Scope::Global,
         &[primary(Key::O)],
     ),
     define(
         "document.save",
-        "Enregistrer",
+        "cmd-save",
         Command::File(FileCommand::Save),
         Scope::Global,
         &[primary(Key::S)],
     ),
     define(
         "document.save_as",
-        "Enregistrer sous…",
+        "cmd-save-as",
         Command::File(FileCommand::SaveAs),
         Scope::Global,
         &[primary_shift(Key::S)],
@@ -164,33 +164,33 @@ pub static DEFINITIONS: &[Definition] = &[
     short(
         define(
             "document.export",
-            "Exporter le courrier…",
+            "cmd-export",
             Command::File(FileCommand::Export),
             Scope::Global,
             &[primary(Key::E)],
         ),
-        "Exporter",
+        "cmd-export-short",
     ),
     short(
         define(
             "document.information",
-            "Informations du courrier",
+            "cmd-information",
             Command::Information,
             Scope::Global,
             &[],
         ),
-        "Informations",
+        "cmd-information-short",
     ),
     define(
         "document.close",
-        "Fermer",
+        "cmd-close",
         Command::File(FileCommand::Close),
         Scope::Global,
         &[],
     ),
     define(
         "commands.palette",
-        "Commandes",
+        "cmd-palette",
         Command::Palette,
         Scope::Global,
         &[primary_shift(Key::P)],
@@ -198,56 +198,56 @@ pub static DEFINITIONS: &[Definition] = &[
     short(
         define(
             "document.presentation.institutional",
-            "Utiliser la présentation institutionnelle",
+            "cmd-institutional",
             Command::Presentation(Presentation::Institutional),
             Scope::Global,
             &[],
         ),
-        "Courrier institutionnel",
+        "cmd-institutional-short",
     ),
     short(
         define(
             "document.presentation.service",
-            "Utiliser la présentation de service",
+            "cmd-service",
             Command::Presentation(Presentation::Service),
             Scope::Global,
             &[],
         ),
-        "Courrier de service",
+        "cmd-service-short",
     ),
     short(
         define(
             "text.bold",
-            "Gras",
+            "cmd-bold",
             Command::Bold,
             Scope::Editor,
             &[primary(Key::B)],
         ),
-        "G",
+        "cmd-bold-short",
     ),
     short(
         define(
             "text.italic",
-            "Italique",
+            "cmd-italic",
             Command::Italic,
             Scope::Editor,
             &[primary(Key::I)],
         ),
-        "I",
+        "cmd-italic-short",
     ),
     short(
         define(
             "text.link",
-            "Insérer ou modifier un lien",
+            "cmd-link",
             Command::Link,
             Scope::Editor,
             &[primary(Key::K)],
         ),
-        "Lien",
+        "cmd-link-short",
     ),
     define(
         "text.remove_link",
-        "Retirer le lien",
+        "cmd-remove-link",
         Command::RemoveLink,
         Scope::Editor,
         &[],
@@ -255,37 +255,37 @@ pub static DEFINITIONS: &[Definition] = &[
     short(
         define(
             "text.clear",
-            "Retirer la mise en forme",
+            "cmd-clear",
             Command::Clear,
             Scope::Editor,
             &[],
         ),
-        "Effacer",
+        "cmd-clear-short",
     ),
     define(
         "block.paragraph",
-        "Paragraphe",
+        "cmd-paragraph",
         Command::Block(BlockKind::Paragraph),
         Scope::Editor,
         &[],
     ),
     define(
         "block.heading_1",
-        "Titre 1",
+        "cmd-heading-1",
         Command::Block(BlockKind::Heading(1)),
         Scope::Editor,
         &[],
     ),
     define(
         "block.heading_2",
-        "Titre 2",
+        "cmd-heading-2",
         Command::Block(BlockKind::Heading(2)),
         Scope::Editor,
         &[],
     ),
     define(
         "block.heading_3",
-        "Titre 3",
+        "cmd-heading-3",
         Command::Block(BlockKind::Heading(3)),
         Scope::Editor,
         &[],
@@ -293,26 +293,26 @@ pub static DEFINITIONS: &[Definition] = &[
     short(
         define(
             "block.bullet",
-            "Liste à puces",
+            "cmd-bullet",
             Command::Block(BlockKind::Bullet),
             Scope::Editor,
             &[],
         ),
-        "• Liste",
+        "cmd-bullet-short",
     ),
     short(
         define(
             "block.numbered",
-            "Liste numérotée",
+            "cmd-numbered",
             Command::Block(BlockKind::Numbered),
             Scope::Editor,
             &[],
         ),
-        "1. Liste",
+        "cmd-numbered-short",
     ),
     define(
         "edit.undo",
-        "Annuler",
+        "cmd-undo",
         Command::Undo,
         Scope::Editor,
         &[primary(Key::Z)],
@@ -321,7 +321,7 @@ pub static DEFINITIONS: &[Definition] = &[
         macos: Some(&[primary_shift(Key::Z), primary(Key::Y)]),
         ..define(
             "edit.redo",
-            "Rétablir",
+            "cmd-redo",
             Command::Redo,
             Scope::Editor,
             &[primary(Key::Y), primary_shift(Key::Z)],
@@ -348,10 +348,10 @@ pub struct Binding {
 }
 impl Binding {
     fn shortcut(&self) -> Result<KeyboardShortcut, String> {
-        let key =
-            Key::from_name(&self.key).ok_or_else(|| format!("Touche inconnue : {}", self.key))?;
+        let key = Key::from_name(&self.key)
+            .ok_or_else(|| crate::tr!("shortcut-unknown-key", key = self.key.as_str()))?;
         if !(self.primary || self.ctrl || self.alt || (Key::F1..=Key::F35).contains(&key)) {
-            return Err("Utilisez Ctrl, ⌘ ou Alt, ou une touche de fonction, pour préserver la saisie du texte.".into());
+            return Err(crate::tr!("shortcut-modifier-required"));
         }
         Ok(KeyboardShortcut::new(
             Modifiers {
@@ -380,7 +380,7 @@ impl Keymap {
     pub fn new(is_mac: bool, overrides: &ShortcutOverrides) -> Result<Self, String> {
         for id in overrides.keys() {
             if !DEFINITIONS.iter().any(|definition| definition.id == id) {
-                return Err(format!("Commande inconnue : {id}"));
+                return Err(crate::tr!("shortcut-unknown-command", id = id.as_str()));
             }
         }
         let mut commands: Vec<ActiveCommand> = Vec::new();
@@ -403,9 +403,9 @@ impl Keymap {
                     .iter()
                     .any(|other| equivalent(shortcut, other, is_mac))
                 {
-                    return Err(format!(
-                        "Raccourci défini plusieurs fois pour {}",
-                        definition.label
+                    return Err(crate::tr!(
+                        "shortcut-duplicate",
+                        command = definition.command.label()
                     ));
                 }
                 for other in &commands {
@@ -416,9 +416,10 @@ impl Keymap {
                         .iter()
                         .any(|other| equivalent(shortcut, other, is_mac))
                     {
-                        return Err(format!(
-                            "Conflit de raccourcis : {} et {}",
-                            other.definition.label, definition.label
+                        return Err(crate::tr!(
+                            "shortcut-conflict",
+                            first = other.definition.command.label(),
+                            second = definition.command.label()
                         ));
                     }
                 }
@@ -442,9 +443,13 @@ impl Keymap {
     pub fn hint(&self, ctx: &egui::Context, command: Command) -> String {
         let shortcut = self.shortcut_text(ctx, command);
         if shortcut.is_empty() {
-            command.label().into()
+            command.label()
         } else {
-            format!("{} · {shortcut}", command.label())
+            crate::tr!(
+                "command-shortcut",
+                label = command.label(),
+                shortcut = shortcut
+            )
         }
     }
     pub fn consume(&self, input: &mut egui::InputState, editor_focused: bool) -> Vec<Command> {

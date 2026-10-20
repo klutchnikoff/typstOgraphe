@@ -91,11 +91,11 @@ impl Document {
         let parsed = typst_syntax::Source::detached(source);
         let tree = parsed.root();
         if tree.diagnosis().errors {
-            return Err("Le source Typst contient une erreur de syntaxe.".into());
+            return Err(crate::tr!("source-syntax-error"));
         }
         let markup = tree
             .cast::<ast::Markup>()
-            .ok_or("Document Typst illisible")?;
+            .ok_or(crate::tr!("source-unreadable"))?;
         let mut parser = Projector {
             source: Some(parsed.clone()),
             ..Default::default()
@@ -475,7 +475,7 @@ impl Projector {
                 }
                 Expr::Heading(heading) => {
                     if heading.depth().get() > 3 {
-                        return Err("Seuls les titres de niveaux 1 à 3 sont pris en charge.".into());
+                        return Err(crate::tr!("source-heading-depth"));
                     }
                     self.pending_break = !self.view.text.is_empty();
                     self.ensure_block(BlockKind::Heading(heading.depth().get() as u8));
@@ -502,9 +502,9 @@ impl Projector {
                     self.append(&url, &nested);
                 }
                 _ => {
-                    return Err(format!(
-                        "Construction hors du sous-ensemble éditable : {:?}",
-                        expr.to_untyped().kind()
+                    return Err(crate::tr!(
+                        "source-unsupported-node",
+                        kind = format!("{:?}", expr.to_untyped().kind())
                     ));
                 }
             }
@@ -513,7 +513,7 @@ impl Projector {
     }
     fn call(&mut self, call: ast::FuncCall<'_>, style: &InlineStyle) -> Result<(), String> {
         let Expr::Ident(callee) = call.callee() else {
-            return Err("Appel calculé non pris en charge.".into());
+            return Err(crate::tr!("source-computed-call"));
         };
         let args: Vec<_> = call.args().items().collect();
         let mut nested = style.clone();
@@ -537,9 +537,9 @@ impl Projector {
                 *body
             }
             _ => {
-                return Err(format!(
-                    "Fonction ou signature non prise en charge : {}",
-                    callee.as_str()
+                return Err(crate::tr!(
+                    "source-unsupported-function",
+                    name = callee.as_str()
                 ));
             }
         };
@@ -556,7 +556,7 @@ impl Projector {
                 Expr::Heading(_) | Expr::ListItem(_) | Expr::EnumItem(_)
             )
         }) {
-            return Err("Les blocs imbriqués ne sont pas pris en charge dans ce prototype.".into());
+            return Err(crate::tr!("source-nested-blocks"));
         }
         self.markup(markup, style)
     }

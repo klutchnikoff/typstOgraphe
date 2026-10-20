@@ -73,50 +73,52 @@ impl Manifest {
 }
 
 pub fn read(path: &Path) -> Result<Letter, String> {
-    let file = File::open(path).map_err(|e| format!("Impossible d’ouvrir le courrier : {e}"))?;
+    let file =
+        File::open(path).map_err(|e| crate::tr!("storage-open-failed", error = e.to_string()))?;
     if file.metadata().map_err(|e| e.to_string())?.len() > LIMIT + 65536 {
-        return Err("Le fichier de courrier dépasse la taille autorisée.".into());
+        return Err(crate::tr!("storage-file-too-large"));
     }
-    decode(file).map_err(|e| format!("Courrier invalide : {e}"))
+    decode(file).map_err(|e| crate::tr!("storage-invalid", error = e))
 }
 
 fn decode(reader: impl Read + std::io::Seek) -> Result<Letter, String> {
-    let mut zip = ZipArchive::new(reader).map_err(|e| format!("archive ZIP illisible ({e})"))?;
+    let mut zip = ZipArchive::new(reader)
+        .map_err(|e| crate::tr!("storage-zip-unreadable", error = e.to_string()))?;
     if zip.len() != ENTRIES.len() {
-        return Err("l’archive doit contenir exactement les cinq fichiers du format v1".into());
+        return Err(crate::tr!("storage-file-count"));
     }
     let mut total = 0_u64;
     let mut names = std::collections::HashSet::new();
     for index in 0..zip.len() {
         let file = zip.by_index(index).map_err(|e| e.to_string())?;
         if !ENTRIES.contains(&file.name()) || !names.insert(file.name().to_owned()) {
-            return Err("fichier inconnu ou présent plusieurs fois dans l’archive".into());
+            return Err(crate::tr!("storage-unknown-entry"));
         }
         total = total
             .checked_add(file.size())
-            .ok_or("taille d’archive invalide")?;
+            .ok_or(crate::tr!("storage-invalid-size"))?;
         if total > LIMIT {
-            return Err("le contenu décompressé dépasse 16 Mio".into());
+            return Err(crate::tr!("storage-expanded-too-large"));
         }
     }
     let manifest: Manifest = serde_json::from_str(&entry(&mut zip, "manifest.json")?)
-        .map_err(|e| format!("manifeste illisible ({e})"))?;
+        .map_err(|e| crate::tr!("storage-manifest-unreadable", error = e.to_string()))?;
     if manifest.format != "typstOgraphe"
         || manifest.version != 1
         || manifest.document_type != "courrier"
     {
-        return Err("format, version ou type de document non pris en charge".into());
+        return Err(crate::tr!("storage-unsupported"));
     }
     let letter = Letter {
         source: entry(&mut zip, "contenu.typ")?,
         metadata: serde_json::from_str(&entry(&mut zip, "metadonnees.json")?)
-            .map_err(|e| format!("métadonnées illisibles ({e})"))?,
+            .map_err(|e| crate::tr!("storage-metadata-unreadable", error = e.to_string()))?,
         template: entry(&mut zip, "modele.typ")?,
         compact: manifest.compact,
     };
     validate(&letter)?;
     if entry(&mut zip, "main.typ")? != letter.metadata.main_source(letter.compact) {
-        return Err("l’en-tête main.typ ne correspond pas aux métadonnées du courrier".into());
+        return Err(crate::tr!("storage-main-mismatch"));
     }
     Ok(letter)
 }
@@ -124,13 +126,19 @@ fn decode(reader: impl Read + std::io::Seek) -> Result<Letter, String> {
 fn entry<R: Read + std::io::Seek>(zip: &mut ZipArchive<R>, name: &str) -> Result<String, String> {
     let file = zip
         .by_name(name)
-        .map_err(|e| format!("{name} manquant ou illisible ({e})"))?;
+        .map_err(|e| crate::tr!("storage-entry-missing", name = name, error = e.to_string()))?;
     let mut value = String::new();
     file.take(LIMIT + 1)
         .read_to_string(&mut value)
-        .map_err(|e| format!("{name} illisible ({e})"))?;
+        .map_err(|e| {
+            crate::tr!(
+                "storage-entry-unreadable",
+                name = name,
+                error = e.to_string()
+            )
+        })?;
     if value.len() as u64 > LIMIT {
-        return Err(format!("{name} dépasse la taille autorisée"));
+        return Err(crate::tr!("storage-entry-too-large", name = name));
     }
     Ok(value)
 }
@@ -143,7 +151,7 @@ fn validate(letter: &Letter) -> Result<(), String> {
             .diagnosis()
             .errors
     {
-        return Err("le modèle Typst est vide ou contient une erreur de syntaxe".into());
+        return Err(crate::tr!("storage-invalid-template"));
     }
     Ok(())
 }
@@ -164,14 +172,14 @@ pub fn save(path: &Path, letter: &Letter) -> Result<(), String> {
         letter.template.as_str(),
     ];
     if files.iter().map(|text| text.len() as u64).sum::<u64>() > LIMIT {
-        return Err("Le courrier dépasse la taille autorisée (16 Mio).".into());
+        return Err(crate::tr!("storage-letter-too-large"));
     }
     let parent = path
         .parent()
         .filter(|path| !path.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
     let mut temporary = tempfile::NamedTempFile::new_in(parent)
-        .map_err(|e| format!("Impossible de créer le fichier temporaire : {e}"))?;
+        .map_err(|e| crate::tr!("storage-temporary-failed", error = e.to_string()))?;
     {
         let mut zip = ZipWriter::new(temporary.as_file_mut());
         let options =
@@ -185,10 +193,10 @@ pub fn save(path: &Path, letter: &Letter) -> Result<(), String> {
     temporary
         .as_file()
         .sync_all()
-        .map_err(|e| format!("Écriture du courrier impossible : {e}"))?;
+        .map_err(|e| crate::tr!("storage-write-failed", error = e.to_string()))?;
     temporary
         .persist(path)
-        .map_err(|e| format!("Impossible de remplacer le courrier : {}", e.error))?;
+        .map_err(|e| crate::tr!("storage-replace-failed", error = e.error.to_string()))?;
     Ok(())
 }
 

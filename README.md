@@ -63,8 +63,9 @@ Cela comprend les fichiers, les informations du courrier, les deux choix de
 présentation, les styles de paragraphes, la mise en forme, les liens (dont leur
 retrait), l’annulation/rétablissement et l’ouverture de la palette. Les boutons
 et listes déroulantes déclenchent les mêmes commandes que la palette et les
-raccourcis. Les libellés complets et leurs variantes courtes (« Informations »,
-« G », « I »…) sont définis dans le registre. La commande Fermer est également
+raccourcis. Les clés de traduction des libellés complets et de leurs variantes
+courtes (« Informations », « G », « I »…) sont définies dans le registre.
+La commande Fermer est également
 accessible dans la palette et garde la protection des modifications non enregistrées.
 
 Le modificateur principal correspond à `⌘` sous macOS et à `Ctrl` sous Windows
@@ -98,6 +99,45 @@ les mêmes personnalisations que les autres commandes.
 Les touches de navigation des composants (flèches, Entrée, Échap…) et les
 conversions textuelles (`= `, `*texte*`…) restent traitées par l’éditeur et les
 dialogues, séparément des commandes personnalisables.
+
+## Langue de l’interface
+
+L’interface utilise **Fluent**, avec `i18n-embed` et `i18n-embed-fl`. Au lancement,
+elle choisit une traduction disponible selon les langues préférées du système,
+y compris leurs variantes régionales. Le **français est la langue de repli** si
+aucune langue demandée n’est disponible, ou si un message manque dans la traduction
+choisie. Les catalogues français et anglais sont fournis et embarqués dans le
+binaire, même en compilation de développement ; aucun fichier de traduction
+externe n’est nécessaire à l’exécution.
+
+Ce choix concerne uniquement l’interface. Il ne change ni le texte du courrier,
+ni ses métadonnées, ni son modèle ou les réglages linguistiques Typst du document.
+Les identifiants des commandes, les raccourcis et le format `.typsto` restent
+indépendants des libellés traduits. Les fenêtres natives conservent les boutons
+standard du système ; les détails techniques provenant de Typst ou du système
+peuvent rester dans la langue de ces composants. Le choix manuel de la langue
+dans les préférences viendra ultérieurement.
+
+Pour contribuer aux traductions :
+
+- `i18n.toml` définit la langue de repli et le dossier des ressources.
+- `i18n/fr/typstographe.ftl` contient les messages de référence ;
+  `i18n/en/typstographe.ftl` contient leur traduction anglaise.
+- Dans le code Rust, utiliser `crate::tr!("identifiant")`, avec des arguments
+  nommés si nécessaire. `i18n-embed-fl` vérifie les clés littérales et leurs
+  paramètres à la compilation. Les phrases et les pluriels sont définis dans
+  Fluent, plutôt que construits à partir de fragments traduits.
+- Pour une commande, renseigner ses clés de libellé dans le registre. Les tests
+  vérifient leur présence dans chaque catalogue, ainsi que la cohérence des clés
+  et paramètres entre français et anglais.
+- Une langue supplémentaire s’ajoute dans `i18n/<langue>/typstographe.ftl` ; elle
+  est découverte automatiquement après recompilation. Étendre les tests de
+  catalogue aux langues ajoutées.
+
+Les tests d’interface utilisent explicitement le français pour être reproductibles
+sur tout système. Les tests de négociation créent des chargeurs séparés pour
+vérifier le français, l’anglais, les variantes régionales et le repli, sans
+modifier la langue globale pendant les tests parallèles.
 
 ## Enregistrer et rouvrir un courrier
 

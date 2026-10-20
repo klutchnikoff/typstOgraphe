@@ -190,7 +190,7 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
             .next()
             .is_some()
         {
-            return Err("Le dossier n’est pas vide. Choisissez un nouveau dossier pour préserver les fichiers existants.".into());
+            return Err(crate::tr!("export-nonempty"));
         }
         let pdf =
             typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default()).map_err(|errors| {
@@ -242,7 +242,8 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
     })
 }
 fn write(path: &Path, name: &str, data: &[u8]) -> Result<(), String> {
-    std::fs::write(path.join(name), data).map_err(|e| format!("Impossible d’écrire {name} : {e}"))
+    std::fs::write(path.join(name), data)
+        .map_err(|e| crate::tr!("export-write-failed", name = name, error = e.to_string()))
 }
 
 /// Un unique worker conserve les caches Typst. Les demandes d'aperçu devenues

@@ -22,6 +22,12 @@ png = "0.18"
 zip = { version = "6", default-features = false, features = ["deflate"] }
 tempfile = "3"
 rfd = "0.15"
+i18n-embed = { version = "0.16", features = ["fluent-system", "desktop-requester"] }
+i18n-embed-fl = "0.10"
+rust-embed = { version = "8", features = ["debug-embed"] }
+
+[dev-dependencies]
+fluent-syntax = "0.12"
 
 [profile.dev]
 debug = 0

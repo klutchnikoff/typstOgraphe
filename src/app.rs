@@ -182,7 +182,10 @@ impl App {
         let letter = self.letter();
         match storage::save(&path, &letter) {
             Ok(()) => {
-                self.message = Some(format!("Courrier enregistré : {}", path.display()));
+                self.message = Some(crate::tr!(
+                    "letter-saved",
+                    path = path.display().to_string()
+                ));
                 self.file_path = Some(path);
                 self.saved = letter;
                 self.file_error = None;
@@ -199,14 +202,14 @@ impl App {
             return self.save_path(path);
         }
         let mut dialog = rfd::FileDialog::new()
-            .set_title("Enregistrer le courrier")
-            .add_filter("Courrier typstOgraphe", &[storage::EXTENSION])
+            .set_title(crate::tr!("save-dialog"))
+            .add_filter(crate::tr!("letter-filter"), &[storage::EXTENSION])
             .set_file_name(
                 self.file_path
                     .as_ref()
                     .and_then(|path| path.file_name())
                     .map(|name| name.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| "Courrier.typsto".into()),
+                    .unwrap_or_else(|| crate::tr!("default-filename")),
             );
         if let Some(parent) = self.file_path.as_ref().and_then(|path| path.parent()) {
             dialog = dialog.set_directory(parent);
@@ -216,10 +219,10 @@ impl App {
                 path.set_extension(storage::EXTENSION);
                 if path.exists()
                     && rfd::MessageDialog::new()
-                        .set_title("Remplacer le courrier ?")
-                        .set_description(format!(
-                            "Le fichier {} existe déjà. Voulez-vous le remplacer ?",
-                            path.display()
+                        .set_title(crate::tr!("replace-title"))
+                        .set_description(crate::tr!(
+                            "replace-message",
+                            path = path.display().to_string()
                         ))
                         .set_buttons(rfd::MessageButtons::YesNo)
                         .show()
@@ -239,7 +242,7 @@ impl App {
         }) {
             Ok((letter, document)) => {
                 self.install_letter(letter, document, Some(path));
-                self.message = Some("Courrier ouvert.".into());
+                self.message = Some(crate::tr!("letter-opened"));
                 true
             }
             Err(error) => {
@@ -288,9 +291,9 @@ impl App {
             }
             PendingAction::Open => {
                 let mut dialog = rfd::FileDialog::new()
-                    .set_title("Ouvrir un courrier")
-                    .add_filter("Courrier typstOgraphe", &[storage::EXTENSION])
-                    .add_filter("Tous les fichiers", &["*"]);
+                    .set_title(crate::tr!("open-dialog"))
+                    .add_filter(crate::tr!("letter-filter"), &[storage::EXTENSION])
+                    .add_filter(crate::tr!("all-files"), &["*"]);
                 if let Some(parent) = self.file_path.as_ref().and_then(|path| path.parent()) {
                     dialog = dialog.set_directory(parent);
                 }
@@ -362,7 +365,7 @@ impl App {
             Command::RemoveLink => {
                 let range = self.range();
                 if range.is_empty() {
-                    self.message = Some("Sélectionnez d’abord le texte du lien à retirer.".into());
+                    self.message = Some(crate::tr!("select-link-remove"));
                 } else if self.document.view.styles[range]
                     .iter()
                     .any(|style| style.link.is_some())
@@ -411,11 +414,11 @@ impl App {
     fn open_link(&mut self) {
         let range = self.range();
         if range.is_empty() {
-            self.message = Some("Sélectionnez d’abord le texte du lien.".into());
+            self.message = Some(crate::tr!("select-link"));
             return;
         }
         if self.document.view.selected_lines(range.clone()).len() > 1 {
-            self.message = Some("Un lien doit rester dans un seul paragraphe.".into());
+            self.message = Some(crate::tr!("link-one-paragraph"));
             return;
         }
         self.link_url = self
@@ -445,9 +448,9 @@ impl App {
             match response.result {
                 Ok(rendered) => {
                     if response.is_export {
-                        self.message = Some(format!(
-                            "Courrier exporté dans {}",
-                            rendered
+                        self.message = Some(crate::tr!(
+                            "letter-exported",
+                            path = rendered
                                 .export_dir
                                 .as_ref()
                                 .map_or(String::new(), |p| p.display().to_string())
@@ -487,7 +490,7 @@ impl App {
         {
             match self.worker.sender.send(self.request(None)) {
                 Ok(()) => self.submitted = self.revision,
-                Err(_) => self.rendering_error = Some("Le moteur de rendu s’est arrêté.".into()),
+                Err(_) => self.rendering_error = Some(crate::tr!("renderer-stopped")),
             }
         }
         if self.rendered_revision != Some(self.revision) {
@@ -617,7 +620,7 @@ impl App {
             egui::ComboBox::from_id_salt("paragraph-style")
                 .width(112.0)
                 .selected_text(if mixed {
-                    "Styles multiples"
+                    crate::tr!("multiple-styles")
                 } else {
                     Command::Block(kind).short_label()
                 })
@@ -643,19 +646,18 @@ impl App {
             for (mark, command) in [(Mark::Bold, Command::Bold), (Mark::Italic, Command::Italic)] {
                 let label = command.short_label();
                 let (active, mixed) = self.document.view.mark_state(self.range(), mark);
-                let text = if mixed {
-                    format!("{label} ·")
-                } else {
-                    label.into()
-                };
+                let text = if mixed { format!("{label} ·") } else { label };
                 let button = egui::Button::new(RichText::new(text).strong()).selected(active);
                 if ui
                     .add(button)
-                    .on_hover_text(format!(
-                        "{}{}",
-                        self.keymap.hint(ui.ctx(), command),
-                        if mixed { " (sélection mixte)" } else { "" }
-                    ))
+                    .on_hover_text(if mixed {
+                        crate::tr!(
+                            "mixed-command",
+                            command = self.keymap.hint(ui.ctx(), command)
+                        )
+                    } else {
+                        self.keymap.hint(ui.ctx(), command)
+                    })
                     .clicked()
                 {
                     self.apply(command);
@@ -789,26 +791,23 @@ impl App {
     }
     fn preview_ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label(RichText::new("Aperçu Typst").strong())
-                .on_hover_text("Double-cliquez sur un passage pour le retrouver dans l’éditeur.");
+            ui.label(RichText::new(crate::tr!("preview-title")).strong())
+                .on_hover_text(crate::tr!("preview-hint"));
             if self.rendered_revision != Some(self.revision) {
                 ui.spinner();
-                ui.weak("Actualisation…");
+                ui.weak(crate::tr!("preview-updating"));
             } else if let Some(time) = self.rendering_time {
-                ui.weak(format!(
-                    "{} page(s) · {} ms",
-                    self.pages.len(),
-                    time.as_millis()
+                ui.weak(crate::tr!(
+                    "preview-stats",
+                    pages = self.pages.len(),
+                    milliseconds = time.as_millis() as f64
                 ));
             }
         });
         ui.separator();
         if let Some(error) = &self.rendering_error {
-            ui.colored_label(
-                Color32::from_rgb(183, 69, 57),
-                "Le document n’a pas pu être composé. Le dernier aperçu réussi est conservé.",
-            );
-            ui.collapsing("Détails", |ui| {
+            ui.colored_label(Color32::from_rgb(183, 69, 57), crate::tr!("preview-failed"));
+            ui.collapsing(crate::tr!("error-details"), |ui| {
                 ui.label(error);
             });
         }
@@ -838,7 +837,7 @@ impl App {
                     ui.add_space(60.0);
                     ui.vertical_centered(|ui| {
                         ui.spinner();
-                        ui.label("Composition du courrier…");
+                        ui.label(crate::tr!("preview-composing"));
                     });
                 }
                 for (index, page) in self.pages.iter().enumerate() {
@@ -950,19 +949,31 @@ impl App {
                 .resizable(false)
                 .default_width(370.0)
                 .show(ctx, |ui| {
-                    egui::CollapsingHeader::new("Correspondance")
+                    egui::CollapsingHeader::new(crate::tr!("group-correspondence"))
                         .default_open(true)
                         .show(ui, |ui| {
-                            for (label, value) in [
-                                ("Destinataire", &mut self.metadata.destinataire),
-                                ("Adresse", &mut self.metadata.adresse),
-                                ("Objet", &mut self.metadata.objet),
-                                ("Référence", &mut self.metadata.reference),
-                                ("Lieu", &mut self.metadata.lieu),
-                                ("Date", &mut self.metadata.date),
+                            for (label, value, multiline) in [
+                                (
+                                    crate::tr!("field-recipient"),
+                                    &mut self.metadata.destinataire,
+                                    false,
+                                ),
+                                (
+                                    crate::tr!("field-address"),
+                                    &mut self.metadata.adresse,
+                                    true,
+                                ),
+                                (crate::tr!("field-subject"), &mut self.metadata.objet, false),
+                                (
+                                    crate::tr!("field-reference"),
+                                    &mut self.metadata.reference,
+                                    false,
+                                ),
+                                (crate::tr!("field-place"), &mut self.metadata.lieu, false),
+                                (crate::tr!("field-date"), &mut self.metadata.date, false),
                             ] {
                                 ui.label(label);
-                                if label == "Adresse" {
+                                if multiline {
                                     ui.add(
                                         egui::TextEdit::multiline(value)
                                             .desired_rows(3)
@@ -976,19 +987,19 @@ impl App {
                                 }
                             }
                         });
-                    egui::CollapsingHeader::new("Expéditeur").show(ui, |ui| {
+                    egui::CollapsingHeader::new(crate::tr!("group-sender")).show(ui, |ui| {
                         for (label, value) in [
-                            ("Nom complet", &mut self.metadata.expediteur),
-                            ("Fonction", &mut self.metadata.fonction),
-                            ("Service", &mut self.metadata.service),
-                            ("Courriel", &mut self.metadata.email),
+                            (crate::tr!("field-full-name"), &mut self.metadata.expediteur),
+                            (crate::tr!("field-role"), &mut self.metadata.fonction),
+                            (crate::tr!("field-service"), &mut self.metadata.service),
+                            (crate::tr!("field-email"), &mut self.metadata.email),
                         ] {
                             ui.label(label);
                             ui.add(egui::TextEdit::singleline(value).desired_width(f32::INFINITY));
                         }
                     });
                     ui.add_space(8.0);
-                    if ui.button("Revenir au texte").clicked() {
+                    if ui.button(crate::tr!("back-to-text")).clicked() {
                         self.information_open = false;
                         self.force_selection = true;
                     }
@@ -1003,15 +1014,16 @@ impl App {
             let mut open = true;
             let mut apply = false;
             let mut remove = false;
-            egui::Window::new("Lien")
+            egui::Window::new(crate::tr!("link-title"))
                 .open(&mut open)
                 .collapsible(false)
                 .resizable(false)
                 .default_width(400.0)
                 .show(ctx, |ui| {
-                    ui.label(format!(
-                        "Texte : {}",
-                        self.document
+                    ui.label(crate::tr!(
+                        "link-selected-text",
+                        text = self
+                            .document
                             .view
                             .text
                             .chars()
@@ -1019,7 +1031,7 @@ impl App {
                             .take(self.link_range.len())
                             .collect::<String>()
                     ));
-                    ui.label("Adresse");
+                    ui.label(crate::tr!("field-address"));
                     ui.add(
                         egui::TextEdit::singleline(&mut self.link_url)
                             .desired_width(f32::INFINITY)
@@ -1029,7 +1041,7 @@ impl App {
                         ui.colored_label(Color32::from_rgb(183, 69, 57), error);
                     }
                     ui.horizontal(|ui| {
-                        apply = ui.button("Appliquer").clicked();
+                        apply = ui.button(crate::tr!("apply")).clicked();
                         remove = ui
                             .button(Command::RemoveLink.short_label())
                             .on_hover_text(self.keymap.hint(ui.ctx(), Command::RemoveLink))
@@ -1059,15 +1071,14 @@ impl App {
                     self.link_open = false;
                     self.force_selection = true;
                 } else {
-                    self.link_error =
-                        Some("Utilisez une adresse https://, http:// ou mailto:.".into());
+                    self.link_error = Some(crate::tr!("link-invalid-url"));
                 }
             }
         }
         if self.palette_open {
             let mut open = true;
             let mut choice = None;
-            egui::Window::new("Commandes")
+            egui::Window::new(Command::Palette.label())
                 .open(&mut open)
                 .collapsible(false)
                 .resizable(false)
@@ -1076,7 +1087,7 @@ impl App {
                 .show(ctx, |ui| {
                     let response = ui.add(
                         egui::TextEdit::singleline(&mut self.palette_query)
-                            .hint_text("Rechercher une commande…")
+                            .hint_text(crate::tr!("command-search"))
                             .desired_width(f32::INFINITY),
                     );
                     if !response.has_focus() {
@@ -1132,16 +1143,26 @@ impl App {
         if self.export_open {
             let mut open = true;
             let mut export = false;
-            egui::Window::new("Exporter le courrier").open(&mut open).collapsible(false).resizable(false).default_width(470.0).show(ctx,|ui|{
-                ui.label("Dossier de destination");ui.add(egui::TextEdit::singleline(&mut self.export_path).desired_width(f32::INFINITY));ui.weak("PDF, pages PNG et fichiers Typst séparés. Pour conserver un courrier modifiable dans un fichier unique, utilisez Enregistrer.");export=ui.button("Exporter").clicked();
-            });
+            egui::Window::new(crate::tr!("export-title"))
+                .open(&mut open)
+                .collapsible(false)
+                .resizable(false)
+                .default_width(470.0)
+                .show(ctx, |ui| {
+                    ui.label(crate::tr!("export-folder"));
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.export_path)
+                            .desired_width(f32::INFINITY),
+                    );
+                    ui.weak(crate::tr!("export-help"));
+                    export = ui.button(crate::tr!("export-button")).clicked();
+                });
             self.export_open &= open;
             if export {
                 if self.metadata.destinataire.trim().is_empty()
                     || self.metadata.objet.trim().is_empty()
                 {
-                    self.message =
-                        Some("Renseignez le destinataire et l’objet avant l’export.".into());
+                    self.message = Some(crate::tr!("export-required-fields"));
                 } else {
                     match self
                         .worker
@@ -1150,9 +1171,9 @@ impl App {
                     {
                         Ok(()) => {
                             self.export_open = false;
-                            self.message = Some("Export en cours…".into());
+                            self.message = Some(crate::tr!("export-pending"));
                         }
-                        Err(_) => self.message = Some("Le moteur de rendu s’est arrêté.".into()),
+                        Err(_) => self.message = Some(crate::tr!("renderer-stopped")),
                     }
                 }
             }
@@ -1170,24 +1191,24 @@ impl App {
     fn file_dialogs(&mut self, ctx: &egui::Context) {
         if self.pending_action.is_some() {
             let mut choice = None;
-            egui::Window::new("Enregistrer les modifications ?")
+            egui::Window::new(crate::tr!("unsaved-title"))
                 .id(egui::Id::new("unsaved-letter"))
                 .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
                 .collapsible(false)
                 .resizable(false)
                 .show(ctx, |ui| {
-                    ui.label("Le courrier contient des modifications non enregistrées.");
+                    ui.label(crate::tr!("unsaved-message"));
                     if let Some(error) = &self.file_error {
                         ui.colored_label(Color32::LIGHT_RED, error);
                     }
                     ui.horizontal(|ui| {
-                        if ui.button("Enregistrer").clicked() {
+                        if ui.button(crate::tr!("save")).clicked() {
                             choice = Some(0);
                         }
-                        if ui.button("Ne pas enregistrer").clicked() {
+                        if ui.button(crate::tr!("discard")).clicked() {
                             choice = Some(1);
                         }
-                        if ui.button("Annuler").clicked() {
+                        if ui.button(crate::tr!("cancel")).clicked() {
                             choice = Some(2);
                         }
                     });
@@ -1214,13 +1235,13 @@ impl App {
         } else if self.file_error.is_some() {
             let mut open = true;
             let mut close = false;
-            egui::Window::new("Fichier de courrier")
+            egui::Window::new(crate::tr!("file-error-title"))
                 .open(&mut open)
                 .collapsible(false)
                 .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
                 .show(ctx, |ui| {
                     ui.label(self.file_error.as_deref().unwrap_or_default());
-                    close = ui.button("Fermer").clicked();
+                    close = ui.button(crate::tr!("close")).clicked();
                 });
             if close || !open {
                 self.file_error = None;
@@ -1249,11 +1270,11 @@ impl App {
             .as_ref()
             .and_then(|path| path.file_name())
             .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "Courrier sans titre".into());
-        let title = format!(
-            "{}{} — typstOgraphe",
-            filename,
-            if dirty { " *" } else { "" }
+            .unwrap_or_else(|| crate::tr!("untitled-letter"));
+        let title = crate::tr!(
+            "window-title",
+            name = filename.as_str(),
+            marker = if dirty { " *" } else { "" }
         );
         if title != self.window_title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
@@ -1275,13 +1296,13 @@ impl App {
                         },
                     ));
                     ui.separator();
-                    ui.menu_button("Fichier", |ui| {
+                    ui.menu_button(crate::tr!("file-menu"), |ui| {
                         for definition in DEFINITIONS
                             .iter()
                             .filter(|definition| definition.in_file_menu())
                         {
                             let command = definition.command;
-                            let button = egui::Button::new(definition.label)
+                            let button = egui::Button::new(command.label())
                                 .shortcut_text(self.keymap.shortcut_text(ui.ctx(), command));
                             if ui.add(button).clicked() {
                                 self.apply(command);
@@ -1292,8 +1313,12 @@ impl App {
                     ui.add_sized(
                         [210.0, 18.0],
                         egui::Label::new(
-                            RichText::new(format!("{}{}", filename, if dirty { " *" } else { "" }))
-                                .strong(),
+                            RichText::new(crate::tr!(
+                                "document-title",
+                                name = filename.as_str(),
+                                marker = if dirty { " *" } else { "" }
+                            ))
+                            .strong(),
                         )
                         .truncate(),
                     );
@@ -1334,7 +1359,7 @@ impl App {
                     });
                 });
                 ui.horizontal(|ui| {
-                    ui.weak("Courrier");
+                    ui.weak(crate::tr!("letter-type"));
                     ui.separator();
                     let mut presentation = Presentation::from_compact(self.compact);
                     egui::ComboBox::from_id_salt("template")
@@ -1358,9 +1383,9 @@ impl App {
                         self.apply(Command::Presentation(presentation));
                     }
                     ui.weak(if self.template == crate::rendering::TEMPLATE {
-                        "Ville de Valmont"
+                        "Ville de Valmont".to_owned()
                     } else {
-                        "Modèle embarqué dans le courrier"
+                        crate::tr!("embedded-template")
                     });
                 });
             });
@@ -1371,7 +1396,7 @@ impl App {
             ui.horizontal(|ui| {
                 let range = self.range();
                 if range.is_empty() {
-                    ui.weak("Point d’insertion");
+                    ui.weak(crate::tr!("insertion-point"));
                 } else {
                     let text: String = self
                         .document
@@ -1381,10 +1406,10 @@ impl App {
                         .skip(range.start)
                         .take(range.len())
                         .collect();
-                    ui.label(format!(
-                        "{} mots sélectionnés · {} paragraphe(s)",
-                        text.split_whitespace().count(),
-                        self.document.view.selected_lines(range).len()
+                    ui.label(crate::tr!(
+                        "selection-stats",
+                        words = text.split_whitespace().count(),
+                        paragraphs = self.document.view.selected_lines(range).len()
                     ));
                 }
                 if let Some(message) = &self.message {
@@ -1439,7 +1464,10 @@ impl App {
         if let (Some(image), Some(path)) = (image, self.capture.as_ref()) {
             let result = crate::write_screenshot(path, &image);
             if let Err(error) = result {
-                eprintln!("Capture : {error}");
+                eprintln!(
+                    "{}",
+                    crate::tr!("cli-capture-error", error = error.to_string())
+                );
             }
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
@@ -1592,7 +1620,7 @@ mod interaction_tests {
         app.keymap = Keymap::new(ctx.os().is_mac(), &config).unwrap();
         let hint = app.keymap.hint(&ctx, command);
         assert_ne!(hint, original);
-        assert!(hint.ends_with("F6"));
+        assert!(hint.contains("F6"));
         let source = app.document.source().to_owned();
         for (key, modifiers) in [
             (egui::Key::E, egui::Modifiers::COMMAND),
