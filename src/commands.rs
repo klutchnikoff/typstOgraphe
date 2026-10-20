@@ -17,14 +17,35 @@ pub enum FileCommand {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Presentation {
+    Institutional,
+    Service,
+}
+impl Presentation {
+    pub fn compact(self) -> bool {
+        self == Self::Service
+    }
+    pub fn from_compact(compact: bool) -> Self {
+        if compact {
+            Self::Service
+        } else {
+            Self::Institutional
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Command {
     File(FileCommand),
     Palette,
+    Information,
+    Presentation(Presentation),
     Bold,
     Italic,
     Clear,
     Block(BlockKind),
     Link,
+    RemoveLink,
     Undo,
     Redo,
 }
@@ -37,6 +58,10 @@ impl Command {
     }
     pub fn label(self) -> &'static str {
         self.definition().label
+    }
+    pub fn short_label(self) -> &'static str {
+        let definition = self.definition();
+        definition.short_label.unwrap_or(definition.label)
     }
 }
 
@@ -51,18 +76,25 @@ pub struct Definition {
     pub label: &'static str,
     pub command: Command,
     pub scope: Scope,
+    short_label: Option<&'static str>,
     defaults: &'static [KeyboardShortcut],
     macos: Option<&'static [KeyboardShortcut]>,
 }
 impl Definition {
     pub fn in_palette(&self) -> bool {
-        !matches!(
-            self.command,
-            Command::Palette | Command::File(FileCommand::Close)
-        )
+        self.command != Command::Palette
     }
     pub fn in_file_menu(&self) -> bool {
-        matches!(self.command, Command::File(_))
+        matches!(self.command, Command::File(_) | Command::Information)
+    }
+    pub fn in_presentation_menu(&self) -> bool {
+        matches!(self.command, Command::Presentation(_))
+    }
+    pub fn in_block_style_menu(&self) -> bool {
+        matches!(
+            self.command,
+            Command::Block(BlockKind::Paragraph | BlockKind::Heading(_))
+        )
     }
 }
 
@@ -91,7 +123,12 @@ const fn define(
         scope,
         defaults,
         macos: None,
+        short_label: None,
     }
+}
+const fn short(mut definition: Definition, label: &'static str) -> Definition {
+    definition.short_label = Some(label);
+    definition
 }
 
 /// Chaque commande, y compris sans raccourci, est définie une seule fois ici.
@@ -124,12 +161,25 @@ pub static DEFINITIONS: &[Definition] = &[
         Scope::Global,
         &[primary_shift(Key::S)],
     ),
-    define(
-        "document.export",
-        "Exporter le courrier…",
-        Command::File(FileCommand::Export),
-        Scope::Global,
-        &[primary(Key::E)],
+    short(
+        define(
+            "document.export",
+            "Exporter le courrier…",
+            Command::File(FileCommand::Export),
+            Scope::Global,
+            &[primary(Key::E)],
+        ),
+        "Exporter",
+    ),
+    short(
+        define(
+            "document.information",
+            "Informations du courrier",
+            Command::Information,
+            Scope::Global,
+            &[],
+        ),
+        "Informations",
     ),
     define(
         "document.close",
@@ -145,33 +195,72 @@ pub static DEFINITIONS: &[Definition] = &[
         Scope::Global,
         &[primary_shift(Key::P)],
     ),
-    define(
-        "text.bold",
-        "Gras",
-        Command::Bold,
-        Scope::Editor,
-        &[primary(Key::B)],
+    short(
+        define(
+            "document.presentation.institutional",
+            "Utiliser la présentation institutionnelle",
+            Command::Presentation(Presentation::Institutional),
+            Scope::Global,
+            &[],
+        ),
+        "Courrier institutionnel",
+    ),
+    short(
+        define(
+            "document.presentation.service",
+            "Utiliser la présentation de service",
+            Command::Presentation(Presentation::Service),
+            Scope::Global,
+            &[],
+        ),
+        "Courrier de service",
+    ),
+    short(
+        define(
+            "text.bold",
+            "Gras",
+            Command::Bold,
+            Scope::Editor,
+            &[primary(Key::B)],
+        ),
+        "G",
+    ),
+    short(
+        define(
+            "text.italic",
+            "Italique",
+            Command::Italic,
+            Scope::Editor,
+            &[primary(Key::I)],
+        ),
+        "I",
+    ),
+    short(
+        define(
+            "text.link",
+            "Insérer ou modifier un lien",
+            Command::Link,
+            Scope::Editor,
+            &[primary(Key::K)],
+        ),
+        "Lien",
     ),
     define(
-        "text.italic",
-        "Italique",
-        Command::Italic,
-        Scope::Editor,
-        &[primary(Key::I)],
-    ),
-    define(
-        "text.link",
-        "Insérer ou modifier un lien",
-        Command::Link,
-        Scope::Editor,
-        &[primary(Key::K)],
-    ),
-    define(
-        "text.clear",
-        "Retirer la mise en forme",
-        Command::Clear,
+        "text.remove_link",
+        "Retirer le lien",
+        Command::RemoveLink,
         Scope::Editor,
         &[],
+    ),
+    short(
+        define(
+            "text.clear",
+            "Retirer la mise en forme",
+            Command::Clear,
+            Scope::Editor,
+            &[],
+        ),
+        "Effacer",
     ),
     define(
         "block.paragraph",
@@ -201,19 +290,25 @@ pub static DEFINITIONS: &[Definition] = &[
         Scope::Editor,
         &[],
     ),
-    define(
-        "block.bullet",
-        "Liste à puces",
-        Command::Block(BlockKind::Bullet),
-        Scope::Editor,
-        &[],
+    short(
+        define(
+            "block.bullet",
+            "Liste à puces",
+            Command::Block(BlockKind::Bullet),
+            Scope::Editor,
+            &[],
+        ),
+        "• Liste",
     ),
-    define(
-        "block.numbered",
-        "Liste numérotée",
-        Command::Block(BlockKind::Numbered),
-        Scope::Editor,
-        &[],
+    short(
+        define(
+            "block.numbered",
+            "Liste numérotée",
+            Command::Block(BlockKind::Numbered),
+            Scope::Editor,
+            &[],
+        ),
+        "1. Liste",
     ),
     define(
         "edit.undo",

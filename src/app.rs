@@ -1,6 +1,6 @@
 use crate::{
-    commands::{Command, DEFINITIONS, FileCommand, Keymap, ShortcutOverrides},
-    document::{BlockKind, Document, InlineStyle, Mark, Metadata},
+    commands::{Command, DEFINITIONS, FileCommand, Keymap, Presentation, ShortcutOverrides},
+    document::{BlockKind, Document, InlineStyle, Mark, Metadata, Projection},
     editor,
     navigation::{PagePoint, RenderSync},
     rendering::{RenderRequest, RenderWorker},
@@ -342,51 +342,65 @@ impl App {
         self.changed();
     }
     fn apply(&mut self, command: Command) {
-        if command == Command::Palette {
-            self.palette_open = !self.palette_open;
-            self.palette_query.clear();
-            self.palette_index = 0;
-            return;
-        }
-        if let Command::File(command) = command {
-            self.file_command = Some(command);
-            return;
-        }
-        let range = self.range();
-        if matches!(command, Command::Undo | Command::Redo) {
-            let current = self.snapshot();
-            let item = if matches!(command, Command::Undo) {
-                self.undo.pop()
-            } else {
-                self.redo.pop()
-            };
-            if let Some(item) = item {
-                if matches!(command, Command::Undo) {
-                    self.redo.push(current)
-                } else {
-                    self.undo.push(current)
-                }
-                self.document = item.document;
-                self.selection = item.selection;
-                self.force_selection = true;
-                self.typing_group = false;
-                self.revision += 1;
-                self.changed_at = Instant::now();
-            }
-            return;
-        }
-        if matches!(command, Command::Link) {
-            self.open_link();
-            return;
-        }
-        let before = self.snapshot();
         match command {
-            Command::Bold => self.document.view.toggle_mark(range, Mark::Bold),
-            Command::Italic => self.document.view.toggle_mark(range, Mark::Italic),
-            Command::Clear => self.document.view.clear_marks(range),
-            Command::Block(kind) => self.document.view.set_block(range, kind),
-            _ => {}
+            Command::File(command) => self.file_command = Some(command),
+            Command::Palette => {
+                self.palette_open = !self.palette_open;
+                self.palette_query.clear();
+                self.palette_index = 0;
+            }
+            Command::Information => self.information_open = true,
+            Command::Presentation(presentation) => {
+                if self.compact != presentation.compact() {
+                    self.compact = presentation.compact();
+                    self.revision += 1;
+                    self.changed_at = Instant::now();
+                }
+            }
+            Command::Undo | Command::Redo => self.apply_history(command == Command::Undo),
+            Command::Link => self.open_link(),
+            Command::RemoveLink => {
+                let range = self.range();
+                if range.is_empty() {
+                    self.message = Some("Sélectionnez d’abord le texte du lien à retirer.".into());
+                } else if self.document.view.styles[range]
+                    .iter()
+                    .any(|style| style.link.is_some())
+                {
+                    self.edit(|view, range| view.set_link(range, None));
+                }
+            }
+            Command::Bold => self.edit(|view, range| view.toggle_mark(range, Mark::Bold)),
+            Command::Italic => self.edit(|view, range| view.toggle_mark(range, Mark::Italic)),
+            Command::Clear => self.edit(|view, range| view.clear_marks(range)),
+            Command::Block(kind) => self.edit(|view, range| view.set_block(range, kind)),
         }
+    }
+    fn apply_history(&mut self, undo: bool) {
+        let current = self.snapshot();
+        let item = if undo {
+            self.undo.pop()
+        } else {
+            self.redo.pop()
+        };
+        if let Some(item) = item {
+            if undo {
+                self.redo.push(current);
+            } else {
+                self.undo.push(current);
+            }
+            self.document = item.document;
+            self.selection = item.selection;
+            self.force_selection = true;
+            self.typing_group = false;
+            self.revision += 1;
+            self.changed_at = Instant::now();
+        }
+    }
+    fn edit(&mut self, edit: impl FnOnce(&mut Projection, Range<usize>)) {
+        let range = self.range();
+        let before = self.snapshot();
+        edit(&mut self.document.view, range);
         let selected = self.range();
         if !selected.is_empty() {
             self.document.view.typing_style = self.document.view.style_at(selected.start);
@@ -605,26 +619,29 @@ impl App {
                 .selected_text(if mixed {
                     "Styles multiples"
                 } else {
-                    kind.label()
+                    Command::Block(kind).short_label()
                 })
                 .show_ui(ui, |ui| {
-                    for option in [
-                        BlockKind::Paragraph,
-                        BlockKind::Heading(1),
-                        BlockKind::Heading(2),
-                        BlockKind::Heading(3),
-                    ] {
-                        ui.selectable_value(&mut selected, option, option.label());
+                    for definition in DEFINITIONS
+                        .iter()
+                        .filter(|definition| definition.in_block_style_menu())
+                    {
+                        if let Command::Block(option) = definition.command {
+                            ui.selectable_value(
+                                &mut selected,
+                                option,
+                                definition.command.short_label(),
+                            )
+                            .on_hover_text(self.keymap.hint(ui.ctx(), definition.command));
+                        }
                     }
                 });
             if selected != kind {
                 self.apply(Command::Block(selected));
             }
             ui.separator();
-            for (mark, label, command) in [
-                (Mark::Bold, "G", Command::Bold),
-                (Mark::Italic, "I", Command::Italic),
-            ] {
+            for (mark, command) in [(Mark::Bold, Command::Bold), (Mark::Italic, Command::Italic)] {
+                let label = command.short_label();
                 let (active, mixed) = self.document.view.mark_state(self.range(), mark);
                 let text = if mixed {
                     format!("{label} ·")
@@ -645,18 +662,20 @@ impl App {
                 }
             }
             if ui
-                .button("Lien")
+                .button(Command::Link.short_label())
                 .on_hover_text(self.keymap.hint(ui.ctx(), Command::Link))
                 .clicked()
             {
                 self.apply(Command::Link);
             }
             ui.separator();
-            for (kind, label) in [
-                (BlockKind::Bullet, "• Liste"),
-                (BlockKind::Numbered, "1. Liste"),
-            ] {
-                if ui.selectable_label(selected == kind, label).clicked() {
+            for kind in [BlockKind::Bullet, BlockKind::Numbered] {
+                let command = Command::Block(kind);
+                if ui
+                    .selectable_label(selected == kind, command.short_label())
+                    .on_hover_text(self.keymap.hint(ui.ctx(), command))
+                    .clicked()
+                {
                     self.apply(Command::Block(if selected == kind {
                         BlockKind::Paragraph
                     } else {
@@ -665,7 +684,7 @@ impl App {
                 }
             }
             if ui
-                .button("Effacer")
+                .button(Command::Clear.short_label())
                 .on_hover_text(self.keymap.hint(ui.ctx(), Command::Clear))
                 .clicked()
             {
@@ -673,14 +692,20 @@ impl App {
             }
             ui.separator();
             if ui
-                .add_enabled(!self.undo.is_empty(), egui::Button::new("Annuler"))
+                .add_enabled(
+                    !self.undo.is_empty(),
+                    egui::Button::new(Command::Undo.short_label()),
+                )
                 .on_hover_text(self.keymap.hint(ui.ctx(), Command::Undo))
                 .clicked()
             {
                 self.apply(Command::Undo);
             }
             if ui
-                .add_enabled(!self.redo.is_empty(), egui::Button::new("Rétablir"))
+                .add_enabled(
+                    !self.redo.is_empty(),
+                    egui::Button::new(Command::Redo.short_label()),
+                )
                 .on_hover_text(self.keymap.hint(ui.ctx(), Command::Redo))
                 .clicked()
             {
@@ -918,7 +943,7 @@ impl App {
         if self.information_open {
             let old = self.metadata.clone();
             let mut open = true;
-            egui::Window::new("Informations du courrier")
+            egui::Window::new(Command::Information.label())
                 .id(egui::Id::new("info"))
                 .open(&mut open)
                 .collapsible(false)
@@ -1005,23 +1030,31 @@ impl App {
                     }
                     ui.horizontal(|ui| {
                         apply = ui.button("Appliquer").clicked();
-                        remove = ui.button("Retirer le lien").clicked();
+                        remove = ui
+                            .button(Command::RemoveLink.short_label())
+                            .on_hover_text(self.keymap.hint(ui.ctx(), Command::RemoveLink))
+                            .clicked();
                     });
                 });
             self.link_open &= open;
-            if apply || remove {
+            if remove {
+                if self.range() != self.link_range {
+                    self.selection = editor::cursor(self.link_range.clone());
+                }
+                self.apply(Command::RemoveLink);
+                self.link_open = false;
+                self.force_selection = true;
+            } else if apply {
                 let url = self.link_url.trim();
-                if remove
-                    || ((url.starts_with("https://")
-                        || url.starts_with("http://")
-                        || url.starts_with("mailto:"))
-                        && !url.chars().any(char::is_whitespace))
+                if (url.starts_with("https://")
+                    || url.starts_with("http://")
+                    || url.starts_with("mailto:"))
+                    && !url.chars().any(char::is_whitespace)
                 {
                     let before = self.snapshot();
-                    self.document.view.set_link(
-                        self.link_range.clone(),
-                        if remove { None } else { Some(url.into()) },
-                    );
+                    self.document
+                        .view
+                        .set_link(self.link_range.clone(), Some(url.into()));
                     self.remember(before, false);
                     self.link_open = false;
                     self.force_selection = true;
@@ -1266,7 +1299,7 @@ impl App {
                     );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
-                            .button("Exporter")
+                            .button(Command::File(FileCommand::Export).short_label())
                             .on_hover_text(
                                 self.keymap
                                     .hint(ui.ctx(), Command::File(FileCommand::Export)),
@@ -1275,20 +1308,24 @@ impl App {
                         {
                             self.apply(Command::File(FileCommand::Export));
                         }
-                        if ui.button("Informations").clicked() {
-                            self.information_open = true;
+                        if ui
+                            .button(Command::Information.short_label())
+                            .on_hover_text(self.keymap.hint(ui.ctx(), Command::Information))
+                            .clicked()
+                        {
+                            self.apply(Command::Information);
                         }
                         if ui
-                            .button("Enregistrer")
+                            .button(Command::File(FileCommand::Save).short_label())
                             .on_hover_text(
                                 self.keymap.hint(ui.ctx(), Command::File(FileCommand::Save)),
                             )
                             .clicked()
                         {
-                            self.file_command = Some(FileCommand::Save);
+                            self.apply(Command::File(FileCommand::Save));
                         }
                         if ui
-                            .button("Commandes")
+                            .button(Command::Palette.short_label())
                             .on_hover_text(self.keymap.hint(ui.ctx(), Command::Palette))
                             .clicked()
                         {
@@ -1299,24 +1336,26 @@ impl App {
                 ui.horizontal(|ui| {
                     ui.weak("Courrier");
                     ui.separator();
-                    let old = self.compact;
+                    let mut presentation = Presentation::from_compact(self.compact);
                     egui::ComboBox::from_id_salt("template")
-                        .selected_text(if self.compact {
-                            "Courrier de service"
-                        } else {
-                            "Courrier institutionnel"
-                        })
+                        .selected_text(Command::Presentation(presentation).short_label())
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut self.compact,
-                                false,
-                                "Courrier institutionnel",
-                            );
-                            ui.selectable_value(&mut self.compact, true, "Courrier de service");
+                            for definition in DEFINITIONS
+                                .iter()
+                                .filter(|definition| definition.in_presentation_menu())
+                            {
+                                if let Command::Presentation(option) = definition.command {
+                                    ui.selectable_value(
+                                        &mut presentation,
+                                        option,
+                                        definition.command.short_label(),
+                                    )
+                                    .on_hover_text(self.keymap.hint(ui.ctx(), definition.command));
+                                }
+                            }
                         });
-                    if old != self.compact {
-                        self.revision += 1;
-                        self.changed_at = Instant::now();
+                    if presentation.compact() != self.compact {
+                        self.apply(Command::Presentation(presentation));
                     }
                     ui.weak(if self.template == crate::rendering::TEMPLATE {
                         "Ville de Valmont"
@@ -1416,6 +1455,131 @@ impl eframe::App for App {
 #[cfg(test)]
 mod interaction_tests {
     use super::*;
+
+    #[test]
+    fn information_and_presentations_work_from_palette_and_custom_shortcuts() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let source = app.document.source().to_owned();
+        let revision = app.revision;
+        app.apply(Command::Palette);
+        app.palette_query = "Informations du courrier".into();
+        frame(&mut app, &ctx, vec![]);
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::Enter,
+                modifiers: egui::Modifiers::NONE,
+                pressed: true,
+                repeat: false,
+                physical_key: None,
+            }],
+        );
+        assert!(app.information_open);
+        assert!(!app.palette_open);
+        assert_eq!(app.revision, revision);
+        assert!(!app.is_dirty());
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::Escape,
+                modifiers: egui::Modifiers::NONE,
+                pressed: true,
+                repeat: false,
+                physical_key: None,
+            }],
+        );
+        app.apply(Command::Palette);
+        app.palette_query = "présentation de service".into();
+        frame(&mut app, &ctx, vec![]);
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::Enter,
+                modifiers: egui::Modifiers::NONE,
+                pressed: true,
+                repeat: false,
+                physical_key: None,
+            }],
+        );
+        assert!(app.compact);
+        assert!(app.is_dirty());
+        assert_eq!(app.revision, revision + 1);
+        assert!(app.letter().compact);
+        assert_eq!(app.document.source(), source);
+        app.apply(Command::Presentation(Presentation::Service));
+        assert_eq!(app.revision, revision + 1); // Choisir la présentation active est sans effet.
+
+        let config=serde_json::from_str(r#"{"document.information":[{"key":"F6"}],"document.presentation.institutional":[{"key":"F7"}]}"#).unwrap();
+        app.keymap = Keymap::new(ctx.os().is_mac(), &config).unwrap();
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::F7,
+                modifiers: egui::Modifiers::NONE,
+                pressed: true,
+                repeat: false,
+                physical_key: None,
+            }],
+        );
+        assert!(!app.compact);
+        assert_eq!(app.revision, revision + 2);
+        assert!(!app.is_dirty());
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::F6,
+                modifiers: egui::Modifiers::NONE,
+                pressed: true,
+                repeat: false,
+                physical_key: None,
+            }],
+        );
+        assert!(app.information_open);
+        assert_eq!(app.document.source(), source);
+    }
+
+    #[test]
+    fn remove_link_keeps_other_styles_and_selection_and_can_be_undone() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx, None);
+        app.document = Document::from_source(
+            "Avant #link(\"https://example.org\")[*Élodie* et _Noël_] après.",
+        )
+        .unwrap();
+        let source = app.document.source().to_owned();
+        let start = 6;
+        let end_byte = app.document.view.text.find(" après.").unwrap();
+        let end = app.document.view.text[..end_byte].chars().count();
+        app.selection = editor::cursor(end..start);
+        let selection = app.selection;
+        let text = app.document.view.text.clone();
+        let styles = app.document.view.styles.clone();
+        app.apply(Command::RemoveLink);
+        assert_eq!(app.selection, selection);
+        assert_eq!(app.document.view.text, text);
+        for (before, after) in styles.iter().zip(&app.document.view.styles) {
+            assert_eq!(before.bold, after.bold);
+            assert_eq!(before.italic, after.italic);
+            assert!(after.link.is_none());
+        }
+        app.apply(Command::Undo);
+        assert_eq!(app.document.source(), source);
+        assert_eq!(app.selection, selection);
+        app.apply(Command::Redo);
+        assert!(
+            app.document
+                .view
+                .styles
+                .iter()
+                .all(|style| style.link.is_none())
+        );
+    }
 
     #[test]
     fn shortcut_override_updates_dispatch_and_hints_without_changing_the_document() {

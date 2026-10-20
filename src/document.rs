@@ -22,19 +22,6 @@ pub enum BlockKind {
     Numbered,
 }
 
-impl BlockKind {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Paragraph => "Paragraphe",
-            Self::Heading(1) => "Titre 1",
-            Self::Heading(2) => "Titre 2",
-            Self::Heading(_) => "Titre 3",
-            Self::Bullet => "Liste à puces",
-            Self::Numbered => "Liste numérotée",
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mark {
     Bold,

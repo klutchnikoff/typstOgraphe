@@ -54,10 +54,18 @@ variantes de police dans l’éditeur.
 
 ## Registre des commandes et raccourcis
 
-`src/commands.rs` centralise les commandes dans une table : identifiant stable
+`src/commands.rs` centralise toutes les actions publiques autonomes dans une table : identifiant stable
 (par exemple `document.export`), libellé, action, contexte et raccourcis par
 défaut. Les menus, la palette, les infobulles et le traitement des touches
 utilisent ce même registre.
+
+Cela comprend les fichiers, les informations du courrier, les deux choix de
+présentation, les styles de paragraphes, la mise en forme, les liens (dont leur
+retrait), l’annulation/rétablissement et l’ouverture de la palette. Les boutons
+et listes déroulantes déclenchent les mêmes commandes que la palette et les
+raccourcis. Les libellés complets et leurs variantes courtes (« Informations »,
+« G », « I »…) sont définis dans le registre. La commande Fermer est également
+accessible dans la palette et garde la protection des modifications non enregistrées.
 
 Le modificateur principal correspond à `⌘` sous macOS et à `Ctrl` sous Windows
 et Linux. Des valeurs par plateforme sont possibles ; par exemple, le raccourci
@@ -82,6 +90,10 @@ refusés avant activation, en tenant compte des équivalences de modificateurs
 sur chaque plateforme. Les touches de fonction sont également acceptées.
 L’écran des préférences et l’enregistrement de ces choix seront ajoutés plus
 tard ; l’application utilise actuellement les raccourcis par défaut.
+Les nouvelles commandes `document.information`,
+`document.presentation.institutional`, `document.presentation.service` et
+`text.remove_link` n’ont pas de raccourci par défaut ; elles peuvent recevoir
+les mêmes personnalisations que les autres commandes.
 
 Les touches de navigation des composants (flèches, Entrée, Échap…) et les
 conversions textuelles (`= `, `*texte*`…) restent traitées par l’éditeur et les
