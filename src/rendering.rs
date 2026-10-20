@@ -61,7 +61,7 @@ impl TypstWorld {
     pub fn set_assets(&mut self, assets: &crate::assets::Assets) {
         self.assets = assets
             .iter()
-            .map(|(path, data)| (file_id(path), Bytes::new(data.to_vec())))
+            .map(|(path, data)| (file_id(path), Bytes::new(data.clone())))
             .collect();
     }
     fn set_source(&mut self, name: &str, text: &str) {
@@ -245,6 +245,96 @@ pub struct RenderResponse {
     pub is_export: bool,
 }
 
+/// Ressources à écrire, sans modifier le document ni ses instantanés d’annulation.
+/// Les chemins déclarés dans le modèle restent disponibles, même dans une branche
+/// inactive. Pour les chemins calculés, Typst vérifie que retirer un lot ne change
+/// ni la compilation ni son résultat (pages et métadonnées).
+pub fn retained_assets(
+    source: &str,
+    metadata: &Metadata,
+    template: &str,
+    assets: &crate::assets::Assets,
+) -> Result<crate::assets::Assets, String> {
+    if assets.is_empty() {
+        return Ok(assets.clone());
+    }
+    let document = crate::document::Document::from_source(source)?;
+    let mut required: std::collections::BTreeSet<_> = document
+        .view
+        .images
+        .values()
+        .map(|image| image.path.clone())
+        .collect();
+    fn declared_paths(
+        node: &typst_syntax::SyntaxNode,
+        required: &mut std::collections::BTreeSet<String>,
+    ) {
+        use typst_syntax::ast;
+        if let Some(value) = node.cast::<ast::Str>() {
+            let value = value.get();
+            let path = value.trim_start_matches('/').trim_start_matches("./");
+            if crate::assets::valid_path(path) {
+                required.insert(path.into());
+            }
+        }
+        for child in node.children() {
+            declared_paths(child, required);
+        }
+    }
+    declared_paths(
+        typst_syntax::Source::detached(template).root(),
+        &mut required,
+    );
+    let candidates: Vec<_> = assets
+        .keys()
+        .filter(|path| !required.contains(*path))
+        .cloned()
+        .collect();
+    if candidates.is_empty() {
+        return Ok(assets.clone());
+    }
+    let mut world = TypstWorld::default();
+    world.set_assets(assets);
+    let Ok(baseline) = world.compile_with_template(source, metadata, template) else {
+        // L’enregistrement doit rester possible pendant une erreur de modèle.
+        // Sans résultat de référence, conserver les ressources est le seul choix sûr.
+        return Ok(assets.clone());
+    };
+    let expected = typst::utils::hash128(&baseline);
+    let mut retained = assets.clone();
+    // Essayer d’abord tout le lot : une seule vérification suffit pour les anciennes
+    // images d’un courrier courant. Subdiviser seulement si le modèle en utilise.
+    fn prune(
+        paths: &[String],
+        assets: &mut crate::assets::Assets,
+        unchanged: &mut impl FnMut(&crate::assets::Assets) -> bool,
+    ) {
+        if paths.is_empty() {
+            return;
+        }
+        let removed: crate::assets::Assets = paths
+            .iter()
+            .filter_map(|path| assets.remove(path).map(|data| (path.clone(), data)))
+            .collect();
+        if unchanged(assets) {
+            return;
+        }
+        assets.extend(removed);
+        if paths.len() > 1 {
+            let middle = paths.len() / 2;
+            prune(&paths[..middle], assets, unchanged);
+            prune(&paths[middle..], assets, unchanged);
+        }
+    }
+    prune(&candidates, &mut retained, &mut |trial| {
+        world.set_assets(trial);
+        world
+            .compile_with_template(source, metadata, template)
+            .is_ok_and(|output| typst::utils::hash128(&output) == expected)
+    });
+    Ok(retained)
+}
+
 pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendered, String> {
     let start = Instant::now();
     world.set_assets(&request.assets);
@@ -271,10 +361,16 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
         write(path, "courrier.pdf", &pdf)?;
         write(path, "main.typ", request.metadata.main_source().as_bytes())?;
         write(path, "contenu.typ", request.source.as_bytes())?;
-        if !request.assets.is_empty() {
+        let assets = retained_assets(
+            &request.source,
+            &request.metadata,
+            &request.template,
+            &request.assets,
+        )?;
+        if !assets.is_empty() {
             std::fs::create_dir(path.join("images")).map_err(|e| e.to_string())?;
         }
-        for (name, data) in &request.assets {
+        for (name, data) in &assets {
             if !crate::assets::valid_path(name) {
                 return Err(crate::tr!("storage-unknown-entry"));
             }
@@ -359,5 +455,61 @@ impl RenderWorker {
             })
             .expect("création du thread Typst");
         Self { sender, receiver }
+    }
+}
+
+#[cfg(test)]
+mod asset_tests {
+    use super::*;
+    use crate::{assets::Assets, document_types::DocumentType};
+
+    #[test]
+    fn pruning_preserves_model_dependencies_computed_paths_and_shared_images() {
+        let metadata = Metadata::demo(DocumentType::Courrier);
+        let template = DocumentType::Courrier.default_model().replace(
+            "  let contenu = {",
+            "  image(\"images/\" + \"shared\" + \".svg\", width: 12pt)\n  let contenu = {",
+        ) + "\n// Ancienne image : \"images/obsolete.svg\"\n#let future-logo = \"images/future.svg\"\n";
+        // Des octets identiques ne signifient pas que les chemins sont interchangeables.
+        let bytes: std::sync::Arc<[u8]> = include_bytes!("../tests/fixtures/parc.svg")
+            .as_slice()
+            .into();
+        let assets: Assets = ["shared", "future", "obsolete", "deleted"]
+            .into_iter()
+            .map(|name| (format!("images/{name}.svg"), bytes.clone()))
+            .collect();
+        let source = "#figure(image(\"images/shared.svg\"), caption: [Un parc.])";
+        let expected: Vec<String> = vec!["images/future.svg".into(), "images/shared.svg".into()];
+        for body in [source, "Texte sans image.", source, ""] {
+            let retained = retained_assets(body, &metadata, &template, &assets).unwrap();
+            assert_eq!(retained.keys().cloned().collect::<Vec<_>>(), expected);
+            let mut world = TypstWorld::default();
+            world.set_assets(&retained);
+            world
+                .compile_with_template(body, &metadata, &template)
+                .unwrap();
+        }
+        assert_eq!(assets.len(), 4);
+    }
+
+    #[test]
+    fn a_broken_model_does_not_lose_resources_during_save() {
+        let mut assets = Assets::new();
+        assets.insert(
+            "images/logo.svg".into(),
+            include_bytes!("../tests/fixtures/parc.svg")
+                .as_slice()
+                .into(),
+        );
+        assert_eq!(
+            retained_assets(
+                "",
+                &Metadata::demo(DocumentType::Courrier),
+                "#let courrier(..args) = panic(\"modèle à réparer\")",
+                &assets
+            )
+            .unwrap(),
+            assets
+        );
     }
 }

@@ -501,6 +501,22 @@ le contenu du document. Le courrier fourni garde le placement dans le flux.
 La navigation dans les deux sens et le surlignage de sélection concernent aussi
 les images et leur légende.
 
+À chaque enregistrement et export, seules les ressources encore référencées
+par le contenu ou nécessaires au modèle sont écrites. Une ancienne image
+remplacée ou supprimée reste en mémoire pour **Annuler / Rétablir**, y compris
+après un enregistrement ; elle n’alourdit plus le fichier ni sa limite de taille.
+L’historique n’est pas enregistré et disparaît à la fermeture du document.
+
+Les chemins d’images déclarés explicitement dans les chaînes Typst du modèle
+sont conservés, même dans une variante inactive. Pour les chemins calculés,
+le nettoyage vérifie avec Typst que retirer des ressources laisse inchangées
+la compilation, les pages et les métadonnées dans la configuration courante.
+Un modèle à variantes qui calcule des chemins doit donc aussi déclarer en entier
+les chemins des ressources à garder pour ses autres configurations, par exemple
+dans une liste Typst. Si le modèle ne compile pas, l’enregistrement conserve
+prudemment ses ressources : un problème de composition ne doit pas empêcher
+de sauvegarder le travail ni provoquer la perte d’une image.
+
 L’export contient le dossier `images/` nécessaire à la recompilation des sources,
 en plus du PDF, des PNG de pages et des fichiers Typst. L’import de modèles avec
 des ressources supplémentaires, le recadrage, les renvois à des figures et le

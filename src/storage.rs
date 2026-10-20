@@ -177,7 +177,14 @@ fn validate(letter: &StoredDocument) -> Result<(), String> {
 /// Écrit et synchronise un fichier temporaire voisin, puis remplace la cible
 /// par renommage atomique. Une erreur d'écriture conserve le courrier précédent.
 pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
-    validate(letter)?;
+    let mut letter = letter.clone();
+    letter.assets = crate::rendering::retained_assets(
+        &letter.source,
+        &letter.metadata,
+        &letter.template,
+        &letter.assets,
+    )?;
+    validate(&letter)?;
     if letter.assets.len() + ENTRIES.len() > 1024 {
         return Err(crate::tr!("storage-file-count"));
     }
@@ -258,6 +265,71 @@ mod tests {
             writer.write_all(&bytes).unwrap();
         }
         writer.finish().unwrap();
+    }
+
+    #[test]
+    fn archive_and_export_omit_unused_images_but_keep_document_and_model_resources() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut letter = StoredDocument::demo(DocumentType::Courrier);
+        let bytes: std::sync::Arc<[u8]> = include_bytes!("../tests/fixtures/parc.svg")
+            .as_slice()
+            .into();
+        for name in ["active", "logo", "deleted"] {
+            letter
+                .assets
+                .insert(format!("images/{name}.svg"), bytes.clone());
+        }
+        letter.source = "#figure(image(\"images/active.svg\"), caption: [Un parc.])".into();
+        letter.template = letter.template.replace(
+            "  let contenu = {",
+            "  image(\"images/\" + \"logo\" + \".svg\", width: 12pt)\n  let contenu = {",
+        );
+        let path = dir.path().join("courrier.typsto");
+        let mut world = crate::rendering::TypstWorld::default();
+        for with_image in [true, false] {
+            if !with_image {
+                letter.source = "Texte seul.".into();
+            }
+            save(&path, &letter).unwrap();
+            let mut zip = ZipArchive::new(File::open(&path).unwrap()).unwrap();
+            assert_eq!(zip.len(), 6 + usize::from(with_image));
+            assert!(zip.by_name("images/deleted.svg").is_err());
+            assert!(zip.by_name("images/logo.svg").is_ok());
+            assert_eq!(zip.by_name("images/active.svg").is_ok(), with_image);
+            let restored = read(&path).unwrap();
+            assert_eq!(restored.assets.len(), 1 + usize::from(with_image));
+            let export = dir.path().join(if with_image {
+                "avec-image"
+            } else {
+                "sans-image"
+            });
+            crate::rendering::render(
+                &mut world,
+                &crate::rendering::RenderRequest {
+                    revision: 1,
+                    source: letter.source.clone(),
+                    source_map: Document::from_source(&letter.source).unwrap().source_map,
+                    metadata: letter.metadata.clone(),
+                    template: letter.template.clone(),
+                    assets: letter.assets.clone(),
+                    export_dir: Some(export.clone()),
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                std::fs::read_dir(export.join("images")).unwrap().count(),
+                1 + usize::from(with_image)
+            );
+            assert!(!export.join("images/deleted.svg").exists());
+            assert!(export.join("images/logo.svg").exists());
+            assert_eq!(export.join("images/active.svg").exists(), with_image);
+            let mut clean_world = crate::rendering::TypstWorld::default();
+            clean_world.set_assets(&restored.assets);
+            clean_world
+                .compile_with_template(&restored.source, &restored.metadata, &restored.template)
+                .unwrap();
+        }
+        assert_eq!(letter.assets.len(), 3);
     }
 
     #[test]

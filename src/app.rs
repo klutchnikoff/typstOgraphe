@@ -239,6 +239,8 @@ impl App {
                     path = path.display().to_string()
                 ));
                 self.file_path = Some(path);
+                // Le fichier est nettoyé par storage::save ; ce repère en mémoire
+                // garde les mêmes ressources que l’historique pour is_dirty.
                 self.saved = letter;
                 self.file_error = None;
                 true
@@ -533,9 +535,7 @@ impl App {
             .map_err(|e| e.to_string())?;
         crate::assets::decode(&data, extension)?;
         let total: usize = self.document.assets.values().map(|v| v.len()).sum();
-        if total + data.len() > crate::assets::MAX_DOCUMENT_BYTES as usize {
-            return Err(crate::tr!("storage-letter-too-large"));
-        }
+        let needs_size_check = total + data.len() > crate::assets::MAX_DOCUMENT_BYTES as usize;
         let before = self.snapshot();
         let mut number = 1;
         let asset_path = loop {
@@ -564,6 +564,26 @@ impl App {
                 },
             )
         };
+        if needs_size_check {
+            let mut persisted = self.document.clone();
+            persisted.sync_source();
+            let retained = crate::rendering::retained_assets(
+                persisted.source(),
+                &self.metadata,
+                &self.template,
+                &persisted.assets,
+            );
+            let too_large = retained.as_ref().is_ok_and(|assets| {
+                assets.values().map(|data| data.len()).sum::<usize>()
+                    > crate::assets::MAX_DOCUMENT_BYTES as usize
+            });
+            if retained.is_err() || too_large {
+                self.document = before.document;
+                return Err(retained
+                    .err()
+                    .unwrap_or_else(|| crate::tr!("storage-letter-too-large")));
+            }
+        }
         let mut cursor = CCursor::new(at + 1);
         cursor.prefer_next_row = true;
         self.selection = CCursorRange::one(cursor);
@@ -2250,6 +2270,95 @@ mod interaction_tests {
     use crate::document_types::courrier::Model;
 
     #[test]
+    fn discarded_images_in_memory_do_not_exhaust_the_document_size_limit() {
+        let mut app = App::with_context(egui::Context::default(), None);
+        app.document = Document::from_source("").unwrap();
+        // Simuler plus de 64 Mio d’anciennes ressources partagées en mémoire.
+        // Elles ne sont plus référencées par le document ni par son modèle.
+        let unused: std::sync::Arc<[u8]> = vec![0; 1024 * 1024].into();
+        for index in 0..65 {
+            app.document
+                .assets
+                .insert(format!("images/old-{index}.png"), unused.clone());
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let image = dir.path().join("parc.svg");
+        std::fs::write(&image, include_bytes!("../tests/fixtures/parc.svg")).unwrap();
+        app.import_image(&image, None).unwrap();
+        let path = dir.path().join("courrier.typsto");
+        assert!(app.save_path(path.clone()), "{:?}", app.file_error);
+        assert_eq!(storage::read(&path).unwrap().assets.len(), 1);
+        assert!(!app.is_dirty());
+    }
+
+    #[test]
+    fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx, None);
+        app.document = Document::from_source("").unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let original = dir.path().join("original.svg");
+        std::fs::write(&original, include_bytes!("../tests/fixtures/parc.svg")).unwrap();
+        app.import_image(&original, None).unwrap();
+        let first = app.document.view.images[&1].path.clone();
+        let path = dir.path().join("Courrier.typsto");
+        assert!(app.save_path(path.clone()));
+        app.import_image(&original, Some(1)).unwrap();
+        let replacement = app.document.view.images[&1].path.clone();
+        std::fs::remove_file(&original).unwrap();
+        assert!(app.save_path(path.clone()));
+        assert!(!app.is_dirty());
+        assert_eq!(
+            storage::read(&path)
+                .unwrap()
+                .assets
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![replacement.clone()]
+        );
+        assert!(app.document.assets.contains_key(&first));
+        app.apply(Command::Undo);
+        assert_eq!(app.document.view.images[&1].path, first);
+        assert!(app.is_dirty());
+        assert!(app.save_path(path.clone()));
+        assert!(!app.is_dirty());
+        assert_eq!(
+            storage::read(&path)
+                .unwrap()
+                .assets
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>(),
+            vec![first]
+        );
+        app.apply(Command::Redo);
+        assert_eq!(app.document.view.images[&1].path, replacement);
+        app.remove_image(1);
+        assert!(app.save_path(path.clone()));
+        assert!(!app.is_dirty());
+        assert!(storage::read(&path).unwrap().assets.is_empty());
+        let export = dir.path().join("export");
+        crate::rendering::render(
+            &mut crate::rendering::TypstWorld::default(),
+            &app.request(Some(export.clone())),
+        )
+        .unwrap();
+        assert!(!export.join("images").exists());
+        app.apply(Command::Undo);
+        assert_eq!(app.document.view.images[&1].path, replacement);
+        assert!(app.is_dirty());
+        assert!(app.document.assets.contains_key(&replacement));
+        assert!(app.save_path(path.clone()));
+        assert_eq!(storage::read(&path).unwrap().assets.len(), 1);
+        app.apply(Command::Redo);
+        assert!(app.document.view.images.is_empty());
+        assert!(app.save_path(path.clone()));
+        assert!(storage::read(&path).unwrap().assets.is_empty());
+        assert!(!app.is_dirty());
+    }
+
+    #[test]
     fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
@@ -2399,7 +2508,7 @@ mod interaction_tests {
         assert!(app.open_path(archive));
         assert!(!app.is_dirty());
         assert_eq!(app.document.source(), saved_source);
-        assert_eq!(app.document.assets.len(), 2);
+        assert_eq!(app.document.assets.len(), 1);
         app.selection = editor::cursor(object + 1..object + 1);
         app.force_selection = true;
         frame(&mut app, &ctx, vec![]);
