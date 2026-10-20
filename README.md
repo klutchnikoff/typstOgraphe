@@ -52,6 +52,51 @@ Les accents et les caractères Unicode sont traités avec les mêmes indices de
 caractères que les curseurs egui. Le gras et l’italique utilisent de véritables
 variantes de police dans l’éditeur.
 
+## Enregistrer et rouvrir un courrier
+
+Le menu **Fichier** propose Nouveau, Ouvrir, Enregistrer et Enregistrer sous,
+avec les fenêtres natives de choix de fichier. Les commandes sont aussi
+accessibles dans la palette. Raccourcis :
+
+- `⌘N` / `Ctrl+N` : nouveau courrier ;
+- `⌘O` / `Ctrl+O` : ouvrir ;
+- `⌘S` / `Ctrl+S` : enregistrer ;
+- `⌘⇧S` / `Ctrl+Shift+S` : enregistrer sous.
+
+Un courrier est conservé dans un seul fichier **`.typsto`**. Son nom apparaît
+dans l’en-tête et dans le titre de la fenêtre ; une étoile signale les
+modifications non enregistrées. Avant de fermer la fenêtre, d’ouvrir un autre
+fichier ou de créer un courrier, l’application propose d’enregistrer, de ne pas
+enregistrer ou d’annuler. Un brouillon incomplet peut être enregistré.
+
+Le fichier est une archive ZIP standard contenant :
+
+- `contenu.typ` : source de référence du corps du courrier ;
+- `metadonnees.json` : champs du courrier ;
+- `modele.typ` : copie exacte du modèle utilisé, réutilisée à la réouverture
+  et lors de l’export ;
+- `main.typ` : en-tête généré à partir des métadonnées ;
+- `manifest.json` : identifiant du format, version 1, type « courrier » et
+  choix de présentation.
+
+Le modèle embarqué permet de retrouver la présentation du courrier indépendamment
+des modèles fournis par une future version de l’application. L’enregistrement
+écrit un fichier temporaire voisin puis remplace atomiquement la cible. Une
+archive invalide est refusée sans remplacer le courrier ouvert. Le format v1
+accepte uniquement ces cinq fichiers, pour un total décompressé de 16 Mio maximum.
+Il ne contient pas encore de pièces jointes ou d’images.
+
+Pour les développeurs : `main.typ` est dérivé du manifeste et des métadonnées ;
+une modification manuelle de son en-tête doit rester cohérente avec ces fichiers.
+Le contenu du source est préservé à l’ouverture et à l’enregistrement ; les règles
+de normalisation lors d’une édition sont décrites plus bas.
+
+On peut également ouvrir un courrier au lancement :
+
+```sh
+cargo run --locked -- mon-courrier.typsto
+```
+
 ## Se déplacer entre le texte et l’aperçu
 
 - Déplacer le curseur dans l’éditeur : l’aperçu défile vers le passage
@@ -111,9 +156,9 @@ le gras, l’italique, les liens, les puces et les listes numérotées simples.
 Le corps n’expose jamais de code à l’utilisateur. Le parseur refuse les fonctions
 et les expressions calculées qu’il ne sait pas éditer.
 
-Le travail reste en mémoire jusqu’à un export. Ce prototype n’inclut pas encore
-la réouverture des exports, l’archive unique du document, l’enregistrement
-automatique, les préférences personnelles, l’image de signature, le manifeste
+L’enregistrement est manuel. Ce prototype n’inclut pas encore l’import des
+anciens exports en dossier, l’enregistrement automatique, les préférences
+personnelles, l’image de signature, le manifeste
 extensible des types de document ni le travail collaboratif.
 
 Les paragraphes vides successifs et les espaces sont normalisés à la relecture
@@ -137,6 +182,10 @@ répétés, un paragraphe réparti sur plusieurs pages, le défilement des deux 
 et le refus des correspondances devenues obsolètes.
 Le surlignage est vérifié sur les styles, les liens, les ligatures et plusieurs
 pages, ainsi qu’après un redimensionnement ou la disparition de la sélection.
+Les tests de fichiers vérifient l’aller-retour du source, des métadonnées et d’un
+modèle personnalisé, l’export avec le modèle rouvert, le remplacement atomique,
+le refus des archives invalides, les erreurs d’écriture et la protection des
+modifications non enregistrées.
 
 Une capture de l’application peut être produite après le premier rendu réussi :
 

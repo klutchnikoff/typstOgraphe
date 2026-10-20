@@ -3,6 +3,7 @@ use crate::{
     editor,
     navigation::{PagePoint, RenderSync},
     rendering::{RenderRequest, RenderWorker},
+    storage::{self, Letter},
 };
 use eframe::egui::{
     self, Color32, FontId, RichText, TextBuffer,
@@ -23,6 +24,7 @@ struct Snapshot {
 }
 #[derive(Clone, Copy)]
 enum Command {
+    File(FileCommand),
     Bold,
     Italic,
     Clear,
@@ -34,6 +36,7 @@ enum Command {
 impl Command {
     fn label(self) -> &'static str {
         match self {
+            Self::File(command) => command.label(),
             Self::Bold => "Gras",
             Self::Italic => "Italique",
             Self::Clear => "Retirer la mise en forme",
@@ -45,10 +48,45 @@ impl Command {
     }
 }
 
+#[derive(Clone, Copy)]
+enum FileCommand {
+    New,
+    Open,
+    Save,
+    SaveAs,
+    Close,
+}
+impl FileCommand {
+    fn label(self) -> &'static str {
+        match self {
+            Self::New => "Nouveau courrier",
+            Self::Open => "Ouvrir un courrier…",
+            Self::Save => "Enregistrer",
+            Self::SaveAs => "Enregistrer sous…",
+            Self::Close => "Fermer",
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum PendingAction {
+    New,
+    Open,
+    Close,
+}
+
 pub struct App {
     pub document: Document,
     metadata: Metadata,
     compact: bool,
+    template: String,
+    file_path: Option<PathBuf>,
+    saved: Letter,
+    file_command: Option<FileCommand>,
+    pending_action: Option<PendingAction>,
+    file_error: Option<String>,
+    allow_close: bool,
+    window_title: String,
     selection: CCursorRange,
     force_selection: bool,
     undo: Vec<Snapshot>,
@@ -83,8 +121,16 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(cc: &eframe::CreationContext<'_>, capture: Option<PathBuf>) -> Self {
-        Self::with_context(cc.egui_ctx.clone(), capture)
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        capture: Option<PathBuf>,
+        path: Option<PathBuf>,
+    ) -> Self {
+        let mut app = Self::with_context(cc.egui_ctx.clone(), capture);
+        if let Some(path) = path {
+            app.open_path(path);
+        }
+        app
     }
     pub fn with_context(ctx: egui::Context, capture: Option<PathBuf>) -> Self {
         editor::install_fonts(&ctx);
@@ -94,10 +140,19 @@ impl App {
         style.visuals.selection.stroke = egui::Stroke::new(1.0_f32, ACCENT);
         ctx.set_style(style);
         let worker = RenderWorker::spawn(ctx);
+        let saved = Letter::demo();
         Self {
             document: Document::demo(),
-            metadata: Metadata::default(),
-            compact: false,
+            metadata: saved.metadata.clone(),
+            compact: saved.compact,
+            template: saved.template.clone(),
+            file_path: None,
+            saved,
+            file_command: None,
+            pending_action: None,
+            file_error: None,
+            allow_close: false,
+            window_title: String::new(),
             selection: CCursorRange::one(CCursor::new(0)),
             force_selection: false,
             undo: vec![],
@@ -142,6 +197,169 @@ impl App {
             selection: self.selection,
         }
     }
+    fn letter(&self) -> Letter {
+        Letter {
+            source: self.document.source().into(),
+            metadata: self.metadata.clone(),
+            template: self.template.clone(),
+            compact: self.compact,
+        }
+    }
+    fn is_dirty(&self) -> bool {
+        self.saved.source != self.document.source()
+            || self.saved.metadata != self.metadata
+            || self.saved.template != self.template
+            || self.saved.compact != self.compact
+    }
+    fn modal_open(&self) -> bool {
+        self.palette_open
+            || self.link_open
+            || self.export_open
+            || self.information_open
+            || self.pending_action.is_some()
+            || self.file_error.is_some()
+    }
+    fn save_path(&mut self, path: PathBuf) -> bool {
+        let letter = self.letter();
+        match storage::save(&path, &letter) {
+            Ok(()) => {
+                self.message = Some(format!("Courrier enregistré : {}", path.display()));
+                self.file_path = Some(path);
+                self.saved = letter;
+                self.file_error = None;
+                true
+            }
+            Err(error) => {
+                self.file_error = Some(error);
+                false
+            }
+        }
+    }
+    fn save_document(&mut self, save_as: bool) -> bool {
+        if !save_as && let Some(path) = self.file_path.clone() {
+            return self.save_path(path);
+        }
+        let mut dialog = rfd::FileDialog::new()
+            .set_title("Enregistrer le courrier")
+            .add_filter("Courrier typstOgraphe", &[storage::EXTENSION])
+            .set_file_name(
+                self.file_path
+                    .as_ref()
+                    .and_then(|path| path.file_name())
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "Courrier.typsto".into()),
+            );
+        if let Some(parent) = self.file_path.as_ref().and_then(|path| path.parent()) {
+            dialog = dialog.set_directory(parent);
+        }
+        if let Some(mut path) = dialog.save_file() {
+            if path.extension().is_none() {
+                path.set_extension(storage::EXTENSION);
+                if path.exists()
+                    && rfd::MessageDialog::new()
+                        .set_title("Remplacer le courrier ?")
+                        .set_description(format!(
+                            "Le fichier {} existe déjà. Voulez-vous le remplacer ?",
+                            path.display()
+                        ))
+                        .set_buttons(rfd::MessageButtons::YesNo)
+                        .show()
+                        != rfd::MessageDialogResult::Yes
+                {
+                    return false;
+                }
+            }
+            self.save_path(path)
+        } else {
+            false
+        }
+    }
+    fn open_path(&mut self, path: PathBuf) -> bool {
+        match storage::read(&path).and_then(|letter| {
+            Document::from_source(&letter.source).map(|document| (letter, document))
+        }) {
+            Ok((letter, document)) => {
+                self.install_letter(letter, document, Some(path));
+                self.message = Some("Courrier ouvert.".into());
+                true
+            }
+            Err(error) => {
+                self.file_error = Some(error);
+                false
+            }
+        }
+    }
+    fn install_letter(&mut self, letter: Letter, document: Document, path: Option<PathBuf>) {
+        self.document = document;
+        self.metadata = letter.metadata.clone();
+        self.template = letter.template.clone();
+        self.compact = letter.compact;
+        self.saved = letter;
+        self.file_path = path;
+        self.undo.clear();
+        self.redo.clear();
+        self.typing_group = false;
+        self.selection = CCursorRange::one(CCursor::new(0));
+        self.force_selection = true;
+        self.editor_scroll_pending = true;
+        self.forward_pending = true;
+        self.pages.clear();
+        self.sync = None;
+        self.rendering_error = None;
+        self.rendered_revision = None;
+        self.rendering_time = None;
+        self.file_error = None;
+        self.message = None;
+        self.revision += 1;
+        self.changed_at = Instant::now() - Duration::from_secs(1);
+    }
+    fn request_action(&mut self, action: PendingAction, ctx: &egui::Context) {
+        if self.is_dirty() {
+            self.pending_action = Some(action);
+        } else {
+            self.perform_action(action, ctx);
+        }
+    }
+    fn perform_action(&mut self, action: PendingAction, ctx: &egui::Context) {
+        match action {
+            PendingAction::New => {
+                let letter = Letter::blank();
+                let document = Document::from_source(&letter.source).expect("courrier vide valide");
+                self.install_letter(letter, document, None);
+            }
+            PendingAction::Open => {
+                let mut dialog = rfd::FileDialog::new()
+                    .set_title("Ouvrir un courrier")
+                    .add_filter("Courrier typstOgraphe", &[storage::EXTENSION])
+                    .add_filter("Tous les fichiers", &["*"]);
+                if let Some(parent) = self.file_path.as_ref().and_then(|path| path.parent()) {
+                    dialog = dialog.set_directory(parent);
+                }
+                if let Some(path) = dialog.pick_file() {
+                    self.open_path(path);
+                }
+            }
+            PendingAction::Close => {
+                self.allow_close = true;
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            }
+        }
+        ctx.request_repaint();
+    }
+    fn handle_file_command(&mut self, command: FileCommand, ctx: &egui::Context) {
+        match command {
+            FileCommand::New => self.request_action(PendingAction::New, ctx),
+            FileCommand::Open => self.request_action(PendingAction::Open, ctx),
+            FileCommand::Close => self.request_action(PendingAction::Close, ctx),
+            FileCommand::Save => {
+                self.save_document(false);
+            }
+            FileCommand::SaveAs => {
+                self.save_document(true);
+            }
+        }
+        ctx.request_repaint();
+    }
     fn range(&self) -> Range<usize> {
         let range = self.selection.as_sorted_char_range();
         range.start.min(self.document.view.len())..range.end.min(self.document.view.len())
@@ -164,6 +382,10 @@ impl App {
         self.changed();
     }
     fn apply(&mut self, command: Command) {
+        if let Command::File(command) = command {
+            self.file_command = Some(command);
+            return;
+        }
         let range = self.range();
         if matches!(command, Command::Undo | Command::Redo) {
             let current = self.snapshot();
@@ -234,6 +456,7 @@ impl App {
             source_map: self.document.source_map.clone(),
             metadata: self.metadata.clone(),
             compact: self.compact,
+            template: self.template.clone(),
             export_dir,
         }
     }
@@ -292,8 +515,24 @@ impl App {
         }
     }
     fn shortcuts(&mut self, ctx: &egui::Context) {
-        let modal =
-            self.palette_open || self.link_open || self.export_open || self.information_open;
+        let modal = self.modal_open();
+        if modal {
+            return;
+        }
+        for (modifiers, key, command) in [
+            (
+                egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+                egui::Key::S,
+                FileCommand::SaveAs,
+            ),
+            (egui::Modifiers::COMMAND, egui::Key::S, FileCommand::Save),
+            (egui::Modifiers::COMMAND, egui::Key::O, FileCommand::Open),
+            (egui::Modifiers::COMMAND, egui::Key::N, FileCommand::New),
+        ] {
+            if ctx.input_mut(|input| input.consume_key(modifiers, key)) {
+                self.file_command = Some(command);
+            }
+        }
         if ctx.input_mut(|i| {
             i.consume_key(
                 egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
@@ -303,9 +542,6 @@ impl App {
             self.palette_open = !self.palette_open;
             self.palette_query.clear();
             self.palette_index = 0;
-        }
-        if modal {
-            return;
         }
         let focused = ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID)));
         if !focused {
@@ -886,6 +1122,10 @@ impl App {
                         self.palette_index = 0;
                     }
                     let commands = [
+                        Command::File(FileCommand::New),
+                        Command::File(FileCommand::Open),
+                        Command::File(FileCommand::Save),
+                        Command::File(FileCommand::SaveAs),
                         Command::Bold,
                         Command::Italic,
                         Command::Link,
@@ -938,7 +1178,7 @@ impl App {
             let mut open = true;
             let mut export = false;
             egui::Window::new("Exporter le courrier").open(&mut open).collapsible(false).resizable(false).default_width(470.0).show(ctx,|ui|{
-                ui.label("Dossier de destination");ui.add(egui::TextEdit::singleline(&mut self.export_path).desired_width(f32::INFINITY));ui.weak("PDF, source Typst, modèle et métadonnées. L’archive unique viendra dans une étape suivante.");export=ui.button("Exporter").clicked();
+                ui.label("Dossier de destination");ui.add(egui::TextEdit::singleline(&mut self.export_path).desired_width(f32::INFINITY));ui.weak("PDF, pages PNG et fichiers Typst séparés. Pour conserver un courrier modifiable dans un fichier unique, utilisez Enregistrer.");export=ui.button("Exporter").clicked();
             });
             self.export_open &= open;
             if export {
@@ -967,14 +1207,103 @@ impl App {
             self.link_open = false;
             self.information_open = false;
             self.export_open = false;
+            self.pending_action = None;
+            self.file_error = None;
             self.force_selection = true;
         }
     }
+    fn file_dialogs(&mut self, ctx: &egui::Context) {
+        if self.pending_action.is_some() {
+            let mut choice = None;
+            egui::Window::new("Enregistrer les modifications ?")
+                .id(egui::Id::new("unsaved-letter"))
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+                .collapsible(false)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ui.label("Le courrier contient des modifications non enregistrées.");
+                    if let Some(error) = &self.file_error {
+                        ui.colored_label(Color32::LIGHT_RED, error);
+                    }
+                    ui.horizontal(|ui| {
+                        if ui.button("Enregistrer").clicked() {
+                            choice = Some(0);
+                        }
+                        if ui.button("Ne pas enregistrer").clicked() {
+                            choice = Some(1);
+                        }
+                        if ui.button("Annuler").clicked() {
+                            choice = Some(2);
+                        }
+                    });
+                });
+            match choice {
+                Some(0) if self.save_document(false) => {
+                    if let Some(action) = self.pending_action.take() {
+                        self.perform_action(action, ctx);
+                    }
+                }
+                Some(1) => {
+                    self.file_error = None;
+                    if let Some(action) = self.pending_action.take() {
+                        self.perform_action(action, ctx);
+                    }
+                }
+                Some(2) => {
+                    self.pending_action = None;
+                    self.file_error = None;
+                    self.force_selection = true;
+                }
+                _ => {}
+            }
+        } else if self.file_error.is_some() {
+            let mut open = true;
+            let mut close = false;
+            egui::Window::new("Fichier de courrier")
+                .open(&mut open)
+                .collapsible(false)
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+                .show(ctx, |ui| {
+                    ui.label(self.file_error.as_deref().unwrap_or_default());
+                    close = ui.button("Fermer").clicked();
+                });
+            if close || !open {
+                self.file_error = None;
+                self.force_selection = true;
+            }
+        }
+    }
     pub fn ui_frame(&mut self, ctx: &egui::Context) {
+        if ctx.input(|input| input.viewport().close_requested())
+            && !self.allow_close
+            && self.is_dirty()
+        {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.palette_open = false;
+            self.link_open = false;
+            self.export_open = false;
+            self.information_open = false;
+            self.pending_action = Some(PendingAction::Close);
+        }
         self.rendering(ctx);
         self.shortcuts(ctx);
-        let modal =
-            self.information_open || self.link_open || self.palette_open || self.export_open;
+        let modal = self.modal_open();
+        let dirty = self.is_dirty();
+        let filename = self
+            .file_path
+            .as_ref()
+            .and_then(|path| path.file_name())
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "Courrier sans titre".into());
+        let title = format!(
+            "{}{} — typstOgraphe",
+            filename,
+            if dirty { " *" } else { "" }
+        );
+        if title != self.window_title {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
+            self.window_title = title;
+        }
         egui::TopBottomPanel::top("header")
             .exact_height(64.0)
             .show(ctx, |ui| {
@@ -991,13 +1320,41 @@ impl App {
                         },
                     ));
                     ui.separator();
-                    ui.label(RichText::new("Réservation de la salle des Tilleuls").strong());
+                    ui.menu_button("Fichier", |ui| {
+                        for command in [
+                            FileCommand::New,
+                            FileCommand::Open,
+                            FileCommand::Save,
+                            FileCommand::SaveAs,
+                            FileCommand::Close,
+                        ] {
+                            if ui.button(command.label()).clicked() {
+                                self.file_command = Some(command);
+                                ui.close();
+                            }
+                        }
+                    });
+                    ui.add_sized(
+                        [210.0, 18.0],
+                        egui::Label::new(
+                            RichText::new(format!("{}{}", filename, if dirty { " *" } else { "" }))
+                                .strong(),
+                        )
+                        .truncate(),
+                    );
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Exporter").clicked() {
                             self.export_open = true;
                         }
                         if ui.button("Informations").clicked() {
                             self.information_open = true;
+                        }
+                        if ui
+                            .button("Enregistrer")
+                            .on_hover_text("⌘S / Ctrl+S")
+                            .clicked()
+                        {
+                            self.file_command = Some(FileCommand::Save);
                         }
                         if ui
                             .button("Commandes")
@@ -1031,7 +1388,11 @@ impl App {
                         self.revision += 1;
                         self.changed_at = Instant::now();
                     }
-                    ui.weak("Ville de Valmont");
+                    ui.weak(if self.template == crate::rendering::TEMPLATE {
+                        "Ville de Valmont"
+                    } else {
+                        "Modèle embarqué dans le courrier"
+                    });
                 });
             });
         egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
@@ -1080,6 +1441,10 @@ impl App {
             self.editor_ui(ui)
         });
         self.dialogs(ctx);
+        if let Some(command) = self.file_command.take() {
+            self.handle_file_command(command, ctx);
+        }
+        self.file_dialogs(ctx);
         self.capture(ctx);
     }
     fn capture(&mut self, ctx: &egui::Context) {
@@ -1121,6 +1486,172 @@ impl eframe::App for App {
 #[cfg(test)]
 mod interaction_tests {
     use super::*;
+
+    #[test]
+    fn save_reopen_restores_the_letter_and_failed_open_preserves_current_work() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("courrier.typsto");
+        assert!(!app.is_dirty());
+        app.selection = editor::cursor(20..35);
+        app.apply(Command::Bold);
+        assert!(app.is_dirty());
+        app.apply(Command::Undo);
+        assert!(!app.is_dirty());
+        app.metadata.objet = "Objet personnalisé".into();
+        app.compact = true;
+        app.template = app.template.replace("VILLE DE VALMONT", "MODÈLE ARCHIVÉ");
+        app.document.view.insert_text("Élodie : ", 0);
+        app.changed();
+        let letter = app.letter();
+        assert!(app.save_path(path.clone()));
+        assert!(!app.is_dirty());
+        app.document.view.insert_text("Brouillon ", 0);
+        app.changed();
+        assert!(app.is_dirty());
+        assert!(app.open_path(path.clone()));
+        assert_eq!(app.letter(), letter);
+        assert_eq!(app.file_path, Some(path.clone()));
+        assert!(!app.is_dirty());
+        assert!(app.undo.is_empty() && app.redo.is_empty());
+        assert_eq!(app.selection.primary.index, 0);
+        assert!(app.pages.is_empty() && app.sync.is_none());
+        assert_eq!(app.request(None).template, letter.template);
+        app.document.view.insert_text("À conserver ", 0);
+        app.changed();
+        let before = app.letter();
+        let bad = dir.path().join("illisible.typsto");
+        std::fs::write(&bad, "invalide").unwrap();
+        assert!(!app.open_path(bad));
+        assert_eq!(app.letter(), before);
+        assert_eq!(app.file_path, Some(path.clone()));
+        assert!(app.is_dirty());
+        assert!(!app.save_path(dir.path().join("absent/impossible.typsto")));
+        assert_eq!(app.file_path, Some(path.clone()));
+        assert!(app.is_dirty());
+        assert_eq!(storage::read(&path).unwrap(), letter);
+    }
+
+    #[test]
+    fn save_shortcut_and_save_as_keep_both_files_and_track_clean_state() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let dir = tempfile::tempdir().unwrap();
+        let first = dir.path().join("premier.typsto");
+        assert!(app.save_path(first.clone()));
+        let initial = storage::read(&first).unwrap();
+        app.document.view.insert_text("Un ajout. ", 0);
+        app.changed();
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::S,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::COMMAND,
+            }],
+        );
+        assert!(!app.is_dirty());
+        assert_ne!(storage::read(&first).unwrap(), initial);
+        let saved = app.letter();
+        app.metadata.objet = "Deuxième courrier".into();
+        let second = dir.path().join("second.typsto");
+        assert!(app.save_path(second.clone()));
+        assert_eq!(app.file_path, Some(second));
+        assert_eq!(storage::read(&first).unwrap(), saved);
+        assert!(!app.is_dirty());
+    }
+
+    #[test]
+    fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.metadata.objet = "Travail à conserver".into();
+        let before = app.letter();
+        app.request_action(PendingAction::Open, &ctx);
+        assert!(app.pending_action.is_some()); // Aucune fenêtre de fichier tant que la décision manque.
+        assert_eq!(app.letter(), before);
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+        );
+        assert!(app.pending_action.is_none());
+        assert_eq!(app.letter(), before);
+
+        let mut input = egui::RawInput::default();
+        input
+            .viewports
+            .get_mut(&egui::ViewportId::ROOT)
+            .unwrap()
+            .events
+            .push(egui::ViewportEvent::Close);
+        let output = ctx.run(input, |ctx| app.ui_frame(ctx));
+        assert!(
+            output.viewport_output[&egui::ViewportId::ROOT]
+                .commands
+                .iter()
+                .any(|command| matches!(command, egui::ViewportCommand::CancelClose))
+        );
+        assert!(app.pending_action.is_some());
+        assert_eq!(app.letter(), before);
+        app.pending_action = None;
+        app.request_action(PendingAction::New, &ctx);
+        let draw = |app: &mut App, time, events| {
+            ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1240.0, 900.0),
+                    )),
+                    time: Some(time),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| app.ui_frame(ctx),
+            )
+        };
+        draw(&mut app, 1.0, vec![]);
+        let output = draw(&mut app, 1.1, vec![]);
+        let pointer = output
+            .shapes
+            .iter()
+            .find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.text() == "Ne pas enregistrer" => {
+                    Some(text.pos + text.galley.rect.center().to_vec2())
+                }
+                _ => None,
+            })
+            .expect("bouton de confirmation");
+        for (i, pressed) in [true, false].into_iter().enumerate() {
+            draw(
+                &mut app,
+                1.2 + i as f64 * 0.05,
+                vec![
+                    egui::Event::PointerMoved(pointer),
+                    egui::Event::PointerButton {
+                        pos: pointer,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+        assert!(app.pending_action.is_none());
+        assert!(app.document.source().is_empty());
+        assert!(app.file_path.is_none());
+        assert!(!app.is_dirty());
+    }
 
     fn frame(app: &mut App, ctx: &egui::Context, events: Vec<egui::Event>) {
         let raw = egui::RawInput {

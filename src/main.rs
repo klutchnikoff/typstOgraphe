@@ -3,6 +3,7 @@ mod document;
 mod editor;
 mod navigation;
 mod rendering;
+mod storage;
 #[cfg(test)]
 mod tests;
 
@@ -11,7 +12,8 @@ use std::path::{Path, PathBuf};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
     let mut capture = None;
-    if let Some(arg) = args.next() {
+    let mut open_path = None;
+    while let Some(arg) = args.next() {
         match arg.as_str() {
             "--render-demo" => {
                 let dir = args.next().ok_or("Usage : --render-demo DOSSIER")?;
@@ -23,6 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     source_map: document.source_map.clone(),
                     metadata: document::Metadata::default(),
                     compact: false,
+                    template: rendering::TEMPLATE.into(),
                     export_dir: Some(PathBuf::from(dir)),
                 };
                 let result = rendering::render(&mut world, &request)?;
@@ -41,9 +44,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "--help" | "-h" => {
                 println!(
-                    "typstOgraphe\n  cargo run\n  cargo run -- --render-demo DOSSIER\n  cargo run -- --capture IMAGE.png"
+                    "typstOgraphe\n  cargo run\n  cargo run -- COURRIER.typsto\n  cargo run -- --render-demo DOSSIER\n  cargo run -- --capture IMAGE.png"
                 );
                 return Ok(());
+            }
+            _ if !arg.starts_with('-') && open_path.is_none() => {
+                open_path = Some(PathBuf::from(arg))
             }
             _ => return Err(format!("Option inconnue : {arg}").into()),
         }
@@ -58,7 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eframe::run_native(
         "typstOgraphe",
         options,
-        Box::new(move |cc| Ok(Box::new(app::App::new(cc, capture)))),
+        Box::new(move |cc| Ok(Box::new(app::App::new(cc, capture, open_path)))),
     )
     .map_err(|e| e.to_string())?;
     Ok(())

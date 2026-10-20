@@ -19,6 +19,9 @@ typst-pdf = "=0.15.1"
 typst-syntax = "=0.15.1"
 comemo = "0.5"
 png = "0.18"
+zip = { version = "6", default-features = false, features = ["deflate"] }
+tempfile = "3"
+rfd = "0.15"
 
 [profile.dev]
 debug = 0

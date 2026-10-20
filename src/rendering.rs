@@ -64,14 +64,24 @@ impl TypstWorld {
             })
             .or_insert_with(|| Source::new(id, text.to_owned()));
     }
+    #[cfg(test)]
     pub fn compile(
         &mut self,
         source: &str,
         metadata: &Metadata,
         compact: bool,
     ) -> Result<PagedDocument, String> {
+        self.compile_with_template(source, metadata, compact, TEMPLATE)
+    }
+    pub fn compile_with_template(
+        &mut self,
+        source: &str,
+        metadata: &Metadata,
+        compact: bool,
+        template: &str,
+    ) -> Result<PagedDocument, String> {
         self.set_source("main.typ", &metadata.main_source(compact));
-        self.set_source("modele.typ", TEMPLATE);
+        self.set_source("modele.typ", template);
         self.set_source("contenu.typ", source);
         let result = typst::compile::<PagedDocument>(self);
         result.output.map_err(|errors| {
@@ -146,6 +156,7 @@ pub struct RenderRequest {
     pub source_map: SourceMap,
     pub metadata: Metadata,
     pub compact: bool,
+    pub template: String,
     pub export_dir: Option<PathBuf>,
 }
 pub struct PageImage {
@@ -166,7 +177,12 @@ pub struct RenderResponse {
 
 pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendered, String> {
     let start = Instant::now();
-    let document = world.compile(&request.source, &request.metadata, request.compact)?;
+    let document = world.compile_with_template(
+        &request.source,
+        &request.metadata,
+        request.compact,
+        &request.template,
+    )?;
     if let Some(path) = &request.export_dir {
         std::fs::create_dir_all(path).map_err(|e| e.to_string())?;
         if std::fs::read_dir(path)
@@ -191,7 +207,7 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
             request.metadata.main_source(request.compact).as_bytes(),
         )?;
         write(path, "contenu.typ", request.source.as_bytes())?;
-        write(path, "modele.typ", TEMPLATE.as_bytes())?;
+        write(path, "modele.typ", request.template.as_bytes())?;
         write(
             path,
             "metadonnees.json",
