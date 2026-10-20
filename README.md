@@ -136,9 +136,41 @@ Les préférences et la proportion des colonnes sont enregistrées par eframe
 entre les sessions, dans les données locales de l’application. Elles restent
 indépendantes du fichier de courrier et ne déclenchent pas d’état « modifié ».
 
+## Types intégrés et modèles Typst
+
+Les types sont définis en Rust, dans `src/document_types/`. Le premier est
+**Courrier**, dans `courrier.rs`. Il possède ses métadonnées typées, ses champs
+et groupes d’édition, les champs requis pour l’export, son contrat de composition
+Typst et ses commandes spécifiques. Il ne charge pas de définition YAML.
+
+`courrier::FIELDS` relie chaque champ à son paramètre Typst et à son édition.
+`courrier::CONTRACT` génère l’appel de la fonction publique `courrier`, avec ces
+arguments nommés, le dictionnaire commun `options` et le corps du document.
+Le moteur Typst compile cet appel : un modèle qui ne fournit pas la fonction
+ou ne prend pas en charge ses arguments produit une erreur de composition.
+
+Le registre actif est l’union de `commands::COMMON_COMMANDS` (fichiers, édition,
+préférences, styles…) et des commandes du type. Courrier ajoute
+`courrier.model.institutional` et `courrier.model.service`. Palette, sélecteurs,
+menus et raccourcis utilisent cette même vue ; les conflits de raccourcis sont
+vérifiés sur l’ensemble. Les actions spécifiques sont représentées par
+`Command::Courrier(courrier::Command)`.
+
+Les modèles restent du pur Typst. Le catalogue Courrier fournit la présentation
+institutionnelle et la présentation de service. Cette dernière combine
+`templates/courrier.typ` et `templates/courrier-service.typ` en un source
+`modele.typ` autonome. Le choix est ainsi enregistré dans le modèle lui-même :
+le moteur commun ne transmet plus de drapeau `compact`. Une implémentation
+indépendante peut employer des fonctions privées et une mise en page complexe.
+
+Le corps éditable et ses conventions visuelles restent communs dans
+`document.rs` et `editor.rs`. Ajouter un autre type demandera du Rust pour ses
+données, son contrat, son registre et ses éventuels composants spécifiques ;
+ajouter un modèle pour Courrier demande une implémentation du contrat en Typst.
+
 ## Registre des commandes et raccourcis
 
-`src/commands.rs` centralise toutes les actions publiques autonomes dans une table : identifiant stable
+`src/commands.rs` définit le socle des actions publiques et le registre actif : identifiant stable
 (par exemple `document.export`), libellé, action, contexte et raccourcis par
 défaut. Les menus, la palette, les infobulles et le traitement des touches
 utilisent ce même registre.
@@ -173,10 +205,10 @@ Ici, l’export serait affecté à `⌘⇧E` / `Ctrl+Shift+E` et le gras restera
 accessible par les boutons et la palette. Les conflits entre commandes sont
 refusés avant activation, en tenant compte des équivalences de modificateurs
 sur chaque plateforme. Les touches de fonction sont également acceptées.
-L’écran des préférences et l’enregistrement de ces choix seront ajoutés plus
+L’écran de personnalisation des raccourcis et l’enregistrement de ces choix seront ajoutés plus
 tard ; l’application utilise actuellement les raccourcis par défaut.
 Les nouvelles commandes `document.information`,
-`document.presentation.institutional`, `document.presentation.service` et
+`courrier.model.institutional`, `courrier.model.service` et
 `text.remove_link` n’ont pas de raccourci par défaut ; elles peuvent recevoir
 les mêmes personnalisations que les autres commandes.
 
@@ -243,12 +275,12 @@ enregistrer ou d’annuler. Un brouillon incomplet peut être enregistré.
 Le fichier est une archive ZIP standard contenant :
 
 - `contenu.typ` : source de référence du corps du courrier ;
-- `metadonnees.json` : champs du courrier et réglages généraux dans `options` ;
+- `metadonnees.json` : type des métadonnées et données typées dans `fields`,
+  dont les réglages généraux dans `fields.options` ;
 - `modele.typ` : copie exacte du modèle utilisé, réutilisée à la réouverture
   et lors de l’export ;
 - `main.typ` : en-tête généré à partir des métadonnées ;
-- `manifest.json` : identifiant du format, version 2, type « courrier »,
-  choix de présentation.
+- `manifest.json` : identifiant du format, version 3 et type « courrier ».
 
 Le modèle embarqué permet de retrouver la présentation du courrier indépendamment
 des modèles fournis par une future version de l’application. L’enregistrement
@@ -346,8 +378,7 @@ et les expressions calculées qu’il ne sait pas éditer.
 
 L’enregistrement est manuel. Ce prototype n’inclut pas encore l’import des
 anciens exports en dossier, l’enregistrement automatique, les préférences
-personnelles, l’image de signature, le manifeste
-extensible des types de document ni le travail collaboratif.
+personnelles, l’image de signature, les types de document supplémentaires ni le travail collaboratif.
 
 Les paragraphes vides successifs et les espaces sont normalisés à la relecture
 d’un source. L’indentation des listes sur plusieurs lignes et les entrées IME

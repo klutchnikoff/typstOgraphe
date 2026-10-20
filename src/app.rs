@@ -1,13 +1,12 @@
 use crate::{
-    commands::{Command, DEFINITIONS, FileCommand, Keymap, Presentation, ShortcutOverrides},
-    document::{
-        BlockKind, Document, DocumentLanguage, InlineStyle, Mark, Metadata, PaperFormat, Projection,
-    },
+    commands::{Command, FileCommand, Keymap, Registry, ShortcutOverrides},
+    document::{BlockKind, Document, DocumentLanguage, InlineStyle, Mark, PaperFormat, Projection},
+    document_types::{DocumentType, Metadata, courrier::Command as CourrierCommand},
     editor, menus,
     navigation::{PagePoint, RenderSync},
     preferences::{Appearance, EditorFont, Preferences},
     rendering::{RenderRequest, RenderWorker},
-    storage::{self, Letter},
+    storage::{self, StoredDocument},
 };
 use eframe::egui::{
     self, Color32, RichText, TextBuffer,
@@ -43,10 +42,9 @@ pub struct App {
     field_history_action: Option<(Command, egui::Id)>,
     pub document: Document,
     metadata: Metadata,
-    compact: bool,
     template: String,
     file_path: Option<PathBuf>,
-    saved: Letter,
+    saved: StoredDocument,
     file_command: Option<FileCommand>,
     pending_action: Option<PendingAction>,
     file_error: Option<String>,
@@ -124,10 +122,16 @@ impl App {
                 },
             );
         });
-        let keymap = Keymap::new(ctx.os().is_mac(), &ShortcutOverrides::default())
-            .expect("raccourcis par défaut cohérents");
+        let saved = StoredDocument::demo(DocumentType::Courrier);
+        let keymap = Keymap::new(
+            Registry::new(saved.metadata.document_type()),
+            ctx.os().is_mac(),
+            &ShortcutOverrides::default(),
+        )
+        .expect("raccourcis par défaut cohérents");
         let worker = RenderWorker::spawn(ctx);
-        let saved = Letter::demo();
+        let document =
+            Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
             preferences: Preferences::default(),
             preferences_open: false,
@@ -136,9 +140,8 @@ impl App {
             native_menus: None,
             history_field: None,
             field_history_action: None,
-            document: Document::demo(),
+            document,
             metadata: saved.metadata.clone(),
-            compact: saved.compact,
             template: saved.template.clone(),
             file_path: None,
             saved,
@@ -191,19 +194,17 @@ impl App {
             selection: self.selection,
         }
     }
-    fn letter(&self) -> Letter {
-        Letter {
+    fn stored_document(&self) -> StoredDocument {
+        StoredDocument {
             source: self.document.source().into(),
             metadata: self.metadata.clone(),
             template: self.template.clone(),
-            compact: self.compact,
         }
     }
     fn is_dirty(&self) -> bool {
         self.saved.source != self.document.source()
             || self.saved.metadata != self.metadata
             || self.saved.template != self.template
-            || self.saved.compact != self.compact
     }
     fn modal_open(&self) -> bool {
         self.preferences_open
@@ -214,7 +215,7 @@ impl App {
             || self.file_error.is_some()
     }
     fn save_path(&mut self, path: PathBuf) -> bool {
-        let letter = self.letter();
+        let letter = self.stored_document();
         match storage::save(&path, &letter) {
             Ok(()) => {
                 self.message = Some(crate::tr!(
@@ -276,7 +277,10 @@ impl App {
             Document::from_source(&letter.source).map(|document| (letter, document))
         }) {
             Ok((letter, document)) => {
-                self.install_letter(letter, document, Some(path));
+                if let Err(error) = self.install_document(letter, document, Some(path)) {
+                    self.file_error = Some(error);
+                    return false;
+                }
                 self.message = Some(crate::tr!("letter-opened"));
                 true
             }
@@ -286,13 +290,19 @@ impl App {
             }
         }
     }
-    fn install_letter(&mut self, letter: Letter, document: Document, path: Option<PathBuf>) {
+    fn install_document(
+        &mut self,
+        letter: StoredDocument,
+        document: Document,
+        path: Option<PathBuf>,
+    ) -> Result<(), String> {
+        let keymap = self.keymap.for_document(letter.metadata.document_type())?;
+        self.keymap = keymap;
         self.history_field = None;
         self.field_history_action = None;
         self.document = document;
         self.metadata = letter.metadata.clone();
         self.template = letter.template.clone();
-        self.compact = letter.compact;
         self.saved = letter;
         self.file_path = path;
         self.undo.clear();
@@ -311,6 +321,7 @@ impl App {
         self.message = None;
         self.revision += 1;
         self.changed_at = Instant::now() - Duration::from_secs(1);
+        Ok(())
     }
     fn request_action(&mut self, action: PendingAction, ctx: &egui::Context) {
         if self.is_dirty() {
@@ -322,9 +333,11 @@ impl App {
     fn perform_action(&mut self, action: PendingAction, ctx: &egui::Context) {
         match action {
             PendingAction::New => {
-                let letter = Letter::blank();
+                let letter = StoredDocument::blank(self.metadata.document_type());
                 let document = Document::from_source(&letter.source).expect("courrier vide valide");
-                self.install_letter(letter, document, None);
+                if let Err(error) = self.install_document(letter, document, None) {
+                    self.file_error = Some(error);
+                }
             }
             PendingAction::Open => {
                 let mut dialog = rfd::FileDialog::new()
@@ -384,6 +397,9 @@ impl App {
         self.changed();
     }
     fn apply(&mut self, command: Command) {
+        if !self.keymap.registry().contains(command) {
+            return;
+        }
         match command {
             Command::Preferences => self.preferences_open = true,
             Command::File(command) => self.file_command = Some(command),
@@ -393,12 +409,10 @@ impl App {
                 self.palette_index = 0;
             }
             Command::Information => self.information_open = !self.information_open,
-            Command::Presentation(presentation) => {
-                if self.compact != presentation.compact()
-                    || self.template != crate::rendering::TEMPLATE
-                {
-                    self.compact = presentation.compact();
-                    self.template = crate::rendering::TEMPLATE.into();
+            Command::Courrier(CourrierCommand::Model(model)) => {
+                let template = model.source();
+                if self.template != template {
+                    self.template = template;
                     self.revision += 1;
                     self.changed_at = Instant::now();
                 }
@@ -481,7 +495,6 @@ impl App {
             source: self.document.source().to_owned(),
             source_map: self.document.source_map.clone(),
             metadata: self.metadata.clone(),
-            compact: self.compact,
             template: self.template.clone(),
             export_dir,
         }
@@ -581,8 +594,9 @@ impl App {
         }
     }
     fn menu_statuses(&self) -> Vec<(Command, menus::Status)> {
-        DEFINITIONS
-            .iter()
+        self.keymap
+            .registry()
+            .definitions()
             .filter(|d| d.menu_position().is_some())
             .map(|d| {
                 let enabled = !self.modal_open()
@@ -750,8 +764,10 @@ impl App {
                     Command::Block(kind).short_label()
                 })
                 .show_ui(ui, |ui| {
-                    for definition in DEFINITIONS
-                        .iter()
+                    for definition in self
+                        .keymap
+                        .registry()
+                        .definitions()
                         .filter(|definition| definition.in_block_style_menu())
                     {
                         if let Command::Block(option) = definition.command {
@@ -826,7 +842,6 @@ impl App {
                     .max_height(max_height)
                     .auto_shrink([false, true])
                     .show(ui, |ui| {
-                        let field_width = (ui.available_width() - 120.0).max(80.0);
                         egui::CollapsingHeader::new(crate::tr!("group-general"))
                             .id_salt("information-general")
                             .default_open(true)
@@ -835,18 +850,18 @@ impl App {
                                     .num_columns(2)
                                     .show(ui, |ui| {
                                         ui.label(crate::tr!("field-document-type"));
-                                        ui.weak(crate::tr!("letter-type"));
+                                        ui.weak(self.keymap.registry().document_type().label());
                                         ui.end_row();
                                         ui.label(crate::tr!("field-template"));
                                         self.template_selector(ui);
                                         ui.end_row();
                                         ui.label(crate::tr!("field-paper"));
                                         egui::ComboBox::from_id_salt("document-paper")
-                                            .selected_text(self.metadata.options.paper.label())
+                                            .selected_text(self.metadata.options().paper.label())
                                             .show_ui(ui, |ui| {
                                                 for paper in PaperFormat::ALL {
                                                     ui.selectable_value(
-                                                        &mut self.metadata.options.paper,
+                                                        &mut self.metadata.options_mut().paper,
                                                         paper,
                                                         paper.label(),
                                                     );
@@ -855,19 +870,19 @@ impl App {
                                         ui.end_row();
                                         ui.label(crate::tr!("field-orientation"));
                                         egui::ComboBox::from_id_salt("document-orientation")
-                                            .selected_text(if self.metadata.options.landscape {
+                                            .selected_text(if self.metadata.options().landscape {
                                                 crate::tr!("orientation-landscape")
                                             } else {
                                                 crate::tr!("orientation-portrait")
                                             })
                                             .show_ui(ui, |ui| {
                                                 ui.selectable_value(
-                                                    &mut self.metadata.options.landscape,
+                                                    &mut self.metadata.options_mut().landscape,
                                                     false,
                                                     crate::tr!("orientation-portrait"),
                                                 );
                                                 ui.selectable_value(
-                                                    &mut self.metadata.options.landscape,
+                                                    &mut self.metadata.options_mut().landscape,
                                                     true,
                                                     crate::tr!("orientation-landscape"),
                                                 );
@@ -875,11 +890,11 @@ impl App {
                                         ui.end_row();
                                         ui.label(crate::tr!("field-document-language"));
                                         egui::ComboBox::from_id_salt("document-language")
-                                            .selected_text(self.metadata.options.language.label())
+                                            .selected_text(self.metadata.options().language.label())
                                             .show_ui(ui, |ui| {
                                                 for language in DocumentLanguage::ALL {
                                                     ui.selectable_value(
-                                                        &mut self.metadata.options.language,
+                                                        &mut self.metadata.options_mut().language,
                                                         language,
                                                         language.label(),
                                                     );
@@ -888,102 +903,7 @@ impl App {
                                         ui.end_row();
                                     });
                             });
-                        egui::CollapsingHeader::new(crate::tr!("group-correspondence"))
-                            .id_salt("information-correspondence")
-                            .default_open(true)
-                            .show(ui, |ui| {
-                                egui::Grid::new("correspondence-fields")
-                                    .num_columns(2)
-                                    .show(ui, |ui| {
-                                        for (id, label, value, multiline) in [
-                                            (
-                                                "recipient",
-                                                crate::tr!("field-recipient"),
-                                                &mut self.metadata.destinataire,
-                                                false,
-                                            ),
-                                            (
-                                                "address",
-                                                crate::tr!("field-address"),
-                                                &mut self.metadata.adresse,
-                                                true,
-                                            ),
-                                            (
-                                                "subject",
-                                                crate::tr!("field-subject"),
-                                                &mut self.metadata.objet,
-                                                false,
-                                            ),
-                                            (
-                                                "reference",
-                                                crate::tr!("field-reference"),
-                                                &mut self.metadata.reference,
-                                                false,
-                                            ),
-                                            (
-                                                "place",
-                                                crate::tr!("field-place"),
-                                                &mut self.metadata.lieu,
-                                                false,
-                                            ),
-                                            (
-                                                "date",
-                                                crate::tr!("field-date"),
-                                                &mut self.metadata.date,
-                                                false,
-                                            ),
-                                        ] {
-                                            let label = ui.label(label);
-                                            let field = if multiline {
-                                                egui::TextEdit::multiline(value).desired_rows(3)
-                                            } else {
-                                                egui::TextEdit::singleline(value)
-                                            };
-                                            ui.add(field.id_salt(id).desired_width(field_width))
-                                                .labelled_by(label.id);
-                                            ui.end_row();
-                                        }
-                                    });
-                            });
-                        egui::CollapsingHeader::new(crate::tr!("group-sender"))
-                            .id_salt("information-sender")
-                            .show(ui, |ui| {
-                                egui::Grid::new("sender-fields")
-                                    .num_columns(2)
-                                    .show(ui, |ui| {
-                                        for (id, label, value) in [
-                                            (
-                                                "name",
-                                                crate::tr!("field-full-name"),
-                                                &mut self.metadata.expediteur,
-                                            ),
-                                            (
-                                                "role",
-                                                crate::tr!("field-role"),
-                                                &mut self.metadata.fonction,
-                                            ),
-                                            (
-                                                "department",
-                                                crate::tr!("field-service"),
-                                                &mut self.metadata.service,
-                                            ),
-                                            (
-                                                "email",
-                                                crate::tr!("field-email"),
-                                                &mut self.metadata.email,
-                                            ),
-                                        ] {
-                                            let label = ui.label(label);
-                                            ui.add(
-                                                egui::TextEdit::singleline(value)
-                                                    .id_salt(id)
-                                                    .desired_width(field_width),
-                                            )
-                                            .labelled_by(label.id);
-                                            ui.end_row();
-                                        }
-                                    });
-                            });
+                        self.metadata.editor_ui(ui);
                     });
             });
         if response
@@ -1001,33 +921,35 @@ impl App {
         }
     }
     fn template_selector(&mut self, ui: &mut egui::Ui) {
-        let current = (self.template == crate::rendering::TEMPLATE)
-            .then(|| Presentation::from_compact(self.compact));
+        let commands: Vec<_> = self
+            .keymap
+            .registry()
+            .definitions()
+            .filter(|d| d.in_model_menu())
+            .map(|d| d.command)
+            .collect();
+        let current = commands
+            .iter()
+            .copied()
+            .find(|command| command.model_source().as_deref() == Some(self.template.as_str()));
         let mut selected = current;
         egui::ComboBox::from_id_salt("template")
-            .selected_text(current.map_or_else(
-                || crate::tr!("embedded-template"),
-                |p| Command::Presentation(p).short_label(),
-            ))
+            .selected_text(
+                current.map_or_else(|| crate::tr!("embedded-template"), Command::short_label),
+            )
             .show_ui(ui, |ui| {
                 if current.is_none() {
                     ui.selectable_value(&mut selected, None, crate::tr!("embedded-template"));
                 }
-                for definition in DEFINITIONS.iter().filter(|d| d.in_presentation_menu()) {
-                    if let Command::Presentation(option) = definition.command {
-                        ui.selectable_value(
-                            &mut selected,
-                            Some(option),
-                            definition.command.short_label(),
-                        )
-                        .on_hover_text(self.keymap.hint(ui.ctx(), definition.command));
-                    }
+                for command in commands {
+                    ui.selectable_value(&mut selected, Some(command), command.short_label())
+                        .on_hover_text(self.keymap.hint(ui.ctx(), command));
                 }
             });
         if selected != current
-            && let Some(selected) = selected
+            && let Some(command) = selected
         {
-            self.apply(Command::Presentation(selected));
+            self.apply(command);
         }
     }
     fn editor_ui(&mut self, ui: &mut egui::Ui) {
@@ -1471,8 +1393,10 @@ impl App {
                     if response.changed() {
                         self.palette_index = 0;
                     }
-                    let commands = DEFINITIONS
-                        .iter()
+                    let commands = self
+                        .keymap
+                        .registry()
+                        .definitions()
                         .filter(|definition| definition.in_palette())
                         .map(|definition| definition.command);
                     let query = self.palette_query.to_lowercase();
@@ -1534,9 +1458,7 @@ impl App {
                 });
             self.export_open &= open;
             if export {
-                if self.metadata.destinataire.trim().is_empty()
-                    || self.metadata.objet.trim().is_empty()
-                {
+                if !self.metadata.ready_for_export() {
                     self.message = Some(crate::tr!("export-required-fields"));
                 } else {
                     match self
@@ -1737,6 +1659,19 @@ impl App {
         self.track_history_focus(ctx);
         #[cfg(target_os = "macos")]
         {
+            if self.native_menus.as_ref().is_some_and(|menus| {
+                menus.document_type() != self.keymap.registry().document_type()
+            }) {
+                // Retirer les anciens menus avant d’installer ceux du type actif.
+                self.native_menus.take();
+                match menus::native::NativeMenus::new(ctx.clone(), &self.keymap) {
+                    Ok(menus) => self.native_menus = Some(menus),
+                    Err(error) => {
+                        self.file_error =
+                            Some(crate::tr!("native-menu-error", error = error.to_string()))
+                    }
+                }
+            }
             let statuses = self.menu_statuses();
             if let Some(menus) = &mut self.native_menus
                 && let Err(error) = menus.update(&self.keymap, &statuses)
@@ -1795,6 +1730,7 @@ impl eframe::App for App {
 #[cfg(test)]
 mod interaction_tests {
     use super::*;
+    use crate::document_types::courrier::Model;
 
     #[test]
     fn column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_cap() {
@@ -1890,7 +1826,7 @@ mod interaction_tests {
     fn editor_preferences_change_glyphs_and_theme_without_touching_the_letter() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        let letter = app.letter();
+        let letter = app.stored_document();
         let revision = app.revision;
         app.dispatch_action(Command::Preferences, &ctx);
         assert!(app.preferences_open);
@@ -1983,7 +1919,7 @@ mod interaction_tests {
                 );
             });
         });
-        assert_eq!(app.letter(), letter);
+        assert_eq!(app.stored_document(), letter);
         assert_eq!(app.revision, revision);
         assert!(!app.is_dirty());
     }
@@ -2065,10 +2001,13 @@ mod interaction_tests {
             "Courrier institutionnel",
             "Courrier de service",
         );
-        assert_eq!(app.metadata.options.paper, PaperFormat::A3);
-        assert!(app.metadata.options.landscape);
-        assert_eq!(app.metadata.options.language, DocumentLanguage::English);
-        assert!(app.compact);
+        assert_eq!(app.metadata.options_mut().paper, PaperFormat::A3);
+        assert!(app.metadata.options_mut().landscape);
+        assert_eq!(
+            app.metadata.options_mut().language,
+            DocumentLanguage::English
+        );
+        assert_eq!(app.template, Model::Service.source());
         assert!(app.is_dirty());
         assert_eq!(app.revision, revision + 4);
         assert_eq!(app.document.source(), source);
@@ -2155,13 +2094,13 @@ mod interaction_tests {
         app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
         assert!(app.file_command.is_none());
         app.export_open = false;
-        app.metadata.objet = "Brouillon à conserver".into();
-        let before = app.letter();
+        app.metadata.courrier_mut().objet = "Brouillon à conserver".into();
+        let before = app.stored_document();
         app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
         let output = draw(&mut app, vec![]);
         assert!(matches!(app.pending_action, Some(PendingAction::Close)));
         assert!(!app.allow_close);
-        assert_eq!(app.letter(), before);
+        assert_eq!(app.stored_document(), before);
         assert!(
             output.viewport_output[&egui::ViewportId::ROOT]
                 .commands
@@ -2253,8 +2192,8 @@ mod interaction_tests {
         click(&mut app, &mut draw, text_rect(&opened, "Général").center());
         draw(&mut app, vec![]);
         let correspondence = draw(&mut app, vec![]);
-        let original_subject = app.metadata.objet.clone();
-        let subject = text_rect(&correspondence, &app.metadata.objet);
+        let original_subject = app.metadata.courrier_mut().objet.clone();
+        let subject = text_rect(&correspondence, &app.metadata.courrier_mut().objet);
         assert!(subject.is_positive());
         assert!(subject.right() < preview.left());
         click(&mut app, &mut draw, subject.center());
@@ -2271,7 +2210,7 @@ mod interaction_tests {
                 egui::Event::Text("Objet modifié".into()),
             ],
         );
-        assert_eq!(app.metadata.objet, "Objet modifié");
+        assert_eq!(app.metadata.courrier_mut().objet, "Objet modifié");
         assert_eq!(app.document.source(), source);
         assert_eq!(app.selection, selection);
         assert_eq!(app.revision, revision + 1);
@@ -2292,16 +2231,16 @@ mod interaction_tests {
         );
         assert!(!app.palette_open);
         draw(&mut app, vec![]);
-        assert_eq!(app.metadata.objet, original_subject);
+        assert_eq!(app.metadata.courrier_mut().objet, original_subject);
         assert_eq!(app.document.source(), source);
         app.dispatch_action(Command::Redo, &ctx);
         draw(&mut app, vec![]);
-        assert_eq!(app.metadata.objet, "Objet modifié");
+        assert_eq!(app.metadata.courrier_mut().objet, "Objet modifié");
         assert_eq!(app.revision, revision + 3);
         click(&mut app, &mut draw, header.center());
         draw(&mut app, vec![]);
         assert!(!app.information_open);
-        assert_eq!(app.metadata.objet, "Objet modifié");
+        assert_eq!(app.metadata.courrier_mut().objet, "Objet modifié");
         assert_eq!(app.revision, revision + 3);
     }
 
@@ -2354,16 +2293,16 @@ mod interaction_tests {
                 physical_key: None,
             }],
         );
-        assert!(app.compact);
+        assert_eq!(app.template, Model::Service.source());
         assert!(app.is_dirty());
         assert_eq!(app.revision, revision + 1);
-        assert!(app.letter().compact);
+        assert_eq!(app.stored_document().template, Model::Service.source());
         assert_eq!(app.document.source(), source);
-        app.apply(Command::Presentation(Presentation::Service));
+        app.apply(Command::Courrier(CourrierCommand::Model(Model::Service)));
         assert_eq!(app.revision, revision + 1); // Choisir la présentation active est sans effet.
 
-        let config=serde_json::from_str(r#"{"document.information":[{"key":"F6"}],"document.presentation.institutional":[{"key":"F7"}]}"#).unwrap();
-        app.keymap = Keymap::new(ctx.os().is_mac(), &config).unwrap();
+        let config=serde_json::from_str(r#"{"document.information":[{"key":"F6"}],"courrier.model.institutional":[{"key":"F7"}]}"#).unwrap();
+        app.keymap = Keymap::new(app.keymap.registry(), ctx.os().is_mac(), &config).unwrap();
         frame(
             &mut app,
             &ctx,
@@ -2375,7 +2314,7 @@ mod interaction_tests {
                 physical_key: None,
             }],
         );
-        assert!(!app.compact);
+        assert_eq!(app.template, Model::Institutional.source());
         assert_eq!(app.revision, revision + 2);
         assert!(!app.is_dirty());
         frame(
@@ -2438,7 +2377,7 @@ mod interaction_tests {
         let command = Command::File(FileCommand::Export);
         let original = app.keymap.hint(&ctx, command);
         let config = serde_json::from_str(r#"{"document.export":[{"key":"F6"}]}"#).unwrap();
-        app.keymap = Keymap::new(ctx.os().is_mac(), &config).unwrap();
+        app.keymap = Keymap::new(app.keymap.registry(), ctx.os().is_mac(), &config).unwrap();
         let hint = app.keymap.hint(&ctx, command);
         assert_ne!(hint, original);
         assert!(hint.contains("F6"));
@@ -2476,19 +2415,19 @@ mod interaction_tests {
         assert!(app.is_dirty());
         app.apply(Command::Undo);
         assert!(!app.is_dirty());
-        app.metadata.objet = "Objet personnalisé".into();
-        app.compact = true;
+        app.metadata.courrier_mut().objet = "Objet personnalisé".into();
+        app.template = Model::Service.source();
         app.template = app.template.replace("VILLE DE VALMONT", "MODÈLE ARCHIVÉ");
         app.document.view.insert_text("Élodie : ", 0);
         app.changed();
-        let letter = app.letter();
+        let letter = app.stored_document();
         assert!(app.save_path(path.clone()));
         assert!(!app.is_dirty());
         app.document.view.insert_text("Brouillon ", 0);
         app.changed();
         assert!(app.is_dirty());
         assert!(app.open_path(path.clone()));
-        assert_eq!(app.letter(), letter);
+        assert_eq!(app.stored_document(), letter);
         assert_eq!(app.file_path, Some(path.clone()));
         assert!(!app.is_dirty());
         assert!(app.undo.is_empty() && app.redo.is_empty());
@@ -2497,11 +2436,11 @@ mod interaction_tests {
         assert_eq!(app.request(None).template, letter.template);
         app.document.view.insert_text("À conserver ", 0);
         app.changed();
-        let before = app.letter();
+        let before = app.stored_document();
         let bad = dir.path().join("illisible.typsto");
         std::fs::write(&bad, "invalide").unwrap();
         assert!(!app.open_path(bad));
-        assert_eq!(app.letter(), before);
+        assert_eq!(app.stored_document(), before);
         assert_eq!(app.file_path, Some(path.clone()));
         assert!(app.is_dirty());
         assert!(!app.save_path(dir.path().join("absent/impossible.typsto")));
@@ -2533,8 +2472,8 @@ mod interaction_tests {
         );
         assert!(!app.is_dirty());
         assert_ne!(storage::read(&first).unwrap(), initial);
-        let saved = app.letter();
-        app.metadata.objet = "Deuxième courrier".into();
+        let saved = app.stored_document();
+        app.metadata.courrier_mut().objet = "Deuxième courrier".into();
         let second = dir.path().join("second.typsto");
         assert!(app.save_path(second.clone()));
         assert_eq!(app.file_path, Some(second));
@@ -2546,11 +2485,11 @@ mod interaction_tests {
     fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        app.metadata.objet = "Travail à conserver".into();
-        let before = app.letter();
+        app.metadata.courrier_mut().objet = "Travail à conserver".into();
+        let before = app.stored_document();
         app.request_action(PendingAction::Open, &ctx);
         assert!(app.pending_action.is_some()); // Aucune fenêtre de fichier tant que la décision manque.
-        assert_eq!(app.letter(), before);
+        assert_eq!(app.stored_document(), before);
         frame(
             &mut app,
             &ctx,
@@ -2563,7 +2502,7 @@ mod interaction_tests {
             }],
         );
         assert!(app.pending_action.is_none());
-        assert_eq!(app.letter(), before);
+        assert_eq!(app.stored_document(), before);
 
         let mut input = egui::RawInput::default();
         input
@@ -2580,7 +2519,7 @@ mod interaction_tests {
                 .any(|command| matches!(command, egui::ViewportCommand::CancelClose))
         );
         assert!(app.pending_action.is_some());
-        assert_eq!(app.letter(), before);
+        assert_eq!(app.stored_document(), before);
         app.pending_action = None;
         app.request_action(PendingAction::New, &ctx);
         let draw = |app: &mut App, time, events| {
@@ -2650,7 +2589,7 @@ mod interaction_tests {
             Document::from_source(&"Un paragraphe à retrouver.\n\n".repeat(100)).unwrap();
         let mut world = crate::rendering::TypstWorld::default();
         let rendered = world
-            .compile(app.document.source(), &app.metadata, false)
+            .compile_with_template(app.document.source(), &app.metadata, &app.template)
             .unwrap();
         for page in 0..rendered.pages().len() {
             app.pages.push(ctx.load_texture(
@@ -2749,7 +2688,7 @@ mod interaction_tests {
         let mut app = App::with_context(ctx.clone(), None);
         let mut world = crate::rendering::TypstWorld::default();
         let rendered = world
-            .compile(app.document.source(), &app.metadata, false)
+            .compile_with_template(app.document.source(), &app.metadata, &app.template)
             .unwrap();
         let texture = ctx.load_texture(
             "click-test",
@@ -2841,7 +2780,7 @@ mod interaction_tests {
         let mut app = App::with_context(ctx.clone(), None);
         let mut world = crate::rendering::TypstWorld::default();
         let rendered = world
-            .compile(app.document.source(), &app.metadata, false)
+            .compile_with_template(app.document.source(), &app.metadata, &app.template)
             .unwrap();
         app.pages = vec![ctx.load_texture(
             "highlight-test",

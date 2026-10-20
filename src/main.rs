@@ -1,6 +1,7 @@
 mod app;
 mod commands;
 mod document;
+mod document_types;
 mod editor;
 mod i18n;
 mod menus;
@@ -24,14 +25,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "--render-demo" => {
                 let dir = args.next().ok_or(crate::tr!("cli-usage-render"))?;
                 let mut world = rendering::TypstWorld::default();
-                let document = document::Document::demo();
+                let kind = document_types::DocumentType::Courrier;
+                let document = document::Document::from_source(kind.demo_source())?;
                 let request = rendering::RenderRequest {
                     revision: 1,
                     source: document.source().into(),
                     source_map: document.source_map.clone(),
-                    metadata: document::Metadata::default(),
-                    compact: false,
-                    template: rendering::TEMPLATE.into(),
+                    metadata: document_types::Metadata::demo(
+                        document_types::DocumentType::Courrier,
+                    ),
+                    template: kind.default_model(),
                     export_dir: Some(PathBuf::from(dir)),
                 };
                 let result = rendering::render(&mut world, &request)?;

@@ -112,6 +112,7 @@ impl Document {
         })
     }
 
+    #[cfg(test)]
     pub fn demo() -> Self {
         Self::from_source(include_str!("../examples/courrier.typ"))
             .expect("courrier d’exemple valide")
@@ -373,7 +374,7 @@ impl TextBuffer for Projection {
     }
 }
 
-pub fn typst_string(text: &str) -> String {
+pub(crate) fn typst_string(text: &str) -> String {
     // Les chaînes JSON partagent les échappements usuels avec les chaînes Typst.
     // Les contrôles moins courants sont écrits avec la syntaxe Unicode de Typst.
     let mut result = String::from("\"");
@@ -653,65 +654,4 @@ pub struct DocumentOptions {
     pub paper: PaperFormat,
     pub landscape: bool,
     pub language: DocumentLanguage,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Metadata {
-    pub options: DocumentOptions,
-    pub expediteur: String,
-    pub fonction: String,
-    pub service: String,
-    pub email: String,
-    pub destinataire: String,
-    pub adresse: String,
-    pub objet: String,
-    pub reference: String,
-    pub lieu: String,
-    pub date: String,
-}
-impl Default for Metadata {
-    fn default() -> Self {
-        Self {
-            options: DocumentOptions::default(),
-            expediteur: "Camille Martin".into(),
-            fonction: "Responsable de la vie associative".into(),
-            service: "Vie associative".into(),
-            email: "camille.martin@valmont.example".into(),
-            destinataire: "Service des équipements".into(),
-            adresse: "12, place de la République\n35000 Valmont".into(),
-            objet: "Demande de réservation d’une salle".into(),
-            reference: "VA / 2026 / 042".into(),
-            lieu: "Valmont".into(),
-            date: "19 octobre 2026".into(),
-        }
-    }
-}
-impl Metadata {
-    pub fn main_source(&self, compact: bool) -> String {
-        let mut source = String::from("#import \"modele.typ\": courrier\n#show: courrier.with(\n");
-        for (key, value) in [
-            ("expediteur", &self.expediteur),
-            ("fonction", &self.fonction),
-            ("service", &self.service),
-            ("email", &self.email),
-            ("destinataire", &self.destinataire),
-            ("adresse", &self.adresse),
-            ("objet", &self.objet),
-            ("reference", &self.reference),
-            ("lieu", &self.lieu),
-            ("date", &self.date),
-        ] {
-            source.push_str(&format!("  {key}: {},\n", typst_string(value)));
-        }
-        source.push_str(&format!(
-            "  options: (paper: {}, landscape: {}, language: {}),\n",
-            typst_string(self.options.paper.typst_name()),
-            self.options.landscape,
-            typst_string(self.options.language.code()),
-        ));
-        source.push_str(&format!(
-            "  compact: {compact},\n)\n#include \"contenu.typ\"\n"
-        ));
-        source
-    }
 }

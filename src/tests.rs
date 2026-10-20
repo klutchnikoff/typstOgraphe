@@ -1,4 +1,8 @@
-use crate::document::{BlockKind, Document, InlineStyle, Mark, Metadata, Projection};
+use crate::document::{BlockKind, Document, InlineStyle, Mark, Projection};
+use crate::document_types::{
+    DocumentType, Metadata,
+    courrier::{self, Model},
+};
 use eframe::egui::TextBuffer;
 
 #[test]
@@ -136,13 +140,21 @@ fn real_typst_composes_both_models_and_metadata_escapes() {
     let mut document = Document::demo();
     document.view.toggle_mark(0..50, Mark::Italic);
     document.sync_source();
-    let metadata = Metadata {
+    let metadata = Metadata::Courrier(courrier::Metadata {
         objet: "Une demande \"citée\" avec \\ et #panic(\"NON\")".into(),
         ..Default::default()
-    };
+    });
     for compact in [false, true] {
         let result = world
-            .compile(document.source(), &metadata, compact)
+            .compile_courrier(
+                document.source(),
+                &metadata,
+                if compact {
+                    Model::Service
+                } else {
+                    Model::Institutional
+                },
+            )
             .unwrap();
         assert!(!result.pages().is_empty());
         let pixmap =
@@ -178,7 +190,7 @@ fn document_options_control_real_page_dimensions_and_text_language() {
         }
     }
     let mut world = crate::rendering::TypstWorld::default();
-    let mut metadata = Metadata::default();
+    let mut metadata = Metadata::demo(DocumentType::Courrier);
     for (paper, width, height) in [
         (PaperFormat::A3, 297.0, 420.0),
         (PaperFormat::A4, 210.0, 297.0),
@@ -187,11 +199,19 @@ fn document_options_control_real_page_dimensions_and_text_language() {
         (PaperFormat::Legal, 215.9, 355.6),
     ] {
         for landscape in [false, true] {
-            metadata.options.paper = paper;
-            metadata.options.landscape = landscape;
+            metadata.options_mut().paper = paper;
+            metadata.options_mut().landscape = landscape;
             for compact in [false, true] {
                 let document = world
-                    .compile("A short letter.", &metadata, compact)
+                    .compile_courrier(
+                        "A short letter.",
+                        &metadata,
+                        if compact {
+                            Model::Service
+                        } else {
+                            Model::Institutional
+                        },
+                    )
                     .unwrap();
                 for page in document.pages() {
                     let size = page.frame.size();
@@ -206,11 +226,13 @@ fn document_options_control_real_page_dimensions_and_text_language() {
             }
         }
     }
-    metadata.options.paper = PaperFormat::A4;
-    metadata.options.landscape = false;
+    metadata.options_mut().paper = PaperFormat::A4;
+    metadata.options_mut().landscape = false;
     for language in DocumentLanguage::ALL {
-        metadata.options.language = language;
-        let document = world.compile("A short letter.", &metadata, false).unwrap();
+        metadata.options_mut().language = language;
+        let document = world
+            .compile_courrier("A short letter.", &metadata, Model::Institutional)
+            .unwrap();
         let mut text = String::new();
         for page in document.pages() {
             collect(&page.frame, language.code(), &mut text);
@@ -230,13 +252,21 @@ fn compiler_reports_error_and_recovers_on_next_request() {
     let mut world = crate::rendering::TypstWorld::default();
     assert!(
         world
-            .compile("#panic(\"essai\")", &Metadata::default(), false)
+            .compile_courrier(
+                "#panic(\"essai\")",
+                &Metadata::demo(DocumentType::Courrier),
+                Model::Institutional
+            )
             .unwrap_err()
             .contains("essai")
     );
     assert!(
         world
-            .compile("Bonjour.", &Metadata::default(), false)
+            .compile_courrier(
+                "Bonjour.",
+                &Metadata::demo(DocumentType::Courrier),
+                Model::Institutional
+            )
             .is_ok()
     );
 }
@@ -276,7 +306,15 @@ fn source_positions_survive_unicode_escapes_styles_and_empty_paragraphs() {
 fn compiled_sync(document: &Document, compact: bool) -> crate::navigation::RenderSync {
     let mut world = crate::rendering::TypstWorld::default();
     let rendered = world
-        .compile(document.source(), &Metadata::default(), compact)
+        .compile_courrier(
+            document.source(),
+            &Metadata::demo(DocumentType::Courrier),
+            if compact {
+                Model::Service
+            } else {
+                Model::Institutional
+            },
+        )
         .unwrap();
     crate::navigation::RenderSync::new(1, world, rendered, document.source_map.clone())
 }

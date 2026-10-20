@@ -1,7 +1,7 @@
 //! Archive ZIP autonome, jamais extraite sur le disque. Seul le format actuel est pris en charge.
 use crate::{
-    document::{Document, Metadata},
-    rendering::TEMPLATE,
+    document::Document,
+    document_types::{DocumentType, Metadata},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,6 +12,7 @@ use std::{
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 pub const EXTENSION: &str = "typsto";
+const FORMAT_VERSION: u32 = 3;
 const LIMIT: u64 = 16 * 1024 * 1024;
 const ENTRIES: [&str; 5] = [
     "manifest.json",
@@ -22,34 +23,24 @@ const ENTRIES: [&str; 5] = [
 ];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Letter {
+pub struct StoredDocument {
     pub source: String,
     pub metadata: Metadata,
     pub template: String,
-    pub compact: bool,
 }
-impl Letter {
-    pub fn demo() -> Self {
+impl StoredDocument {
+    pub fn demo(kind: DocumentType) -> Self {
         Self {
-            source: Document::demo().source().into(),
-            metadata: Metadata::default(),
-            template: TEMPLATE.into(),
-            compact: false,
+            source: kind.demo_source().into(),
+            metadata: Metadata::demo(kind),
+            template: kind.default_model(),
         }
     }
-    pub fn blank() -> Self {
+    pub fn blank(kind: DocumentType) -> Self {
         Self {
             source: String::new(),
-            metadata: Metadata {
-                destinataire: String::new(),
-                adresse: String::new(),
-                objet: String::new(),
-                reference: String::new(),
-                date: String::new(),
-                ..Metadata::default()
-            },
-            template: TEMPLATE.into(),
-            compact: false,
+            metadata: Metadata::blank(kind),
+            template: kind.default_model(),
         }
     }
 }
@@ -58,21 +49,19 @@ impl Letter {
 struct Manifest {
     format: String,
     version: u32,
-    document_type: String,
-    compact: bool,
+    document_type: DocumentType,
 }
 impl Manifest {
-    fn new(compact: bool) -> Self {
+    fn new(document_type: DocumentType) -> Self {
         Self {
             format: "typstOgraphe".into(),
-            version: 2,
-            document_type: "courrier".into(),
-            compact,
+            version: FORMAT_VERSION,
+            document_type,
         }
     }
 }
 
-pub fn read(path: &Path) -> Result<Letter, String> {
+pub fn read(path: &Path) -> Result<StoredDocument, String> {
     let file =
         File::open(path).map_err(|e| crate::tr!("storage-open-failed", error = e.to_string()))?;
     if file.metadata().map_err(|e| e.to_string())?.len() > LIMIT + 65536 {
@@ -81,7 +70,7 @@ pub fn read(path: &Path) -> Result<Letter, String> {
     decode(file).map_err(|e| crate::tr!("storage-invalid", error = e))
 }
 
-fn decode(reader: impl Read + std::io::Seek) -> Result<Letter, String> {
+fn decode(reader: impl Read + std::io::Seek) -> Result<StoredDocument, String> {
     let mut zip = ZipArchive::new(reader)
         .map_err(|e| crate::tr!("storage-zip-unreadable", error = e.to_string()))?;
     if zip.len() != ENTRIES.len() {
@@ -103,21 +92,20 @@ fn decode(reader: impl Read + std::io::Seek) -> Result<Letter, String> {
     }
     let manifest: Manifest = serde_json::from_str(&entry(&mut zip, "manifest.json")?)
         .map_err(|e| crate::tr!("storage-manifest-unreadable", error = e.to_string()))?;
-    if manifest.format != "typstOgraphe"
-        || manifest.version != 2
-        || manifest.document_type != "courrier"
-    {
+    if manifest.format != "typstOgraphe" || manifest.version != FORMAT_VERSION {
         return Err(crate::tr!("storage-unsupported"));
     }
-    let letter = Letter {
+    let letter = StoredDocument {
         source: entry(&mut zip, "contenu.typ")?,
         metadata: serde_json::from_str(&entry(&mut zip, "metadonnees.json")?)
             .map_err(|e| crate::tr!("storage-metadata-unreadable", error = e.to_string()))?,
         template: entry(&mut zip, "modele.typ")?,
-        compact: manifest.compact,
     };
+    if manifest.document_type != letter.metadata.document_type() {
+        return Err(crate::tr!("storage-unsupported"));
+    }
     validate(&letter)?;
-    if entry(&mut zip, "main.typ")? != letter.metadata.main_source(letter.compact) {
+    if entry(&mut zip, "main.typ")? != letter.metadata.main_source() {
         return Err(crate::tr!("storage-main-mismatch"));
     }
     Ok(letter)
@@ -143,7 +131,7 @@ fn entry<R: Read + std::io::Seek>(zip: &mut ZipArchive<R>, name: &str) -> Result
     Ok(value)
 }
 
-fn validate(letter: &Letter) -> Result<(), String> {
+fn validate(letter: &StoredDocument) -> Result<(), String> {
     Document::from_source(&letter.source)?;
     if letter.template.trim().is_empty()
         || typst_syntax::Source::detached(&letter.template)
@@ -158,12 +146,12 @@ fn validate(letter: &Letter) -> Result<(), String> {
 
 /// Écrit et synchronise un fichier temporaire voisin, puis remplace la cible
 /// par renommage atomique. Une erreur d'écriture conserve le courrier précédent.
-pub fn save(path: &Path, letter: &Letter) -> Result<(), String> {
+pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
     validate(letter)?;
-    let manifest =
-        serde_json::to_string_pretty(&Manifest::new(letter.compact)).map_err(|e| e.to_string())?;
+    let manifest = serde_json::to_string_pretty(&Manifest::new(letter.metadata.document_type()))
+        .map_err(|e| e.to_string())?;
     let metadata = serde_json::to_string_pretty(&letter.metadata).map_err(|e| e.to_string())?;
-    let main = letter.metadata.main_source(letter.compact);
+    let main = letter.metadata.main_source();
     let files = [
         manifest.as_str(),
         main.as_str(),
@@ -232,12 +220,12 @@ mod tests {
     fn archive_round_trip_preserves_exact_source_metadata_and_custom_template() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("Mon courrier éà.typsto");
-        let mut letter = Letter::demo();
-        letter.metadata.objet = "Une demande « particulière » # \\".into();
-        letter.metadata.options.paper = crate::document::PaperFormat::A3;
-        letter.metadata.options.landscape = true;
-        letter.metadata.options.language = crate::document::DocumentLanguage::English;
-        letter.compact = true;
+        let mut letter = StoredDocument::demo(DocumentType::Courrier);
+        letter.metadata.courrier_mut().objet = "Une demande « particulière » # \\".into();
+        letter.metadata.options_mut().paper = crate::document::PaperFormat::A3;
+        letter.metadata.options_mut().landscape = true;
+        letter.metadata.options_mut().language = crate::document::DocumentLanguage::English;
+        letter.template = crate::document_types::courrier::Model::Service.source();
         letter.template = letter
             .template
             .replace("VILLE DE VALMONT", "MAIRIE D’ESSAI");
@@ -249,7 +237,7 @@ mod tests {
         assert_eq!(entry(&mut zip, "contenu.typ").unwrap(), letter.source);
         assert_eq!(
             entry(&mut zip, "main.typ").unwrap(),
-            letter.metadata.main_source(true)
+            letter.metadata.main_source()
         );
         let restored = read(&path).unwrap();
         let mut world = crate::rendering::TypstWorld::default();
@@ -263,7 +251,6 @@ mod tests {
                 source_map: document.source_map,
                 metadata: restored.metadata,
                 template: restored.template.clone(),
-                compact: restored.compact,
                 export_dir: Some(export.clone()),
             },
         )
@@ -285,9 +272,9 @@ mod tests {
     fn replacing_an_archive_is_atomic_and_invalid_save_preserves_existing_bytes() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("courrier.typsto");
-        let mut letter = Letter::demo();
+        let mut letter = StoredDocument::demo(DocumentType::Courrier);
         save(&path, &letter).unwrap();
-        letter.metadata.objet = "Un objet modifié".into();
+        letter.metadata.courrier_mut().objet = "Un objet modifié".into();
         save(&path, &letter).unwrap();
         assert_eq!(read(&path).unwrap(), letter);
         let previous = std::fs::read(&path).unwrap();
@@ -298,14 +285,14 @@ mod tests {
         assert!(
             save(
                 &dir.path().join("inexistant/courrier.typsto"),
-                &Letter::demo()
+                &StoredDocument::demo(DocumentType::Courrier)
             )
             .is_err()
         );
         let target = dir.path().join("dossier");
         std::fs::create_dir(&target).unwrap();
         std::fs::write(target.join("conserver"), "intact").unwrap();
-        assert!(save(&target, &Letter::demo()).is_err());
+        assert!(save(&target, &StoredDocument::demo(DocumentType::Courrier)).is_err());
         assert_eq!(
             std::fs::read_to_string(target.join("conserver")).unwrap(),
             "intact"
@@ -318,19 +305,29 @@ mod tests {
         let path = dir.path().join("courrier.typsto");
         std::fs::write(&path, "ceci n’est pas une archive").unwrap();
         assert!(read(&path).is_err());
-        for invalid in 0..8 {
-            save(&path, &Letter::demo()).unwrap();
-            rewrite(&path, |files| {
-                match invalid {
-                0=>files[0].1=br#"{"format":"typstOgraphe","version":42,"document_type":"courrier","compact":false}"#.to_vec(),
-                1=>{files.pop();}
-                2=>files[0].0="../hors-archive".into(),
-                3=>files[2].1=b"#unknown[construction non prise en charge]".to_vec(),
-                4=>files[3].1=b"{json invalide".to_vec(),
-                5=>files[4].1=b"#let courrier(".to_vec(),
-                6=>files[1].1=b"en-tete incoherent".to_vec(),
-                _=>files[2].1=vec![b'x';LIMIT as usize+1],
-            }
+        for invalid in 0..10 {
+            save(&path, &StoredDocument::demo(DocumentType::Courrier)).unwrap();
+            rewrite(&path, |files| match invalid {
+                0 => {
+                    files[0].1 =
+                        br#"{"format":"typstOgraphe","version":42,"document_type":"courrier"}"#
+                            .to_vec()
+                }
+                1 => {
+                    files.pop();
+                }
+                2 => files[0].0 = "../hors-archive".into(),
+                3 => files[2].1 = b"#unknown[construction non prise en charge]".to_vec(),
+                4 => files[3].1 = b"{json invalide".to_vec(),
+                5 => files[4].1 = b"#let courrier(".to_vec(),
+                6 => files[1].1 = b"en-tete incoherent".to_vec(),
+                8 => {
+                    files[0].1 =
+                        br#"{"format":"typstOgraphe","version":3,"document_type":"inconnu"}"#
+                            .to_vec()
+                }
+                9 => files[3].1 = br#"{"type":"inconnu","fields":{}}"#.to_vec(),
+                _ => files[2].1 = vec![b'x'; LIMIT as usize + 1],
             });
             assert!(read(&path).is_err(), "cas {invalid}");
         }

@@ -1,5 +1,5 @@
 //! Deux présentations des mêmes menus, construites depuis le registre.
-use crate::commands::{Command, DEFINITIONS, FileCommand, Keymap, MenuGroup};
+use crate::commands::{Command, FileCommand, Keymap, MenuGroup, Registry};
 use eframe::egui;
 
 pub const GROUPS: [MenuGroup; 3] = [MenuGroup::File, MenuGroup::Edit, MenuGroup::View];
@@ -20,9 +20,9 @@ pub struct Status {
     pub checked: bool,
 }
 
-pub fn items(group: MenuGroup, macos: bool) -> Vec<(Command, bool)> {
-    let mut commands: Vec<_> = DEFINITIONS
-        .iter()
+pub fn items(registry: Registry, group: MenuGroup, macos: bool) -> Vec<(Command, bool)> {
+    let mut commands: Vec<_> = registry
+        .definitions()
         .filter_map(|definition| {
             let (menu, order) = definition.menu_position()?;
             (menu == group
@@ -56,7 +56,7 @@ pub fn egui_bar(
     egui::MenuBar::new().ui(ui, |ui| {
         for group in GROUPS {
             ui.menu_button(group.label(), |ui| {
-                for (command, separator) in items(group, false) {
+                for (command, separator) in items(keymap.registry(), group, false) {
                     if separator {
                         ui.separator();
                     }
@@ -78,6 +78,7 @@ pub fn egui_bar(
 #[cfg(target_os = "macos")]
 pub mod native {
     use super::*;
+    use crate::document_types::DocumentType;
     use egui::{Key, KeyboardShortcut};
     use muda::{
         CheckMenuItem, IsMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu,
@@ -157,6 +158,7 @@ pub mod native {
     }
     pub struct NativeMenus {
         menu: Menu,
+        document_type: DocumentType,
         entries: Vec<Entry>,
         receiver: mpsc::Receiver<MenuEvent>,
     }
@@ -185,7 +187,7 @@ pub mod native {
             menu.append(&application)?;
             for group in GROUPS {
                 let submenu = Submenu::new(group.label(), true);
-                for (command, separator) in items(group, true) {
+                for (command, separator) in items(keymap.registry(), group, true) {
                     if separator {
                         submenu.append(&PredefinedMenuItem::separator())?;
                     }
@@ -201,6 +203,7 @@ pub mod native {
             menu.init_for_nsapp();
             Ok(Self {
                 menu,
+                document_type: keymap.registry().document_type(),
                 entries,
                 receiver,
             })
@@ -245,6 +248,9 @@ pub mod native {
                 },
             });
             Ok(())
+        }
+        pub fn document_type(&self) -> DocumentType {
+            self.document_type
         }
         pub fn shortcuts(&self) -> Vec<KeyboardShortcut> {
             self.entries
@@ -307,11 +313,16 @@ pub mod native {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::document_types::DocumentType;
 
     #[test]
     fn menus_use_registered_commands_and_keep_platform_placement_consistent() {
         assert_eq!(
-            items(MenuGroup::Edit, false),
+            items(
+                Registry::new(DocumentType::Courrier),
+                MenuGroup::Edit,
+                false
+            ),
             vec![
                 (Command::Undo, false),
                 (Command::Redo, false),
@@ -321,16 +332,24 @@ mod tests {
             ]
         );
         assert_eq!(
-            items(MenuGroup::View, false),
+            items(
+                Registry::new(DocumentType::Courrier),
+                MenuGroup::View,
+                false
+            ),
             vec![(Command::Information, false)]
         );
-        let file = items(MenuGroup::File, false);
+        let file = items(
+            Registry::new(DocumentType::Courrier),
+            MenuGroup::File,
+            false,
+        );
         assert!(file.contains(&(Command::File(FileCommand::Export), true)));
         assert!(!file.iter().any(|(c, _)| *c == Command::Information));
         for macos in [false, true] {
             let mut seen = std::collections::HashSet::new();
             for group in GROUPS {
-                for (command, _) in items(group, macos) {
+                for (command, _) in items(Registry::new(DocumentType::Courrier), group, macos) {
                     assert!(seen.insert(command.definition().id));
                 }
             }
@@ -349,7 +368,7 @@ mod tests {
         let config =
             serde_json::from_str(r#"{"document.export":[{"key":"F6","ctrl":true,"alt":true}]}"#)
                 .unwrap();
-        let keymap = Keymap::new(true, &config).unwrap();
+        let keymap = Keymap::new(Registry::new(DocumentType::Courrier), true, &config).unwrap();
         assert_eq!(
             accelerator(keymap.shortcuts(Command::File(FileCommand::Export))[0]),
             Some(KeyAccelerator::new(

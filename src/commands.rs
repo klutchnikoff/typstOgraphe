@@ -1,7 +1,10 @@
 //! Registre unique des commandes et résolution des raccourcis.
 //! Les identifiants sont stables : les préférences pourront remplacer les
 //! raccourcis par défaut sans dépendre des libellés français ou du code de l'UI.
-use crate::document::BlockKind;
+use crate::{
+    document::BlockKind,
+    document_types::{DocumentType, courrier},
+};
 use eframe::egui::{self, Key, KeyboardShortcut, Modifiers};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -25,30 +28,12 @@ pub enum MenuGroup {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Presentation {
-    Institutional,
-    Service,
-}
-impl Presentation {
-    pub fn compact(self) -> bool {
-        self == Self::Service
-    }
-    pub fn from_compact(compact: bool) -> Self {
-        if compact {
-            Self::Service
-        } else {
-            Self::Institutional
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Command {
     File(FileCommand),
     Palette,
     Preferences,
     Information,
-    Presentation(Presentation),
+    Courrier(courrier::Command),
     Bold,
     Italic,
     Clear,
@@ -59,8 +44,17 @@ pub enum Command {
     Redo,
 }
 impl Command {
+    pub fn model_source(self) -> Option<String> {
+        match self {
+            Self::Courrier(courrier::Command::Model(model)) => Some(model.source()),
+            _ => None,
+        }
+    }
     pub fn definition(self) -> &'static Definition {
-        DEFINITIONS
+        if let Self::Courrier(command) = self {
+            return command.definition();
+        }
+        COMMON_COMMANDS
             .iter()
             .find(|definition| definition.command == self)
             .expect("commande enregistrée")
@@ -112,8 +106,8 @@ impl Definition {
             _ => return None,
         })
     }
-    pub fn in_presentation_menu(&self) -> bool {
-        matches!(self.command, Command::Presentation(_))
+    pub fn in_model_menu(&self) -> bool {
+        matches!(self.command, Command::Courrier(courrier::Command::Model(_)))
     }
     pub fn in_block_style_menu(&self) -> bool {
         matches!(
@@ -134,7 +128,7 @@ const fn primary(key: Key) -> KeyboardShortcut {
 const fn primary_shift(key: Key) -> KeyboardShortcut {
     KeyboardShortcut::new(PRIMARY_SHIFT, key)
 }
-const fn define(
+pub(crate) const fn define(
     id: &'static str,
     label_key: &'static str,
     command: Command,
@@ -151,13 +145,13 @@ const fn define(
         short_label_key: None,
     }
 }
-const fn short(mut definition: Definition, label: &'static str) -> Definition {
+pub(crate) const fn short(mut definition: Definition, label: &'static str) -> Definition {
     definition.short_label_key = Some(label);
     definition
 }
 
 /// Chaque commande, y compris sans raccourci, est définie une seule fois ici.
-pub static DEFINITIONS: &[Definition] = &[
+pub const COMMON_COMMANDS: &[Definition] = &[
     define(
         "application.preferences",
         "cmd-preferences",
@@ -233,26 +227,6 @@ pub static DEFINITIONS: &[Definition] = &[
         Command::Palette,
         Scope::Global,
         &[primary_shift(Key::P)],
-    ),
-    short(
-        define(
-            "document.presentation.institutional",
-            "cmd-institutional",
-            Command::Presentation(Presentation::Institutional),
-            Scope::Global,
-            &[],
-        ),
-        "cmd-institutional-short",
-    ),
-    short(
-        define(
-            "document.presentation.service",
-            "cmd-service",
-            Command::Presentation(Presentation::Service),
-            Scope::Global,
-            &[],
-        ),
-        "cmd-service-short",
     ),
     short(
         define(
@@ -365,6 +339,27 @@ pub static DEFINITIONS: &[Definition] = &[
     },
 ];
 
+/// Vue du registre pour un document : socle commun + commandes de son type.
+#[derive(Clone, Copy)]
+pub struct Registry {
+    kind: DocumentType,
+}
+impl Registry {
+    pub fn new(kind: DocumentType) -> Self {
+        Self { kind }
+    }
+    pub fn document_type(self) -> DocumentType {
+        self.kind
+    }
+    pub fn definitions(self) -> impl Iterator<Item = &'static Definition> + Clone {
+        COMMON_COMMANDS.iter().chain(self.kind.commands().iter())
+    }
+    pub fn contains(self, command: Command) -> bool {
+        self.definitions()
+            .any(|definition| definition.command == command)
+    }
+}
+
 /// Couche facultative destinée aux futures préférences. Une liste vide retire
 /// un raccourci ; une entrée absente conserve les valeurs par défaut.
 pub type ShortcutOverrides = BTreeMap<String, Vec<Binding>>;
@@ -407,20 +402,26 @@ struct ActiveCommand {
     shortcuts: Vec<KeyboardShortcut>,
 }
 pub struct Keymap {
+    registry: Registry,
+    overrides: ShortcutOverrides,
     commands: Vec<ActiveCommand>,
     is_mac: bool,
 }
 impl Keymap {
     /// Construction transactionnelle : des préférences invalides ne remplacent
     /// jamais la configuration active. Aucun fichier de préférences n'est lu ici.
-    pub fn new(is_mac: bool, overrides: &ShortcutOverrides) -> Result<Self, String> {
+    pub fn new(
+        registry: Registry,
+        is_mac: bool,
+        overrides: &ShortcutOverrides,
+    ) -> Result<Self, String> {
         for id in overrides.keys() {
-            if !DEFINITIONS.iter().any(|definition| definition.id == id) {
+            if !registry.definitions().any(|definition| definition.id == id) {
                 return Err(crate::tr!("shortcut-unknown-command", id = id.as_str()));
             }
         }
         let mut commands: Vec<ActiveCommand> = Vec::new();
-        for definition in DEFINITIONS {
+        for definition in registry.definitions() {
             let shortcuts = if let Some(bindings) = overrides.get(definition.id) {
                 bindings
                     .iter()
@@ -465,9 +466,31 @@ impl Keymap {
                 shortcuts,
             });
         }
-        Ok(Self { commands, is_mac })
+        Ok(Self {
+            registry,
+            overrides: overrides.clone(),
+            commands,
+            is_mac,
+        })
     }
 
+    pub fn registry(&self) -> Registry {
+        self.registry
+    }
+    /// Réactiver un document conserve les personnalisations, en appliquant
+    /// seulement celles des commandes disponibles dans son type.
+    pub fn for_document(&self, kind: DocumentType) -> Result<Self, String> {
+        let registry = Registry::new(kind);
+        let active = self
+            .overrides
+            .iter()
+            .filter(|(id, _)| registry.definitions().any(|d| d.id == id.as_str()))
+            .map(|(id, bindings)| (id.clone(), bindings.clone()))
+            .collect();
+        let mut keymap = Self::new(registry, self.is_mac, &active)?;
+        keymap.overrides = self.overrides.clone();
+        Ok(keymap)
+    }
     pub fn shortcuts(&self, command: Command) -> &[KeyboardShortcut] {
         self.commands
             .iter()
@@ -592,7 +615,12 @@ mod tests {
 
     #[test]
     fn native_shortcuts_are_not_dispatched_twice_and_other_bindings_still_work() {
-        let map = Keymap::new(true, &ShortcutOverrides::default()).unwrap();
+        let map = Keymap::new(
+            Registry::new(DocumentType::Courrier),
+            true,
+            &ShortcutOverrides::default(),
+        )
+        .unwrap();
         let reserved = [primary(Key::E), primary_shift(Key::Z)];
         let ctx = egui::Context::default();
         let mut commands = Vec::new();
@@ -622,22 +650,54 @@ mod tests {
     #[test]
     fn registry_ids_are_unique_and_defaults_have_no_conflicts_on_either_platform() {
         let mut ids = std::collections::HashSet::new();
-        for (index, definition) in DEFINITIONS.iter().enumerate() {
+        let mut actions = Vec::new();
+        for definition in Registry::new(DocumentType::Courrier).definitions() {
             assert!(ids.insert(definition.id));
-            assert!(
-                !DEFINITIONS[..index]
-                    .iter()
-                    .any(|other| other.command == definition.command)
-            );
+            assert!(!actions.contains(&definition.command));
+            actions.push(definition.command);
         }
-        assert!(Keymap::new(true, &ShortcutOverrides::default()).is_ok());
-        assert!(Keymap::new(false, &ShortcutOverrides::default()).is_ok());
+        assert!(
+            COMMON_COMMANDS
+                .iter()
+                .all(|d| !matches!(d.command, Command::Courrier(_)))
+        );
+        assert!(
+            courrier::COMMANDS
+                .iter()
+                .all(|d| matches!(d.command, Command::Courrier(_)))
+        );
+        assert!(
+            Keymap::new(
+                Registry::new(DocumentType::Courrier),
+                true,
+                &ShortcutOverrides::default()
+            )
+            .is_ok()
+        );
+        assert!(
+            Keymap::new(
+                Registry::new(DocumentType::Courrier),
+                false,
+                &ShortcutOverrides::default()
+            )
+            .is_ok()
+        );
     }
 
     #[test]
     fn primary_modifier_resolves_to_command_on_mac_and_control_elsewhere() {
-        let mac = Keymap::new(true, &ShortcutOverrides::default()).unwrap();
-        let pc = Keymap::new(false, &ShortcutOverrides::default()).unwrap();
+        let mac = Keymap::new(
+            Registry::new(DocumentType::Courrier),
+            true,
+            &ShortcutOverrides::default(),
+        )
+        .unwrap();
+        let pc = Keymap::new(
+            Registry::new(DocumentType::Courrier),
+            false,
+            &ShortcutOverrides::default(),
+        )
+        .unwrap();
         let control = Modifiers {
             ctrl: true,
             command: true,
@@ -675,8 +735,29 @@ mod tests {
     }
 
     #[test]
+    fn courrier_shortcuts_share_the_common_conflict_checks_and_dispatch() {
+        let registry = Registry::new(DocumentType::Courrier);
+        let action = Command::Courrier(courrier::Command::Model(courrier::Model::Service));
+        assert!(registry.contains(action));
+        let config = overrides(r#"{"courrier.model.service":[{"key":"F7"}]}"#);
+        let keymap = Keymap::new(registry, false, &config).unwrap();
+        let keymap = keymap.for_document(DocumentType::Courrier).unwrap();
+        assert_eq!(
+            dispatch(&keymap, Key::F7, Modifiers::NONE, false),
+            (vec![action], false)
+        );
+        let config = overrides(r#"{"courrier.model.service":[{"key":"S","primary":true}]}"#);
+        assert!(Keymap::new(registry, false, &config).is_err());
+    }
+
+    #[test]
     fn context_and_extra_modifiers_do_not_trigger_unrelated_commands() {
-        let map = Keymap::new(false, &ShortcutOverrides::default()).unwrap();
+        let map = Keymap::new(
+            Registry::new(DocumentType::Courrier),
+            false,
+            &ShortcutOverrides::default(),
+        )
+        .unwrap();
         assert_eq!(
             dispatch(&map, Key::B, Modifiers::COMMAND, false),
             (vec![], true)
@@ -702,7 +783,7 @@ mod tests {
             r#"{"document.export":[{"key":"E","primary":true,"shift":true}],"text.bold":[],"text.italic":[{"key":"F6"}]}"#,
         );
         let config = serde_json::from_str(&serde_json::to_string(&config).unwrap()).unwrap();
-        let map = Keymap::new(false, &config).unwrap();
+        let map = Keymap::new(Registry::new(DocumentType::Courrier), false, &config).unwrap();
         assert_eq!(
             dispatch(&map, Key::E, Modifiers::COMMAND, true),
             (vec![], true)
@@ -732,8 +813,8 @@ mod tests {
     #[test]
     fn conflicts_include_platform_aliases_but_allow_distinct_mac_modifiers() {
         let config = overrides(r#"{"text.bold":[{"key":"E","ctrl":true}]}"#);
-        assert!(Keymap::new(false, &config).is_err());
-        let mac = Keymap::new(true, &config).unwrap();
+        assert!(Keymap::new(Registry::new(DocumentType::Courrier), false, &config).is_err());
+        let mac = Keymap::new(Registry::new(DocumentType::Courrier), true, &config).unwrap();
         assert_eq!(
             dispatch(&mac, Key::E, Modifiers::CTRL, true),
             (vec![Command::Bold], false)
@@ -749,7 +830,15 @@ mod tests {
             r#"{"document.export":[{"key":"Unknown","primary":true}]}"#,
             r#"{"document.export":[{"key":"E"}]}"#,
         ] {
-            assert!(Keymap::new(false, &overrides(config)).is_err(), "{config}");
+            assert!(
+                Keymap::new(
+                    Registry::new(DocumentType::Courrier),
+                    false,
+                    &overrides(config)
+                )
+                .is_err(),
+                "{config}"
+            );
         }
     }
 }

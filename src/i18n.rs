@@ -107,7 +107,10 @@ mod tests {
                     messages.map(|message| message.id.name.to_owned()).collect()
                 });
             // Examiner chaque catalogue sans masquer ses lacunes par le repli.
-            for command in crate::commands::DEFINITIONS {
+            for command in crate::document_types::DocumentType::ALL
+                .into_iter()
+                .flat_map(|kind| crate::commands::Registry::new(kind).definitions())
+            {
                 for key in [Some(command.label_key), command.short_label_key]
                     .into_iter()
                     .flatten()

@@ -1,8 +1,5 @@
 //! Moteur Typst embarqué : fichiers virtuels et polices embarquées, sans réseau.
-use crate::{
-    document::{Metadata, SourceMap},
-    navigation::RenderSync,
-};
+use crate::{document::SourceMap, document_types::Metadata, navigation::RenderSync};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -19,8 +16,6 @@ use typst::{
     utils::LazyHash,
 };
 use typst_layout::PagedDocument;
-
-pub const TEMPLATE: &str = include_str!("../templates/courrier.typ");
 
 #[derive(Clone)]
 pub struct TypstWorld {
@@ -65,22 +60,21 @@ impl TypstWorld {
             .or_insert_with(|| Source::new(id, text.to_owned()));
     }
     #[cfg(test)]
-    pub fn compile(
+    pub fn compile_courrier(
         &mut self,
         source: &str,
         metadata: &Metadata,
-        compact: bool,
+        model: crate::document_types::courrier::Model,
     ) -> Result<PagedDocument, String> {
-        self.compile_with_template(source, metadata, compact, TEMPLATE)
+        self.compile_with_template(source, metadata, &model.source())
     }
     pub fn compile_with_template(
         &mut self,
         source: &str,
         metadata: &Metadata,
-        compact: bool,
         template: &str,
     ) -> Result<PagedDocument, String> {
-        self.set_source("main.typ", &metadata.main_source(compact));
+        self.set_source("main.typ", &metadata.main_source());
         self.set_source("modele.typ", template);
         self.set_source("contenu.typ", source);
         let result = typst::compile::<PagedDocument>(self);
@@ -155,7 +149,6 @@ pub struct RenderRequest {
     pub source: String,
     pub source_map: SourceMap,
     pub metadata: Metadata,
-    pub compact: bool,
     pub template: String,
     pub export_dir: Option<PathBuf>,
 }
@@ -177,12 +170,8 @@ pub struct RenderResponse {
 
 pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendered, String> {
     let start = Instant::now();
-    let document = world.compile_with_template(
-        &request.source,
-        &request.metadata,
-        request.compact,
-        &request.template,
-    )?;
+    let document =
+        world.compile_with_template(&request.source, &request.metadata, &request.template)?;
     if let Some(path) = &request.export_dir {
         std::fs::create_dir_all(path).map_err(|e| e.to_string())?;
         if std::fs::read_dir(path)
@@ -201,11 +190,7 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
                     .join("\n")
             })?;
         write(path, "courrier.pdf", &pdf)?;
-        write(
-            path,
-            "main.typ",
-            request.metadata.main_source(request.compact).as_bytes(),
-        )?;
+        write(path, "main.typ", request.metadata.main_source().as_bytes())?;
         write(path, "contenu.typ", request.source.as_bytes())?;
         write(path, "modele.typ", request.template.as_bytes())?;
         write(
