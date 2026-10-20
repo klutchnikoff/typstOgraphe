@@ -464,7 +464,10 @@ position de rédaction. L’image est copiée dans le courrier ; déplacer ou su
 son fichier d’origine ne change donc pas le document enregistré.
 
 Dans l’éditeur, chaque image forme un bloc avec une vignette proportionnelle
-et une légende facultative juste dessous. **Ajouter une légende…** est un texte
+et une légende facultative juste dessous, à l’intérieur du même cadre. Un filet
+fin centré sur 80 % de la largeur sépare l’image de la légende ; le cadre suit
+la hauteur de la légende quand elle occupe plusieurs lignes.
+**Ajouter une légende…** est un texte
 indicatif, jamais enregistré dans le source. La légende accepte les styles et
 les liens. Un clic sur l’image la sélectionne et affiche **Remplacer…**,
 **Informations** et **Supprimer**. Remplacer conserve la légende et le texte
