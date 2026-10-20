@@ -5135,6 +5135,7 @@ dependencies = [
  "tempfile",
  "typst",
  "typst-assets",
+ "typst-eval",
  "typst-ide",
  "typst-layout",
  "typst-pdf",

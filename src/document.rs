@@ -20,6 +20,7 @@ pub enum BlockKind {
     Heading(u8),
     Bullet,
     Numbered,
+    Description,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -195,7 +196,7 @@ impl Projection {
             .zip(self.text.chars())
             .skip(range.start.min(self.len()))
             .take(range.end.min(self.len()) - range.start.min(self.len()))
-            .filter(|(_, c)| *c != '\n')
+            .filter(|(_, c)| !matches!(*c, '\n' | '\t'))
             .map(|(style, _)| style)
             .collect();
         let any = items.iter().any(|style| enabled(style));
@@ -217,15 +218,20 @@ impl Projection {
                 .iter_mut()
                 .zip(self.text.chars().skip(range.start))
             {
-                if c != '\n' {
+                if !matches!(c, '\n' | '\t') {
                     apply(s);
                 }
             }
         }
     }
     pub fn set_link(&mut self, range: Range<usize>, link: Option<String>) {
-        for s in &mut self.styles[range] {
-            s.link.clone_from(&link);
+        for (s, c) in self.styles[range.clone()]
+            .iter_mut()
+            .zip(self.text.chars().skip(range.start))
+        {
+            if !matches!(c, '\n' | '\t') {
+                s.link.clone_from(&link);
+            }
         }
     }
     pub fn clear_marks(&mut self, range: Range<usize>) {
@@ -238,7 +244,7 @@ impl Projection {
     fn push(&mut self, text: &str, style: &InlineStyle) {
         self.text.push_str(text);
         self.styles.extend(text.chars().map(|c| {
-            if c == '\n' {
+            if matches!(c, '\n' | '\t') {
                 InlineStyle::default()
             } else {
                 style.clone()
@@ -264,6 +270,7 @@ impl Projection {
                         (previous, kind),
                         (BlockKind::Bullet, BlockKind::Bullet)
                             | (BlockKind::Numbered, BlockKind::Numbered)
+                            | (BlockKind::Description, BlockKind::Description)
                     ) {
                         "\n"
                     } else {
@@ -279,14 +286,28 @@ impl Projection {
                 }
                 BlockKind::Bullet => result.push_str("- "),
                 BlockKind::Numbered => result.push_str("+ "),
+                BlockKind::Description => result.push_str("/ "),
                 BlockKind::Paragraph => {}
             }
             let characters: Vec<_> = text.chars().collect();
+            let description_separator = (kind == BlockKind::Description)
+                .then(|| characters.iter().position(|c| *c == '\t'))
+                .flatten();
             let mut position = 0;
             while position < characters.len() {
+                if Some(position) == description_separator {
+                    let start = result.len();
+                    result.push_str(": ");
+                    origins.push(start..result.len());
+                    position += 1;
+                    continue;
+                }
                 let style = &self.styles[ranges[index].start + position];
                 let mut end = position + 1;
-                while end < characters.len() && self.styles[ranges[index].start + end] == *style {
+                while end < characters.len()
+                    && Some(end) != description_separator
+                    && self.styles[ranges[index].start + end] == *style
+                {
                     end += 1;
                 }
                 if let Some(url) = &style.link {
@@ -310,6 +331,9 @@ impl Projection {
                     result.push(']');
                 }
                 position = end;
+            }
+            if kind == BlockKind::Description && !characters.contains(&'\t') {
+                result.push_str(": ");
             }
         }
         let source_len = result.len();
@@ -349,7 +373,7 @@ impl TextBuffer for Projection {
         self.styles.splice(
             at..at,
             text.chars().map(|c| {
-                if c == '\n' {
+                if matches!(c, '\n' | '\t') {
                     InlineStyle::default()
                 } else {
                     self.typing_style.clone()
@@ -396,7 +420,7 @@ pub(crate) fn typst_string(text: &str) -> String {
 fn escape_markup(text: &str) -> String {
     let mut result = String::new();
     for c in text.chars() {
-        if "\\#*_[]$`<>@=+-/~{}\"'".contains(c) {
+        if "\\#*_[]$`<>@=+-/~{}\"':".contains(c) {
             result.push('\\');
         }
         result.push(c);
@@ -495,6 +519,28 @@ impl Projector {
                     self.inline_markup(item.body(), style)?;
                     self.pending_break = true;
                 }
+                Expr::TermItem(item) => {
+                    let separator = item
+                        .to_untyped()
+                        .children()
+                        .find(|node| node.kind() == typst_syntax::SyntaxKind::Colon)
+                        .and_then(|node| self.source.as_ref()?.find(node.span()))
+                        .map_or(self.origin.clone(), |node| node.range());
+                    self.pending_break = !self.view.text.is_empty();
+                    self.ensure_block(BlockKind::Description);
+                    self.inline_markup(item.term(), style)?;
+                    // Une tabulation sépare les deux zones éditables sans
+                    // exposer la syntaxe Typst. Les deux restent sélectionnables.
+                    let start = self.view.len();
+                    self.origin = separator;
+                    self.append("\t", &InlineStyle::default());
+                    self.inline_markup(item.description(), style)?;
+                    if self.view.len() == start + 1 {
+                        self.view.delete_char_range(start..start + 1);
+                        self.origins.pop();
+                    }
+                    self.pending_break = true;
+                }
                 Expr::FuncCall(call) => self.call(call, style)?,
                 Expr::Link(link) => {
                     let url = link.get().to_string();
@@ -554,7 +600,7 @@ impl Projector {
         if markup.exprs().any(|expr| {
             matches!(
                 expr,
-                Expr::Heading(_) | Expr::ListItem(_) | Expr::EnumItem(_)
+                Expr::Heading(_) | Expr::ListItem(_) | Expr::EnumItem(_) | Expr::TermItem(_)
             )
         }) {
             return Err(crate::tr!("source-nested-blocks"));
@@ -654,4 +700,14 @@ pub struct DocumentOptions {
     pub paper: PaperFormat,
     pub landscape: bool,
     pub language: DocumentLanguage,
+    /// None laisse au modèle le choix du marqueur selon sa charte et la langue.
+    pub bullet_marker: Option<String>,
+}
+
+pub fn valid_bullet_marker(marker: &str) -> bool {
+    let mut chars = marker.chars();
+    chars
+        .next()
+        .is_some_and(|c| !c.is_whitespace() && !c.is_control())
+        && chars.next().is_none()
 }

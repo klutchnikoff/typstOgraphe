@@ -112,7 +112,7 @@ impl Definition {
     pub fn in_block_style_menu(&self) -> bool {
         matches!(
             self.command,
-            Command::Block(BlockKind::Paragraph | BlockKind::Heading(_))
+            Command::Block(BlockKind::Paragraph | BlockKind::Heading(_) | BlockKind::Description)
         )
     }
 }
@@ -319,6 +319,16 @@ pub const COMMON_COMMANDS: &[Definition] = &[
             &[],
         ),
         "cmd-numbered-short",
+    ),
+    short(
+        define(
+            "block.description",
+            "cmd-description",
+            Command::Block(BlockKind::Description),
+            Scope::Editor,
+            &[],
+        ),
+        "cmd-description-short",
     ),
     define(
         "edit.undo",

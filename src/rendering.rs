@@ -1,5 +1,10 @@
 //! Moteur Typst embarqué : fichiers virtuels et polices embarquées, sans réseau.
-use crate::{document::SourceMap, document_types::Metadata, navigation::RenderSync};
+use crate::{
+    document::SourceMap,
+    document_types::{Metadata, ModelPresentation},
+    navigation::RenderSync,
+};
+use comemo::Track;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -10,7 +15,8 @@ use std::{
 use typst::{
     Library, LibraryExt, World, WorldExt,
     diag::{FileError, FileResult},
-    foundations::{Bytes, Datetime, Duration},
+    engine::{Route, Sink, Traced},
+    foundations::{Bytes, Datetime, Duration, Value},
     syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot},
     text::{Font, FontBook},
     utils::LazyHash,
@@ -55,9 +61,62 @@ impl TypstWorld {
         self.files
             .entry(id)
             .and_modify(|source| {
-                source.replace(text);
+                if source.text() != text {
+                    source.replace(text);
+                }
             })
             .or_insert_with(|| Source::new(id, text.to_owned()));
+    }
+    pub fn model_presentation(&mut self, template: &str) -> Result<ModelPresentation, String> {
+        self.set_source("modele.typ", template);
+        let source = self
+            .source(file_id("modele.typ"))
+            .map_err(|e| e.to_string())?;
+        let module = typst_eval::eval(
+            (self as &dyn World).track(),
+            &self.library,
+            Traced::default().track(),
+            Sink::new().track_mut(),
+            Route::default().track(),
+            &source,
+        )
+        .map_err(|errors| {
+            errors
+                .iter()
+                .map(|e| e.message.to_string())
+                .collect::<Vec<_>>()
+                .join("\n")
+        })?;
+        let mut policy = ModelPresentation::default();
+        let Some(binding) = module.scope().get("editor-options") else {
+            return Ok(policy);
+        };
+        let invalid = || crate::tr!("model-invalid-editor-options");
+        let Value::Dict(options) = binding.read() else {
+            return Err(invalid());
+        };
+        for (key, value) in options.iter() {
+            match (key.as_str(), value) {
+                ("bullet-markers", Value::Array(markers)) => {
+                    for marker in markers.iter() {
+                        let Value::Str(marker) = marker else {
+                            return Err(invalid());
+                        };
+                        if !crate::document::valid_bullet_marker(marker.as_str()) {
+                            return Err(invalid());
+                        }
+                        if !policy.bullet_markers.iter().any(|s| s == marker.as_str()) {
+                            policy.bullet_markers.push(marker.to_string());
+                        }
+                    }
+                }
+                ("custom-bullet-marker", Value::Bool(allowed)) => {
+                    policy.custom_bullet_marker = *allowed
+                }
+                _ => return Err(invalid()),
+            }
+        }
+        Ok(policy)
     }
     #[cfg(test)]
     pub fn compile_courrier(
@@ -74,6 +133,12 @@ impl TypstWorld {
         metadata: &Metadata,
         template: &str,
     ) -> Result<PagedDocument, String> {
+        let presentation = self.model_presentation(template)?;
+        if let Some(marker) = &metadata.options().bullet_marker
+            && !presentation.allows_bullet_marker(marker)
+        {
+            return Err(crate::tr!("model-bullet-marker-not-allowed"));
+        }
         self.set_source("main.typ", &metadata.main_source());
         self.set_source("modele.typ", template);
         self.set_source("contenu.typ", source);
@@ -161,6 +226,7 @@ pub struct Rendered {
     pub sync: RenderSync,
     pub elapsed: StdDuration,
     pub export_dir: Option<PathBuf>,
+    pub presentation: ModelPresentation,
 }
 pub struct RenderResponse {
     pub revision: u64,
@@ -172,6 +238,7 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
     let start = Instant::now();
     let document =
         world.compile_with_template(&request.source, &request.metadata, &request.template)?;
+    let presentation = world.model_presentation(&request.template)?;
     if let Some(path) = &request.export_dir {
         std::fs::create_dir_all(path).map_err(|e| e.to_string())?;
         if std::fs::read_dir(path)
@@ -215,6 +282,7 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
     }
     comemo::evict(10);
     Ok(Rendered {
+        presentation,
         pages,
         sync: RenderSync::new(
             request.revision,

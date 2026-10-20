@@ -1,4 +1,12 @@
 // Contrat du type « courrier » : métadonnées nommées et corps en dernier argument.
+// Le créateur du modèle contrôle les personnalisations proposées dans l’UI.
+// Pour autoriser quelques choix : bullet-markers: ("—", "•", "▪").
+// custom-bullet-marker: true autorise aussi un caractère Unicode libre.
+#let editor-options = (bullet-markers: (), custom-bullet-marker: false)
+
+// Conventions du modèle, indépendantes de la langue de l’interface.
+#let marqueurs-listes(language) = if language == "fr" { ([—], [•], [◦]) } else { ([•], [◦], [▪]) }
+
 #let courrier(
   expediteur: "",
   fonction: "",
@@ -11,7 +19,7 @@
   lieu: "",
   date: "",
   compact: false,
-  options: (paper: "a4", landscape: false, language: "fr"),
+  options: (paper: "a4", landscape: false, language: "fr", bullet-marker: auto),
   body,
 ) = {
   let labels = (
@@ -40,6 +48,11 @@
   set text(font: "Libertinus Serif", size: 11pt, lang: options.language)
   set par(justify: true, leading: 0.6em, spacing: 1.1em)
   set heading(numbering: none)
+  set list(marker: if options.bullet-marker == auto {
+    marqueurs-listes(options.language)
+  } else {
+    options.bullet-marker
+  })
   show heading: set text(fill: accent)
   show link: set text(fill: accent)
 

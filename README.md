@@ -42,7 +42,12 @@ Linux restent nécessaires avant de déclarer ces plateformes validées.
 - Ouvrir la palette avec `⌘⇧P` / `Ctrl+Shift+P`. Rechercher une commande,
   utiliser les flèches, puis Entrée.
 - En début de paragraphe : `= `, `== `, `=== ` pour les titres, `- ` pour
-  les puces, `+ ` ou `1. ` pour une liste numérotée.
+  les puces, `+ ` ou `1. ` pour une liste numérotée, `/ ` pour une liste de descriptions.
+- Choisir **Description** dans le sélecteur de style ou dans la palette. Saisir
+  le terme, puis `Tab` (ou `:` suivi d’une espace) pour passer à la description.
+  `Maj+Tab` revient au terme ; Entrée crée un autre élément, puis Entrée sur
+  un élément vide termine la liste. Le terme est distingué visuellement dans
+  l’éditeur, sans ajouter de gras au source ; le modèle règle sa présentation.
 - Saisir `*texte*` ou `_texte_` pour convertir la saisie en gras ou italique.
 - Entrée sur un élément de liste vide permet de sortir de la liste.
 - Modifier les informations du courrier ou changer de présentation. Les
@@ -57,9 +62,11 @@ dans le courrier. La commande Informations du menu Affichage ou de la palette
 permet également de déplier ou replier ce panneau, sans bloquer la rédaction.
 
 **Général** regroupe le type du document (en lecture seule), le modèle, le format
-du papier, l’orientation et la langue du document. Le choix du modèle remplace
+du papier, l’orientation, la langue du document et les puces des listes.
+Le choix du modèle remplace
 le modèle embarqué par l’un des deux modèles fournis, en conservant le texte et
-les métadonnées. Les formats proposés sont A3, A4, A5, Lettre US et Légal US,
+les métadonnées ; les puces reviennent au mode automatique de la nouvelle charte.
+Les formats proposés sont A3, A4, A5, Lettre US et Légal US,
 avec les orientations portrait et paysage. Les langues proposées sont le
 français, l’anglais, l’allemand, l’espagnol, l’italien, le portugais et le néerlandais.
 Un nouveau courrier utilise A4, portrait et français, indépendamment de la langue
@@ -280,7 +287,7 @@ Le fichier est une archive ZIP standard contenant :
 - `modele.typ` : copie exacte du modèle utilisé, réutilisée à la réouverture
   et lors de l’export ;
 - `main.typ` : en-tête généré à partir des métadonnées ;
-- `manifest.json` : identifiant du format, version 3 et type « courrier ».
+- `manifest.json` : identifiant du format, version 4 et type « courrier ».
 
 Le modèle embarqué permet de retrouver la présentation du courrier indépendamment
 des modèles fournis par une future version de l’application. L’enregistrement
@@ -355,12 +362,50 @@ corps du document. Les exemples et le catalogue d’organisation sont fictifs.
 
 La fonction reçoit un argument nommé `options`, indépendant des métadonnées
 propres au type de document. L’en-tête exporté lui transmet par
-exemple `options: (paper: "a4", landscape: false, language: "fr")`. Le modèle
+exemple `options: (paper: "a4", landscape: false, language: "fr", bullet-marker: auto)`. Le modèle
 applique ces valeurs avec `set page(paper: options.paper, flipped: options.landscape)`
 et `set text(lang: options.language)`. Il reste responsable des libellés et de
 la mise en page dans chaque langue ; aucun code d’interface n’est inséré dans
 le modèle. Les réglages sont conservés à l’enregistrement et
 utilisés de la même façon dans l’aperçu et l’export PDF/Typst.
+
+## Puces et présentation contrôlée par le modèle
+
+Les informations du document affichent **Puces des listes**. Par défaut,
+**Automatique (modèle)** laisse au modèle le choix selon la langue du document,
+indépendamment de celle de l’interface. Les deux modèles fournis utilisent un
+cadratin en français et une puce ronde dans les autres langues proposées.
+Ces conventions sont définies dans `marqueurs-listes` en Typst ; le créateur
+peut les modifier pour suivre la charte de son organisation. L’éditeur conserve
+ses propres marqueurs visuels, indépendants de la présentation finale.
+
+Le modèle peut déclarer les seules personnalisations qu’il autorise avec une
+variable publique Typst `editor-options` :
+
+```typst
+// Charte entièrement automatique : aucun choix typographique à faire.
+#let editor-options = (bullet-markers: (), custom-bullet-marker: false)
+
+// Variante : autoriser quelques marqueurs, en conservant Automatique par défaut.
+#let editor-options = (bullet-markers: ("—", "•", "▪"), custom-bullet-marker: false)
+```
+
+`custom-bullet-marker: true` permet en plus la saisie d’un caractère Unicode
+visible. Sans déclaration, le modèle reste entièrement automatique. Ces valeurs
+sont évaluées par le moteur Typst, sur son thread de rendu, et non extraites par
+analyse textuelle. Une déclaration invalide est signalée comme erreur de modèle.
+L’application vérifie les autorisations à la composition, y compris à l’export ;
+un fichier modifié extérieurement ne peut pas imposer un marqueur interdit.
+
+Le réglage du document est conservé dans `options.bullet_marker` : `null` pour
+Automatique, une chaîne pour un choix explicite. L’en-tête transmet respectivement
+`options.bullet-marker: auto` ou le caractère comme chaîne Typst. Le modèle
+applique la valeur avec `set list(marker: ...)` et reste responsable des retraits,
+espacements et styles des listes de descriptions (`terms`). Changer de modèle
+rétablit le mode automatique pour appliquer la nouvelle charte.
+
+Les choix d’interface autorisés et les conventions typographiques sont ainsi
+définis dans le modèle, sans ajouter une nouvelle commande par forme de puce.
 
 ## Source et périmètre
 
@@ -372,7 +417,7 @@ de rédaction mettent à jour le source. Le source est normalisé lors d’une
 échappées avant d’être transmises à Typst.
 
 Le sous-ensemble de ce prototype comprend les paragraphes, les titres 1–3,
-le gras, l’italique, les liens, les puces et les listes numérotées simples.
+le gras, l’italique, les liens, les puces, les listes numérotées et les listes de descriptions simples.
 Le corps n’expose jamais de code à l’utilisateur. Le parseur refuse les fonctions
 et les expressions calculées qu’il ne sait pas éditer.
 

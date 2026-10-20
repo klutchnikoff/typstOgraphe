@@ -127,10 +127,15 @@ pub fn layout(
     job.wrap.max_width = width;
     let mut line = 0;
     let mut at_line_start = true;
+    let mut in_term = true;
     for (index, character) in text.chars().enumerate() {
         let style = &aligned.styles[index];
         let kind = aligned.blocks[line];
-        let mut format = text_format(kind, style, &colors, editor);
+        let mut term_style = style.clone();
+        if kind == BlockKind::Description && in_term && character != '\t' {
+            term_style.bold = true;
+        }
+        let mut format = text_format(kind, &term_style, &colors, editor);
         if character == '\n' {
             format.line_height = Some(editor.size * 2.0);
         }
@@ -141,8 +146,12 @@ pub fn layout(
         };
         job.append(&character.to_string(), leading, format);
         at_line_start = character == '\n';
+        if character == '\t' {
+            in_term = false;
+        }
         if character == '\n' {
             line += 1;
+            in_term = true;
         }
     }
     if aligned.is_empty() {

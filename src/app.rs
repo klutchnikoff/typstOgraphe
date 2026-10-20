@@ -1,7 +1,9 @@
 use crate::{
     commands::{Command, FileCommand, Keymap, Registry, ShortcutOverrides},
     document::{BlockKind, Document, DocumentLanguage, InlineStyle, Mark, PaperFormat, Projection},
-    document_types::{DocumentType, Metadata, courrier::Command as CourrierCommand},
+    document_types::{
+        DocumentType, Metadata, ModelPresentation, courrier::Command as CourrierCommand,
+    },
     editor, menus,
     navigation::{PagePoint, RenderSync},
     preferences::{Appearance, EditorFont, Preferences},
@@ -43,6 +45,7 @@ pub struct App {
     pub document: Document,
     metadata: Metadata,
     template: String,
+    presentation: ModelPresentation,
     file_path: Option<PathBuf>,
     saved: StoredDocument,
     file_command: Option<FileCommand>,
@@ -143,6 +146,7 @@ impl App {
             document,
             metadata: saved.metadata.clone(),
             template: saved.template.clone(),
+            presentation: ModelPresentation::default(),
             file_path: None,
             saved,
             file_command: None,
@@ -303,6 +307,7 @@ impl App {
         self.document = document;
         self.metadata = letter.metadata.clone();
         self.template = letter.template.clone();
+        self.presentation = ModelPresentation::default();
         self.saved = letter;
         self.file_path = path;
         self.undo.clear();
@@ -413,6 +418,8 @@ impl App {
                 let template = model.source();
                 if self.template != template {
                     self.template = template;
+                    self.presentation = ModelPresentation::default();
+                    self.metadata.options_mut().bullet_marker = None;
                     self.revision += 1;
                     self.changed_at = Instant::now();
                 }
@@ -528,6 +535,7 @@ impl App {
                             })
                             .collect();
                         self.rendering_time = Some(rendered.elapsed);
+                        self.presentation = rendered.presentation;
                         self.rendering_error = None;
                         self.rendered_revision = Some(response.revision);
                         self.sync = Some(rendered.sync);
@@ -684,6 +692,7 @@ impl App {
                 "===" => Some(BlockKind::Heading(3)),
                 "-" => Some(BlockKind::Bullet),
                 "+" | "1." => Some(BlockKind::Numbered),
+                "/" => Some(BlockKind::Description),
                 _ => None,
             };
             if let Some(kind) = kind {
@@ -699,6 +708,58 @@ impl App {
                 ctx.input_mut(|i| {
                     i.events
                         .retain(|e| !matches!(e,egui::Event::Text(t) if t==" "))
+                });
+                return;
+            }
+        }
+        if self.document.view.blocks[line] == BlockKind::Description {
+            let text = &self.document.view.text[self.document.view.byte_index(lines[line].start)
+                ..self.document.view.byte_index(lines[line].end)];
+            let separator = text.chars().position(|c| c == '\t').map(|at| start + at);
+            let shift = ctx.input(|i| i.events.iter().any(|event| matches!(event,
+                egui::Event::Key { key: egui::Key::Tab, pressed: true, modifiers, .. } if modifiers.shift
+            )));
+            if ctx.input_mut(|i| {
+                i.consume_key(
+                    if shift {
+                        egui::Modifiers::SHIFT
+                    } else {
+                        egui::Modifiers::NONE
+                    },
+                    egui::Key::Tab,
+                )
+            }) {
+                // egui prépare la navigation du focus au début de la frame,
+                // avant que l’éditeur ne consomme la touche.
+                ctx.memory_mut(|memory| memory.move_focus(egui::FocusDirection::None));
+                if shift {
+                    self.selection = editor::cursor(start..start);
+                } else if let Some(at) = separator {
+                    self.selection = editor::cursor(at + 1..at + 1);
+                } else {
+                    let before = self.snapshot();
+                    self.document.view.insert_text("\t", range.start);
+                    self.selection = editor::cursor(range.start + 1..range.start + 1);
+                    self.remember(before, false);
+                }
+                self.force_selection = true;
+                return;
+            }
+            if separator.is_none() && prefix.ends_with(':') && typed.as_deref() == Some(" ") {
+                let mut before = self.snapshot();
+                before.document.view.insert_text(" ", range.start);
+                before.document.sync_source();
+                before.selection = editor::cursor(range.start + 1..range.start + 1);
+                self.document
+                    .view
+                    .delete_char_range(range.start - 1..range.start);
+                self.document.view.insert_text("\t", range.start - 1);
+                self.selection = editor::cursor(range.start..range.start);
+                self.force_selection = true;
+                self.remember(before, false);
+                ctx.input_mut(|i| {
+                    i.events
+                        .retain(|e| !matches!(e, egui::Event::Text(t) if t == " "))
                 });
                 return;
             }
@@ -742,7 +803,7 @@ impl App {
         if lines[line].is_empty()
             && matches!(
                 self.document.view.blocks[line],
-                BlockKind::Bullet | BlockKind::Numbered
+                BlockKind::Bullet | BlockKind::Numbered | BlockKind::Description
             )
             && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
         {
@@ -779,6 +840,12 @@ impl App {
                             .on_hover_text(self.keymap.hint(ui.ctx(), definition.command));
                         }
                     }
+                })
+                .response
+                .on_hover_text(if kind == BlockKind::Description {
+                    crate::tr!("description-edit-hint")
+                } else {
+                    Command::Block(kind).label()
                 });
             if selected != kind {
                 self.apply(Command::Block(selected));
@@ -901,6 +968,9 @@ impl App {
                                                 }
                                             });
                                         ui.end_row();
+                                        ui.label(crate::tr!("field-bullet-marker"));
+                                        self.bullet_marker_ui(ui);
+                                        ui.end_row();
                                     });
                             });
                         self.metadata.editor_ui(ui);
@@ -919,6 +989,62 @@ impl App {
             self.changed_at = Instant::now();
             ui.ctx().request_repaint();
         }
+    }
+    fn bullet_marker_ui(&mut self, ui: &mut egui::Ui) {
+        let policy = &self.presentation;
+        if policy.bullet_markers.is_empty() && !policy.custom_bullet_marker {
+            if self.metadata.options().bullet_marker.is_some() {
+                if ui
+                    .button(crate::tr!("bullet-marker-restore-automatic"))
+                    .clicked()
+                {
+                    self.metadata.options_mut().bullet_marker = None;
+                }
+            } else {
+                ui.weak(crate::tr!("bullet-marker-automatic"))
+                    .on_hover_text(crate::tr!("bullet-marker-model-controlled"));
+            }
+            return;
+        }
+        let marker = &mut self.metadata.options_mut().bullet_marker;
+        ui.vertical(|ui| {
+            egui::ComboBox::from_id_salt("document-bullet-marker")
+                .selected_text(
+                    marker
+                        .as_deref()
+                        .map_or_else(|| crate::tr!("bullet-marker-automatic"), str::to_owned),
+                )
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(marker, None, crate::tr!("bullet-marker-automatic"));
+                    for choice in &policy.bullet_markers {
+                        ui.selectable_value(marker, Some(choice.clone()), choice);
+                    }
+                    if policy.custom_bullet_marker
+                        && ui
+                            .selectable_label(marker.is_some(), crate::tr!("bullet-marker-custom"))
+                            .clicked()
+                    {
+                        *marker = Some("◆".into());
+                    }
+                });
+            if policy.custom_bullet_marker
+                && let Some(value) = marker
+            {
+                ui.add(
+                    egui::TextEdit::singleline(value)
+                        .id_salt("custom-bullet-marker")
+                        .desired_width(55.0),
+                );
+                if !crate::document::valid_bullet_marker(value) {
+                    ui.colored_label(
+                        Color32::from_rgb(183, 69, 57),
+                        crate::tr!("bullet-marker-invalid"),
+                    );
+                }
+            }
+        })
+        .response
+        .on_hover_text(crate::tr!("bullet-marker-model-choices"));
     }
     fn template_selector(&mut self, ui: &mut egui::Ui) {
         let commands: Vec<_> = self
@@ -964,6 +1090,8 @@ impl App {
             self.force_selection = false;
         }
         let view = self.document.view.clone();
+        let description =
+            view.blocks[view.line_at(self.selection.primary.index)] == BlockKind::Description;
         let editor_style = self.preferences.editor;
         let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, width: f32| {
             editor::layout(ui, &view, text.as_str(), width, editor_style)
@@ -978,6 +1106,7 @@ impl App {
                     ))
                     .show(ui, |ui| {
                         let output = egui::TextEdit::multiline(&mut self.document.view)
+                            .lock_focus(description)
                             .id(egui::Id::new(editor::EDITOR_ID))
                             .desired_width(f32::INFINITY)
                             .desired_rows(25)
@@ -2913,6 +3042,7 @@ mod interaction_tests {
     fn text_shortcuts_can_be_undone_to_the_complete_literal_input() {
         for (source, closing, expected, kind) in [
             ("\\=", " ", "= ", Some(BlockKind::Heading(1))),
+            ("\\/", " ", "/ ", Some(BlockKind::Description)),
             ("\\*Bonjour", "*", "*Bonjour*", None),
         ] {
             let ctx = egui::Context::default();
@@ -2931,5 +3061,160 @@ mod interaction_tests {
             app.apply(Command::Undo);
             assert_eq!(app.document.view.text, expected);
         }
+    }
+
+    #[test]
+    fn description_editing_uses_tab_and_colon_without_exposing_typst() {
+        for separator in [
+            egui::Event::Key {
+                key: egui::Key::Tab,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            },
+            egui::Event::Text(" ".into()),
+        ] {
+            let ctx = egui::Context::default();
+            let mut app = App::with_context(ctx.clone(), None);
+            app.document = Document::from_source("Échéance").unwrap();
+            app.selection = editor::cursor(8..8);
+            app.apply(Command::Block(BlockKind::Description));
+            app.force_selection = true;
+            frame(&mut app, &ctx, vec![]);
+            if matches!(separator, egui::Event::Text(_)) {
+                frame(&mut app, &ctx, vec![egui::Event::Text(":".into())]);
+            }
+            frame(&mut app, &ctx, vec![separator]);
+            frame(&mut app, &ctx, vec![egui::Event::Text("Vendredi".into())]);
+            assert_eq!(app.document.view.text, "Échéance\tVendredi");
+            assert_eq!(app.document.view.blocks, [BlockKind::Description]);
+            let restored = Document::from_source(app.document.source()).unwrap();
+            assert_eq!(restored.view.text, app.document.view.text);
+            frame(
+                &mut app,
+                &ctx,
+                vec![egui::Event::Key {
+                    key: egui::Key::Tab,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers: egui::Modifiers::SHIFT,
+                }],
+            );
+            assert_eq!(app.selection.primary.index, 0);
+            frame(
+                &mut app,
+                &ctx,
+                vec![egui::Event::Key {
+                    key: egui::Key::Tab,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                }],
+            );
+            assert_eq!(app.selection.primary.index, 9);
+            let end = app.document.view.len();
+            app.selection = editor::cursor(end..end);
+            app.force_selection = true;
+            frame(&mut app, &ctx, vec![]);
+            frame(
+                &mut app,
+                &ctx,
+                vec![egui::Event::Key {
+                    key: egui::Key::Enter,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                }],
+            );
+            assert_eq!(app.document.view.blocks, [BlockKind::Description; 2]);
+            frame(
+                &mut app,
+                &ctx,
+                vec![egui::Event::Key {
+                    key: egui::Key::Enter,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                }],
+            );
+            assert_eq!(
+                app.document.view.blocks,
+                [BlockKind::Description, BlockKind::Paragraph]
+            );
+        }
+    }
+
+    #[test]
+    fn changing_model_restores_automatic_markers_without_altering_the_body() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx, None);
+        let source = app.document.source().to_owned();
+        app.metadata.options_mut().bullet_marker = Some("◆".into());
+        app.presentation.custom_bullet_marker = true;
+        app.apply(Command::Courrier(CourrierCommand::Model(Model::Service)));
+        assert!(app.metadata.options().bullet_marker.is_none());
+        assert_eq!(app.presentation, ModelPresentation::default());
+        assert_eq!(app.document.source(), source);
+    }
+
+    #[test]
+    fn document_information_offers_only_the_markers_allowed_by_the_template() {
+        let ctx = egui::Context::default();
+        ctx.style_mut(|style| style.animation_time = 0.0);
+        let mut app = App::with_context(ctx.clone(), None);
+        let mut world = crate::rendering::TypstWorld::default();
+        let draw = |app: &mut App, events| {
+            ctx.run(
+                egui::RawInput {
+                    events,
+                    ..Default::default()
+                },
+                |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| app.bullet_marker_ui(ui));
+                },
+            )
+        };
+        fn point(output: &egui::FullOutput, label: &str) -> Option<egui::Pos2> {
+            output.shapes.iter().find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.text() == label => {
+                    Some(text.pos + text.galley.rect.center().to_vec2())
+                }
+                _ => None,
+            })
+        }
+        let output = draw(&mut app, vec![]);
+        assert!(point(&output, "Automatique (modèle)").is_some());
+        assert!(point(&output, "▪").is_none());
+        assert!(point(&output, "Caractère personnalisé…").is_none());
+        app.presentation = world
+            .model_presentation("#let editor-options = (bullet-markers: (\"▪\",),)")
+            .unwrap();
+        for label in ["Automatique (modèle)", "▪"] {
+            draw(&mut app, vec![]);
+            let output = draw(&mut app, vec![]);
+            let pos = point(&output, label).unwrap();
+            for pressed in [true, false] {
+                draw(
+                    &mut app,
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        },
+                    ],
+                );
+            }
+        }
+        assert_eq!(app.metadata.options().bullet_marker.as_deref(), Some("▪"));
+        let output = draw(&mut app, vec![]);
+        assert!(point(&output, "Caractère personnalisé…").is_none());
     }
 }

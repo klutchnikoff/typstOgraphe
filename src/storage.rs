@@ -12,7 +12,7 @@ use std::{
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 pub const EXTENSION: &str = "typsto";
-const FORMAT_VERSION: u32 = 3;
+const FORMAT_VERSION: u32 = 4;
 const LIMIT: u64 = 16 * 1024 * 1024;
 const ENTRIES: [&str; 5] = [
     "manifest.json",
@@ -225,7 +225,14 @@ mod tests {
         letter.metadata.options_mut().paper = crate::document::PaperFormat::A3;
         letter.metadata.options_mut().landscape = true;
         letter.metadata.options_mut().language = crate::document::DocumentLanguage::English;
+        letter.metadata.options_mut().bullet_marker = Some("◆".into());
+        letter
+            .source
+            .push_str("\n\n/ Échéance: Réponse avant vendredi.\n");
         letter.template = crate::document_types::courrier::Model::Service.source();
+        letter
+            .template
+            .push_str("\n#let editor-options = (bullet-markers: (\"◆\",),)\n");
         letter.template = letter
             .template
             .replace("VILLE DE VALMONT", "MAIRIE D’ESSAI");

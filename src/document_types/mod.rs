@@ -123,6 +123,20 @@ pub struct ModelContract<T: 'static> {
     pub fields: &'static [TextField<T>],
     pub options: fn(&T) -> &DocumentOptions,
 }
+
+/// Libertés explicitement accordées par le créateur du modèle, en pur Typst.
+/// Par défaut la charte reste entièrement automatique.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ModelPresentation {
+    pub bullet_markers: Vec<String>,
+    pub custom_bullet_marker: bool,
+}
+impl ModelPresentation {
+    pub fn allows_bullet_marker(&self, marker: &str) -> bool {
+        crate::document::valid_bullet_marker(marker)
+            && (self.custom_bullet_marker || self.bullet_markers.iter().any(|s| s == marker))
+    }
+}
 impl<T> ModelContract<T> {
     pub fn main_source(&self, metadata: &T) -> String {
         let name = self.function;
@@ -136,10 +150,11 @@ impl<T> ModelContract<T> {
         }
         let options = (self.options)(metadata);
         source.push_str(&format!(
-            "  options: (paper: {}, landscape: {}, language: {}),\n)\n#include \"contenu.typ\"\n",
+            "  options: (paper: {}, landscape: {}, language: {}, bullet-marker: {}),\n)\n#include \"contenu.typ\"\n",
             typst_string(options.paper.typst_name()),
             options.landscape,
             typst_string(options.language.code()),
+            options.bullet_marker.as_deref().map_or_else(|| "auto".into(), typst_string),
         ));
         source
     }

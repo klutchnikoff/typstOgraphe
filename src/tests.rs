@@ -25,6 +25,155 @@ fn demo_projects_native_typst_without_exposing_source() {
 }
 
 #[test]
+fn description_lists_preserve_terms_styles_unicode_and_source_positions() {
+    let mut document = Document::from_source(
+        "/ Échéance: Le *12 novembre*.\n/ Contact\\: service: #link(\"https://example.org\")[Élodie].",
+    ).unwrap();
+    assert_eq!(
+        document.view.text,
+        "Échéance\tLe 12 novembre.\nContact: service\tÉlodie."
+    );
+    assert_eq!(document.view.blocks, [BlockKind::Description; 2]);
+    document
+        .view
+        .toggle_mark(0..document.view.len(), Mark::Italic);
+    document.sync_source();
+    let restored = Document::from_source(document.source()).unwrap();
+    assert_eq!(restored.view.text, document.view.text);
+    assert_eq!(restored.view.styles, document.view.styles);
+    assert_eq!(restored.view.blocks, document.view.blocks);
+    for (index, c) in document.view.text.chars().enumerate() {
+        if !matches!(c, '\n' | '\t') {
+            assert_eq!(
+                document
+                    .source_map
+                    .to_visible(document.source_map.to_source(index)),
+                index
+            );
+        }
+    }
+    for source in ["/ : ", "/ Terme: ", "/ : Description"] {
+        let mut document = Document::from_source(source).unwrap();
+        document.sync_source();
+        assert!(Document::from_source(document.source()).is_ok(), "{source}");
+    }
+}
+
+#[test]
+fn model_controls_list_markers_and_language_defaults_in_actual_typst_output() {
+    use crate::document::DocumentLanguage;
+    use crate::navigation::RenderSync;
+    use typst::layout::{Frame, FrameItem};
+    fn text(frame: &Frame, out: &mut String) {
+        for (_, item) in frame.items() {
+            match item {
+                FrameItem::Group(group) => text(&group.frame, out),
+                FrameItem::Text(run) => out.push_str(&run.text),
+                _ => {}
+            }
+        }
+    }
+    let mut world = crate::rendering::TypstWorld::default();
+    let mut metadata = Metadata::demo(DocumentType::Courrier);
+    let mut document =
+        Document::from_source("- Élément unique\n\n/ Échéance: Le *12 novembre*.").unwrap();
+    document.sync_source();
+    for model in Model::ALL {
+        let template = model.source();
+        assert_eq!(
+            world.model_presentation(&template).unwrap(),
+            Default::default()
+        );
+        for (language, marker) in [
+            (DocumentLanguage::French, '—'),
+            (DocumentLanguage::English, '•'),
+        ] {
+            metadata.options_mut().language = language;
+            let output = world
+                .compile_with_template(document.source(), &metadata, &template)
+                .unwrap();
+            let mut content = String::new();
+            for page in output.pages() {
+                text(&page.frame, &mut content);
+            }
+            assert!(content.contains(marker), "{content}");
+            assert!(content.contains("Échéance"));
+            let sync = RenderSync::new(1, world.clone(), output, document.source_map.clone());
+            for needle in ["Échéance", "novembre"] {
+                let index = document.view.text[..document.view.text.find(needle).unwrap()]
+                    .chars()
+                    .count();
+                assert!(
+                    !sync
+                        .selection_highlights(index..index + needle.chars().count())
+                        .is_empty()
+                );
+                let position = sync.forward(index).unwrap();
+                let actual = sync.backward(position).unwrap();
+                assert!(actual.abs_diff(index) <= 1, "{actual} vs {index}");
+            }
+        }
+        metadata.options_mut().bullet_marker = Some("▪".into());
+        assert!(
+            world
+                .compile_with_template(document.source(), &metadata, &template)
+                .is_err()
+        );
+        let configurable = format!(
+            "{template}\n#let editor-options = (bullet-markers: (\"▪\", \"◆\"), custom-bullet-marker: false)"
+        );
+        let policy = world.model_presentation(&configurable).unwrap();
+        assert!(policy.allows_bullet_marker("▪"));
+        assert!(!policy.allows_bullet_marker("★"));
+        let output = world
+            .compile_with_template(document.source(), &metadata, &configurable)
+            .unwrap();
+        let mut content = String::new();
+        for page in output.pages() {
+            text(&page.frame, &mut content);
+        }
+        assert!(content.contains('▪'));
+        metadata.options_mut().bullet_marker = Some("★".into());
+        assert!(
+            world
+                .compile_with_template(document.source(), &metadata, &configurable)
+                .is_err()
+        );
+        let custom = format!("{template}\n#let editor-options = (custom-bullet-marker: true,)");
+        assert!(
+            world
+                .compile_with_template(document.source(), &metadata, &custom)
+                .is_ok()
+        );
+        for invalid in ["", "ab", "\n", " "] {
+            metadata.options_mut().bullet_marker = Some(invalid.into());
+            assert!(
+                world
+                    .compile_with_template(document.source(), &metadata, &custom)
+                    .is_err()
+            );
+        }
+        metadata.options_mut().bullet_marker = None;
+        let malformed =
+            format!("{template}\n#let editor-options = (bullet-markers: (\"wrong\",),)");
+        assert!(world.model_presentation(&malformed).is_err());
+        // Le créateur du modèle peut remplacer les conventions automatiques.
+        let overridden = template.replace(
+            r#"if language == "fr" { ([—], [•], [◦]) } else { ([•], [◦], [▪]) }"#,
+            "[◆]",
+        );
+        let output = world
+            .compile_with_template(document.source(), &metadata, &overridden)
+            .unwrap();
+        let mut content = String::new();
+        for page in output.pages() {
+            text(&page.frame, &mut content);
+        }
+        assert!(content.contains('◆'));
+    }
+}
+
+#[test]
 fn round_trip_preserves_unicode_and_overlapping_inline_styles() {
     let mut document =
         Document::from_source("Élodie écrit à Noël.\n\nDeuxième paragraphe.").unwrap();
