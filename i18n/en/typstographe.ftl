@@ -77,7 +77,7 @@ cmd-export-short = Export
 cmd-information = Letter information
 cmd-information-short = Information
 cmd-close = Close
-cmd-palette = Commands
+cmd-palette = Command palette
 cmd-institutional = Use the institutional layout
 cmd-institutional-short = Institutional letter
 cmd-service = Use the department layout
@@ -108,7 +108,6 @@ mixed-command = { $command } (mixed selection)
 link-selected-text = Text: { $text }
 command-shortcut = { $label } · { $shortcut }
 window-title = { $name }{ $marker } — typstOgraphe
-document-title = { $name }{ $marker }
 source-unsupported-node = Construct outside the editable subset: { $kind }
 source-unsupported-function = Unsupported function or signature: { $name }
 storage-open-failed = Could not open the letter: { $error }
@@ -155,3 +154,12 @@ cli-render-result =
         [one] { $pages } page
        *[other] { $pages } pages
     }, { $milliseconds } ms, export: { $path }
+
+edit-menu = Edit
+view-menu = View
+cmd-quit = Quit typstOgraphe
+mac-services = Services
+mac-hide = Hide typstOgraphe
+mac-hide-others = Hide Others
+mac-show-all = Show All
+native-menu-error = Could not update the menus: { $error }

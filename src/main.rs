@@ -3,6 +3,7 @@ mod commands;
 mod document;
 mod editor;
 mod i18n;
+mod menus;
 mod navigation;
 mod rendering;
 mod storage;
@@ -73,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eframe::run_native(
         "typstOgraphe",
         options,
-        Box::new(move |cc| Ok(Box::new(app::App::new(cc, capture, open_path)))),
+        Box::new(move |cc| Ok(Box::new(app::App::new(cc, capture, open_path)?))),
     )
     .map_err(|e| e.to_string())?;
     Ok(())

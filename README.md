@@ -53,12 +53,41 @@ mise en forme, dans la colonne de rédaction. Le panneau reste fixé au-dessus d
 texte pendant son défilement. Ses champs sont regroupés en Correspondance et
 Expéditeur ; sa hauteur est limitée, avec un défilement propre pour garder le
 texte accessible. Les modifications actualisent l’aperçu et sont enregistrées
-dans le courrier. La commande Informations du menu Fichier ou de la palette
+dans le courrier. La commande Informations du menu Affichage ou de la palette
 permet également de déplier ou replier ce panneau, sans bloquer la rédaction.
 
 Les accents et les caractères Unicode sont traités avec les mêmes indices de
 caractères que les curseurs egui. Le gras et l’italique utilisent de véritables
 variantes de police dans l’éditeur.
+
+## Menus de l’application
+
+Sur macOS, les menus sont natifs, dans la barre système, grâce à **muda**.
+Sur Windows et Linux, une barre **egui** les présente en haut de la fenêtre.
+Les deux présentations utilisent les mêmes identifiants, libellés traduits,
+raccourcis et actions du registre :
+
+- **Fichier** : Nouveau, Ouvrir, Enregistrer, Enregistrer sous, Exporter et Fermer.
+- **Édition** : Annuler, Rétablir et Palette de commandes.
+- **Affichage** : Informations du courrier, avec indication de son état déplié.
+
+Sur macOS, **Quitter typstOgraphe** se trouve dans le menu de l’application ; sur
+Windows et Linux, dans Fichier. Fermer utilise `⌘W` / `Ctrl+W`, Quitter `⌘Q` /
+`Ctrl+Q`. Dans cette version à une fenêtre, les deux commandes suivent la même
+protection des modifications non enregistrées. Les rôles système macOS
+(Services, Masquer…) sont fournis par muda.
+
+Annuler/Rétablir agit sur le texte du courrier ou le champ de métadonnées actif.
+Les commandes des menus sont suspendues pendant les dialogues. Sur macOS, les
+raccourcis installés dans les menus natifs sont retirés du traitement clavier
+egui pour éviter une double exécution ; les raccourcis secondaires restent
+disponibles. Les raccourcis natifs suivent aussi les personnalisations en mémoire.
+
+Le nom du fichier et l’étoile signalant des modifications apparaissent uniquement
+dans le titre de la fenêtre. L’en-tête conserve le nom de l’application et le
+contexte du document, sans rangée de boutons à droite. Le module `src/menus.rs`
+sépare le modèle commun des menus de leur intégration AppKit ; muda n’est une
+dépendance que sur macOS et n’ajoute pas de dépendance GTK sous Linux.
 
 ## Registre des commandes et raccourcis
 
@@ -159,7 +188,7 @@ accessibles dans la palette. Raccourcis :
 - `⌘⇧S` / `Ctrl+Shift+S` : enregistrer sous.
 
 Un courrier est conservé dans un seul fichier **`.typsto`**. Son nom apparaît
-dans l’en-tête et dans le titre de la fenêtre ; une étoile signale les
+dans le titre de la fenêtre ; une étoile signale les
 modifications non enregistrées. Avant de fermer la fenêtre, d’ouvrir un autre
 fichier ou de créer un courrier, l’application propose d’enregistrer, de ne pas
 enregistrer ou d’annuler. Un brouillon incomplet peut être enregistré.
@@ -220,7 +249,7 @@ Le moteur travaille sur un thread dédié, après une courte pause de saisie
 ne remplace pas un aperçu plus récent. Les polices et les sources sont mises
 en cache. En cas d’erreur, le dernier aperçu réussi reste visible.
 
-Le bouton **Exporter**, la commande du menu Fichier ou le raccourci `⌘E` sur
+La commande **Exporter** du menu Fichier ou le raccourci `⌘E` sur
 macOS / `Ctrl+E` sur Windows et Linux ouvre la fenêtre d’export. La commande est
 aussi accessible dans la palette. L’export produit dans un nouveau dossier :
 
@@ -286,6 +315,9 @@ modifications non enregistrées.
 Les tests du registre vérifient les contextes, les modificateurs sur macOS et
 Windows/Linux, les conflits, les remplacements et la désactivation de raccourcis,
 ainsi que la cohérence entre le raccourci actif et son affichage.
+Les tests des menus vérifient leur répartition par plateforme, l’export par le
+menu egui, la protection de Quitter, les accélérateurs natifs, l’absence de double
+déclenchement et l’annulation/rétablissement dans les métadonnées via la palette.
 
 Une capture de l’application peut être produite après le premier rendu réussi :
 

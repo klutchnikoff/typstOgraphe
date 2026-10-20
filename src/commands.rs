@@ -14,6 +14,14 @@ pub enum FileCommand {
     SaveAs,
     Export,
     Close,
+    Quit,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MenuGroup {
+    File,
+    Edit,
+    View,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -84,8 +92,22 @@ impl Definition {
     pub fn in_palette(&self) -> bool {
         self.command != Command::Palette
     }
-    pub fn in_file_menu(&self) -> bool {
-        matches!(self.command, Command::File(_) | Command::Information)
+    /// Le groupe et le rang définissent aussi les séparateurs (par dizaines).
+    pub fn menu_position(&self) -> Option<(MenuGroup, u8)> {
+        Some(match self.command {
+            Command::File(FileCommand::New) => (MenuGroup::File, 0),
+            Command::File(FileCommand::Open) => (MenuGroup::File, 1),
+            Command::File(FileCommand::Save) => (MenuGroup::File, 10),
+            Command::File(FileCommand::SaveAs) => (MenuGroup::File, 11),
+            Command::File(FileCommand::Export) => (MenuGroup::File, 20),
+            Command::File(FileCommand::Close) => (MenuGroup::File, 30),
+            Command::File(FileCommand::Quit) => (MenuGroup::File, 31),
+            Command::Undo => (MenuGroup::Edit, 0),
+            Command::Redo => (MenuGroup::Edit, 1),
+            Command::Palette => (MenuGroup::Edit, 10),
+            Command::Information => (MenuGroup::View, 0),
+            _ => return None,
+        })
     }
     pub fn in_presentation_menu(&self) -> bool {
         matches!(self.command, Command::Presentation(_))
@@ -186,7 +208,14 @@ pub static DEFINITIONS: &[Definition] = &[
         "cmd-close",
         Command::File(FileCommand::Close),
         Scope::Global,
-        &[],
+        &[primary(Key::W)],
+    ),
+    define(
+        "application.quit",
+        "cmd-quit",
+        Command::File(FileCommand::Quit),
+        Scope::Global,
+        &[primary(Key::Q)],
     ),
     define(
         "commands.palette",
@@ -432,11 +461,15 @@ impl Keymap {
         Ok(Self { commands, is_mac })
     }
 
-    pub fn shortcut_text(&self, ctx: &egui::Context, command: Command) -> String {
+    pub fn shortcuts(&self, command: Command) -> &[KeyboardShortcut] {
         self.commands
             .iter()
             .find(|entry| entry.definition.command == command)
-            .and_then(|entry| entry.shortcuts.first())
+            .map_or(&[], |entry| entry.shortcuts.as_slice())
+    }
+    pub fn shortcut_text(&self, ctx: &egui::Context, command: Command) -> String {
+        self.shortcuts(command)
+            .first()
             .map(|shortcut| ctx.format_shortcut(shortcut))
             .unwrap_or_default()
     }
@@ -452,7 +485,12 @@ impl Keymap {
             )
         }
     }
-    pub fn consume(&self, input: &mut egui::InputState, editor_focused: bool) -> Vec<Command> {
+    pub fn consume(
+        &self,
+        input: &mut egui::InputState,
+        editor_focused: bool,
+        native_shortcuts: &[KeyboardShortcut],
+    ) -> Vec<Command> {
         let mut commands = Vec::new();
         input.events.retain(|event| {
             if let egui::Event::Key {
@@ -462,6 +500,15 @@ impl Keymap {
                 ..
             } = event
             {
+                let pressed = KeyboardShortcut::new(*modifiers, *key);
+                // AppKit a déjà envoyé l’action correspondante par le menu natif.
+                // Retirer l’éventuelle copie clavier sans rejouer la commande.
+                if native_shortcuts
+                    .iter()
+                    .any(|shortcut| equivalent(&pressed, shortcut, self.is_mac))
+                {
+                    return false;
+                }
                 for entry in &self.commands {
                     if entry.definition.scope == Scope::Editor && !editor_focused {
                         continue;
@@ -521,7 +568,7 @@ mod tests {
                 ..Default::default()
             },
             |ctx| {
-                commands = ctx.input_mut(|input| keymap.consume(input, editor));
+                commands = ctx.input_mut(|input| keymap.consume(input, editor, &[]));
                 retained = ctx.input(|input| {
                     input
                         .events
@@ -534,6 +581,35 @@ mod tests {
     }
     fn overrides(json: &str) -> ShortcutOverrides {
         serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn native_shortcuts_are_not_dispatched_twice_and_other_bindings_still_work() {
+        let map = Keymap::new(true, &ShortcutOverrides::default()).unwrap();
+        let reserved = [primary(Key::E), primary_shift(Key::Z)];
+        let ctx = egui::Context::default();
+        let mut commands = Vec::new();
+        let _ = ctx.run(
+            egui::RawInput {
+                events: [Key::E, Key::Y]
+                    .into_iter()
+                    .map(|key| egui::Event::Key {
+                        key,
+                        modifiers: Modifiers::COMMAND,
+                        pressed: true,
+                        repeat: false,
+                        physical_key: None,
+                    })
+                    .collect(),
+                ..Default::default()
+            },
+            |ctx| {
+                commands = ctx.input_mut(|input| map.consume(input, true, &reserved));
+                assert!(ctx.input(|input| input.events.is_empty()));
+            },
+        );
+        // Cmd+E appartient au menu ; Cmd+Y reste l’alias egui de Rétablir.
+        assert_eq!(commands, vec![Command::Redo]);
     }
 
     #[test]

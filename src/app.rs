@@ -1,7 +1,7 @@
 use crate::{
     commands::{Command, DEFINITIONS, FileCommand, Keymap, Presentation, ShortcutOverrides},
     document::{BlockKind, Document, InlineStyle, Mark, Metadata, Projection},
-    editor,
+    editor, menus,
     navigation::{PagePoint, RenderSync},
     rendering::{RenderRequest, RenderWorker},
     storage::{self, Letter},
@@ -32,6 +32,10 @@ enum PendingAction {
 
 pub struct App {
     keymap: Keymap,
+    #[cfg(target_os = "macos")]
+    native_menus: Option<menus::native::NativeMenus>,
+    history_field: Option<egui::Id>,
+    field_history_action: Option<(Command, egui::Id)>,
     pub document: Document,
     metadata: Metadata,
     compact: bool,
@@ -81,12 +85,19 @@ impl App {
         cc: &eframe::CreationContext<'_>,
         capture: Option<PathBuf>,
         path: Option<PathBuf>,
-    ) -> Self {
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let mut app = Self::with_context(cc.egui_ctx.clone(), capture);
         if let Some(path) = path {
             app.open_path(path);
         }
-        app
+        #[cfg(target_os = "macos")]
+        {
+            app.native_menus = Some(menus::native::NativeMenus::new(
+                cc.egui_ctx.clone(),
+                &app.keymap,
+            )?);
+        }
+        Ok(app)
     }
     pub fn with_context(ctx: egui::Context, capture: Option<PathBuf>) -> Self {
         editor::install_fonts(&ctx);
@@ -101,6 +112,10 @@ impl App {
         let saved = Letter::demo();
         Self {
             keymap,
+            #[cfg(target_os = "macos")]
+            native_menus: None,
+            history_field: None,
+            field_history_action: None,
             document: Document::demo(),
             metadata: saved.metadata.clone(),
             compact: saved.compact,
@@ -251,6 +266,8 @@ impl App {
         }
     }
     fn install_letter(&mut self, letter: Letter, document: Document, path: Option<PathBuf>) {
+        self.history_field = None;
+        self.field_history_action = None;
         self.document = document;
         self.metadata = letter.metadata.clone();
         self.template = letter.template.clone();
@@ -311,7 +328,9 @@ impl App {
         match command {
             FileCommand::New => self.request_action(PendingAction::New, ctx),
             FileCommand::Open => self.request_action(PendingAction::Open, ctx),
-            FileCommand::Close => self.request_action(PendingAction::Close, ctx),
+            FileCommand::Close | FileCommand::Quit => {
+                self.request_action(PendingAction::Close, ctx)
+            }
             FileCommand::Save => {
                 self.save_document(false);
             }
@@ -501,7 +520,14 @@ impl App {
             return;
         }
         let focused = ctx.memory(|memory| memory.has_focus(egui::Id::new(editor::EDITOR_ID)));
-        let commands = ctx.input_mut(|input| self.keymap.consume(input, focused));
+        #[cfg(target_os = "macos")]
+        let reserved = self
+            .native_menus
+            .as_ref()
+            .map_or_else(Vec::new, |menus| menus.shortcuts());
+        #[cfg(not(target_os = "macos"))]
+        let reserved = Vec::new();
+        let commands = ctx.input_mut(|input| self.keymap.consume(input, focused, &reserved));
         for command in commands {
             if self.modal_open() {
                 break;
@@ -510,6 +536,80 @@ impl App {
         }
         if focused && !self.modal_open() {
             self.text_shortcuts(ctx);
+        }
+    }
+    fn track_history_focus(&mut self, ctx: &egui::Context) {
+        // La recherche de la palette et les champs des dialogues ne doivent pas
+        // remplacer la cible de l’historique du document.
+        if self.modal_open() || self.field_history_action.is_some() {
+            return;
+        }
+        if let Some(id) = ctx.memory(|memory| memory.focused()) {
+            if id == egui::Id::new(editor::EDITOR_ID) {
+                self.history_field = None;
+            } else if egui::TextEdit::load_state(ctx, id).is_some() {
+                self.history_field = Some(id);
+            }
+        }
+        if !self.information_open && !self.modal_open() {
+            self.history_field = None;
+        }
+    }
+    fn menu_statuses(&self) -> Vec<(Command, menus::Status)> {
+        DEFINITIONS
+            .iter()
+            .filter(|d| d.menu_position().is_some())
+            .map(|d| {
+                let enabled = !self.modal_open()
+                    && match d.command {
+                        Command::Undo => self.history_field.is_some() || !self.undo.is_empty(),
+                        Command::Redo => self.history_field.is_some() || !self.redo.is_empty(),
+                        _ => true,
+                    };
+                (
+                    d.command,
+                    menus::Status {
+                        enabled,
+                        checked: d.command == Command::Information && self.information_open,
+                    },
+                )
+            })
+            .collect()
+    }
+    fn dispatch_action(&mut self, command: Command, ctx: &egui::Context) {
+        if self.modal_open() {
+            return;
+        }
+        // Le menu Édition agit sur le champ actif. Le corps possède son propre
+        // historique ; les champs de métadonnées utilisent celui de TextEdit.
+        if let (Command::Undo | Command::Redo, Some(id)) = (command, self.history_field) {
+            self.field_history_action = Some((command, id));
+        } else {
+            self.apply(command);
+        }
+        ctx.request_repaint();
+    }
+    fn field_history(&mut self, ctx: &egui::Context) {
+        // Différer jusqu’à une frame où les champs peuvent consommer l’événement,
+        // y compris si la commande a été choisie dans la palette en fin de frame.
+        if let Some((command, id)) = self.field_history_action.take() {
+            if self.modal_open() || !self.information_open {
+                return;
+            }
+            ctx.memory_mut(|memory| memory.request_focus(id));
+            let modifiers = egui::Modifiers {
+                shift: command == Command::Redo,
+                ..egui::Modifiers::COMMAND
+            };
+            ctx.input_mut(|input| {
+                input.events.push(egui::Event::Key {
+                    key: egui::Key::Z,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers,
+                })
+            });
         }
     }
     fn text_shortcuts(&mut self, ctx: &egui::Context) {
@@ -1194,7 +1294,7 @@ impl App {
             self.palette_open &= open;
             if let Some(command) = choice {
                 self.palette_open = false;
-                self.apply(command);
+                self.dispatch_action(command, ctx);
             }
         }
         if self.export_open {
@@ -1319,7 +1419,16 @@ impl App {
             self.pending_action = Some(PendingAction::Close);
         }
         self.rendering(ctx);
+        self.track_history_focus(ctx);
         self.shortcuts(ctx);
+        #[cfg(target_os = "macos")]
+        if let Some(menus) = &self.native_menus {
+            let commands = menus.drain();
+            for command in commands {
+                self.dispatch_action(command, ctx);
+            }
+        }
+        self.field_history(ctx);
         let modal = self.modal_open();
         let dirty = self.is_dirty();
         let filename = self
@@ -1352,61 +1461,18 @@ impl App {
                             ACCENT
                         },
                     ));
-                    ui.separator();
-                    ui.menu_button(crate::tr!("file-menu"), |ui| {
-                        for definition in DEFINITIONS
-                            .iter()
-                            .filter(|definition| definition.in_file_menu())
+                    #[cfg(target_os = "macos")]
+                    let inline = self.native_menus.is_none();
+                    #[cfg(not(target_os = "macos"))]
+                    let inline = true;
+                    if inline {
+                        ui.separator();
+                        if let Some(command) =
+                            menus::egui_bar(ui, &self.keymap, &self.menu_statuses())
                         {
-                            let command = definition.command;
-                            let button = egui::Button::new(command.label())
-                                .shortcut_text(self.keymap.shortcut_text(ui.ctx(), command));
-                            if ui.add(button).clicked() {
-                                self.apply(command);
-                                ui.close();
-                            }
+                            self.dispatch_action(command, ctx);
                         }
-                    });
-                    ui.add_sized(
-                        [210.0, 18.0],
-                        egui::Label::new(
-                            RichText::new(crate::tr!(
-                                "document-title",
-                                name = filename.as_str(),
-                                marker = if dirty { " *" } else { "" }
-                            ))
-                            .strong(),
-                        )
-                        .truncate(),
-                    );
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui
-                            .button(Command::File(FileCommand::Export).short_label())
-                            .on_hover_text(
-                                self.keymap
-                                    .hint(ui.ctx(), Command::File(FileCommand::Export)),
-                            )
-                            .clicked()
-                        {
-                            self.apply(Command::File(FileCommand::Export));
-                        }
-                        if ui
-                            .button(Command::File(FileCommand::Save).short_label())
-                            .on_hover_text(
-                                self.keymap.hint(ui.ctx(), Command::File(FileCommand::Save)),
-                            )
-                            .clicked()
-                        {
-                            self.apply(Command::File(FileCommand::Save));
-                        }
-                        if ui
-                            .button(Command::Palette.short_label())
-                            .on_hover_text(self.keymap.hint(ui.ctx(), Command::Palette))
-                            .clicked()
-                        {
-                            self.apply(Command::Palette);
-                        }
-                    });
+                    }
                 });
                 ui.horizontal(|ui| {
                     ui.weak(crate::tr!("letter-type"));
@@ -1489,6 +1555,17 @@ impl App {
             self.handle_file_command(command, ctx);
         }
         self.file_dialogs(ctx);
+        self.track_history_focus(ctx);
+        #[cfg(target_os = "macos")]
+        {
+            let statuses = self.menu_statuses();
+            if let Some(menus) = &mut self.native_menus
+                && let Err(error) = menus.update(&self.keymap, &statuses)
+            {
+                self.file_error = Some(crate::tr!("native-menu-error", error = error.to_string()));
+                ctx.request_repaint();
+            }
+        }
         self.capture(ctx);
     }
     fn capture(&mut self, ctx: &egui::Context) {
@@ -1533,6 +1610,94 @@ impl eframe::App for App {
 #[cfg(test)]
 mod interaction_tests {
     use super::*;
+
+    #[test]
+    fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplicates() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.file_path = Some(PathBuf::from("exemple.typsto"));
+        let source = app.document.source().to_owned();
+        let mut time = 0.0;
+        let mut draw = |app: &mut App, events| {
+            time += 0.1;
+            ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1240.0, 900.0),
+                    )),
+                    time: Some(time),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| app.ui_frame(ctx),
+            )
+        };
+        let text_point = |output: &egui::FullOutput, value: &str| {
+            output.shapes.iter().find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.text() == value => {
+                    Some(text.pos + text.galley.rect.center().to_vec2())
+                }
+                _ => None,
+            })
+        };
+        draw(&mut app, vec![]);
+        let output = draw(&mut app, vec![]);
+        assert!(text_point(&output, "exemple.typsto").is_none());
+        assert!(text_point(&output, "Enregistrer").is_none());
+        assert!(text_point(&output, "Exporter").is_none());
+        assert!(app.window_title.contains("exemple.typsto"));
+        let pos = text_point(&output, "Fichier").unwrap();
+        for pressed in [true, false] {
+            draw(
+                &mut app,
+                vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+        let output = draw(&mut app, vec![]);
+        let pos = text_point(&output, "Exporter le courrier…").expect("export dans Fichier");
+        for pressed in [true, false] {
+            draw(
+                &mut app,
+                vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+        assert!(app.export_open);
+        assert_eq!(app.document.source(), source);
+        // Une commande native déjà en transit ne contourne pas un dialogue.
+        app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
+        assert!(app.file_command.is_none());
+        app.export_open = false;
+        app.metadata.objet = "Brouillon à conserver".into();
+        let before = app.letter();
+        app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
+        let output = draw(&mut app, vec![]);
+        assert!(matches!(app.pending_action, Some(PendingAction::Close)));
+        assert!(!app.allow_close);
+        assert_eq!(app.letter(), before);
+        assert!(
+            output.viewport_output[&egui::ViewportId::ROOT]
+                .commands
+                .iter()
+                .all(|command| !matches!(command, egui::ViewportCommand::Close))
+        );
+    }
 
     #[test]
     fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_document() {
@@ -1612,6 +1777,7 @@ mod interaction_tests {
         // colonne de gauche et laisse une zone de rédaction utilisable.
         let body = text_rect(&opened, &app.document.view.text);
         assert!(body.height() > 150.0, "zone de rédaction : {body:?}");
+        let original_subject = app.metadata.objet.clone();
         let subject = text_rect(&opened, &app.metadata.objet);
         assert!(subject.is_positive());
         assert!(subject.right() < preview.left());
@@ -1635,11 +1801,32 @@ mod interaction_tests {
         assert_eq!(app.revision, revision + 1);
         assert!(app.is_dirty());
         assert!(app.information_open);
+        app.apply(Command::Palette);
+        app.palette_query = "Annuler".into();
+        draw(&mut app, vec![]);
+        draw(
+            &mut app,
+            vec![egui::Event::Key {
+                key: egui::Key::Enter,
+                modifiers: egui::Modifiers::NONE,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+            }],
+        );
+        assert!(!app.palette_open);
+        draw(&mut app, vec![]);
+        assert_eq!(app.metadata.objet, original_subject);
+        assert_eq!(app.document.source(), source);
+        app.dispatch_action(Command::Redo, &ctx);
+        draw(&mut app, vec![]);
+        assert_eq!(app.metadata.objet, "Objet modifié");
+        assert_eq!(app.revision, revision + 3);
         click(&mut app, &mut draw, header.center());
         draw(&mut app, vec![]);
         assert!(!app.information_open);
         assert_eq!(app.metadata.objet, "Objet modifié");
-        assert_eq!(app.revision, revision + 1);
+        assert_eq!(app.revision, revision + 3);
     }
 
     #[test]

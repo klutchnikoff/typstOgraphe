@@ -77,7 +77,7 @@ cmd-export-short = Exporter
 cmd-information = Informations du courrier
 cmd-information-short = Informations
 cmd-close = Fermer
-cmd-palette = Commandes
+cmd-palette = Palette de commandes
 cmd-institutional = Utiliser la présentation institutionnelle
 cmd-institutional-short = Courrier institutionnel
 cmd-service = Utiliser la présentation de service
@@ -108,7 +108,6 @@ mixed-command = { $command } (sélection mixte)
 link-selected-text = Texte : { $text }
 command-shortcut = { $label } · { $shortcut }
 window-title = { $name }{ $marker } — typstOgraphe
-document-title = { $name }{ $marker }
 source-unsupported-node = Construction hors du sous-ensemble éditable : { $kind }
 source-unsupported-function = Fonction ou signature non prise en charge : { $name }
 storage-open-failed = Impossible d’ouvrir le courrier : { $error }
@@ -155,3 +154,12 @@ cli-render-result =
         [one] { $pages } page
        *[other] { $pages } pages
     }, { $milliseconds } ms, export : { $path }
+
+edit-menu = Édition
+view-menu = Affichage
+cmd-quit = Quitter typstOgraphe
+mac-services = Services
+mac-hide = Masquer typstOgraphe
+mac-hide-others = Masquer les autres
+mac-show-all = Tout afficher
+native-menu-error = Impossible de mettre à jour les menus : { $error }
