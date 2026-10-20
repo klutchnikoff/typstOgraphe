@@ -92,11 +92,6 @@ fn text_format(
             colors.text
         },
         line_height: Some(size * 1.55),
-        underline: if style.link.is_some() {
-            Stroke::new(0.8_f32, colors.accent)
-        } else {
-            Stroke::NONE
-        },
         ..Default::default()
     }
 }
@@ -216,12 +211,61 @@ pub fn cursor(range: Range<usize>) -> CCursorRange {
     CCursorRange::two(CCursor::new(range.start), CCursor::new(range.end))
 }
 
+/// Le soulignement natif suit la hauteur de ligne explicite. Ici, il suit
+/// le bas naturel de la police, sous les descendantes et au-dessus de l’interligne.
+fn link_underlines(view: &Projection, galley: &Galley) -> Vec<[egui::Pos2; 2]> {
+    let mut lines = Vec::new();
+    let mut character = 0;
+    for row in &galley.rows {
+        let mut run: Option<(&str, [egui::Pos2; 2])> = None;
+        for glyph in &row.glyphs {
+            let link = view
+                .styles
+                .get(character)
+                .and_then(|style| style.link.as_deref());
+            let left = row.pos.x + glyph.pos.x;
+            let right = row.pos.x + glyph.max_x();
+            let y = row.pos.y + glyph.pos.y - glyph.font_ascent + glyph.font_height;
+            match (&mut run, link) {
+                (Some((url, points)), Some(link)) if *url == link => {
+                    points[1].x = right;
+                    let y = points[0].y.max(y);
+                    points[0].y = y;
+                    points[1].y = y;
+                }
+                _ => {
+                    if let Some((_, points)) = run.take() {
+                        lines.push(points);
+                    }
+                    if let Some(link) = link {
+                        run = Some((link, [egui::pos2(left, y), egui::pos2(right, y)]));
+                    }
+                }
+            }
+            character += 1;
+        }
+        if let Some((_, points)) = run {
+            lines.push(points);
+        }
+        character += usize::from(row.ends_with_newline);
+    }
+    lines
+}
+
 pub fn paint_decorations(
     ui: &egui::Ui,
     view: &Projection,
     output: &egui::text_edit::TextEditOutput,
     editor: EditorStyle,
 ) {
+    let painter = ui.painter_at(output.text_clip_rect);
+    let stroke = Stroke::new(0.8_f32, EditorColors::from_visuals(ui.visuals()).accent);
+    for points in link_underlines(view, &output.galley) {
+        painter.line_segment(
+            points.map(|point| output.galley_pos + point.to_vec2()),
+            stroke,
+        );
+    }
     let mut number = 0;
     for (index, range) in view.line_ranges().iter().enumerate() {
         let kind = view.blocks[index];
@@ -311,7 +355,7 @@ mod tests {
                             assert_eq!(combined.color, bold.color);
                             assert_eq!(combined.font_id, font.font_id(size, 3));
                             assert_eq!(link.color, h1.color);
-                            assert!(link.underline.width > 0.0);
+                            assert!(!link_underlines(&document.view, &galley).is_empty());
                             assert_eq!(h1.color, h2.color);
                             assert_eq!(h2.color, h3.color);
                             for (format, factor) in [(h1, 1.728), (h2, 1.44), (h3, 1.2)] {
