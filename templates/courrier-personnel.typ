@@ -5,7 +5,7 @@
 #let editor-options = (bullet-markers: (), custom-bullet-marker: false)
 
 #import "capabilities/dates.typ": format-date
-#import "capabilities/correspondence.typ": postscript, piece-jointe, notes-courrier
+#import "capabilities/correspondence.typ": postscript, attachment, letter-notes
 
 #let courrier(
   expediteur: "",
@@ -149,9 +149,9 @@
     #align(right, box(width: 65mm,
       align(center, stack(dir: ttb, spacing: 2mm, ..elements))))
   ]
-  notes-courrier(
+  letter-notes(
     postscript: body => block(above: 6mm)[#strong[#labels.postscript :] #body],
-    pieces-jointes: items => block(above: 5mm)[
+    attachments: items => block(above: 5mm)[
       #strong[#labels.attachments :]
       #list(..items)
     ],

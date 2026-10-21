@@ -960,11 +960,11 @@ fn image_insertions_and_cross_block_deletions_keep_the_projection_valid() {
 #[test]
 fn letter_notes_round_trip_rich_text_and_keep_exact_source_positions() {
     for source in [
-        "Avant.\n\n#postscript[Un *été* utile.\nSuite _précise_.\n\nSecond paragraphe.]\n\n#piece-jointe[Formulaire *signé*]\n#piece-jointe[#link(\"https://example.org\")[Rapport annuel]]",
+        "Avant.\n\n#postscript[Un *été* utile.\nSuite _précise_.\n\nSecond paragraphe.]\n\n#attachment[Formulaire *signé*]\n#attachment[#link(\"https://example.org\")[Rapport annuel]]",
         "#postscript[]",
-        "#postscript[]\n#piece-jointe[]",
-        "#piece-jointe[]",
-        "#postscript[Texte]\n#piece-jointe[]",
+        "#postscript[]\n#attachment[]",
+        "#attachment[]",
+        "#postscript[Texte]\n#attachment[]",
     ] {
         let mut document = Document::from_source(source).unwrap();
         let original = document.view.clone();
@@ -987,8 +987,8 @@ fn letter_notes_round_trip_rich_text_and_keep_exact_source_positions() {
     }
     for invalid in [
         "#postscript(\"texte\")",
-        "#piece-jointe[Un\n\nDeux]",
-        "#postscript[#piece-jointe[Imbriquée]]",
+        "#attachment[Un\n\nDeux]",
+        "#postscript[#attachment[Imbriquée]]",
         "#quote(block: true)[#postscript[Imbriqué]]",
     ] {
         assert!(Document::from_source(invalid).is_err(), "{invalid}");
@@ -1008,7 +1008,7 @@ fn letter_notes_render_after_signature_and_keep_bidirectional_selection_mapping(
             })
             .collect()
     }
-    let source = "#postscript[POSTSCRIPTUM été *utile*.]\n\nCORPS PRINCIPAL.\n\n#piece-jointe[FORMULAIRE signé]\n#piece-jointe[RAPPORT annuel]";
+    let source = "#postscript[POSTSCRIPTUM été *utile*.]\n\nCORPS PRINCIPAL.\n\n#attachment[FORMULAIRE signé]\n#attachment[RAPPORT annuel]";
     let mut document = Document::from_source(source).unwrap();
     document.sync_source();
     let source = document.source();
@@ -1051,7 +1051,7 @@ fn letter_notes_render_after_signature_and_keep_bidirectional_selection_mapping(
 
 #[test]
 fn postscript_insertion_precedes_existing_enclosures_and_reuses_its_existing_block() {
-    let mut document = Document::from_source("Corps.\n\n#piece-jointe[Formulaire]").unwrap();
+    let mut document = Document::from_source("Corps.\n\n#attachment[Formulaire]").unwrap();
     let at = document.view.insert_letter_note(BlockKind::Postscript);
     document.view.insert_text("Complément.", at);
     document.sync_source();

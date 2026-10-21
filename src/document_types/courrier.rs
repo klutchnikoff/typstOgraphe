@@ -82,14 +82,14 @@ macro_rules! field {
 }
 pub const COMMANDS: &[crate::commands::Definition] = &[
     crate::commands::define(
-        "courrier.insert-postscript",
+        "letter.insert-postscript",
         "cmd-insert-postscript",
         crate::commands::Command::InsertPostscript,
         crate::commands::Scope::Editor,
         &[],
     ),
     crate::commands::define(
-        "courrier.insert-attachment",
+        "letter.insert-attachment",
         "cmd-insert-attachment",
         crate::commands::Command::InsertAttachment,
         crate::commands::Scope::Editor,

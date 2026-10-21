@@ -247,6 +247,14 @@ Les fonctions natives de Typst (`strong`, `emph`, `quote`, `figure`, etc.) reste
 les primitives de composition ; cette couche accueille les règles propres à
 l’application et les adaptations nécessaires, sans doubler le moteur Typst.
 
+**Convention de nommage :** les identifiants des capacités, leurs fichiers,
+fonctions Typst, paramètres publics et commandes associées portent des noms
+anglais ou latins. Utiliser des identifiants ASCII en minuscules, avec des tirets
+pour séparer les mots (`kebab-case`) côté Typst. Les libellés et les messages
+restent traduits dans les catalogues de l’interface ; la documentation peut
+être rédigée en français. Exemples : `format-date`, `postscript`, `attachment`,
+`letter-notes(postscript: ..., attachments: ...)`.
+
 **Premier adaptateur implémenté : Dates.**
 `capabilities/dates.typ` expose `format-date(value, lang: "fr") -> content`.
 Il accepte une date ISO fixe, un `datetime` ou un libellé libre. Il compose une
@@ -271,12 +279,12 @@ ligne ; sur une ligne vide elle quitte le bloc. Tab permet également d’en sor
 Le bouton P.-S. rejoint le bloc existant, ou le crée avant les P.J. ; le bouton
 P.J. ajoute une mention en fin de liste.
 
-L’interface Typst est `postscript(body)` et `piece-jointe(body)`, fournie par
+L’interface Typst est `postscript(body)` et `attachment(body)`, fournie par
 `capabilities/correspondence.typ`, sans paquet externe. Le source ajoute un
 import explicite de ces deux fonctions depuis le modèle, masqué dans l’éditeur.
 Les modèles du type Courrier doivent exposer ces fonctions lorsqu’elles sont
 utilisées ; le modèle fourni les réexporte depuis cet adaptateur. Son point
-`notes-courrier(postscript: ..., pieces-jointes: ...)` collecte les contenus et
+`letter-notes(postscript: ..., attachments: ...)` collecte les contenus et
 applique les deux présentations données par le modèle, après la signature.
 Les blocs vides ne produisent aucune mention dans le rendu. Les interfaces,
 l’archivage, l’export autonome et les sélections restent testés ensemble.

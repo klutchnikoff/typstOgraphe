@@ -1536,8 +1536,8 @@ mod tests {
         let ctx = egui::Context::default();
         install_fonts(&ctx);
         for source in [
-            "#postscript[]\n#piece-jointe[]",
-            "#postscript[Une information supplémentaire assez longue pour se replier sur plusieurs lignes, avec du *gras*.]\n\n#piece-jointe[Un formulaire signé assez long pour se replier également]\n#piece-jointe[]",
+            "#postscript[]\n#attachment[]",
+            "#postscript[Une information supplémentaire assez longue pour se replier sur plusieurs lignes, avec du *gras*.]\n\n#attachment[Un formulaire signé assez long pour se replier également]\n#attachment[]",
         ] {
             let mut document = Document::from_source(source).unwrap();
             let original = document.clone();

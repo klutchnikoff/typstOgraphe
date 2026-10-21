@@ -293,7 +293,7 @@ mod tests {
     }
     #[test]
     fn native_correspondence_capability_does_not_pull_in_unrelated_packages() {
-        let template = "#import \"capabilities/correspondence.typ\": postscript, piece-jointe";
+        let template = "#import \"capabilities/correspondence.typ\": postscript, attachment";
         let files = for_template(template);
         validate(template, &files).unwrap();
         let inventory: Catalog = serde_json::from_slice(&files[INVENTORY]).unwrap();

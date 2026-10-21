@@ -12,7 +12,7 @@
     {
       "id": "correspondence",
       "entrypoint": "capabilities/correspondence.typ",
-      "signature": "postscript(body), piece-jointe(body), notes-courrier(postscript: body => body, pieces-jointes: items => items.join(parbreak()))",
+      "signature": "postscript(body), attachment(body), letter-notes(postscript: body => body, attachments: items => items.join(parbreak()))",
       "packages": []
     }
   ],

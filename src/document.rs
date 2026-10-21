@@ -3,7 +3,7 @@
 use std::{collections::BTreeMap, ops::Range};
 
 pub const IMAGE_OBJECT: char = '\u{fffc}';
-pub const LETTER_NOTES_IMPORT: &str = "#import \"modele.typ\": postscript, piece-jointe\n\n";
+pub const LETTER_NOTES_IMPORT: &str = "#import \"modele.typ\": postscript, attachment\n\n";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ImageBlock {
@@ -634,7 +634,7 @@ impl Projection {
                 result.push_str(if kind == BlockKind::Postscript {
                     "#postscript["
                 } else {
-                    "#piece-jointe["
+                    "#attachment["
                 });
                 for line in index..end {
                     if line > index {
@@ -1055,7 +1055,7 @@ impl Projector {
             return Err(crate::tr!("source-computed-call"));
         };
         let args: Vec<_> = call.args().items().collect();
-        if matches!(callee.as_str(), "postscript" | "piece-jointe") {
+        if matches!(callee.as_str(), "postscript" | "attachment") {
             return self.letter_note(callee.as_str(), &args, style);
         }
         if callee.as_str() == "figure" {
@@ -1268,7 +1268,7 @@ impl Projector {
                 expr,
                 Expr::Heading(_) | Expr::ListItem(_) | Expr::EnumItem(_) | Expr::TermItem(_) | Expr::ModuleImport(_)
             )
-            || matches!(expr, Expr::FuncCall(call) if matches!(call.callee(), Expr::Ident(name) if matches!(name.as_str(), "quote" | "figure" | "postscript" | "piece-jointe")))
+            || matches!(expr, Expr::FuncCall(call) if matches!(call.callee(), Expr::Ident(name) if matches!(name.as_str(), "quote" | "figure" | "postscript" | "attachment")))
         }) {
             return Err(crate::tr!("source-nested-blocks"));
         }

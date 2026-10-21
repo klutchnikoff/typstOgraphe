@@ -7186,13 +7186,13 @@ mod interaction_tests {
             app.session
                 .document
                 .source()
-                .contains("#piece-jointe[Formulaire signé]")
+                .contains("#attachment[Formulaire signé]")
         );
         assert!(
             app.session
                 .document
                 .source()
-                .contains("#piece-jointe[Rapport annuel]")
+                .contains("#attachment[Rapport annuel]")
         );
         frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
         frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);

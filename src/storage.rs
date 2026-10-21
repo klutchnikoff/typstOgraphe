@@ -654,7 +654,7 @@ mod tests {
         let path = dir.path().join("autonome.typsto");
         let mut letter = StoredDocument::blank(DocumentType::Courrier);
         letter.source = format!(
-            "{}Un courrier autonome.\n\n#postscript[Un complément.]\n\n#piece-jointe[Formulaire signé]",
+            "{}Un courrier autonome.\n\n#postscript[Un complément.]\n\n#attachment[Formulaire signé]",
             crate::document::LETTER_NOTES_IMPORT
         );
         letter.metadata.courrier_mut().date = "2026-10-02".into();
