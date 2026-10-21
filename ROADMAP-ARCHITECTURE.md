@@ -1,13 +1,17 @@
 # Feuille de route technique — architecture, commandes, CLI et MCP
 
-Document de travail établi le **21 octobre 2026**, relevé sur le commit `18fec75`.
+Document de travail établi le **21 octobre 2026**, relevé actualisé sur le commit
+`f0c81a0` (143 tests sur macOS avant la phase 0).
 Il complète la [feuille de route générale](ROADMAP.md) et suit sa méthode : **chaque
 phase commence par les décisions de la section 3, validées ensemble avant
-implémentation**. Les valeurs proposées sont des recommandations, pas des accords.
-Une fois validé, ce document pourra devenir un chantier J de `ROADMAP.md`.
+implémentation**. Il constitue le détail du chantier J de `ROADMAP.md`.
+Les décisions D1 à D14 et les précisions D15 à D20 ci-dessous sont validées ;
+les choix supplémentaires restent à discuter au début de chaque phase.
 
 Les estimations sont des tailles relatives (S, M, L), pas un calendrier. Chaque
-tâche numérotée vise une demande de fusion (PR) autonome, avec les tests au vert.
+tâche numérotée vise une unité de travail vérifiable. Les déplacements restent
+isolés dans des commits ; plusieurs déplacements cohérents peuvent être regroupés
+dans une même demande de fusion (PR), avec les tests au vert.
 
 ## 1. Objectif et périmètre
 
@@ -23,7 +27,7 @@ fonctions d'édition (tableaux, notes), correction grammaticale. La section 9 li
 des points repérés en chemin et volontairement laissés de côté.
 
 **Règle de toutes les phases** : les déplacements et réorganisations de code ne
-changent pas le comportement, et les tests existants (137 attributs `#[test]` relevés)
+changent pas le comportement, et les tests existants (143 attributs `#[test]` relevés)
 restent verts à chaque commit.
 
 **Assouplissement (décidé le 21 octobre 2026)** : un changement de comportement
@@ -105,7 +109,7 @@ Fuites à traiter avant tout découpage en crates :
 - Les tests d'interface appellent des méthodes privées d'`App` : le découpage en
   fichiers impose de rendre ces méthodes `pub(super)`.
 
-## 3. Décisions à valider
+## 3. Décisions validées et précisions avant implémentation
 
 | N° | Décision | Recommandation | Phase |
 | --- | --- | --- | --- |
@@ -123,6 +127,13 @@ Fuites à traiter avant tout découpage en crates :
 | D12 | Sécurité MCP par défaut | **Validée le 21 octobre 2026.** Aucun accès aux fichiers hors racines déclarées (`--read-root`, `--write-root` séparées), enregistrement explicite, mode `--read-only`, aucune action réseau | 5 |
 | D13 | Seuils de lint | **Validée le 21 octobre 2026.** `clippy::too_many_lines` à 120 (`clippy.toml`) ; fichier de production maximal 800 lignes, contrôlé par un script de CI (tests exclus), en avertissement à la fin de la phase 1 et bloquant en phase 7 | 1, 7 |
 | D14 | Canal de contrôle de l'application en cours d'exécution | **Validée le 21 octobre 2026.** Reporté ; à rouvrir après la phase 5 seulement si un besoin de test visuel automatisé ou d'essais assistés apparaît | 6 |
+| D15 | Historique | **Validée après relecture.** Une mutation documentaire validée constitue une transaction ; sélection, navigation, recherche et enregistrement n’ajoutent pas d’étape d’annulation. La frappe conserve ses groupes naturels ; un lot d’édition se défait en une étape | 2 |
+| D16 | Atomicité des lots | **Validée après relecture.** D’abord un document, modifié sur une session temporaire puis enregistré une seule fois par écriture atomique. Les étapes ne peuvent ni enregistrer ni exporter, ni modifier le profil ou le dictionnaire global. Export et autres effets externes sont des opérations séparées ; une atomicité multi-fichiers demanderait une autre décision | 2, 4, 5 |
+| D17 | Saisie native | **Validée après relecture.** L’adaptateur egui peut préparer une édition native, mais validation, normalisation, révision et historique utilisent la même voie du cœur que les commandes. Une erreur ne publie aucune mutation partielle ; tests de parité avec `text.insert` | 2 |
+| D18 | Modèle d’édition | **Validée après relecture.** Prototype borné de tableaux et vérification de la composition IME après le rangement initial, avant le gel des paramètres publics du moteur en phase 2. L’arbre éventuel est une représentation en mémoire reconstruite depuis le Typst et sérialisée en Typst, qui reste la référence documentaire | 1, 2 |
+| D19 | Captures comparables | **Validée après relecture.** Figer en mode capture la langue, le thème, le curseur, les animations et le temps de rendu affiché. Fixtures et dates fixes, attente des résultats asynchrones. Les empreintes PNG ne servent de contrôle qu’après répétition réussie sur le même environnement | 0 |
+| D20 | Granularité des changements | **Validée après relecture.** Un déplacement par commit, plusieurs commits cohérents possibles par PR. Les limites portent sur le code de production ; le découpage de `document.rs` et d’`editor.rs` est planifié avant leur application globale | 1, 3, 7 |
+
 
 ## 4. Vue d'ensemble
 
@@ -142,7 +153,9 @@ contenu du crate `core`) ; 3 avant 4 ; 4 avant 5 (MCP réutilise les commandes, 
 schémas et les politiques de chemins de la CLI). Les phases 1 et 2 peuvent être
 interrompues entre deux PR sans laisser le dépôt dans un état intermédiaire.
 
-Autres chantiers : l'étape 5 de `ROADMAP.md` (tableaux, notes) vient après la phase 7.
+Autres chantiers : la livraison des tableaux et notes (étape 5 de `ROADMAP.md`)
+vient après la phase 7. Le prototype de décision du modèle d’édition est avancé
+avant le gel du moteur (D18), sans livrer les tableaux à ce stade.
 L'harmonisation de la présentation des blocs de l'éditeur (chantier B) vient après la
 phase 2, car les tâches 2.4.2 (structure et annotations) et 2.4.3 (images) réécrivent
 les mêmes comportements.
@@ -154,16 +167,22 @@ les mêmes comportements.
 **But** : pouvoir prouver qu'une étape ne change pas le comportement.
 
 - [ ] **0.1** Relever la base : `cargo test --locked`, `clippy -D warnings`, couverture.
-  Consigner dans la PR le nombre de tests passés et le pourcentage de lignes couvertes.
+  Consigner les commandes, le commit, la plateforme, le nombre de tests et la couverture
+  dans `docs/architecture-phase-0.md`. La mesure Linux de la CI existante peut servir
+  de référence, avec son exécution et son commit exacts ; ne pas la présenter comme
+  une mesure locale. Relever et corriger séparément toute CI déjà en échec.
 - [ ] **0.2** Créer `scripts/capture-baseline.sh` qui produit, dans `output/baseline/`
   (déjà ignoré par git), les captures d'écran de référence avec les options existantes :
   `--capture`, `--capture-new-document`, `--capture-search <requête>`,
   `--capture-spelling`, `--capture-profile`, `--capture-profile-letter`,
-  `--capture-recovery <dossier>`. Un second mode compare les empreintes (SHA-256) des
-  PNG. La comparaison n'a de sens que sur la même machine : les polices et le rendu
-  varient d'un système à l'autre.
+  `--capture-recovery <dossier>`, plus un courrier représentatif ouvert depuis un
+  fichier autonome. Appliquer D19 avant de comparer les empreintes SHA-256 des PNG.
+  Conserver un manifeste des scénarios et de l’environnement, les références et les
+  nouvelles captures séparément ; ne jamais écraser les références en mode comparaison.
+  Faire deux passages consécutifs pour vérifier la reproductibilité. La comparaison
+  est locale : les polices, la densité d’écran et le rendu varient entre environnements.
 - [ ] **0.3** Étiqueter le commit de départ (`pre-refactor-architecture`).
-- [ ] **0.4** Décisions D1 à D14 de la section 3 : validées le 21 octobre 2026.
+- [ ] **0.4** Décisions D1 à D20 de la section 3 : validées.
 
 **Critère de sortie** : base chiffrée consignée, script de captures utilisable.
 
@@ -171,12 +190,13 @@ les mêmes comportements.
 
 ## Phase 1 — Découper `app.rs` (taille L)
 
-**But** : aucun fichier de production au-dessus de 800 lignes, aucune fonction au-dessus
-de 120, tests rangés par thème. **Un seul crate**, pour limiter le risque.
+**But** : aucun fichier de production d’`app/` au-dessus de 800 lignes et aucune
+fonction d’`app/` au-dessus de 120, tests rangés par thème. L’application globale
+des seuils attend les tâches complémentaires de 3.8 et la phase 7. **Un seul crate**, pour limiter le risque.
 
 **Méthode** : déplacements purs d'abord, réorganisation ensuite. Un commit ne déplace
 **ou** ne modifie, jamais les deux. Les méthodes appelées entre fichiers deviennent
-`pub(super)` ; les champs d'`App` aussi, le temps de l'étape 1.8.
+`pub(super)` ; les champs d'`App` aussi, le temps du regroupement de l’état en 1.4.
 
 ### 1.1 Sortir les tests (zéro risque pour la production)
 
@@ -216,7 +236,8 @@ Les numéros de ligne datent du 21 octobre ; les ajuster au moment du déplaceme
 | `app/preferences.rs` | `preferences_ui`, `appearance_preferences_ui`, `spelling_preferences_ui`, `profile_preferences_ui`, `persist_preferences`, `capture_profile` |
 | `app/dialogs.rs` | `dialogs`, `welcome_ui`, `modal_open` |
 
-- [ ] Un PR par ligne de ce tableau, dans l'ordre croissant du risque : `links`,
+- [ ] Un commit de déplacement par ligne de ce tableau, regroupables par responsabilités
+  cohérentes dans une même PR, dans l'ordre croissant du risque : `links`,
   `images`, `signature`, `models`, `search`, `spelling`, `preferences`, `information`,
   `chrome`, `recovery`, `files`, `preview`, `editor_view`, `commands`, `text_input`,
   `dialogs`, `mod`.
@@ -247,7 +268,7 @@ Séparer les environ 70 champs d'`App` en structures nommées, sans changer la l
 | `DialogState` | `palette_*`, `new_document_*`, `link_*`, `image_*`, `information_*`, `preferences_*`, `message` |
 | `CaptureState` | `capture`, `screenshot_requested`, `started` |
 
-- [ ] Un PR par structure, dans l'ordre : `CaptureState`, `RecoveryState`,
+- [ ] Un commit de réorganisation par structure, regroupables par PR, dans l'ordre : `CaptureState`, `RecoveryState`,
   `SpellingState`, `SearchState`, `PreviewState`, `FileState`, `DialogState`,
   `DocumentState`.
 - [ ] Retirer les `pub(super)` devenus inutiles.
@@ -259,7 +280,17 @@ Séparer les environ 70 champs d'`App` en structures nommées, sans changer la l
   `src/` dépasse 800 lignes (fichiers de tests exclus). En CI, en avertissement
   (non bloquant) jusqu'à la phase 7.
 
-### 1.6 Critères de sortie
+### 1.6 Prototype de décision du modèle d’édition (D18)
+
+- [ ] Après le rangement initial, faire un prototype borné de tableau simple avec le
+  tampon actuel : cellules, navigation, sélection, insertion/suppression, annulation.
+- [ ] Vérifier touches mortes et composition IME ; noter les limites observées.
+- [ ] Décider ensemble si le moteur garde ce modèle ou accueille des blocs et séquences
+  en ligne en mémoire. Le source Typst reste la référence du contenu et du stockage.
+- [ ] Reporter la décision et ses conséquences sur les cibles et paramètres des commandes
+  dans l’inventaire 2.1, avant leur gel en fin de phase 2.
+
+### 1.7 Critères de sortie
 
 - Aucun fichier de production d'`app/` au-dessus de 800 lignes ; `app/mod.rs` sous 400.
 - Même nombre de tests, tous verts sur trois systèmes ; mêmes captures qu'à la phase 0.
@@ -314,16 +345,18 @@ Dans `src/engine/` (futur crate `core`) :
   et `query(&self, Query) -> Result<Value, CommandError>`.
 - [ ] `Outcome` : `changed`, sélection résultante, message éventuel, valeur de retour
   éventuelle, effets à déclencher (rendu à relancer).
-- [ ] **Une commande = une transaction d'historique**, comme le remplacement global
-  actuel. Une seule entrée d'annulation par appel.
+- [ ] **Une mutation documentaire validée = une transaction d’historique** (D15).
+  Sélection, navigation, recherche, ouverture et enregistrement ne créent pas d’entrée
+  d’annulation. Préserver le regroupement de la frappe et l’annulation d’un lot en une étape.
 - [ ] La sélection (`Caret`, `Selection`, déjà indépendantes d'egui dans `session.rs`)
   appartient au moteur : les agents et la CLI en ont besoin pour `text.insert`
   et `text.select`.
 - [ ] `available(&Engine) -> Availability { Enabled, Disabled(reason) }` remplace la
   logique de `menu_statuses` (`app/commands.rs`).
-- [ ] La saisie native d'egui reste le **seul** chemin de modification qui contourne
-  `Engine::run` (via `TextBuffer for Projection`) ; elle enregistre l'historique par
-  `Session::record`. À documenter dans le code.
+- [ ] La saisie native d’egui peut préparer une édition via son `TextBuffer` (D17).
+  Son commit passe par la même validation, normalisation, mise à jour de révision et
+  transaction du cœur que les commandes ; aucune publication partielle en cas d’erreur.
+  Documenter cet adaptateur et tester sa parité avec `text.insert`.
 
 ### 2.4 Migration famille par famille (taille L)
 
@@ -363,7 +396,8 @@ Dans le style du test existant sur les fichiers Fluent :
 ### 2.6 Critères de sortie
 
 - `App::apply` ne contient plus que des `UiCommand` et des appels à `Engine::run`.
-- Aucune écriture de `self.session.*` par l'interface en dehors de la saisie native.
+- Aucune publication directe de `self.session.*` par l’interface ; la saisie native
+  utilise la voie commune de commit décrite en D17.
 - Inventaire entièrement coché ; catalogue de commandes généré et relu.
 - **Gel des identifiants** : après cette phase, un identifiant publié ne change plus
   sans décision explicite (la phase préliminaire ne l'exigeait pas ; la CLI et MCP, si).
@@ -377,7 +411,7 @@ Dans le style du test existant sur les fichiers Fluent :
 - [ ] **3.1** Corriger les fuites de la section 2.3 **dans le crate actuel** avant de
   déplacer quoi que ce soit : rappel de réveil (D8), vignette en octets RGBA,
   `preferences` et interface des champs côté application, séparation
-  `CommandSpec` / `Presentation`. Un PR par fuite.
+  `CommandSpec` / `Presentation`. Commits distincts, regroupés par responsabilité.
 - [ ] **3.2** Internationalisation (D7) : remplacer les environ 90 appels à `tr!` du
   cœur par des erreurs typées (`SourceError`, `StorageError`, `RecoveryError`,
   `TemplateError`, etc.) avec codes et paramètres. Les libellés du cœur deviennent des
@@ -413,6 +447,12 @@ Dans le style du test existant sur les fichiers Fluent :
   `cargo check -p typstographe-core --target wasm32-unknown-unknown`. Elle échouera au
   début ; elle mesure la distance à une éventuelle cible WASM sans l'engager.
 
+- [ ] **3.8** Avant d’appliquer les limites globales, découper explicitement le code
+  de production de `document.rs` (1 382 lignes au relevé) et d’`editor.rs` (1 045 lignes
+  avant son module de tests). Isoler projection/sérialisation/parsing et les fonctions
+  de composition/décoration, extraire les tests. Commits de déplacement séparés des
+  changements de comportement ; ne pas changer de modèle d’édition implicitement.
+
 **Critères de sortie** : mêmes tests et mêmes captures qu'avant, hors changements
 volontaires consignés (par exemple le repli en anglais) ; l'arbre de dépendances
 du cœur est propre ; l'application se lance et ouvre un fichier existant.
@@ -442,7 +482,7 @@ du cœur est propre ; l'application se lance et ouvre un fichier existant.
 | `typstographe-cli new --type courrier --model <id> -o f.typsto` | création |
 | `typstographe-cli inspect f.typsto [--json]` | métadonnées, blocs, statistiques |
 | `typstographe-cli run <id> [--params JSON] f.typsto [--save]` | une commande |
-| `typstographe-cli script job.json` | enchaînement ; **atomique** : validation complète avant toute écriture, arrêt sans enregistrer au premier échec, taille limitée |
+| `typstographe-cli script job.json` | lot d’édition d’un document sur session temporaire ; un seul enregistrement atomique après réussite, aucune écriture intermédiaire (D16), taille limitée |
 | `typstographe-cli export f.typsto --pdf out.pdf` / `--typst dir` | exports |
 | `typstographe-cli check f.typsto` | orthographe, validité du modèle, champs requis à l'export ; code de sortie non nul en cas de problème |
 | `typstographe-cli render f.typsto --page N --png out.png` | aperçu |
@@ -460,7 +500,9 @@ du cœur est propre ; l'application se lance et ouvre un fichier existant.
 ### 4.4 Tests
 
 - [ ] Tests d'intégration par processus (`assert_cmd`) sur trois systèmes.
-- [ ] Atomicité : un script dont la dernière étape échoue ne modifie pas le fichier.
+- [ ] Atomicité : une erreur de validation ou d’exécution, même à la dernière étape,
+  laisse intacts la session publiée et le fichier précédent. Refuser `save`, `export`
+  et les effets globaux dans les étapes ; tester ces refus et l’échec d’écriture finale.
 - [ ] Parité : pour un échantillon de commandes, résultat CLI = résultat de l'interface
   (même `Engine`, comparaison du source Typst produit).
 - [ ] Fichier créé en CLI ouvert dans l'application et inversement.
@@ -494,7 +536,7 @@ JSON, sans fenêtre.
 | Outil | Rôle |
 | --- | --- |
 | `list_commands`, `describe_command` | catalogue et schémas |
-| `execute`, `batch` | une commande, plusieurs commandes (atomique) |
+| `execute`, `batch` | une commande ; lot d’édition d’un document sur copie temporaire, validé et annulable en une étape (D16) |
 | `new_document`, `open_document`, `save_document`, `export` | cycle de vie |
 | `get_document` | structure : blocs, plages, styles, métadonnées |
 | `get_text` | texte brut avec indices de caractères |
@@ -516,7 +558,8 @@ liens résolus avant contrôle, enregistrement explicite). À notre manière :
 - [ ] Racines de lecture et d'écriture indépendantes ; `--read-only` interdit toute commande
   modifiante et tout `save`.
 - [ ] La session MCP travaille sur une copie en mémoire ; rien n'est écrit sans
-  `save_document` ou `export`.
+  `save_document` ou `export`. Les étapes d’un `batch` excluent ces deux opérations
+  et les effets globaux ; un échec conserve la session publiée (D16).
 - [ ] Limites réutilisées : budget d'images (`check_asset_budget`), taille de document,
   taille de script.
 - [ ] Aucune commande réseau, aucun processus lancé.
@@ -567,9 +610,9 @@ assistés). Ne rien construire avant d'avoir tranché.
 
 | Risque | Parade |
 | --- | --- |
-| Régression silencieuse pendant les déplacements | déplacements purs, un PR par module, comparaison des captures, tests inchangés |
+| Régression silencieuse pendant les déplacements | déplacements purs par commit, PR cohérentes, comparaison des captures, tests inchangés |
 | Visibilité des méthodes (`pub(super)`) qui s'étend | revue en 1.4 : retirer ce qui n'est plus nécessaire |
-| Les commandes paramétrées ne couvrent pas la saisie native d'egui | décision explicite : la saisie native est l'unique exception, documentée ; `text.insert` couvre les agents |
+| Les commandes paramétrées ne couvrent pas la saisie native d'egui | adaptateur natif explicite ; même voie de commit et mêmes règles que `text.insert`, tests de parité (D17) |
 | Conversion des `tr!` plus longue que prévu (environ 90 appels) | traiter module par module, test des catalogues étendu |
 | Chemins `include_*` après déplacement | tâche 3.4 explicite ; compilation de chaque crate seule |
 | Dérive entre catalogue, schémas et documentation | génération depuis le registre et contrôle dans la CI |
@@ -580,10 +623,9 @@ assistés). Ne rien construire avant d'avoir tranché.
 
 À traiter séparément, chacun avec sa propre décision :
 
-- **Composition de texte et IME** : egui insère le texte provisoire dans le tampon
-  pendant une composition ; aucun test ne couvre `Preedit` ni `Commit` (voir la
-  discussion du 21 octobre). Une injection d'événements en test et un essai manuel sont
-  prévus à part.
+- **Composition de texte et IME** : les vérifications de décision sont avancées en
+  1.6 (D18). Une éventuelle réécriture de l’éditeur reste un chantier séparé ; les
+  résultats du prototype borné détermineront son périmètre.
 - **Performance de `layout_with_search`** (`editor.rs`) : clone de la projection à chaque
   appel, une section par caractère, recherche quadratique de `empty_terms`. À traiter
   avant les documents longs.
@@ -604,8 +646,8 @@ La refonte est terminée lorsque :
 1. aucun fichier de production n'excède 800 lignes et aucune fonction 120 ;
 2. `typstographe-core` compile et passe ses tests sans egui, eframe, winit, `rfd`, `muda`,
    Fluent ni `i18n-embed` ;
-3. toute action utilisateur passe par une `Command`, une `Query` ou une `UiCommand`,
-   vérifiée par un test d'aiguillage ;
+3. les actions passent par une `Command`, une `Query` ou une `UiCommand` ;
+   l’adaptateur de saisie native partage la voie de commit du cœur, avec tests de parité ;
 4. le catalogue de commandes, la documentation de la CLI et celle de MCP sont générés
    depuis le registre et contrôlés dans la CI ;
 5. le scénario d'acceptation de la CLI et celui de MCP passent sur trois systèmes ;

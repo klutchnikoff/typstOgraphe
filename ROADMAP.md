@@ -252,8 +252,10 @@ sentinelles (objet image `\u{fffc}`, séparateur de description `\t`) et une
 `Projection` (styles par caractère, type par ligne). Les tableaux (cellules,
 navigation, lignes et colonnes) sont le cas le plus exigeant pour ce modèle.
 
-- **Prototype borné d’abord** : en début d’étape, essayer l’édition de tableaux
-  dans le modèle actuel, pour une durée limitée, et juger si elle tient.
+- **Prototype borné avancé dans le chantier J** : après le rangement initial de
+  l’application, essayer l’édition de tableaux dans le modèle actuel, ainsi que la
+  composition IME, avant le gel des paramètres publics du moteur en phase 2.
+  Ce prototype prépare la décision ; la livraison des tableaux reste à l’étape 5.
 - **Trois voies** :
   1. conserver le `TextEdit` d’egui et les sentinelles ;
   2. un éditeur propre à l’application sur la pile texte Rust (`parley` ou
@@ -270,9 +272,11 @@ navigation, lignes et colonnes) sont le cas le plus exigeant pour ce modèle.
 - **Investissement sans regret à discuter** : un modèle de document en arbre
   (blocs, puis séquences en ligne) dans le cœur, la `Projection` plate devenant un
   adaptateur pour egui. Il sert aussi bien un éditeur propre, une vue web qu’un CRDT.
+  Cet arbre est une représentation en mémoire reconstruite depuis le Typst et
+  sérialisée en Typst ; il ne crée pas une seconde référence documentaire.
 - **Éléments à instruire avant** : tests de composition et de touches mortes,
   tests aléatoires du modèle (caractères sentinelles collés depuis l’extérieur) et
-  résultat du chantier J (moteur de commandes sans interface).
+  conception des cibles et paramètres des commandes du chantier J.
 
 ### Capacités communes et activation par type
 
@@ -564,26 +568,32 @@ coordonnées ni ressources fictives imposées.
 
 ## J. Architecture, commandes, CLI et MCP — avant l’étape 5
 
-**État :** plan établi le 21 octobre 2026, décisions D1 à D14 validées ; aucune phase
-n’est démarrée. Le détail, les tâches et les critères de sortie sont dans
+**État :** plan établi le 21 octobre 2026, décisions D1 à D20 validées après relecture ;
+phase 0 en cours (base mesurée et captures reproductibles). Le détail, les tâches et les critères de sortie sont dans
 [ROADMAP-ARCHITECTURE.md](ROADMAP-ARCHITECTURE.md).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une
 commande à identifiant stable, pilotable par une ligne de commande et par MCP.
 
 - **Phase 0 :** garde-fous, base chiffrée et comparaison de captures d’écran.
-- **Phase 1 :** découper `app.rs` (7 223 lignes) en modules, dans le même crate.
+- **Phase 1 :** découper `app.rs` (7 223 lignes) en modules, dans le même crate ;
+  prototype borné du modèle d’édition avant le gel des commandes.
 - **Phase 2 :** commandes strictes, paramètres typés, lectures séparées des
-  écritures, moteur sans egui.
+  écritures, moteur sans egui. Historique limité aux mutations documentaires,
+  voie de commit commune à la saisie native et aux commandes.
 - **Phase 3 :** espace de travail en quatre crates (`core`, `i18n`, application, CLI).
-- **Phase 4 :** CLI (commandes, scripts atomiques, vérification, exports).
+- **Phase 4 :** CLI (commandes, lots d’édition atomiques d’un document, vérification,
+  exports séparés). Les lots excluent les écritures intermédiaires et les effets globaux.
 - **Phase 5 :** serveur MCP, accès aux fichiers refusé par défaut.
 - **Phase 6 :** canal de contrôle de l’application en cours d’exécution, reporté.
 - **Phase 7 :** consolidation et documentation.
 
 **Ordre avec les autres chantiers :** ce chantier passe avant l’étape 5.
 L’harmonisation de la présentation des blocs (chantier B) attend la fin de sa
-phase 2. La décision sur le modèle d’édition (chantier C) s’appuie sur son résultat.
+phase 2. La décision sur le modèle d’édition (chantier C) précède le gel des
+paramètres publics du moteur. Les déplacements restent séparés par commit ; les PR
+peuvent regrouper plusieurs déplacements cohérents. Les limites globales de taille
+incluent un découpage explicite de `document.rs` et d’`editor.rs` avant la phase 7.
 
 ## Ordre de réalisation proposé
 
@@ -593,7 +603,7 @@ phase 2. La décision sur le modèle d’édition (chantier C) s’appuie sur so
 | 2 | Rechercher/remplacer confortablement (B) | Périmètre, interface, raccourcis et remplacements globaux |
 | 3 | Corriger l’orthographe (B) | Moteur, dictionnaires, langues et interface des suggestions |
 | 4 | Produire un courrier et un compte-rendu utiles (D, E, H) | Profils/signature, modèles réels et premier périmètre de bibliothèque |
-| 4 bis | Architecture, commandes, CLI et MCP (J) | Décisions D1 à D14 validées ; voir [ROADMAP-ARCHITECTURE.md](ROADMAP-ARCHITECTURE.md) |
+| 4 bis | Architecture, commandes, CLI et MCP (J) | Décisions D1 à D20 validées ; voir [ROADMAP-ARCHITECTURE.md](ROADMAP-ARCHITECTURE.md) |
 | 5 | Enrichir les documents courants (C, B) | Modèle d’édition (voir « Décision préalable à l’étape 5 » du chantier C), architecture des capacités, tableaux, notes et collage structuré |
 | 6 | Retrouver et organiser son travail (G, A) | Barre latérale, dossiers/projets et plusieurs documents |
 | 7 | Rédiger des documents longs (C, H) | Bibliographie, renvois, sommaire, rapport et mémoire |
