@@ -109,3 +109,19 @@ pub(super) fn frame(app: &mut App, ctx: &egui::Context, events: Vec<egui::Event>
     };
     let _ = ctx.run(raw, |ctx| app.ui_frame(ctx));
 }
+
+impl App {
+    pub(in crate::app) fn with_demo_context(ctx: egui::Context, capture: Option<PathBuf>) -> Self {
+        let mut app = Self::with_context(ctx, capture);
+        app.load_demo();
+        app
+    }
+    pub(in crate::app) fn changed(&mut self) {
+        let adjusted = self
+            .document
+            .session
+            .changed(self.document.selection.into());
+        self.document.force_selection |= adjusted != self.document.selection.into();
+        self.document.selection = adjusted.into();
+    }
+}

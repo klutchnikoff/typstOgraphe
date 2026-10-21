@@ -11,16 +11,6 @@ impl App {
         range.start.min(self.document.session.document.view.len())
             ..range.end.min(self.document.session.document.view.len())
     }
-    #[cfg(test)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub(super) fn changed(&mut self) {
-        let adjusted = self
-            .document
-            .session
-            .changed(self.document.selection.into());
-        self.document.force_selection |= adjusted != self.document.selection.into();
-        self.document.selection = adjusted.into();
-    }
     pub(super) fn remember(&mut self, before: Snapshot, typing: bool) {
         let adjusted =
             self.document
