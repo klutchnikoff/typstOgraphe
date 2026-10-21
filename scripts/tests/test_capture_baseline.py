@@ -5,6 +5,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
 import zlib
 
 spec = importlib.util.spec_from_file_location("capture_baseline", Path(__file__).parents[1] / "capture_baseline.py")
@@ -51,3 +52,13 @@ class ComparisonTests(unittest.TestCase):
     def test_different_environment_fails(self):
         environment = {**baseline.environment(), "system": "another-system"}
         self.assertTrue(any("environment" in error for error in baseline.compare(self.reference, self.current, environment)))
+
+    def test_capture_accepts_the_fresh_directory_created_by_main(self):
+        directory = self.current / "fresh"
+        directory.mkdir()
+        def fake_run(binary, arguments, log):
+            png(Path(arguments[1]), [255, 255, 255, 255])
+            log.write_text("capture")
+        with patch.object(baseline, "fixtures", return_value=(Path("editor.typsto"), Path("recovery"))), patch.object(baseline, "run", side_effect=fake_run):
+            baseline.capture(Path("application"), directory)
+        self.assertEqual({path.stem for path in directory.glob("*.png")}, set(baseline.SCENARIOS))

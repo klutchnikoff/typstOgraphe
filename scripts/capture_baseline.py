@@ -101,7 +101,7 @@ def fixtures(binary, work):
 
 
 def capture(binary, destination):
-    destination.mkdir(parents=True)
+    destination.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="fixtures-", dir=destination) as temporary:
         archive, recovery = fixtures(binary, Path(temporary))
         for name in SCENARIOS:
