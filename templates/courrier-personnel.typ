@@ -4,21 +4,7 @@
 // Feuille A4 pliée à 99 et 198 mm. Vérification papier à 100 % indispensable.
 #let editor-options = (bullet-markers: (), custom-bullet-marker: false)
 
-#import "packages/datify-1.3.0/src/main.typ": custom-date-format
-
-// Les dates fixes ISO viennent du document ; Datify fournit les conventions locales.
-// Les libellés libres restent possibles (par exemple « mars 2026 »).
-#let date-courrier(valeur, langue) = {
-  if valeur.match(regex("^\\d{4}-\\d{2}-\\d{2}$")) == none { return valeur }
-  let morceaux = valeur.split("-").map(int)
-  let jour = datetime(year: morceaux.at(0), month: morceaux.at(1), day: morceaux.at(2))
-  // Datify donne un jour numérique ; le modèle garde la convention française du 1er.
-  if langue == "fr" and jour.day() == 1 {
-    [1#super[er] #custom-date-format(jour, pattern: "MMMM y", lang: langue)]
-  } else {
-    custom-date-format(jour, pattern: "long", lang: langue)
-  }
-}
+#import "capabilities/dates.typ": format-date
 
 #let courrier(
   expediteur: "",
@@ -141,7 +127,7 @@
   // Seul le premier feuillet réserve une grande zone pour les adresses.
   v(63mm)
   let datation = if date == "" { lieu } else {
-    [#if lieu != "" { [#lieu, ] }#labels.date-prefix#date-courrier(date, options.language)]
+    [#if lieu != "" { [#lieu, ] }#labels.date-prefix#format-date(date, lang: options.language)]
   }
   if datation != "" { align(right, datation); v(7mm) }
   if objet != "" { block(below: 3mm, strong[#labels.subject : #objet]) }

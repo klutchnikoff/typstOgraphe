@@ -12,7 +12,7 @@ use std::{
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 pub const EXTENSION: &str = "typsto";
-const FORMAT_VERSION: u32 = 8;
+const FORMAT_VERSION: u32 = 9;
 const LIMIT: u64 = crate::assets::MAX_DOCUMENT_BYTES;
 pub(crate) const EXTRA_ENTRY_LIMIT: u64 = 16 * 1024;
 const ENTRIES: [&str; 5] = [
@@ -722,6 +722,18 @@ mod tests {
         std::sync::Arc::make_mut(&mut exported.dependencies).insert(locale.into(), original);
         let text = rendered_text(&mut world, &exported);
         assert!(text.contains("octobre") && !text.contains("MOISARCHIVE"));
+        // Une autre implémentation derrière la même signature ne change pas le modèle.
+        let unchanged_model = exported.template.clone();
+        std::sync::Arc::make_mut(&mut exported.dependencies).insert(
+            "capabilities/dates.typ".into(),
+            b"#let format-date(value, lang: \"fr\") = [DATEADAPTEE]"
+                .as_slice()
+                .into(),
+        );
+        save(&path, &exported).unwrap();
+        let adapted = read(&path).unwrap();
+        assert_eq!(adapted.template, unchanged_model);
+        assert!(rendered_text(&mut world, &adapted).contains("DATEADAPTEE"));
     }
 
     #[test]
@@ -751,7 +763,21 @@ mod tests {
         );
         assert!(save(&path, &invalid).is_err());
         assert_eq!(std::fs::read(&path).unwrap(), bytes);
-        rewrite(&path, |files| files.retain(|(name, _)| name != unused));
+        for missing in [unused, "capabilities/dates.typ", "dependencies.json"] {
+            save(&path, &letter).unwrap();
+            rewrite(&path, |files| files.retain(|(name, _)| name != missing));
+            assert!(read(&path).is_err(), "{missing}");
+        }
+        save(&path, &letter).unwrap();
+        rewrite(&path, |files| {
+            let inventory = files
+                .iter_mut()
+                .find(|(name, _)| name == "dependencies.json")
+                .unwrap();
+            let mut value: serde_json::Value = serde_json::from_slice(&inventory.1).unwrap();
+            value["packages"][0]["version"] = "inconnue".into();
+            inventory.1 = serde_json::to_vec(&value).unwrap();
+        });
         assert!(read(&path).is_err());
     }
 }

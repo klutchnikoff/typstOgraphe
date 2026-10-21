@@ -225,7 +225,7 @@ mod tests {
                 assert!(rendered.contains("1er"));
             }
         }
-        let custom = template.replace("#date-courrier(date, options.language)", "#date");
+        let custom = template.replace("#format-date(date, lang: options.language)", "#date");
         let document = world
             .compile_with_template("Bonjour.", &metadata, &custom)
             .unwrap();

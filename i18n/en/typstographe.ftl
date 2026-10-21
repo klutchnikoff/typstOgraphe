@@ -363,3 +363,4 @@ model-fixed-page = This template fixes the paper size and orientation for a wind
 cli-usage-capture-creation = Usage: --capture-new-document IMAGE.png
 
 package-resource-missing = Missing Typst dependency: { $path }
+package-inventory-invalid = The Typst capability and package inventory is invalid or inconsistent.

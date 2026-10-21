@@ -235,13 +235,42 @@ indépendamment de la langue de l’interface.
 ### Capacités communes et activation par type
 
 Une capacité doit être implémentée une seule fois et réutilisée dans les types
-qui la proposent. Cette organisation est retenue comme direction ; sa forme
-exacte en Rust reste à définir avant d’ajouter les prochaines structures.
+qui la proposent. Les commandes, paramètres et éditions visuelles restent partagés
+côté Rust ; l’activation par type reste à préciser pour les prochaines structures.
+
+**Convention Typst retenue :** chaque capacité ayant une logique commune ou un
+paquet externe fournit une interface stable dans un fichier dédié sous
+`templates/capabilities/`. Les modèles importent cette interface et choisissent
+sa présentation. Seul l’adaptateur connaît le paquet et son API : une mise à jour
+ou un remplacement du paquet doit conserver le contrat public et ses tests.
+Les fonctions natives de Typst (`strong`, `emph`, `quote`, `figure`, etc.) restent
+les primitives de composition ; cette couche accueille les règles propres à
+l’application et les adaptations nécessaires, sans doubler le moteur Typst.
+
+**Premier adaptateur implémenté : Dates.**
+`capabilities/dates.typ` expose `format-date(value, lang: "fr") -> content`.
+Il accepte une date ISO fixe, un `datetime` ou un libellé libre. Il compose une
+date longue selon la langue, conserve le « 1er » français en exposant et ne
+consulte jamais l’horloge. Le modèle de courrier utilise cette interface ; il ne
+connaît plus Datify. Les paramètres supplémentaires seront choisis ensemble
+lorsqu’un besoin concret de modèle les justifiera.
+
+`templates/dependencies.json` est l’inventaire de référence des capacités et des
+paquets : signature, point d’entrée, version, licence, archive, empreinte SHA-256
+et dépendances transitives. Le chargement s’appuie sur cet inventaire, sans
+condition Rust spécifique à Datify. Chaque document et export reçoit son propre
+`dependencies.json`, limité aux capacités et paquets effectivement embarqués.
+Le wrapper, les paquets et les données associées sont copiés avec le modèle.
+
+Pour toute nouvelle capacité : convenir du contrat public minimal, écrire son
+adaptateur Typst si nécessaire, déclarer ses dépendances, puis vérifier le même
+contrat dans les types concernés, l’archivage et la compilation hors ligne.
 
 | Niveau | Responsabilité |
 | --- | --- |
 | Application | Commandes, paramètres, édition visuelle et production du source Typst de la capacité |
 | Type intégré | Capacités disponibles, métadonnées et contrat à respecter par les modèles |
+| Adaptateur Typst commun | Interface stable de la capacité, règles communes et appel aux paquets privés |
 | Modèle Typst | Présentation, numérotation, valeurs par défaut et personnalisations autorisées |
 | Document | Contenu et paramètres propres à son usage |
 
@@ -330,8 +359,9 @@ bibliothèque installable et persistante décrite ci-dessous.
 - **Implémenté pour le modèle fourni :** copie autonome des dépendances Typst.
   Datify 1.3.0 et Datify-core 2.1.0 sont embarqués avec toutes leurs locales et
   licences. Imports relatifs, aucun téléchargement ni cache externe pendant le
-  rendu. Les `.typsto` (format 8), copies de récupération et exports Typst
-  conservent ces fichiers, y compris les langues non utilisées actuellement.
+  rendu. Les `.typsto` (format 9), copies de récupération et exports Typst
+  conservent ces fichiers, l’adaptateur et l’inventaire, y compris les langues
+  non utilisées actuellement.
   Les dépendances suivent le modèle dans l’historique ; les images gardent
   leur mécanisme distinct de suppression des ressources inutilisées.
   Provenance et modification d’import dans `templates/packages/PROVENANCE.md`.
@@ -416,10 +446,10 @@ au-delà des démonstrations fictives.
   `aujourd'hui` et `aujourd’hui` sont des raccourcis de saisie résolus aussitôt en
   date fixe, jamais des valeurs évolutives. Les dates numériques reconnues
   (`JJ/MM/AAAA` ou ISO) sont conservées en ISO ; les libellés libres restent
-  possibles. Le modèle personnel utilise Datify (`custom-date-format`, format
-  `long`) pour la présentation locale des dates ISO, avec l’ordre et la ponctuation
-  de chaque langue. Il garde la règle « 1er » en exposant en français, sans table
-  manuelle des mois. L’annulation, l’enregistrement et la réouverture conservent
+  possibles. Le modèle personnel appelle l’adaptateur commun `format-date` pour
+  la présentation locale des dates ISO. Cet adaptateur utilise Datify en privé
+  (format `long`), avec l’ordre et la ponctuation de chaque langue et la règle
+  « 1er » en exposant en français, sans table manuelle des mois. L’annulation, l’enregistrement et la réouverture conservent
   la date choisie. Les dépendances locales complètes assurent le rendu hors ligne
   et l’autonomie des exports (voir E).
 - **P1 : Compte-rendu de réunion**, avec un modèle utilisable à titre personnel :

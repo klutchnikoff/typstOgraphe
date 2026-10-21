@@ -366,3 +366,4 @@ model-fixed-page = Le format et l’orientation sont imposés par ce modèle pou
 cli-usage-capture-creation = Usage : --capture-new-document IMAGE.png
 
 package-resource-missing = Dépendance Typst manquante : { $path }
+package-inventory-invalid = L’inventaire des capacités et des paquets Typst est invalide ou incohérent.
