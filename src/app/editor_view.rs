@@ -232,6 +232,7 @@ impl App {
                 && self.session.changed_at.elapsed() < Duration::from_millis(700);
             let ranges: Vec<_> = self
                 .spelling
+                .checker
                 .issues
                 .iter()
                 .filter(|issue| {

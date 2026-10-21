@@ -44,14 +44,14 @@ impl App {
                         language = language.label()
                     ))
                     .on_hover_text(crate::tr!("spelling-dictionaries"));
-                } else if let Some(error) = &self.spelling.error {
+                } else if let Some(error) = &self.spelling.checker.error {
                     ui.colored_label(ui.visuals().error_fg_color, crate::tr!("spelling-error"))
                         .on_hover_text(error);
-                } else if self.spelling.ready {
+                } else if self.spelling.checker.ready {
                     let response = ui.add(
                         egui::Button::new(crate::tr!(
                             "spelling-count",
-                            count = self.spelling.issues.len()
+                            count = self.spelling.checker.issues.len()
                         ))
                         .frame(false),
                     );

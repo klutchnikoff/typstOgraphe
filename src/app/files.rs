@@ -120,9 +120,9 @@ impl App {
         self.search_open = false;
         self.replace_open = false;
         self.search_focus_pending = false;
-        self.spelling_target = None;
-        self.spelling_menu_pending = false;
-        self.spelling_menu_position = None;
+        self.spelling.target = None;
+        self.spelling.menu_pending = false;
+        self.spelling.menu_position = None;
         self.keymap = keymap;
         self.history_field = None;
         self.session = Session::new(letter, document, path, self.session.revision + 1);

@@ -125,12 +125,12 @@ impl App {
             Command::SpellingSuggestions => {
                 if let Some(issue) = self.selected_spelling_issue() {
                     self.open_spelling_target(issue);
-                    self.spelling_menu_pending = true;
+                    self.spelling.menu_pending = true;
                 }
             }
             Command::NextSpelling | Command::PreviousSpelling => {
                 let range = self.range();
-                let issues = &self.spelling.issues;
+                let issues = &self.spelling.checker.issues;
                 let target = if command == Command::PreviousSpelling {
                     issues
                         .iter()
@@ -266,7 +266,7 @@ impl App {
                             !self.search.matches.is_empty()
                         }
                         Command::NextSpelling | Command::PreviousSpelling => {
-                            !self.spelling.issues.is_empty()
+                            !self.spelling.checker.issues.is_empty()
                         }
                         Command::IgnoreSpelling
                         | Command::LearnSpelling

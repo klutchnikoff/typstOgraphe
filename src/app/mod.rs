@@ -70,17 +70,13 @@ enum PreferencesPage {
 }
 
 pub struct App {
+    spelling: SpellingState,
     recovery: RecoveryState,
     capture: CaptureState,
     // La session vide sert uniquement de tampon interne tant qu'aucun document
     // n'est ouvert : pas de rendu, d'édition ni de copie de récupération.
     document_open: bool,
     session: Session,
-    spelling: crate::spelling::Checker,
-    spelling_target: Option<(u64, crate::spelling::Issue)>,
-    spelling_menu_pending: bool,
-    spelling_menu_position: Option<egui::Pos2>,
-    capture_spelling: bool,
     search: crate::search::Search,
     search_open: bool,
     replace_open: bool,
@@ -234,6 +230,13 @@ impl App {
         let document =
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
+            spelling: SpellingState {
+                checker: spelling,
+                target: None,
+                menu_pending: false,
+                menu_position: None,
+                capture_active: false,
+            },
             recovery: RecoveryState {
                 worker: None,
                 entries: vec![],
@@ -248,11 +251,6 @@ impl App {
             },
             document_open: false,
             session: Session::new(saved, document, None, 1),
-            spelling,
-            spelling_target: None,
-            spelling_menu_pending: false,
-            spelling_menu_position: None,
-            capture_spelling: false,
             search: Default::default(),
             search_open: false,
             replace_open: false,
@@ -475,11 +473,11 @@ impl App {
         if self.capture.path.is_none() {
             return;
         }
-        if self.capture_spelling {
-            if !self.spelling.ready {
+        if self.spelling.capture_active {
+            if !self.spelling.checker.ready {
                 return;
             }
-            if self.spelling_target.is_none() {
+            if self.spelling.target.is_none() {
                 self.apply(Command::NextSpelling);
                 self.apply(Command::SpellingSuggestions);
                 ctx.request_repaint();
@@ -487,6 +485,7 @@ impl App {
             }
             if self
                 .spelling
+                .checker
                 .suggestions
                 .as_ref()
                 .is_none_or(|(_, values)| values.is_none())

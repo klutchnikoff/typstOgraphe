@@ -11,9 +11,9 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
     app.install_document(letter, document, None).unwrap();
     let original = app.stored_document();
     let _ = search_draw(&mut app, &ctx, vec![]);
-    app.spelling.wait();
-    assert_eq!(app.spelling.issues.len(), 2);
-    let issue = app.spelling.issues[0].clone();
+    app.spelling.checker.wait();
+    assert_eq!(app.spelling.checker.issues.len(), 2);
+    let issue = app.spelling.checker.issues[0].clone();
     let revision = app.session.revision;
     let output = search_draw(&mut app, &ctx, vec![]);
     let point = output
@@ -43,9 +43,9 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
             ],
         );
     }
-    assert_eq!(app.spelling_target, Some((revision, issue.clone())));
+    assert_eq!(app.spelling.target, Some((revision, issue.clone())));
     assert_eq!(app.range(), issue.range);
-    app.spelling.wait();
+    app.spelling.checker.wait();
     recovery_click(&mut app, &ctx, "courrier");
     assert_eq!(
         app.session.document.view.text,
@@ -63,11 +63,11 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
     app.correct_spelling(revision, &issue, "courrier");
     assert_eq!(app.stored_document(), original);
     app.refresh_spelling(&ctx);
-    app.spelling.wait();
+    app.spelling.checker.wait();
     app.selection = editor::cursor(0..0);
     app.apply(Command::NextSpelling);
     app.apply(Command::SpellingSuggestions);
-    app.spelling.wait();
+    app.spelling.checker.wait();
     let _ = search_draw(&mut app, &ctx, vec![]);
     let output = search_draw(&mut app, &ctx, vec![]);
     assert!(output.shapes.iter().any(|shape| matches!(&shape.shape, egui::Shape::Text(text) if text.galley.text() == "courrier")), "les suggestions sont accessibles sans souris");
@@ -99,8 +99,8 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     app.install_document(letter, document, None).unwrap();
     let original_main = app.session.metadata.main_source();
     app.refresh_spelling(&ctx);
-    app.spelling.wait();
-    assert_eq!(app.spelling.issues.len(), 3);
+    app.spelling.checker.wait();
+    assert_eq!(app.spelling.checker.issues.len(), 3);
     app.apply(Command::NextSpelling);
     let first = app.range();
     app.apply(Command::NextSpelling);
@@ -111,8 +111,8 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     assert!(app.is_dirty());
     assert_eq!(app.session.metadata.main_source(), original_main);
     app.refresh_spelling(&ctx);
-    app.spelling.wait();
-    assert_eq!(app.spelling.issues.len(), 1);
+    app.spelling.checker.wait();
+    assert_eq!(app.spelling.checker.issues.len(), 1);
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("orthographe.typsto");
     assert!(app.save_path(path.clone()));
@@ -125,12 +125,12 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     assert!(app.session.metadata.options().spelling_ignored.is_empty());
     app.apply(Command::Redo);
     app.refresh_spelling(&ctx);
-    app.spelling.wait();
+    app.spelling.checker.wait();
     app.apply(Command::NextSpelling);
     app.apply(Command::LearnSpelling);
     app.refresh_spelling(&ctx);
-    app.spelling.wait();
-    assert!(app.spelling.issues.is_empty());
+    app.spelling.checker.wait();
+    assert!(app.spelling.checker.issues.is_empty());
     assert!(
         !app.is_dirty(),
         "apprendre un mot ne modifie pas le document"
@@ -140,13 +140,13 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     assert!(restored.spelling.personal["fr"].contains("réservvation"));
     app.apply(Command::ResetSpelling);
     app.refresh_spelling(&ctx);
-    app.spelling.wait();
-    assert_eq!(app.spelling.issues.len(), 2);
+    app.spelling.checker.wait();
+    assert_eq!(app.spelling.checker.issues.len(), 2);
     let before = app.snapshot();
     app.session.metadata.options_mut().language = DocumentLanguage::German;
     app.remember(before, false);
     app.refresh_spelling(&ctx);
-    assert!(app.spelling.issues.is_empty() && !app.spelling.ready);
+    assert!(app.spelling.checker.issues.is_empty() && !app.spelling.checker.ready);
     app.apply(Command::ToggleSpelling);
     assert!(!app.preferences.spelling.enabled);
     app.apply(Command::ToggleSpelling);
@@ -155,18 +155,18 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     let document = Document::from_source(&another.source).unwrap();
     app.install_document(another, document, None).unwrap();
     app.refresh_spelling(&ctx);
-    app.spelling.wait();
+    app.spelling.checker.wait();
     assert_eq!(
-        app.spelling.issues.len(),
+        app.spelling.checker.issues.len(),
         2,
         "les mots ignorés ne fuient pas vers un autre document ; le dictionnaire personnel reste partagé"
     );
     let document = Document::from_source(&stored.source).unwrap();
     app.install_document(stored, document, Some(path)).unwrap();
     app.refresh_spelling(&ctx);
-    app.spelling.wait();
+    app.spelling.checker.wait();
     assert!(
-        app.spelling.issues.is_empty(),
+        app.spelling.checker.issues.is_empty(),
         "la réouverture réapplique les deux niveaux d’exceptions"
     );
 }
