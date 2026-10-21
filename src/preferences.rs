@@ -74,6 +74,8 @@ pub struct Preferences {
     pub editor_fraction: f32,
     #[serde(default)]
     pub spelling: crate::spelling::Preferences,
+    #[serde(default)]
+    pub profile: crate::profile::Profile,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -82,7 +84,50 @@ impl Default for Preferences {
             appearance: Appearance::System,
             editor_fraction: 0.5,
             spelling: Default::default(),
+            profile: Default::default(),
         }
+    }
+}
+
+/// Sauvegarde après modification, une fois la saisie stabilisée ; jamais périodique.
+pub struct SaveTracker {
+    observed: Preferences,
+    saved: Preferences,
+    changed_at: Option<std::time::Instant>,
+}
+impl SaveTracker {
+    pub const DELAY: std::time::Duration = std::time::Duration::from_millis(500);
+    pub fn new(preferences: &Preferences) -> Self {
+        Self {
+            observed: preferences.clone(),
+            saved: preferences.clone(),
+            changed_at: None,
+        }
+    }
+    pub fn observe(
+        &mut self,
+        preferences: &Preferences,
+        now: std::time::Instant,
+    ) -> Option<std::time::Duration> {
+        if &self.observed != preferences {
+            self.observed = preferences.clone();
+            self.changed_at = Some(now);
+        }
+        if &self.saved == preferences {
+            self.changed_at = None;
+            return None;
+        }
+        Some(
+            Self::DELAY
+                .saturating_sub(now.saturating_duration_since(self.changed_at.unwrap_or(now))),
+        )
+    }
+    pub fn save(&mut self, preferences: &Preferences, storage: &mut dyn eframe::Storage) {
+        preferences.save(storage);
+        storage.flush();
+        self.saved = preferences.clone();
+        self.observed = preferences.clone();
+        self.changed_at = None;
     }
 }
 impl Preferences {
@@ -109,15 +154,18 @@ mod tests {
     use super::*;
     use eframe::Storage;
     #[derive(Default)]
-    struct MemoryStorage(std::collections::HashMap<String, String>);
+    struct MemoryStorage(std::collections::HashMap<String, String>, usize, usize);
     impl eframe::Storage for MemoryStorage {
         fn get_string(&self, key: &str) -> Option<String> {
             self.0.get(key).cloned()
         }
         fn set_string(&mut self, key: &str, value: String) {
             self.0.insert(key.into(), value);
+            self.1 += 1;
         }
-        fn flush(&mut self) {}
+        fn flush(&mut self) {
+            self.2 += 1;
+        }
     }
     #[test]
     fn appearance_and_column_preferences_survive_a_new_session() {
@@ -136,10 +184,61 @@ mod tests {
                     std::collections::BTreeSet::from(["typstographe".into()]),
                 )]),
             },
+            profile: Default::default(),
         };
         preferences.save(&mut storage);
         assert_eq!(Preferences::load(Some(&storage)), preferences);
         storage.set_string(STORAGE_KEY, "fichier invalide".into());
         assert_eq!(Preferences::load(Some(&storage)), Preferences::default());
+    }
+
+    #[test]
+    fn settings_save_only_after_changes_debounce_typing_and_persist_on_close() {
+        use std::time::{Duration, Instant};
+        let mut prefs = Preferences::default();
+        let mut tracker = SaveTracker::new(&prefs);
+        let mut storage = MemoryStorage::default();
+        let start = Instant::now();
+        assert!(
+            tracker
+                .observe(&prefs, start + Duration::from_secs(500))
+                .is_none()
+        );
+        assert_eq!((storage.1, storage.2), (0, 0));
+        prefs.profile.name = "Zoé".into();
+        assert_eq!(tracker.observe(&prefs, start), Some(SaveTracker::DELAY));
+        prefs.profile.name = "Zoé Martin".into();
+        assert_eq!(
+            tracker.observe(&prefs, start + Duration::from_millis(300)),
+            Some(SaveTracker::DELAY)
+        );
+        assert_eq!(
+            tracker.observe(&prefs, start + Duration::from_millis(799)),
+            Some(Duration::from_millis(1))
+        );
+        assert_eq!(
+            tracker.observe(&prefs, start + Duration::from_millis(800)),
+            Some(Duration::ZERO)
+        );
+        tracker.save(&prefs, &mut storage);
+        assert_eq!(Preferences::load(Some(&storage)), prefs);
+        assert_eq!((storage.1, storage.2), (1, 1));
+        assert!(
+            tracker
+                .observe(&prefs, start + Duration::from_secs(900))
+                .is_none()
+        );
+        prefs.profile.email = "zoe@example.org".into();
+        assert!(tracker.observe(&prefs, start).is_some());
+        tracker.save(&prefs, &mut storage); // Fermeture avant la fin du délai.
+        assert_eq!(
+            Preferences::load(Some(&storage)).profile.email,
+            "zoe@example.org"
+        );
+        prefs.profile.email.clear();
+        assert!(tracker.observe(&prefs, start).is_some());
+        prefs.profile.email = "zoe@example.org".into();
+        assert!(tracker.observe(&prefs, start).is_none());
+        assert_eq!((storage.1, storage.2), (2, 2));
     }
 }

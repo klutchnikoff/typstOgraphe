@@ -203,6 +203,8 @@ cli-help =
       cargo run -- --capture-recovery IMAGE.png DOSSIER_RECUPERATION
       cargo run -- --capture-search IMAGE.png RECHERCHE
       cargo run -- --capture-spelling IMAGE.png
+      cargo run -- --capture-profile IMAGE.png
+      cargo run -- --capture-profile-letter IMAGE.png
 preview-stats =
     { $pages ->
         [one] { $pages } page · { $milliseconds } ms
@@ -278,6 +280,23 @@ language-dutch = Néerlandais
 
 cmd-preferences = Préférences…
 preferences-title = Préférences
+preferences-profile = Profil personnel
+preferences-appearance = Apparence
+preferences-spelling = Orthographe
+field-organisation = Organisme
+field-sender-address = Adresse de l’expéditeur
+field-phone = Téléphone
+profile-help = Ces informations sont proposées à la création des documents. Chaque document conserve sa propre copie, modifiable indépendamment du profil.
+signature-label = Signature
+signature-choose = Choisir une image…
+signature-none = Aucune signature.
+profile-signature-help = L’image est conservée par l’application, puis copiée dans les nouveaux courriers. Le modèle choisit sa présentation.
+signature-document-help = Cette signature appartient uniquement à ce courrier. Sa modification ne change pas le profil personnel.
+profile-invalid-signature = La référence de signature enregistrée est invalide. Choisissez une image ou retirez la signature.
+profile-signature-error = Impossible de charger ou de conserver la signature : { $error }
+profile-no-directory = Le dossier des préférences n’est pas disponible. Impossible d’y conserver la signature.
+profile-signature-unavailable = La signature du profil n’est pas disponible. Choisissez une image ou retirez la signature dans les préférences avant de créer un courrier.
+cli-usage-capture-profile = Usage : --capture-profile IMAGE.png ou --capture-profile-letter IMAGE.png
 editor-font = Police de l’éditeur
 editor-font-size = Taille du texte
 appearance = Apparence

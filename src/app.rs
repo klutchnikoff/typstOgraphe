@@ -42,6 +42,14 @@ enum InformationGroup {
     Fields(&'static str),
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum PreferencesPage {
+    Profile,
+    #[default]
+    Appearance,
+    Spelling,
+}
+
 pub struct App {
     session: Session,
     spelling: crate::spelling::Checker,
@@ -59,6 +67,11 @@ pub struct App {
     replace_open: bool,
     search_focus_pending: bool,
     preferences: Preferences,
+    preferences_tracker: crate::preferences::SaveTracker,
+    preferences_directory: Option<PathBuf>,
+    preferences_page: PreferencesPage,
+    profile_signature: Option<crate::assets::ImageData>,
+    profile_error: Option<String>,
     preferences_open: bool,
     new_document_open: bool,
     new_document_type: DocumentType,
@@ -112,7 +125,20 @@ impl App {
         capture_recovery: Option<PathBuf>,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let mut app = Self::with_context(cc.egui_ctx.clone(), capture);
-        app.preferences = Preferences::load(cc.storage);
+        if app.capture.is_none() {
+            app.preferences = Preferences::load(cc.storage);
+            app.preferences_directory = eframe::storage_dir("typstOgraphe");
+            if let Some(directory) = &app.preferences_directory {
+                match app.preferences.profile.load_signature(directory) {
+                    Ok(signature) => app.profile_signature = signature,
+                    Err(error) => {
+                        app.profile_error =
+                            Some(crate::tr!("profile-signature-error", error = error))
+                    }
+                }
+            }
+        }
+        app.preferences_tracker = crate::preferences::SaveTracker::new(&app.preferences);
         cc.egui_ctx.set_theme(app.preferences.appearance.theme());
         if let Some(path) = path {
             app.open_path(path);
@@ -184,6 +210,11 @@ impl App {
             replace_open: false,
             search_focus_pending: false,
             preferences: Preferences::default(),
+            preferences_tracker: crate::preferences::SaveTracker::new(&Preferences::default()),
+            preferences_directory: None,
+            preferences_page: PreferencesPage::default(),
+            profile_signature: None,
+            profile_error: None,
             preferences_open: false,
             new_document_open: false,
             new_document_type: DocumentType::Courrier,
@@ -560,7 +591,17 @@ impl App {
         ctx.request_repaint();
     }
     fn create_document(&mut self, kind: DocumentType) {
-        let letter = StoredDocument::blank(kind);
+        let letter = match self
+            .preferences
+            .profile
+            .document(kind, self.profile_signature.as_ref())
+        {
+            Ok(letter) => letter,
+            Err(error) => {
+                self.file_error = Some(error);
+                return;
+            }
+        };
         let document = Document::from_source(&letter.source).expect("document vide valide");
         if let Err(error) = self.install_document(letter, document, None) {
             self.file_error = Some(error);
@@ -804,40 +845,9 @@ impl App {
         }
     }
     fn import_image(&mut self, path: &std::path::Path, replace: Option<u64>) -> Result<(), String> {
-        let extension = path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_ascii_lowercase();
-        let extension = if extension == "jpeg" {
-            "jpg"
-        } else {
-            extension.as_str()
-        };
-        // Lire au plus la limite, même si le fichier a grandi depuis sa sélection.
-        use std::io::Read;
-        let mut data = Vec::new();
-        std::fs::File::open(path)
-            .map_err(|e| e.to_string())?
-            .take(crate::assets::MAX_IMAGE_BYTES as u64 + 1)
-            .read_to_end(&mut data)
-            .map_err(|e| e.to_string())?;
-        crate::assets::decode(&data, extension)?;
-        let total: usize = self.session.document.assets.values().map(|v| v.len()).sum();
-        let needs_size_check = total + data.len() > crate::assets::MAX_DOCUMENT_BYTES as usize;
+        let image = crate::assets::ImageData::read(path)?;
         let before = self.snapshot();
-        let mut number = 1;
-        let asset_path = loop {
-            let name = format!("images/image-{number}.{extension}");
-            if !self.session.document.assets.contains_key(&name) {
-                break name;
-            }
-            number += 1;
-        };
-        self.session
-            .document
-            .assets
-            .insert(asset_path.clone(), data.into());
+        let asset_path = image.insert(&mut self.session.document.assets, "image");
         let at = if let Some(id) = replace {
             let Some(image) = self.session.document.view.images.get_mut(&id) else {
                 self.session.document = before.document;
@@ -856,29 +866,152 @@ impl App {
                 },
             )
         };
-        if needs_size_check {
-            let mut persisted = self.session.document.clone();
-            persisted.sync_source();
-            let retained = crate::rendering::retained_assets(
-                persisted.source(),
-                &self.session.metadata,
-                &self.session.template,
-                &persisted.assets,
-            );
-            let too_large = retained.as_ref().is_ok_and(|assets| {
-                assets.values().map(|data| data.len()).sum::<usize>()
-                    > crate::assets::MAX_DOCUMENT_BYTES as usize
-            });
-            if retained.is_err() || too_large {
-                self.session.document = before.document;
-                return Err(retained
-                    .err()
-                    .unwrap_or_else(|| crate::tr!("storage-letter-too-large")));
-            }
+        if let Err(error) = self.check_asset_budget() {
+            self.session.document = before.document;
+            return Err(error);
         }
         self.focus_annotation_target(at + 1..at + 1);
         self.remember(before, false);
         Ok(())
+    }
+    fn check_asset_budget(&self) -> Result<(), String> {
+        if self
+            .session
+            .document
+            .assets
+            .values()
+            .map(|v| v.len())
+            .sum::<usize>()
+            <= crate::assets::MAX_DOCUMENT_BYTES as usize
+        {
+            return Ok(());
+        }
+        let mut document = self.session.document.clone();
+        document.sync_source();
+        let retained = crate::rendering::retained_assets(
+            document.source(),
+            &self.session.metadata,
+            &self.session.template,
+            &document.assets,
+        )?;
+        if retained.values().map(|v| v.len()).sum::<usize>()
+            > crate::assets::MAX_DOCUMENT_BYTES as usize
+        {
+            return Err(crate::tr!("storage-letter-too-large"));
+        }
+        Ok(())
+    }
+    fn set_document_signature(
+        &mut self,
+        image: Option<&crate::assets::ImageData>,
+    ) -> Result<(), String> {
+        if !matches!(
+            self.session.metadata,
+            crate::document_types::Metadata::Courrier(_)
+        ) {
+            return Ok(());
+        }
+        let before = self.snapshot();
+        let path = image.map(|image| image.insert(&mut self.session.document.assets, "signature"));
+        if let crate::document_types::Metadata::Courrier(meta) = &mut self.session.metadata {
+            meta.signature = path;
+        }
+        if image.is_some()
+            && let Err(error) = self.check_asset_budget()
+        {
+            self.session.document = before.document;
+            self.session.metadata = before.metadata;
+            return Err(error);
+        }
+        self.remember(before, false);
+        Ok(())
+    }
+    fn choose_signature(&mut self, profile: bool) {
+        let Some(path) = rfd::FileDialog::new()
+            .set_title(crate::tr!("signature-choose"))
+            .add_filter(crate::tr!("image-files"), &["png", "jpg", "jpeg", "svg"])
+            .pick_file()
+        else {
+            return;
+        };
+        if profile {
+            let result = self
+                .preferences_directory
+                .as_deref()
+                .ok_or_else(|| crate::tr!("profile-no-directory"))
+                .and_then(|directory| crate::profile::Profile::import_signature(directory, &path));
+            match result {
+                Ok((name, image)) => {
+                    self.preferences.profile.signature = Some(name);
+                    self.profile_signature = Some(image);
+                    self.profile_error = None;
+                }
+                Err(error) => {
+                    self.profile_error = Some(crate::tr!("profile-signature-error", error = error))
+                }
+            }
+        } else {
+            let result = crate::assets::ImageData::read(&path)
+                .and_then(|image| self.set_document_signature(Some(&image)));
+            if let Err(error) = result {
+                self.file_error = Some(error);
+            }
+        }
+    }
+    fn signature_preview(
+        &mut self,
+        ui: &mut egui::Ui,
+        key: &str,
+        image: &crate::assets::ImageData,
+    ) {
+        if !self.image_textures.contains_key(key)
+            && let Ok(thumbnail) = crate::assets::thumbnail(&image.data, &image.extension)
+        {
+            self.image_textures.insert(
+                key.into(),
+                ui.ctx().load_texture(key, thumbnail, Default::default()),
+            );
+        }
+        if let Some(texture) = self.image_textures.get(key) {
+            let size = texture.size_vec2();
+            let scale = (220.0 / size.x).min(72.0 / size.y).min(1.0);
+            egui::Frame::new()
+                .fill(Color32::WHITE)
+                .inner_margin(6.0)
+                .show(ui, |ui| {
+                    ui.add(egui::Image::new(texture).fit_to_exact_size(size * scale));
+                });
+        }
+    }
+    fn document_signature_ui(&mut self, ui: &mut egui::Ui) {
+        let path = self.session.metadata.signature_path().map(str::to_owned);
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label(crate::tr!("signature-label"));
+            if ui
+                .button(if path.is_some() {
+                    crate::tr!("image-replace")
+                } else {
+                    crate::tr!("signature-choose")
+                })
+                .clicked()
+            {
+                self.choose_signature(false);
+            }
+            if path.is_some() && ui.button(crate::tr!("image-remove")).clicked() {
+                let _ = self.set_document_signature(None);
+            }
+        });
+        if let Some(path) = self.session.metadata.signature_path().map(str::to_owned)
+            && let Some(data) = self.session.document.assets.get(&path).cloned()
+        {
+            let image = crate::assets::ImageData {
+                extension: path.rsplit('.').next().unwrap().into(),
+                data,
+            };
+            self.signature_preview(ui, &path, &image);
+        }
+        ui.weak(crate::tr!("signature-document-help"));
     }
     fn remove_image(&mut self, id: u64) {
         if let Some(range) = self.session.document.view.image_range(id) {
@@ -1565,7 +1698,10 @@ impl App {
                 .show(ui, |ui| match self.information_group {
                     InformationGroup::General => self.general_information_ui(ui),
                     InformationGroup::Fields(group) => {
-                        self.session.metadata.editor_group_ui(ui, group)
+                        self.session.metadata.editor_group_ui(ui, group);
+                        if group == "sender" {
+                            self.document_signature_ui(ui);
+                        }
                     }
                 });
         }
@@ -2490,85 +2626,32 @@ impl App {
             return;
         }
         let response = egui::Modal::new(egui::Id::new("preferences")).show(ctx, |ui| {
-            ui.set_width(360.0);
+            ui.set_width(480.0);
             ui.heading(crate::tr!("preferences-title"));
-            ui.add_space(8.0);
-            egui::Grid::new("appearance-preferences")
-                .num_columns(2)
-                .show(ui, |ui| {
-                    ui.label(crate::tr!("editor-font"));
-                    egui::ComboBox::from_id_salt("editor-font")
-                        .selected_text(self.preferences.editor.font.label())
-                        .show_ui(ui, |ui| {
-                            for font in EditorFont::ALL {
-                                ui.selectable_value(
-                                    &mut self.preferences.editor.font,
-                                    font,
-                                    font.label(),
-                                );
-                            }
-                        });
-                    ui.end_row();
-                    ui.label(crate::tr!("editor-font-size"));
-                    ui.add(
-                        egui::Slider::new(&mut self.preferences.editor.size, 10.0..=36.0)
-                            .step_by(1.0),
-                    );
-                    ui.end_row();
-                    ui.label(crate::tr!("appearance"));
-                    egui::ComboBox::from_id_salt("appearance")
-                        .selected_text(self.preferences.appearance.label())
-                        .show_ui(ui, |ui| {
-                            for appearance in Appearance::ALL {
-                                ui.selectable_value(
-                                    &mut self.preferences.appearance,
-                                    appearance,
-                                    appearance.label(),
-                                );
-                            }
-                        });
-                    ui.end_row();
-                });
-            ui.add_space(8.0);
-            ui.weak(crate::tr!("preferences-help"));
+            ui.horizontal(|ui| {
+                for (page, label) in [
+                    (PreferencesPage::Profile, crate::tr!("preferences-profile")),
+                    (
+                        PreferencesPage::Appearance,
+                        crate::tr!("preferences-appearance"),
+                    ),
+                    (
+                        PreferencesPage::Spelling,
+                        crate::tr!("preferences-spelling"),
+                    ),
+                ] {
+                    ui.selectable_value(&mut self.preferences_page, page, label);
+                }
+            });
             ui.separator();
-            ui.checkbox(
-                &mut self.preferences.spelling.enabled,
-                crate::tr!("cmd-spelling-toggle"),
-            );
-            ui.weak(crate::tr!("spelling-dictionaries"));
-            egui::CollapsingHeader::new(crate::tr!("spelling-personal-dictionary")).show(
-                ui,
-                |ui| {
-                    let mut remove = None;
-                    egui::ScrollArea::vertical()
-                        .max_height(160.0)
-                        .show(ui, |ui| {
-                            for (language, words) in &self.preferences.spelling.personal {
-                                for word in words {
-                                    ui.horizontal(|ui| {
-                                        ui.label(format!("{word} ({language})"));
-                                        if ui
-                                            .small_button(crate::tr!("spelling-forget-word"))
-                                            .clicked()
-                                        {
-                                            remove = Some((language.clone(), word.clone()));
-                                        }
-                                    });
-                                }
-                            }
-                        });
-                    if let Some((language, word)) = remove {
-                        self.preferences
-                            .spelling
-                            .personal
-                            .get_mut(&language)
-                            .unwrap()
-                            .remove(&word);
-                    }
-                    ui.weak(crate::tr!("spelling-personal-help"));
-                },
-            );
+            egui::ScrollArea::vertical()
+                .id_salt("preferences-content")
+                .max_height((ctx.content_rect().height() - 180.0).max(160.0))
+                .show(ui, |ui| match self.preferences_page {
+                    PreferencesPage::Profile => self.profile_preferences_ui(ui),
+                    PreferencesPage::Appearance => self.appearance_preferences_ui(ui),
+                    PreferencesPage::Spelling => self.spelling_preferences_ui(ui),
+                });
             ui.add_space(8.0);
             if ui.button(crate::tr!("close")).clicked() {
                 self.preferences_open = false;
@@ -2580,6 +2663,156 @@ impl App {
         }
         if !self.preferences_open {
             self.force_selection = true;
+        }
+    }
+    fn appearance_preferences_ui(&mut self, ui: &mut egui::Ui) {
+        egui::Grid::new("appearance-preferences")
+            .num_columns(2)
+            .show(ui, |ui| {
+                ui.label(crate::tr!("editor-font"));
+                egui::ComboBox::from_id_salt("editor-font")
+                    .selected_text(self.preferences.editor.font.label())
+                    .show_ui(ui, |ui| {
+                        for font in EditorFont::ALL {
+                            ui.selectable_value(
+                                &mut self.preferences.editor.font,
+                                font,
+                                font.label(),
+                            );
+                        }
+                    });
+                ui.end_row();
+                ui.label(crate::tr!("editor-font-size"));
+                ui.add(
+                    egui::Slider::new(&mut self.preferences.editor.size, 10.0..=36.0).step_by(1.0),
+                );
+                ui.end_row();
+                ui.label(crate::tr!("appearance"));
+                egui::ComboBox::from_id_salt("appearance")
+                    .selected_text(self.preferences.appearance.label())
+                    .show_ui(ui, |ui| {
+                        for appearance in Appearance::ALL {
+                            ui.selectable_value(
+                                &mut self.preferences.appearance,
+                                appearance,
+                                appearance.label(),
+                            );
+                        }
+                    });
+                ui.end_row();
+            });
+        ui.add_space(8.0);
+        ui.weak(crate::tr!("preferences-help"));
+    }
+    fn spelling_preferences_ui(&mut self, ui: &mut egui::Ui) {
+        ui.checkbox(
+            &mut self.preferences.spelling.enabled,
+            crate::tr!("cmd-spelling-toggle"),
+        );
+        ui.weak(crate::tr!("spelling-dictionaries"));
+        egui::CollapsingHeader::new(crate::tr!("spelling-personal-dictionary")).show(ui, |ui| {
+            let mut remove = None;
+            egui::ScrollArea::vertical()
+                .max_height(160.0)
+                .show(ui, |ui| {
+                    for (language, words) in &self.preferences.spelling.personal {
+                        for word in words {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("{word} ({language})"));
+                                if ui
+                                    .small_button(crate::tr!("spelling-forget-word"))
+                                    .clicked()
+                                {
+                                    remove = Some((language.clone(), word.clone()));
+                                }
+                            });
+                        }
+                    }
+                });
+            if let Some((language, word)) = remove {
+                self.preferences
+                    .spelling
+                    .personal
+                    .get_mut(&language)
+                    .unwrap()
+                    .remove(&word);
+            }
+            ui.weak(crate::tr!("spelling-personal-help"));
+        });
+    }
+    fn profile_preferences_ui(&mut self, ui: &mut egui::Ui) {
+        ui.weak(crate::tr!("profile-help"));
+        ui.add_space(8.0);
+        egui::Grid::new("profile-fields")
+            .num_columns(2)
+            .show(ui, |ui| {
+                let profile = &mut self.preferences.profile;
+                for (key, value, multiline) in [
+                    ("field-full-name", &mut profile.name, false),
+                    ("field-organisation", &mut profile.organisation, false),
+                    ("field-role", &mut profile.role, false),
+                    ("field-sender-address", &mut profile.address, true),
+                    ("field-email", &mut profile.email, false),
+                    ("field-phone", &mut profile.phone, false),
+                ] {
+                    let label = ui.label(crate::i18n::text(key));
+                    let edit = if multiline {
+                        egui::TextEdit::multiline(value).desired_rows(3)
+                    } else {
+                        egui::TextEdit::singleline(value)
+                    };
+                    ui.add(edit.id_salt(("profile", key)).desired_width(310.0))
+                        .labelled_by(label.id);
+                    ui.end_row();
+                }
+            });
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label(crate::tr!("signature-label"));
+            if ui
+                .button(if self.preferences.profile.signature.is_some() {
+                    crate::tr!("image-replace")
+                } else {
+                    crate::tr!("signature-choose")
+                })
+                .clicked()
+            {
+                self.choose_signature(true);
+            }
+            if self.preferences.profile.signature.is_some()
+                && ui.button(crate::tr!("image-remove")).clicked()
+            {
+                self.preferences.profile.signature = None;
+                self.profile_signature = None;
+                self.profile_error = None;
+            }
+        });
+        if let (Some(name), Some(image)) = (
+            self.preferences.profile.signature.clone(),
+            self.profile_signature.clone(),
+        ) {
+            self.signature_preview(ui, &format!("profile:{name}"), &image);
+        } else if self.preferences.profile.signature.is_none() {
+            ui.weak(crate::tr!("signature-none"));
+        }
+        ui.weak(crate::tr!("profile-signature-help"));
+        if let Some(error) = &self.profile_error {
+            ui.colored_label(ui.visuals().error_fg_color, error);
+        }
+    }
+    fn persist_preferences(
+        &mut self,
+        storage: &mut dyn eframe::Storage,
+        now: Instant,
+        force: bool,
+    ) {
+        if self.capture.is_some() {
+            return;
+        }
+        if let Some(delay) = self.preferences_tracker.observe(&self.preferences, now)
+            && (force || delay.is_zero())
+        {
+            self.preferences_tracker.save(&self.preferences, storage);
         }
     }
     /// La proportion appartient aux préférences, les rectangles à la frame.
@@ -2969,6 +3202,37 @@ impl App {
             }
         }
     }
+    pub fn capture_profile(&mut self, ctx: &egui::Context, preferences: bool) {
+        self.preferences.appearance = Appearance::Light;
+        ctx.set_theme(egui::ThemePreference::Light);
+        self.preferences.profile = crate::profile::Profile {
+            name: "Camille Martin".into(),
+            organisation: "Association des Tilleuls".into(),
+            address: "12, rue des Tilleuls\n35000 Rennes".into(),
+            email: "camille@example.org".into(),
+            phone: "02 00 00 00 00".into(),
+            role: "Trésorière".into(),
+            signature: Some("signature-demo.svg".into()),
+        };
+        self.profile_signature = Some(crate::assets::ImageData {
+            extension: "svg".into(),
+            data: include_bytes!("../tests/fixtures/signature.svg")
+                .as_slice()
+                .into(),
+        });
+        self.create_document(DocumentType::Courrier);
+        let before = self.snapshot();
+        if let crate::document_types::Metadata::Courrier(meta) = &mut self.session.metadata {
+            meta.destinataire = "Secrétariat de la mairie".into();
+            meta.objet = "Confirmation de notre rendez-vous".into();
+            meta.lieu = "Rennes".into();
+            meta.date = "21 octobre 2026".into();
+        }
+        self.session.document.view.insert_text("Madame, Monsieur,\n\nJe vous confirme notre rendez-vous pour préparer la prochaine rencontre de l’association.\n\nJe vous remercie pour votre disponibilité.\n\nBien cordialement,", 0);
+        self.remember(before, false);
+        self.preferences_page = PreferencesPage::Profile;
+        self.preferences_open = preferences;
+    }
     pub fn ui_frame(&mut self, ctx: &egui::Context) {
         if ctx.input(|input| input.viewport().close_requested())
             && !self.allow_close
@@ -3156,11 +3420,12 @@ impl eframe::App for App {
         if self.capture.is_some() {
             return;
         }
-        self.preferences.save(storage);
+        self.persist_preferences(storage, Instant::now(), true);
         self.checkpoint_recovery();
     }
     fn auto_save_interval(&self) -> Duration {
-        crate::recovery::INTERVAL
+        // Récupération pilotée séparément par ui_frame ; préférences sur changement.
+        Duration::MAX
     }
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         if !self.is_dirty() {
@@ -3170,8 +3435,22 @@ impl eframe::App for App {
     fn persist_egui_memory(&self) -> bool {
         false
     }
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        let preferences_were_open = self.preferences_open;
         self.ui_frame(ctx);
+        if self.capture.is_none()
+            && let Some(storage) = frame.storage_mut()
+        {
+            let force = (preferences_were_open && !self.preferences_open)
+                || ctx.input(|input| input.viewport().close_requested());
+            self.persist_preferences(storage, Instant::now(), force);
+            if let Some(delay) = self
+                .preferences_tracker
+                .observe(&self.preferences, Instant::now())
+            {
+                ctx.request_repaint_after(delay);
+            }
+        }
     }
 }
 
@@ -3180,6 +3459,132 @@ impl eframe::App for App {
 mod interaction_tests {
     use super::*;
     use crate::document_types::courrier::{Command as CourrierCommand, Model};
+
+    #[test]
+    fn personal_profile_seeds_new_documents_and_signature_edits_are_independent_and_undoable() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let dir = tempfile::tempdir().unwrap();
+        let original = dir.path().join("signature.svg");
+        std::fs::write(&original, include_bytes!("../tests/fixtures/signature.svg")).unwrap();
+        let (name, image) =
+            crate::profile::Profile::import_signature(dir.path(), &original).unwrap();
+        app.preferences.profile.name = "Zoé Martin".into();
+        app.preferences.profile.organisation = "Les Tilleuls".into();
+        app.preferences.profile.signature = Some(name);
+        app.profile_signature = Some(image);
+        app.create_document(DocumentType::Courrier);
+        let initial = app.stored_document();
+        assert_eq!(initial.metadata.courrier().expediteur, "Zoé Martin");
+        assert_eq!(
+            initial.metadata.signature_path(),
+            Some("images/signature-1.svg")
+        );
+        assert!(!app.is_dirty());
+        app.preferences.profile.name = "Autre nom".into();
+        app.preferences.profile.signature = None;
+        app.profile_signature = None;
+        assert_eq!(app.stored_document(), initial);
+        assert!(!app.is_dirty());
+        let replacement = crate::assets::ImageData {
+            extension: "png".into(),
+            data: include_bytes!("../tests/fixtures/colours.png")
+                .as_slice()
+                .into(),
+        };
+        app.set_document_signature(Some(&replacement)).unwrap();
+        let changed = app.stored_document();
+        assert_ne!(
+            initial.metadata.signature_path(),
+            changed.metadata.signature_path()
+        );
+        assert!(app.is_dirty());
+        app.apply(Command::Undo);
+        assert_eq!(app.stored_document(), initial);
+        app.apply(Command::Redo);
+        assert_eq!(app.stored_document(), changed);
+        let path = dir.path().join("document.typsto");
+        assert!(app.save_path(path.clone()));
+        let saved = storage::read(&path).unwrap();
+        assert_eq!(saved.assets.len(), 1);
+        assert_eq!(
+            saved.metadata.signature_path(),
+            changed.metadata.signature_path()
+        );
+        app.set_document_signature(None).unwrap();
+        assert!(app.save_path(path.clone()));
+        assert!(storage::read(&path).unwrap().assets.is_empty());
+        app.apply(Command::Undo);
+        assert_eq!(app.stored_document(), changed);
+        assert!(app.save_path(path.clone()));
+        app.create_document(DocumentType::CompteRendu);
+        let crate::document_types::Metadata::CompteRendu(meta) = &app.session.metadata else {
+            panic!()
+        };
+        assert_eq!(meta.redacteur, "Autre nom");
+        assert!(app.session.document.assets.is_empty());
+        assert!(app.open_path(path));
+        assert_eq!(app.session.metadata.courrier().expediteur, "Zoé Martin");
+        assert_eq!(app.preferences.profile.name, "Autre nom");
+    }
+
+    #[test]
+    fn global_profile_saves_after_changes_or_closing_without_modifying_the_document() {
+        #[derive(Default)]
+        struct Store {
+            data: std::collections::HashMap<String, String>,
+            writes: usize,
+        }
+        impl eframe::Storage for Store {
+            fn get_string(&self, key: &str) -> Option<String> {
+                self.data.get(key).cloned()
+            }
+            fn set_string(&mut self, key: &str, value: String) {
+                self.data.insert(key.into(), value);
+                self.writes += 1;
+            }
+            fn flush(&mut self) {}
+        }
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let before = app.stored_document();
+        let mut store = Store::default();
+        let now = Instant::now();
+        app.persist_preferences(&mut store, now, false);
+        app.preferences.profile.name = "Zoé".into();
+        app.persist_preferences(&mut store, now, false);
+        assert_eq!(store.writes, 0);
+        app.persist_preferences(
+            &mut store,
+            now + crate::preferences::SaveTracker::DELAY,
+            false,
+        );
+        assert_eq!(store.writes, 1);
+        assert_eq!(Preferences::load(Some(&store)).profile.name, "Zoé");
+        app.persist_preferences(&mut store, now + Duration::from_secs(100), false);
+        assert_eq!(store.writes, 1);
+        app.preferences.profile.email = "zoe@example.org".into();
+        eframe::App::save(&mut app, &mut store); // Fermeture avant le délai de saisie.
+        assert_eq!(
+            Preferences::load(Some(&store)).profile.email,
+            "zoe@example.org"
+        );
+        assert_eq!(store.writes, 2);
+        assert_eq!(eframe::App::auto_save_interval(&app), Duration::MAX);
+        app.preferences_open = true;
+        app.preferences_page = PreferencesPage::Profile;
+        frame(&mut app, &ctx, vec![]);
+        app.preferences_page = PreferencesPage::Appearance;
+        frame(&mut app, &ctx, vec![]);
+        app.preferences_page = PreferencesPage::Spelling;
+        frame(&mut app, &ctx, vec![]);
+        assert_eq!(app.stored_document(), before);
+        assert!(!app.is_dirty());
+        app.capture = Some("ignored.png".into());
+        app.preferences.profile.name = "Capture isolée".into();
+        eframe::App::save(&mut app, &mut store);
+        assert_eq!(store.writes, 2);
+    }
 
     #[test]
     fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_suggestion() {

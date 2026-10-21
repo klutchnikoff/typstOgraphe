@@ -287,6 +287,7 @@ pub fn retained_assets(
         .values()
         .map(|image| image.path.clone())
         .collect();
+    required.extend(metadata.signature_path().map(str::to_owned));
     fn declared_paths(
         node: &typst_syntax::SyntaxNode,
         required: &mut std::collections::BTreeSet<String>,

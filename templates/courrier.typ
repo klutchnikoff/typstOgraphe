@@ -12,6 +12,10 @@
   fonction: "",
   service: "",
   email: "",
+  organisme: "",
+  adresse_expediteur: "",
+  telephone: "",
+  signature: none,
   destinataire: "",
   adresse: "",
   objet: "",
@@ -23,7 +27,7 @@
   body,
 ) = {
   let labels = (
-    fr: (direction: "DIRECTION GÉNÉRALE", subject: "Objet", contact: "Votre interlocutrice", reference: "Référence", date-prefix: "le "),
+    fr: (direction: "DIRECTION GÉNÉRALE", subject: "Objet", contact: "Contact", reference: "Référence", date-prefix: "le "),
     en: (direction: "GENERAL MANAGEMENT", subject: "Subject", contact: "Your contact", reference: "Reference", date-prefix: ""),
     de: (direction: "DIREKTION", subject: "Betreff", contact: "Ihre Ansprechperson", reference: "Referenz", date-prefix: "den "),
     es: (direction: "DIRECCIÓN GENERAL", subject: "Asunto", contact: "Su contacto", reference: "Referencia", date-prefix: "el "),
@@ -41,7 +45,7 @@
       set text(size: 8pt, fill: rgb("697587"))
       line(length: 100%, stroke: 0.4pt + rgb("dfe4eb"))
       v(3pt)
-      align(center)[Ville de Valmont · 1, place de la Mairie · 35000 Valmont]
+      if adresse_expediteur != "" { align(center)[#organisme #linebreak() #adresse_expediteur] }
       align(center)[#counter(page).display("1")]
     },
   )
@@ -74,9 +78,9 @@
     }
   ]
 
-  text(size: 16pt, weight: "bold", fill: accent)[VILLE DE VALMONT]
+  text(size: 16pt, weight: "bold", fill: accent)[#if organisme != "" { organisme } else { expediteur }]
   linebreak()
-  text(size: 9pt, fill: accent)[#if compact { service } else { [#labels.direction] }]
+  text(size: 9pt, fill: accent)[#service]
   v(8pt)
   line(length: 100%, stroke: (if compact { 0.5pt } else { 1.5pt }) + accent)
   v(16pt)
@@ -90,10 +94,16 @@
     v(9pt)
     body
     v(15pt)
-    align(right)[#expediteur #linebreak() #text(size: 9pt)[#fonction]]
+    align(right)[
+      #if signature != none {
+        image(signature, width: 35mm, height: 16mm, fit: "contain", alt: expediteur)
+        linebreak()
+      }
+      #expediteur #linebreak() #text(size: 9pt)[#fonction]
+    ]
   }
   if compact {
-    text(size: 9pt)[#expediteur · #service #linebreak() #email #linebreak() #labels.reference #reference]
+    text(size: 9pt)[#expediteur · #service #linebreak() #email #linebreak() #telephone #linebreak() #labels.reference #reference]
     v(12pt)
     contenu
   } else {
@@ -108,6 +118,7 @@
           #fonction
           #v(12pt)
           #email.replace("@", "@\u{200b}").replace(".", ".\u{200b}")
+          #if telephone != "" { linebreak(); telephone }
           #v(12pt)
           #labels.reference #linebreak() #reference
         ]

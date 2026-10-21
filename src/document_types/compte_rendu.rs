@@ -65,6 +65,7 @@ pub const CONTRACT: ModelContract<Metadata> = ModelContract {
     function: "compte-rendu",
     fields: FIELDS,
     options: |m| &m.options,
+    signature_image: None,
 };
 pub const MODEL: &str = include_str!("../../templates/compte-rendu.typ");
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

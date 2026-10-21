@@ -141,6 +141,8 @@ cli-help =
       cargo run -- --capture-recovery IMAGE.png RECOVERY_FOLDER
       cargo run -- --capture-search IMAGE.png QUERY
       cargo run -- --capture-spelling IMAGE.png
+      cargo run -- --capture-profile IMAGE.png
+      cargo run -- --capture-profile-letter IMAGE.png
 preview-stats =
     { $pages ->
         [one] { $pages } page · { $milliseconds } ms
@@ -216,6 +218,23 @@ language-dutch = Dutch
 
 cmd-preferences = Preferences…
 preferences-title = Preferences
+preferences-profile = Personal profile
+preferences-appearance = Appearance
+preferences-spelling = Spelling
+field-organisation = Organisation
+field-sender-address = Sender’s address
+field-phone = Phone
+profile-help = These details are suggested when creating documents. Each document keeps its own copy, editable independently of the profile.
+signature-label = Signature
+signature-choose = Choose an image…
+signature-none = No signature.
+profile-signature-help = The application keeps the image and copies it into new letters. The template controls its presentation.
+signature-document-help = This signature belongs only to this letter. Changing it does not change the personal profile.
+profile-invalid-signature = The stored signature reference is invalid. Choose an image or remove the signature.
+profile-signature-error = Could not load or store the signature: { $error }
+profile-no-directory = The preferences directory is unavailable. The signature cannot be stored there.
+profile-signature-unavailable = The profile signature is unavailable. Choose an image or remove the signature in preferences before creating a letter.
+cli-usage-capture-profile = Usage: --capture-profile IMAGE.png or --capture-profile-letter IMAGE.png
 editor-font = Editor font
 editor-font-size = Text size
 appearance = Appearance

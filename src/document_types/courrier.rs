@@ -13,6 +13,10 @@ pub struct Metadata {
     pub fonction: String,
     pub service: String,
     pub email: String,
+    pub organisme: String,
+    pub adresse_expediteur: String,
+    pub telephone: String,
+    pub signature: Option<String>,
     pub destinataire: String,
     pub adresse: String,
     pub objet: String,
@@ -28,6 +32,10 @@ impl Default for Metadata {
             fonction: "Responsable de la vie associative".into(),
             service: "Vie associative".into(),
             email: "camille.martin@valmont.example".into(),
+            organisme: "Ville de Valmont".into(),
+            adresse_expediteur: "1, place de la Mairie\n35000 Valmont".into(),
+            telephone: String::new(),
+            signature: None,
             destinataire: "Service des équipements".into(),
             adresse: "12, place de la République\n35000 Valmont".into(),
             objet: "Demande de réservation d’une salle".into(),
@@ -46,6 +54,10 @@ impl Metadata {
             fonction: String::new(),
             service: String::new(),
             email: String::new(),
+            organisme: String::new(),
+            adresse_expediteur: String::new(),
+            telephone: String::new(),
+            signature: None,
             destinataire: String::new(),
             adresse: String::new(),
             objet: String::new(),
@@ -82,6 +94,30 @@ pub const FIELDS: &[TextField<Metadata>] = &[
     field!(fonction, "role", "field-role", "sender", false, false),
     field!(service, "service", "field-service", "sender", false, false),
     field!(email, "email", "field-email", "sender", false, false),
+    field!(
+        organisme,
+        "organisation",
+        "field-organisation",
+        "sender",
+        false,
+        false
+    ),
+    field!(
+        adresse_expediteur,
+        "sender-address",
+        "field-sender-address",
+        "sender",
+        true,
+        false
+    ),
+    field!(
+        telephone,
+        "sender-phone",
+        "field-phone",
+        "sender",
+        false,
+        false
+    ),
     field!(
         destinataire,
         "recipient",
@@ -131,6 +167,7 @@ pub const CONTRACT: ModelContract<Metadata> = ModelContract {
     function: "courrier",
     fields: FIELDS,
     options: |m| &m.options,
+    signature_image: Some(|m| m.signature.as_deref()),
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -218,7 +255,7 @@ mod tests {
         let custom = format!(
             r#"
 #let decoration-interne(body) = block(width: 100%, inset: 8pt, stroke: 0.5pt)[#body]
-#let courrier({arguments}, options: (paper: "a4", landscape: false, language: "fr"), body) = {{
+#let courrier({arguments}, signature: none, options: (paper: "a4", landscape: false, language: "fr"), body) = {{
   set page(paper: options.paper, flipped: options.landscape)
   set text(lang: options.language)
   decoration-interne[#text(weight: "bold")[#objet] #body]

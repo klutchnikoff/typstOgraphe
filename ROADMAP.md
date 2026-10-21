@@ -79,13 +79,13 @@ persistante de modèles restent à développer.
 - **Étape 3 — Orthographe : implémentée ; essai utilisateur à faire.** Spellbook,
   dictionnaires embarqués français/anglais, suggestions et dictionnaire personnel ;
   le périmètre livré est précisé dans le chantier B.
-- **Prochaine étape proposée — Étape 4 : produire un courrier et un compte-rendu
-  utiles.** Commencer par le profil personnel et l’image de signature (D), puis
-  les modèles utilisables et le premier périmètre de bibliothèque (H, E).
-  Les choix principaux de cette étape restent à discuter ensemble avant de coder.
+- **Étape 4 — Première partie implémentée : profil personnel et signature (D).**
+  Le périmètre livré est précisé dans le chantier D ; essai utilisateur à faire.
+  Les modèles utiles et le premier périmètre de bibliothèque restent à définir
+  ensemble pour poursuivre cette étape (H, E).
 - **Reformulation locale : essais terminés, piste mise de côté.** Le bilan est
   conservé dans le chantier B et le rapport lié.
-- Les étapes 4 à 8 ne sont pas implémentées ; les types, premiers modèles et
+- Les étapes 5 à 8 ne sont pas implémentées ; les types, premiers modèles et
   l’import ponctuel déjà présents constituent leur point de départ.
 
 ## Priorités proposées
@@ -261,6 +261,33 @@ synchronisation doit prendre en compte les nouveaux contenus.
 
 **Objectif :** créer un document avec ses coordonnées sans les ressaisir.
 
+**Première étape implémentée, choix validés le 21 octobre 2026 — essai utilisateur à faire :**
+
+- Un profil global dans les préférences : nom, organisme, fonction, adresse
+  postale, courriel, téléphone et image de signature facultative (PNG/JPEG/SVG).
+- L’image est copiée dans le dossier applicatif ; déplacer ou retirer son
+  original ne change pas la signature conservée par l’application.
+- Chaque nouveau courrier reçoit une copie des coordonnées et de l’image dans
+  son archive autonome. Le compte-rendu reprend le nom comme rédacteur.
+- Les documents déjà ouverts ou enregistrés ne sont pas actualisés quand le
+  profil change. Les champs d’expéditeur et la signature restent modifiables
+  par courrier ; remplacement et retrait participent à son historique commun.
+- Le modèle Typst choisit la place et la présentation de la signature. Le
+  contrat Courrier ajoute `organisme`, `adresse_expediteur`, `telephone` et
+  `signature` (chemin embarqué ou `none`). Le format `.typsto` passe en version 7,
+  sans migration, conformément au choix de ne pas maintenir de rétrocompatibilité.
+- Préférences réparties en trois rubriques : Profil personnel, Apparence,
+  Orthographe. Enregistrement après modification, avec 500 ms de stabilisation
+  de saisie, et à la fermeture des préférences ou de l’application. Aucune
+  écriture périodique des préférences ; la récupération documentaire conserve
+  son échéance indépendante de cinq secondes.
+- Vérifications : indépendance profil/document, image originale absente,
+  annulation/rétablissement, conservation des seules ressources utilisées,
+  réouverture/export PDF et captures natives isolées des réglages réels.
+
+**Suites à discuter :** plusieurs identités et logo. Le premier profil et les
+copies indépendantes dans les documents sont désormais retenus et implémentés.
+
 - Profil personnel, puis plusieurs identités : personnelle, professionnelle,
   associative, par exemple.
 - Coordonnées, fonction, organisme, logo et image de signature.
@@ -270,7 +297,7 @@ synchronisation doit prendre en compte les nouveaux contenus.
 **Choix ensemble :** champs, nombre de profils au premier périmètre, sélection du
 profil, insertion de signature et comportement lors d’un changement d’identité.
 La copie des valeurs dans le document, sans mise à jour rétroactive après une
-modification du profil, est la proposition à confirmer.
+modification du profil, est validée pour le premier périmètre.
 
 La signature envisagée ici est une image ; une signature électronique
 cryptographique constituerait un chantier distinct.

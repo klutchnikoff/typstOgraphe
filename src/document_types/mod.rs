@@ -88,6 +88,12 @@ impl Metadata {
             Self::CompteRendu(meta) => &meta.options,
         }
     }
+    pub fn signature_path(&self) -> Option<&str> {
+        match self {
+            Self::Courrier(meta) => meta.signature.as_deref(),
+            Self::CompteRendu(_) => None,
+        }
+    }
     pub fn options_mut(&mut self) -> &mut DocumentOptions {
         match self {
             Self::Courrier(meta) => &mut meta.options,
@@ -167,6 +173,7 @@ pub struct ModelContract<T: 'static> {
     pub function: &'static str,
     pub fields: &'static [TextField<T>],
     pub options: fn(&T) -> &DocumentOptions,
+    pub signature_image: Option<fn(&T) -> Option<&str>>,
 }
 
 /// Libertés explicitement accordées par le créateur du modèle, en pur Typst.
@@ -185,6 +192,9 @@ impl ModelPresentation {
 impl<T> ModelContract<T> {
     pub fn signature(&self) -> String {
         let mut parameters: Vec<_> = self.fields.iter().map(|field| field.parameter).collect();
+        if self.signature_image.is_some() {
+            parameters.push("signature");
+        }
         parameters.extend(["options", "body"]);
         format!("{}({})", self.function, parameters.join(", "))
     }
@@ -196,6 +206,12 @@ impl<T> ModelContract<T> {
                 "  {}: {},\n",
                 field.parameter,
                 typst_string((field.get)(metadata))
+            ));
+        }
+        if let Some(signature_image) = self.signature_image {
+            source.push_str(&format!(
+                "  signature: {},\n",
+                signature_image(metadata).map_or_else(|| "none".into(), typst_string)
             ));
         }
         let options = (self.options)(metadata);

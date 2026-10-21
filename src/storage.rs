@@ -12,7 +12,7 @@ use std::{
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 pub const EXTENSION: &str = "typsto";
-const FORMAT_VERSION: u32 = 6;
+const FORMAT_VERSION: u32 = 7;
 const LIMIT: u64 = crate::assets::MAX_DOCUMENT_BYTES;
 pub(crate) const EXTRA_ENTRY_LIMIT: u64 = 16 * 1024;
 const ENTRIES: [&str; 5] = [
@@ -169,6 +169,14 @@ fn entry<R: Read + std::io::Seek>(zip: &mut ZipArchive<R>, name: &str) -> Result
 
 fn validate(letter: &StoredDocument) -> Result<(), String> {
     let document = Document::from_source(&letter.source)?;
+    if let Some(path) = letter.metadata.signature_path() {
+        if !crate::assets::valid_path(path) {
+            return Err(crate::tr!("storage-unknown-entry"));
+        }
+        if !letter.assets.contains_key(path) {
+            return Err(crate::tr!("image-resource-missing", path = path));
+        }
+    }
     for image in document.view.images.values() {
         if !letter.assets.contains_key(&image.path) {
             return Err(crate::tr!(
