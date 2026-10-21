@@ -189,6 +189,14 @@ conserve texte, métadonnées, modèle et ressources.
   mots ignorés et dictionnaire personnel.
 - **P1/P2 :** copier/coller structuré pour les styles et blocs pris en charge,
   avec une option pour coller du texte seul ; collage d’images.
+- **P2 :** harmoniser la présentation des citations, images, P.-S. et P.J. dans
+  l’éditeur : cadres, fonds, bordures, espacements, libellés et textes indicatifs.
+  Factoriser les composants de présentation et les comportements réellement
+  communs (focus, navigation, défilement et annotations facultatives), en
+  conservant les dispositions et interactions propres à chaque bloc. Réutiliser
+  la gestion commune des annotations déjà présente. Valider les choix visuels
+  ensemble avant l’implémentation ; vérifier les thèmes clair/sombre, les curseurs,
+  les sélections et les lignes repliées. Le rendu final reste défini par le modèle.
 - **P2 :** déplacer et dupliquer des paragraphes ou des blocs, navigation par titres,
   affichage facultatif des caractères invisibles.
 - **P2 :** personnalisation persistante des raccourcis dans les préférences et
