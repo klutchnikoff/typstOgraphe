@@ -22,7 +22,11 @@ pub fn loader() -> &'static FluentLanguageLoader {
         #[cfg(test)]
         let requested = vec!["fr".parse().unwrap()];
         #[cfg(not(test))]
-        let requested = i18n_embed::DesktopLanguageRequester::requested_languages();
+        let requested = if std::env::args().any(|arg| arg.starts_with("--capture")) {
+            vec!["fr".parse().expect("langue de capture valide")]
+        } else {
+            i18n_embed::DesktopLanguageRequester::requested_languages()
+        };
         build(&requested)
     })
 }

@@ -129,6 +129,14 @@ impl App {
         path: Option<PathBuf>,
         capture_recovery: Option<PathBuf>,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        if capture.is_some() {
+            cc.egui_ctx
+                .memory_mut(|memory| *memory = Default::default());
+            cc.egui_ctx
+                .send_viewport_cmd(egui::ViewportCommand::Maximized(false));
+            cc.egui_ctx
+                .send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(1240.0, 900.0)));
+        }
         let mut app = Self::with_context(cc.egui_ctx.clone(), capture);
         if app.capture.is_none() {
             app.preferences = Preferences::load(cc.storage);
@@ -197,6 +205,17 @@ impl App {
             &ShortcutOverrides::default(),
         )
         .expect("raccourcis par défaut cohérents");
+        let mut preferences = Preferences::default();
+        if capture.is_some() {
+            // Diagnostic reproductible, isolé des préférences et de l’apparence du système.
+            preferences.appearance = Appearance::Light;
+            ctx.set_theme(egui::ThemePreference::Light);
+            ctx.all_styles_mut(|style| {
+                style.visuals.text_cursor.blink = false;
+                style.animation_time = 0.0;
+            });
+        }
+        let preferences_tracker = crate::preferences::SaveTracker::new(&preferences);
         let spelling_ctx = ctx.clone();
         let spelling = crate::spelling::Checker::new(move || spelling_ctx.request_repaint());
         let worker = RenderWorker::spawn(ctx);
@@ -219,8 +238,8 @@ impl App {
             search_open: false,
             replace_open: false,
             search_focus_pending: false,
-            preferences: Preferences::default(),
-            preferences_tracker: crate::preferences::SaveTracker::new(&Preferences::default()),
+            preferences,
+            preferences_tracker,
             preferences_directory: None,
             preferences_page: PreferencesPage::default(),
             profile_signature: None,
@@ -2695,6 +2714,11 @@ impl App {
                 ui.spinner();
                 ui.weak(crate::tr!("preview-updating"));
             } else if let Some(time) = self.rendering_time {
+                let time = if self.capture.is_some() {
+                    Duration::ZERO
+                } else {
+                    time
+                };
                 ui.weak(crate::tr!(
                     "preview-stats",
                     pages = self.pages.len(),
@@ -3481,6 +3505,10 @@ impl App {
         }
     }
     pub fn ui_frame(&mut self, ctx: &egui::Context) {
+        if self.capture.is_some() {
+            // Le pointeur réel ne doit pas modifier les survols des captures de référence.
+            ctx.input_mut(|input| input.pointer = Default::default());
+        }
         if ctx.input(|input| input.viewport().close_requested())
             && !self.allow_close
             && self.is_dirty()
@@ -3676,6 +3704,9 @@ impl App {
     }
 }
 impl eframe::App for App {
+    fn persist_egui_memory(&self) -> bool {
+        self.capture.is_none()
+    }
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         if self.capture.is_some() {
             return;
@@ -3959,6 +3990,7 @@ mod interaction_tests {
         assert_eq!(app.stored_document(), before);
         assert!(!app.is_dirty());
         app.capture = Some("ignored.png".into());
+        assert!(!eframe::App::persist_egui_memory(&app));
         app.preferences.profile.name = "Capture isolée".into();
         eframe::App::save(&mut app, &mut store);
         assert_eq!(store.writes, 2);
