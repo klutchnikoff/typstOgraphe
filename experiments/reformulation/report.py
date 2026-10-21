@@ -148,8 +148,8 @@ user_section = (
 )
 
 
-def larger_model_section():
-    review_path = HERE / "qwen-size-review.json"
+def comparison_section(review_filename, section_id, title):
+    review_path = HERE / review_filename
     if not review_path.exists():
         return ""
     review = json.loads(review_path.read_text())
@@ -158,7 +158,7 @@ def larger_model_section():
         samples = rows(mode)
         row = first(mode)["C26"]
         if hashlib.sha256(row["output"].encode()).hexdigest() != entry["output_sha256"]:
-            raise ValueError(f"Qwen size comparison output changed: {mode}.")
+            raise ValueError(f"Comparison output changed: {mode}.")
         m = read(f"results/{mode}.json")
         s = m["summary"]
         comparisons.append(
@@ -176,7 +176,7 @@ def larger_model_section():
             f"<details><summary>Consigne exacte et modèle</summary><p>{e(m['system_prompt'])}</p>"
             f"<pre>{e(m['model_repository'])} @ {e(m['model_revision'])}\nSHA-256 : {e(m['model_sha256'])}</pre></details></section>")
     return (
-        "<h2 id='qwen-plus-grand'>Qwen 1,5B et 3B sur le même courrier fautif</h2>"
+        f"<h2 id='{e(section_id)}'>{e(title)}</h2>"
         f"<p>{e(review['scope'])}</p><p><strong>{e(review['conclusion'])}</strong></p>"
         "<p>Le passage est reproduit dans <a href='#C26'>C26</a>. Les propositions ci-dessous n’ont pas été retouchées.</p>"
         "<div class='scroll'><table><thead><tr><th>Modèle</th><th>Médiane</th><th>Min–max</th>"
@@ -220,6 +220,10 @@ HF_HOME="$PWD/output/reformulation/hf-cache" output/reformulation/.venv/bin/pyth
 HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --corpus corpus-user.json --task correct-simple --repeats 5 --label qwen-metal-user-15b-sizecheck
 HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --qwen-size 3b --corpus corpus-user.json --task correct-simple --repeats 5 --label qwen-metal-user-3b
 
+# Consigne administrative fournie par l'utilisateur, chargée sans ajout.
+HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --corpus corpus-user.json --prompt-file prompts/administratif-utilisateur.txt --repeats 5 --label qwen-metal-user-15b-admin
+HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --qwen-size 3b --corpus corpus-user.json --prompt-file prompts/administratif-utilisateur.txt --repeats 5 --label qwen-metal-user-3b-admin
+
 output/reformulation/.venv/bin/python experiments/reformulation/report.py
 # Les appréciations sont liées au SHA-256 des sorties effectivement relues.
 # En cas de sortie différente, les relire : ne pas recycler automatiquement les notes.
@@ -240,10 +244,10 @@ a{color:var(--accent)}p{max-width:100ch}small,.scores,.checks{color:var(--muted)
 <p><small>typstOgraphe · expérimentation du 21 octobre 2026 · génération entièrement locale</small></p>
 <h1>Reformuler sans changer les faits</h1>
 <p class='lead'>CATIE french_paraphrase_flan-t5-base et Qwen2.5-Instruct (1,5B et 3B), sur Apple M1 Max avec 32 Gio de mémoire.</p>
-<nav><a href='#qwen-plus-grand'>Qwen 1,5B / 3B</a><a href='#exemple-utilisateur'>Votre exemple fautif</a><a href='#mesures'>Mesures</a><a href='#qualite'>Qualité</a><a href='#passages'>20 passages</a><a href='#complement'>5 textes maladroits</a><a href='#integration'>Intégration Rust</a><a href='#protocole'>Protocole et reproduction</a></nav>
+<nav><a href='#prompt-administratif'>Votre prompt administratif</a><a href='#qwen-plus-grand'>Qwen 1,5B / 3B</a><a href='#exemple-utilisateur'>Votre exemple fautif</a><a href='#mesures'>Mesures</a><a href='#qualite'>Qualité</a><a href='#passages'>20 passages</a><a href='#complement'>5 textes maladroits</a><a href='#integration'>Intégration Rust</a><a href='#protocole'>Protocole et reproduction</a></nav>
 <div class='banner'><strong>Le premier corpus vérifie surtout la conservation des faits ; il ne suffit pas à juger l’aide à la rédaction sur un texte fautif.</strong>
-<p>Le complément fourni par l’utilisateur teste maintenant la correction et l’allègement des lourdeurs. Qwen s’en sort mieux avec une consigne courte, mais le bénéfice stylistique reste limité sur cet exemple. Les consignes plus longues produisent une invention. Aucun modèle ni moteur n’est choisi pour l’application à ce stade.</p></div>
-""" + larger_model_section() + user_section + """
+<p>Les compléments fournis par l’utilisateur testent la correction et l’allègement des lourdeurs avec plusieurs consignes. Le prompt administratif améliore certains points avec le 3B, mais le ton reste amplifié ; le 1,5B invente encore « par votre ordre ». Aucun modèle ni moteur n’est choisi pour l’application à ce stade.</p></div>
+""" + comparison_section("admin-prompt-review.json", "prompt-administratif", "Votre prompt administratif : essai sans modification") + comparison_section("qwen-size-review.json", "qwen-plus-grand", "Qwen 1,5B et 3B sur le même courrier fautif") + user_section + """
 <h2 id='mesures'>Latence et mémoire</h2>
 <p>40 requêtes mesurées par configuration (20 passages × 2), après une première requête séparée. Durée jusqu’au texte complet ; P95 au rang le plus proche, sur ce petit échantillon. La plus longue sélection fait environ 110 mots. Aucune sortie tronquée.</p>
 <div class='scroll'><table><thead><tr><th>Configuration</th><th>Médiane</th><th>P95</th><th>Maximum</th><th>Premier jeton, médiane</th><th>Pic RSS</th><th>Empreinte macOS</th></tr></thead><tbody>

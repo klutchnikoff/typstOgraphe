@@ -1,0 +1,17 @@
+{
+  "reviewer": "Codex ; appréciation exploratoire sur un seul courrier, sans validation humaine indépendante. Les répétitions gloutonnes servent à mesurer le temps et ne constituent pas des propositions différentes.",
+  "scope": "Prompt administratif fourni par l'utilisateur, chargé tel quel depuis prompts/administratif-utilisateur.txt, sans ajout de consigne. Même passage C26, fichiers de modèles, moteur, quantification Q4_K_M, contexte 2048, graine 42 et génération gloutonne que précédemment. Metal sur M1 Max / 32 Gio. Cinq répétitions chaudes par modèle, après une première requête séparée, modèles lancés successivement.",
+  "conclusion": "Le cadrage administratif et la demande de sobriété sont adaptés au besoin, mais les sorties restent imparfaites. Le 1,5B invente encore « par votre ordre ». Le 3B améliore l'accord de la formule d'adresse et remanie davantage les phrases, mais amplifie le registre avec « sujet particulièrement crucial » et « dans les plus brefs délais ». La consigne ne suffit donc pas, sur ce passage, à obtenir une révision à la fois sobre et fidèle avec ces configurations.",
+  "runs": {
+    "qwen-metal-user-15b-admin": {
+      "label": "Qwen2.5-1.5B · prompt administratif exact",
+      "note": "Les fautes orthographiques principales sont corrigées, mais « par mes soins » devient « par votre ordre » : une instruction des destinataires est inventée. « Cette information est essentielle pour être diffusée » est maladroit et la répétition sur l'importance reste présente. Le ton est renforcé avec « dans les plus brefs délais ».",
+      "output_sha256": "dfcfd496bcf1367045d111920e273f244b411bb789d0cadb08dc623c011f65a0"
+    },
+    "qwen-metal-user-3b-admin": {
+      "label": "Qwen2.5-3B · prompt administratif exact",
+      "note": "L'accord « Chers collègues » remplace le « Cher collègues » fautif du précédent essai, et plusieurs constructions sont remaniées. L'auteur de l'envoi n'est plus indiqué. « production prévue » constitue une interprétation de la conjugaison fautive du texte source. Surtout, « sujet particulièrement crucial » et « dans les plus brefs délais » renforcent le ton ; la redondance sur l'importance persiste. Aucun « par votre ordre » dans cette sortie.",
+      "output_sha256": "4a559da0852e0b7bce4f5b048b55314b520e7b0ebd60372cfa5a86dc816baf54"
+    }
+  }
+}

@@ -100,18 +100,23 @@ def main():
     parser.add_argument("--label")
     parser.add_argument("--corpus", default="corpus.json")
     parser.add_argument("--qwen-size", choices=["1.5b", "3b"], default="1.5b")
+    parser.add_argument("--prompt-file", help="UTF-8 system prompt, relative to this experiment directory")
     prompts = {"rewrite": SYSTEM, "correct-rewrite": CORRECT_REWRITE_SYSTEM,
                "correct-simple": SIMPLE_CORRECTION_SYSTEM}
     parser.add_argument("--task", choices=list(prompts), default="rewrite")
     args = parser.parse_args()
+    if args.prompt_file and args.mode.startswith("catie"):
+        parser.error("--prompt-file applies to Qwen chat models; CATIE receives the raw passage")
     label = args.label or args.mode
-    system_prompt = prompts[args.task]
+    system_prompt = ((HERE / args.prompt_file).read_text().rstrip("\n")
+                     if args.prompt_file else prompts[args.task])
     RESULTS.mkdir(exist_ok=True)
     corpus_bytes = (HERE / args.corpus).read_bytes()
     cases = json.loads(corpus_bytes)["cases"][:args.limit]
     metadata = {
         "mode": args.mode, "threads": 4, "repeats": args.repeats,
-        "task": args.task,
+        "task": "prompt-file" if args.prompt_file else args.task,
+        "prompt_file": args.prompt_file,
         "max_new_tokens": 256, "seed": 42, "beams": args.beams,
         "python": platform.python_version(), "platform": platform.platform(),
         "corpus_sha256": hashlib.sha256(corpus_bytes).hexdigest(),
