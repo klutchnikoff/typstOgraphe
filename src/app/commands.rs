@@ -28,63 +28,13 @@ impl App {
             return;
         }
         match command {
-            Command::ToggleSpelling => {
-                self.preferences.spelling.enabled = !self.preferences.spelling.enabled
-            }
-            Command::SpellingSuggestions => {
-                if let Some(issue) = self.selected_spelling_issue() {
-                    self.open_spelling_target(issue);
-                    self.spelling_menu_pending = true;
-                }
-            }
-            Command::NextSpelling | Command::PreviousSpelling => {
-                let range = self.range();
-                let issues = &self.spelling.issues;
-                let target = if command == Command::PreviousSpelling {
-                    issues
-                        .iter()
-                        .rfind(|issue| issue.range.start < range.start)
-                        .or_else(|| issues.last())
-                } else {
-                    issues
-                        .iter()
-                        .find(|issue| issue.range.start >= range.end)
-                        .or_else(|| issues.first())
-                }
-                .cloned();
-                if let Some(issue) = target {
-                    self.focus_annotation_target(issue.range);
-                }
-            }
-            Command::IgnoreSpelling | Command::LearnSpelling => {
-                if let Some(issue) = self.selected_spelling_issue() {
-                    let language = self.session.metadata.options().language.code().to_owned();
-                    let word = crate::spelling::word_key(&issue.word);
-                    if command == Command::LearnSpelling {
-                        self.preferences
-                            .spelling
-                            .personal
-                            .entry(language)
-                            .or_default()
-                            .insert(word);
-                    } else {
-                        let before = self.snapshot();
-                        self.session
-                            .metadata
-                            .options_mut()
-                            .spelling_ignored
-                            .entry(language)
-                            .or_default()
-                            .insert(word);
-                        self.remember(before, false);
-                    }
-                }
-            }
-            Command::ResetSpelling => {
-                let before = self.snapshot();
-                self.session.metadata.options_mut().spelling_ignored.clear();
-                self.remember(before, false);
-            }
+            Command::ToggleSpelling
+            | Command::SpellingSuggestions
+            | Command::NextSpelling
+            | Command::PreviousSpelling
+            | Command::IgnoreSpelling
+            | Command::LearnSpelling
+            | Command::ResetSpelling => self.apply_spelling_command(command),
             Command::Find | Command::FindReplace => {
                 self.search_open = true;
                 self.replace_open |= command == Command::FindReplace;
@@ -165,6 +115,68 @@ impl App {
             Command::Italic => self.edit(|view, range| view.toggle_mark(range, Mark::Italic)),
             Command::Clear => self.edit(|view, range| view.clear_marks(range)),
             Command::Block(kind) => self.edit(|view, range| view.set_block(range, kind)),
+        }
+    }
+    fn apply_spelling_command(&mut self, command: Command) {
+        match command {
+            Command::ToggleSpelling => {
+                self.preferences.spelling.enabled = !self.preferences.spelling.enabled
+            }
+            Command::SpellingSuggestions => {
+                if let Some(issue) = self.selected_spelling_issue() {
+                    self.open_spelling_target(issue);
+                    self.spelling_menu_pending = true;
+                }
+            }
+            Command::NextSpelling | Command::PreviousSpelling => {
+                let range = self.range();
+                let issues = &self.spelling.issues;
+                let target = if command == Command::PreviousSpelling {
+                    issues
+                        .iter()
+                        .rfind(|issue| issue.range.start < range.start)
+                        .or_else(|| issues.last())
+                } else {
+                    issues
+                        .iter()
+                        .find(|issue| issue.range.start >= range.end)
+                        .or_else(|| issues.first())
+                }
+                .cloned();
+                if let Some(issue) = target {
+                    self.focus_annotation_target(issue.range);
+                }
+            }
+            Command::IgnoreSpelling | Command::LearnSpelling => {
+                if let Some(issue) = self.selected_spelling_issue() {
+                    let language = self.session.metadata.options().language.code().to_owned();
+                    let word = crate::spelling::word_key(&issue.word);
+                    if command == Command::LearnSpelling {
+                        self.preferences
+                            .spelling
+                            .personal
+                            .entry(language)
+                            .or_default()
+                            .insert(word);
+                    } else {
+                        let before = self.snapshot();
+                        self.session
+                            .metadata
+                            .options_mut()
+                            .spelling_ignored
+                            .entry(language)
+                            .or_default()
+                            .insert(word);
+                        self.remember(before, false);
+                    }
+                }
+            }
+            Command::ResetSpelling => {
+                let before = self.snapshot();
+                self.session.metadata.options_mut().spelling_ignored.clear();
+                self.remember(before, false);
+            }
+            _ => unreachable!("spelling command"),
         }
     }
     pub(super) fn apply_history(&mut self, undo: bool) {

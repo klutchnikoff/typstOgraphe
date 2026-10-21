@@ -87,20 +87,43 @@ impl App {
                     None
                 }
             });
+        let (mut action, close) = self.search_query_row(ui);
+        if let Some(command) = self.search_replacement_row(ui) {
+            action = Some(command);
+        }
+        if self.search.failed {
+            ui.colored_label(ui.visuals().error_fg_color, crate::tr!("search-too-large"));
+        }
+        if let Some((id, backward)) = enter {
+            action = Some(if id == egui::Id::new(REPLACE_ID) && !backward {
+                Command::ReplaceCurrent
+            } else if backward {
+                Command::FindPrevious
+            } else {
+                Command::FindNext
+            });
+        }
+        if let Some(command) = action {
+            self.apply(command);
+            let id = if matches!(command, Command::ReplaceCurrent | Command::ReplaceAll) {
+                REPLACE_ID
+            } else {
+                SEARCH_ID
+            };
+            ui.memory_mut(|memory| memory.request_focus(egui::Id::new(id)));
+            ui.ctx().request_repaint();
+        }
+        if close {
+            self.close_search();
+        }
+        ui.separator();
+    }
+    fn search_query_row(&mut self, ui: &mut egui::Ui) -> (Option<Command>, bool) {
         let mut action = None;
         let mut close = false;
-        let chevron = |ui: &egui::Ui, rotation| {
-            egui::Button::new(
-                crate::icons::Icon::ChevronDown
-                    .image(ui.ctx(), 12.0)
-                    .rotate(rotation, egui::vec2(0.5, 0.5)),
-            )
-            .image_tint_follows_text_color(true)
-            .small()
-        };
         ui.horizontal_wrapped(|ui| {
             let toggle = ui
-                .add(chevron(
+                .add(search_chevron(
                     ui,
                     if self.replace_open {
                         0.0
@@ -135,59 +158,66 @@ impl App {
                 self.search_focus_pending = false;
             }
             self.refresh_search();
-            let counter = match self.search.selected(&self.range()) {
-                Some(index) => crate::tr!(
-                    "search-active-result",
-                    current = index + 1,
-                    total = self.search.matches.len()
-                ),
-                None => crate::tr!("search-results", count = self.search.matches.len()),
-            };
-            // Largeur stable : choisir un résultat ne doit pas déplacer le texte
-            // sous le pointeur en repliant la barre sur une ligne supplémentaire.
-            ui.add_sized(
-                [90.0, ui.spacing().interact_size.y],
-                egui::Label::new(counter).truncate(),
-            );
-            let has_matches = !self.search.matches.is_empty();
-            for (rotation, command) in [
-                (std::f32::consts::PI, Command::FindPrevious),
-                (0.0, Command::FindNext),
-            ] {
-                let response = ui
-                    .add_enabled(has_matches, chevron(ui, rotation))
-                    .on_hover_text(self.keymap.hint(ui.ctx(), command));
-                response.widget_info(|| {
-                    egui::WidgetInfo::labeled(
-                        egui::WidgetType::Button,
-                        has_matches && ui.is_enabled(),
-                        command.label(),
-                    )
-                });
-                if response.clicked() {
-                    action = Some(command);
-                }
-            }
-            let case = ui
-                .selectable_label(self.search.case_sensitive, "Aa")
-                .on_hover_text(crate::tr!("search-match-case"));
-            case.widget_info(|| {
-                egui::WidgetInfo::selected(
-                    egui::WidgetType::Checkbox,
-                    ui.is_enabled(),
-                    self.search.case_sensitive,
-                    crate::tr!("search-match-case"),
-                )
-            });
-            if case.clicked() {
-                self.search.case_sensitive = !self.search.case_sensitive;
-                self.refresh_search();
-            }
+            self.search_result_controls(ui, &mut action);
             close = ui
                 .small_button("×")
                 .on_hover_text(crate::tr!("search-close"))
                 .clicked();
         });
+        (action, close)
+    }
+    fn search_result_controls(&mut self, ui: &mut egui::Ui, action: &mut Option<Command>) {
+        let counter = match self.search.selected(&self.range()) {
+            Some(index) => crate::tr!(
+                "search-active-result",
+                current = index + 1,
+                total = self.search.matches.len()
+            ),
+            None => crate::tr!("search-results", count = self.search.matches.len()),
+        };
+        // Largeur stable : choisir un résultat ne doit pas déplacer le texte
+        // sous le pointeur en repliant la barre sur une ligne supplémentaire.
+        ui.add_sized(
+            [90.0, ui.spacing().interact_size.y],
+            egui::Label::new(counter).truncate(),
+        );
+        let has_matches = !self.search.matches.is_empty();
+        for (rotation, command) in [
+            (std::f32::consts::PI, Command::FindPrevious),
+            (0.0, Command::FindNext),
+        ] {
+            let response = ui
+                .add_enabled(has_matches, search_chevron(ui, rotation))
+                .on_hover_text(self.keymap.hint(ui.ctx(), command));
+            response.widget_info(|| {
+                egui::WidgetInfo::labeled(
+                    egui::WidgetType::Button,
+                    has_matches && ui.is_enabled(),
+                    command.label(),
+                )
+            });
+            if response.clicked() {
+                *action = Some(command);
+            }
+        }
+        let case = ui
+            .selectable_label(self.search.case_sensitive, "Aa")
+            .on_hover_text(crate::tr!("search-match-case"));
+        case.widget_info(|| {
+            egui::WidgetInfo::selected(
+                egui::WidgetType::Checkbox,
+                ui.is_enabled(),
+                self.search.case_sensitive,
+                crate::tr!("search-match-case"),
+            )
+        });
+        if case.clicked() {
+            self.search.case_sensitive = !self.search.case_sensitive;
+            self.refresh_search();
+        }
+    }
+    fn search_replacement_row(&mut self, ui: &mut egui::Ui) -> Option<Command> {
+        let mut action = None;
         if self.replace_open {
             ui.horizontal_wrapped(|ui| {
                 ui.add_space(20.0);
@@ -218,31 +248,16 @@ impl App {
                 ui.colored_label(ui.visuals().error_fg_color, crate::tr!("search-one-line"));
             }
         }
-        if self.search.failed {
-            ui.colored_label(ui.visuals().error_fg_color, crate::tr!("search-too-large"));
-        }
-        if let Some((id, backward)) = enter {
-            action = Some(if id == egui::Id::new(REPLACE_ID) && !backward {
-                Command::ReplaceCurrent
-            } else if backward {
-                Command::FindPrevious
-            } else {
-                Command::FindNext
-            });
-        }
-        if let Some(command) = action {
-            self.apply(command);
-            let id = if matches!(command, Command::ReplaceCurrent | Command::ReplaceAll) {
-                REPLACE_ID
-            } else {
-                SEARCH_ID
-            };
-            ui.memory_mut(|memory| memory.request_focus(egui::Id::new(id)));
-            ui.ctx().request_repaint();
-        }
-        if close {
-            self.close_search();
-        }
-        ui.separator();
+        action
     }
+}
+
+fn search_chevron(ui: &egui::Ui, rotation: f32) -> egui::Button<'static> {
+    egui::Button::new(
+        crate::icons::Icon::ChevronDown
+            .image(ui.ctx(), 12.0)
+            .rotate(rotation, egui::vec2(0.5, 0.5)),
+    )
+    .image_tint_follows_text_color(true)
+    .small()
 }

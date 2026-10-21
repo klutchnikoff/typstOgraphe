@@ -1,5 +1,14 @@
 use super::*;
 
+struct ShortcutInput {
+    range: Range<usize>,
+    line: usize,
+    lines: Vec<Range<usize>>,
+    start: usize,
+    prefix: String,
+    typed: Option<String>,
+}
+
 impl App {
     pub(super) fn focus_annotation_target(&mut self, range: Range<usize>) {
         self.selection = editor::cursor(range);
@@ -58,6 +67,29 @@ impl App {
         if self.annotation_shortcuts(ctx) {
             return;
         }
+        let input = self.shortcut_input(ctx);
+        if self.image_shortcut(ctx, &input) {
+            return;
+        }
+        if self.block_shortcut(ctx, &input) {
+            return;
+        }
+        if self.letter_note_shortcut(ctx, &input) {
+            return;
+        }
+        if self.quote_shortcut(ctx, &input) {
+            return;
+        }
+        if self.description_shortcut(ctx, &input) {
+            return;
+        }
+        if !input.range.is_empty() {
+            return;
+        }
+        self.inline_shortcut(ctx, &input);
+        self.list_shortcut(ctx, &input);
+    }
+    fn shortcut_input(&self, ctx: &egui::Context) -> ShortcutInput {
         let range = self.range();
         let line = self.session.document.view.line_at(range.start);
         let lines = self.session.document.view.line_ranges();
@@ -83,6 +115,19 @@ impl App {
                 }
             })
         });
+        ShortcutInput {
+            range,
+            line,
+            lines,
+            start,
+            prefix,
+            typed,
+        }
+    }
+    fn image_shortcut(&mut self, ctx: &egui::Context, input: &ShortcutInput) -> bool {
+        let range = input.range.clone();
+        let line = input.line;
+        let start = input.start;
         if let BlockKind::Image(id) = self.session.document.view.blocks[line] {
             let object_selected = range == (start..start + 1);
             let deleting = ctx
@@ -100,7 +145,7 @@ impl App {
                     })
                 });
                 self.remove_image(id);
-                return;
+                return true;
             }
             if range.is_empty()
                 && range.start == start + 1
@@ -108,9 +153,16 @@ impl App {
             {
                 self.selection = editor::cursor(start..start + 1);
                 self.force_selection = true;
-                return;
+                return true;
             }
         }
+        false
+    }
+    fn block_shortcut(&mut self, ctx: &egui::Context, input: &ShortcutInput) -> bool {
+        let range = input.range.clone();
+        let start = input.start;
+        let prefix = &input.prefix;
+        let typed = &input.typed;
         if typed.as_deref() == Some(" ") {
             let kind = match prefix.as_str() {
                 "=" => Some(BlockKind::Heading(1)),
@@ -139,9 +191,16 @@ impl App {
                     i.events
                         .retain(|e| !matches!(e,egui::Event::Text(t) if t==" "))
                 });
-                return;
+                return true;
             }
         }
+        false
+    }
+    fn letter_note_shortcut(&mut self, ctx: &egui::Context, input: &ShortcutInput) -> bool {
+        let range = input.range.clone();
+        let line = input.line;
+        let lines = &input.lines;
+        let start = input.start;
         if self.session.document.view.blocks[line].is_letter_note() {
             if range.is_empty()
                 && lines[line].is_empty()
@@ -151,7 +210,7 @@ impl App {
                 self.session.document.view.blocks[line] = BlockKind::Paragraph;
                 self.remember(before, false);
                 self.focus_annotation_target(start..start);
-                return;
+                return true;
             }
             if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab)) {
                 let before = self.snapshot();
@@ -169,9 +228,16 @@ impl App {
                 self.session.document.view.blocks[next] = BlockKind::Paragraph;
                 self.remember(before, false);
                 self.focus_annotation_target(at + 1..at + 1);
-                return;
+                return true;
             }
         }
+        false
+    }
+    fn quote_shortcut(&mut self, ctx: &egui::Context, input: &ShortcutInput) -> bool {
+        let range = input.range.clone();
+        let line = input.line;
+        let lines = &input.lines;
+        let start = input.start;
         if self.session.document.view.blocks[line] == BlockKind::Quote
             && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
         {
@@ -212,8 +278,17 @@ impl App {
                 self.remember(before, false);
                 self.force_selection = true;
             }
-            return;
+            return true;
         }
+        false
+    }
+    fn description_shortcut(&mut self, ctx: &egui::Context, input: &ShortcutInput) -> bool {
+        let range = input.range.clone();
+        let line = input.line;
+        let lines = &input.lines;
+        let start = input.start;
+        let prefix = &input.prefix;
+        let typed = &input.typed;
         if self.session.document.view.blocks[line] == BlockKind::Description {
             let text = &self.session.document.view.text[self
                 .session
@@ -249,7 +324,7 @@ impl App {
                     self.remember(before, false);
                 }
                 self.force_selection = true;
-                return;
+                return true;
             }
             if (separator.is_none() || separator == Some(range.start))
                 && prefix.ends_with(':')
@@ -276,7 +351,7 @@ impl App {
                     i.events
                         .retain(|e| !matches!(e, egui::Event::Text(t) if t == " "))
                 });
-                return;
+                return true;
             }
             if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
                 let before = self.snapshot();
@@ -301,12 +376,16 @@ impl App {
                 }
                 self.remember(before, false);
                 self.force_selection = true;
-                return;
+                return true;
             }
         }
-        if !range.is_empty() {
-            return;
-        }
+        false
+    }
+    fn inline_shortcut(&mut self, ctx: &egui::Context, input: &ShortcutInput) {
+        let range = input.range.clone();
+        let start = input.start;
+        let prefix = &input.prefix;
+        let typed = &input.typed;
         if typed.as_deref() == Some("*") || typed.as_deref() == Some("_") {
             let delimiter = typed.as_ref().and_then(|s| s.chars().next()).unwrap_or('*');
             let chars: Vec<_> = prefix.chars().collect();
@@ -350,6 +429,10 @@ impl App {
                 });
             }
         }
+    }
+    fn list_shortcut(&mut self, ctx: &egui::Context, input: &ShortcutInput) {
+        let line = input.line;
+        let lines = &input.lines;
         if lines[line].is_empty()
             && matches!(
                 self.session.document.view.blocks[line],

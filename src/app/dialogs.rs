@@ -36,6 +36,23 @@ impl App {
         self.perform_action(PendingAction::New, ctx);
     }
     pub(super) fn dialogs(&mut self, ctx: &egui::Context) {
+        self.new_document_dialog(ctx);
+        self.image_dialog(ctx);
+        self.link_dialog(ctx);
+        self.palette_dialog(ctx);
+        self.export_dialog(ctx);
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+            self.recovery_open = false;
+            self.palette_open = false;
+            self.link_open = false;
+            self.information_open = false;
+            self.export_open = false;
+            self.pending_action = None;
+            self.file_error = None;
+            self.force_selection = true;
+        }
+    }
+    fn new_document_dialog(&mut self, ctx: &egui::Context) {
         if self.new_document_open {
             let mut create = false;
             let mut cancel = false;
@@ -81,7 +98,8 @@ impl App {
                 self.new_document_open = false;
             }
         }
-
+    }
+    fn image_dialog(&mut self, ctx: &egui::Context) {
         if let Some(id) = self.image_info {
             let mut open = true;
             let mut apply = false;
@@ -127,7 +145,8 @@ impl App {
                 }
             }
         }
-
+    }
+    fn link_dialog(&mut self, ctx: &egui::Context) {
         if self.link_open {
             let mut open = true;
             let mut apply = false;
@@ -195,6 +214,8 @@ impl App {
                 }
             }
         }
+    }
+    fn palette_dialog(&mut self, ctx: &egui::Context) {
         if self.palette_open {
             let mut open = true;
             let mut choice = None;
@@ -266,6 +287,8 @@ impl App {
                 self.dispatch_action(command, ctx);
             }
         }
+    }
+    fn export_dialog(&mut self, ctx: &egui::Context) {
         if self.export_open {
             let mut open = true;
             let mut export = false;
@@ -301,16 +324,6 @@ impl App {
                     }
                 }
             }
-        }
-        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
-            self.recovery_open = false;
-            self.palette_open = false;
-            self.link_open = false;
-            self.information_open = false;
-            self.export_open = false;
-            self.pending_action = None;
-            self.file_error = None;
-            self.force_selection = true;
         }
     }
 }

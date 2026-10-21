@@ -363,31 +363,7 @@ impl App {
         }
         let modal = self.modal_open();
         let dirty = self.is_dirty();
-        let filename = self
-            .session
-            .file_path
-            .as_ref()
-            .and_then(|path| path.file_name())
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| {
-                self.recovered_name
-                    .as_ref()
-                    .map(|name| crate::tr!("recovery-document-name", name = name.as_str()))
-                    .unwrap_or_else(|| crate::tr!("untitled-letter"))
-            });
-        let title = if !self.document_open {
-            "typstOgraphe".into()
-        } else {
-            crate::tr!(
-                "window-title",
-                name = filename.as_str(),
-                marker = if dirty { " *" } else { "" }
-            )
-        };
-        if title != self.window_title {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
-            self.window_title = title;
-        }
+        self.update_window_title(ctx, dirty);
         #[cfg(target_os = "macos")]
         let inline_menus = self.native_menus.is_none();
         #[cfg(not(target_os = "macos"))]
@@ -466,6 +442,33 @@ impl App {
             }
         }
         self.capture(ctx);
+    }
+    fn update_window_title(&mut self, ctx: &egui::Context, dirty: bool) {
+        let filename = self
+            .session
+            .file_path
+            .as_ref()
+            .and_then(|path| path.file_name())
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| {
+                self.recovered_name
+                    .as_ref()
+                    .map(|name| crate::tr!("recovery-document-name", name = name.as_str()))
+                    .unwrap_or_else(|| crate::tr!("untitled-letter"))
+            });
+        let title = if !self.document_open {
+            "typstOgraphe".into()
+        } else {
+            crate::tr!(
+                "window-title",
+                name = filename.as_str(),
+                marker = if dirty { " *" } else { "" }
+            )
+        };
+        if title != self.window_title {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
+            self.window_title = title;
+        }
     }
     fn capture(&mut self, ctx: &egui::Context) {
         if self.capture.is_none() {
