@@ -535,6 +535,10 @@ mod asset_tests {
             "  body\n",
             "  image(\"images/\" + \"shared\" + \".svg\", width: 12pt)\n  body\n",
         ) + "\n// Ancienne image : \"images/obsolete.svg\"\n#let future-logo = \"images/future.svg\"\n";
+        assert!(
+            template.contains("image(\"images/\" + \"shared\""),
+            "injection de l’image dans le modèle"
+        );
         // Des octets identiques ne signifient pas que les chemins sont interchangeables.
         let bytes: std::sync::Arc<[u8]> = include_bytes!("../tests/fixtures/parc.svg")
             .as_slice()

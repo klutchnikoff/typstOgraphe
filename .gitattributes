@@ -1,0 +1,4 @@
+# Les modèles embarqués et les fixtures Typst doivent être identiques sur les trois OS.
+*.typ text eol=lf
+# Préserver les octets des paquets amont, y compris leurs fins de ligne.
+templates/packages/** -text

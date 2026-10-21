@@ -356,6 +356,10 @@ mod tests {
             "  body\n",
             "  image(\"images/\" + \"logo\" + \".svg\", width: 12pt)\n  body\n",
         );
+        assert!(
+            letter.template.contains("image(\"images/\" + \"logo\""),
+            "injection du logo dans le modèle"
+        );
         let path = dir.path().join("courrier.typsto");
         let mut world = crate::rendering::TypstWorld::default();
         for with_image in [true, false] {
