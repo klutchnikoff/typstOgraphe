@@ -76,8 +76,17 @@ persistante de modèles restent à développer.
   validés et le périmètre livré sont précisés dans le chantier A ci-dessous.
 - **Étape 2 — Rechercher/remplacer : implémentée ; essai utilisateur à faire.**
   Les choix validés et le périmètre livré sont précisés dans le chantier B.
-- Les étapes suivantes ne sont pas commencées ; leurs choix principaux restent
-  à discuter ensemble.
+- **Étape 3 — Orthographe : implémentée ; essai utilisateur à faire.** Spellbook,
+  dictionnaires embarqués français/anglais, suggestions et dictionnaire personnel ;
+  le périmètre livré est précisé dans le chantier B.
+- **Prochaine étape proposée — Étape 4 : produire un courrier et un compte-rendu
+  utiles.** Commencer par le profil personnel et l’image de signature (D), puis
+  les modèles utilisables et le premier périmètre de bibliothèque (H, E).
+  Les choix principaux de cette étape restent à discuter ensemble avant de coder.
+- **Reformulation locale : essais terminés, piste mise de côté.** Le bilan est
+  conservé dans le chantier B et le rapport lié.
+- Les étapes 4 à 8 ne sont pas implémentées ; les types, premiers modèles et
+  l’import ponctuel déjà présents constituent leur point de départ.
 
 ## Priorités proposées
 
