@@ -99,6 +99,7 @@ def main():
     parser.add_argument("--beams", type=int, default=1)
     parser.add_argument("--label")
     parser.add_argument("--corpus", default="corpus.json")
+    parser.add_argument("--qwen-size", choices=["1.5b", "3b"], default="1.5b")
     prompts = {"rewrite": SYSTEM, "correct-rewrite": CORRECT_REWRITE_SYSTEM,
                "correct-simple": SIMPLE_CORRECTION_SYSTEM}
     parser.add_argument("--task", choices=list(prompts), default="rewrite")
@@ -167,7 +168,12 @@ def main():
                         "input_unknown_tokens": int((encoded.input_ids == tokenizer.unk_token_id).sum()),
                         "mps_allocated_bytes": torch.mps.driver_allocated_memory() if device == "mps" else None}
         else:
-            model_path = OUT / "models/qwen/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+            model_key = "qwen3" if args.qwen_size == "3b" else "qwen"
+            model_filename = f"qwen2.5-{args.qwen_size}-instruct-q4_k_m.gguf"
+            model_path = OUT / "models" / model_key / model_filename
+            manifest = json.loads((RESULTS / "models.json").read_text())[model_key]
+            metadata.update(model_repository=manifest["repository"], model_revision=manifest["revision"],
+                            model_sha256=manifest["files"][model_filename]["sha256"], qwen_size=args.qwen_size)
             command = ["llama-server", "-m", str(model_path), "-t", "4", "-tb", "4",
                        "-c", "2048", "-np", "1", "--cache-ram", "0", "--no-cache-prompt",
                        "--no-warmup", "--host", "127.0.0.1", "--port", "18761", "--offline"]

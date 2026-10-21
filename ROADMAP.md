@@ -197,6 +197,9 @@ conserve texte, métadonnées, modèle et ressources.
   correction, amélioration stylistique et fidélité : la consigne courte aide
   Qwen sur ce passage, mais les lourdeurs restent. La suite de l’évaluation
   devra privilégier des textes réellement maladroits, avec une consigne stable.
+  Un essai Qwen2.5-3B avec la même consigne courte n’améliore pas ce courrier
+  de façon convaincante ; latence et mémoire augmentent. Mesures et sorties
+  brutes sont conservées dans le même rapport, sans choix d’intégration.
 
 **Choix ensemble :** interface et périmètre de recherche (corps, annotations,
 métadonnées), présentation des suggestions, langues et dictionnaires,

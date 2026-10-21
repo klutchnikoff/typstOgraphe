@@ -147,6 +147,50 @@ user_section = (
     "</article><p>Ces essais exploratoires sur un seul passage ne remplacent pas un corpus plus large de textes fautifs. Les mesures et les appréciations de ce complément ne sont pas fusionnées avec les statistiques initiales.</p>"
 )
 
+
+def larger_model_section():
+    review_path = HERE / "qwen-size-review.json"
+    if not review_path.exists():
+        return ""
+    review = json.loads(review_path.read_text())
+    comparisons, cards = [], []
+    for mode, entry in review["runs"].items():
+        samples = rows(mode)
+        row = first(mode)["C26"]
+        if hashlib.sha256(row["output"].encode()).hexdigest() != entry["output_sha256"]:
+            raise ValueError(f"Qwen size comparison output changed: {mode}.")
+        m = read(f"results/{mode}.json")
+        s = m["summary"]
+        comparisons.append(
+            f"<tr><th>{e(entry['label'])}</th><td>{num(s['median_seconds'])} s</td>"
+            f"<td>{num(min(r['seconds'] for r in samples))}–{num(s['max_seconds'])} s</td>"
+            f"<td>{num(s['median_first_token_seconds'])} s</td>"
+            f"<td>{num(m['first_request']['seconds'])} s</td>"
+            f"<td>{num(m['rss_sampled_peak_bytes'] / 1e9)} Go</td>"
+            f"<td>{num(m['macos_physical_footprint_peak_bytes'] / 1e9)} Go</td></tr>")
+        same = len({r["output"] for r in samples}) == 1
+        cards.append(
+            f"<section class='result'><h4>{e(entry['label'])} · sortie brute</h4>"
+            f"<p class='output'>{e(row['output'])}</p><p>{e(entry['note'])}</p>"
+            f"<p class='scores'>{len(samples)} répétitions, sorties identiques : {'oui' if same else 'non'}.</p>"
+            f"<details><summary>Consigne exacte et modèle</summary><p>{e(m['system_prompt'])}</p>"
+            f"<pre>{e(m['model_repository'])} @ {e(m['model_revision'])}\nSHA-256 : {e(m['model_sha256'])}</pre></details></section>")
+    return (
+        "<h2 id='qwen-plus-grand'>Qwen 1,5B et 3B sur le même courrier fautif</h2>"
+        f"<p>{e(review['scope'])}</p><p><strong>{e(review['conclusion'])}</strong></p>"
+        "<p>Le passage est reproduit dans <a href='#C26'>C26</a>. Les propositions ci-dessous n’ont pas été retouchées.</p>"
+        "<div class='scroll'><table><thead><tr><th>Modèle</th><th>Médiane</th><th>Min–max</th>"
+        "<th>Premier jeton, médiane</th><th>Première requête séparée</th><th>Pic RSS</th>"
+        "<th>Empreinte macOS</th></tr></thead><tbody>" + "".join(comparisons) + "</tbody></table></div>"
+        "<p>Mémoire du seul processus llama-server, chargement et requêtes compris, échantillonnée toutes les 20 ms. "
+        "Les deux métriques ne s’additionnent pas ; les pages de poids adossées au fichier peuvent être résidentes "
+        "sans être comptabilisées dans l’empreinte macOS. Le client de mesure et le reste de l’application sont exclus. "
+        "Pas de remise à zéro du cache système ni de mesure de démarrage de machine à froid.</p>"
+        "<div class='pair'>" + "".join(cards) + "</div>"
+        f"<p><small>{e(review['reviewer'])}</small></p>"
+    )
+
+
 replicate = """# Depuis la racine du dépôt ; Python 3.12 et llama-server dans le PATH.
 uv venv --python 3.12 output/reformulation/.venv
 uv pip install --python output/reformulation/.venv/bin/python -r experiments/reformulation/requirements.lock.txt
@@ -171,6 +215,11 @@ HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation
 HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --corpus corpus-user.json --task correct-rewrite --repeats 3 --label qwen-metal-user-correct
 HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --corpus corpus-user.json --task correct-simple --repeats 3 --label qwen-metal-user-simple
 
+# Comparaison des tailles Qwen : même consigne courte, même quantification Q4_K_M.
+HF_HOME="$PWD/output/reformulation/hf-cache" output/reformulation/.venv/bin/python experiments/reformulation/download.py --model qwen3
+HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --corpus corpus-user.json --task correct-simple --repeats 5 --label qwen-metal-user-15b-sizecheck
+HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --qwen-size 3b --corpus corpus-user.json --task correct-simple --repeats 5 --label qwen-metal-user-3b
+
 output/reformulation/.venv/bin/python experiments/reformulation/report.py
 # Les appréciations sont liées au SHA-256 des sorties effectivement relues.
 # En cas de sortie différente, les relire : ne pas recycler automatiquement les notes.
@@ -190,11 +239,11 @@ a{color:var(--accent)}p{max-width:100ch}small,.scores,.checks{color:var(--muted)
 </style><main>
 <p><small>typstOgraphe · expérimentation du 21 octobre 2026 · génération entièrement locale</small></p>
 <h1>Reformuler sans changer les faits</h1>
-<p class='lead'>CATIE french_paraphrase_flan-t5-base et Qwen2.5-1.5B-Instruct, sur Apple M1 Max avec 32 Gio de mémoire.</p>
-<nav><a href='#exemple-utilisateur'>Votre exemple fautif</a><a href='#mesures'>Mesures</a><a href='#qualite'>Qualité</a><a href='#passages'>20 passages</a><a href='#complement'>5 textes maladroits</a><a href='#integration'>Intégration Rust</a><a href='#protocole'>Protocole et reproduction</a></nav>
+<p class='lead'>CATIE french_paraphrase_flan-t5-base et Qwen2.5-Instruct (1,5B et 3B), sur Apple M1 Max avec 32 Gio de mémoire.</p>
+<nav><a href='#qwen-plus-grand'>Qwen 1,5B / 3B</a><a href='#exemple-utilisateur'>Votre exemple fautif</a><a href='#mesures'>Mesures</a><a href='#qualite'>Qualité</a><a href='#passages'>20 passages</a><a href='#complement'>5 textes maladroits</a><a href='#integration'>Intégration Rust</a><a href='#protocole'>Protocole et reproduction</a></nav>
 <div class='banner'><strong>Le premier corpus vérifie surtout la conservation des faits ; il ne suffit pas à juger l’aide à la rédaction sur un texte fautif.</strong>
 <p>Le complément fourni par l’utilisateur teste maintenant la correction et l’allègement des lourdeurs. Qwen s’en sort mieux avec une consigne courte, mais le bénéfice stylistique reste limité sur cet exemple. Les consignes plus longues produisent une invention. Aucun modèle ni moteur n’est choisi pour l’application à ce stade.</p></div>
-""" + user_section + """
+""" + larger_model_section() + user_section + """
 <h2 id='mesures'>Latence et mémoire</h2>
 <p>40 requêtes mesurées par configuration (20 passages × 2), après une première requête séparée. Durée jusqu’au texte complet ; P95 au rang le plus proche, sur ce petit échantillon. La plus longue sélection fait environ 110 mots. Aucune sortie tronquée.</p>
 <div class='scroll'><table><thead><tr><th>Configuration</th><th>Médiane</th><th>P95</th><th>Maximum</th><th>Premier jeton, médiane</th><th>Pic RSS</th><th>Empreinte macOS</th></tr></thead><tbody>

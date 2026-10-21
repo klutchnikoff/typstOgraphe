@@ -1,0 +1,19 @@
+{
+  "reviewer": "Codex ; comparaison exploratoire sur un seul passage, sans validation humaine indépendante. Les répétitions déterministes mesurent le temps, pas la diversité ni la fiabilité générale du modèle.",
+  "scope": "Même courrier C26, même consigne courte de correction, même fichier d'entrée, même moteur llama.cpp 0.5.0, quantification officielle Q4_K_M, contexte 2048, graine 42, génération gloutonne, cache de prompt désactivé, Metal sur Apple M1 Max / 32 Gio. Cinq requêtes chaudes par modèle, après une première requête séparée. Modèles lancés successivement ; le 1,5B a été remesuré pour cette comparaison.",
+  "conclusion": "Sur cet exemple, passer de Qwen2.5 1,5B à 3B n'apporte pas le gain attendu : la rédaction reste lourde, la formule « Cher collègues » introduit un accord incorrect et l'auteur de l'envoi n'est plus indiqué. La latence médiane passe de 1,30 s à 1,87 s et le pic RSS du processus de 1,30 Go à 2,30 Go. Ces résultats ne suffisent pas à classer les modèles sur d'autres textes ou avec d'autres consignes.",
+  "model_source": "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF",
+  "model_license_label": "qwen-research, selon la fiche officielle du 3B ; les poids restent hors du dépôt Git.",
+  "runs": {
+    "qwen-metal-user-15b-sizecheck": {
+      "label": "Qwen2.5-1.5B-Instruct · Q4_K_M · Metal",
+      "note": "Sortie identique à l'essai précédent avec la même consigne. Corrige plusieurs fautes, mais conserve « Il est important de noter », « pourra servir à être diffusée » et la redondance sur l'importance. Choisit « Chers » et « pourra » ; l'intention de la formule d'adresse et de la conjugaison fautives est à apprécier.",
+      "output_sha256": "5d85bed804b8627182d5550f1a4f8df9b6ab98f6c7dd3d2a662e9fb9c351f4c6"
+    },
+    "qwen-metal-user-3b": {
+      "label": "Qwen2.5-3B-Instruct · Q4_K_M · Metal",
+      "note": "Produit « Cher collègues », accord singulier/pluriel incorrect. Corrige « charactère », « importnt » et la conjugaison, en choisissant le futur « pourra ». Supprime « par mes soins » : l'auteur de l'envoi n'est plus explicite. Garde les principales lourdeurs et la répétition sur l'importance. Pas d'amélioration convaincante sur ce passage.",
+      "output_sha256": "0d16e68de297ac80fff2f711f4ac8cbe839f0aefaa325464361014f00e0682b0"
+    }
+  }
+}
