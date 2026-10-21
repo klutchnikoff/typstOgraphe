@@ -65,6 +65,7 @@ pub struct App {
     typing_group: bool,
     worker: RenderWorker,
     revision: u64,
+    statistics: crate::statistics::Counter,
     submitted: u64,
     changed_at: Instant,
     pages: Vec<egui::TextureHandle>,
@@ -169,6 +170,7 @@ impl App {
             typing_group: false,
             worker,
             revision: 1,
+            statistics: Default::default(),
             submitted: 0,
             changed_at: Instant::now() - Duration::from_secs(1),
             pages: vec![],
@@ -1092,6 +1094,40 @@ impl App {
         {
             self.apply(command);
         }
+    }
+    fn status_ui(&mut self, ui: &mut egui::Ui) {
+        let range = self.range();
+        let (total, selected) = self
+            .statistics
+            .counts(self.revision, &self.document.view, range);
+        ui.horizontal_wrapped(|ui| {
+            ui.label(crate::tr!(
+                "document-stats",
+                words = total.words,
+                signs = total.signs
+            ))
+            .on_hover_text(crate::tr!(
+                "statistics-hint",
+                without_spaces = total.signs_without_spaces
+            ));
+            if let Some(selected) = selected {
+                ui.separator();
+                ui.label(crate::tr!(
+                    "selection-stats",
+                    words = selected.words,
+                    signs = selected.signs
+                ))
+                .on_hover_text(crate::tr!(
+                    "statistics-hint",
+                    without_spaces = selected.signs_without_spaces
+                ));
+            }
+            if let Some(message) = &self.message {
+                ui.separator();
+                ui.add(egui::Label::new(message).truncate())
+                    .on_hover_text(message);
+            }
+        });
     }
     fn information_ui(&mut self, ui: &mut egui::Ui) {
         let old = self.metadata.clone();
@@ -2020,63 +2056,25 @@ impl App {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
             self.window_title = title;
         }
-        egui::TopBottomPanel::top("header")
-            .exact_height(34.0)
-            .show(ctx, |ui| {
+        #[cfg(target_os = "macos")]
+        let inline_menus = self.native_menus.is_none();
+        #[cfg(not(target_os = "macos"))]
+        let inline_menus = true;
+        if inline_menus {
+            egui::TopBottomPanel::top("menus").show(ctx, |ui| {
                 if modal {
                     ui.disable();
                 }
-                ui.add_space(3.0);
-                ui.horizontal(|ui| {
-                    ui.label(RichText::new("typstOgraphe").size(17.0).color(
-                        if ui.visuals().dark_mode {
-                            Color32::LIGHT_BLUE
-                        } else {
-                            ACCENT
-                        },
-                    ));
-                    #[cfg(target_os = "macos")]
-                    let inline = self.native_menus.is_none();
-                    #[cfg(not(target_os = "macos"))]
-                    let inline = true;
-                    if inline {
-                        ui.separator();
-                        if let Some(command) =
-                            menus::egui_bar(ui, &self.keymap, &self.menu_statuses())
-                        {
-                            self.dispatch_action(command, ctx);
-                        }
-                    }
-                });
+                if let Some(command) = menus::egui_bar(ui, &self.keymap, &self.menu_statuses()) {
+                    self.dispatch_action(command, ctx);
+                }
             });
+        }
         egui::TopBottomPanel::bottom("status").show(ctx, |ui| {
             if modal {
                 ui.disable();
             }
-            ui.horizontal(|ui| {
-                let range = self.range();
-                if range.is_empty() {
-                    ui.weak(crate::tr!("insertion-point"));
-                } else {
-                    let text: String = self
-                        .document
-                        .view
-                        .text
-                        .chars()
-                        .skip(range.start)
-                        .take(range.len())
-                        .collect();
-                    ui.label(crate::tr!(
-                        "selection-stats",
-                        words = text.split_whitespace().count(),
-                        paragraphs = self.document.view.selected_lines(range).len()
-                    ));
-                }
-                if let Some(message) = &self.message {
-                    ui.separator();
-                    ui.label(message);
-                }
-            });
+            self.status_ui(ui);
         });
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
@@ -2164,6 +2162,98 @@ impl eframe::App for App {
 mod interaction_tests {
     use super::*;
     use crate::document_types::courrier::Model;
+
+    #[test]
+    fn compact_toolbar_and_status_show_unicode_totals_selection_and_tooltips() {
+        fn text_rect(output: &egui::FullOutput, label: &str) -> Option<egui::Rect> {
+            output.shapes.iter().find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.text() == label => {
+                    let bounds = text
+                        .galley
+                        .rows
+                        .iter()
+                        .fold(egui::Rect::NOTHING, |bounds, row| {
+                            bounds.union(row.rect_without_leading_space())
+                        });
+                    Some(bounds.translate(text.pos.to_vec2()))
+                }
+                _ => None,
+            })
+        }
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        ctx.style_mut(|style| style.interaction.tooltip_delay = 0.0);
+        app.document = Document::from_source("#strong[e\u{301}] 👩🏽‍💻").unwrap();
+        app.force_selection = true;
+        let mut time = 0.0;
+        let mut draw = |app: &mut App, events| {
+            time += 0.2;
+            ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(960.0, 640.0),
+                    )),
+                    time: Some(time),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| app.ui_frame(ctx),
+            )
+        };
+        draw(&mut app, vec![]);
+        let output = draw(&mut app, vec![]);
+        let brand = text_rect(&output, "typstOgraphe").unwrap();
+        let heading = icon_rect(&output, &ctx, crate::icons::Icon::Heading);
+        assert!(brand.right() < heading.left());
+        assert!(
+            (brand.center().y - heading.center().y).abs() < 2.0,
+            "nom {brand:?}, titres {heading:?}"
+        );
+        assert_eq!(output.shapes.iter().filter(|shape| matches!(&shape.shape, egui::Shape::Text(text) if text.galley.text() == "typstOgraphe")).count(), 1);
+        let total = crate::tr!("document-stats", words = 1, signs = 3);
+        assert!(text_rect(&output, &total).is_some());
+        assert!(text_rect(&output, "Point d’insertion").is_none());
+        app.selection = editor::cursor(0..2); // e + accent combiné : un signe.
+        app.force_selection = true;
+        draw(&mut app, vec![]);
+        let output = draw(&mut app, vec![]);
+        let selection = crate::tr!("selection-stats", words = 1, signs = 1);
+        assert!(text_rect(&output, &total).is_some());
+        assert!(text_rect(&output, &selection).is_some());
+        for (label, without_spaces) in [(&total, 2), (&selection, 1)] {
+            let output = draw(&mut app, vec![]);
+            let pos = text_rect(&output, label).unwrap().center();
+            draw(&mut app, vec![egui::Event::PointerMoved(pos)]);
+            let mut output = draw(&mut app, vec![]);
+            for _ in 0..4 {
+                output = draw(&mut app, vec![]);
+            }
+            assert!(
+                text_rect(
+                    &output,
+                    &crate::tr!("statistics-hint", without_spaces = without_spaces)
+                )
+                .is_some(),
+                "détail hors espaces de {label}"
+            );
+        }
+        draw(&mut app, vec![egui::Event::Text("Deux mots".into())]);
+        let output = draw(&mut app, vec![]);
+        let edited = crate::tr!("document-stats", words = 2, signs = 11);
+        assert!(text_rect(&output, &edited).is_some());
+        assert!(text_rect(&output, &selection).is_none());
+        app.apply(Command::Undo);
+        let output = draw(&mut app, vec![]);
+        assert!(text_rect(&output, &total).is_some());
+        assert!(text_rect(&output, &selection).is_some());
+        app.apply(Command::Redo);
+        let output = draw(&mut app, vec![]);
+        assert!(text_rect(&output, &edited).is_some());
+        app.perform_action(PendingAction::New, &ctx);
+        let output = draw(&mut app, vec![]);
+        assert!(text_rect(&output, &crate::tr!("document-stats", words = 0, signs = 0)).is_some());
+    }
 
     fn icon_rect(
         output: &egui::FullOutput,

@@ -51,7 +51,6 @@ untitled-letter = Untitled letter
 file-menu = File
 letter-type = Letter
 embedded-template = Document template
-insertion-point = Insertion point
 source-syntax-error = The Typst source contains a syntax error.
 source-unreadable = Unreadable Typst document
 source-heading-depth = Only heading levels 1–3 are supported.
@@ -142,14 +141,30 @@ preview-stats =
         [one] { $pages } page · { $milliseconds } ms
        *[other] { $pages } pages · { $milliseconds } ms
     }
-selection-stats =
-    { $words ->
-        [one] { $words } word selected
-       *[other] { $words } words selected
-    } · { $paragraphs ->
-        [one] { $paragraphs } paragraph
-       *[other] { $paragraphs } paragraphs
+document-stats =
+    Document: { $words ->
+        [one] { $words } word
+       *[other] { $words } words
+    } · { $signs ->
+        [one] { $signs } character
+       *[other] { $signs } characters
     }
+selection-stats =
+    Selection: { $words ->
+        [one] { $words } word
+       *[other] { $words } words
+    } · { $signs ->
+        [one] { $signs } character
+       *[other] { $signs } characters
+    }
+statistics-hint =
+    { $without_spaces ->
+        [one] { $without_spaces } character excluding spaces.
+       *[other] { $without_spaces } characters excluding spaces.
+    }
+    Characters include spaces; paragraph breaks, structural tabs and image objects are excluded.
+    Words use Unicode segmentation (can't counts as one word, well-being as two).
+    Scope: authored text, headings, captions and attributions, excluding metadata and content added by the template.
 cli-render-result =
     { $pages ->
         [one] { $pages } page

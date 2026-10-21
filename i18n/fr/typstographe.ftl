@@ -51,7 +51,6 @@ untitled-letter = Courrier sans titre
 file-menu = Fichier
 letter-type = Courrier
 embedded-template = Modèle du document
-insertion-point = Point d’insertion
 source-syntax-error = Le source Typst contient une erreur de syntaxe.
 source-unreadable = Document Typst illisible
 source-heading-depth = Seuls les titres de niveaux 1 à 3 sont pris en charge.
@@ -142,14 +141,30 @@ preview-stats =
         [one] { $pages } page · { $milliseconds } ms
        *[other] { $pages } pages · { $milliseconds } ms
     }
-selection-stats =
-    { $words ->
-        [one] { $words } mot sélectionné
-       *[other] { $words } mots sélectionnés
-    } · { $paragraphs ->
-        [one] { $paragraphs } paragraphe
-       *[other] { $paragraphs } paragraphes
+document-stats =
+    Document : { $words ->
+        [one] { $words } mot
+       *[other] { $words } mots
+    } · { $signs ->
+        [one] { $signs } signe
+       *[other] { $signs } signes
     }
+selection-stats =
+    Sélection : { $words ->
+        [one] { $words } mot
+       *[other] { $words } mots
+    } · { $signs ->
+        [one] { $signs } signe
+       *[other] { $signs } signes
+    }
+statistics-hint =
+    { $without_spaces ->
+        [one] { $without_spaces } signe hors espaces.
+       *[other] { $without_spaces } signes hors espaces.
+    }
+    Les signes comprennent les espaces ; les sauts de paragraphe, tabulations structurelles et objets images sont exclus.
+    Mots : segmentation Unicode (l’été compte pour un mot, porte-monnaie pour deux).
+    Périmètre : texte rédigé, titres, légendes et attributions, sans les métadonnées ni les ajouts du modèle.
 cli-render-result =
     { $pages ->
         [one] { $pages } page

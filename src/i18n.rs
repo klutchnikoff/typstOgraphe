@@ -218,21 +218,23 @@ mod tests {
 
     #[test]
     fn fluent_handles_plural_rules_and_unicode_parameters() {
-        for (language, singular, plural) in [
-            ("fr", "mot sélectionné", "mots sélectionnés"),
-            ("en", "word selected", "words selected"),
-        ] {
+        for (language, singular, plural) in [("fr", "mot", "mots"), ("en", "word", "words")] {
             let loader = requested(&[language]);
             for count in [0, 1, 2] {
-                let text = loader.get_args(
-                    "selection-stats",
-                    HashMap::from([("words", count), ("paragraphs", count)]),
-                );
                 let is_singular = count == 1 || (language == "fr" && count == 0);
-                assert!(
-                    text.contains(if is_singular { singular } else { plural }),
-                    "{text}"
-                );
+                for key in ["document-stats", "selection-stats"] {
+                    let text =
+                        loader.get_args(key, HashMap::from([("words", count), ("signs", count)]));
+                    let text: String = text
+                        .chars()
+                        .filter(|c| !matches!(c, '\u{2068}' | '\u{2069}'))
+                        .collect();
+                    assert!(
+                        text.split_whitespace()
+                            .any(|word| word == if is_singular { singular } else { plural }),
+                        "{text}"
+                    );
+                }
             }
             let path = "Élodie/lettre à Noël.typsto";
             assert!(

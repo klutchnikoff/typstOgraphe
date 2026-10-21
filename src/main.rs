@@ -11,6 +11,7 @@ mod menus;
 mod navigation;
 mod preferences;
 mod rendering;
+mod statistics;
 mod storage;
 #[cfg(test)]
 mod tests;

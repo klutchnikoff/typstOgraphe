@@ -5142,6 +5142,7 @@ dependencies = [
  "typst-pdf",
  "typst-render",
  "typst-syntax",
+ "unicode-segmentation",
  "zip",
 ]
 

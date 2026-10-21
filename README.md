@@ -35,7 +35,10 @@ Linux restent nécessaires avant de déclarer ces plateformes validées.
 ## Essayer la rédaction
 
 La barre compacte utilise des icônes monochromes Lucide embarquées, nettes à la
-densité de l’écran et disponibles hors ligne. Elle regroupe **Titres**, puis
+densité de l’écran et disponibles hors ligne. **typstOgraphe** apparaît au début
+de cette barre ; sur macOS avec les menus natifs, l’ancienne ligne d’en-tête
+disparaît. Windows et Linux conservent une ligne réservée aux menus de l’application.
+La barre regroupe **Titres**, puis
 **Gras / Italique / Lien**, puis **Listes / Citation / Image**. Les deux menus
 associent icônes et libellés explicites ; les boutons affichent des info-bulles traduites
 avec les raccourcis actifs et possèdent des noms accessibles. Les états actifs
@@ -115,6 +118,27 @@ et les liens gardent leur couleur bleue ; les liens restent soulignés. Les
 filets, les espacements et l’italique visuel des H3 n’ajoutent aucun contenu ou
 style au source : le modèle reste responsable de toute la présentation produite
 dans l’aperçu et les exports.
+
+## Statistiques de rédaction
+
+La barre d’état affiche les **mots et signes du document**, puis ceux de la
+**sélection** lorsqu’elle existe. Survoler chaque compteur indique son nombre
+de signes **hors espaces** et les conventions de comptage. Les messages
+d’ouverture ou d’enregistrement restent visibles à côté.
+
+Le compteur Rust commun utilise `unicode-segmentation` (Unicode UAX #29) :
+`l’été` compte pour un mot, `porte-monnaie` pour deux et `12 500` pour un seul.
+Un signe est un graphème Unicode : un accent combiné ou un emoji composé
+reste une unité. Les espaces, y compris insécables et fines insécables, sont
+compris dans le total des signes ; le détail hors espaces les exclut.
+Les sauts de paragraphe, caractères de contrôle, tabulations structurelles des
+descriptions et objets internes des images ne sont pas des signes rédigés.
+
+Le périmètre comprend le texte éditable, les titres, légendes et attributions.
+Les métadonnées, coordonnées et éléments ajoutés par le modèle, textes alternatifs,
+puces automatiques et textes indicatifs restent hors décompte. Les statistiques
+ne dépendent ni du rendu ni de la langue de l’interface. Elles sont mises en cache
+jusqu’à la prochaine édition ou au changement de sélection, et ne sont pas enregistrées.
 
 ## Menus de l’application
 

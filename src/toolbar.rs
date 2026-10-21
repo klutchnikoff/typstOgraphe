@@ -79,7 +79,10 @@ pub fn show(
         // la sélection bleue du texte et des styles sémantiques de l’éditeur.
         neutral_selection(ui);
         ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
+        ui.spacing_mut().interact_size.y = 32.0;
         ui.horizontal_wrapped(|ui| {
+            ui.add(egui::Label::new(egui::RichText::new("typstOgraphe").size(17.0)).truncate());
+            ui.separator();
             let heading = match (mixed, kind) {
                 (false, BlockKind::Heading(_)) => Icon::for_block(kind),
                 _ => Icon::Heading,

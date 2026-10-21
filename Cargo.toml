@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 eframe = { version = "=0.33.3", default-features = false, features = ["default_fonts", "glow", "x11", "wayland", "accesskit", "persistence"] }
 resvg = { version = "=0.47.0", default-features = false }
+unicode-segmentation = "1.13"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 typst = "=0.15.1"
