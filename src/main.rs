@@ -36,6 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut capture_search = None;
     let mut capture_spelling = false;
     let mut capture_profile = None;
+    let mut capture_creation = false;
     let mut open_path = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -71,6 +72,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 capture = Some(PathBuf::from(
                     args.next().ok_or(crate::tr!("cli-usage-capture"))?,
                 ))
+            }
+            "--capture-new-document" => {
+                capture = Some(PathBuf::from(
+                    args.next()
+                        .ok_or(crate::tr!("cli-usage-capture-creation"))?,
+                ));
+                capture_creation = true;
             }
             "--capture-search" => {
                 capture = Some(PathBuf::from(
@@ -134,6 +142,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             if let Some(preferences) = capture_profile {
                 app.capture_profile(&cc.egui_ctx, preferences);
+            }
+            if capture_creation {
+                app.capture_creation(&cc.egui_ctx);
             }
             Ok(Box::new(app))
         }),

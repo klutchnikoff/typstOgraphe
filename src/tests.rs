@@ -1,8 +1,5 @@
 use crate::document::{BlockKind, Document, InlineStyle, Mark, Projection};
-use crate::document_types::{
-    DocumentType, Metadata,
-    courrier::{self, Model},
-};
+use crate::document_types::{DocumentType, Metadata, courrier, models::Model};
 
 #[test]
 fn soft_newlines_and_paragraph_breaks_round_trip_with_unicode_styles_and_blocks() {
@@ -173,7 +170,7 @@ fn quote_models_control_rendering_and_navigation_also_covers_attribution() {
     document.sync_source();
     let mut world = crate::rendering::TypstWorld::default();
     let metadata = Metadata::demo(DocumentType::Courrier);
-    for model in Model::ALL {
+    for model in Model::all() {
         let template = model.source();
         let output = world
             .compile_with_template(document.source(), &metadata, &template)
@@ -194,10 +191,7 @@ fn quote_models_control_rendering_and_navigation_also_covers_attribution() {
                     .is_empty()
             );
         }
-        let custom = template.replace(
-            "#text(style: \"italic\")[#it.body]",
-            "MODÈLE PERSONNALISÉ #it.body",
-        );
+        let custom = template.replace("#emph(it.body)", "MODÈLE PERSONNALISÉ #it.body");
         let output = world
             .compile_with_template(document.source(), &metadata, &custom)
             .unwrap();
@@ -264,7 +258,7 @@ fn model_controls_list_markers_and_language_defaults_in_actual_typst_output() {
     let mut document =
         Document::from_source("- Élément unique\n\n/ Échéance: Le *12 novembre*.").unwrap();
     document.sync_source();
-    for model in Model::ALL {
+    for model in Model::all() {
         let template = model.source();
         assert_eq!(
             world.model_presentation(&template).unwrap(),
@@ -345,7 +339,7 @@ fn model_controls_list_markers_and_language_defaults_in_actual_typst_output() {
         assert!(world.model_presentation(&malformed).is_err());
         // Le créateur du modèle peut remplacer les conventions automatiques.
         let overridden = template.replace(
-            r#"if language == "fr" { ([—], [•], [◦]) } else { ([•], [◦], [▪]) }"#,
+            r#"if options.language == "fr" { ([—], [•], [◦]) } else { ([•], [◦], [▪]) }"#,
             "[◆]",
         );
         let output = world
@@ -474,7 +468,7 @@ fn repeated_edits_keep_projection_invariants() {
 }
 
 #[test]
-fn real_typst_composes_both_models_and_metadata_escapes() {
+fn real_typst_composes_registered_models_and_metadata_escapes() {
     let mut world = crate::rendering::TypstWorld::default();
     let mut document = Document::demo();
     document.view.toggle_mark(0..50, Mark::Italic);
@@ -483,17 +477,9 @@ fn real_typst_composes_both_models_and_metadata_escapes() {
         objet: "Une demande \"citée\" avec \\ et #panic(\"NON\")".into(),
         ..Default::default()
     });
-    for compact in [false, true] {
+    for model in Model::all() {
         let result = world
-            .compile_courrier(
-                document.source(),
-                &metadata,
-                if compact {
-                    Model::Service
-                } else {
-                    Model::Institutional
-                },
-            )
+            .compile_courrier(document.source(), &metadata, model)
             .unwrap();
         assert!(!result.pages().is_empty());
         let pixmap =
@@ -540,18 +526,9 @@ fn document_options_control_real_page_dimensions_and_text_language() {
         for landscape in [false, true] {
             metadata.options_mut().paper = paper;
             metadata.options_mut().landscape = landscape;
-            for compact in [false, true] {
-                let document = world
-                    .compile_courrier(
-                        "A short letter.",
-                        &metadata,
-                        if compact {
-                            Model::Service
-                        } else {
-                            Model::Institutional
-                        },
-                    )
-                    .unwrap();
+            {
+                let document = world.compile_with_template("A short letter.", &metadata,
+                    "#let courrier(..args, options: (:), body) = { set page(paper: options.paper, flipped: options.landscape); set text(lang: options.language); body }").unwrap();
                 for page in document.pages() {
                     let size = page.frame.size();
                     let (expected_width, expected_height) = if landscape {
@@ -570,7 +547,7 @@ fn document_options_control_real_page_dimensions_and_text_language() {
     for language in DocumentLanguage::ALL {
         metadata.options_mut().language = language;
         let document = world
-            .compile_courrier("A short letter.", &metadata, Model::Institutional)
+            .compile_courrier("A short letter.", &metadata, Model::Personal)
             .unwrap();
         let mut text = String::new();
         for page in document.pages() {
@@ -594,7 +571,7 @@ fn compiler_reports_error_and_recovers_on_next_request() {
             .compile_courrier(
                 "#panic(\"essai\")",
                 &Metadata::demo(DocumentType::Courrier),
-                Model::Institutional
+                Model::Personal
             )
             .unwrap_err()
             .contains("essai")
@@ -604,7 +581,7 @@ fn compiler_reports_error_and_recovers_on_next_request() {
             .compile_courrier(
                 "Bonjour.",
                 &Metadata::demo(DocumentType::Courrier),
-                Model::Institutional
+                Model::Personal
             )
             .is_ok()
     );
@@ -642,17 +619,18 @@ fn source_positions_survive_unicode_escapes_styles_and_empty_paragraphs() {
     }
 }
 
-fn compiled_sync(document: &Document, compact: bool) -> crate::navigation::RenderSync {
+fn compiled_sync(document: &Document, wide_margin: bool) -> crate::navigation::RenderSync {
     let mut world = crate::rendering::TypstWorld::default();
+    let template = if wide_margin {
+        Model::Personal.source().replace("left: 25mm", "left: 32mm")
+    } else {
+        Model::Personal.source()
+    };
     let rendered = world
-        .compile_courrier(
+        .compile_with_template(
             document.source(),
             &Metadata::demo(DocumentType::Courrier),
-            if compact {
-                Model::Service
-            } else {
-                Model::Institutional
-            },
+            &template,
         )
         .unwrap();
     crate::navigation::RenderSync::new(1, world, rendered, document.source_map.clone())
@@ -892,7 +870,7 @@ fn image_models_control_size_caption_and_navigation_and_embed_alt_in_pdf() {
     let mut world = crate::rendering::TypstWorld::default();
     world.set_assets(&document.assets);
     let metadata = Metadata::demo(DocumentType::Courrier);
-    for model in Model::ALL {
+    for model in Model::all() {
         let template = model.source();
         let page = world
             .compile_with_template(document.source(), &metadata, &template)

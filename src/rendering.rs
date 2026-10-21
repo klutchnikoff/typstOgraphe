@@ -153,7 +153,7 @@ impl TypstWorld {
         &mut self,
         source: &str,
         metadata: &Metadata,
-        model: crate::document_types::courrier::Model,
+        model: crate::document_types::models::Model,
     ) -> Result<PagedDocument, String> {
         self.compile_with_template(source, metadata, &model.source())
     }
@@ -495,8 +495,8 @@ mod asset_tests {
     fn pruning_preserves_model_dependencies_computed_paths_and_shared_images() {
         let metadata = Metadata::demo(DocumentType::Courrier);
         let template = DocumentType::Courrier.default_model().replace(
-            "  let contenu = {",
-            "  image(\"images/\" + \"shared\" + \".svg\", width: 12pt)\n  let contenu = {",
+            "  body\n",
+            "  image(\"images/\" + \"shared\" + \".svg\", width: 12pt)\n  body\n",
         ) + "\n// Ancienne image : \"images/obsolete.svg\"\n#let future-logo = \"images/future.svg\"\n";
         // Des octets identiques ne signifient pas que les chemins sont interchangeables.
         let bytes: std::sync::Arc<[u8]> = include_bytes!("../tests/fixtures/parc.svg")

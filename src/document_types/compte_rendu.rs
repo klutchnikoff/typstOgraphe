@@ -1,9 +1,6 @@
 //! Compte-rendu de réunion : contrat intégré, présentation en pur Typst.
 use super::{FieldGroup, ModelContract, TextField};
-use crate::{
-    commands::{self, Definition, Scope},
-    document::DocumentOptions,
-};
+use crate::document::DocumentOptions;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,20 +64,3 @@ pub const CONTRACT: ModelContract<Metadata> = ModelContract {
     options: |m| &m.options,
     signature_image: None,
 };
-pub const MODEL: &str = include_str!("../../templates/compte-rendu.typ");
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Command {
-    StandardModel,
-}
-impl Command {
-    pub fn definition(self) -> &'static Definition {
-        &COMMANDS[0]
-    }
-}
-pub const COMMANDS: &[Definition] = &[commands::define(
-    "minutes.model.standard",
-    "cmd-minutes-standard",
-    commands::Command::CompteRendu(Command::StandardModel),
-    Scope::Global,
-    &[],
-)];

@@ -3,7 +3,7 @@
 //! raccourcis par défaut sans dépendre des libellés français ou du code de l'UI.
 use crate::{
     document::BlockKind,
-    document_types::{DocumentType, compte_rendu, courrier},
+    document_types::{DocumentType, models::Model},
 };
 use eframe::egui::{self, Key, KeyboardShortcut, Modifiers};
 use serde::{Deserialize, Serialize};
@@ -34,8 +34,7 @@ pub enum Command {
     Palette,
     Preferences,
     Information,
-    Courrier(courrier::Command),
-    CompteRendu(compte_rendu::Command),
+    Model(Model),
     Bold,
     Italic,
     Clear,
@@ -64,19 +63,22 @@ pub enum Command {
 impl Command {
     pub fn model_source(self) -> Option<String> {
         match self {
-            Self::Courrier(courrier::Command::Model(model)) => Some(model.source()),
-            Self::CompteRendu(compte_rendu::Command::StandardModel) => {
-                Some(compte_rendu::MODEL.into())
-            }
+            Self::Model(model) => Some(model.source()),
             _ => None,
         }
     }
+    pub fn available_without_document(self) -> bool {
+        matches!(
+            self,
+            Self::File(FileCommand::New | FileCommand::Open | FileCommand::Quit)
+                | Self::Palette
+                | Self::Preferences
+                | Self::RecoverDocuments
+        )
+    }
     pub fn definition(self) -> &'static Definition {
-        if let Self::CompteRendu(command) = self {
-            return command.definition();
-        }
-        if let Self::Courrier(command) = self {
-            return command.definition();
+        if let Self::Model(model) = self {
+            return &model.definition().command;
         }
         COMMON_COMMANDS
             .iter()
@@ -145,10 +147,7 @@ impl Definition {
         })
     }
     pub fn in_model_menu(&self) -> bool {
-        matches!(
-            self.command,
-            Command::Courrier(courrier::Command::Model(_)) | Command::CompteRendu(_)
-        )
+        matches!(self.command, Command::Model(_))
     }
     pub fn in_heading_menu(&self) -> bool {
         matches!(
@@ -540,7 +539,9 @@ impl Registry {
         self.kind
     }
     pub fn definitions(self) -> impl Iterator<Item = &'static Definition> + Clone {
-        COMMON_COMMANDS.iter().chain(self.kind.commands().iter())
+        COMMON_COMMANDS
+            .iter()
+            .chain(self.kind.models().map(|model| &model.command))
     }
     pub fn contains(self, command: Command) -> bool {
         self.definitions()
@@ -852,12 +853,12 @@ mod tests {
         assert!(
             COMMON_COMMANDS
                 .iter()
-                .all(|d| !matches!(d.command, Command::Courrier(_)))
+                .all(|d| !matches!(d.command, Command::Model(_)))
         );
         assert!(
-            courrier::COMMANDS
+            crate::document_types::models::ALL
                 .iter()
-                .all(|d| matches!(d.command, Command::Courrier(_)))
+                .all(|d| matches!(d.command.command, Command::Model(_)))
         );
         assert!(
             Keymap::new(
@@ -930,9 +931,9 @@ mod tests {
     #[test]
     fn courrier_shortcuts_share_the_common_conflict_checks_and_dispatch() {
         let registry = Registry::new(DocumentType::Courrier);
-        let action = Command::Courrier(courrier::Command::Model(courrier::Model::Service));
+        let action = Command::Model(Model::Personal);
         assert!(registry.contains(action));
-        let config = overrides(r#"{"courrier.model.service":[{"key":"F7"}]}"#);
+        let config = overrides(r#"{"courrier.model.personal":[{"key":"F7"}]}"#);
         let keymap = Keymap::new(registry, false, &config).unwrap();
         let keymap = keymap.for_document(DocumentType::Courrier).unwrap();
         assert_eq!(
@@ -949,7 +950,7 @@ mod tests {
             dispatch(&keymap, Key::F7, Modifiers::NONE, false),
             (vec![action], false)
         );
-        let config = overrides(r#"{"courrier.model.service":[{"key":"S","primary":true}]}"#);
+        let config = overrides(r#"{"courrier.model.personal":[{"key":"S","primary":true}]}"#);
         assert!(Keymap::new(registry, false, &config).is_err());
     }
 

@@ -5,7 +5,7 @@ use crate::{
         BlockKind, Document, DocumentLanguage, ImageBlock, InlineStyle, Mark, PaperFormat,
         Projection,
     },
-    document_types::{DocumentType, ModelPresentation},
+    document_types::{DocumentType, ModelPresentation, models::Model},
     editor, menus,
     navigation::{PagePoint, RenderSync},
     preferences::{Appearance, EditorFont, Preferences},
@@ -32,6 +32,7 @@ enum PendingAction {
     New,
     Open,
     Close,
+    CloseDocument,
     Recover(usize),
 }
 
@@ -51,6 +52,9 @@ enum PreferencesPage {
 }
 
 pub struct App {
+    // La session vide sert uniquement de tampon interne tant qu'aucun document
+    // n'est ouvert : pas de rendu, d'édition ni de copie de récupération.
+    document_open: bool,
     session: Session,
     spelling: crate::spelling::Checker,
     spelling_target: Option<(u64, crate::spelling::Issue)>,
@@ -75,6 +79,7 @@ pub struct App {
     preferences_open: bool,
     new_document_open: bool,
     new_document_type: DocumentType,
+    new_document_model: Option<Model>,
     keymap: Keymap,
     #[cfg(target_os = "macos")]
     native_menus: Option<menus::native::NativeMenus>,
@@ -181,7 +186,11 @@ impl App {
                 },
             );
         });
-        let saved = StoredDocument::demo(DocumentType::Courrier);
+        let initial_type = DocumentType::ALL
+            .into_iter()
+            .find(|kind| kind.can_create())
+            .expect("au moins un type possède un modèle fourni");
+        let saved = StoredDocument::blank(initial_type);
         let keymap = Keymap::new(
             Registry::new(saved.metadata.document_type()),
             ctx.os().is_mac(),
@@ -194,6 +203,7 @@ impl App {
         let document =
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
+            document_open: false,
             session: Session::new(saved, document, None, 1),
             spelling,
             spelling_target: None,
@@ -217,7 +227,8 @@ impl App {
             profile_error: None,
             preferences_open: false,
             new_document_open: false,
-            new_document_type: DocumentType::Courrier,
+            new_document_type: initial_type,
+            new_document_model: initial_type.models().next().map(|entry| entry.model),
             keymap,
             #[cfg(target_os = "macos")]
             native_menus: None,
@@ -268,11 +279,24 @@ impl App {
     fn snapshot(&self) -> Snapshot {
         self.session.snapshot(self.selection.into())
     }
+    fn load_demo(&mut self) {
+        let kind = self.new_document_type;
+        let stored = StoredDocument::demo(kind);
+        let document = Document::from_source(&stored.source).expect("démonstration valide");
+        self.install_document(stored, document, None)
+            .expect("registre valide");
+    }
+    #[cfg(test)]
+    fn with_demo_context(ctx: egui::Context, capture: Option<PathBuf>) -> Self {
+        let mut app = Self::with_context(ctx, capture);
+        app.load_demo();
+        app
+    }
     fn stored_document(&self) -> StoredDocument {
         self.session.stored_document()
     }
     fn is_dirty(&self) -> bool {
-        self.session.is_dirty()
+        self.document_open && self.session.is_dirty()
     }
     fn modal_open(&self) -> bool {
         self.recovery_open
@@ -303,6 +327,9 @@ impl App {
         }
     }
     fn checkpoint_recovery(&mut self) {
+        if !self.document_open {
+            return;
+        }
         let dirty = self.is_dirty();
         if let Some(recovery) = &mut self.recovery {
             for result in recovery.poll() {
@@ -451,6 +478,9 @@ impl App {
         }
     }
     fn save_document(&mut self, save_as: bool) -> bool {
+        if !self.document_open {
+            return false;
+        }
         if !save_as && let Some(path) = self.session.file_path.clone() {
             return self.save_path(path);
         }
@@ -535,6 +565,7 @@ impl App {
         self.keymap = keymap;
         self.history_field = None;
         self.session = Session::new(letter, document, path, self.session.revision + 1);
+        self.document_open = true;
         self.image_textures.clear();
         self.image_info = None;
         self.information_group = InformationGroup::General;
@@ -559,10 +590,57 @@ impl App {
             self.perform_action(action, ctx);
         }
     }
+    fn close_document(&mut self) {
+        let kind = self.new_document_type;
+        let letter = StoredDocument::blank(kind);
+        let document = Document::from_source("").expect("document vide valide");
+        // install_document réinitialise aussi l'historique, les dialogues liés
+        // au document et les résultats de rendu. Les préférences restent globales.
+        self.install_document(letter, document, None)
+            .expect("registre valide");
+        self.document_open = false;
+        self.information_open = false;
+        self.link_open = false;
+        self.export_open = false;
+        self.history_field = None;
+    }
+    fn welcome_ui(&mut self, ui: &mut egui::Ui) {
+        let height = ui.available_height();
+        ui.add_space((height * 0.3).max(20.0));
+        ui.vertical_centered(|ui| {
+            ui.heading("typstOgraphe");
+            ui.add_space(8.0);
+            ui.label(crate::tr!("welcome-help"));
+            ui.add_space(16.0);
+            for command in [
+                Command::File(FileCommand::New),
+                Command::File(FileCommand::Open),
+                Command::Preferences,
+            ] {
+                let response = ui.add_sized([240.0, 32.0], egui::Button::new(command.label()));
+                if response.clicked() {
+                    self.apply(command);
+                }
+            }
+        });
+    }
     fn perform_action(&mut self, action: PendingAction, ctx: &egui::Context) {
         match action {
             PendingAction::New => {
-                self.new_document_type = self.session.metadata.document_type();
+                self.new_document_type = DocumentType::ALL
+                    .into_iter()
+                    .find(|kind| {
+                        kind.can_create()
+                            && self.document_open
+                            && *kind == self.session.metadata.document_type()
+                    })
+                    .or_else(|| DocumentType::ALL.into_iter().find(|kind| kind.can_create()))
+                    .unwrap_or(self.new_document_type);
+                self.new_document_model = self
+                    .new_document_type
+                    .models()
+                    .next()
+                    .map(|entry| entry.model);
                 self.new_document_open = true;
             }
             PendingAction::Open => {
@@ -586,12 +664,21 @@ impl App {
                 self.allow_close = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
+            PendingAction::CloseDocument => self.close_document(),
             PendingAction::Recover(index) => self.recover_document(index),
         }
         ctx.request_repaint();
     }
     fn create_document(&mut self, kind: DocumentType) {
-        let letter = match self
+        let Some(model) = self
+            .new_document_model
+            .filter(|model| model.definition().kind == kind)
+            .or_else(|| kind.models().next().map(|entry| entry.model))
+        else {
+            self.file_error = Some(crate::tr!("type-no-model"));
+            return;
+        };
+        let mut letter = match self
             .preferences
             .profile
             .document(kind, self.profile_signature.as_ref())
@@ -602,6 +689,7 @@ impl App {
                 return;
             }
         };
+        letter.template = model.source();
         let document = Document::from_source(&letter.source).expect("document vide valide");
         if let Err(error) = self.install_document(letter, document, None) {
             self.file_error = Some(error);
@@ -619,16 +707,15 @@ impl App {
         match command {
             FileCommand::New => self.request_action(PendingAction::New, ctx),
             FileCommand::Open => self.request_action(PendingAction::Open, ctx),
-            FileCommand::Close | FileCommand::Quit => {
-                self.request_action(PendingAction::Close, ctx)
-            }
+            FileCommand::Close => self.request_action(PendingAction::CloseDocument, ctx),
+            FileCommand::Quit => self.request_action(PendingAction::Close, ctx),
             FileCommand::Save => {
                 self.save_document(false);
             }
             FileCommand::SaveAs => {
                 self.save_document(true);
             }
-            FileCommand::Export => self.export_open = true,
+            FileCommand::Export => self.export_open = self.document_open,
         }
         ctx.request_repaint();
     }
@@ -650,7 +737,9 @@ impl App {
         self.selection = adjusted.into();
     }
     fn apply(&mut self, command: Command) {
-        if !self.keymap.registry().contains(command) {
+        if !self.keymap.registry().contains(command)
+            || (!self.document_open && !command.available_without_document())
+        {
             return;
         }
         match command {
@@ -746,13 +835,19 @@ impl App {
                     self.force_selection = true;
                 }
             }
-            command @ (Command::Courrier(_) | Command::CompteRendu(_)) => {
+            command @ Command::Model(_) => {
                 let template = command.model_source().expect("commande de modèle");
                 if self.session.template != template {
                     let before = self.snapshot();
                     self.session.template = template;
                     self.presentation = ModelPresentation::default();
                     self.session.metadata.options_mut().bullet_marker = None;
+                    if let Command::Model(model) = command
+                        && let Some((paper, landscape)) = model.definition().page
+                    {
+                        self.session.metadata.options_mut().paper = paper;
+                        self.session.metadata.options_mut().landscape = landscape;
+                    }
                     self.remember(before, false);
                 }
             }
@@ -1065,6 +1160,10 @@ impl App {
         }
     }
     fn rendering(&mut self, ctx: &egui::Context) {
+        if !self.document_open {
+            while self.worker.receiver.try_recv().is_ok() {}
+            return;
+        }
         while let Ok(response) = self.worker.receiver.try_recv() {
             match response.result {
                 Ok(rendered) => {
@@ -1145,7 +1244,7 @@ impl App {
             }
             self.apply(command);
         }
-        if focused && !self.modal_open() {
+        if self.document_open && focused && !self.modal_open() {
             self.text_shortcuts(ctx);
         }
     }
@@ -1177,6 +1276,7 @@ impl App {
             .filter(|d| d.menu_position().is_some())
             .map(|d| {
                 let enabled = !self.modal_open()
+                    && (self.document_open || d.command.available_without_document())
                     && match d.command {
                         Command::Undo => !self.session.undo.is_empty(),
                         Command::Redo => !self.session.redo.is_empty(),
@@ -1717,6 +1817,10 @@ impl App {
         }
     }
     fn general_information_ui(&mut self, ui: &mut egui::Ui) {
+        let fixed_page = crate::document_types::models::ALL
+            .iter()
+            .find(|model| model.source == self.session.template)
+            .and_then(|model| model.page);
         egui::Grid::new("general-fields")
             .num_columns(2)
             .show(ui, |ui| {
@@ -1727,37 +1831,51 @@ impl App {
                 self.template_selector(ui);
                 ui.end_row();
                 ui.label(crate::tr!("field-paper"));
-                egui::ComboBox::from_id_salt("document-paper")
-                    .selected_text(self.session.metadata.options().paper.label())
-                    .show_ui(ui, |ui| {
-                        for paper in PaperFormat::ALL {
-                            ui.selectable_value(
-                                &mut self.session.metadata.options_mut().paper,
-                                paper,
-                                paper.label(),
-                            );
-                        }
-                    });
+                if let Some((paper, _)) = fixed_page {
+                    ui.label(paper.label())
+                        .on_hover_text(crate::tr!("model-fixed-page"));
+                } else {
+                    egui::ComboBox::from_id_salt("document-paper")
+                        .selected_text(self.session.metadata.options().paper.label())
+                        .show_ui(ui, |ui| {
+                            for paper in PaperFormat::ALL {
+                                ui.selectable_value(
+                                    &mut self.session.metadata.options_mut().paper,
+                                    paper,
+                                    paper.label(),
+                                );
+                            }
+                        });
+                }
                 ui.end_row();
                 ui.label(crate::tr!("field-orientation"));
-                egui::ComboBox::from_id_salt("document-orientation")
-                    .selected_text(if self.session.metadata.options().landscape {
-                        crate::tr!("orientation-landscape")
+                if let Some((_, landscape)) = fixed_page {
+                    ui.label(crate::i18n::text(if landscape {
+                        "orientation-landscape"
                     } else {
-                        crate::tr!("orientation-portrait")
-                    })
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            &mut self.session.metadata.options_mut().landscape,
-                            false,
-                            crate::tr!("orientation-portrait"),
-                        );
-                        ui.selectable_value(
-                            &mut self.session.metadata.options_mut().landscape,
-                            true,
-                            crate::tr!("orientation-landscape"),
-                        );
-                    });
+                        "orientation-portrait"
+                    }))
+                    .on_hover_text(crate::tr!("model-fixed-page"));
+                } else {
+                    egui::ComboBox::from_id_salt("document-orientation")
+                        .selected_text(if self.session.metadata.options().landscape {
+                            crate::tr!("orientation-landscape")
+                        } else {
+                            crate::tr!("orientation-portrait")
+                        })
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut self.session.metadata.options_mut().landscape,
+                                false,
+                                crate::tr!("orientation-portrait"),
+                            );
+                            ui.selectable_value(
+                                &mut self.session.metadata.options_mut().landscape,
+                                true,
+                                crate::tr!("orientation-landscape"),
+                            );
+                        });
+                }
                 ui.end_row();
                 ui.label(crate::tr!("field-document-language"));
                 egui::ComboBox::from_id_salt("document-language")
@@ -1870,11 +1988,16 @@ impl App {
     }
     /// Diagnostic de présentation utilisant les mêmes commandes que l’interface.
     pub fn capture_search(&mut self, query: String) {
+        self.load_demo();
         self.apply(Command::FindReplace);
         self.search.query = query;
         self.apply(Command::FindNext);
     }
+    pub fn capture_creation(&mut self, ctx: &egui::Context) {
+        self.perform_action(PendingAction::New, ctx);
+    }
     pub fn capture_spelling(&mut self, ctx: &egui::Context) {
+        self.load_demo();
         let before = self.snapshot();
         self.session.metadata.options_mut().language = DocumentLanguage::French;
         self.session.metadata.options_mut().spelling_ignored.clear();
@@ -2120,6 +2243,9 @@ impl App {
         ui.separator();
     }
     fn refresh_spelling(&mut self, ctx: &egui::Context) {
+        if !self.document_open {
+            return;
+        }
         let options = self.session.metadata.options();
         self.spelling.synchronize(
             self.session.revision,
@@ -2898,12 +3024,35 @@ impl App {
                 ui.heading(crate::tr!("new-document-title"));
                 ui.label(crate::tr!("field-document-type"));
                 for kind in DocumentType::ALL {
-                    ui.radio_value(&mut self.new_document_type, kind, kind.label());
+                    ui.add_enabled_ui(kind.can_create(), |ui| {
+                        if ui
+                            .radio_value(&mut self.new_document_type, kind, kind.label())
+                            .changed()
+                        {
+                            self.new_document_model = kind.models().next().map(|entry| entry.model);
+                        }
+                    })
+                    .response
+                    .on_disabled_hover_text(crate::tr!("type-no-model"));
+                }
+                ui.add_space(8.0);
+                ui.label(crate::tr!("field-template"));
+                for entry in self.new_document_type.models() {
+                    ui.radio_value(
+                        &mut self.new_document_model,
+                        Some(entry.model),
+                        entry.command.command.short_label(),
+                    );
                 }
                 ui.separator();
                 ui.horizontal(|ui| {
                     cancel = ui.button(crate::tr!("cancel")).clicked();
-                    create = ui.button(crate::tr!("new-document-create")).clicked();
+                    let valid = self
+                        .new_document_model
+                        .is_some_and(|model| model.definition().kind == self.new_document_type);
+                    create = ui
+                        .add_enabled(valid, egui::Button::new(crate::tr!("new-document-create")))
+                        .clicked();
                 });
             });
             if create {
@@ -3051,7 +3200,11 @@ impl App {
                         .keymap
                         .registry()
                         .definitions()
-                        .filter(|definition| definition.in_palette())
+                        .filter(|definition| {
+                            definition.in_palette()
+                                && (self.document_open
+                                    || definition.command.available_without_document())
+                        })
                         .map(|definition| definition.command);
                     let query = self.palette_query.to_lowercase();
                     let filtered: Vec<_> = commands
@@ -3249,7 +3402,7 @@ impl App {
         }
         self.rendering(ctx);
         self.refresh_spelling(ctx);
-        if !self.modal_open() {
+        if self.document_open && !self.modal_open() {
             let dropped = ctx.input(|i| i.raw.dropped_files.clone());
             for file in dropped {
                 if let Some(path) = file.path
@@ -3283,11 +3436,15 @@ impl App {
                     .map(|name| crate::tr!("recovery-document-name", name = name.as_str()))
                     .unwrap_or_else(|| crate::tr!("untitled-letter"))
             });
-        let title = crate::tr!(
-            "window-title",
-            name = filename.as_str(),
-            marker = if dirty { " *" } else { "" }
-        );
+        let title = if !self.document_open {
+            "typstOgraphe".into()
+        } else {
+            crate::tr!(
+                "window-title",
+                name = filename.as_str(),
+                marker = if dirty { " *" } else { "" }
+            )
+        };
         if title != self.window_title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
             self.window_title = title;
@@ -3310,7 +3467,9 @@ impl App {
             if modal {
                 ui.disable();
             }
-            self.status_ui(ui);
+            if self.document_open {
+                self.status_ui(ui);
+            }
             if let Some(error) = &self.recovery_error {
                 ui.colored_label(
                     ui.visuals().error_fg_color,
@@ -3322,7 +3481,14 @@ impl App {
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
-                self.columns_ui(ui, modal);
+                if modal {
+                    ui.disable();
+                }
+                if self.document_open {
+                    self.columns_ui(ui, modal);
+                } else {
+                    self.welcome_ui(ui);
+                }
             });
         self.preferences_ui(ctx);
         self.dialogs(ctx);
@@ -3385,7 +3551,7 @@ impl App {
                 return;
             }
         }
-        if self.rendered_revision == Some(self.session.revision)
+        if (!self.document_open || self.rendered_revision == Some(self.session.revision))
             && !self.screenshot_requested
             && self.started.elapsed() > Duration::from_secs(1)
         {
@@ -3458,12 +3624,75 @@ impl eframe::App for App {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod interaction_tests {
     use super::*;
-    use crate::document_types::courrier::{Command as CourrierCommand, Model};
+    use crate::document_types::models::Model;
+
+    #[test]
+    fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let dir = tempfile::tempdir().unwrap();
+        app.start_recovery(dir.path().join("recovery"), ctx.clone());
+        frame(&mut app, &ctx, vec![]);
+        assert!(!app.document_open && !app.is_dirty());
+        assert_eq!(app.window_title, "typstOgraphe");
+        assert_eq!(app.submitted, 0);
+        assert!(app.pages.is_empty() && app.rendered_revision.is_none());
+        assert!(app.recovery_entries.is_empty());
+        let original = app.stored_document();
+        for command in [
+            Command::Bold,
+            Command::Find,
+            Command::ImportModel,
+            Command::File(FileCommand::Save),
+            Command::File(FileCommand::Export),
+            Command::Model(Model::Personal),
+        ] {
+            app.apply(command);
+        }
+        assert_eq!(app.stored_document(), original);
+        assert!(!app.search_open && !app.export_open && app.file_command.is_none());
+        for (command, status) in app.menu_statuses() {
+            if !command.available_without_document() {
+                assert!(!status.enabled);
+            }
+        }
+        app.apply(Command::Preferences);
+        assert!(app.preferences_open);
+        app.preferences_open = false;
+        recovery_click(&mut app, &ctx, &Command::File(FileCommand::New).label());
+        assert!(app.new_document_open && !app.document_open);
+        assert_eq!(app.new_document_model, Some(Model::Personal));
+        recovery_click(&mut app, &ctx, &crate::tr!("cancel"));
+        assert!(!app.new_document_open && !app.document_open);
+        app.perform_action(PendingAction::New, &ctx);
+        recovery_click(&mut app, &ctx, &crate::tr!("new-document-create"));
+        assert!(app.document_open && !app.new_document_open);
+        assert!(app.session.document.source().is_empty());
+        assert_eq!(app.session.template, Model::Personal.source());
+        let path = dir.path().join("courrier.typsto");
+        assert!(app.save_path(path.clone()));
+        app.handle_file_command(FileCommand::Close, &ctx);
+        assert!(!app.document_open && !app.allow_close);
+        assert!(app.open_path(path));
+        assert!(app.document_open);
+        app.session.document.view.insert_text("À conserver", 0);
+        app.changed();
+        app.handle_file_command(FileCommand::Close, &ctx);
+        assert!(matches!(
+            app.pending_action,
+            Some(PendingAction::CloseDocument)
+        ));
+        recovery_click(&mut app, &ctx, &crate::tr!("cancel"));
+        assert!(app.document_open && app.is_dirty());
+        app.handle_file_command(FileCommand::Close, &ctx);
+        recovery_click(&mut app, &ctx, &crate::tr!("discard"));
+        assert!(!app.document_open && !app.is_dirty());
+    }
 
     #[test]
     fn personal_profile_seeds_new_documents_and_signature_edits_are_independent_and_undoable() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let dir = tempfile::tempdir().unwrap();
         let original = dir.path().join("signature.svg");
         std::fs::write(&original, include_bytes!("../tests/fixtures/signature.svg")).unwrap();
@@ -3518,11 +3747,8 @@ mod interaction_tests {
         assert_eq!(app.stored_document(), changed);
         assert!(app.save_path(path.clone()));
         app.create_document(DocumentType::CompteRendu);
-        let crate::document_types::Metadata::CompteRendu(meta) = &app.session.metadata else {
-            panic!()
-        };
-        assert_eq!(meta.redacteur, "Autre nom");
-        assert!(app.session.document.assets.is_empty());
+        assert!(app.file_error.is_some());
+        assert_eq!(app.stored_document(), changed);
         assert!(app.open_path(path));
         assert_eq!(app.session.metadata.courrier().expediteur, "Zoé Martin");
         assert_eq!(app.preferences.profile.name, "Autre nom");
@@ -3546,7 +3772,7 @@ mod interaction_tests {
             fn flush(&mut self) {}
         }
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let before = app.stored_document();
         let mut store = Store::default();
         let now = Instant::now();
@@ -3590,7 +3816,7 @@ mod interaction_tests {
     fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_suggestion() {
         let ctx = egui::Context::default();
         ctx.set_theme(egui::ThemePreference::Dark);
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let mut letter = StoredDocument::blank(DocumentType::Courrier);
         letter.source = "Un *courrrier* et une _réservvation_.".into();
         let document = Document::from_source(&letter.source).unwrap();
@@ -3678,7 +3904,7 @@ mod interaction_tests {
     #[test]
     fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let mut letter = StoredDocument::blank(DocumentType::Courrier);
         letter.source = "Courrrier courrrier réservvation".into();
         let document = Document::from_source(&letter.source).unwrap();
@@ -3778,7 +4004,7 @@ mod interaction_tests {
     fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_preview_highlights()
      {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let mut letter = StoredDocument::blank(DocumentType::Courrier);
         letter.source = "Un *été*, puis un ÉTÉ et encore un _été_.".into();
         let document = Document::from_source(&letter.source).unwrap();
@@ -3896,7 +4122,7 @@ mod interaction_tests {
     #[test]
     fn replacement_commands_refresh_results_and_replace_all_is_a_single_document_transaction() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let mut stored = StoredDocument::blank(DocumentType::Courrier);
         stored.source = "Un *été* et un _ÉTÉ_, été.".into();
         app.install_document(
@@ -3999,10 +4225,10 @@ mod interaction_tests {
         let mut unsaved = saved.clone();
         unsaved.source = "Un travail *non enregistré*.".into();
         unsaved.metadata.courrier_mut().objet = "Nouvel objet".into();
-        unsaved.template = Model::Service.source();
+        unsaved.template = Model::Personal.source();
         seed_recovery(&root, &unsaved, Some("original.typsto".into()));
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.start_recovery(root.clone(), ctx.clone());
         assert!(app.recovery_open);
         recovery_click(&mut app, &ctx, &crate::tr!("recovery-later"));
@@ -4038,7 +4264,7 @@ mod interaction_tests {
         assert!(app.pending_action.is_none() && app.is_dirty());
         assert!(!app.save_path(dir.path().join("absent/fichier.typsto")));
         drop(app); // L’échec d’enregistrement laisse la récupération intacte.
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.start_recovery(root.clone(), ctx.clone());
         assert_eq!(app.recovery_entries.len(), 1);
         app.recover_document(0);
@@ -4060,7 +4286,7 @@ mod interaction_tests {
         let saved = StoredDocument::demo(DocumentType::Courrier);
         seed_recovery(&root, &saved, None);
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.start_recovery(root.clone(), ctx.clone());
         recovery_click(&mut app, &ctx, &crate::tr!("recovery-delete"));
         assert!(app.recovery_entries.is_empty());
@@ -4083,38 +4309,27 @@ mod interaction_tests {
     }
 
     #[test]
-    fn meeting_creation_and_template_import_preserve_the_type_and_use_unified_history() {
+    fn creation_and_template_import_preserve_the_type_and_use_unified_history() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        let original = app.stored_document();
         app.perform_action(PendingAction::New, &ctx);
         frame(&mut app, &ctx, vec![]);
-        assert!(app.new_document_open && app.modal_open());
-        assert_eq!(app.stored_document(), original);
-        app.new_document_type = DocumentType::CompteRendu;
-        app.create_document(app.new_document_type);
-        assert!(!app.new_document_open);
+        assert!(app.new_document_open && !app.document_open);
+        app.create_document(DocumentType::CompteRendu);
+        assert!(app.file_error.is_some() && !app.document_open);
+        app.file_error = None;
+        app.create_document(DocumentType::Courrier);
+        assert!(app.document_open && !app.new_document_open);
         assert_eq!(
             app.keymap.registry().document_type(),
-            DocumentType::CompteRendu
+            DocumentType::Courrier
         );
         assert!(app.session.document.source().is_empty());
         assert!(!app.is_dirty());
-        assert!(
-            app.keymap
-                .registry()
-                .definitions()
-                .any(|d| matches!(d.command, Command::CompteRendu(_)))
-        );
-        assert!(
-            !app.keymap
-                .registry()
-                .definitions()
-                .any(|d| matches!(d.command, Command::Courrier(_)))
-        );
+        assert_eq!(app.session.template, Model::Personal.source());
         let before = app.stored_document();
         assert!(
-            app.install_model(DocumentType::Courrier.default_model())
+            app.install_model("#let compte-rendu(..args) = []".into())
                 .is_err()
         );
         assert_eq!(app.stored_document(), before);
@@ -4130,16 +4345,13 @@ mod interaction_tests {
         assert!(!app.is_dirty());
         app.apply(Command::Redo);
         assert_eq!(app.session.template, template);
-        assert_eq!(
-            app.session.metadata.document_type(),
-            DocumentType::CompteRendu
-        );
+        assert_eq!(app.session.metadata.document_type(), DocumentType::Courrier);
     }
 
     #[test]
     fn links_accept_soft_lines_and_reject_paragraph_or_list_boundaries() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx, None);
+        let mut app = App::with_demo_context(ctx, None);
         for (source, selection, allowed) in [
             ("Été\nNoël", 0..8, true),
             ("Été\n\nNoël", 0..9, false),
@@ -4156,7 +4368,7 @@ mod interaction_tests {
     #[test]
     fn native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopening() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.session.document = Document::from_source("Alpha").unwrap();
         app.selection = editor::cursor(5..5);
         app.force_selection = true;
@@ -4213,7 +4425,7 @@ mod interaction_tests {
             })
         }
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         ctx.style_mut(|style| style.interaction.tooltip_delay = 0.0);
         app.session.document = Document::from_source("#strong[e\u{301}] 👩🏽‍💻").unwrap();
         app.force_selection = true;
@@ -4322,7 +4534,7 @@ mod interaction_tests {
             "#quote(block: true)[Une pensée.]\n\nSuite.",
         ] {
             let ctx = egui::Context::default();
-            let mut app = App::with_context(ctx.clone(), None);
+            let mut app = App::with_demo_context(ctx.clone(), None);
             // Vérifier la géométrie réellement peinte, indépendamment du clignotement.
             ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
             app.session.document = Document::from_source(source).unwrap();
@@ -4422,7 +4634,7 @@ mod interaction_tests {
             "#quote(block: true, attribution: [Été *à Paris*.])[Une pensée.]\n\nSuite.",
         ] {
             let ctx = egui::Context::default();
-            let mut app = App::with_context(ctx.clone(), None);
+            let mut app = App::with_demo_context(ctx.clone(), None);
             app.session.document = Document::from_source(source).unwrap();
             let annotation = app.session.document.view.annotations().remove(0);
             let at = annotation.content.start;
@@ -4500,7 +4712,7 @@ mod interaction_tests {
             format!("#quote(block: true)[{}]", "Une pensée.\n\n".repeat(80)),
         ] {
             let ctx = egui::Context::default();
-            let mut app = App::with_context(ctx.clone(), None);
+            let mut app = App::with_demo_context(ctx.clone(), None);
             app.session.document = Document::from_source(&source).unwrap();
             let annotation = app.session.document.view.annotations().remove(0);
             app.selection = editor::cursor(annotation.main_target());
@@ -4560,7 +4772,7 @@ mod interaction_tests {
 
     #[test]
     fn discarded_images_in_memory_do_not_exhaust_the_document_size_limit() {
-        let mut app = App::with_context(egui::Context::default(), None);
+        let mut app = App::with_demo_context(egui::Context::default(), None);
         app.session.document = Document::from_source("").unwrap();
         // Simuler plus de 64 Mio d’anciennes ressources partagées en mémoire.
         // Elles ne sont plus référencées par le document ni par son modèle.
@@ -4584,7 +4796,7 @@ mod interaction_tests {
     #[test]
     fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx, None);
+        let mut app = App::with_demo_context(ctx, None);
         app.session.document = Document::from_source("").unwrap();
         let dir = tempfile::tempdir().unwrap();
         let original = dir.path().join("original.svg");
@@ -4652,7 +4864,7 @@ mod interaction_tests {
     fn image_remove_button_deletes_the_selected_block_and_caption_with_undo() {
         for caption in ["", ", caption: [Le parc.]"] {
             let ctx = egui::Context::default();
-            let mut app = App::with_context(ctx.clone(), None);
+            let mut app = App::with_demo_context(ctx.clone(), None);
             app.session.document = Document::from_source(&format!(
                 "Avant.\n\n#figure(image(\"images/parc.svg\"){caption})\n\nAprès."
             ))
@@ -4725,7 +4937,7 @@ mod interaction_tests {
     #[test]
     fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.session.document = Document::from_source("Avant.\n\nAprès.").unwrap();
         app.selection = editor::cursor(6..6);
         let dir = tempfile::tempdir().unwrap();
@@ -4823,7 +5035,7 @@ mod interaction_tests {
     #[test]
     fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.session.document = Document::from_source("Avant.\n\nAprès.").unwrap();
         app.selection = editor::cursor(6..6);
         let dir = tempfile::tempdir().unwrap();
@@ -4909,7 +5121,7 @@ mod interaction_tests {
     #[test]
     fn column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_cap() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let mut time = 0.0;
         let mut draw = |app: &mut App, width, events| {
             time += 0.1;
@@ -4999,7 +5211,7 @@ mod interaction_tests {
     #[test]
     fn editor_preferences_change_glyphs_and_theme_without_touching_the_letter() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let letter = app.stored_document();
         let revision = app.session.revision;
         app.dispatch_action(Command::Preferences, &ctx);
@@ -5101,7 +5313,9 @@ mod interaction_tests {
     #[test]
     fn general_settings_and_template_selection_preserve_letter_content() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
+        app.session.template = "#let courrier(..args, options: (:), body) = { set page(paper: options.paper, flipped: options.landscape); body }".into();
+        app.session.saved.template = app.session.template.clone();
         app.information_open = true;
         ctx.style_mut(|s| s.animation_time = 0.0);
         let source = app.session.document.source().to_owned();
@@ -5172,16 +5386,16 @@ mod interaction_tests {
         choose(
             &mut app,
             &mut draw,
-            "Courrier institutionnel",
-            "Courrier de service",
+            "Modèle du document",
+            "Courrier personnel",
         );
-        assert_eq!(app.session.metadata.options_mut().paper, PaperFormat::A3);
-        assert!(app.session.metadata.options_mut().landscape);
+        assert_eq!(app.session.metadata.options_mut().paper, PaperFormat::A4);
+        assert!(!app.session.metadata.options_mut().landscape);
         assert_eq!(
             app.session.metadata.options_mut().language,
             DocumentLanguage::English
         );
-        assert_eq!(app.session.template, Model::Service.source());
+        assert_eq!(app.session.template, Model::Personal.source());
         assert!(app.is_dirty());
         assert_eq!(app.session.revision, revision + 4);
         assert_eq!(app.session.document.source(), source);
@@ -5192,7 +5406,7 @@ mod interaction_tests {
     #[test]
     fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplicates() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.session.file_path = Some(PathBuf::from("exemple.typsto"));
         let source = app.session.document.source().to_owned();
         let mut time = 0.0;
@@ -5322,7 +5536,7 @@ mod interaction_tests {
             }
         }
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         ctx.style_mut(|style| style.animation_time = 0.0);
         app.selection = editor::cursor(10..20);
         app.force_selection = true;
@@ -5467,7 +5681,9 @@ mod interaction_tests {
     #[test]
     fn information_and_presentations_work_from_palette_and_custom_shortcuts() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
+        app.session.template.push_str("\n// modèle embarqué");
+        app.session.saved.template = app.session.template.clone();
         let source = app.session.document.source().to_owned();
         let revision = app.session.revision;
         app.apply(Command::Palette);
@@ -5500,7 +5716,7 @@ mod interaction_tests {
             }],
         );
         app.apply(Command::Palette);
-        app.palette_query = "modèle de courrier de service".into();
+        app.palette_query = "modèle de courrier personnel".into();
         frame(&mut app, &ctx, vec![]);
         frame(
             &mut app,
@@ -5513,15 +5729,19 @@ mod interaction_tests {
                 physical_key: None,
             }],
         );
-        assert_eq!(app.session.template, Model::Service.source());
+        assert_eq!(app.session.template, Model::Personal.source());
         assert!(app.is_dirty());
         assert_eq!(app.session.revision, revision + 1);
-        assert_eq!(app.stored_document().template, Model::Service.source());
+        assert_eq!(app.stored_document().template, Model::Personal.source());
         assert_eq!(app.session.document.source(), source);
-        app.apply(Command::Courrier(CourrierCommand::Model(Model::Service)));
+        app.apply(Command::Model(Model::Personal));
         assert_eq!(app.session.revision, revision + 1); // Choisir la présentation active est sans effet.
 
-        let config=serde_json::from_str(r#"{"document.information":[{"key":"F6"}],"courrier.model.institutional":[{"key":"F7"}]}"#).unwrap();
+        app.apply(Command::Undo);
+        let config = serde_json::from_str(
+            r#"{"document.information":[{"key":"F6"}],"courrier.model.personal":[{"key":"F7"}]}"#,
+        )
+        .unwrap();
         app.keymap = Keymap::new(app.keymap.registry(), ctx.os().is_mac(), &config).unwrap();
         frame(
             &mut app,
@@ -5534,9 +5754,9 @@ mod interaction_tests {
                 physical_key: None,
             }],
         );
-        assert_eq!(app.session.template, Model::Institutional.source());
-        assert_eq!(app.session.revision, revision + 2);
-        assert!(!app.is_dirty());
+        assert_eq!(app.session.template, Model::Personal.source());
+        assert_eq!(app.session.revision, revision + 3);
+        assert!(app.is_dirty());
         frame(
             &mut app,
             &ctx,
@@ -5555,7 +5775,7 @@ mod interaction_tests {
     #[test]
     fn remove_link_keeps_other_styles_and_selection_and_can_be_undone() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx, None);
+        let mut app = App::with_demo_context(ctx, None);
         app.session.document = Document::from_source(
             "Avant #link(\"https://example.org\")[*Élodie* et _Noël_] après.",
         )
@@ -5593,7 +5813,7 @@ mod interaction_tests {
     #[test]
     fn shortcut_override_updates_dispatch_and_hints_without_changing_the_document() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         frame(&mut app, &ctx, vec![]);
         let command = Command::File(FileCommand::Export);
         let original = app.keymap.hint(&ctx, command);
@@ -5627,7 +5847,7 @@ mod interaction_tests {
     #[test]
     fn save_reopen_restores_the_letter_and_failed_open_preserves_current_work() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("courrier.typsto");
         assert!(!app.is_dirty());
@@ -5637,7 +5857,7 @@ mod interaction_tests {
         app.apply(Command::Undo);
         assert!(!app.is_dirty());
         app.session.metadata.courrier_mut().objet = "Objet personnalisé".into();
-        app.session.template = Model::Service.source();
+        app.session.template = Model::Personal.source();
         app.session.template = app
             .session
             .template
@@ -5676,7 +5896,7 @@ mod interaction_tests {
     #[test]
     fn save_shortcut_and_save_as_keep_both_files_and_track_clean_state() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let dir = tempfile::tempdir().unwrap();
         let first = dir.path().join("premier.typsto");
         assert!(app.save_path(first.clone()));
@@ -5708,7 +5928,7 @@ mod interaction_tests {
     #[test]
     fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.session.metadata.courrier_mut().objet = "Travail à conserver".into();
         let before = app.stored_document();
         app.request_action(PendingAction::Open, &ctx);
@@ -5810,7 +6030,7 @@ mod interaction_tests {
     #[test]
     fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.session.document =
             Document::from_source(&"Un paragraphe à retrouver.\n\n".repeat(100)).unwrap();
         let mut world = crate::rendering::TypstWorld::default();
@@ -5915,7 +6135,7 @@ mod interaction_tests {
     #[test]
     fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let mut world = crate::rendering::TypstWorld::default();
         let rendered = world
             .compile_with_template(
@@ -6012,7 +6232,7 @@ mod interaction_tests {
     #[test]
     fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let mut world = crate::rendering::TypstWorld::default();
         let rendered = world
             .compile_with_template(
@@ -6088,7 +6308,7 @@ mod interaction_tests {
     #[test]
     fn cross_paragraph_formatting_undo_restores_source_and_selection() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx, None);
+        let mut app = App::with_demo_context(ctx, None);
         let source = app.session.document.source().to_owned();
         app.selection = editor::cursor(3..180);
         let selection = app.selection;
@@ -6105,7 +6325,7 @@ mod interaction_tests {
     #[test]
     fn native_egui_replaces_a_unicode_selection_without_source_markers() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.session.document =
             Document::from_source("Élodie écrit.\n\nDeuxième paragraphe.").unwrap();
         app.selection = editor::cursor(0..6);
@@ -6129,7 +6349,7 @@ mod interaction_tests {
     #[test]
     fn native_keyboard_shortcut_formats_multiple_paragraphs() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.selection = editor::cursor(0..180);
         app.force_selection = true;
         frame(&mut app, &ctx, vec![]);
@@ -6158,7 +6378,7 @@ mod interaction_tests {
             ("\\*Bonjour", "*", "*Bonjour*", None),
         ] {
             let ctx = egui::Context::default();
-            let mut app = App::with_context(ctx.clone(), None);
+            let mut app = App::with_demo_context(ctx.clone(), None);
             app.session.document = Document::from_source(source).unwrap();
             let end = app.session.document.view.len();
             app.selection = editor::cursor(end..end);
@@ -6188,7 +6408,7 @@ mod interaction_tests {
             egui::Event::Text(" ".into()),
         ] {
             let ctx = egui::Context::default();
-            let mut app = App::with_context(ctx.clone(), None);
+            let mut app = App::with_demo_context(ctx.clone(), None);
             app.session.document = Document::from_source("Échéance").unwrap();
             app.selection = editor::cursor(8..8);
             app.apply(Command::Block(BlockKind::Description));
@@ -6267,7 +6487,7 @@ mod interaction_tests {
     #[test]
     fn quote_keyboard_edits_body_and_attribution_and_exits_without_losing_source() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.session.document = Document::from_source("Bonjour").unwrap();
         app.selection = editor::cursor(7..7);
         app.apply(Command::Block(BlockKind::Quote));
@@ -6343,7 +6563,7 @@ mod interaction_tests {
     #[test]
     fn converting_multiple_paragraphs_to_quote_preserves_selection_and_can_be_undone() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx, None);
+        let mut app = App::with_demo_context(ctx, None);
         app.session.document = Document::from_source("Un.\n\nDeux.\n\nTrois.").unwrap();
         let original = app.session.document.clone();
         app.selection = CCursorRange::two(CCursor::new(3), CCursor::new(0));
@@ -6388,7 +6608,7 @@ mod interaction_tests {
     #[test]
     fn description_tab_with_a_selection_and_enter_in_text_create_an_empty_label() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         app.session.document = Document::from_source("/ Échéance: Vendredi").unwrap();
         app.selection = editor::cursor(2..5);
         app.force_selection = true;
@@ -6495,7 +6715,7 @@ mod interaction_tests {
         }
         for dark in [false, true] {
             let ctx = egui::Context::default();
-            let mut app = App::with_context(ctx.clone(), None);
+            let mut app = App::with_demo_context(ctx.clone(), None);
             ctx.set_visuals(if dark {
                 egui::Visuals::dark()
             } else {
@@ -6598,7 +6818,7 @@ mod interaction_tests {
     fn toolbar_groups_the_three_list_commands_in_a_single_menu() {
         let ctx = egui::Context::default();
         ctx.style_mut(|s| s.animation_time = 0.0);
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let draw = |app: &mut App, events| {
             ctx.run(
                 egui::RawInput {
@@ -6678,11 +6898,12 @@ mod interaction_tests {
     #[test]
     fn changing_model_restores_automatic_markers_without_altering_the_body() {
         let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx, None);
+        let mut app = App::with_demo_context(ctx, None);
+        app.session.template.push_str("\n// modèle personnalisé");
         let source = app.session.document.source().to_owned();
         app.session.metadata.options_mut().bullet_marker = Some("◆".into());
         app.presentation.custom_bullet_marker = true;
-        app.apply(Command::Courrier(CourrierCommand::Model(Model::Service)));
+        app.apply(Command::Model(Model::Personal));
         assert!(app.session.metadata.options().bullet_marker.is_none());
         assert_eq!(app.presentation, ModelPresentation::default());
         assert_eq!(app.session.document.source(), source);
@@ -6692,7 +6913,7 @@ mod interaction_tests {
     fn document_information_offers_only_the_markers_allowed_by_the_template() {
         let ctx = egui::Context::default();
         ctx.style_mut(|style| style.animation_time = 0.0);
-        let mut app = App::with_context(ctx.clone(), None);
+        let mut app = App::with_demo_context(ctx.clone(), None);
         let mut world = crate::rendering::TypstWorld::default();
         let draw = |app: &mut App, events| {
             ctx.run(

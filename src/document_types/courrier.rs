@@ -1,9 +1,6 @@
 //! Le type Courrier : données, contrat du modèle et commandes propres au type.
 use super::{FieldGroup, ModelContract, TextField};
-use crate::{
-    commands::{self, Definition, Scope},
-    document::DocumentOptions,
-};
+use crate::document::DocumentOptions;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -170,63 +167,10 @@ pub const CONTRACT: ModelContract<Metadata> = ModelContract {
     signature_image: Some(|m| m.signature.as_deref()),
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Model {
-    Institutional,
-    Service,
-}
-impl Model {
-    #[cfg(test)]
-    pub const ALL: [Self; 2] = [Self::Institutional, Self::Service];
-    pub fn source(self) -> String {
-        let base = include_str!("../../templates/courrier.typ");
-        match self {
-            Self::Institutional => base.into(),
-            Self::Service => format!(
-                "{base}\n{}",
-                include_str!("../../templates/courrier-service.typ")
-            ),
-        }
-    }
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Command {
-    Model(Model),
-}
-impl Command {
-    pub fn definition(self) -> &'static Definition {
-        COMMANDS
-            .iter()
-            .find(|d| d.command == commands::Command::Courrier(self))
-            .expect("commande Courrier enregistrée")
-    }
-}
-pub const COMMANDS: &[Definition] = &[
-    commands::short(
-        commands::define(
-            "courrier.model.institutional",
-            "cmd-institutional",
-            commands::Command::Courrier(Command::Model(Model::Institutional)),
-            Scope::Global,
-            &[],
-        ),
-        "cmd-institutional-short",
-    ),
-    commands::short(
-        commands::define(
-            "courrier.model.service",
-            "cmd-service",
-            commands::Command::Courrier(Command::Model(Model::Service)),
-            Scope::Global,
-            &[],
-        ),
-        "cmd-service-short",
-    ),
-];
-
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
+    use super::super::models::Model;
     use super::*;
     use crate::document_types::{DocumentType, Metadata as DocumentMetadata};
     use crate::rendering::TypstWorld;
@@ -293,7 +237,7 @@ mod tests {
         let header = metadata.main_source();
         assert!(header.contains("#show: courrier.with("));
         assert!(!header.contains("compact"));
-        for model in Model::ALL {
+        for model in Model::all() {
             assert!(
                 world
                     .compile_with_template("Bonjour.", &metadata, &model.source())

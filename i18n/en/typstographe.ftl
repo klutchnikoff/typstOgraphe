@@ -77,10 +77,6 @@ cmd-information = Document information
 cmd-information-short = Information
 cmd-close = Close
 cmd-palette = Command palette
-cmd-institutional = Use the institutional letter template
-cmd-institutional-short = Institutional letter
-cmd-service = Use the department letter template
-cmd-service-short = Department letter
 cmd-bold = Bold
 cmd-bold-short = B
 cmd-italic = Italic
@@ -138,6 +134,7 @@ cli-help =
       cargo run -- LETTER.typsto
       cargo run -- --render-demo FOLDER
       cargo run -- --capture IMAGE.png
+      cargo run -- --capture-new-document IMAGE.png
       cargo run -- --capture-recovery IMAGE.png RECOVERY_FOLDER
       cargo run -- --capture-search IMAGE.png QUERY
       cargo run -- --capture-spelling IMAGE.png
@@ -284,7 +281,6 @@ field-meeting-place = Location / video call
 field-minutes-author = Written by
 field-attendees = Attendees
 field-apologies = Apologies
-cmd-minutes-standard = Standard meeting minutes template
 new-document-title = Create a document
 new-document-create = Create
 cmd-import-model = Import a template…
@@ -351,3 +347,10 @@ spelling-loading-suggestions = Looking up suggestions…
 spelling-personal-dictionary = Personal dictionary
 spelling-personal-help = Add words by right-clicking in the editor. Words are saved in preferences, per language.
 spelling-forget-word = Remove
+
+welcome-help = Create a document or open a .typsto file.
+type-no-model = No template is available for this document type.
+cmd-personal-letter = Use the personal letter template
+model-personal-letter = Personal letter
+model-fixed-page = This template fixes the paper size and orientation for a window envelope.
+cli-usage-capture-creation = Usage: --capture-new-document IMAGE.png

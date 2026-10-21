@@ -79,10 +79,12 @@ persistante de modèles restent à développer.
 - **Étape 3 — Orthographe : implémentée ; essai utilisateur à faire.** Spellbook,
   dictionnaires embarqués français/anglais, suggestions et dictionnaire personnel ;
   le périmètre livré est précisé dans le chantier B.
-- **Étape 4 — Première partie implémentée : profil personnel et signature (D).**
-  Le périmètre livré est précisé dans le chantier D ; essai utilisateur à faire.
-  Les modèles utiles et le premier périmètre de bibliothèque restent à définir
-  ensemble pour poursuivre cette étape (H, E).
+- **Étape 4 — Profil/signature et premier modèle personnel implémentés (D, H).**
+  Le courrier français pour enveloppe DL est le seul modèle fourni. L'accueil
+  démarre sans document ; création, sélecteurs et commandes suivent le catalogue
+  intégré des types et modèles. Essai utilisateur et essai papier à faire.
+  Prochaine suite à définir ensemble : modèle de compte-rendu et premier périmètre
+  de bibliothèque persistante (H, E).
 - **Reformulation locale : essais terminés, piste mise de côté.** Le bilan est
   conservé dans le chantier B et le rapport lié.
 - Les étapes 5 à 8 ne sont pas implémentées ; les types, premiers modèles et
@@ -307,6 +309,16 @@ cryptographique constituerait un chantier distinct.
 **Objectif :** réutiliser des modèles personnels ou d’organisation au-delà d’un
 seul document. L’import dans le document courant existe déjà.
 
+**Socle intégré implémenté :** le [catalogue](src/document_types/models.rs)
+associe chaque modèle à son type, son source Typst, ses libellés et sa commande.
+Les types de la création viennent de `DocumentType::ALL` ; un type sans modèle
+est affiché indisponible. Les modèles proposés à la création, dans les paramètres
+et dans la palette viennent de ce catalogue, avec le premier comme défaut.
+Ajouter une entrée ne nécessite pas de modifier ces interfaces. Les anciens
+modèles fictifs ont été retirés ; le type Compte-rendu reste intégré et attend
+son prochain modèle. Ce catalogue fourni avec l'application précède la
+bibliothèque installable et persistante décrite ci-dessous.
+
 - **P1 :** installer, retrouver, choisir et retirer un modèle ; description,
   type associé, provenance et modèle par défaut.
 - **P1 :** importer ses ressources et vérifier son contrat avant utilisation.
@@ -365,7 +377,7 @@ au-delà des démonstrations fictives.
 
 - **P1 : Courrier**, avec un modèle personnel utile et un modèle professionnel
   ou administratif ; raccordement au profil et à la signature.
-- **Courrier personnel : première maquette à examiner.** La présentation retenue
+- **Courrier personnel : présentation validée et modèle intégré.** La présentation retenue
   est composée en pur Typst dans [le modèle](templates/courrier-personnel.typ),
   avec [un exemple autonome](examples/courrier-personnel.typ). Cible : A4 portrait,
   plis à 99/198 mm, enveloppe DL 110 × 220 mm, fenêtre 100 × 35 mm à 20 mm du bas
@@ -376,8 +388,11 @@ au-delà des démonstrations fictives.
   partir du deuxième feuillet. Composition noire en Libertinus Serif 11 pt,
   champs vides masqués, repères de pliage discrets. Une adresse qui déborde est
   signalée. La maquette se compile dans le moteur embarqué et dispose d'un mode
-  de contrôle avec fenêtre et plis. Prochaine validation : présentation et essai
-  papier à 100 % dans une enveloppe réelle, avant ajout au choix des modèles.
+  de contrôle avec fenêtre et plis. Il est proposé à la création et dans les
+  paramètres du courrier. L'A4 portrait est imposé par le modèle dans l'interface.
+  L'accueil ne crée aucun document et Fermer y revient, avec confirmation des
+  modifications éventuelles. Prochaine validation : essai utilisateur et essai
+  papier à 100 % dans une enveloppe réelle.
 - **P1 : Compte-rendu de réunion**, avec un modèle utilisable à titre personnel :
   intitulé, date, lieu/visioconférence, rédacteur, participants, personnes excusées
   et corps libre. Ces métadonnées ont déjà été validées et sont implémentées.

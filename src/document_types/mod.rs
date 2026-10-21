@@ -1,11 +1,9 @@
 //! Types intégrés à l’application. Leurs modèles sont des implémentations Typst.
 pub mod compte_rendu;
 pub mod courrier;
+pub mod models;
 
-use crate::{
-    commands::Definition,
-    document::{DocumentOptions, typst_string},
-};
+use crate::document::{DocumentOptions, typst_string};
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 
@@ -35,17 +33,16 @@ impl DocumentType {
             Self::CompteRendu => "compte-rendu",
         }
     }
-    pub fn commands(self) -> &'static [Definition] {
-        match self {
-            Self::Courrier => courrier::COMMANDS,
-            Self::CompteRendu => compte_rendu::COMMANDS,
-        }
+    pub fn models(self) -> impl Iterator<Item = &'static models::Definition> + Clone {
+        models::ALL.iter().filter(move |model| model.kind == self)
     }
     pub fn default_model(self) -> String {
-        match self {
-            Self::Courrier => courrier::Model::Institutional.source(),
-            Self::CompteRendu => compte_rendu::MODEL.into(),
-        }
+        self.models()
+            .next()
+            .map_or(String::new(), |model| model.source.into())
+    }
+    pub fn can_create(self) -> bool {
+        self.models().next().is_some()
     }
     pub fn demo_source(self) -> &'static str {
         match self {
@@ -264,7 +261,10 @@ mod tests {
     #[test]
     fn every_type_validates_its_model_archives_exports_and_rejects_wrong_contracts() {
         let dir = tempfile::tempdir().unwrap();
-        for kind in DocumentType::ALL {
+        for kind in DocumentType::ALL
+            .into_iter()
+            .filter(|kind| kind.can_create())
+        {
             let mut letter = StoredDocument::demo(kind);
             letter.source.push_str("\n\n#quote(block: true, attribution: [Service])[Une citation.]\n\n/ Échéance: Vendredi\n\n#figure(image(\"images/parc.svg\"), caption: [Un parc.])");
             letter.assets.insert(
@@ -288,7 +288,11 @@ mod tests {
             };
             assert!(
                 world
-                    .validate_model(&letter.source, &letter.metadata, &other.default_model())
+                    .validate_model(
+                        &letter.source,
+                        &letter.metadata,
+                        &format!("#let {}(..args) = []", other.composition_function())
+                    )
                     .unwrap_err()
                     .contains(kind.composition_function())
             );

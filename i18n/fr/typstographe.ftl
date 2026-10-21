@@ -139,10 +139,6 @@ cmd-information = Informations du document
 cmd-information-short = Informations
 cmd-close = Fermer
 cmd-palette = Palette de commandes
-cmd-institutional = Utiliser le modèle de courrier institutionnel
-cmd-institutional-short = Courrier institutionnel
-cmd-service = Utiliser le modèle de courrier de service
-cmd-service-short = Courrier de service
 cmd-bold = Gras
 cmd-bold-short = G
 cmd-italic = Italique
@@ -200,6 +196,7 @@ cli-help =
       cargo run -- COURRIER.typsto
       cargo run -- --render-demo DOSSIER
       cargo run -- --capture IMAGE.png
+      cargo run -- --capture-new-document IMAGE.png
       cargo run -- --capture-recovery IMAGE.png DOSSIER_RECUPERATION
       cargo run -- --capture-search IMAGE.png RECHERCHE
       cargo run -- --capture-spelling IMAGE.png
@@ -346,7 +343,6 @@ field-meeting-place = Lieu / visioconférence
 field-minutes-author = Rédaction
 field-attendees = Personnes présentes
 field-apologies = Personnes excusées
-cmd-minutes-standard = Modèle de compte-rendu standard
 new-document-title = Créer un document
 new-document-create = Créer
 cmd-import-model = Importer un modèle…
@@ -354,3 +350,10 @@ model-file-filter = Modèle Typst
 model-import-error = Impossible d’utiliser ce modèle : { $error }
 model-too-large = Le modèle dépasse la taille autorisée (1 Mio).
 model-contract-missing = Le modèle doit exposer la fonction { $function }.
+
+welcome-help = Créez un document ou ouvrez un fichier .typsto.
+type-no-model = Aucun modèle disponible pour ce type de document.
+cmd-personal-letter = Utiliser le modèle de courrier personnel
+model-personal-letter = Courrier personnel
+model-fixed-page = Le format et l’orientation sont imposés par ce modèle pour l’enveloppe à fenêtre.
+cli-usage-capture-creation = Usage : --capture-new-document IMAGE.png

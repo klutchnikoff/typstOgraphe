@@ -328,8 +328,8 @@ mod tests {
         }
         letter.source = "#figure(image(\"images/active.svg\"), caption: [Un parc.])".into();
         letter.template = letter.template.replace(
-            "  let contenu = {",
-            "  image(\"images/\" + \"logo\" + \".svg\", width: 12pt)\n  let contenu = {",
+            "  body\n",
+            "  image(\"images/\" + \"logo\" + \".svg\", width: 12pt)\n  body\n",
         );
         let path = dir.path().join("courrier.typsto");
         let mut world = crate::rendering::TypstWorld::default();
@@ -452,8 +452,8 @@ mod tests {
         let path = dir.path().join("Mon courrier éà.typsto");
         let mut letter = StoredDocument::demo(DocumentType::Courrier);
         letter.metadata.courrier_mut().objet = "Une demande « particulière » # \\".into();
-        letter.metadata.options_mut().paper = crate::document::PaperFormat::A3;
-        letter.metadata.options_mut().landscape = true;
+        letter.metadata.options_mut().paper = crate::document::PaperFormat::A4;
+        letter.metadata.options_mut().landscape = false;
         letter.metadata.options_mut().language = crate::document::DocumentLanguage::English;
         letter.metadata.options_mut().bullet_marker = Some("◆".into());
         letter
@@ -462,7 +462,7 @@ mod tests {
         letter.source.push_str(
             "\n#quote(block: true, attribution: [Service _municipal_])[Message à conserver.]\n",
         );
-        letter.template = crate::document_types::courrier::Model::Service.source();
+        letter.template = crate::document_types::models::Model::Personal.source();
         letter
             .template
             .push_str("\n#let editor-options = (bullet-markers: (\"◆\",),)\n");
