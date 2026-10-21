@@ -333,6 +333,10 @@ mod tests {
                 (Command::Undo, false),
                 (Command::Redo, false),
                 (Command::Clear, true),
+                (Command::Find, true),
+                (Command::FindReplace, false),
+                (Command::FindNext, false),
+                (Command::FindPrevious, false),
                 (Command::Palette, true),
                 (Command::Preferences, true),
             ]

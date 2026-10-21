@@ -166,6 +166,18 @@ pub fn layout(
     width: f32,
     editor: EditorStyle,
 ) -> Arc<Galley> {
+    layout_with_search(ui, view, text, width, editor, &[], None)
+}
+
+pub fn layout_with_search(
+    ui: &egui::Ui,
+    view: &Projection,
+    text: &str,
+    width: f32,
+    editor: EditorStyle,
+    matches: &[Range<usize>],
+    active: Option<usize>,
+) -> Arc<Galley> {
     // Le TextEdit relance le layouter après ses mutations. Réaligner la copie
     // des styles sur le nouveau texte évite un décalage visuel pendant la saisie.
     let mut aligned = view.clone();
@@ -194,6 +206,7 @@ pub fn layout(
     let mut line = 0;
     let mut at_line_start = true;
     let mut in_term = true;
+    let mut search_index = 0;
     for (index, character) in text.chars().enumerate() {
         let style = &aligned.styles[index];
         let kind = aligned.blocks[line];
@@ -202,6 +215,24 @@ pub fn layout(
             term_style.bold = true;
         }
         let mut format = text_format(kind, &term_style, &colors, editor);
+        while matches
+            .get(search_index)
+            .is_some_and(|range| range.end <= index)
+        {
+            search_index += 1;
+        }
+        if text == view.text
+            && matches
+                .get(search_index)
+                .is_some_and(|range| range.contains(&index))
+        {
+            format.background = match (ui.visuals().dark_mode, active == Some(search_index)) {
+                (false, false) => Color32::from_rgb(255, 238, 171),
+                (false, true) => Color32::from_rgb(255, 209, 102),
+                (true, false) => Color32::from_rgb(83, 69, 29),
+                (true, true) => Color32::from_rgb(116, 87, 30),
+            };
+        }
         if kind == BlockKind::Description && in_term {
             format.font_id.size *= DESCRIPTION_LABEL_SCALE;
         }
@@ -635,12 +666,58 @@ fn space_blocks(mut galley: Arc<Galley>, blocks: &[BlockKind], size: f32) -> Arc
 }
 
 pub fn restore_cursor(ctx: &egui::Context, range: CCursorRange) {
+    store_cursor(ctx, range);
+    ctx.memory_mut(|m| m.request_focus(egui::Id::new(EDITOR_ID)));
+}
+
+pub fn store_cursor(ctx: &egui::Context, range: CCursorRange) {
     let id = egui::Id::new(EDITOR_ID);
     let mut state = egui::TextEdit::load_state(ctx, id).unwrap_or_default();
     state.cursor.set_char_range(Some(range));
     state.clear_undoer();
     state.store(ctx, id);
-    ctx.memory_mut(|m| m.request_focus(id));
+}
+
+/// Rectangles des résultats, fondés sur les glyphes natifs : précis aussi pour
+/// les lignes repliées, les descriptions et les légendes d’images décalées.
+pub fn search_rects(galley: &Galley, matches: &[Range<usize>]) -> Vec<(usize, egui::Rect)> {
+    let mut result = Vec::new();
+    let mut character = 0;
+    let mut index = 0;
+    for row in &galley.rows {
+        let mut run: Option<(usize, egui::Rect)> = None;
+        for glyph in &row.glyphs {
+            while matches
+                .get(index)
+                .is_some_and(|range| range.end <= character)
+            {
+                index += 1;
+            }
+            if matches
+                .get(index)
+                .is_some_and(|range| range.contains(&character))
+            {
+                let rect = glyph.logical_rect().translate(row.pos.to_vec2());
+                match &mut run {
+                    Some((previous, bounds)) if *previous == index => *bounds = bounds.union(rect),
+                    _ => {
+                        if let Some(run) = run.take() {
+                            result.push(run);
+                        }
+                        run = Some((index, rect));
+                    }
+                }
+            } else if let Some(run) = run.take() {
+                result.push(run);
+            }
+            character += 1;
+        }
+        if let Some(run) = run {
+            result.push(run);
+        }
+        character += usize::from(row.ends_with_newline);
+    }
+    result
 }
 
 pub fn cursor(range: Range<usize>) -> CCursorRange {
@@ -851,6 +928,65 @@ pub fn paint_decorations(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn search_backgrounds_cover_all_results_without_changing_layout_in_either_theme() {
+        let ctx = egui::Context::default();
+        install_fonts(&ctx);
+        let document = crate::document::Document::from_source("= Été\n\nUn *été* qui revient dans une longue phrase.\n\n/ été: Un texte.\n\n#quote(block: true, attribution: [été])[Un été.]\n\n#figure(image(\"images/parc.svg\"), caption: [été])").unwrap();
+        let before = document.clone();
+        let mut search = crate::search::Search::default();
+        search.query = "été".into();
+        search.refresh(1, &document.view);
+        for theme in [egui::Theme::Light, egui::Theme::Dark] {
+            ctx.set_theme(theme);
+            for width in [160.0, 600.0] {
+                let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        let normal = layout(
+                            ui,
+                            &document.view,
+                            &document.view.text,
+                            width,
+                            EditorStyle::default(),
+                        );
+                        let highlighted = layout_with_search(
+                            ui,
+                            &document.view,
+                            &document.view.text,
+                            width,
+                            EditorStyle::default(),
+                            &search.matches,
+                            Some(0),
+                        );
+                        assert_eq!(normal.size(), highlighted.size());
+                        for at in 0..=document.view.len() {
+                            assert_eq!(
+                                normal.pos_from_cursor(CCursor::new(at)),
+                                highlighted.pos_from_cursor(CCursor::new(at))
+                            );
+                        }
+                        for section in &highlighted.job.sections {
+                            let found = search.matches.iter().any(|range| {
+                                let bytes = document.view.byte_index(range.start)
+                                    ..document.view.byte_index(range.end);
+                                bytes.contains(&section.byte_range.start)
+                            });
+                            assert_eq!(section.format.background != Color32::TRANSPARENT, found);
+                        }
+                        let rectangles = search_rects(&highlighted, &search.matches);
+                        for index in 0..search.matches.len() {
+                            assert!(
+                                rectangles
+                                    .iter()
+                                    .any(|(found, rect)| *found == index && rect.width() > 0.0)
+                            );
+                        }
+                    });
+                });
+            }
+        }
+        assert_eq!(document, before);
+    }
     use crate::document::Document;
 
     #[test]

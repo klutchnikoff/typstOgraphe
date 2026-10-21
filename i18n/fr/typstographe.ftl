@@ -1,5 +1,30 @@
 # Interface typstOgraphe. Ne pas traduire les données des courriers.
 
+cmd-find = Rechercher…
+cmd-find-replace = Rechercher et remplacer…
+cmd-find-next = Occurrence suivante
+cmd-find-previous = Occurrence précédente
+cmd-replace-current = Remplacer
+cmd-replace-all = Tout remplacer
+search-placeholder = Rechercher…
+search-replacement-placeholder = Remplacer par…
+search-toggle-replace = Afficher ou masquer le remplacement
+search-match-case = Respecter la casse
+search-close = Fermer la recherche (Échap)
+search-active-result = { $current } / { $total }
+search-results =
+    { $count ->
+        [one] { $count } occurrence
+       *[other] { $count } occurrences
+    }
+search-replaced =
+    { $count ->
+        [one] { $count } remplacement effectué.
+       *[other] { $count } remplacements effectués.
+    }
+search-one-line = Le remplacement doit tenir sur une seule ligne, sans séparateur de structure.
+search-too-large = Cette recherche est trop volumineuse. Essayez un texte plus court.
+
 cmd-recover-documents = Récupérer des documents…
 recovery-title = Documents à récupérer
 recovery-help = Des copies de travail ont été conservées. Récupérer ouvre une copie à enregistrer séparément, sans remplacer le fichier d’origine.
@@ -145,6 +170,7 @@ shortcut-conflict = Conflit de raccourcis : { $first } et { $second }
 cli-usage-render = Usage : --render-demo DOSSIER
 cli-usage-capture = Usage : --capture IMAGE.png
 cli-usage-capture-recovery = Usage : --capture-recovery IMAGE.png DOSSIER_RECUPERATION
+cli-usage-capture-search = Usage : --capture-search IMAGE.png RECHERCHE
 cli-unknown-option = Option inconnue : { $option }
 cli-capture-error = Capture : { $error }
 cli-help =
@@ -154,6 +180,7 @@ cli-help =
       cargo run -- --render-demo DOSSIER
       cargo run -- --capture IMAGE.png
       cargo run -- --capture-recovery IMAGE.png DOSSIER_RECUPERATION
+      cargo run -- --capture-search IMAGE.png RECHERCHE
 preview-stats =
     { $pages ->
         [one] { $pages } page · { $milliseconds } ms

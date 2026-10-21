@@ -131,6 +131,46 @@ filets, les espacements et l’italique visuel des H3 n’ajoutent aucun contenu
 style au source : le modèle reste responsable de toute la présentation produite
 dans l’aperçu et les exports.
 
+## Rechercher et remplacer
+
+**Édition → Rechercher…**, la palette ou `⌘F` / `Ctrl+F` ouvre une barre compacte
+au-dessus du texte, sous les informations du document. La recherche est exacte,
+insensible à la casse par défaut ; **Aa** permet de respecter la casse. Les accents
+restent significatifs. Il n’y a ni recherche approximative ni syntaxe de regex :
+`.*`, par exemple, recherche ces deux caractères littéraux.
+
+La saisie surligne immédiatement toutes les occurrences dans l’éditeur, sans
+déplacer son curseur ou son défilement. Un clic sur un résultat sélectionne ce
+seul passage ; un clic sur un autre remplace la sélection précédente. Les autres
+résultats gardent leur fond de recherche. La sélection native réutilise le
+défilement et le surlignage existants dans l’aperçu Typst.
+
+Les flèches de la barre, Entrée / Maj+Entrée dans le champ de recherche et les
+commandes Occurrence suivante / précédente parcourent les résultats en boucle.
+Les raccourcis sont `⌘G` / `⌘⇧G` sur macOS, `F3` / `Maj+F3` sous Windows/Linux.
+Échap ou la croix ferme la barre et retire ses surbrillances en conservant la
+dernière sélection.
+
+Le chevron déplie **Remplacer par…**. On peut également utiliser **Édition →
+Rechercher et remplacer…**, `⌘⌥F` sur macOS ou `Ctrl+H` sous Windows/Linux.
+**Remplacer** agit sur l’occurrence sélectionnée puis rejoint la suivante ;
+**Tout remplacer** traite les résultats présents en une seule opération annulable.
+Un remplacement vide supprime les passages trouvés. Le nouveau texte reprend
+le style du premier caractère remplacé, y compris ses éventuels attributs de lien.
+
+Le périmètre couvre le corps éditable, les titres, termes de description, légendes
+et attributions. Les styles ne coupent pas une occurrence. Les métadonnées, textes
+alternatifs, chemins d’images et contenus ajoutés par le modèle sont exclus.
+Cette première version recherche et remplace du texte sur une seule ligne,
+sans franchir les séparateurs de structures ; elle recherche dans tout le corps,
+sans option de restriction à la sélection ni de mots entiers.
+
+`src/search.rs` réutilise le moteur Unicode de `regex`, déjà utilisé par Typst,
+en échappant systématiquement la saisie. Les résultats sont mis en cache par
+révision, texte recherché et option de casse. Les remplacements utilisent la
+session et son historique commun ; les surbrillances ne modifient ni le source,
+ni les exports, ni l’état enregistré.
+
 ## Statistiques de rédaction
 
 La barre d’état affiche les **mots et signes du document**, puis ceux de la
@@ -161,7 +201,8 @@ raccourcis et actions du registre :
 
 - **Fichier** : Nouveau, Ouvrir, Enregistrer, Enregistrer sous, Exporter et Fermer.
   **Récupérer des documents…** permet de retrouver les copies laissées pour plus tard.
-- **Édition** : Annuler, Rétablir, Retirer la mise en forme et Palette de commandes.
+- **Édition** : Annuler, Rétablir, Retirer la mise en forme, Rechercher,
+  Rechercher et remplacer, Occurrence suivante / précédente et Palette de commandes.
 - **Affichage** : Informations du document et Importer un modèle…
 
 Sur macOS, **Quitter typstOgraphe** se trouve dans le menu de l’application ; sur
@@ -773,3 +814,14 @@ Ce mode utilise uniquement le dossier indiqué pour la récupération ; les capt
 ordinaires n’accèdent pas aux copies personnelles. Les tests couvrent également
 une sortie brutale d’un sous-processus, les verrous, la récupération différée,
 l’échec d’écriture, la reprise sans écrasement et la suppression explicite.
+
+Pour capturer la recherche et sa première occurrence sélectionnée :
+
+```sh
+cargo run --locked -- --capture-search output/recherche.png salle
+```
+
+Les tests couvrent la recherche littérale Unicode, les changements de casse,
+les clics successifs avec une seule sélection et la synchronisation de l’aperçu,
+les fonds dans les deux thèmes, les légendes et attributions, les remplacements
+de tailles différentes et l’annulation/rétablissement du remplacement global.

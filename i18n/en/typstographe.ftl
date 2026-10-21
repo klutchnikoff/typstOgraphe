@@ -129,6 +129,7 @@ shortcut-conflict = Shortcut conflict: { $first } and { $second }
 cli-usage-render = Usage: --render-demo FOLDER
 cli-usage-capture = Usage: --capture IMAGE.png
 cli-usage-capture-recovery = Usage: --capture-recovery IMAGE.png RECOVERY_FOLDER
+cli-usage-capture-search = Usage: --capture-search IMAGE.png QUERY
 cli-unknown-option = Unknown option: { $option }
 cli-capture-error = Screenshot: { $error }
 cli-help =
@@ -138,6 +139,7 @@ cli-help =
       cargo run -- --render-demo FOLDER
       cargo run -- --capture IMAGE.png
       cargo run -- --capture-recovery IMAGE.png RECOVERY_FOLDER
+      cargo run -- --capture-search IMAGE.png QUERY
 preview-stats =
     { $pages ->
         [one] { $pages } page · { $milliseconds } ms
@@ -271,6 +273,30 @@ model-import-error = Cannot use this template: { $error }
 model-too-large = The template exceeds the size limit (1 MiB).
 model-contract-missing = The template must export the { $function } function.
 cmd-recover-documents = Recover documents…
+cmd-find = Find…
+cmd-find-replace = Find and replace…
+cmd-find-next = Next occurrence
+cmd-find-previous = Previous occurrence
+cmd-replace-current = Replace
+cmd-replace-all = Replace all
+search-placeholder = Find…
+search-replacement-placeholder = Replace with…
+search-toggle-replace = Show or hide replacement
+search-match-case = Match case
+search-close = Close search (Escape)
+search-active-result = { $current } / { $total }
+search-results =
+    { $count ->
+        [one] { $count } occurrence
+       *[other] { $count } occurrences
+    }
+search-replaced =
+    { $count ->
+        [one] { $count } replacement made.
+       *[other] { $count } replacements made.
+    }
+search-one-line = Replacement must be a single line, without structural separators.
+search-too-large = This search is too large. Try a shorter text.
 recovery-title = Documents to recover
 recovery-help = Working copies have been preserved. Recover opens a copy to save separately, without replacing the original file.
 recovery-date = Copy from { $date } (UTC)

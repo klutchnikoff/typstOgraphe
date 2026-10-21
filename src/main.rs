@@ -12,6 +12,7 @@ mod navigation;
 mod preferences;
 mod recovery;
 mod rendering;
+mod search;
 mod session;
 mod statistics;
 mod storage;
@@ -27,6 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
     let mut capture = None;
     let mut capture_recovery = None;
+    let mut capture_search = None;
     let mut open_path = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -63,6 +65,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     args.next().ok_or(crate::tr!("cli-usage-capture"))?,
                 ))
             }
+            "--capture-search" => {
+                capture = Some(PathBuf::from(
+                    args.next().ok_or(crate::tr!("cli-usage-capture-search"))?,
+                ));
+                capture_search = Some(args.next().ok_or(crate::tr!("cli-usage-capture-search"))?);
+            }
             "--capture-recovery" => {
                 capture = Some(PathBuf::from(
                     args.next()
@@ -96,12 +104,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "typstOgraphe",
         options,
         Box::new(move |cc| {
-            Ok(Box::new(app::App::new(
-                cc,
-                capture,
-                open_path,
-                capture_recovery,
-            )?))
+            let mut app = app::App::new(cc, capture, open_path, capture_recovery)?;
+            if let Some(query) = capture_search {
+                app.capture_search(query);
+            }
+            Ok(Box::new(app))
         }),
     )
     .map_err(|e| e.to_string())?;

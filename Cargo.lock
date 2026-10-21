@@ -5180,6 +5180,7 @@ dependencies = [
  "i18n-embed-fl",
  "muda",
  "png",
+ "regex",
  "resvg",
  "rfd",
  "rust-embed",

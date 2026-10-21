@@ -25,6 +25,8 @@ use std::{
 
 const ACCENT: Color32 = Color32::from_rgb(40, 92, 119);
 const PREVIEW_SELECTION: Color32 = Color32::from_rgba_premultiplied(16, 33, 59, 65);
+const SEARCH_ID: &str = "document-search";
+const REPLACE_ID: &str = "document-replacement";
 #[derive(Clone, Copy)]
 enum PendingAction {
     New,
@@ -47,6 +49,10 @@ pub struct App {
     recovery_open: bool,
     recovery_error: Option<String>,
     recovered_name: Option<String>,
+    search: crate::search::Search,
+    search_open: bool,
+    replace_open: bool,
+    search_focus_pending: bool,
     preferences: Preferences,
     preferences_open: bool,
     new_document_open: bool,
@@ -161,6 +167,10 @@ impl App {
             recovery_open: false,
             recovery_error: None,
             recovered_name: None,
+            search: Default::default(),
+            search_open: false,
+            replace_open: false,
+            search_focus_pending: false,
             preferences: Preferences::default(),
             preferences_open: false,
             new_document_open: false,
@@ -472,6 +482,10 @@ impl App {
         let keymap = self.keymap.for_document(letter.metadata.document_type())?;
         self.clear_recovery();
         self.recovered_name = None;
+        self.search = Default::default();
+        self.search_open = false;
+        self.replace_open = false;
+        self.search_focus_pending = false;
         self.keymap = keymap;
         self.history_field = None;
         self.session = Session::new(letter, document, path, self.session.revision + 1);
@@ -583,6 +597,24 @@ impl App {
             return;
         }
         match command {
+            Command::Find | Command::FindReplace => {
+                self.search_open = true;
+                self.replace_open |= command == Command::FindReplace;
+                self.search_focus_pending = true;
+            }
+            Command::FindNext | Command::FindPrevious => {
+                self.search_open = true;
+                self.refresh_search();
+                if let Some(index) = self
+                    .search
+                    .next(self.range(), command == Command::FindPrevious)
+                {
+                    self.select_search_result(index);
+                }
+            }
+            Command::ReplaceCurrent | Command::ReplaceAll => {
+                self.replace_search(command == Command::ReplaceAll)
+            }
             Command::RecoverDocuments => self.recovery_open = !self.recovery_entries.is_empty(),
             Command::ImportModel => self.import_model(),
             Command::InsertImage => self.choose_image(None),
@@ -886,6 +918,12 @@ impl App {
         if self.modal_open() {
             return;
         }
+        if self.search_open
+            && ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
+        {
+            self.close_search();
+            return;
+        }
         let focused = ctx.memory(|memory| memory.has_focus(egui::Id::new(editor::EDITOR_ID)));
         #[cfg(target_os = "macos")]
         let reserved = self
@@ -912,7 +950,11 @@ impl App {
             return;
         }
         if let Some(id) = ctx.memory(|memory| memory.focused()) {
-            if id == egui::Id::new(editor::EDITOR_ID) {
+            if id == egui::Id::new(editor::EDITOR_ID)
+                || [SEARCH_ID, REPLACE_ID]
+                    .iter()
+                    .any(|search_id| id == egui::Id::new(search_id))
+            {
                 self.history_field = None;
             } else if egui::TextEdit::load_state(ctx, id).is_some() {
                 self.history_field = Some(id);
@@ -934,6 +976,9 @@ impl App {
                         Command::Redo => !self.session.redo.is_empty(),
                         Command::Clear => self.history_field.is_none(),
                         Command::RecoverDocuments => !self.recovery_entries.is_empty(),
+                        Command::FindNext | Command::FindPrevious => {
+                            !self.search.matches.is_empty()
+                        }
                         _ => true,
                     };
                 (
@@ -1569,15 +1614,264 @@ impl App {
             self.apply(command);
         }
     }
+    fn refresh_search(&mut self) {
+        self.search
+            .refresh(self.session.revision, &self.session.document.view);
+    }
+    /// Diagnostic de présentation utilisant les mêmes commandes que l’interface.
+    pub fn capture_search(&mut self, query: String) {
+        self.apply(Command::FindReplace);
+        self.search.query = query;
+        self.apply(Command::FindNext);
+    }
+    fn close_search(&mut self) {
+        self.search_open = false;
+        self.search_focus_pending = false;
+        self.force_selection = true;
+    }
+    fn search_focus(&self, ctx: &egui::Context) -> Option<egui::Id> {
+        ctx.memory(|memory| memory.focused()).filter(|id| {
+            self.search_open
+                && [SEARCH_ID, REPLACE_ID]
+                    .iter()
+                    .any(|name| *id == egui::Id::new(name))
+        })
+    }
+    fn select_search_result(&mut self, index: usize) {
+        if let Some(range) = self.search.matches.get(index) {
+            // Une seule sélection native. Les autres résultats ne sont que des fonds colorés.
+            self.selection = editor::cursor(range.clone());
+            self.session.document.view.typing_style =
+                self.session.document.view.style_at(range.start);
+            self.force_selection = true;
+            self.editor_scroll_pending = true;
+            self.forward_pending = true;
+            self.session.typing_group = false;
+        }
+    }
+    fn replace_search(&mut self, all: bool) {
+        self.search_open = true;
+        self.replace_open = true;
+        self.refresh_search();
+        if !self.search.replacement_valid() {
+            return;
+        }
+        let ranges = if all {
+            self.search.matches.clone()
+        } else {
+            self.search
+                .selected(&self.range())
+                .map(|index| vec![self.search.matches[index].clone()])
+                .unwrap_or_default()
+        };
+        if ranges.is_empty() {
+            return;
+        }
+        self.selection = self
+            .session
+            .replace_ranges(self.selection.into(), &ranges, &self.search.replacement)
+            .into();
+        self.force_selection = true;
+        self.forward_pending = true;
+        self.refresh_search();
+        if !all && let Some(index) = self.search.next(self.range(), false) {
+            self.select_search_result(index);
+        }
+        self.message = Some(crate::tr!("search-replaced", count = ranges.len()));
+    }
+    fn search_ui(&mut self, ui: &mut egui::Ui) {
+        if !self.search_open {
+            return;
+        }
+        self.refresh_search();
+        // Consommer Entrée avant le TextEdit singleline évite de perdre le focus.
+        let enter = self
+            .search_focus(ui.ctx())
+            .filter(|_| ui.is_enabled())
+            .and_then(|id| {
+                if ui.input_mut(|input| input.consume_key(egui::Modifiers::SHIFT, egui::Key::Enter))
+                {
+                    Some((id, true))
+                } else if ui
+                    .input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
+                {
+                    Some((id, false))
+                } else {
+                    None
+                }
+            });
+        let mut action = None;
+        let mut close = false;
+        let chevron = |ui: &egui::Ui, rotation| {
+            egui::Button::new(
+                crate::icons::Icon::ChevronDown
+                    .image(ui.ctx(), 12.0)
+                    .rotate(rotation, egui::vec2(0.5, 0.5)),
+            )
+            .image_tint_follows_text_color(true)
+            .small()
+        };
+        ui.horizontal_wrapped(|ui| {
+            let toggle = ui
+                .add(chevron(
+                    ui,
+                    if self.replace_open {
+                        0.0
+                    } else {
+                        -std::f32::consts::FRAC_PI_2
+                    },
+                ))
+                .on_hover_text(crate::tr!("search-toggle-replace"));
+            toggle.widget_info(|| {
+                egui::WidgetInfo::labeled(
+                    egui::WidgetType::Button,
+                    ui.is_enabled(),
+                    crate::tr!("search-toggle-replace"),
+                )
+            });
+            if toggle.clicked() {
+                self.replace_open = !self.replace_open;
+            }
+            let width = (ui.available_width() - 260.0).max(60.0);
+            let mut output = egui::TextEdit::singleline(&mut self.search.query)
+                .id(egui::Id::new(SEARCH_ID))
+                .hint_text(crate::tr!("search-placeholder"))
+                .desired_width(width)
+                .show(ui);
+            if self.search_focus_pending && ui.is_enabled() {
+                output.response.request_focus();
+                output
+                    .state
+                    .cursor
+                    .set_char_range(Some(editor::cursor(0..self.search.query.chars().count())));
+                output.state.store(ui.ctx(), output.response.id);
+                self.search_focus_pending = false;
+            }
+            self.refresh_search();
+            let counter = match self.search.selected(&self.range()) {
+                Some(index) => crate::tr!(
+                    "search-active-result",
+                    current = index + 1,
+                    total = self.search.matches.len()
+                ),
+                None => crate::tr!("search-results", count = self.search.matches.len()),
+            };
+            // Largeur stable : choisir un résultat ne doit pas déplacer le texte
+            // sous le pointeur en repliant la barre sur une ligne supplémentaire.
+            ui.add_sized(
+                [90.0, ui.spacing().interact_size.y],
+                egui::Label::new(counter).truncate(),
+            );
+            let has_matches = !self.search.matches.is_empty();
+            for (rotation, command) in [
+                (std::f32::consts::PI, Command::FindPrevious),
+                (0.0, Command::FindNext),
+            ] {
+                let response = ui
+                    .add_enabled(has_matches, chevron(ui, rotation))
+                    .on_hover_text(self.keymap.hint(ui.ctx(), command));
+                response.widget_info(|| {
+                    egui::WidgetInfo::labeled(
+                        egui::WidgetType::Button,
+                        has_matches && ui.is_enabled(),
+                        command.label(),
+                    )
+                });
+                if response.clicked() {
+                    action = Some(command);
+                }
+            }
+            let case = ui
+                .selectable_label(self.search.case_sensitive, "Aa")
+                .on_hover_text(crate::tr!("search-match-case"));
+            case.widget_info(|| {
+                egui::WidgetInfo::selected(
+                    egui::WidgetType::Checkbox,
+                    ui.is_enabled(),
+                    self.search.case_sensitive,
+                    crate::tr!("search-match-case"),
+                )
+            });
+            if case.clicked() {
+                self.search.case_sensitive = !self.search.case_sensitive;
+                self.refresh_search();
+            }
+            close = ui
+                .small_button("×")
+                .on_hover_text(crate::tr!("search-close"))
+                .clicked();
+        });
+        if self.replace_open {
+            ui.horizontal_wrapped(|ui| {
+                ui.add_space(20.0);
+                let width = (ui.available_width() - 230.0).max(80.0);
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.search.replacement)
+                        .id(egui::Id::new(REPLACE_ID))
+                        .hint_text(crate::tr!("search-replacement-placeholder"))
+                        .desired_width(width),
+                );
+                let valid = self.search.replacement_valid();
+                for (command, enabled) in [
+                    (
+                        Command::ReplaceCurrent,
+                        self.search.selected(&self.range()).is_some(),
+                    ),
+                    (Command::ReplaceAll, !self.search.matches.is_empty()),
+                ] {
+                    if ui
+                        .add_enabled(valid && enabled, egui::Button::new(command.label()).small())
+                        .clicked()
+                    {
+                        action = Some(command);
+                    }
+                }
+            });
+            if !self.search.replacement_valid() {
+                ui.colored_label(ui.visuals().error_fg_color, crate::tr!("search-one-line"));
+            }
+        }
+        if self.search.failed {
+            ui.colored_label(ui.visuals().error_fg_color, crate::tr!("search-too-large"));
+        }
+        if let Some((id, backward)) = enter {
+            action = Some(if id == egui::Id::new(REPLACE_ID) && !backward {
+                Command::ReplaceCurrent
+            } else if backward {
+                Command::FindPrevious
+            } else {
+                Command::FindNext
+            });
+        }
+        if let Some(command) = action {
+            self.apply(command);
+            let id = if matches!(command, Command::ReplaceCurrent | Command::ReplaceAll) {
+                REPLACE_ID
+            } else {
+                SEARCH_ID
+            };
+            ui.memory_mut(|memory| memory.request_focus(egui::Id::new(id)));
+            ui.ctx().request_repaint();
+        }
+        if close {
+            self.close_search();
+        }
+        ui.separator();
+    }
     fn editor_ui(&mut self, ui: &mut egui::Ui) {
         self.toolbar(ui);
         ui.separator();
         self.information_ui(ui);
         ui.separator();
+        self.search_ui(ui);
         let before = self.snapshot();
         let old_range = self.selection;
         if self.force_selection {
+            let search_focus = self.search_focus(ui.ctx());
             editor::restore_cursor(ui.ctx(), self.selection);
+            if let Some(id) = search_focus {
+                ui.memory_mut(|memory| memory.request_focus(id));
+            }
             self.force_selection = false;
         }
         for image in self.session.document.view.images.values() {
@@ -1597,8 +1891,26 @@ impl App {
         let lock_tab = view.annotation_at(self.range()).is_some()
             || view.blocks[view.line_at(self.selection.primary.index)] == BlockKind::Description;
         let editor_style = self.preferences.editor;
+        let matches = if self.search_open {
+            self.search.matches.clone()
+        } else {
+            vec![]
+        };
+        let active = self.search.selected(&self.range());
         let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, width: f32| {
-            editor::layout(ui, &view, text.as_str(), width, editor_style)
+            if matches.is_empty() {
+                editor::layout(ui, &view, text.as_str(), width, editor_style)
+            } else {
+                editor::layout_with_search(
+                    ui,
+                    &view,
+                    text.as_str(),
+                    width,
+                    editor_style,
+                    &matches,
+                    active,
+                )
+            }
         };
         let mut image_action = None;
         egui::ScrollArea::vertical()
@@ -1630,12 +1942,27 @@ impl App {
                         if let Some(range) = output.cursor_range {
                             self.selection = range;
                         }
+                        if self.search_open
+                            && output.response.clicked()
+                            && let Some(pointer) = output.response.interact_pointer_pos()
+                            && let Some((index, _)) = editor::search_rects(&output.galley, &matches)
+                                .iter()
+                                .find(|(_, rect)| {
+                                    rect.translate(output.galley_pos.to_vec2())
+                                        .contains(pointer)
+                                })
+                        {
+                            self.selection = editor::cursor(matches[*index].clone());
+                            self.force_selection = true;
+                        }
                         if let Some(at) = clicked_term {
                             self.selection = editor::cursor(at..at);
                             self.force_selection = true;
                         }
                         if self.editor_scroll_pending {
-                            output.response.request_focus();
+                            if self.search_focus(ui.ctx()).is_none() {
+                                output.response.request_focus();
+                            }
                             let cursor = output.galley.pos_from_cursor(self.selection.primary);
                             ui.scroll_to_rect(
                                 cursor.translate(output.galley_pos.to_vec2()),
@@ -1653,10 +1980,16 @@ impl App {
                         );
                         let changed = output.response.changed();
                         let mut state = output.state;
+                        if self.force_selection {
+                            state.cursor.set_char_range(Some(self.selection));
+                        }
                         state.clear_undoer();
                         state.store(ui.ctx(), output.response.id);
                         if changed {
                             self.remember(before.clone(), true);
+                            if self.search_open {
+                                self.refresh_search();
+                            }
                             ui.ctx().request_repaint();
                         } else if self.selection != old_range {
                             let selected = self.range();
@@ -2474,6 +2807,187 @@ impl eframe::App for App {
 mod interaction_tests {
     use super::*;
     use crate::document_types::courrier::{Command as CourrierCommand, Model};
+
+    fn search_draw(
+        app: &mut App,
+        ctx: &egui::Context,
+        events: Vec<egui::Event>,
+    ) -> egui::FullOutput {
+        ctx.run(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1240.0, 900.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ctx| app.ui_frame(ctx),
+        )
+    }
+    #[test]
+    fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_preview_highlights()
+     {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let mut letter = StoredDocument::blank(DocumentType::Courrier);
+        letter.source = "Un *été*, puis un ÉTÉ et encore un _été_.".into();
+        let document = Document::from_source(&letter.source).unwrap();
+        app.install_document(letter, document, None).unwrap();
+        let before = app.stored_document();
+        let mut world = crate::rendering::TypstWorld::default();
+        let compiled = world
+            .compile_with_template(
+                app.session.document.source(),
+                &app.session.metadata,
+                &app.session.template,
+            )
+            .unwrap();
+        app.sync = Some(RenderSync::new(
+            app.session.revision,
+            world,
+            compiled,
+            app.session.document.source_map.clone(),
+        ));
+        app.rendered_revision = Some(app.session.revision);
+        let _ = search_draw(&mut app, &ctx, vec![]);
+        let key = |key, modifiers| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers,
+        };
+        let _ = search_draw(
+            &mut app,
+            &ctx,
+            vec![key(egui::Key::F, egui::Modifiers::COMMAND)],
+        );
+        assert!(app.search_open && app.search_focus(&ctx).is_some());
+        let caret = app.selection;
+        let _ = search_draw(&mut app, &ctx, vec![egui::Event::Text("été".into())]);
+        assert_eq!(app.search.matches.len(), 3);
+        assert_eq!(
+            app.selection, caret,
+            "la saisie de recherche ne déplace pas le curseur du document"
+        );
+        assert_eq!(app.stored_document(), before);
+        assert!(!app.is_dirty());
+        let _ = search_draw(
+            &mut app,
+            &ctx,
+            vec![key(egui::Key::Enter, egui::Modifiers::NONE)],
+        );
+        assert_eq!(app.range(), app.search.matches[0]);
+        assert!(
+            app.search_focus(&ctx).is_some(),
+            "Entrée doit permettre de continuer la saisie de recherche"
+        );
+        let mut previous = None;
+        for index in [1, 2] {
+            let output = search_draw(&mut app, &ctx, vec![]);
+            let point = output
+                .shapes
+                .iter()
+                .find_map(|shape| match &shape.shape {
+                    egui::Shape::Text(text)
+                        if text.galley.job.text == app.session.document.view.text =>
+                    {
+                        editor::search_rects(&text.galley, &app.search.matches)
+                            .into_iter()
+                            .find(|(found, _)| *found == index)
+                            .map(|(_, rect)| text.pos + rect.center().to_vec2())
+                    }
+                    _ => None,
+                })
+                .expect("résultat visible dans l’éditeur");
+            for pressed in [true, false] {
+                let _ = search_draw(
+                    &mut app,
+                    &ctx,
+                    vec![
+                        egui::Event::PointerMoved(point),
+                        egui::Event::PointerButton {
+                            pos: point,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        },
+                    ],
+                );
+            }
+            let _ = search_draw(&mut app, &ctx, vec![]);
+            assert_eq!(app.range(), app.search.matches[index]);
+            let native = egui::TextEdit::load_state(&ctx, egui::Id::new(editor::EDITOR_ID))
+                .unwrap()
+                .cursor
+                .char_range()
+                .unwrap();
+            assert_eq!(native.as_sorted_char_range(), app.search.matches[index]);
+            assert_eq!(
+                app.search.matches.len(),
+                3,
+                "l’ancienne occurrence reste un résultat surligné"
+            );
+            let highlights = app.sync.as_ref().unwrap().selection_highlights(app.range());
+            assert!(!highlights.is_empty());
+            let first = highlights[0].corners;
+            assert!(previous.is_none_or(|previous| previous != first));
+            previous = Some(first);
+        }
+        let _ = search_draw(
+            &mut app,
+            &ctx,
+            vec![key(egui::Key::Escape, egui::Modifiers::NONE)],
+        );
+        assert!(!app.search_open);
+        assert_eq!(app.range(), app.search.matches[2]);
+    }
+
+    #[test]
+    fn replacement_commands_refresh_results_and_replace_all_is_a_single_document_transaction() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let mut stored = StoredDocument::blank(DocumentType::Courrier);
+        stored.source = "Un *été* et un _ÉTÉ_, été.".into();
+        app.install_document(
+            stored.clone(),
+            Document::from_source(&stored.source).unwrap(),
+            None,
+        )
+        .unwrap();
+        app.apply(Command::FindReplace);
+        app.search.query = "été".into();
+        app.search.replacement = "Noël".into();
+        app.apply(Command::FindNext);
+        assert_eq!(app.search.matches.len(), 3);
+        app.apply(Command::ReplaceCurrent);
+        assert_eq!(app.search.matches.len(), 2);
+        assert_eq!(app.range(), app.search.matches[0]);
+        assert!(app.session.document.view.text.contains("Noël"));
+        app.apply(Command::Undo);
+        app.refresh_search();
+        assert_eq!(app.stored_document(), stored);
+        app.search.replacement = "été été".into();
+        app.apply(Command::ReplaceAll);
+        assert_eq!(
+            app.search.matches.len(),
+            6,
+            "les nouveaux résultats ne sont pas remplacés en boucle"
+        );
+        assert_eq!(app.session.undo.len(), 1);
+        app.apply(Command::Undo);
+        assert_eq!(app.stored_document(), stored);
+        app.apply(Command::Redo);
+        app.refresh_search();
+        assert_eq!(app.search.matches.len(), 6);
+        app.search.replacement.clear();
+        app.apply(Command::ReplaceAll);
+        assert!(app.search.matches.is_empty());
+        app.apply(Command::Undo);
+        app.refresh_search();
+        assert_eq!(app.search.matches.len(), 6);
+    }
 
     fn recovery_click(app: &mut App, ctx: &egui::Context, label: &str) {
         let draw = |app: &mut App, events| {

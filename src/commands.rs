@@ -45,6 +45,12 @@ pub enum Command {
     InsertImage,
     ImportModel,
     RecoverDocuments,
+    Find,
+    FindReplace,
+    FindNext,
+    FindPrevious,
+    ReplaceCurrent,
+    ReplaceAll,
     Undo,
     Redo,
 }
@@ -112,8 +118,12 @@ impl Definition {
             Command::Undo => (MenuGroup::Edit, 0),
             Command::Redo => (MenuGroup::Edit, 1),
             Command::Clear => (MenuGroup::Edit, 10),
-            Command::Palette => (MenuGroup::Edit, 20),
-            Command::Preferences => (MenuGroup::Edit, 30),
+            Command::Find => (MenuGroup::Edit, 20),
+            Command::FindReplace => (MenuGroup::Edit, 21),
+            Command::FindNext => (MenuGroup::Edit, 22),
+            Command::FindPrevious => (MenuGroup::Edit, 23),
+            Command::Palette => (MenuGroup::Edit, 30),
+            Command::Preferences => (MenuGroup::Edit, 40),
             Command::Information => (MenuGroup::View, 0),
             Command::InsertImage => (MenuGroup::Insert, 0),
             Command::ImportModel => (MenuGroup::View, 10),
@@ -172,6 +182,63 @@ pub(crate) const fn short(mut definition: Definition, label: &'static str) -> De
 
 /// Chaque commande, y compris sans raccourci, est définie une seule fois ici.
 pub const COMMON_COMMANDS: &[Definition] = &[
+    define(
+        "edit.replace_current",
+        "cmd-replace-current",
+        Command::ReplaceCurrent,
+        Scope::Global,
+        &[],
+    ),
+    define(
+        "edit.replace_all",
+        "cmd-replace-all",
+        Command::ReplaceAll,
+        Scope::Global,
+        &[],
+    ),
+    define(
+        "edit.find",
+        "cmd-find",
+        Command::Find,
+        Scope::Global,
+        &[primary(Key::F)],
+    ),
+    Definition {
+        macos: Some(&[KeyboardShortcut::new(
+            Modifiers {
+                alt: true,
+                ..Modifiers::COMMAND
+            },
+            Key::F,
+        )]),
+        ..define(
+            "edit.find_replace",
+            "cmd-find-replace",
+            Command::FindReplace,
+            Scope::Global,
+            &[primary(Key::H)],
+        )
+    },
+    Definition {
+        macos: Some(&[primary(Key::G)]),
+        ..define(
+            "edit.find_next",
+            "cmd-find-next",
+            Command::FindNext,
+            Scope::Global,
+            &[KeyboardShortcut::new(Modifiers::NONE, Key::F3)],
+        )
+    },
+    Definition {
+        macos: Some(&[primary_shift(Key::G)]),
+        ..define(
+            "edit.find_previous",
+            "cmd-find-previous",
+            Command::FindPrevious,
+            Scope::Global,
+            &[KeyboardShortcut::new(Modifiers::SHIFT, Key::F3)],
+        )
+    },
     define(
         "document.recover",
         "cmd-recover-documents",

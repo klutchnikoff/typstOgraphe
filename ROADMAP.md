@@ -66,7 +66,7 @@ les cas d’usage sont aboutis :
 - Contrôles automatisés sur macOS, Windows et Linux ; les essais manuels Windows
   et Linux restent à faire.
 
-La récupération après incident, la recherche, les correcteurs, les tableaux,
+Au départ, la récupération après incident, la recherche, les correcteurs, les tableaux,
 les notes, les références bibliographiques, les profils et la bibliothèque
 persistante de modèles restent à développer.
 
@@ -74,6 +74,8 @@ persistante de modèles restent à développer.
 
 - **Étape 1 — Récupération : implémentée ; essai utilisateur à faire.** Les choix
   validés et le périmètre livré sont précisés dans le chantier A ci-dessous.
+- **Étape 2 — Rechercher/remplacer : implémentée ; essai utilisateur à faire.**
+  Les choix validés et le périmètre livré sont précisés dans le chantier B.
 - Les étapes suivantes ne sont pas commencées ; leurs choix principaux restent
   à discuter ensemble.
 
@@ -134,6 +136,23 @@ dernier fichier valide ; la reprise est compréhensible et le travail récupér�
 conserve texte, métadonnées, modèle et ressources.
 
 ## B. Outils de rédaction — P1, puis P2/P3
+
+**Première étape implémentée, choix validés le 21 octobre 2026 :**
+
+- Barre compacte au-dessus du texte, recherche exacte et instantanée dans le corps
+  entier ; casse ignorée par défaut, accents significatifs, option de casse.
+- Toutes les occurrences surlignées ; chaque clic remplace l’unique sélection
+  native. L’ancienne occurrence conserve sa surbrillance de recherche.
+- Navigation suivante/précédente et réutilisation de la synchronisation existante
+  avec l’aperçu. Fermer la barre conserve la sélection et retire les surbrillances.
+- Remplacer l’occurrence active et Tout remplacer ; historique commun et une
+  seule transaction pour le remplacement global, style du premier caractère.
+- Corps, titres, descriptions, légendes et attributions inclus ; métadonnées,
+  textes alternatifs et contenus du modèle exclus.
+- Réutilisation de `regex` pour la recherche Unicode strictement littérale.
+- Aucun mode approximatif, aucune regex utilisateur ni sélection discontinue.
+  Recherche limitée à une ligne ; restriction à la sélection et mots entiers
+  restent des extensions éventuelles à discuter, sans les ajouter par défaut.
 
 **Objectif :** faciliter la saisie et la révision sans exposer le source.
 
@@ -334,5 +353,5 @@ coordonnées ni ressources fictives imposées.
 | 8 | Étendre les usages (F, B, C) | Conversions, grammaire avancée et besoins spécialisés |
 
 Chaque ligne sera découpée en étapes plus petites. Les dépendances concrètes
-peuvent conduire à revoir cet ordre ensemble. Après l’essai de la récupération,
-le prochain périmètre proposé à discuter est rechercher/remplacer.
+peuvent conduire à revoir cet ordre ensemble. Après l’essai de rechercher/remplacer,
+le prochain périmètre proposé à discuter est la correction orthographique.

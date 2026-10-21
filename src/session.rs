@@ -199,12 +199,90 @@ impl Session {
         }
         self.remember(before, selection, false)
     }
+    /// Remplacements non chevauchants, en une transaction. Les frontières de
+    /// blocs restent en place ; le texte reprend le style du premier caractère.
+    pub fn replace_ranges(
+        &mut self,
+        selection: Selection,
+        ranges: &[Range<usize>],
+        replacement: &str,
+    ) -> Selection {
+        let Some(first) = ranges.first() else {
+            return selection;
+        };
+        let before = self.snapshot(selection);
+        let old_typing_style = self.document.view.typing_style.clone();
+        for range in ranges.iter().rev() {
+            self.document.view.typing_style = self.document.view.style_at(range.start);
+            self.document.view.delete_char_range(range.clone());
+            self.document.view.insert_text(replacement, range.start);
+        }
+        self.document.view.typing_style = old_typing_style;
+        let after = Selection {
+            primary: Caret {
+                index: first.start + replacement.chars().count(),
+                ..Default::default()
+            },
+            secondary: Caret {
+                index: first.start,
+                ..Default::default()
+            },
+        };
+        self.remember(before, after, false)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::document_types::DocumentType;
+    #[test]
+    fn replacing_results_preserves_structures_and_starting_styles_with_one_undo() {
+        let mut letter = StoredDocument::blank(DocumentType::Courrier);
+        letter.source = "= *été*\n\nUn _été_ et un #strong[é]té.\n\n/ été: été\n\n#quote(block: true, attribution: [été])[été]\n\n#figure(image(\"images/parc.svg\"), caption: [été])".into();
+        let document = Document::from_source(&letter.source).unwrap();
+        let original = document.clone();
+        let mut session = Session::new(letter, document, None, 1);
+        let mut search = crate::search::Search::default();
+        search.query = "été".into();
+        search.refresh(session.revision, &session.document.view);
+        assert_eq!(search.matches.len(), 8);
+        let original_ranges = search.matches.clone();
+        let old_selection = Selection {
+            primary: Caret {
+                index: 1,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let after = session.replace_ranges(old_selection, &search.matches, "Noël");
+        assert_eq!(session.undo.len(), 1);
+        assert_eq!(session.document.view.blocks, original.view.blocks);
+        assert_eq!(session.document.view.images, original.view.images);
+        let mut expected = original.view.text.clone();
+        for range in search.matches.iter().rev() {
+            expected.replace_range(
+                original.view.byte_index(range.start)..original.view.byte_index(range.end),
+                "Noël",
+            );
+        }
+        assert_eq!(session.document.view.text, expected);
+        search.query = "Noël".into();
+        search.refresh(session.revision, &session.document.view);
+        for (range, old_range) in search.matches.iter().zip(original_ranges) {
+            let style = original.view.style_at(old_range.start);
+            assert!(
+                session.document.view.styles[range.clone()]
+                    .iter()
+                    .all(|value| *value == style)
+            );
+        }
+        assert_eq!(session.history(true, after), Some(old_selection));
+        assert_eq!(session.document, original);
+        assert!(!session.is_dirty());
+        session.history(false, old_selection);
+        assert_eq!(session.document.view.text, expected);
+    }
     #[test]
     fn unified_history_restores_content_metadata_model_selection_and_clean_state() {
         let mut letter = StoredDocument::demo(DocumentType::Courrier);
