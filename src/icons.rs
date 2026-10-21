@@ -3,6 +3,7 @@ use eframe::egui::{self, Color32, ColorImage, TextureHandle};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Icon {
+    Paragraph,
     Heading,
     Heading1,
     Heading2,
@@ -11,6 +12,8 @@ pub enum Icon {
     Italic,
     Link,
     List,
+    ListOrdered,
+    ListDescription,
     Quote,
     Image,
     ChevronDown,
@@ -19,6 +22,7 @@ pub enum Icon {
 impl Icon {
     fn svg(self) -> &'static str {
         match self {
+            Self::Paragraph => include_str!("../assets/icons/lucide/pilcrow.svg"),
             Self::Heading => include_str!("../assets/icons/lucide/heading.svg"),
             Self::Heading1 => include_str!("../assets/icons/lucide/heading-1.svg"),
             Self::Heading2 => include_str!("../assets/icons/lucide/heading-2.svg"),
@@ -27,9 +31,27 @@ impl Icon {
             Self::Italic => include_str!("../assets/icons/lucide/italic.svg"),
             Self::Link => include_str!("../assets/icons/lucide/link.svg"),
             Self::List => include_str!("../assets/icons/lucide/list.svg"),
+            Self::ListOrdered => include_str!("../assets/icons/lucide/list-ordered.svg"),
+            Self::ListDescription => include_str!("../assets/icons/lucide/list-collapse.svg"),
             Self::Quote => include_str!("../assets/icons/lucide/quote.svg"),
             Self::Image => include_str!("../assets/icons/lucide/image-plus.svg"),
             Self::ChevronDown => include_str!("../assets/icons/lucide/chevron-down.svg"),
+        }
+    }
+
+    pub fn for_block(kind: crate::document::BlockKind) -> Self {
+        use crate::document::BlockKind;
+        match kind {
+            BlockKind::Paragraph => Self::Paragraph,
+            BlockKind::Heading(1) => Self::Heading1,
+            BlockKind::Heading(2) => Self::Heading2,
+            BlockKind::Heading(3) => Self::Heading3,
+            BlockKind::Heading(_) => Self::Heading,
+            BlockKind::Bullet => Self::List,
+            BlockKind::Numbered => Self::ListOrdered,
+            BlockKind::Description => Self::ListDescription,
+            BlockKind::Quote | BlockKind::QuoteAttribution => Self::Quote,
+            BlockKind::Image(_) => Self::Image,
         }
     }
 
@@ -77,6 +99,7 @@ mod tests {
     #[test]
     fn bundled_icons_render_as_transparent_monochrome_masks_at_screen_density() {
         for icon in [
+            Icon::Paragraph,
             Icon::Heading,
             Icon::Heading1,
             Icon::Heading2,
@@ -85,6 +108,8 @@ mod tests {
             Icon::Italic,
             Icon::Link,
             Icon::List,
+            Icon::ListOrdered,
+            Icon::ListDescription,
             Icon::Quote,
             Icon::Image,
             Icon::ChevronDown,

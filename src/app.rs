@@ -4310,6 +4310,14 @@ mod interaction_tests {
                     icon_rect(&output, &ctx, heading_icon).center(),
                 );
                 let (menu, _) = draw(&mut app, &ctx, vec![]);
+                for icon in [
+                    Icon::Paragraph,
+                    Icon::Heading1,
+                    Icon::Heading2,
+                    Icon::Heading3,
+                ] {
+                    assert!(icon_rect(&menu, &ctx, icon).is_positive());
+                }
                 assert!(text_point(&menu, &Command::Block(BlockKind::Quote).label()).is_none());
                 let command = Command::Block(kind);
                 let pos = text_point(&menu, &command.short_label()).expect("entrée du menu Titres");
@@ -4397,6 +4405,12 @@ mod interaction_tests {
                 );
             }
             let output = draw(&mut app, vec![]);
+            for icon in [
+                crate::icons::Icon::ListOrdered,
+                crate::icons::Icon::ListDescription,
+            ] {
+                assert!(icon_rect(&output, &ctx, icon).is_positive());
+            }
             for list in [
                 BlockKind::Bullet,
                 BlockKind::Numbered,

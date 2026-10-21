@@ -9,6 +9,13 @@ use std::ops::Range;
 
 pub const ICON_SIZE: f32 = 18.0;
 
+fn neutral_selection(ui: &mut egui::Ui) {
+    let ink = ui.visuals().text_color();
+    let dark = ui.visuals().dark_mode;
+    ui.visuals_mut().selection.bg_fill = Color32::from_gray(if dark { 64 } else { 224 });
+    ui.visuals_mut().selection.stroke = Stroke::new(1.0_f32, ink);
+}
+
 fn button(ui: &egui::Ui, icon: Icon, active: bool, menu: bool) -> egui::Button<'static> {
     let image = icon.image(ui.ctx(), ICON_SIZE);
     let button = if menu {
@@ -21,6 +28,12 @@ fn button(ui: &egui::Ui, icon: Icon, active: bool, menu: bool) -> egui::Button<'
         .min_size(egui::vec2(if menu { 48.0 } else { 32.0 }, 32.0))
         .frame_when_inactive(false)
         .selected(active)
+}
+
+fn menu_item(ui: &mut egui::Ui, kind: BlockKind, active: bool, label: String) -> Response {
+    neutral_selection(ui);
+    let image = Icon::for_block(kind).image(ui.ctx(), ICON_SIZE);
+    ui.add(egui::Button::selectable(active, (image, label)).image_tint_follows_text_color(true))
 }
 
 fn describe(
@@ -64,16 +77,11 @@ pub fn show(
     ui.scope(|ui| {
         // Les états de sélection de la barre restent neutres, indépendants de
         // la sélection bleue du texte et des styles sémantiques de l’éditeur.
-        let ink = ui.visuals().text_color();
-        let dark = ui.visuals().dark_mode;
-        ui.visuals_mut().selection.bg_fill = Color32::from_gray(if dark { 64 } else { 224 });
-        ui.visuals_mut().selection.stroke = Stroke::new(1.0_f32, ink);
+        neutral_selection(ui);
         ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
         ui.horizontal_wrapped(|ui| {
             let heading = match (mixed, kind) {
-                (false, BlockKind::Heading(1)) => Icon::Heading1,
-                (false, BlockKind::Heading(2)) => Icon::Heading2,
-                (false, BlockKind::Heading(3)) => Icon::Heading3,
+                (false, BlockKind::Heading(_)) => Icon::for_block(kind),
                 _ => Icon::Heading,
             };
             let active = !mixed && matches!(kind, BlockKind::Heading(_));
@@ -86,13 +94,17 @@ pub fn show(
                             .filter(|d| d.in_heading_menu())
                         {
                             let command = definition.command;
-                            if ui
-                                .selectable_label(
-                                    !mixed && command == Command::Block(kind),
-                                    command.short_label(),
-                                )
-                                .on_hover_text(keymap.hint(ui.ctx(), command))
-                                .clicked()
+                            let Command::Block(block) = command else {
+                                continue;
+                            };
+                            if menu_item(
+                                ui,
+                                block,
+                                !mixed && command == Command::Block(kind),
+                                command.short_label(),
+                            )
+                            .on_hover_text(keymap.hint(ui.ctx(), command))
+                            .clicked()
                             {
                                 action = Some(command);
                                 ui.close();
@@ -155,9 +167,11 @@ pub fn show(
             .ui(ui, |ui| {
                 for definition in keymap.registry().definitions().filter(|d| d.in_list_menu()) {
                     let command = definition.command;
+                    let Command::Block(block) = command else {
+                        continue;
+                    };
                     let active = !mixed && command == Command::Block(kind);
-                    if ui
-                        .selectable_label(active, command.label())
+                    if menu_item(ui, block, active, command.label())
                         .on_hover_text(keymap.hint(ui.ctx(), command))
                         .clicked()
                     {

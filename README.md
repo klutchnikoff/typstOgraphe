@@ -37,7 +37,7 @@ Linux restent nécessaires avant de déclarer ces plateformes validées.
 La barre compacte utilise des icônes monochromes Lucide embarquées, nettes à la
 densité de l’écran et disponibles hors ligne. Elle regroupe **Titres**, puis
 **Gras / Italique / Lien**, puis **Listes / Citation / Image**. Les deux menus
-gardent des libellés explicites ; les boutons affichent des info-bulles traduites
+associent icônes et libellés explicites ; les boutons affichent des info-bulles traduites
 avec les raccourcis actifs et possèdent des noms accessibles. Les états actifs
 utilisent un fond gris ; un petit trait indique une sélection de styles mixtes.
 Le menu Titres permet aussi de revenir au paragraphe normal. La barre réutilise
