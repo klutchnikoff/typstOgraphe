@@ -1,7 +1,6 @@
 //! Annotations facultatives de la projection éditable, indépendantes de leur
 //! disposition et du modèle Typst. Tous les indices désignent des caractères.
 use crate::document::{BlockKind, Projection};
-use eframe::egui::TextBuffer;
 use std::ops::Range;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -5,17 +5,16 @@ use crate::{
         BlockKind, Document, DocumentLanguage, ImageBlock, InlineStyle, Mark, PaperFormat,
         Projection,
     },
-    document_types::{
-        DocumentType, Metadata, ModelPresentation, courrier::Command as CourrierCommand,
-    },
+    document_types::{DocumentType, ModelPresentation},
     editor, menus,
     navigation::{PagePoint, RenderSync},
     preferences::{Appearance, EditorFont, Preferences},
     rendering::{RenderRequest, RenderWorker},
+    session::{EditGroup, Session, Snapshot},
     storage::{self, StoredDocument},
 };
 use eframe::egui::{
-    self, Color32, RichText, TextBuffer,
+    self, Color32, RichText,
     text::{CCursor, CCursorRange},
 };
 use std::{
@@ -26,11 +25,6 @@ use std::{
 
 const ACCENT: Color32 = Color32::from_rgb(40, 92, 119);
 const PREVIEW_SELECTION: Color32 = Color32::from_rgba_premultiplied(16, 33, 59, 65);
-#[derive(Clone)]
-struct Snapshot {
-    document: Document,
-    selection: CCursorRange,
-}
 #[derive(Clone, Copy)]
 enum PendingAction {
     New,
@@ -46,19 +40,16 @@ enum InformationGroup {
 }
 
 pub struct App {
+    session: Session,
     preferences: Preferences,
     preferences_open: bool,
+    new_document_open: bool,
+    new_document_type: DocumentType,
     keymap: Keymap,
     #[cfg(target_os = "macos")]
     native_menus: Option<menus::native::NativeMenus>,
     history_field: Option<egui::Id>,
-    field_history_action: Option<(Command, egui::Id)>,
-    pub document: Document,
-    metadata: Metadata,
-    template: String,
     presentation: ModelPresentation,
-    file_path: Option<PathBuf>,
-    saved: StoredDocument,
     file_command: Option<FileCommand>,
     pending_action: Option<PendingAction>,
     file_error: Option<String>,
@@ -66,15 +57,9 @@ pub struct App {
     window_title: String,
     selection: CCursorRange,
     force_selection: bool,
-    undo: Vec<Snapshot>,
-    redo: Vec<Snapshot>,
-    last_edit: Instant,
-    typing_group: bool,
     worker: RenderWorker,
-    revision: u64,
     statistics: crate::statistics::Counter,
     submitted: u64,
-    changed_at: Instant,
     pages: Vec<egui::TextureHandle>,
     rendering_time: Option<Duration>,
     rendering_error: Option<String>,
@@ -152,19 +137,16 @@ impl App {
         let document =
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
+            session: Session::new(saved, document, None, 1),
             preferences: Preferences::default(),
             preferences_open: false,
+            new_document_open: false,
+            new_document_type: DocumentType::Courrier,
             keymap,
             #[cfg(target_os = "macos")]
             native_menus: None,
             history_field: None,
-            field_history_action: None,
-            document,
-            metadata: saved.metadata.clone(),
-            template: saved.template.clone(),
             presentation: ModelPresentation::default(),
-            file_path: None,
-            saved,
             file_command: None,
             pending_action: None,
             file_error: None,
@@ -172,15 +154,9 @@ impl App {
             window_title: String::new(),
             selection: CCursorRange::one(CCursor::new(0)),
             force_selection: false,
-            undo: vec![],
-            redo: vec![],
-            last_edit: Instant::now(),
-            typing_group: false,
             worker,
-            revision: 1,
             statistics: Default::default(),
             submitted: 0,
-            changed_at: Instant::now() - Duration::from_secs(1),
             pages: vec![],
             rendering_time: None,
             rendering_error: None,
@@ -214,27 +190,17 @@ impl App {
         }
     }
     fn snapshot(&self) -> Snapshot {
-        Snapshot {
-            document: self.document.clone(),
-            selection: self.selection,
-        }
+        self.session.snapshot(self.selection.into())
     }
     fn stored_document(&self) -> StoredDocument {
-        StoredDocument {
-            source: self.document.source().into(),
-            metadata: self.metadata.clone(),
-            template: self.template.clone(),
-            assets: self.document.assets.clone(),
-        }
+        self.session.stored_document()
     }
     fn is_dirty(&self) -> bool {
-        self.saved.source != self.document.source()
-            || self.saved.metadata != self.metadata
-            || self.saved.template != self.template
-            || self.saved.assets != self.document.assets
+        self.session.is_dirty()
     }
     fn modal_open(&self) -> bool {
-        self.image_info.is_some()
+        self.new_document_open
+            || self.image_info.is_some()
             || self.preferences_open
             || self.palette_open
             || self.link_open
@@ -250,10 +216,10 @@ impl App {
                     "letter-saved",
                     path = path.display().to_string()
                 ));
-                self.file_path = Some(path);
+                self.session.file_path = Some(path);
                 // Le fichier est nettoyé par storage::save ; ce repère en mémoire
                 // garde les mêmes ressources que l’historique pour is_dirty.
-                self.saved = letter;
+                self.session.saved = letter;
                 self.file_error = None;
                 true
             }
@@ -264,20 +230,26 @@ impl App {
         }
     }
     fn save_document(&mut self, save_as: bool) -> bool {
-        if !save_as && let Some(path) = self.file_path.clone() {
+        if !save_as && let Some(path) = self.session.file_path.clone() {
             return self.save_path(path);
         }
         let mut dialog = rfd::FileDialog::new()
             .set_title(crate::tr!("save-dialog"))
             .add_filter(crate::tr!("letter-filter"), &[storage::EXTENSION])
             .set_file_name(
-                self.file_path
+                self.session
+                    .file_path
                     .as_ref()
                     .and_then(|path| path.file_name())
                     .map(|name| name.to_string_lossy().into_owned())
                     .unwrap_or_else(|| crate::tr!("default-filename")),
             );
-        if let Some(parent) = self.file_path.as_ref().and_then(|path| path.parent()) {
+        if let Some(parent) = self
+            .session
+            .file_path
+            .as_ref()
+            .and_then(|path| path.parent())
+        {
             dialog = dialog.set_directory(parent);
         }
         if let Some(mut path) = dialog.save_file() {
@@ -329,20 +301,11 @@ impl App {
         let keymap = self.keymap.for_document(letter.metadata.document_type())?;
         self.keymap = keymap;
         self.history_field = None;
-        self.field_history_action = None;
-        self.document = document;
-        self.document.assets = letter.assets.clone();
+        self.session = Session::new(letter, document, path, self.session.revision + 1);
         self.image_textures.clear();
         self.image_info = None;
         self.information_group = InformationGroup::General;
-        self.metadata = letter.metadata.clone();
-        self.template = letter.template.clone();
         self.presentation = ModelPresentation::default();
-        self.saved = letter;
-        self.file_path = path;
-        self.undo.clear();
-        self.redo.clear();
-        self.typing_group = false;
         self.selection = CCursorRange::one(CCursor::new(0));
         self.force_selection = true;
         self.editor_scroll_pending = true;
@@ -354,8 +317,6 @@ impl App {
         self.rendering_time = None;
         self.file_error = None;
         self.message = None;
-        self.revision += 1;
-        self.changed_at = Instant::now() - Duration::from_secs(1);
         Ok(())
     }
     fn request_action(&mut self, action: PendingAction, ctx: &egui::Context) {
@@ -368,18 +329,20 @@ impl App {
     fn perform_action(&mut self, action: PendingAction, ctx: &egui::Context) {
         match action {
             PendingAction::New => {
-                let letter = StoredDocument::blank(self.metadata.document_type());
-                let document = Document::from_source(&letter.source).expect("courrier vide valide");
-                if let Err(error) = self.install_document(letter, document, None) {
-                    self.file_error = Some(error);
-                }
+                self.new_document_type = self.session.metadata.document_type();
+                self.new_document_open = true;
             }
             PendingAction::Open => {
                 let mut dialog = rfd::FileDialog::new()
                     .set_title(crate::tr!("open-dialog"))
                     .add_filter(crate::tr!("letter-filter"), &[storage::EXTENSION])
                     .add_filter(crate::tr!("all-files"), &["*"]);
-                if let Some(parent) = self.file_path.as_ref().and_then(|path| path.parent()) {
+                if let Some(parent) = self
+                    .session
+                    .file_path
+                    .as_ref()
+                    .and_then(|path| path.parent())
+                {
                     dialog = dialog.set_directory(parent);
                 }
                 if let Some(path) = dialog.pick_file() {
@@ -392,6 +355,21 @@ impl App {
             }
         }
         ctx.request_repaint();
+    }
+    fn create_document(&mut self, kind: DocumentType) {
+        let letter = StoredDocument::blank(kind);
+        let document = Document::from_source(&letter.source).expect("document vide valide");
+        if let Err(error) = self.install_document(letter, document, None) {
+            self.file_error = Some(error);
+        } else {
+            self.new_document_open = false;
+            self.export_path = std::env::current_dir()
+                .unwrap_or_default()
+                .join("output")
+                .join(kind.file_stem())
+                .display()
+                .to_string();
+        }
     }
     fn handle_file_command(&mut self, command: FileCommand, ctx: &egui::Context) {
         match command {
@@ -412,41 +390,26 @@ impl App {
     }
     fn range(&self) -> Range<usize> {
         let range = self.selection.as_sorted_char_range();
-        range.start.min(self.document.view.len())..range.end.min(self.document.view.len())
+        range.start.min(self.session.document.view.len())
+            ..range.end.min(self.session.document.view.len())
     }
+    #[cfg(test)]
     fn changed(&mut self) {
-        let inserted = self.document.sync_source();
-        for at in &inserted {
-            for cursor in [&mut self.selection.primary, &mut self.selection.secondary] {
-                if cursor.index > *at {
-                    cursor.index += 1;
-                }
-            }
-        }
-        for cursor in [&mut self.selection.primary, &mut self.selection.secondary] {
-            cursor.index = cursor.index.min(self.document.view.len());
-        }
-        self.force_selection |= !inserted.is_empty();
-        self.revision += 1;
-        self.changed_at = Instant::now();
+        let adjusted = self.session.changed(self.selection.into());
+        self.force_selection |= adjusted != self.selection.into();
+        self.selection = adjusted.into();
     }
     fn remember(&mut self, before: Snapshot, typing: bool) {
-        if !typing || !self.typing_group || self.last_edit.elapsed() > Duration::from_millis(650) {
-            self.undo.push(before);
-            if self.undo.len() > 100 {
-                self.undo.remove(0);
-            }
-        }
-        self.redo.clear();
-        self.typing_group = typing;
-        self.last_edit = Instant::now();
-        self.changed();
+        let adjusted = self.session.remember(before, self.selection.into(), typing);
+        self.force_selection |= adjusted != self.selection.into();
+        self.selection = adjusted.into();
     }
     fn apply(&mut self, command: Command) {
         if !self.keymap.registry().contains(command) {
             return;
         }
         match command {
+            Command::ImportModel => self.import_model(),
             Command::InsertImage => self.choose_image(None),
             Command::Preferences => self.preferences_open = true,
             Command::File(command) => self.file_command = Some(command),
@@ -459,18 +422,17 @@ impl App {
                 self.information_open = !self.information_open;
                 if !self.information_open {
                     self.history_field = None;
-                    self.field_history_action = None;
                     self.force_selection = true;
                 }
             }
-            Command::Courrier(CourrierCommand::Model(model)) => {
-                let template = model.source();
-                if self.template != template {
-                    self.template = template;
+            command @ (Command::Courrier(_) | Command::CompteRendu(_)) => {
+                let template = command.model_source().expect("commande de modèle");
+                if self.session.template != template {
+                    let before = self.snapshot();
+                    self.session.template = template;
                     self.presentation = ModelPresentation::default();
-                    self.metadata.options_mut().bullet_marker = None;
-                    self.revision += 1;
-                    self.changed_at = Instant::now();
+                    self.session.metadata.options_mut().bullet_marker = None;
+                    self.remember(before, false);
                 }
             }
             Command::Undo | Command::Redo => self.apply_history(command == Command::Undo),
@@ -479,7 +441,7 @@ impl App {
                 let range = self.range();
                 if range.is_empty() {
                     self.message = Some(crate::tr!("select-link-remove"));
-                } else if self.document.view.styles[range]
+                } else if self.session.document.view.styles[range]
                     .iter()
                     .any(|style| style.link.is_some())
                 {
@@ -493,37 +455,64 @@ impl App {
         }
     }
     fn apply_history(&mut self, undo: bool) {
-        let current = self.snapshot();
-        let item = if undo {
-            self.undo.pop()
-        } else {
-            self.redo.pop()
-        };
-        if let Some(item) = item {
-            if undo {
-                self.redo.push(current);
-            } else {
-                self.undo.push(current);
-            }
-            self.document = item.document;
+        let old_document = self.session.document.clone();
+        let old_template = self.session.template.clone();
+        if let Some(selection) = self.session.history(undo, self.selection.into()) {
             self.image_textures.clear();
-            self.selection = item.selection;
-            self.force_selection = true;
-            self.typing_group = false;
-            self.revision += 1;
-            self.changed_at = Instant::now();
+            if self.session.template != old_template {
+                self.presentation = ModelPresentation::default();
+            }
+            self.selection = selection.into();
+            self.force_selection =
+                self.history_field.is_none() || self.session.document != old_document;
+            if self.force_selection {
+                self.history_field = None;
+            }
         }
     }
     fn edit(&mut self, edit: impl FnOnce(&mut Projection, Range<usize>)) {
-        let range = self.range();
-        let before = self.snapshot();
-        edit(&mut self.document.view, range);
-        let selected = self.range();
-        if !selected.is_empty() {
-            self.document.view.typing_style = self.document.view.style_at(selected.start);
-        }
-        self.remember(before, false);
+        self.selection = self.session.edit(self.selection.into(), edit).into();
         self.force_selection = true;
+    }
+    fn install_model(&mut self, template: String) -> Result<(), String> {
+        if template.len() > 1024 * 1024 {
+            return Err(crate::tr!("model-too-large"));
+        }
+        let mut metadata = self.session.metadata.clone();
+        metadata.options_mut().bullet_marker = None;
+        let mut world = crate::rendering::TypstWorld::default();
+        world.set_assets(&self.session.document.assets);
+        let presentation = world
+            .validate_model(self.session.document.source(), &metadata, &template)
+            .map_err(|error| format!("{}\n{}", metadata.model_signature(), error))?;
+        let before = self.snapshot();
+        self.session.template = template;
+        self.session.metadata = metadata;
+        self.presentation = presentation;
+        self.remember(before, false);
+        Ok(())
+    }
+    fn import_model(&mut self) {
+        use std::io::Read;
+        let Some(path) = rfd::FileDialog::new()
+            .set_title(Command::ImportModel.label())
+            .add_filter(crate::tr!("model-file-filter"), &["typ"])
+            .pick_file()
+        else {
+            return;
+        };
+        let result = std::fs::File::open(path)
+            .map_err(|error| error.to_string())
+            .and_then(|file| {
+                let mut source = String::new();
+                file.take(1024 * 1024 + 1)
+                    .read_to_string(&mut source)
+                    .map_err(|error| error.to_string())?;
+                self.install_model(source)
+            });
+        if let Err(error) = result {
+            self.file_error = Some(crate::tr!("model-import-error", error = error));
+        }
     }
     fn choose_image(&mut self, replace: Option<u64>) {
         if let Some(path) = rfd::FileDialog::new()
@@ -554,29 +543,32 @@ impl App {
             .read_to_end(&mut data)
             .map_err(|e| e.to_string())?;
         crate::assets::decode(&data, extension)?;
-        let total: usize = self.document.assets.values().map(|v| v.len()).sum();
+        let total: usize = self.session.document.assets.values().map(|v| v.len()).sum();
         let needs_size_check = total + data.len() > crate::assets::MAX_DOCUMENT_BYTES as usize;
         let before = self.snapshot();
         let mut number = 1;
         let asset_path = loop {
             let name = format!("images/image-{number}.{extension}");
-            if !self.document.assets.contains_key(&name) {
+            if !self.session.document.assets.contains_key(&name) {
                 break name;
             }
             number += 1;
         };
-        self.document.assets.insert(asset_path.clone(), data.into());
+        self.session
+            .document
+            .assets
+            .insert(asset_path.clone(), data.into());
         let at = if let Some(id) = replace {
-            let Some(image) = self.document.view.images.get_mut(&id) else {
-                self.document = before.document;
+            let Some(image) = self.session.document.view.images.get_mut(&id) else {
+                self.session.document = before.document;
                 return Ok(());
             };
             image.path = asset_path;
-            self.document.view.image_range(id).unwrap().start
+            self.session.document.view.image_range(id).unwrap().start
         } else {
             let range = self.range();
-            self.document.view.delete_char_range(range.clone());
-            self.document.view.insert_image(
+            self.session.document.view.delete_char_range(range.clone());
+            self.session.document.view.insert_image(
                 range.start,
                 ImageBlock {
                     path: asset_path,
@@ -585,12 +577,12 @@ impl App {
             )
         };
         if needs_size_check {
-            let mut persisted = self.document.clone();
+            let mut persisted = self.session.document.clone();
             persisted.sync_source();
             let retained = crate::rendering::retained_assets(
                 persisted.source(),
-                &self.metadata,
-                &self.template,
+                &self.session.metadata,
+                &self.session.template,
                 &persisted.assets,
             );
             let too_large = retained.as_ref().is_ok_and(|assets| {
@@ -598,7 +590,7 @@ impl App {
                     > crate::assets::MAX_DOCUMENT_BYTES as usize
             });
             if retained.is_err() || too_large {
-                self.document = before.document;
+                self.session.document = before.document;
                 return Err(retained
                     .err()
                     .unwrap_or_else(|| crate::tr!("storage-letter-too-large")));
@@ -609,10 +601,13 @@ impl App {
         Ok(())
     }
     fn remove_image(&mut self, id: u64) {
-        if let Some(range) = self.document.view.image_range(id) {
+        if let Some(range) = self.session.document.view.image_range(id) {
             let before = self.snapshot();
-            let end = (range.end + 1).min(self.document.view.len());
-            self.document.view.delete_char_range(range.start..end);
+            let end = (range.end + 1).min(self.session.document.view.len());
+            self.session
+                .document
+                .view
+                .delete_char_range(range.start..end);
             self.selection = editor::cursor(range.start..range.start);
             self.force_selection = true;
             self.remember(before, false);
@@ -624,11 +619,17 @@ impl App {
             self.message = Some(crate::tr!("select-link"));
             return;
         }
-        if self.document.view.selected_lines(range.clone()).len() > 1 {
+        if !self
+            .session
+            .document
+            .view
+            .is_single_paragraph(range.clone())
+        {
             self.message = Some(crate::tr!("link-one-paragraph"));
             return;
         }
         self.link_url = self
+            .session
             .document
             .view
             .styles
@@ -641,12 +642,12 @@ impl App {
     }
     fn request(&self, export_dir: Option<PathBuf>) -> RenderRequest {
         RenderRequest {
-            revision: self.revision,
-            source: self.document.source().to_owned(),
-            source_map: self.document.source_map.clone(),
-            metadata: self.metadata.clone(),
-            template: self.template.clone(),
-            assets: self.document.assets.clone(),
+            revision: self.session.revision,
+            source: self.session.document.source().to_owned(),
+            source_map: self.session.document.source_map.clone(),
+            metadata: self.session.metadata.clone(),
+            template: self.session.template.clone(),
+            assets: self.session.document.assets.clone(),
             export_dir,
         }
     }
@@ -663,7 +664,7 @@ impl App {
                                 .map_or(String::new(), |p| p.display().to_string())
                         ));
                     }
-                    if response.revision == self.revision {
+                    if response.revision == self.session.revision {
                         self.pages = rendered
                             .pages
                             .into_iter()
@@ -687,21 +688,22 @@ impl App {
                     }
                 }
                 Err(error) => {
-                    if response.revision == self.revision || response.is_export {
+                    if response.revision == self.session.revision || response.is_export {
                         self.rendering_error = Some(error);
                         self.rendered_revision = Some(response.revision);
                     }
                 }
             }
         }
-        if self.submitted != self.revision && self.changed_at.elapsed() > Duration::from_millis(220)
+        if self.submitted != self.session.revision
+            && self.session.changed_at.elapsed() > Duration::from_millis(220)
         {
             match self.worker.sender.send(self.request(None)) {
-                Ok(()) => self.submitted = self.revision,
+                Ok(()) => self.submitted = self.session.revision,
                 Err(_) => self.rendering_error = Some(crate::tr!("renderer-stopped")),
             }
         }
-        if self.rendered_revision != Some(self.revision) {
+        if self.rendered_revision != Some(self.session.revision) {
             ctx.request_repaint_after(Duration::from_millis(50));
         }
     }
@@ -731,7 +733,7 @@ impl App {
     fn track_history_focus(&mut self, ctx: &egui::Context) {
         // La recherche de la palette et les champs des dialogues ne doivent pas
         // remplacer la cible de l’historique du document.
-        if self.modal_open() || self.field_history_action.is_some() {
+        if self.modal_open() {
             return;
         }
         if let Some(id) = ctx.memory(|memory| memory.focused()) {
@@ -753,8 +755,8 @@ impl App {
             .map(|d| {
                 let enabled = !self.modal_open()
                     && match d.command {
-                        Command::Undo => self.history_field.is_some() || !self.undo.is_empty(),
-                        Command::Redo => self.history_field.is_some() || !self.redo.is_empty(),
+                        Command::Undo => !self.session.undo.is_empty(),
+                        Command::Redo => !self.session.redo.is_empty(),
                         Command::Clear => self.history_field.is_none(),
                         _ => true,
                     };
@@ -772,37 +774,8 @@ impl App {
         if self.modal_open() {
             return;
         }
-        // Le menu Édition agit sur le champ actif. Le corps possède son propre
-        // historique ; les champs de métadonnées utilisent celui de TextEdit.
-        if let (Command::Undo | Command::Redo, Some(id)) = (command, self.history_field) {
-            self.field_history_action = Some((command, id));
-        } else {
-            self.apply(command);
-        }
+        self.apply(command);
         ctx.request_repaint();
-    }
-    fn field_history(&mut self, ctx: &egui::Context) {
-        // Différer jusqu’à une frame où les champs peuvent consommer l’événement,
-        // y compris si la commande a été choisie dans la palette en fin de frame.
-        if let Some((command, id)) = self.field_history_action.take() {
-            if self.modal_open() || !self.information_open {
-                return;
-            }
-            ctx.memory_mut(|memory| memory.request_focus(id));
-            let modifiers = egui::Modifiers {
-                shift: command == Command::Redo,
-                ..egui::Modifiers::COMMAND
-            };
-            ctx.input_mut(|input| {
-                input.events.push(egui::Event::Key {
-                    key: egui::Key::Z,
-                    physical_key: None,
-                    pressed: true,
-                    repeat: false,
-                    modifiers,
-                })
-            });
-        }
     }
     /// Une seule voie pour rendre visible et focaliser une cible d’annotation.
     fn focus_annotation_target(&mut self, range: Range<usize>) {
@@ -814,17 +787,17 @@ impl App {
         self.force_selection = true;
         self.editor_scroll_pending = true;
         self.forward_pending = true;
-        self.typing_group = false;
+        self.session.typing_group = false;
     }
     fn leave_annotation(&mut self, annotation: &OptionalAnnotation) {
         let before = self.snapshot();
-        let at = self.document.view.leave_annotation(annotation);
+        let at = self.session.document.view.leave_annotation(annotation);
         self.remember(before, false);
         self.focus_annotation_target(at..at);
     }
     fn annotation_shortcuts(&mut self, ctx: &egui::Context) -> bool {
         let range = self.range();
-        let Some(annotation) = self.document.view.annotation_at(range.clone()) else {
+        let Some(annotation) = self.session.document.view.annotation_at(range.clone()) else {
             return false;
         };
         let shift = ctx.input(|i| i.events.iter().any(|event| matches!(event,
@@ -863,10 +836,11 @@ impl App {
             return;
         }
         let range = self.range();
-        let line = self.document.view.line_at(range.start);
-        let lines = self.document.view.line_ranges();
+        let line = self.session.document.view.line_at(range.start);
+        let lines = self.session.document.view.line_ranges();
         let start = lines[line].start;
         let prefix: String = self
+            .session
             .document
             .view
             .text
@@ -886,7 +860,7 @@ impl App {
                 }
             })
         });
-        if let BlockKind::Image(id) = self.document.view.blocks[line] {
+        if let BlockKind::Image(id) = self.session.document.view.blocks[line] {
             let object_selected = range == (start..start + 1);
             let deleting = ctx
                 .input(|i| i.key_pressed(egui::Key::Backspace) || i.key_pressed(egui::Key::Delete));
@@ -929,9 +903,12 @@ impl App {
                 let mut before = self.snapshot();
                 before.document.view.insert_text(" ", range.start);
                 before.document.sync_source();
-                before.selection = editor::cursor(range.start + 1..range.start + 1);
-                self.document.view.delete_char_range(start..range.start);
-                self.document.view.set_block(start..start, kind);
+                before.selection = editor::cursor(range.start + 1..range.start + 1).into();
+                self.session
+                    .document
+                    .view
+                    .delete_char_range(start..range.start);
+                self.session.document.view.set_block(start..start, kind);
                 self.selection = editor::cursor(start..start);
                 self.force_selection = true;
                 self.remember(before, false);
@@ -942,12 +919,13 @@ impl App {
                 return;
             }
         }
-        if self.document.view.blocks[line] == BlockKind::Quote
+        if self.session.document.view.blocks[line] == BlockKind::Quote
             && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
         {
             let before = self.snapshot();
             if lines[line].is_empty() && range.is_empty() {
                 let group = self
+                    .session
                     .document
                     .view
                     .quote_groups()
@@ -957,31 +935,39 @@ impl App {
                 // La terminaison du corps cité reste une règle propre à la citation.
                 // Retirer sa ligne vide, puis utiliser la sortie d’annotation commune.
                 if group.body.len() > 1 {
-                    self.document.view.delete_char_range(start..start + 1);
-                    self.document.view.blocks
+                    self.session
+                        .document
+                        .view
+                        .delete_char_range(start..start + 1);
+                    self.session.document.view.blocks
                         [group.attribution.expect("attribution éditable") - 1] =
                         BlockKind::QuoteAttribution;
                 }
                 let annotation = self
+                    .session
                     .document
                     .view
                     .annotation_at(start..start)
                     .expect("annotation de citation");
-                let at = self.document.view.leave_annotation(&annotation);
+                let at = self.session.document.view.leave_annotation(&annotation);
                 self.remember(before, false);
                 self.focus_annotation_target(at..at);
             } else {
-                self.document.view.delete_char_range(range.clone());
-                self.document.view.insert_text("\n", range.start);
+                self.session.document.view.delete_char_range(range.clone());
+                self.session.document.view.insert_text("\n", range.start);
                 self.selection = editor::cursor(range.start + 1..range.start + 1);
                 self.remember(before, false);
                 self.force_selection = true;
             }
             return;
         }
-        if self.document.view.blocks[line] == BlockKind::Description {
-            let text = &self.document.view.text[self.document.view.byte_index(lines[line].start)
-                ..self.document.view.byte_index(lines[line].end)];
+        if self.session.document.view.blocks[line] == BlockKind::Description {
+            let text = &self.session.document.view.text[self
+                .session
+                .document
+                .view
+                .byte_index(lines[line].start)
+                ..self.session.document.view.byte_index(lines[line].end)];
             let separator = text.chars().position(|c| c == '\t').map(|at| start + at);
             let shift = ctx.input(|i| i.events.iter().any(|event| matches!(event,
                 egui::Event::Key { key: egui::Key::Tab, pressed: true, modifiers, .. } if modifiers.shift
@@ -1005,7 +991,7 @@ impl App {
                     self.selection = editor::cursor(at + 1..at + 1);
                 } else {
                     let before = self.snapshot();
-                    self.document.view.insert_text("\t", range.start);
+                    self.session.document.view.insert_text("\t", range.start);
                     self.selection = editor::cursor(range.start + 1..range.start + 1);
                     self.remember(before, false);
                 }
@@ -1019,12 +1005,16 @@ impl App {
                 let mut before = self.snapshot();
                 before.document.view.insert_text(" ", range.start);
                 before.document.sync_source();
-                before.selection = editor::cursor(range.start + 1..range.start + 1);
-                self.document
+                before.selection = editor::cursor(range.start + 1..range.start + 1).into();
+                self.session
+                    .document
                     .view
                     .delete_char_range(range.start - 1..range.start);
                 if separator.is_none() {
-                    self.document.view.insert_text("\t", range.start - 1);
+                    self.session
+                        .document
+                        .view
+                        .insert_text("\t", range.start - 1);
                 }
                 self.selection = editor::cursor(range.start..range.start);
                 self.force_selection = true;
@@ -1038,15 +1028,20 @@ impl App {
             if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
                 let before = self.snapshot();
                 if text.trim().is_empty() && range.is_empty() {
-                    self.document.view.delete_char_range(lines[line].clone());
-                    self.document
+                    self.session
+                        .document
+                        .view
+                        .delete_char_range(lines[line].clone());
+                    self.session
+                        .document
                         .view
                         .set_block(start..start, BlockKind::Paragraph);
                     self.selection = editor::cursor(start..start);
                 } else {
                     let in_text = separator.is_some_and(|at| range.start > at);
-                    self.document.view.delete_char_range(range.clone());
-                    self.document
+                    self.session.document.view.delete_char_range(range.clone());
+                    self.session
+                        .document
                         .view
                         .insert_text(if in_text { "\n\t" } else { "\n" }, range.start);
                     self.selection = editor::cursor(range.start + 1..range.start + 1);
@@ -1072,8 +1067,9 @@ impl App {
                     .view
                     .insert_text(&delimiter.to_string(), range.start);
                 before.document.sync_source();
-                before.selection = editor::cursor(range.start + 1..range.start + 1);
-                self.document
+                before.selection = editor::cursor(range.start + 1..range.start + 1).into();
+                self.session
+                    .document
                     .view
                     .delete_char_range(start + position..start + position + 1);
                 let mark = if delimiter == '*' {
@@ -1082,10 +1078,16 @@ impl App {
                     Mark::Italic
                 };
                 let selected = start + position..range.start - 1;
-                if !self.document.view.mark_state(selected.clone(), mark).0 {
-                    self.document.view.toggle_mark(selected, mark);
+                if !self
+                    .session
+                    .document
+                    .view
+                    .mark_state(selected.clone(), mark)
+                    .0
+                {
+                    self.session.document.view.toggle_mark(selected, mark);
                 }
-                self.document.view.typing_style = InlineStyle::default();
+                self.session.document.view.typing_style = InlineStyle::default();
                 self.selection = editor::cursor(range.start - 1..range.start - 1);
                 self.force_selection = true;
                 self.remember(before, false);
@@ -1097,7 +1099,7 @@ impl App {
         }
         if lines[line].is_empty()
             && matches!(
-                self.document.view.blocks[line],
+                self.session.document.view.blocks[line],
                 BlockKind::Bullet | BlockKind::Numbered | BlockKind::Description
             )
             && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
@@ -1107,16 +1109,16 @@ impl App {
     }
     fn toolbar(&mut self, ui: &mut egui::Ui) {
         if let Some(command) =
-            crate::toolbar::show(ui, &self.document.view, self.range(), &self.keymap)
+            crate::toolbar::show(ui, &self.session.document.view, self.range(), &self.keymap)
         {
             self.apply(command);
         }
     }
     fn status_ui(&mut self, ui: &mut egui::Ui) {
         let range = self.range();
-        let (total, selected) = self
-            .statistics
-            .counts(self.revision, &self.document.view, range);
+        let (total, selected) =
+            self.statistics
+                .counts(self.session.revision, &self.session.document.view, range);
         ui.horizontal_wrapped(|ui| {
             ui.label(crate::tr!(
                 "document-stats",
@@ -1147,17 +1149,21 @@ impl App {
         });
     }
     fn information_ui(&mut self, ui: &mut egui::Ui) {
-        let old = self.metadata.clone();
+        let before = self.snapshot();
+        let old_revision = self.session.revision;
         let groups: Vec<_> =
             std::iter::once((InformationGroup::General, crate::tr!("group-general")))
-                .chain(self.metadata.editor_groups().iter().map(|group| {
+                .chain(self.session.metadata.editor_groups().iter().map(|group| {
                     (
                         InformationGroup::Fields(group.id),
                         crate::i18n::text(group.label_key),
                     )
                 }))
                 .collect();
-        let full_heading = crate::tr!("document-settings-heading");
+        let full_heading = match self.session.metadata.document_type() {
+            DocumentType::Courrier => crate::tr!("document-settings-heading"),
+            DocumentType::CompteRendu => crate::tr!("minutes-settings-heading"),
+        };
         let font = egui::TextStyle::Button.resolve(ui.style());
         let label_width = |label: &str| {
             ui.fonts_mut(|fonts| {
@@ -1207,7 +1213,6 @@ impl App {
             if let Some(id) = self.history_field.take() {
                 ui.ctx().memory_mut(|memory| memory.surrender_focus(id));
             }
-            self.field_history_action = None;
             self.information_group = group;
             if close || !self.information_open {
                 self.apply(Command::Information);
@@ -1224,13 +1229,20 @@ impl App {
                 .auto_shrink([false, true])
                 .show(ui, |ui| match self.information_group {
                     InformationGroup::General => self.general_information_ui(ui),
-                    InformationGroup::Fields(group) => self.metadata.editor_group_ui(ui, group),
+                    InformationGroup::Fields(group) => {
+                        self.session.metadata.editor_group_ui(ui, group)
+                    }
                 });
         }
-        if self.metadata != old {
-            self.revision += 1;
-            self.changed_at = Instant::now();
-            ui.ctx().request_repaint();
+        if self.session.revision == old_revision {
+            let focused = ui.ctx().memory(|memory| memory.focused());
+            let group = focused
+                .filter(|id| egui::TextEdit::load_state(ui.ctx(), *id).is_some())
+                .map_or(EditGroup::Discrete, |id| EditGroup::Metadata(id.value()));
+            self.selection = self
+                .session
+                .record(before, self.selection.into(), group)
+                .into();
         }
     }
     fn general_information_ui(&mut self, ui: &mut egui::Ui) {
@@ -1245,11 +1257,11 @@ impl App {
                 ui.end_row();
                 ui.label(crate::tr!("field-paper"));
                 egui::ComboBox::from_id_salt("document-paper")
-                    .selected_text(self.metadata.options().paper.label())
+                    .selected_text(self.session.metadata.options().paper.label())
                     .show_ui(ui, |ui| {
                         for paper in PaperFormat::ALL {
                             ui.selectable_value(
-                                &mut self.metadata.options_mut().paper,
+                                &mut self.session.metadata.options_mut().paper,
                                 paper,
                                 paper.label(),
                             );
@@ -1258,19 +1270,19 @@ impl App {
                 ui.end_row();
                 ui.label(crate::tr!("field-orientation"));
                 egui::ComboBox::from_id_salt("document-orientation")
-                    .selected_text(if self.metadata.options().landscape {
+                    .selected_text(if self.session.metadata.options().landscape {
                         crate::tr!("orientation-landscape")
                     } else {
                         crate::tr!("orientation-portrait")
                     })
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
-                            &mut self.metadata.options_mut().landscape,
+                            &mut self.session.metadata.options_mut().landscape,
                             false,
                             crate::tr!("orientation-portrait"),
                         );
                         ui.selectable_value(
-                            &mut self.metadata.options_mut().landscape,
+                            &mut self.session.metadata.options_mut().landscape,
                             true,
                             crate::tr!("orientation-landscape"),
                         );
@@ -1278,11 +1290,11 @@ impl App {
                 ui.end_row();
                 ui.label(crate::tr!("field-document-language"));
                 egui::ComboBox::from_id_salt("document-language")
-                    .selected_text(self.metadata.options().language.label())
+                    .selected_text(self.session.metadata.options().language.label())
                     .show_ui(ui, |ui| {
                         for language in DocumentLanguage::ALL {
                             ui.selectable_value(
-                                &mut self.metadata.options_mut().language,
+                                &mut self.session.metadata.options_mut().language,
                                 language,
                                 language.label(),
                             );
@@ -1297,12 +1309,12 @@ impl App {
     fn bullet_marker_ui(&mut self, ui: &mut egui::Ui) {
         let policy = &self.presentation;
         if policy.bullet_markers.is_empty() && !policy.custom_bullet_marker {
-            if self.metadata.options().bullet_marker.is_some() {
+            if self.session.metadata.options().bullet_marker.is_some() {
                 if ui
                     .button(crate::tr!("bullet-marker-restore-automatic"))
                     .clicked()
                 {
-                    self.metadata.options_mut().bullet_marker = None;
+                    self.session.metadata.options_mut().bullet_marker = None;
                 }
             } else {
                 ui.weak(crate::tr!("bullet-marker-automatic"))
@@ -1310,7 +1322,7 @@ impl App {
             }
             return;
         }
-        let marker = &mut self.metadata.options_mut().bullet_marker;
+        let marker = &mut self.session.metadata.options_mut().bullet_marker;
         ui.vertical(|ui| {
             egui::ComboBox::from_id_salt("document-bullet-marker")
                 .selected_text(
@@ -1358,10 +1370,9 @@ impl App {
             .filter(|d| d.in_model_menu())
             .map(|d| d.command)
             .collect();
-        let current = commands
-            .iter()
-            .copied()
-            .find(|command| command.model_source().as_deref() == Some(self.template.as_str()));
+        let current = commands.iter().copied().find(|command| {
+            command.model_source().as_deref() == Some(self.session.template.as_str())
+        });
         let mut selected = current;
         egui::ComboBox::from_id_salt("template")
             .selected_text(
@@ -1393,9 +1404,9 @@ impl App {
             editor::restore_cursor(ui.ctx(), self.selection);
             self.force_selection = false;
         }
-        for image in self.document.view.images.values() {
+        for image in self.session.document.view.images.values() {
             if !self.image_textures.contains_key(&image.path)
-                && let Some(data) = self.document.assets.get(&image.path)
+                && let Some(data) = self.session.document.assets.get(&image.path)
                 && let Ok(thumbnail) =
                     crate::assets::thumbnail(data, image.path.rsplit('.').next().unwrap())
             {
@@ -1406,7 +1417,7 @@ impl App {
                 );
             }
         }
-        let view = self.document.view.clone();
+        let view = self.session.document.view.clone();
         let lock_tab = view.annotation_at(self.range()).is_some()
             || view.blocks[view.line_at(self.selection.primary.index)] == BlockKind::Description;
         let editor_style = self.preferences.editor;
@@ -1424,7 +1435,7 @@ impl App {
                     ))
                     .show(ui, |ui| {
                         let background = ui.painter().add(egui::Shape::Noop);
-                        let output = egui::TextEdit::multiline(&mut self.document.view)
+                        let output = egui::TextEdit::multiline(&mut self.session.document.view)
                             .lock_focus(lock_tab)
                             .id(egui::Id::new(editor::EDITOR_ID))
                             .desired_width(f32::INFINITY)
@@ -1435,7 +1446,7 @@ impl App {
                             .show(ui);
                         let clicked_term = editor::paint_decorations(
                             ui,
-                            &self.document.view,
+                            &self.session.document.view,
                             &output,
                             editor_style,
                             background,
@@ -1458,7 +1469,7 @@ impl App {
                         }
                         image_action = editor::paint_images(
                             ui,
-                            &self.document.view,
+                            &self.session.document.view,
                             &output,
                             &self.image_textures,
                             self.range(),
@@ -1474,14 +1485,14 @@ impl App {
                         } else if self.selection != old_range {
                             let selected = self.range();
                             let pos = self.selection.primary.index;
-                            self.document.view.typing_style = if !selected.is_empty() {
-                                self.document.view.style_at(selected.start)
+                            self.session.document.view.typing_style = if !selected.is_empty() {
+                                self.session.document.view.style_at(selected.start)
                             } else if pos > 0 {
-                                self.document.view.style_at(pos - 1)
+                                self.session.document.view.style_at(pos - 1)
                             } else {
                                 InlineStyle::default()
                             };
-                            self.typing_group = false;
+                            self.session.typing_group = false;
                         }
                         if self.selection != old_range {
                             self.forward_pending = true;
@@ -1499,7 +1510,7 @@ impl App {
                 editor::ImageAction::Replace => self.choose_image(Some(id)),
                 editor::ImageAction::Information => {
                     self.image_alt
-                        .clone_from(&self.document.view.images[&id].alt);
+                        .clone_from(&self.session.document.view.images[&id].alt);
                     self.image_info = Some(id);
                 }
                 editor::ImageAction::Remove => self.remove_image(id),
@@ -1510,7 +1521,7 @@ impl App {
         ui.horizontal(|ui| {
             ui.label(RichText::new(crate::tr!("preview-title")).strong())
                 .on_hover_text(crate::tr!("preview-hint"));
-            if self.rendered_revision != Some(self.revision) {
+            if self.rendered_revision != Some(self.session.revision) {
                 ui.spinner();
                 ui.weak(crate::tr!("preview-updating"));
             } else if let Some(time) = self.rendering_time {
@@ -1634,24 +1645,25 @@ impl App {
             && self
                 .sync
                 .as_ref()
-                .is_some_and(|sync| sync.revision == self.revision)
+                .is_some_and(|sync| sync.revision == self.session.revision)
     }
     fn navigate_backward(&mut self, location: PagePoint, ctx: &egui::Context) {
         if !self.sync_is_current() {
             return;
         }
         if let Some(character) = self.sync.as_ref().and_then(|sync| sync.backward(location)) {
-            self.selection =
-                CCursorRange::one(CCursor::new(character.min(self.document.view.len())));
-            self.document.view.typing_style = if character > 0 {
-                self.document.view.style_at(character - 1)
+            self.selection = CCursorRange::one(CCursor::new(
+                character.min(self.session.document.view.len()),
+            ));
+            self.session.document.view.typing_style = if character > 0 {
+                self.session.document.view.style_at(character - 1)
             } else {
                 InlineStyle::default()
             };
             self.force_selection = true;
             self.editor_scroll_pending = true;
             self.forward_pending = false;
-            self.typing_group = false;
+            self.session.typing_group = false;
             ctx.request_repaint();
         }
     }
@@ -1789,6 +1801,29 @@ impl App {
         [editor_rect, preview_rect]
     }
     fn dialogs(&mut self, ctx: &egui::Context) {
+        if self.new_document_open {
+            let mut create = false;
+            let mut cancel = false;
+            let modal = egui::Modal::new(egui::Id::new("new-document")).show(ctx, |ui| {
+                ui.set_min_width(320.0);
+                ui.heading(crate::tr!("new-document-title"));
+                ui.label(crate::tr!("field-document-type"));
+                for kind in DocumentType::ALL {
+                    ui.radio_value(&mut self.new_document_type, kind, kind.label());
+                }
+                ui.separator();
+                ui.horizontal(|ui| {
+                    cancel = ui.button(crate::tr!("cancel")).clicked();
+                    create = ui.button(crate::tr!("new-document-create")).clicked();
+                });
+            });
+            if create {
+                self.create_document(self.new_document_type);
+            } else if cancel || modal.should_close() {
+                self.new_document_open = false;
+            }
+        }
+
         if let Some(id) = self.image_info {
             let mut open = true;
             let mut apply = false;
@@ -1819,7 +1854,7 @@ impl App {
             }
             if apply {
                 let before = self.snapshot();
-                if let Some(image) = self.document.view.images.get_mut(&id) {
+                if let Some(image) = self.session.document.view.images.get_mut(&id) {
                     image.alt.clone_from(&self.image_alt);
                     self.remember(before, false);
                 }
@@ -1829,7 +1864,7 @@ impl App {
             }
             if !open {
                 self.image_info = None;
-                if let Some(range) = self.document.view.image_range(id) {
+                if let Some(range) = self.session.document.view.image_range(id) {
                     self.focus_annotation_target(range.start + 1..range.start + 1);
                 }
             }
@@ -1848,6 +1883,7 @@ impl App {
                     ui.label(crate::tr!(
                         "link-selected-text",
                         text = self
+                            .session
                             .document
                             .view
                             .text
@@ -1889,7 +1925,8 @@ impl App {
                     && !url.chars().any(char::is_whitespace)
                 {
                     let before = self.snapshot();
-                    self.document
+                    self.session
+                        .document
                         .view
                         .set_link(self.link_range.clone(), Some(url.into()));
                     self.remember(before, false);
@@ -1986,7 +2023,7 @@ impl App {
                 });
             self.export_open &= open;
             if export {
-                if !self.metadata.ready_for_export() {
+                if !self.session.metadata.ready_for_export() {
                     self.message = Some(crate::tr!("export-required-fields"));
                 } else {
                     match self
@@ -2080,6 +2117,7 @@ impl App {
             && self.is_dirty()
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.new_document_open = false;
             self.preferences_open = false;
             self.palette_open = false;
             self.link_open = false;
@@ -2108,10 +2146,10 @@ impl App {
                 self.dispatch_action(command, ctx);
             }
         }
-        self.field_history(ctx);
         let modal = self.modal_open();
         let dirty = self.is_dirty();
         let filename = self
+            .session
             .file_path
             .as_ref()
             .and_then(|path| path.file_name())
@@ -2187,7 +2225,7 @@ impl App {
         if self.capture.is_none() {
             return;
         }
-        if self.rendered_revision == Some(self.revision)
+        if self.rendered_revision == Some(self.session.revision)
             && !self.screenshot_requested
             && self.started.elapsed() > Duration::from_secs(1)
         {
@@ -2231,13 +2269,84 @@ impl eframe::App for App {
 #[cfg(test)]
 mod interaction_tests {
     use super::*;
-    use crate::document_types::courrier::Model;
+    use crate::document_types::courrier::{Command as CourrierCommand, Model};
+
+    #[test]
+    fn meeting_creation_and_template_import_preserve_the_type_and_use_unified_history() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let original = app.stored_document();
+        app.perform_action(PendingAction::New, &ctx);
+        frame(&mut app, &ctx, vec![]);
+        assert!(app.new_document_open && app.modal_open());
+        assert_eq!(app.stored_document(), original);
+        app.new_document_type = DocumentType::CompteRendu;
+        app.create_document(app.new_document_type);
+        assert!(!app.new_document_open);
+        assert_eq!(
+            app.keymap.registry().document_type(),
+            DocumentType::CompteRendu
+        );
+        assert!(app.session.document.source().is_empty());
+        assert!(!app.is_dirty());
+        assert!(
+            app.keymap
+                .registry()
+                .definitions()
+                .any(|d| matches!(d.command, Command::CompteRendu(_)))
+        );
+        assert!(
+            !app.keymap
+                .registry()
+                .definitions()
+                .any(|d| matches!(d.command, Command::Courrier(_)))
+        );
+        let before = app.stored_document();
+        assert!(
+            app.install_model(DocumentType::Courrier.default_model())
+                .is_err()
+        );
+        assert_eq!(app.stored_document(), before);
+        let template = format!(
+            "{}\n// Modèle fourni par l’organisation",
+            app.session.template
+        );
+        app.install_model(template.clone()).unwrap();
+        assert_eq!(app.session.template, template);
+        assert!(app.is_dirty());
+        app.apply(Command::Undo);
+        assert_eq!(app.stored_document(), before);
+        assert!(!app.is_dirty());
+        app.apply(Command::Redo);
+        assert_eq!(app.session.template, template);
+        assert_eq!(
+            app.session.metadata.document_type(),
+            DocumentType::CompteRendu
+        );
+    }
+
+    #[test]
+    fn links_accept_soft_lines_and_reject_paragraph_or_list_boundaries() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx, None);
+        for (source, selection, allowed) in [
+            ("Été\nNoël", 0..8, true),
+            ("Été\n\nNoël", 0..9, false),
+            ("- Un\n- Deux", 0..7, false),
+        ] {
+            app.session.document = Document::from_source(source).unwrap();
+            app.selection = editor::cursor(selection);
+            app.link_open = false;
+            app.apply(Command::Link);
+            assert_eq!(app.link_open, allowed, "{source}");
+        }
+    }
 
     #[test]
     fn native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopening() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        app.document = Document::from_source("Alpha").unwrap();
+        app.session.document = Document::from_source("Alpha").unwrap();
         app.selection = editor::cursor(5..5);
         app.force_selection = true;
         frame(&mut app, &ctx, vec![]);
@@ -2249,30 +2358,30 @@ mod interaction_tests {
             modifiers: egui::Modifiers::NONE,
         };
         frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
-        assert_eq!(app.document.source(), "Alpha\n");
+        assert_eq!(app.session.document.source(), "Alpha\n");
         frame(&mut app, &ctx, vec![egui::Event::Text("Beta".into())]);
-        assert_eq!(app.document.source(), "Alpha\nBeta");
+        assert_eq!(app.session.document.source(), "Alpha\nBeta");
         frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
         frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
         frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
-        assert_eq!(app.document.view.text, "Alpha\nBeta\n\n");
+        assert_eq!(app.session.document.view.text, "Alpha\nBeta\n\n");
         frame(&mut app, &ctx, vec![egui::Event::Text("Gamma".into())]);
-        let paragraphs = app.document.clone();
+        let paragraphs = app.session.document.clone();
         app.selection = editor::cursor(12..12);
         app.force_selection = true;
-        app.typing_group = false;
+        app.session.typing_group = false;
         frame(&mut app, &ctx, vec![]);
         frame(&mut app, &ctx, vec![key(egui::Key::Backspace)]);
-        assert_eq!(app.document.source(), "Alpha\nBeta\nGamma");
+        assert_eq!(app.session.document.source(), "Alpha\nBeta\nGamma");
         app.apply(Command::Undo);
-        assert_eq!(app.document, paragraphs);
+        assert_eq!(app.session.document, paragraphs);
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("paragraphes.typsto");
         assert!(app.save_path(path.clone()));
         assert!(app.open_path(path));
-        assert_eq!(app.document.view, paragraphs.view);
-        assert_eq!(app.document.source(), paragraphs.source());
-        assert!(!app.document.source().contains('¶'));
+        assert_eq!(app.session.document.view, paragraphs.view);
+        assert_eq!(app.session.document.source(), paragraphs.source());
+        assert!(!app.session.document.source().contains('¶'));
     }
 
     #[test]
@@ -2295,7 +2404,7 @@ mod interaction_tests {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
         ctx.style_mut(|style| style.interaction.tooltip_delay = 0.0);
-        app.document = Document::from_source("#strong[e\u{301}] 👩🏽‍💻").unwrap();
+        app.session.document = Document::from_source("#strong[e\u{301}] 👩🏽‍💻").unwrap();
         app.force_selection = true;
         let mut time = 0.0;
         let mut draw = |app: &mut App, events| {
@@ -2362,7 +2471,7 @@ mod interaction_tests {
         app.apply(Command::Redo);
         let output = draw(&mut app, vec![]);
         assert!(text_rect(&output, &edited).is_some());
-        app.perform_action(PendingAction::New, &ctx);
+        app.create_document(DocumentType::Courrier);
         let output = draw(&mut app, vec![]);
         assert!(text_rect(&output, &crate::tr!("document-stats", words = 0, signs = 0)).is_some());
     }
@@ -2405,14 +2514,14 @@ mod interaction_tests {
             let mut app = App::with_context(ctx.clone(), None);
             // Vérifier la géométrie réellement peinte, indépendamment du clignotement.
             ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
-            app.document = Document::from_source(source).unwrap();
-            app.document.assets.insert(
+            app.session.document = Document::from_source(source).unwrap();
+            app.session.document.assets.insert(
                 "images/parc.svg".into(),
                 include_bytes!("../tests/fixtures/parc.svg")
                     .as_slice()
                     .into(),
             );
-            let annotation = app.document.view.annotations().remove(0);
+            let annotation = app.session.document.view.annotations().remove(0);
             let at = annotation.content.start;
             let placeholder = annotation.kind.placeholder();
             app.selection = editor::cursor(annotation.main_target());
@@ -2475,17 +2584,23 @@ mod interaction_tests {
                 assert!(caret.height() < app.preferences.editor.size * 2.0);
                 assert!(output.shapes.iter().any(|shape| matches!(shape.shape, egui::Shape::LineSegment { points, .. } if (points[0] - caret.center_top()).length() < 1.0 && (points[1] - caret.center_bottom()).length() < 1.0)), "le curseur doit être peint dans l’annotation");
                 assert_eq!(
-                    app.document.source(),
+                    app.session.document.source(),
                     source,
                     "le texte indicatif reste virtuel"
                 );
             }
             draw(&mut app, vec![egui::Event::Text("Une annotation.".into())]);
-            assert!(app.document.source().contains("[Une annotation.]"));
+            assert!(app.session.document.source().contains("[Une annotation.]"));
             draw(&mut app, vec![tab()]);
             assert_eq!(app.range(), at..at);
             draw(&mut app, vec![egui::Event::Text("Été : ".into())]);
-            assert!(app.document.view.text.contains("Été : Une annotation."));
+            assert!(
+                app.session
+                    .document
+                    .view
+                    .text
+                    .contains("Été : Une annotation.")
+            );
         }
     }
 
@@ -2497,8 +2612,8 @@ mod interaction_tests {
         ] {
             let ctx = egui::Context::default();
             let mut app = App::with_context(ctx.clone(), None);
-            app.document = Document::from_source(source).unwrap();
-            let annotation = app.document.view.annotations().remove(0);
+            app.session.document = Document::from_source(source).unwrap();
+            let annotation = app.session.document.view.annotations().remove(0);
             let at = annotation.content.start;
             app.selection = editor::cursor(annotation.content.clone());
             app.force_selection = true;
@@ -2524,10 +2639,10 @@ mod interaction_tests {
             );
             assert_eq!(app.range(), at..at);
             assert!(
-                app.undo.is_empty(),
+                app.session.undo.is_empty(),
                 "la navigation ne modifie pas le document"
             );
-            let original = app.document.clone();
+            let original = app.session.document.clone();
             // Entrée quitte toute la structure sans remplacer l’annotation sélectionnée.
             app.selection = editor::cursor(annotation.content.clone());
             let selection = app.selection;
@@ -2543,16 +2658,23 @@ mod interaction_tests {
                 annotation.structure.end + 1..annotation.structure.end + 1
             );
             assert_eq!(
-                app.document.view.blocks[app.document.view.line_at(app.range().start)],
+                app.session.document.view.blocks
+                    [app.session.document.view.line_at(app.range().start)],
                 BlockKind::Paragraph
             );
-            assert_eq!(app.document.view.annotations()[0], annotation);
+            assert_eq!(app.session.document.view.annotations()[0], annotation);
             assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
             frame(&mut app, &ctx, vec![egui::Event::Text("Après.".into())]);
-            assert!(app.document.view.text.contains("Été à Paris.\nAprès."));
+            assert!(
+                app.session
+                    .document
+                    .view
+                    .text
+                    .contains("Été à Paris.\nAprès.")
+            );
             app.apply(Command::Undo);
             app.apply(Command::Undo);
-            assert_eq!(app.document, original);
+            assert_eq!(app.session.document, original);
             assert_eq!(app.selection, selection);
         }
     }
@@ -2568,8 +2690,8 @@ mod interaction_tests {
         ] {
             let ctx = egui::Context::default();
             let mut app = App::with_context(ctx.clone(), None);
-            app.document = Document::from_source(&source).unwrap();
-            let annotation = app.document.view.annotations().remove(0);
+            app.session.document = Document::from_source(&source).unwrap();
+            let annotation = app.session.document.view.annotations().remove(0);
             app.selection = editor::cursor(annotation.main_target());
             app.force_selection = true;
             let mut time = 0.0;
@@ -2621,19 +2743,20 @@ mod interaction_tests {
                     }
                 );
             }
-            assert_eq!(app.document.source(), source);
+            assert_eq!(app.session.document.source(), source);
         }
     }
 
     #[test]
     fn discarded_images_in_memory_do_not_exhaust_the_document_size_limit() {
         let mut app = App::with_context(egui::Context::default(), None);
-        app.document = Document::from_source("").unwrap();
+        app.session.document = Document::from_source("").unwrap();
         // Simuler plus de 64 Mio d’anciennes ressources partagées en mémoire.
         // Elles ne sont plus référencées par le document ni par son modèle.
         let unused: std::sync::Arc<[u8]> = vec![0; 1024 * 1024].into();
         for index in 0..65 {
-            app.document
+            app.session
+                .document
                 .assets
                 .insert(format!("images/old-{index}.png"), unused.clone());
         }
@@ -2651,16 +2774,16 @@ mod interaction_tests {
     fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx, None);
-        app.document = Document::from_source("").unwrap();
+        app.session.document = Document::from_source("").unwrap();
         let dir = tempfile::tempdir().unwrap();
         let original = dir.path().join("original.svg");
         std::fs::write(&original, include_bytes!("../tests/fixtures/parc.svg")).unwrap();
         app.import_image(&original, None).unwrap();
-        let first = app.document.view.images[&1].path.clone();
+        let first = app.session.document.view.images[&1].path.clone();
         let path = dir.path().join("Courrier.typsto");
         assert!(app.save_path(path.clone()));
         app.import_image(&original, Some(1)).unwrap();
-        let replacement = app.document.view.images[&1].path.clone();
+        let replacement = app.session.document.view.images[&1].path.clone();
         std::fs::remove_file(&original).unwrap();
         assert!(app.save_path(path.clone()));
         assert!(!app.is_dirty());
@@ -2673,9 +2796,9 @@ mod interaction_tests {
                 .collect::<Vec<_>>(),
             vec![replacement.clone()]
         );
-        assert!(app.document.assets.contains_key(&first));
+        assert!(app.session.document.assets.contains_key(&first));
         app.apply(Command::Undo);
-        assert_eq!(app.document.view.images[&1].path, first);
+        assert_eq!(app.session.document.view.images[&1].path, first);
         assert!(app.is_dirty());
         assert!(app.save_path(path.clone()));
         assert!(!app.is_dirty());
@@ -2689,7 +2812,7 @@ mod interaction_tests {
             vec![first]
         );
         app.apply(Command::Redo);
-        assert_eq!(app.document.view.images[&1].path, replacement);
+        assert_eq!(app.session.document.view.images[&1].path, replacement);
         app.remove_image(1);
         assert!(app.save_path(path.clone()));
         assert!(!app.is_dirty());
@@ -2702,13 +2825,13 @@ mod interaction_tests {
         .unwrap();
         assert!(!export.join("images").exists());
         app.apply(Command::Undo);
-        assert_eq!(app.document.view.images[&1].path, replacement);
+        assert_eq!(app.session.document.view.images[&1].path, replacement);
         assert!(app.is_dirty());
-        assert!(app.document.assets.contains_key(&replacement));
+        assert!(app.session.document.assets.contains_key(&replacement));
         assert!(app.save_path(path.clone()));
         assert_eq!(storage::read(&path).unwrap().assets.len(), 1);
         app.apply(Command::Redo);
-        assert!(app.document.view.images.is_empty());
+        assert!(app.session.document.view.images.is_empty());
         assert!(app.save_path(path.clone()));
         assert!(storage::read(&path).unwrap().assets.is_empty());
         assert!(!app.is_dirty());
@@ -2719,18 +2842,18 @@ mod interaction_tests {
         for caption in ["", ", caption: [Le parc.]"] {
             let ctx = egui::Context::default();
             let mut app = App::with_context(ctx.clone(), None);
-            app.document = Document::from_source(&format!(
+            app.session.document = Document::from_source(&format!(
                 "Avant.\n\n#figure(image(\"images/parc.svg\"){caption})\n\nAprès."
             ))
             .unwrap();
-            app.document.assets.insert(
+            app.session.document.assets.insert(
                 "images/parc.svg".into(),
                 include_bytes!("../tests/fixtures/parc.svg")
                     .as_slice()
                     .into(),
             );
-            let original = app.document.clone();
-            let at = app.document.view.image_range(1).unwrap().start;
+            let original = app.session.document.clone();
+            let at = app.session.document.view.image_range(1).unwrap().start;
             // Boutons accessibles depuis l’objet sélectionné comme depuis la légende.
             let selection = if caption.is_empty() {
                 at..at + 1
@@ -2777,14 +2900,14 @@ mod interaction_tests {
                 }
             }
             assert!(
-                app.document.view.images.is_empty(),
+                app.session.document.view.images.is_empty(),
                 "le clic doit supprimer l’image entière"
             );
-            assert!(!app.document.view.text.contains("Le parc."));
-            assert!(app.document.view.text.contains("Avant."));
-            assert!(app.document.view.text.contains("Après."));
+            assert!(!app.session.document.view.text.contains("Le parc."));
+            assert!(app.session.document.view.text.contains("Avant."));
+            assert!(app.session.document.view.text.contains("Après."));
             app.apply(Command::Undo);
-            assert_eq!(app.document, original);
+            assert_eq!(app.session.document, original);
         }
     }
 
@@ -2792,7 +2915,7 @@ mod interaction_tests {
     fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        app.document = Document::from_source("Avant.\n\nAprès.").unwrap();
+        app.session.document = Document::from_source("Avant.\n\nAprès.").unwrap();
         app.selection = editor::cursor(6..6);
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("parc.svg");
@@ -2849,16 +2972,24 @@ mod interaction_tests {
         let output = ctx.run(egui::RawInput::default(), |ctx| app.ui_frame(ctx));
         click(&mut app, text_point(&output, &crate::tr!("image-apply")));
         assert!(app.image_info.is_none());
-        assert!(app.document.source().contains("Des arbres et un chemin"));
+        assert!(
+            app.session
+                .document
+                .source()
+                .contains("Des arbres et un chemin")
+        );
         frame(&mut app, &ctx, vec![egui::Event::Text("Le parc.".into())]);
         assert!(
-            app.document.source().contains("caption: [Le parc.]"),
+            app.session
+                .document
+                .source()
+                .contains("caption: [Le parc.]"),
             "{} / {:?}",
-            app.document.source(),
+            app.session.document.source(),
             app.range()
         );
-        let before = app.document.source().to_owned();
-        let at = app.document.view.image_range(1).unwrap().start + 1;
+        let before = app.session.document.source().to_owned();
+        let at = app.session.document.view.image_range(1).unwrap().start + 1;
         app.selection = editor::cursor(at..at);
         app.force_selection = true;
         frame(&mut app, &ctx, vec![]);
@@ -2872,25 +3003,25 @@ mod interaction_tests {
         frame(&mut app, &ctx, vec![backspace()]);
         assert_eq!(app.range(), at - 1..at);
         frame(&mut app, &ctx, vec![backspace()]);
-        assert!(app.document.view.images.is_empty());
-        assert!(!app.document.view.text.contains("Le parc."));
+        assert!(app.session.document.view.images.is_empty());
+        assert!(!app.session.document.view.text.contains("Le parc."));
         app.apply(Command::Undo);
-        assert_eq!(app.document.source(), before);
+        assert_eq!(app.session.document.source(), before);
     }
 
     #[test]
     fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        app.document = Document::from_source("Avant.\n\nAprès.").unwrap();
+        app.session.document = Document::from_source("Avant.\n\nAprès.").unwrap();
         app.selection = editor::cursor(6..6);
         let dir = tempfile::tempdir().unwrap();
         let original = dir.path().join("Parc.svg");
         std::fs::write(&original, include_bytes!("../tests/fixtures/parc.svg")).unwrap();
         app.import_image(&original, None).unwrap();
-        assert_eq!(app.document.view.images.len(), 1);
-        let id = *app.document.view.images.keys().next().unwrap();
-        let object = app.document.view.image_range(id).unwrap().start;
+        assert_eq!(app.session.document.view.images.len(), 1);
+        let id = *app.session.document.view.images.keys().next().unwrap();
+        let object = app.session.document.view.image_range(id).unwrap().start;
         assert_eq!(app.range(), object + 1..object + 1);
         frame(&mut app, &ctx, vec![]);
         frame(
@@ -2899,11 +3030,12 @@ mod interaction_tests {
             vec![egui::Event::Text("Le parc municipal.".into())],
         );
         assert!(
-            app.document
+            app.session
+                .document
                 .source()
                 .contains("caption: [Le parc municipal.]"),
             "{}",
-            app.document.source()
+            app.session.document.source()
         );
         let key = |key| egui::Event::Key {
             key,
@@ -2915,46 +3047,52 @@ mod interaction_tests {
         frame(&mut app, &ctx, vec![key(egui::Key::Tab)]);
         assert_eq!(app.range(), object + 1..object + 1);
         let before_alt = app.snapshot();
-        app.document.view.images.get_mut(&id).unwrap().alt =
+        app.session.document.view.images.get_mut(&id).unwrap().alt =
             "Trois arbres autour d’un chemin".into();
         app.remember(before_alt, false);
         app.import_image(&original, Some(id)).unwrap();
         assert_eq!(
-            app.document.view.images[&id].alt,
+            app.session.document.view.images[&id].alt,
             "Trois arbres autour d’un chemin"
         );
-        assert!(app.document.source().contains("Le parc municipal."));
+        assert!(app.session.document.source().contains("Le parc municipal."));
         app.apply(Command::Undo);
-        assert_eq!(app.document.view.images[&id].path, "images/image-1.svg");
+        assert_eq!(
+            app.session.document.view.images[&id].path,
+            "images/image-1.svg"
+        );
         app.apply(Command::Redo);
-        assert_eq!(app.document.view.images[&id].path, "images/image-2.svg");
+        assert_eq!(
+            app.session.document.view.images[&id].path,
+            "images/image-2.svg"
+        );
         let archive = dir.path().join("Courrier.typsto");
         assert!(app.save_path(archive.clone()));
         std::fs::remove_file(&original).unwrap();
-        let saved_source = app.document.source().to_owned();
+        let saved_source = app.session.document.source().to_owned();
         app.remove_image(id);
-        assert!(app.document.view.images.is_empty());
+        assert!(app.session.document.view.images.is_empty());
         app.apply(Command::Undo);
-        assert_eq!(app.document.source(), saved_source);
+        assert_eq!(app.session.document.source(), saved_source);
         assert!(app.open_path(archive));
         assert!(!app.is_dirty());
-        assert_eq!(app.document.source(), saved_source);
-        assert_eq!(app.document.assets.len(), 1);
+        assert_eq!(app.session.document.source(), saved_source);
+        assert_eq!(app.session.document.assets.len(), 1);
         app.selection = editor::cursor(object + 1..object + 1);
         app.force_selection = true;
         frame(&mut app, &ctx, vec![]);
         frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
         assert_eq!(
-            app.document.view.blocks[app.document.view.line_at(app.range().start)],
+            app.session.document.view.blocks[app.session.document.view.line_at(app.range().start)],
             BlockKind::Paragraph
         );
-        assert!(app.document.source().contains("Le parc municipal."));
+        assert!(app.session.document.source().contains("Le parc municipal."));
         frame(
             &mut app,
             &ctx,
             vec![egui::Event::Text("Suite du courrier.".into())],
         );
-        assert!(app.document.source().contains("Suite du courrier."));
+        assert!(app.session.document.source().contains("Suite du courrier."));
     }
 
     #[test]
@@ -3052,7 +3190,7 @@ mod interaction_tests {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
         let letter = app.stored_document();
-        let revision = app.revision;
+        let revision = app.session.revision;
         app.dispatch_action(Command::Preferences, &ctx);
         assert!(app.preferences_open);
         let mut time = 0.0;
@@ -3145,7 +3283,7 @@ mod interaction_tests {
             });
         });
         assert_eq!(app.stored_document(), letter);
-        assert_eq!(app.revision, revision);
+        assert_eq!(app.session.revision, revision);
         assert!(!app.is_dirty());
     }
 
@@ -3155,8 +3293,8 @@ mod interaction_tests {
         let mut app = App::with_context(ctx.clone(), None);
         app.information_open = true;
         ctx.style_mut(|s| s.animation_time = 0.0);
-        let source = app.document.source().to_owned();
-        let revision = app.revision;
+        let source = app.session.document.source().to_owned();
+        let revision = app.session.revision;
         let mut time = 0.0;
         let mut draw = |app: &mut App, events| {
             time += 0.1;
@@ -3226,16 +3364,16 @@ mod interaction_tests {
             "Courrier institutionnel",
             "Courrier de service",
         );
-        assert_eq!(app.metadata.options_mut().paper, PaperFormat::A3);
-        assert!(app.metadata.options_mut().landscape);
+        assert_eq!(app.session.metadata.options_mut().paper, PaperFormat::A3);
+        assert!(app.session.metadata.options_mut().landscape);
         assert_eq!(
-            app.metadata.options_mut().language,
+            app.session.metadata.options_mut().language,
             DocumentLanguage::English
         );
-        assert_eq!(app.template, Model::Service.source());
+        assert_eq!(app.session.template, Model::Service.source());
         assert!(app.is_dirty());
-        assert_eq!(app.revision, revision + 4);
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.revision, revision + 4);
+        assert_eq!(app.session.document.source(), source);
 
         assert!(!app.window_title.contains("typstOgraphe"));
     }
@@ -3244,8 +3382,8 @@ mod interaction_tests {
     fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplicates() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        app.file_path = Some(PathBuf::from("exemple.typsto"));
-        let source = app.document.source().to_owned();
+        app.session.file_path = Some(PathBuf::from("exemple.typsto"));
+        let source = app.session.document.source().to_owned();
         let mut time = 0.0;
         let mut draw = |app: &mut App, events| {
             time += 0.1;
@@ -3298,7 +3436,8 @@ mod interaction_tests {
             );
         }
         let output = draw(&mut app, vec![]);
-        let pos = text_point(&output, "Exporter le courrier…").expect("export dans Fichier");
+        let pos = text_point(&output, &Command::File(FileCommand::Export).label())
+            .expect("export dans Fichier");
         for pressed in [true, false] {
             draw(
                 &mut app,
@@ -3314,12 +3453,12 @@ mod interaction_tests {
             );
         }
         assert!(app.export_open);
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.document.source(), source);
         // Une commande native déjà en transit ne contourne pas un dialogue.
         app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
         assert!(app.file_command.is_none());
         app.export_open = false;
-        app.metadata.courrier_mut().objet = "Brouillon à conserver".into();
+        app.session.metadata.courrier_mut().objet = "Brouillon à conserver".into();
         let before = app.stored_document();
         app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
         let output = draw(&mut app, vec![]);
@@ -3376,9 +3515,9 @@ mod interaction_tests {
         ctx.style_mut(|style| style.animation_time = 0.0);
         app.selection = editor::cursor(10..20);
         app.force_selection = true;
-        let source = app.document.source().to_owned();
+        let source = app.session.document.source().to_owned();
         let selection = app.selection;
-        let revision = app.revision;
+        let revision = app.session.revision;
         let mut time = 0.0;
         let mut draw = |app: &mut App, events| {
             time += 0.1;
@@ -3416,14 +3555,14 @@ mod interaction_tests {
         assert!(app.information_open);
         assert!(!app.modal_open());
         assert!(!app.is_dirty());
-        assert_eq!(app.revision, revision);
+        assert_eq!(app.session.revision, revision);
         assert_eq!(text_rect(&opened, "Aperçu Typst"), preview);
         assert!(has_text(&opened, "Format du papier"));
         assert!(!has_text(&opened, "Destinataire"));
         assert!(!has_text(&opened, "Nom complet"));
         // Même à la taille minimale de la fenêtre, le formulaire reste dans la
         // colonne de gauche et laisse une zone de rédaction utilisable.
-        let body = text_rect(&opened, &app.document.view.text);
+        let body = text_rect(&opened, &app.session.document.view.text);
         assert!(body.height() > 150.0, "zone de rédaction : {body:?}");
         click(
             &mut app,
@@ -3440,15 +3579,15 @@ mod interaction_tests {
         let collapsed = draw(&mut app, vec![]);
         assert!(!app.information_open);
         assert!(!has_text(&collapsed, "Nom complet"));
-        assert!(text_rect(&collapsed, &app.document.view.text).height() >= body.height());
+        assert!(text_rect(&collapsed, &app.session.document.view.text).height() >= body.height());
         app.apply(Command::Information);
         let reopened = draw(&mut app, vec![]);
         assert!(app.information_open);
         assert_eq!(app.information_group, InformationGroup::Fields("sender"));
         assert!(has_text(&reopened, "Nom complet"));
-        assert_eq!(app.revision, revision);
+        assert_eq!(app.session.revision, revision);
         assert!(!app.is_dirty());
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.document.source(), source);
         assert_eq!(app.selection, selection);
         click(
             &mut app,
@@ -3457,8 +3596,8 @@ mod interaction_tests {
         );
         draw(&mut app, vec![]);
         let correspondence = draw(&mut app, vec![]);
-        let original_subject = app.metadata.courrier_mut().objet.clone();
-        let subject = text_rect(&correspondence, &app.metadata.courrier_mut().objet);
+        let original_subject = app.session.metadata.courrier_mut().objet.clone();
+        let subject = text_rect(&correspondence, &app.session.metadata.courrier_mut().objet);
         assert!(subject.is_positive());
         assert!(subject.right() < preview.left());
         click(&mut app, &mut draw, subject.center());
@@ -3475,10 +3614,10 @@ mod interaction_tests {
                 egui::Event::Text("Objet modifié".into()),
             ],
         );
-        assert_eq!(app.metadata.courrier_mut().objet, "Objet modifié");
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.metadata.courrier_mut().objet, "Objet modifié");
+        assert_eq!(app.session.document.source(), source);
         assert_eq!(app.selection, selection);
-        assert_eq!(app.revision, revision + 1);
+        assert_eq!(app.session.revision, revision + 1);
         assert!(app.is_dirty());
         assert!(app.information_open);
         app.apply(Command::Palette);
@@ -3496,12 +3635,12 @@ mod interaction_tests {
         );
         assert!(!app.palette_open);
         draw(&mut app, vec![]);
-        assert_eq!(app.metadata.courrier_mut().objet, original_subject);
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.metadata.courrier_mut().objet, original_subject);
+        assert_eq!(app.session.document.source(), source);
         app.dispatch_action(Command::Redo, &ctx);
         draw(&mut app, vec![]);
-        assert_eq!(app.metadata.courrier_mut().objet, "Objet modifié");
-        assert_eq!(app.revision, revision + 3);
+        assert_eq!(app.session.metadata.courrier_mut().objet, "Objet modifié");
+        assert_eq!(app.session.revision, revision + 3);
         let current = draw(&mut app, vec![]);
         click(
             &mut app,
@@ -3510,18 +3649,18 @@ mod interaction_tests {
         );
         draw(&mut app, vec![]);
         assert!(!app.information_open);
-        assert_eq!(app.metadata.courrier_mut().objet, "Objet modifié");
-        assert_eq!(app.revision, revision + 3);
+        assert_eq!(app.session.metadata.courrier_mut().objet, "Objet modifié");
+        assert_eq!(app.session.revision, revision + 3);
     }
 
     #[test]
     fn information_and_presentations_work_from_palette_and_custom_shortcuts() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        let source = app.document.source().to_owned();
-        let revision = app.revision;
+        let source = app.session.document.source().to_owned();
+        let revision = app.session.revision;
         app.apply(Command::Palette);
-        app.palette_query = "Informations du courrier".into();
+        app.palette_query = "Informations du document".into();
         frame(&mut app, &ctx, vec![]);
         frame(
             &mut app,
@@ -3536,7 +3675,7 @@ mod interaction_tests {
         );
         assert!(app.information_open);
         assert!(!app.palette_open);
-        assert_eq!(app.revision, revision);
+        assert_eq!(app.session.revision, revision);
         assert!(!app.is_dirty());
         frame(
             &mut app,
@@ -3563,13 +3702,13 @@ mod interaction_tests {
                 physical_key: None,
             }],
         );
-        assert_eq!(app.template, Model::Service.source());
+        assert_eq!(app.session.template, Model::Service.source());
         assert!(app.is_dirty());
-        assert_eq!(app.revision, revision + 1);
+        assert_eq!(app.session.revision, revision + 1);
         assert_eq!(app.stored_document().template, Model::Service.source());
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.document.source(), source);
         app.apply(Command::Courrier(CourrierCommand::Model(Model::Service)));
-        assert_eq!(app.revision, revision + 1); // Choisir la présentation active est sans effet.
+        assert_eq!(app.session.revision, revision + 1); // Choisir la présentation active est sans effet.
 
         let config=serde_json::from_str(r#"{"document.information":[{"key":"F6"}],"courrier.model.institutional":[{"key":"F7"}]}"#).unwrap();
         app.keymap = Keymap::new(app.keymap.registry(), ctx.os().is_mac(), &config).unwrap();
@@ -3584,8 +3723,8 @@ mod interaction_tests {
                 physical_key: None,
             }],
         );
-        assert_eq!(app.template, Model::Institutional.source());
-        assert_eq!(app.revision, revision + 2);
+        assert_eq!(app.session.template, Model::Institutional.source());
+        assert_eq!(app.session.revision, revision + 2);
         assert!(!app.is_dirty());
         frame(
             &mut app,
@@ -3599,39 +3738,40 @@ mod interaction_tests {
             }],
         );
         assert!(app.information_open);
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.document.source(), source);
     }
 
     #[test]
     fn remove_link_keeps_other_styles_and_selection_and_can_be_undone() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx, None);
-        app.document = Document::from_source(
+        app.session.document = Document::from_source(
             "Avant #link(\"https://example.org\")[*Élodie* et _Noël_] après.",
         )
         .unwrap();
-        let source = app.document.source().to_owned();
+        let source = app.session.document.source().to_owned();
         let start = 6;
-        let end_byte = app.document.view.text.find(" après.").unwrap();
-        let end = app.document.view.text[..end_byte].chars().count();
+        let end_byte = app.session.document.view.text.find(" après.").unwrap();
+        let end = app.session.document.view.text[..end_byte].chars().count();
         app.selection = editor::cursor(end..start);
         let selection = app.selection;
-        let text = app.document.view.text.clone();
-        let styles = app.document.view.styles.clone();
+        let text = app.session.document.view.text.clone();
+        let styles = app.session.document.view.styles.clone();
         app.apply(Command::RemoveLink);
         assert_eq!(app.selection, selection);
-        assert_eq!(app.document.view.text, text);
-        for (before, after) in styles.iter().zip(&app.document.view.styles) {
+        assert_eq!(app.session.document.view.text, text);
+        for (before, after) in styles.iter().zip(&app.session.document.view.styles) {
             assert_eq!(before.bold, after.bold);
             assert_eq!(before.italic, after.italic);
             assert!(after.link.is_none());
         }
         app.apply(Command::Undo);
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.document.source(), source);
         assert_eq!(app.selection, selection);
         app.apply(Command::Redo);
         assert!(
-            app.document
+            app.session
+                .document
                 .view
                 .styles
                 .iter()
@@ -3651,7 +3791,7 @@ mod interaction_tests {
         let hint = app.keymap.hint(&ctx, command);
         assert_ne!(hint, original);
         assert!(hint.contains("F6"));
-        let source = app.document.source().to_owned();
+        let source = app.session.document.source().to_owned();
         for (key, modifiers) in [
             (egui::Key::E, egui::Modifiers::COMMAND),
             (egui::Key::F6, egui::Modifiers::NONE),
@@ -3669,7 +3809,7 @@ mod interaction_tests {
             );
             assert_eq!(app.export_open, key == egui::Key::F6);
         }
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.document.source(), source);
         assert!(!app.is_dirty());
     }
 
@@ -3685,36 +3825,39 @@ mod interaction_tests {
         assert!(app.is_dirty());
         app.apply(Command::Undo);
         assert!(!app.is_dirty());
-        app.metadata.courrier_mut().objet = "Objet personnalisé".into();
-        app.template = Model::Service.source();
-        app.template = app.template.replace("VILLE DE VALMONT", "MODÈLE ARCHIVÉ");
-        app.document.view.insert_text("Élodie : ", 0);
+        app.session.metadata.courrier_mut().objet = "Objet personnalisé".into();
+        app.session.template = Model::Service.source();
+        app.session.template = app
+            .session
+            .template
+            .replace("VILLE DE VALMONT", "MODÈLE ARCHIVÉ");
+        app.session.document.view.insert_text("Élodie : ", 0);
         app.changed();
         let letter = app.stored_document();
         assert!(app.save_path(path.clone()));
         assert!(!app.is_dirty());
-        app.document.view.insert_text("Brouillon ", 0);
+        app.session.document.view.insert_text("Brouillon ", 0);
         app.changed();
         assert!(app.is_dirty());
         assert!(app.open_path(path.clone()));
         assert_eq!(app.stored_document(), letter);
-        assert_eq!(app.file_path, Some(path.clone()));
+        assert_eq!(app.session.file_path, Some(path.clone()));
         assert!(!app.is_dirty());
-        assert!(app.undo.is_empty() && app.redo.is_empty());
+        assert!(app.session.undo.is_empty() && app.session.redo.is_empty());
         assert_eq!(app.selection.primary.index, 0);
         assert!(app.pages.is_empty() && app.sync.is_none());
         assert_eq!(app.request(None).template, letter.template);
-        app.document.view.insert_text("À conserver ", 0);
+        app.session.document.view.insert_text("À conserver ", 0);
         app.changed();
         let before = app.stored_document();
         let bad = dir.path().join("illisible.typsto");
         std::fs::write(&bad, "invalide").unwrap();
         assert!(!app.open_path(bad));
         assert_eq!(app.stored_document(), before);
-        assert_eq!(app.file_path, Some(path.clone()));
+        assert_eq!(app.session.file_path, Some(path.clone()));
         assert!(app.is_dirty());
         assert!(!app.save_path(dir.path().join("absent/impossible.typsto")));
-        assert_eq!(app.file_path, Some(path.clone()));
+        assert_eq!(app.session.file_path, Some(path.clone()));
         assert!(app.is_dirty());
         assert_eq!(storage::read(&path).unwrap(), letter);
     }
@@ -3727,7 +3870,7 @@ mod interaction_tests {
         let first = dir.path().join("premier.typsto");
         assert!(app.save_path(first.clone()));
         let initial = storage::read(&first).unwrap();
-        app.document.view.insert_text("Un ajout. ", 0);
+        app.session.document.view.insert_text("Un ajout. ", 0);
         app.changed();
         frame(
             &mut app,
@@ -3743,10 +3886,10 @@ mod interaction_tests {
         assert!(!app.is_dirty());
         assert_ne!(storage::read(&first).unwrap(), initial);
         let saved = app.stored_document();
-        app.metadata.courrier_mut().objet = "Deuxième courrier".into();
+        app.session.metadata.courrier_mut().objet = "Deuxième courrier".into();
         let second = dir.path().join("second.typsto");
         assert!(app.save_path(second.clone()));
-        assert_eq!(app.file_path, Some(second));
+        assert_eq!(app.session.file_path, Some(second));
         assert_eq!(storage::read(&first).unwrap(), saved);
         assert!(!app.is_dirty());
     }
@@ -3755,7 +3898,7 @@ mod interaction_tests {
     fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        app.metadata.courrier_mut().objet = "Travail à conserver".into();
+        app.session.metadata.courrier_mut().objet = "Travail à conserver".into();
         let before = app.stored_document();
         app.request_action(PendingAction::Open, &ctx);
         assert!(app.pending_action.is_some()); // Aucune fenêtre de fichier tant que la décision manque.
@@ -3834,8 +3977,10 @@ mod interaction_tests {
             );
         }
         assert!(app.pending_action.is_none());
-        assert!(app.document.source().is_empty());
-        assert!(app.file_path.is_none());
+        assert!(app.new_document_open);
+        app.create_document(DocumentType::Courrier);
+        assert!(app.session.document.source().is_empty());
+        assert!(app.session.file_path.is_none());
         assert!(!app.is_dirty());
     }
 
@@ -3855,11 +4000,15 @@ mod interaction_tests {
     fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        app.document =
+        app.session.document =
             Document::from_source(&"Un paragraphe à retrouver.\n\n".repeat(100)).unwrap();
         let mut world = crate::rendering::TypstWorld::default();
         let rendered = world
-            .compile_with_template(app.document.source(), &app.metadata, &app.template)
+            .compile_with_template(
+                app.session.document.source(),
+                &app.session.metadata,
+                &app.session.template,
+            )
             .unwrap();
         for page in 0..rendered.pages().len() {
             app.pages.push(ctx.load_texture(
@@ -3869,12 +4018,12 @@ mod interaction_tests {
             ));
         }
         app.sync = Some(RenderSync::new(
-            app.revision,
+            app.session.revision,
             world,
             rendered,
-            app.document.source_map.clone(),
+            app.session.document.source_map.clone(),
         ));
-        let end = app.document.view.len() - 12;
+        let end = app.session.document.view.len() - 12;
         app.selection = editor::cursor(end..end);
         let location = app.sync.as_ref().unwrap().forward(end).unwrap();
 
@@ -3914,10 +4063,10 @@ mod interaction_tests {
         assert!(offset > 1000.0, "preview offset {offset}");
 
         app.selection = editor::cursor(0..0);
-        app.revision += 1;
+        app.session.revision += 1;
         app.navigate_backward(location, &ctx);
         assert_eq!(app.selection.primary.index, 0);
-        app.revision -= 1;
+        app.session.revision -= 1;
         app.rendering_error = Some("essai".into());
         app.navigate_backward(location, &ctx);
         assert_eq!(app.selection.primary.index, 0);
@@ -3958,7 +4107,11 @@ mod interaction_tests {
         let mut app = App::with_context(ctx.clone(), None);
         let mut world = crate::rendering::TypstWorld::default();
         let rendered = world
-            .compile_with_template(app.document.source(), &app.metadata, &app.template)
+            .compile_with_template(
+                app.session.document.source(),
+                &app.session.metadata,
+                &app.session.template,
+            )
             .unwrap();
         let texture = ctx.load_texture(
             "click-test",
@@ -3968,19 +4121,20 @@ mod interaction_tests {
         let texture_id = texture.id();
         app.pages = vec![texture];
         app.sync = Some(RenderSync::new(
-            app.revision,
+            app.session.revision,
             world,
             rendered,
-            app.document.source_map.clone(),
+            app.session.document.source_map.clone(),
         ));
-        app.submitted = app.revision;
-        app.rendered_revision = Some(app.revision);
+        app.submitted = app.session.revision;
+        app.rendered_revision = Some(app.session.revision);
         let index = app
+            .session
             .document
             .view
             .text
             .find("Notre")
-            .map(|byte| app.document.view.text[..byte].chars().count())
+            .map(|byte| app.session.document.view.text[..byte].chars().count())
             .unwrap();
         let location = app.sync.as_ref().unwrap().forward(index).unwrap();
         let size = app.sync.as_ref().unwrap().page_size(location.page).unwrap();
@@ -4038,10 +4192,10 @@ mod interaction_tests {
         assert_eq!(app.selection.primary.index, index);
         assert!(app.selection.is_empty());
         assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
-        let mut expected = app.document.view.text.clone();
-        expected.insert_str(app.document.view.byte_index(index), "Ajout ");
+        let mut expected = app.session.document.view.text.clone();
+        expected.insert_str(app.session.document.view.byte_index(index), "Ajout ");
         draw(&mut app, 0.5, vec![egui::Event::Text("Ajout ".into())]);
-        assert_eq!(app.document.view.text, expected);
+        assert_eq!(app.session.document.view.text, expected);
     }
 
     #[test]
@@ -4050,7 +4204,11 @@ mod interaction_tests {
         let mut app = App::with_context(ctx.clone(), None);
         let mut world = crate::rendering::TypstWorld::default();
         let rendered = world
-            .compile_with_template(app.document.source(), &app.metadata, &app.template)
+            .compile_with_template(
+                app.session.document.source(),
+                &app.session.metadata,
+                &app.session.template,
+            )
             .unwrap();
         app.pages = vec![ctx.load_texture(
             "highlight-test",
@@ -4058,15 +4216,15 @@ mod interaction_tests {
             egui::TextureOptions::LINEAR,
         )];
         app.sync = Some(RenderSync::new(
-            app.revision,
+            app.session.revision,
             world,
             rendered,
-            app.document.source_map.clone(),
+            app.session.document.source_map.clone(),
         ));
-        app.submitted = app.revision;
-        app.rendered_revision = Some(app.revision);
-        let byte = app.document.view.text.find("jeudi").unwrap();
-        let index = app.document.view.text[..byte].chars().count();
+        app.submitted = app.session.revision;
+        app.rendered_revision = Some(app.session.revision);
+        let byte = app.session.document.view.text.find("jeudi").unwrap();
+        let index = app.session.document.view.text[..byte].chars().count();
         app.selection = editor::cursor(index..index + 5);
         let draw = |app: &mut App, width| {
             let output = ctx.run(
@@ -4107,9 +4265,9 @@ mod interaction_tests {
         app.selection = editor::cursor(index..index);
         assert!(draw(&mut app, 400.0).is_empty());
         app.selection = editor::cursor(index..index + 5);
-        app.revision += 1;
+        app.session.revision += 1;
         assert!(draw(&mut app, 400.0).is_empty());
-        app.revision -= 1;
+        app.session.revision -= 1;
         app.rendering_error = Some("essai".into());
         assert!(draw(&mut app, 400.0).is_empty());
         app.rendering_error = None;
@@ -4120,40 +4278,41 @@ mod interaction_tests {
     fn cross_paragraph_formatting_undo_restores_source_and_selection() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx, None);
-        let source = app.document.source().to_owned();
+        let source = app.session.document.source().to_owned();
         app.selection = editor::cursor(3..180);
         let selection = app.selection;
         app.apply(Command::Bold);
-        assert!(app.document.view.mark_state(3..180, Mark::Bold).0);
+        assert!(app.session.document.view.mark_state(3..180, Mark::Bold).0);
         assert_eq!(app.selection, selection);
         app.apply(Command::Undo);
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.document.source(), source);
         assert_eq!(app.selection, selection);
         app.apply(Command::Redo);
-        assert!(app.document.view.mark_state(3..180, Mark::Bold).0);
+        assert!(app.session.document.view.mark_state(3..180, Mark::Bold).0);
     }
 
     #[test]
     fn native_egui_replaces_a_unicode_selection_without_source_markers() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        app.document = Document::from_source("Élodie écrit.\n\nDeuxième paragraphe.").unwrap();
+        app.session.document =
+            Document::from_source("Élodie écrit.\n\nDeuxième paragraphe.").unwrap();
         app.selection = editor::cursor(0..6);
         app.force_selection = true;
         frame(&mut app, &ctx, vec![]);
         frame(&mut app, &ctx, vec![egui::Event::Text("Noël".into())]);
         assert!(
-            app.document.view.text.starts_with("Noël écrit."),
+            app.session.document.view.text.starts_with("Noël écrit."),
             "{}",
-            app.document.view.text
+            app.session.document.view.text
         );
         assert_eq!(
-            app.document.view.len(),
-            app.document.view.text.chars().count()
+            app.session.document.view.len(),
+            app.session.document.view.text.chars().count()
         );
-        assert!(Document::from_source(app.document.source()).is_ok());
+        assert!(Document::from_source(app.session.document.source()).is_ok());
         app.apply(Command::Undo);
-        assert!(app.document.view.text.starts_with("Élodie écrit."));
+        assert!(app.session.document.view.text.starts_with("Élodie écrit."));
     }
 
     #[test]
@@ -4174,8 +4333,8 @@ mod interaction_tests {
                 modifiers: egui::Modifiers::COMMAND,
             }],
         );
-        assert!(app.document.view.mark_state(0..180, Mark::Italic).0);
-        assert!(!app.document.view.text.contains("#emph"));
+        assert!(app.session.document.view.mark_state(0..180, Mark::Italic).0);
+        assert!(!app.session.document.view.text.contains("#emph"));
         assert_eq!(app.selection.as_sorted_char_range(), 0..180);
     }
 
@@ -4189,19 +4348,19 @@ mod interaction_tests {
         ] {
             let ctx = egui::Context::default();
             let mut app = App::with_context(ctx.clone(), None);
-            app.document = Document::from_source(source).unwrap();
-            let end = app.document.view.len();
+            app.session.document = Document::from_source(source).unwrap();
+            let end = app.session.document.view.len();
             app.selection = editor::cursor(end..end);
             app.force_selection = true;
             frame(&mut app, &ctx, vec![]);
             frame(&mut app, &ctx, vec![egui::Event::Text(closing.into())]);
             if let Some(kind) = kind {
-                assert_eq!(app.document.view.blocks[0], kind);
+                assert_eq!(app.session.document.view.blocks[0], kind);
             } else {
-                assert!(app.document.view.mark_state(0..7, Mark::Bold).0);
+                assert!(app.session.document.view.mark_state(0..7, Mark::Bold).0);
             }
             app.apply(Command::Undo);
-            assert_eq!(app.document.view.text, expected);
+            assert_eq!(app.session.document.view.text, expected);
         }
     }
 
@@ -4219,7 +4378,7 @@ mod interaction_tests {
         ] {
             let ctx = egui::Context::default();
             let mut app = App::with_context(ctx.clone(), None);
-            app.document = Document::from_source("Échéance").unwrap();
+            app.session.document = Document::from_source("Échéance").unwrap();
             app.selection = editor::cursor(8..8);
             app.apply(Command::Block(BlockKind::Description));
             app.force_selection = true;
@@ -4229,10 +4388,10 @@ mod interaction_tests {
             }
             frame(&mut app, &ctx, vec![separator]);
             frame(&mut app, &ctx, vec![egui::Event::Text("Vendredi".into())]);
-            assert_eq!(app.document.view.text, "Échéance\tVendredi");
-            assert_eq!(app.document.view.blocks, [BlockKind::Description]);
-            let restored = Document::from_source(app.document.source()).unwrap();
-            assert_eq!(restored.view.text, app.document.view.text);
+            assert_eq!(app.session.document.view.text, "Échéance\tVendredi");
+            assert_eq!(app.session.document.view.blocks, [BlockKind::Description]);
+            let restored = Document::from_source(app.session.document.source()).unwrap();
+            assert_eq!(restored.view.text, app.session.document.view.text);
             frame(
                 &mut app,
                 &ctx,
@@ -4257,7 +4416,7 @@ mod interaction_tests {
                 }],
             );
             assert_eq!(app.selection.primary.index, 9);
-            let end = app.document.view.len();
+            let end = app.session.document.view.len();
             app.selection = editor::cursor(end..end);
             app.force_selection = true;
             frame(&mut app, &ctx, vec![]);
@@ -4272,7 +4431,10 @@ mod interaction_tests {
                     modifiers: egui::Modifiers::NONE,
                 }],
             );
-            assert_eq!(app.document.view.blocks, [BlockKind::Description; 2]);
+            assert_eq!(
+                app.session.document.view.blocks,
+                [BlockKind::Description; 2]
+            );
             frame(
                 &mut app,
                 &ctx,
@@ -4285,7 +4447,7 @@ mod interaction_tests {
                 }],
             );
             assert_eq!(
-                app.document.view.blocks,
+                app.session.document.view.blocks,
                 [BlockKind::Description, BlockKind::Paragraph]
             );
         }
@@ -4295,12 +4457,12 @@ mod interaction_tests {
     fn quote_keyboard_edits_body_and_attribution_and_exits_without_losing_source() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        app.document = Document::from_source("Bonjour").unwrap();
+        app.session.document = Document::from_source("Bonjour").unwrap();
         app.selection = editor::cursor(7..7);
         app.apply(Command::Block(BlockKind::Quote));
         frame(&mut app, &ctx, vec![]);
         assert_eq!(
-            app.document.view.blocks,
+            app.session.document.view.blocks,
             [BlockKind::Quote, BlockKind::QuoteAttribution]
         );
         let key = |key| egui::Event::Key {
@@ -4312,7 +4474,7 @@ mod interaction_tests {
         };
         frame(&mut app, &ctx, vec![key(egui::Key::Tab)]);
         frame(&mut app, &ctx, vec![egui::Event::Text("Élodie".into())]);
-        assert_eq!(app.document.view.text, "Bonjour\nÉlodie");
+        assert_eq!(app.session.document.view.text, "Bonjour\nÉlodie");
         frame(
             &mut app,
             &ctx,
@@ -4334,20 +4496,23 @@ mod interaction_tests {
             &ctx,
             vec![egui::Event::Text("Deuxième pensée.".into())],
         );
-        assert_eq!(app.document.view.text, "Bonjour\nDeuxième pensée.\nÉlodie");
         assert_eq!(
-            app.document.view.blocks,
+            app.session.document.view.text,
+            "Bonjour\nDeuxième pensée.\nÉlodie"
+        );
+        assert_eq!(
+            app.session.document.view.blocks,
             [
                 BlockKind::Quote,
                 BlockKind::Quote,
                 BlockKind::QuoteAttribution
             ]
         );
-        let source = app.document.source().to_owned();
+        let source = app.session.document.source().to_owned();
         frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
         frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
         assert_eq!(
-            app.document.view.blocks,
+            app.session.document.view.blocks,
             [
                 BlockKind::Quote,
                 BlockKind::Quote,
@@ -4356,27 +4521,27 @@ mod interaction_tests {
             ]
         );
         frame(&mut app, &ctx, vec![egui::Event::Text("Suite.".into())]);
-        let restored = Document::from_source(app.document.source()).unwrap();
-        assert_eq!(restored.view, app.document.view);
+        let restored = Document::from_source(app.session.document.source()).unwrap();
+        assert_eq!(restored.view, app.session.document.view);
         app.apply(Command::Undo);
         app.apply(Command::Undo);
         app.apply(Command::Undo);
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.document.source(), source);
     }
 
     #[test]
     fn converting_multiple_paragraphs_to_quote_preserves_selection_and_can_be_undone() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx, None);
-        app.document = Document::from_source("Un.\n\nDeux.\n\nTrois.").unwrap();
-        let original = app.document.clone();
+        app.session.document = Document::from_source("Un.\n\nDeux.\n\nTrois.").unwrap();
+        let original = app.session.document.clone();
         app.selection = CCursorRange::two(CCursor::new(3), CCursor::new(0));
         app.apply(Command::Block(BlockKind::Quote));
         assert_eq!(app.selection.primary.index, 0);
         assert_eq!(app.selection.secondary.index, 3);
-        assert_eq!(app.document.view.text, "Un.\n\n\nDeux.\n\nTrois.");
+        assert_eq!(app.session.document.view.text, "Un.\n\n\nDeux.\n\nTrois.");
         assert_eq!(
-            app.document.view.blocks,
+            app.session.document.view.blocks,
             [
                 BlockKind::Quote,
                 BlockKind::QuoteAttribution,
@@ -4387,18 +4552,21 @@ mod interaction_tests {
             ]
         );
         assert_eq!(
-            Document::from_source(app.document.source()).unwrap().view,
-            app.document.view
+            Document::from_source(app.session.document.source())
+                .unwrap()
+                .view,
+            app.session.document.view
         );
         app.apply(Command::Undo);
-        assert_eq!(app.document, original);
+        assert_eq!(app.session.document, original);
         app.selection = editor::cursor(0..8);
         app.apply(Command::Block(BlockKind::Quote));
-        assert_eq!(app.document.view.quote_groups()[0].body, 0..3);
-        app.selection = editor::cursor(0..app.document.view.len());
+        assert_eq!(app.session.document.view.quote_groups()[0].body, 0..3);
+        app.selection = editor::cursor(0..app.session.document.view.len());
         app.apply(Command::Block(BlockKind::Paragraph));
         assert!(
-            !app.document
+            !app.session
+                .document
                 .view
                 .blocks
                 .iter()
@@ -4410,7 +4578,7 @@ mod interaction_tests {
     fn description_tab_with_a_selection_and_enter_in_text_create_an_empty_label() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        app.document = Document::from_source("/ Échéance: Vendredi").unwrap();
+        app.session.document = Document::from_source("/ Échéance: Vendredi").unwrap();
         app.selection = editor::cursor(2..5);
         app.force_selection = true;
         frame(&mut app, &ctx, vec![]);
@@ -4423,23 +4591,29 @@ mod interaction_tests {
         };
         frame(&mut app, &ctx, vec![key(egui::Key::Tab)]);
         assert_eq!(app.selection.as_sorted_char_range(), 9..9);
-        assert_eq!(app.document.view.text, "Échéance\tVendredi");
+        assert_eq!(app.session.document.view.text, "Échéance\tVendredi");
         app.selection = editor::cursor(12..12);
         app.force_selection = true;
         frame(&mut app, &ctx, vec![]);
-        let before = app.document.source().to_owned();
+        let before = app.session.document.source().to_owned();
         frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
-        assert_eq!(app.document.view.text, "Échéance\tVen\n\tdredi");
+        assert_eq!(app.session.document.view.text, "Échéance\tVen\n\tdredi");
         assert_eq!(app.selection.primary.index, 13);
-        assert_eq!(app.document.view.blocks, [BlockKind::Description; 2]);
+        assert_eq!(
+            app.session.document.view.blocks,
+            [BlockKind::Description; 2]
+        );
         app.apply(Command::Undo);
-        assert_eq!(app.document.source(), before);
+        assert_eq!(app.session.document.source(), before);
         app.apply(Command::Redo);
         frame(&mut app, &ctx, vec![]);
         frame(&mut app, &ctx, vec![egui::Event::Text("Contact".into())]);
-        assert_eq!(app.document.view.text, "Échéance\tVen\nContact\tdredi");
-        let restored = Document::from_source(app.document.source()).unwrap();
-        assert_eq!(restored.view, app.document.view);
+        assert_eq!(
+            app.session.document.view.text,
+            "Échéance\tVen\nContact\tdredi"
+        );
+        let restored = Document::from_source(app.session.document.source()).unwrap();
+        assert_eq!(restored.view, app.session.document.view);
     }
 
     #[test]
@@ -4462,8 +4636,12 @@ mod interaction_tests {
                 },
                 |ctx| {
                     egui::CentralPanel::default().show(ctx, |ui| {
-                        action =
-                            crate::toolbar::show(ui, &app.document.view, app.range(), &app.keymap);
+                        action = crate::toolbar::show(
+                            ui,
+                            &app.session.document.view,
+                            app.range(),
+                            &app.keymap,
+                        );
                     });
                 },
             );
@@ -4513,9 +4691,9 @@ mod interaction_tests {
                 egui::Visuals::light()
             });
             ctx.style_mut(|style| style.animation_time = 0.0);
-            app.document = Document::from_source("Été à Paris.").unwrap();
+            app.session.document = Document::from_source("Été à Paris.").unwrap();
             app.selection = editor::cursor(0..3);
-            let text = app.document.view.text.clone();
+            let text = app.session.document.view.text.clone();
             for (icon, command, mark) in [
                 (Icon::Bold, Command::Bold, Mark::Bold),
                 (Icon::Italic, Command::Italic, Mark::Italic),
@@ -4523,7 +4701,7 @@ mod interaction_tests {
                 let (output, _) = draw(&mut app, &ctx, vec![]);
                 let pos = icon_rect(&output, &ctx, icon).center();
                 assert_eq!(click(&mut app, &ctx, pos), Some(command));
-                assert!(app.document.view.mark_state(0..3, mark).0);
+                assert!(app.session.document.view.mark_state(0..3, mark).0);
                 assert_eq!(app.range(), 0..3);
                 let (output, _) = draw(&mut app, &ctx, vec![]);
                 let texture = icon.texture(&ctx, crate::toolbar::ICON_SIZE).id();
@@ -4571,7 +4749,7 @@ mod interaction_tests {
                 let command = Command::Block(kind);
                 let pos = text_point(&menu, &command.short_label()).expect("entrée du menu Titres");
                 assert_eq!(click(&mut app, &ctx, pos), Some(command));
-                assert_eq!(app.document.view.blocks[0], kind);
+                assert_eq!(app.session.document.view.blocks[0], kind);
                 assert_eq!(app.range(), 0..3);
                 heading_icon = next_icon;
             }
@@ -4584,7 +4762,7 @@ mod interaction_tests {
             let (output, _) = draw(&mut app, &ctx, vec![]);
             let pos = icon_rect(&output, &ctx, Icon::Image).center();
             assert_eq!(click(&mut app, &ctx, pos), Some(Command::InsertImage));
-            assert_eq!(app.document.view.text, text);
+            assert_eq!(app.session.document.view.text, text);
             let (output, _) = draw(&mut app, &ctx, vec![]);
             let pos = icon_rect(&output, &ctx, Icon::Quote).center();
             assert_eq!(
@@ -4592,7 +4770,7 @@ mod interaction_tests {
                 Some(Command::Block(BlockKind::Quote))
             );
             assert_eq!(
-                app.document.view.blocks,
+                app.session.document.view.blocks,
                 [BlockKind::Quote, BlockKind::QuoteAttribution]
             );
             let (output, _) = draw(&mut app, &ctx, vec![]);
@@ -4601,7 +4779,7 @@ mod interaction_tests {
                 click(&mut app, &ctx, pos),
                 Some(Command::Block(BlockKind::Paragraph))
             );
-            assert_eq!(app.document.view.blocks[0], BlockKind::Paragraph);
+            assert_eq!(app.session.document.view.blocks[0], BlockKind::Paragraph);
         }
     }
 
@@ -4682,7 +4860,7 @@ mod interaction_tests {
                     ],
                 );
             }
-            assert_eq!(app.document.view.blocks[0], kind);
+            assert_eq!(app.session.document.view.blocks[0], kind);
         }
     }
 
@@ -4690,13 +4868,13 @@ mod interaction_tests {
     fn changing_model_restores_automatic_markers_without_altering_the_body() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx, None);
-        let source = app.document.source().to_owned();
-        app.metadata.options_mut().bullet_marker = Some("◆".into());
+        let source = app.session.document.source().to_owned();
+        app.session.metadata.options_mut().bullet_marker = Some("◆".into());
         app.presentation.custom_bullet_marker = true;
         app.apply(Command::Courrier(CourrierCommand::Model(Model::Service)));
-        assert!(app.metadata.options().bullet_marker.is_none());
+        assert!(app.session.metadata.options().bullet_marker.is_none());
         assert_eq!(app.presentation, ModelPresentation::default());
-        assert_eq!(app.document.source(), source);
+        assert_eq!(app.session.document.source(), source);
     }
 
     #[test]
@@ -4750,7 +4928,10 @@ mod interaction_tests {
                 );
             }
         }
-        assert_eq!(app.metadata.options().bullet_marker.as_deref(), Some("▪"));
+        assert_eq!(
+            app.session.metadata.options().bullet_marker.as_deref(),
+            Some("▪")
+        );
         let output = draw(&mut app, vec![]);
         assert!(point(&output, "Caractère personnalisé…").is_none());
     }

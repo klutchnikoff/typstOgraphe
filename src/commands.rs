@@ -3,7 +3,7 @@
 //! raccourcis par défaut sans dépendre des libellés français ou du code de l'UI.
 use crate::{
     document::BlockKind,
-    document_types::{DocumentType, courrier},
+    document_types::{DocumentType, compte_rendu, courrier},
 };
 use eframe::egui::{self, Key, KeyboardShortcut, Modifiers};
 use serde::{Deserialize, Serialize};
@@ -35,6 +35,7 @@ pub enum Command {
     Preferences,
     Information,
     Courrier(courrier::Command),
+    CompteRendu(compte_rendu::Command),
     Bold,
     Italic,
     Clear,
@@ -42,6 +43,7 @@ pub enum Command {
     Link,
     RemoveLink,
     InsertImage,
+    ImportModel,
     Undo,
     Redo,
 }
@@ -49,10 +51,16 @@ impl Command {
     pub fn model_source(self) -> Option<String> {
         match self {
             Self::Courrier(courrier::Command::Model(model)) => Some(model.source()),
+            Self::CompteRendu(compte_rendu::Command::StandardModel) => {
+                Some(compte_rendu::MODEL.into())
+            }
             _ => None,
         }
     }
     pub fn definition(self) -> &'static Definition {
+        if let Self::CompteRendu(command) = self {
+            return command.definition();
+        }
         if let Self::Courrier(command) = self {
             return command.definition();
         }
@@ -106,11 +114,15 @@ impl Definition {
             Command::Preferences => (MenuGroup::Edit, 30),
             Command::Information => (MenuGroup::View, 0),
             Command::InsertImage => (MenuGroup::Insert, 0),
+            Command::ImportModel => (MenuGroup::View, 10),
             _ => return None,
         })
     }
     pub fn in_model_menu(&self) -> bool {
-        matches!(self.command, Command::Courrier(courrier::Command::Model(_)))
+        matches!(
+            self.command,
+            Command::Courrier(courrier::Command::Model(_)) | Command::CompteRendu(_)
+        )
     }
     pub fn in_heading_menu(&self) -> bool {
         matches!(
@@ -158,6 +170,13 @@ pub(crate) const fn short(mut definition: Definition, label: &'static str) -> De
 
 /// Chaque commande, y compris sans raccourci, est définie une seule fois ici.
 pub const COMMON_COMMANDS: &[Definition] = &[
+    define(
+        "document.import_model",
+        "cmd-import-model",
+        Command::ImportModel,
+        Scope::Global,
+        &[],
+    ),
     define(
         "insert.image",
         "cmd-insert-image",
@@ -446,7 +465,11 @@ impl Keymap {
         overrides: &ShortcutOverrides,
     ) -> Result<Self, String> {
         for id in overrides.keys() {
-            if !registry.definitions().any(|definition| definition.id == id) {
+            if !DocumentType::ALL.into_iter().any(|kind| {
+                Registry::new(kind)
+                    .definitions()
+                    .any(|definition| definition.id == id)
+            }) {
                 return Err(crate::tr!("shortcut-unknown-command", id = id.as_str()));
             }
         }
@@ -772,6 +795,16 @@ mod tests {
         let config = overrides(r#"{"courrier.model.service":[{"key":"F7"}]}"#);
         let keymap = Keymap::new(registry, false, &config).unwrap();
         let keymap = keymap.for_document(DocumentType::Courrier).unwrap();
+        assert_eq!(
+            dispatch(&keymap, Key::F7, Modifiers::NONE, false),
+            (vec![action], false)
+        );
+        let minutes = keymap.for_document(DocumentType::CompteRendu).unwrap();
+        assert_eq!(
+            dispatch(&minutes, Key::F7, Modifiers::NONE, false),
+            (vec![], true)
+        );
+        let keymap = minutes.for_document(DocumentType::Courrier).unwrap();
         assert_eq!(
             dispatch(&keymap, Key::F7, Modifiers::NONE, false),
             (vec![action], false)

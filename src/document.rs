@@ -10,7 +10,6 @@ pub struct ImageBlock {
     pub alt: String,
 }
 
-use eframe::egui::TextBuffer;
 use serde::{Deserialize, Serialize};
 use typst_syntax::ast::{self, AstNode, Expr};
 
@@ -209,6 +208,31 @@ impl Projection {
         });
         first..last + 1
     }
+    /// Un paragraphe peut couvrir plusieurs lignes de texte courant ou cité.
+    /// Les lignes vides et les structures (titres, éléments, annotations) le bornent.
+    pub fn paragraph_at(&self, position: usize) -> Range<usize> {
+        let ranges = self.line_ranges();
+        let line = self.line_at(position);
+        let kind = self.blocks[line];
+        let mut first = line;
+        let mut last = line;
+        if matches!(kind, BlockKind::Paragraph | BlockKind::Quote) && !ranges[line].is_empty() {
+            while first > 0 && self.blocks[first - 1] == kind && !ranges[first - 1].is_empty() {
+                first -= 1;
+            }
+            while last + 1 < ranges.len()
+                && self.blocks[last + 1] == kind
+                && !ranges[last + 1].is_empty()
+            {
+                last += 1;
+            }
+        }
+        ranges[first].start..ranges[last].end
+    }
+    pub fn is_single_paragraph(&self, range: Range<usize>) -> bool {
+        let paragraph = self.paragraph_at(range.start);
+        range.end <= paragraph.end
+    }
     pub fn style_at(&self, position: usize) -> InlineStyle {
         self.styles
             .get(position)
@@ -217,9 +241,35 @@ impl Projection {
             .unwrap_or_default()
     }
     pub fn set_block(&mut self, range: Range<usize>, kind: BlockKind) {
+        let first = self.paragraph_at(range.start).start;
+        let last = self
+            .paragraph_at(if range.is_empty() {
+                range.end
+            } else {
+                range.end.saturating_sub(1)
+            })
+            .end;
+        let target = first..last;
+        // Un titre ou un élément représente un paragraphe, pas chacune de ses
+        // lignes de saisie. Joindre les retours simples conserve tous les indices.
+        if matches!(kind, BlockKind::Heading(_)) || kind.is_list() {
+            let ranges = self.line_ranges();
+            let lines = self.selected_lines(target.clone());
+            for line in (lines.start..lines.end.saturating_sub(1)).rev() {
+                if matches!(self.blocks[line], BlockKind::Paragraph | BlockKind::Quote)
+                    && self.blocks[line] == self.blocks[line + 1]
+                    && !ranges[line].is_empty()
+                    && !ranges[line + 1].is_empty()
+                {
+                    let byte = self.byte_index(ranges[line].end);
+                    self.text.replace_range(byte..byte + 1, " ");
+                    self.blocks.remove(line + 1);
+                }
+            }
+        }
         let lines = self.line_ranges();
         let selected = !range.is_empty();
-        for index in self.selected_lines(range) {
+        for index in self.selected_lines(target) {
             if selected
                 && lines[index].is_empty()
                 && self.blocks[index] == BlockKind::Paragraph
@@ -608,17 +658,8 @@ impl Projection {
     }
 }
 
-impl TextBuffer for Projection {
-    fn type_id(&self) -> std::any::TypeId {
-        std::any::TypeId::of::<Self>()
-    }
-    fn is_mutable(&self) -> bool {
-        true
-    }
-    fn as_str(&self) -> &str {
-        &self.text
-    }
-    fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
+impl Projection {
+    pub fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
         let mut text = text.replace("\r\n", "\n").replace('\r', "\n");
         let at = char_index.min(self.len());
         let line = self.line_at(at);
@@ -700,7 +741,7 @@ impl TextBuffer for Projection {
         }
         count
     }
-    fn delete_char_range(&mut self, range: Range<usize>) {
+    pub fn delete_char_range(&mut self, range: Range<usize>) {
         let start = range.start.min(self.len());
         let end = range.end.min(self.len()).max(start);
         let line = self.line_at(start);
@@ -714,7 +755,7 @@ impl TextBuffer for Projection {
         self.styles.drain(start..end);
         self.clean_images();
     }
-    fn replace_with(&mut self, text: &str) {
+    pub fn replace_with(&mut self, text: &str) {
         *self = Self::default();
         self.insert_text(text, 0);
     }

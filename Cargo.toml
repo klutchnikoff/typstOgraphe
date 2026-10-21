@@ -3,7 +3,7 @@ name = "typstographe"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.92"
-description = "Prototype d’édition visuelle de courriers avec egui et Typst"
+description = "Édition visuelle de documents avec egui et Typst"
 publish = false
 
 [dependencies]

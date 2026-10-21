@@ -73,7 +73,6 @@ impl Counter {
 mod tests {
     use super::*;
     use crate::document::Document;
-    use eframe::egui::TextBuffer;
 
     #[test]
     fn unicode_counts_graphemes_and_words_with_explicit_punctuation_conventions() {

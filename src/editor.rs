@@ -16,6 +16,54 @@ const IMAGE_PADDING: f32 = 10.0;
 const IMAGE_CAPTION_GAP: f32 = 8.0;
 const ANNOTATION_SCALE: f32 = 0.9;
 
+impl From<CCursorRange> for crate::session::Selection {
+    fn from(range: CCursorRange) -> Self {
+        let caret = |c: CCursor| crate::session::Caret {
+            index: c.index,
+            prefer_next_row: c.prefer_next_row,
+        };
+        Self {
+            primary: caret(range.primary),
+            secondary: caret(range.secondary),
+        }
+    }
+}
+impl From<crate::session::Selection> for CCursorRange {
+    fn from(range: crate::session::Selection) -> Self {
+        let caret = |c: crate::session::Caret| CCursor {
+            index: c.index,
+            prefer_next_row: c.prefer_next_row,
+        };
+        Self {
+            primary: caret(range.primary),
+            secondary: caret(range.secondary),
+            h_pos: None,
+        }
+    }
+}
+
+// Adaptateur de saisie : le document et ses opérations ne dépendent pas d’egui.
+impl TextBuffer for Projection {
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<Self>()
+    }
+    fn is_mutable(&self) -> bool {
+        true
+    }
+    fn as_str(&self) -> &str {
+        &self.text
+    }
+    fn insert_text(&mut self, text: &str, at: usize) -> usize {
+        Projection::insert_text(self, text, at)
+    }
+    fn delete_char_range(&mut self, range: Range<usize>) {
+        Projection::delete_char_range(self, range);
+    }
+    fn replace_with(&mut self, text: &str) {
+        Projection::replace_with(self, text);
+    }
+}
+
 pub fn install_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
     let bundled: Vec<_> = typst_assets::fonts().collect();

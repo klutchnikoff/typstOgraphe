@@ -343,7 +343,7 @@ mod tests {
                 MenuGroup::View,
                 false
             ),
-            vec![(Command::Information, false)]
+            vec![(Command::Information, false), (Command::ImportModel, true)]
         );
         let file = items(
             Registry::new(DocumentType::Courrier),

@@ -1,9 +1,9 @@
 # typstOgraphe
 
-Prototype natif d’édition visuelle de courriers administratifs en Rust,
-avec egui/eframe et le moteur Typst embarqué. Il sert à valider le confort de
-rédaction, de sélection et de mise en forme avant de construire l’application
-complète.
+Application native d’édition visuelle de documents administratifs en Rust,
+avec egui/eframe et le moteur Typst embarqué. Le POC validé évolue vers
+l’application : Courrier et Compte-rendu de réunion sont les deux premiers types.
+Le projet reste en développement préliminaire.
 
 ## Lancer
 
@@ -157,7 +157,7 @@ raccourcis et actions du registre :
 
 - **Fichier** : Nouveau, Ouvrir, Enregistrer, Enregistrer sous, Exporter et Fermer.
 - **Édition** : Annuler, Rétablir, Retirer la mise en forme et Palette de commandes.
-- **Affichage** : Informations du courrier, avec indication de son état déplié.
+- **Affichage** : Informations du document et Importer un modèle…
 
 Sur macOS, **Quitter typstOgraphe** se trouve dans le menu de l’application ; sur
 Windows et Linux, dans Fichier. Fermer utilise `⌘W` / `Ctrl+W`, Quitter `⌘Q` /
@@ -165,7 +165,9 @@ Windows et Linux, dans Fichier. Fermer utilise `⌘W` / `Ctrl+W`, Quitter `⌘Q`
 protection des modifications non enregistrées. Les rôles système macOS
 (Services, Masquer…) sont fournis par muda.
 
-Annuler/Rétablir agit sur le texte du courrier ou le champ de métadonnées actif.
+Annuler/Rétablir suit un historique commun au corps, aux métadonnées et aux
+changements de modèle. La saisie rapprochée dans un même champ est regroupée ;
+changer de champ, de modèle ou de catégorie d’édition crée une autre transaction.
 Les commandes des menus sont suspendues pendant les dialogues. Sur macOS, les
 raccourcis installés dans les menus natifs sont retirés du traitement clavier
 egui pour éviter une double exécution ; les raccourcis secondaires restent
@@ -203,7 +205,8 @@ indépendantes du fichier de courrier et ne déclenchent pas d’état « modifi
 ## Types intégrés et modèles Typst
 
 Les types sont définis en Rust, dans `src/document_types/`. Le premier est
-**Courrier**, dans `courrier.rs`. Il possède ses métadonnées typées, ses champs
+**Courrier**, dans `courrier.rs`, suivi de **Compte-rendu**, dans `compte_rendu.rs`.
+Chaque type possède ses métadonnées typées, ses champs
 et groupes d’édition, les champs requis pour l’export, son contrat de composition
 Typst et ses commandes spécifiques. Il ne charge pas de définition YAML.
 
@@ -218,7 +221,10 @@ préférences, styles…) et des commandes du type. Courrier ajoute
 `courrier.model.institutional` et `courrier.model.service`. Palette, sélecteurs,
 menus et raccourcis utilisent cette même vue ; les conflits de raccourcis sont
 vérifiés sur l’ensemble. Les actions spécifiques sont représentées par
-`Command::Courrier(courrier::Command)`.
+`Command::Courrier(courrier::Command)` et
+`Command::CompteRendu(compte_rendu::Command)`. Les raccourcis personnalisés des
+commandes d’un autre type sont conservés pendant un changement de document,
+sans devenir actifs dans le nouveau type.
 
 Les modèles restent du pur Typst. Le catalogue Courrier fournit la présentation
 institutionnelle et la présentation de service. Cette dernière combine
@@ -226,6 +232,33 @@ institutionnelle et la présentation de service. Cette dernière combine
 `modele.typ` autonome. Le choix est ainsi enregistré dans le modèle lui-même :
 le moteur commun ne transmet plus de drapeau `compact`. Une implémentation
 indépendante peut employer des fonctions privées et une mise en page complexe.
+
+**Fichier → Nouveau** propose Courrier ou Compte-rendu. Le choix crée un vrai
+document vierge, sans les coordonnées fictives de la démonstration, et fixe son
+type. Le compte-rendu propose l’intitulé, la date, le lieu ou la visioconférence,
+la rédaction, les personnes présentes et excusées ; son corps est libre.
+Seul l’intitulé est obligatoire pour son export. Son modèle initial autonome
+est `templates/compte-rendu.typ`, avec les libellés français et anglais (repli
+français pour les autres langues de document).
+
+**Affichage → Importer un modèle…**, également dans la palette, accepte un
+fichier `.typ` autonome de 1 Mio maximum. L’application vérifie que la fonction
+publique attendue existe et que son appel avec les métadonnées et le contenu
+courants compile. Une erreur conserve le modèle et le document précédents.
+Cette validation vérifie le contrat d’appel, pas le respect visuel d’une charte.
+Les images référencées doivent déjà être embarquées dans le document ; les
+imports de fichiers externes et de paquets ne sont pas résolus. Le modèle choisi
+est copié dans le document et son remplacement peut être annulé. La gestion
+d’une bibliothèque persistante de modèles d’organisation reste à développer.
+
+Le contrat Courrier expose `courrier(expediteur, fonction, service, email,
+destinataire, adresse, objet, reference, lieu, date, options, body)` ; Compte-rendu
+expose `compte-rendu(titre, date, lieu, redacteur, participants, excuses, options,
+body)`. Les champs et `options` sont nommés, `body` est positionnel. Les
+constructions communes (titres, listes, `strong`, `emph`, `link`, `quote`,
+`figure` et `image`) sont celles de Typst ; le modèle en définit les règles de
+composition. Les tests des types compilent aussi les citations, descriptions et
+images, puis vérifient l’archive et l’export de chaque type.
 
 Le corps éditable et ses conventions visuelles restent communs dans
 `document.rs` et `editor.rs`. Ajouter un autre type demandera du Rust pour ses
@@ -344,7 +377,7 @@ Le fichier est une archive ZIP standard contenant :
 - `modele.typ` : copie exacte du modèle utilisé, réutilisée à la réouverture
   et lors de l’export ;
 - `main.typ` : en-tête généré à partir des métadonnées ;
-- `manifest.json` : identifiant du format, version 5 et type « courrier » ;
+- `manifest.json` : identifiant du format, version 5 et type du document ;
 - `images/` : images PNG, JPEG ou SVG embarquées dans le courrier.
 
 Le modèle embarqué permet de retrouver la présentation du courrier indépendamment
@@ -404,7 +437,7 @@ La commande **Exporter** du menu Fichier ou le raccourci `⌘E` sur
 macOS / `Ctrl+E` sur Windows et Linux ouvre la fenêtre d’export. La commande est
 aussi accessible dans la palette. L’export produit dans un nouveau dossier :
 
-- `courrier.pdf` et les pages PNG ;
+- `courrier.pdf` ou `compte-rendu.pdf`, selon le type, et les pages PNG ;
 - `main.typ`, dont l’en-tête renseigne `#show: courrier.with(...)` ;
 - `contenu.typ`, `modele.typ` et `metadonnees.json`.
 
@@ -606,11 +639,26 @@ et les expressions calculées qu’il ne sait pas éditer.
 
 L’enregistrement est manuel. Ce prototype n’inclut pas encore l’import des
 anciens exports en dossier, l’enregistrement automatique, les préférences
-personnelles, l’image de signature, les types de document supplémentaires ni le travail collaboratif.
+personnelles, l’image de signature ni le travail collaboratif.
 
 Les paragraphes vides successifs et les espaces sont normalisés à la relecture
 d’un source. L’indentation des listes sur plusieurs lignes et les entrées IME
 devront faire l’objet d’essais manuels complémentaires.
+
+## Session et opérations d’édition
+
+`src/session.rs` possède le document, les métadonnées, le modèle, la révision,
+l’état enregistré et l’historique commun. Ses sélections utilisent des indices de
+caractères, sans curseurs egui. `App` conserve la présentation, le focus et le
+pilotage des fichiers et du rendu. L’adaptateur `TextBuffer` et les conversions
+de curseurs vivent dans `editor.rs` ; la projection et ses mutations dans
+`document.rs` ne dépendent plus d’egui.
+
+Les opérations de bloc raisonnent sur les paragraphes : un retour simple ne
+coupe pas une sélection de lien. Transformer un paragraphe sur plusieurs lignes
+en titre ou en élément de liste joint ces lignes par des espaces, en conservant
+les indices de caractères. Les lignes vides bornent les paragraphes ; les titres,
+éléments de liste, images et annotations gardent leurs frontières propres.
 
 ## Vérification
 
@@ -641,6 +689,11 @@ ainsi que la cohérence entre le raccourci actif et son affichage.
 Les tests des menus vérifient leur répartition par plateforme, l’export par le
 menu egui, la protection de Quitter, les accélérateurs natifs, l’absence de double
 déclenchement et l’annulation/rétablissement dans les métadonnées via la palette.
+
+Le workflow `.github/workflows/ci.yml` exécute formatage, tests et Clippy sur
+les runners GitHub macOS, Windows et Linux à chaque push et pull request.
+La réussite de ces contrôles ne remplace pas les essais manuels sur chaque OS
+(presse-papiers, saisie IME, dialogues, menus et accessibilité).
 
 Une capture de l’application peut être produite après le premier rendu réussi :
 

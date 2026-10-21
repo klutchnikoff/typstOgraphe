@@ -3,7 +3,6 @@ use crate::document_types::{
     DocumentType, Metadata,
     courrier::{self, Model},
 };
-use eframe::egui::TextBuffer;
 
 #[test]
 fn soft_newlines_and_paragraph_breaks_round_trip_with_unicode_styles_and_blocks() {
@@ -78,6 +77,31 @@ fn real_typst_keeps_a_soft_newline_on_the_same_line_and_starts_a_new_paragraph_a
     };
     assert!((at("Alpha") - at("Beta")).abs() < 0.01, "{text:?}");
     assert!(at("Gamma") - at("Beta") > 20.0, "{text:?}");
+}
+
+#[test]
+fn paragraph_commands_include_soft_lines_but_stop_at_separators_and_structures() {
+    let mut document = Document::from_source("Été\nNoël\n\nAprès.").unwrap();
+    assert_eq!(document.view.paragraph_at(5), 0..8);
+    assert!(document.view.is_single_paragraph(0..8));
+    assert!(!document.view.is_single_paragraph(0..10));
+    document.view.set_block(5..5, BlockKind::Heading(2));
+    document.sync_source();
+    assert_eq!(document.view.text, "Été Noël\n\nAprès.");
+    assert_eq!(
+        document.view.blocks,
+        [
+            BlockKind::Heading(2),
+            BlockKind::Paragraph,
+            BlockKind::Paragraph
+        ]
+    );
+    assert_eq!(
+        Document::from_source(document.source()).unwrap().view,
+        document.view
+    );
+    let list = Document::from_source("- Un\n- Deux").unwrap();
+    assert!(!list.view.is_single_paragraph(0..7));
 }
 
 #[test]

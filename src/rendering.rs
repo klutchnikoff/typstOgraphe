@@ -16,7 +16,7 @@ use typst::{
     Library, LibraryExt, World, WorldExt,
     diag::{FileError, FileResult},
     engine::{Route, Sink, Traced},
-    foundations::{Bytes, Datetime, Duration, Value},
+    foundations::{Bytes, Datetime, Duration, Module, Value},
     syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot},
     text::{Font, FontBook},
     utils::LazyHash,
@@ -75,12 +75,12 @@ impl TypstWorld {
             })
             .or_insert_with(|| Source::new(id, text.to_owned()));
     }
-    pub fn model_presentation(&mut self, template: &str) -> Result<ModelPresentation, String> {
+    fn model_module(&mut self, template: &str) -> Result<Module, String> {
         self.set_source("modele.typ", template);
         let source = self
             .source(file_id("modele.typ"))
             .map_err(|e| e.to_string())?;
-        let module = typst_eval::eval(
+        typst_eval::eval(
             (self as &dyn World).track(),
             &self.library,
             Traced::default().track(),
@@ -94,7 +94,28 @@ impl TypstWorld {
                 .map(|e| e.message.to_string())
                 .collect::<Vec<_>>()
                 .join("\n")
-        })?;
+        })
+    }
+    pub fn validate_model(
+        &mut self,
+        source: &str,
+        metadata: &Metadata,
+        template: &str,
+    ) -> Result<ModelPresentation, String> {
+        let module = self.model_module(template)?;
+        let function = metadata.document_type().composition_function();
+        if !module
+            .scope()
+            .get(function)
+            .is_some_and(|binding| matches!(binding.read(), Value::Func(_)))
+        {
+            return Err(crate::tr!("model-contract-missing", function = function));
+        }
+        self.compile_with_template(source, metadata, template)?;
+        self.model_presentation(template)
+    }
+    pub fn model_presentation(&mut self, template: &str) -> Result<ModelPresentation, String> {
+        let module = self.model_module(template)?;
         let mut policy = ModelPresentation::default();
         let Some(binding) = module.scope().get("editor-options") else {
             return Ok(policy);
@@ -358,7 +379,11 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
                     .collect::<Vec<_>>()
                     .join("\n")
             })?;
-        write(path, "courrier.pdf", &pdf)?;
+        write(
+            path,
+            &format!("{}.pdf", request.metadata.document_type().file_stem()),
+            &pdf,
+        )?;
         write(path, "main.typ", request.metadata.main_source().as_bytes())?;
         write(path, "contenu.typ", request.source.as_bytes())?;
         let assets = retained_assets(

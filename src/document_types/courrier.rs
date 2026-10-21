@@ -41,12 +41,17 @@ impl Default for Metadata {
 impl Metadata {
     pub fn blank() -> Self {
         Self {
+            options: DocumentOptions::default(),
+            expediteur: String::new(),
+            fonction: String::new(),
+            service: String::new(),
+            email: String::new(),
             destinataire: String::new(),
             adresse: String::new(),
             objet: String::new(),
             reference: String::new(),
             date: String::new(),
-            ..Self::default()
+            lieu: String::new(),
         }
     }
 }
@@ -251,7 +256,9 @@ mod tests {
             assert!(parameters.insert(field.parameter));
             assert!(editor_ids.insert(field.editor_id));
             assert!(GROUPS.iter().any(|group| group.id == field.group));
-            let DocumentMetadata::Courrier(fields) = &mut metadata;
+            let DocumentMetadata::Courrier(fields) = &mut metadata else {
+                unreachable!()
+            };
             (field.get_mut)(fields).push_str(" é\\#");
             let value = (field.get)(fields);
             assert!(CONTRACT.main_source(fields).contains(&format!(
