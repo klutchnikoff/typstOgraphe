@@ -3704,9 +3704,6 @@ impl App {
     }
 }
 impl eframe::App for App {
-    fn persist_egui_memory(&self) -> bool {
-        self.capture.is_none()
-    }
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         if self.capture.is_some() {
             return;
