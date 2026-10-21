@@ -6,7 +6,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
-    io::{Read, Write},
+    io::{Read, Seek, Write},
     path::Path,
 };
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
@@ -14,6 +14,7 @@ use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 pub const EXTENSION: &str = "typsto";
 const FORMAT_VERSION: u32 = 5;
 const LIMIT: u64 = crate::assets::MAX_DOCUMENT_BYTES;
+pub(crate) const EXTRA_ENTRY_LIMIT: u64 = 16 * 1024;
 const ENTRIES: [&str; 5] = [
     "manifest.json",
     "main.typ",
@@ -74,23 +75,41 @@ pub fn read(path: &Path) -> Result<StoredDocument, String> {
 }
 
 fn decode(reader: impl Read + std::io::Seek) -> Result<StoredDocument, String> {
+    decode_archive(reader, None).map(|(document, _)| document)
+}
+
+/// La récupération partage le format documentaire, avec une entrée privée
+/// supplémentaire. Les fichiers utilisateur continuent de refuser cette entrée.
+pub(crate) fn decode_archive(
+    reader: impl Read + Seek,
+    extra_name: Option<&str>,
+) -> Result<(StoredDocument, Option<String>), String> {
     let mut zip = ZipArchive::new(reader)
         .map_err(|e| crate::tr!("storage-zip-unreadable", error = e.to_string()))?;
-    if zip.len() < ENTRIES.len() || zip.len() > 1024 {
+    let extra_count = usize::from(extra_name.is_some());
+    if zip.len() < ENTRIES.len() + extra_count || zip.len() > 1024 + extra_count {
         return Err(crate::tr!("storage-file-count"));
     }
     let mut total = 0_u64;
     let mut names = std::collections::HashSet::new();
     for index in 0..zip.len() {
         let file = zip.by_index(index).map_err(|e| e.to_string())?;
-        if (!ENTRIES.contains(&file.name()) && !crate::assets::valid_path(file.name()))
+        if (!ENTRIES.contains(&file.name())
+            && Some(file.name()) != extra_name
+            && !crate::assets::valid_path(file.name()))
             || !names.insert(file.name().to_owned())
         {
             return Err(crate::tr!("storage-unknown-entry"));
         }
-        total = total
-            .checked_add(file.size())
-            .ok_or(crate::tr!("storage-invalid-size"))?;
+        if Some(file.name()) == extra_name {
+            if file.size() > EXTRA_ENTRY_LIMIT {
+                return Err(crate::tr!("storage-invalid-size"));
+            }
+        } else {
+            total = total
+                .checked_add(file.size())
+                .ok_or(crate::tr!("storage-invalid-size"))?;
+        }
         if total > LIMIT {
             return Err(crate::tr!("storage-expanded-too-large"));
         }
@@ -124,7 +143,8 @@ fn decode(reader: impl Read + std::io::Seek) -> Result<StoredDocument, String> {
     if entry(&mut zip, "main.typ")? != letter.metadata.main_source() {
         return Err(crate::tr!("storage-main-mismatch"));
     }
-    Ok(letter)
+    let extra = extra_name.map(|name| entry(&mut zip, name)).transpose()?;
+    Ok((letter, extra))
 }
 
 fn entry<R: Read + std::io::Seek>(zip: &mut ZipArchive<R>, name: &str) -> Result<String, String> {
@@ -184,9 +204,22 @@ pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
         &letter.template,
         &letter.assets,
     )?;
-    validate(&letter)?;
+    save_archive(path, &letter, None)
+}
+
+/// Une seule voie d’écriture atomique pour les documents et leur récupération.
+/// Les copies de récupération conservent les ressources sans lancer de rendu.
+pub(crate) fn save_archive(
+    path: &Path,
+    letter: &StoredDocument,
+    extra: Option<(&str, &str)>,
+) -> Result<(), String> {
+    validate(letter)?;
     if letter.assets.len() + ENTRIES.len() > 1024 {
         return Err(crate::tr!("storage-file-count"));
+    }
+    if extra.is_some_and(|(_, text)| text.len() as u64 > EXTRA_ENTRY_LIMIT) {
+        return Err(crate::tr!("storage-invalid-size"));
     }
     let manifest = serde_json::to_string_pretty(&Manifest::new(letter.metadata.document_type()))
         .map_err(|e| e.to_string())?;
@@ -209,14 +242,17 @@ pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
     {
         return Err(crate::tr!("storage-letter-too-large"));
     }
-    let parent = path
-        .parent()
-        .filter(|path| !path.as_os_str().is_empty())
-        .unwrap_or(Path::new("."));
-    let mut temporary = tempfile::NamedTempFile::new_in(parent)
+    let mut options = atomic_write_file::AtomicWriteFile::options();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut temporary = options
+        .open(path)
         .map_err(|e| crate::tr!("storage-temporary-failed", error = e.to_string()))?;
     {
-        let mut zip = ZipWriter::new(temporary.as_file_mut());
+        let mut zip = ZipWriter::new(&mut temporary);
         let options =
             SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
         for (name, text) in ENTRIES.into_iter().zip(files) {
@@ -227,15 +263,15 @@ pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
             zip.start_file(name, options).map_err(|e| e.to_string())?;
             zip.write_all(data).map_err(|e| e.to_string())?;
         }
+        if let Some((name, text)) = extra {
+            zip.start_file(name, options).map_err(|e| e.to_string())?;
+            zip.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
+        }
         zip.finish().map_err(|e| e.to_string())?;
     }
     temporary
-        .as_file()
-        .sync_all()
-        .map_err(|e| crate::tr!("storage-write-failed", error = e.to_string()))?;
-    temporary
-        .persist(path)
-        .map_err(|e| crate::tr!("storage-replace-failed", error = e.error.to_string()))?;
+        .commit()
+        .map_err(|e| crate::tr!("storage-replace-failed", error = e.to_string()))?;
     Ok(())
 }
 

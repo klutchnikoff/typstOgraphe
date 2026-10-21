@@ -21,6 +21,9 @@ Pour chaque étape :
    puis actualiser l’état du chantier et choisir la suite.
 
 Les détails ordinaires de mise en œuvre restent du ressort du développement.
+Avant de construire une nouvelle brique, rechercher les outils existants et
+évaluer leur entretien, leur adéquation et leur intégration. Réutiliser une
+solution appropriée plutôt que réimplémenter ses fonctions.
 Une découverte qui change sensiblement le périmètre ou les choix validés doit
 revenir dans la discussion avant de poursuivre la partie concernée.
 
@@ -46,7 +49,7 @@ revenir dans la discussion avant de poursuivre la partie concernée.
 - Aucun mécanisme de rétrocompatibilité n’est requis pendant cette phase
   préliminaire. Le format et les contrats peuvent évoluer pour rester simples.
 
-## Point de départ
+## Point de départ au moment de l’établissement de la feuille de route
 
 Les éléments suivants existent déjà ; leur présence ne signifie pas que tous
 les cas d’usage sont aboutis :
@@ -67,6 +70,13 @@ La récupération après incident, la recherche, les correcteurs, les tableaux,
 les notes, les références bibliographiques, les profils et la bibliothèque
 persistante de modèles restent à développer.
 
+### Suivi de réalisation
+
+- **Étape 1 — Récupération : implémentée ; essai utilisateur à faire.** Les choix
+  validés et le périmètre livré sont précisés dans le chantier A ci-dessous.
+- Les étapes suivantes ne sont pas commencées ; leurs choix principaux restent
+  à discuter ensemble.
+
 ## Priorités proposées
 
 Ces priorités servent à choisir les prochaines étapes ensemble. Elles ne fixent
@@ -84,6 +94,23 @@ multiplateformes accompagnent chaque étape ; elles ne sont pas reportées en bl
 à la fin du projet.
 
 ## A. Fiabilité et cycle de vie des documents — P0, puis P1/P2
+
+**Première étape implémentée, choix validés le 21 octobre 2026 :**
+
+- Copie locale indépendante, toutes les cinq secondes si le document est modifié,
+  en arrière-plan, y compris avant son premier enregistrement.
+- Texte, métadonnées, modèle et images conservés ; historique non conservé.
+- Au redémarrage : Récupérer, Plus tard ou Supprimer la copie ; conservation sans
+  expiration automatique et accès ultérieur par le menu Fichier ou la palette.
+- Reprise comme document récupéré à enregistrer séparément ; fichier original
+  jamais remplacé implicitement.
+- Retrait après enregistrement réussi ou abandon explicite ; fermeture annulée
+  et échec d’enregistrement préservent la copie.
+- `atomic-write-file` pour les écritures atomiques communes aux documents et à
+  la récupération ; eframe pour le dossier applicatif et les échéances.
+- Vérifications locales : sortie brutale d’un processus, session encore ouverte,
+  copie illisible, erreurs d’écriture et parcours d’interface. L’essai utilisateur
+  et les essais natifs Windows/Linux restent à faire.
 
 **Objectif :** conserver le travail, reprendre un document et comprendre les
 éventuels incidents.
@@ -307,6 +334,5 @@ coordonnées ni ressources fictives imposées.
 | 8 | Étendre les usages (F, B, C) | Conversions, grammaire avancée et besoins spécialisés |
 
 Chaque ligne sera découpée en étapes plus petites. Les dépendances concrètes
-peuvent conduire à revoir cet ordre ensemble. Le premier choix à discuter est
-le périmètre de récupération du travail ; aucune de ces nouvelles étapes n’est
-considérée comme commencée par la rédaction de cette feuille de route.
+peuvent conduire à revoir cet ordre ensemble. Après l’essai de la récupération,
+le prochain périmètre proposé à discuter est rechercher/remplacer.

@@ -128,6 +128,7 @@ shortcut-duplicate = Shortcut defined more than once for { $command }
 shortcut-conflict = Shortcut conflict: { $first } and { $second }
 cli-usage-render = Usage: --render-demo FOLDER
 cli-usage-capture = Usage: --capture IMAGE.png
+cli-usage-capture-recovery = Usage: --capture-recovery IMAGE.png RECOVERY_FOLDER
 cli-unknown-option = Unknown option: { $option }
 cli-capture-error = Screenshot: { $error }
 cli-help =
@@ -136,6 +137,7 @@ cli-help =
       cargo run -- LETTER.typsto
       cargo run -- --render-demo FOLDER
       cargo run -- --capture IMAGE.png
+      cargo run -- --capture-recovery IMAGE.png RECOVERY_FOLDER
 preview-stats =
     { $pages ->
         [one] { $pages } page · { $milliseconds } ms
@@ -268,3 +270,18 @@ model-file-filter = Typst template
 model-import-error = Cannot use this template: { $error }
 model-too-large = The template exceeds the size limit (1 MiB).
 model-contract-missing = The template must export the { $function } function.
+cmd-recover-documents = Recover documents…
+recovery-title = Documents to recover
+recovery-help = Working copies have been preserved. Recover opens a copy to save separately, without replacing the original file.
+recovery-date = Copy from { $date } (UTC)
+recovery-restore = Recover
+recovery-later = Later
+recovery-delete = Delete copy
+recovery-document-name = { $name } (recovered)
+recovery-filename-suffix = recovered
+recovery-restored = Document recovered. Use Save as to keep it.
+recovery-unavailable = Recovery protection unavailable — hover for details.
+recovery-no-directory = The application data directory could not be located.
+recovery-worker-stopped = The recovery service has stopped.
+recovery-load-failed = Unable to recover this copy: { $error }
+recovery-delete-failed = Unable to delete this copy: { $error }

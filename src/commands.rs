@@ -44,6 +44,7 @@ pub enum Command {
     RemoveLink,
     InsertImage,
     ImportModel,
+    RecoverDocuments,
     Undo,
     Redo,
 }
@@ -102,6 +103,7 @@ impl Definition {
         Some(match self.command {
             Command::File(FileCommand::New) => (MenuGroup::File, 0),
             Command::File(FileCommand::Open) => (MenuGroup::File, 1),
+            Command::RecoverDocuments => (MenuGroup::File, 2),
             Command::File(FileCommand::Save) => (MenuGroup::File, 10),
             Command::File(FileCommand::SaveAs) => (MenuGroup::File, 11),
             Command::File(FileCommand::Export) => (MenuGroup::File, 20),
@@ -170,6 +172,13 @@ pub(crate) const fn short(mut definition: Definition, label: &'static str) -> De
 
 /// Chaque commande, y compris sans raccourci, est définie une seule fois ici.
 pub const COMMON_COMMANDS: &[Definition] = &[
+    define(
+        "document.recover",
+        "cmd-recover-documents",
+        Command::RecoverDocuments,
+        Scope::Global,
+        &[],
+    ),
     define(
         "document.import_model",
         "cmd-import-model",

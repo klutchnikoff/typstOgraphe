@@ -10,6 +10,7 @@ mod icons;
 mod menus;
 mod navigation;
 mod preferences;
+mod recovery;
 mod rendering;
 mod session;
 mod statistics;
@@ -25,6 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _ = i18n::loader();
     let mut args = std::env::args().skip(1);
     let mut capture = None;
+    let mut capture_recovery = None;
     let mut open_path = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -61,6 +63,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     args.next().ok_or(crate::tr!("cli-usage-capture"))?,
                 ))
             }
+            "--capture-recovery" => {
+                capture = Some(PathBuf::from(
+                    args.next()
+                        .ok_or(crate::tr!("cli-usage-capture-recovery"))?,
+                ));
+                capture_recovery = Some(PathBuf::from(
+                    args.next()
+                        .ok_or(crate::tr!("cli-usage-capture-recovery"))?,
+                ));
+            }
             "--help" | "-h" => {
                 println!("{}", crate::tr!("cli-help"));
                 return Ok(());
@@ -83,7 +95,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eframe::run_native(
         "typstOgraphe",
         options,
-        Box::new(move |cc| Ok(Box::new(app::App::new(cc, capture, open_path)?))),
+        Box::new(move |cc| {
+            Ok(Box::new(app::App::new(
+                cc,
+                capture,
+                open_path,
+                capture_recovery,
+            )?))
+        }),
     )
     .map_err(|e| e.to_string())?;
     Ok(())

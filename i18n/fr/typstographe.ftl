@@ -1,5 +1,21 @@
 # Interface typstOgraphe. Ne pas traduire les données des courriers.
 
+cmd-recover-documents = Récupérer des documents…
+recovery-title = Documents à récupérer
+recovery-help = Des copies de travail ont été conservées. Récupérer ouvre une copie à enregistrer séparément, sans remplacer le fichier d’origine.
+recovery-date = Copie du { $date } (UTC)
+recovery-restore = Récupérer
+recovery-later = Plus tard
+recovery-delete = Supprimer la copie
+recovery-document-name = { $name } (récupéré)
+recovery-filename-suffix = recupere
+recovery-restored = Document récupéré. Utilisez Enregistrer sous pour le conserver.
+recovery-unavailable = Protection de récupération indisponible — survoler pour les détails.
+recovery-no-directory = Le dossier des données de l’application est introuvable.
+recovery-worker-stopped = Le service de récupération s’est arrêté.
+recovery-load-failed = Impossible de récupérer cette copie : { $error }
+recovery-delete-failed = Impossible de supprimer cette copie : { $error }
+
 save-dialog = Enregistrer le document
 letter-filter = Document typstOgraphe
 default-filename = Document.typsto
@@ -128,6 +144,7 @@ shortcut-duplicate = Raccourci défini plusieurs fois pour { $command }
 shortcut-conflict = Conflit de raccourcis : { $first } et { $second }
 cli-usage-render = Usage : --render-demo DOSSIER
 cli-usage-capture = Usage : --capture IMAGE.png
+cli-usage-capture-recovery = Usage : --capture-recovery IMAGE.png DOSSIER_RECUPERATION
 cli-unknown-option = Option inconnue : { $option }
 cli-capture-error = Capture : { $error }
 cli-help =
@@ -136,6 +153,7 @@ cli-help =
       cargo run -- COURRIER.typsto
       cargo run -- --render-demo DOSSIER
       cargo run -- --capture IMAGE.png
+      cargo run -- --capture-recovery IMAGE.png DOSSIER_RECUPERATION
 preview-stats =
     { $pages ->
         [one] { $pages } page · { $milliseconds } ms

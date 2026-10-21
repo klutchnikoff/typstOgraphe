@@ -30,6 +30,7 @@ enum PendingAction {
     New,
     Open,
     Close,
+    Recover(usize),
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -41,6 +42,11 @@ enum InformationGroup {
 
 pub struct App {
     session: Session,
+    recovery: Option<crate::recovery::Recovery>,
+    recovery_entries: Vec<crate::recovery::Entry>,
+    recovery_open: bool,
+    recovery_error: Option<String>,
+    recovered_name: Option<String>,
     preferences: Preferences,
     preferences_open: bool,
     new_document_open: bool,
@@ -92,12 +98,24 @@ impl App {
         cc: &eframe::CreationContext<'_>,
         capture: Option<PathBuf>,
         path: Option<PathBuf>,
+        capture_recovery: Option<PathBuf>,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let mut app = Self::with_context(cc.egui_ctx.clone(), capture);
         app.preferences = Preferences::load(cc.storage);
         cc.egui_ctx.set_theme(app.preferences.appearance.theme());
         if let Some(path) = path {
             app.open_path(path);
+        }
+        // Les captures et les tests restent isolés des données réelles.
+        if let Some(directory) = capture_recovery {
+            app.start_recovery(directory, cc.egui_ctx.clone());
+        } else if app.capture.is_none() {
+            match eframe::storage_dir("typstOgraphe") {
+                Some(directory) => {
+                    app.start_recovery(directory.join("recovery"), cc.egui_ctx.clone())
+                }
+                None => app.recovery_error = Some(crate::tr!("recovery-no-directory")),
+            }
         }
         #[cfg(target_os = "macos")]
         {
@@ -138,6 +156,11 @@ impl App {
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
             session: Session::new(saved, document, None, 1),
+            recovery: None,
+            recovery_entries: vec![],
+            recovery_open: false,
+            recovery_error: None,
+            recovered_name: None,
             preferences: Preferences::default(),
             preferences_open: false,
             new_document_open: false,
@@ -199,7 +222,8 @@ impl App {
         self.session.is_dirty()
     }
     fn modal_open(&self) -> bool {
-        self.new_document_open
+        self.recovery_open
+            || self.new_document_open
             || self.image_info.is_some()
             || self.preferences_open
             || self.palette_open
@@ -207,6 +231,147 @@ impl App {
             || self.export_open
             || self.pending_action.is_some()
             || self.file_error.is_some()
+    }
+    fn start_recovery(&mut self, directory: PathBuf, ctx: egui::Context) {
+        match crate::recovery::Recovery::start(&directory, ctx) {
+            Ok((recovery, entries)) => {
+                self.recovery = Some(recovery);
+                self.recovery_open = !entries.is_empty();
+                self.recovery_entries = entries;
+            }
+            Err(error) => self.recovery_error = Some(error),
+        }
+    }
+    fn clear_recovery(&mut self) {
+        if let Some(recovery) = &mut self.recovery
+            && let Err(error) = recovery.clear()
+        {
+            self.recovery_error = Some(error);
+        }
+    }
+    fn checkpoint_recovery(&mut self) {
+        let dirty = self.is_dirty();
+        if let Some(recovery) = &mut self.recovery {
+            for result in recovery.poll() {
+                self.recovery_error = result.err();
+            }
+            let session = &self.session;
+            let suggested = &self.recovered_name;
+            if let Err(error) = recovery.checkpoint(session.revision, dirty, || {
+                let name = session
+                    .file_path
+                    .as_ref()
+                    .and_then(|path| path.file_name())
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .or_else(|| suggested.clone());
+                (session.stored_document(), name)
+            }) {
+                self.recovery_error = Some(error);
+            }
+        }
+    }
+    fn recovered_filename(&self) -> Option<String> {
+        self.recovered_name.as_ref().map(|name| {
+            let stem = std::path::Path::new(name)
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy();
+            format!("{stem}-{}.typsto", crate::tr!("recovery-filename-suffix"))
+        })
+    }
+    fn recover_document(&mut self, index: usize) {
+        let Some(entry) = self.recovery_entries.get(index) else {
+            return;
+        };
+        let name = entry.name();
+        let restored = entry.load().and_then(|stored| {
+            Document::from_source(&stored.source).map(|document| (stored, document))
+        });
+        match restored.and_then(|(stored, document)| self.install_document(stored, document, None))
+        {
+            Ok(()) => {
+                let entry = self.recovery_entries.remove(index);
+                self.session.recovered = true;
+                self.recovered_name = Some(name);
+                if let Some(recovery) = &mut self.recovery
+                    && let Err(error) = recovery.adopt(entry)
+                {
+                    self.recovery_error = Some(error);
+                }
+                self.recovery_open = false;
+                self.message = Some(crate::tr!("recovery-restored"));
+            }
+            Err(error) => self.file_error = Some(crate::tr!("recovery-load-failed", error = error)),
+        }
+    }
+    fn recovery_dialog(&mut self, ctx: &egui::Context) {
+        if !self.recovery_open || self.pending_action.is_some() || self.file_error.is_some() {
+            return;
+        }
+        let mut open = true;
+        let mut choice = None;
+        let mut later = false;
+        egui::Window::new(crate::tr!("recovery-title"))
+            .id(egui::Id::new("recovery-documents"))
+            .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .default_width(560.0)
+            .show(ctx, |ui| {
+                ui.label(crate::tr!("recovery-help"));
+                egui::ScrollArea::vertical()
+                    .max_height(340.0)
+                    .show(ui, |ui| {
+                        for (index, entry) in self.recovery_entries.iter().enumerate() {
+                            ui.separator();
+                            ui.strong(entry.name());
+                            match &entry.info {
+                                Ok(info) => {
+                                    ui.weak(crate::tr!("recovery-date", date = info.date()));
+                                }
+                                Err(error) => {
+                                    ui.colored_label(
+                                        Color32::LIGHT_RED,
+                                        crate::tr!("recovery-load-failed", error = error.as_str()),
+                                    );
+                                }
+                            }
+                            ui.horizontal(|ui| {
+                                if ui
+                                    .add_enabled(
+                                        entry.info.is_ok(),
+                                        egui::Button::new(crate::tr!("recovery-restore")),
+                                    )
+                                    .clicked()
+                                {
+                                    choice = Some((index, true));
+                                }
+                                if ui.button(crate::tr!("recovery-delete")).clicked() {
+                                    choice = Some((index, false));
+                                }
+                            });
+                        }
+                    });
+                ui.separator();
+                later = ui.button(crate::tr!("recovery-later")).clicked();
+            });
+        self.recovery_open = open && !later;
+        if let Some((index, restore)) = choice {
+            if restore {
+                self.request_action(PendingAction::Recover(index), ctx);
+            } else {
+                match self.recovery_entries[index].delete() {
+                    Ok(()) => {
+                        self.recovery_entries.remove(index);
+                    }
+                    Err(error) => {
+                        self.file_error = Some(crate::tr!("recovery-delete-failed", error = error))
+                    }
+                }
+                self.recovery_open &= !self.recovery_entries.is_empty();
+            }
+        }
     }
     fn save_path(&mut self, path: PathBuf) -> bool {
         let letter = self.stored_document();
@@ -220,6 +385,9 @@ impl App {
                 // Le fichier est nettoyé par storage::save ; ce repère en mémoire
                 // garde les mêmes ressources que l’historique pour is_dirty.
                 self.session.saved = letter;
+                self.session.recovered = false;
+                self.recovered_name = None;
+                self.clear_recovery();
                 self.file_error = None;
                 true
             }
@@ -242,7 +410,10 @@ impl App {
                     .as_ref()
                     .and_then(|path| path.file_name())
                     .map(|name| name.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| crate::tr!("default-filename")),
+                    .unwrap_or_else(|| {
+                        self.recovered_filename()
+                            .unwrap_or_else(|| crate::tr!("default-filename"))
+                    }),
             );
         if let Some(parent) = self
             .session
@@ -299,6 +470,8 @@ impl App {
         path: Option<PathBuf>,
     ) -> Result<(), String> {
         let keymap = self.keymap.for_document(letter.metadata.document_type())?;
+        self.clear_recovery();
+        self.recovered_name = None;
         self.keymap = keymap;
         self.history_field = None;
         self.session = Session::new(letter, document, path, self.session.revision + 1);
@@ -353,6 +526,7 @@ impl App {
                 self.allow_close = true;
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
+            PendingAction::Recover(index) => self.recover_document(index),
         }
         ctx.request_repaint();
     }
@@ -409,6 +583,7 @@ impl App {
             return;
         }
         match command {
+            Command::RecoverDocuments => self.recovery_open = !self.recovery_entries.is_empty(),
             Command::ImportModel => self.import_model(),
             Command::InsertImage => self.choose_image(None),
             Command::Preferences => self.preferences_open = true,
@@ -758,6 +933,7 @@ impl App {
                         Command::Undo => !self.session.undo.is_empty(),
                         Command::Redo => !self.session.redo.is_empty(),
                         Command::Clear => self.history_field.is_none(),
+                        Command::RecoverDocuments => !self.recovery_entries.is_empty(),
                         _ => true,
                     };
                 (
@@ -2041,6 +2217,7 @@ impl App {
             }
         }
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+            self.recovery_open = false;
             self.palette_open = false;
             self.link_open = false;
             self.information_open = false;
@@ -2082,6 +2259,7 @@ impl App {
                     }
                 }
                 Some(1) => {
+                    self.clear_recovery();
                     self.file_error = None;
                     if let Some(action) = self.pending_action.take() {
                         self.perform_action(action, ctx);
@@ -2154,7 +2332,12 @@ impl App {
             .as_ref()
             .and_then(|path| path.file_name())
             .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| crate::tr!("untitled-letter"));
+            .unwrap_or_else(|| {
+                self.recovered_name
+                    .as_ref()
+                    .map(|name| crate::tr!("recovery-document-name", name = name.as_str()))
+                    .unwrap_or_else(|| crate::tr!("untitled-letter"))
+            });
         let title = crate::tr!(
             "window-title",
             name = filename.as_str(),
@@ -2183,6 +2366,13 @@ impl App {
                 ui.disable();
             }
             self.status_ui(ui);
+            if let Some(error) = &self.recovery_error {
+                ui.colored_label(
+                    ui.visuals().error_fg_color,
+                    crate::tr!("recovery-unavailable"),
+                )
+                .on_hover_text(error);
+            }
         });
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
@@ -2195,6 +2385,11 @@ impl App {
             self.handle_file_command(command, ctx);
         }
         self.file_dialogs(ctx);
+        self.recovery_dialog(ctx);
+        self.checkpoint_recovery();
+        if self.recovery.is_some() {
+            ctx.request_repaint_after(crate::recovery::INTERVAL);
+        }
         self.track_history_focus(ctx);
         #[cfg(target_os = "macos")]
         {
@@ -2257,6 +2452,15 @@ impl App {
 impl eframe::App for App {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         self.preferences.save(storage);
+        self.checkpoint_recovery();
+    }
+    fn auto_save_interval(&self) -> Duration {
+        crate::recovery::INTERVAL
+    }
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        if !self.is_dirty() {
+            self.clear_recovery();
+        }
     }
     fn persist_egui_memory(&self) -> bool {
         false
@@ -2270,6 +2474,150 @@ impl eframe::App for App {
 mod interaction_tests {
     use super::*;
     use crate::document_types::courrier::{Command as CourrierCommand, Model};
+
+    fn recovery_click(app: &mut App, ctx: &egui::Context, label: &str) {
+        let draw = |app: &mut App, events| {
+            ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1240.0, 900.0),
+                    )),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| app.ui_frame(ctx),
+            )
+        };
+        let _ = draw(app, vec![]);
+        let output = draw(app, vec![]);
+        let point = output
+            .shapes
+            .iter()
+            .find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.text() == label => {
+                    Some(text.pos + text.galley.rect.center().to_vec2())
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("bouton absent : {label}"));
+        for pressed in [true, false] {
+            let _ = draw(
+                app,
+                vec![
+                    egui::Event::PointerMoved(point),
+                    egui::Event::PointerButton {
+                        pos: point,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+    }
+    fn seed_recovery(root: &std::path::Path, letter: &StoredDocument, name: Option<String>) {
+        let (mut recovery, _) = crate::recovery::Recovery::start(root, Default::default()).unwrap();
+        recovery.make_due();
+        recovery
+            .checkpoint(1, true, || (letter.clone(), name))
+            .unwrap();
+        recovery.wait();
+        assert!(recovery.poll().into_iter().all(|result| result.is_ok()));
+    }
+
+    #[test]
+    fn recovery_dialog_defers_restores_and_saves_a_copy_without_overwriting_the_original() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("recovery");
+        let original = dir.path().join("original.typsto");
+        let saved = StoredDocument::demo(DocumentType::Courrier);
+        storage::save(&original, &saved).unwrap();
+        let mut unsaved = saved.clone();
+        unsaved.source = "Un travail *non enregistré*.".into();
+        unsaved.metadata.courrier_mut().objet = "Nouvel objet".into();
+        unsaved.template = Model::Service.source();
+        seed_recovery(&root, &unsaved, Some("original.typsto".into()));
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.start_recovery(root.clone(), ctx.clone());
+        assert!(app.recovery_open);
+        recovery_click(&mut app, &ctx, &crate::tr!("recovery-later"));
+        assert!(!app.recovery_open);
+        assert_eq!(app.recovery_entries.len(), 1);
+        app.apply(Command::RecoverDocuments);
+        recovery_click(&mut app, &ctx, &crate::tr!("recovery-restore"));
+        app.recovery.as_mut().unwrap().wait();
+        assert!(!app.recovery_open);
+        assert!(app.recovery_entries.is_empty());
+        assert!(app.is_dirty() && app.session.recovered);
+        assert!(app.session.file_path.is_none());
+        assert!(app.session.undo.is_empty() && app.session.redo.is_empty());
+        assert_eq!(app.stored_document(), unsaved);
+        assert!(
+            app.recovered_filename()
+                .unwrap()
+                .contains("original-recupere")
+        );
+        app.request_action(PendingAction::Close, &ctx);
+        assert!(app.pending_action.is_some());
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+        );
+        assert!(app.pending_action.is_none() && app.is_dirty());
+        assert!(!app.save_path(dir.path().join("absent/fichier.typsto")));
+        drop(app); // L’échec d’enregistrement laisse la récupération intacte.
+        let mut app = App::with_context(ctx.clone(), None);
+        app.start_recovery(root.clone(), ctx.clone());
+        assert_eq!(app.recovery_entries.len(), 1);
+        app.recover_document(0);
+        assert_eq!(app.stored_document(), unsaved);
+        let copy = dir.path().join("recupere.typsto");
+        assert!(app.save_path(copy.clone()));
+        app.recovery.as_mut().unwrap().wait();
+        assert!(!app.is_dirty() && !app.session.recovered);
+        assert_eq!(storage::read(&copy).unwrap(), unsaved);
+        assert_eq!(storage::read(&original).unwrap(), saved);
+        drop(app);
+        assert_eq!(std::fs::read_dir(root).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn explicit_delete_and_discard_remove_recovery_but_cancelling_keeps_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("recovery");
+        let saved = StoredDocument::demo(DocumentType::Courrier);
+        seed_recovery(&root, &saved, None);
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.start_recovery(root.clone(), ctx.clone());
+        recovery_click(&mut app, &ctx, &crate::tr!("recovery-delete"));
+        assert!(app.recovery_entries.is_empty());
+        assert!(!app.recovery_open);
+        app.session.document.view.insert_text("À conserver. ", 0);
+        app.changed();
+        app.recovery.as_mut().unwrap().make_due();
+        app.checkpoint_recovery();
+        app.recovery.as_mut().unwrap().wait();
+        app.request_action(PendingAction::Close, &ctx);
+        recovery_click(&mut app, &ctx, &crate::tr!("cancel"));
+        assert!(app.pending_action.is_none() && app.is_dirty());
+        app.request_action(PendingAction::Close, &ctx);
+        recovery_click(&mut app, &ctx, &crate::tr!("discard"));
+        assert!(app.allow_close);
+        drop(app);
+        let (recovery, entries) = crate::recovery::Recovery::start(&root, ctx).unwrap();
+        assert!(entries.is_empty());
+        drop(recovery);
+    }
 
     #[test]
     fn meeting_creation_and_template_import_preserve_the_type_and_use_unified_history() {

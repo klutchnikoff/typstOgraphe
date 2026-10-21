@@ -160,6 +160,7 @@ Les deux présentations utilisent les mêmes identifiants, libellés traduits,
 raccourcis et actions du registre :
 
 - **Fichier** : Nouveau, Ouvrir, Enregistrer, Enregistrer sous, Exporter et Fermer.
+  **Récupérer des documents…** permet de retrouver les copies laissées pour plus tard.
 - **Édition** : Annuler, Rétablir, Retirer la mise en forme et Palette de commandes.
 - **Affichage** : Informations du document et Importer un modèle…
 
@@ -386,7 +387,8 @@ Le fichier est une archive ZIP standard contenant :
 
 Le modèle embarqué permet de retrouver la présentation du courrier indépendamment
 des modèles fournis par une future version de l’application. L’enregistrement
-écrit un fichier temporaire voisin puis remplace atomiquement la cible. Une
+utilise `atomic-write-file` : écriture temporaire voisine, synchronisation puis
+remplacement atomique de la cible. Une
 archive invalide est refusée sans remplacer le courrier ouvert. Le format
 accepte ces cinq fichiers et les images sous des chemins relatifs contrôlés,
 pour un total décompressé de 64 Mio maximum (16 Mio par image). Les images sont
@@ -408,6 +410,58 @@ On peut également ouvrir un courrier au lancement :
 ```sh
 cargo run --locked -- mon-courrier.typsto
 ```
+
+## Récupération après incident
+
+Toutes les cinq secondes, si le document est modifié, une copie de récupération
+est demandée en arrière-plan. Une révision déjà copiée n’est pas réécrite. Cela
+protège aussi un document qui n’a encore jamais été enregistré. Les dernières
+secondes de saisie ou une écriture encore en cours peuvent ne pas être présentes
+dans la dernière copie terminée.
+
+La copie contient le source, les métadonnées, le modèle et les images, mais pas
+l’historique Annuler/Rétablir. Elle reste distincte du fichier utilisateur et
+n’attend pas que le modèle produise un rendu réussi. Pour éviter toute perte
+sans recomposer le document, les copies de récupération conservent prudemment
+les ressources en mémoire ; les fichiers enregistrés et les exports gardent
+leur nettoyage habituel des images inutilisées.
+
+Au lancement, **Documents à récupérer** présente les copies des sessions arrêtées,
+avec leur nom lorsqu’il existe et leur date en UTC :
+
+- **Récupérer** ouvre un document marqué comme récupéré et non enregistré.
+  Enregistrer propose un nouveau nom et passe par Enregistrer sous, pour éviter
+  d’écraser implicitement le fichier d’origine.
+- **Plus tard**, la croix ou Échap conserve les copies sans date d’expiration.
+  **Fichier → Récupérer des documents…** ou la palette permet de les retrouver
+  pendant la session courante.
+- **Supprimer la copie** retire uniquement la copie choisie.
+
+La copie active est retirée après un enregistrement réussi, un retour à l’état
+enregistré ou un abandon explicite des modifications. Annuler une fermeture ou
+échouer à enregistrer la conserve. Récupérer un autre document passe par la même
+protection des modifications en cours que Nouveau et Ouvrir. Une nouvelle
+interruption pendant la reprise conserve la copie, sans en créer un doublon.
+
+`src/recovery.rs` possède le worker d’écriture et les verrous de session. Les
+autres instances encore ouvertes sont ignorées. Les archives de récupération
+réutilisent la lecture/écriture commune de `storage.rs`, avec une entrée privée
+pour leur nom et leur horodatage. Une copie illisible est signalée et reste
+supprimable explicitement. Les erreurs de protection apparaissent dans la barre
+d’état, avec leurs détails au survol.
+
+Les copies sont stockées sous `recovery/` dans le dossier choisi par
+`eframe::storage_dir("typstOgraphe")` :
+
+- macOS : `~/Library/Application Support/typstOgraphe/recovery/` ;
+- Windows : `%APPDATA%/typstOgraphe/data/recovery/` ;
+- Linux : `$XDG_DATA_HOME/typstographe/recovery/`, ou
+  `~/.local/share/typstographe/recovery/` si cette variable n’est pas définie.
+
+L’intervalle utilise les mécanismes de persistance et de rafraîchissement d’eframe ;
+les écritures documentaires utilisent `atomic-write-file`, séparément du stockage
+des préférences. L’enregistrement automatique directement dans le fichier de
+travail et les conflits avec des modifications externes restent à développer.
 
 ## Se déplacer entre le texte et l’aperçu
 
@@ -641,7 +695,8 @@ texte alternatif.
 Le corps n’expose jamais de code à l’utilisateur. Le parseur refuse les fonctions
 et les expressions calculées qu’il ne sait pas éditer.
 
-L’enregistrement est manuel. Ce prototype n’inclut pas encore l’import des
+L’enregistrement du fichier utilisateur est manuel ; des copies de récupération
+sont produites automatiquement. Ce prototype n’inclut pas encore l’import des
 anciens exports en dossier, l’enregistrement automatique, les préférences
 personnelles, l’image de signature ni le travail collaboratif.
 
@@ -707,3 +762,14 @@ cargo run --locked -- --capture output/interface.png
 
 La fenêtre se ferme après la capture. Les fichiers de `output/` et `target/`
 ne sont pas versionnés.
+
+Pour vérifier le dialogue de récupération avec un dossier de copies de test :
+
+```sh
+cargo run --locked -- --capture-recovery output/recuperation.png DOSSIER_RECUPERATION
+```
+
+Ce mode utilise uniquement le dossier indiqué pour la récupération ; les captures
+ordinaires n’accèdent pas aux copies personnelles. Les tests couvrent également
+une sortie brutale d’un sous-processus, les verrous, la récupération différée,
+l’échec d’écriture, la reprise sans écrasement et la suppression explicite.

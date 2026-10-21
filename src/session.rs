@@ -40,6 +40,8 @@ pub enum EditGroup {
     Discrete,
 }
 pub struct Session {
+    /// Une copie récupérée doit être enregistrée, même sans nouvelle édition.
+    pub recovered: bool,
     pub document: Document,
     pub metadata: Metadata,
     pub template: String,
@@ -62,6 +64,7 @@ impl Session {
     ) -> Self {
         document.assets = letter.assets.clone();
         Self {
+            recovered: false,
             document,
             metadata: letter.metadata.clone(),
             template: letter.template.clone(),
@@ -93,7 +96,8 @@ impl Session {
         }
     }
     pub fn is_dirty(&self) -> bool {
-        self.saved.source != self.document.source()
+        self.recovered
+            || self.saved.source != self.document.source()
             || self.saved.metadata != self.metadata
             || self.saved.template != self.template
             || self.saved.assets != self.document.assets
