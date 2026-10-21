@@ -77,12 +77,12 @@ impl App {
             || (view.blocks[view.line_at(self.selection.primary.index)] == BlockKind::Description
                 || view.blocks[view.line_at(self.selection.primary.index)].is_letter_note());
         let editor_style = self.preferences.editor;
-        let matches = if self.search_open {
-            self.search.matches.clone()
+        let matches = if self.search.open {
+            self.search.engine.matches.clone()
         } else {
             vec![]
         };
-        let active = self.search.selected(&self.range());
+        let active = self.search.engine.selected(&self.range());
         EditorFrame {
             before,
             old_range,
@@ -151,7 +151,7 @@ impl App {
         if let Some(range) = output.cursor_range {
             self.selection = range;
         }
-        if self.search_open
+        if self.search.open
             && output.response.clicked()
             && let Some(pointer) = output.response.interact_pointer_pos()
             && let Some((index, _)) =
@@ -198,7 +198,7 @@ impl App {
         state.store(ui.ctx(), output.response.id);
         if changed {
             self.remember(before.clone(), true);
-            if self.search_open {
+            if self.search.open {
                 self.refresh_search();
             }
             ui.ctx().request_repaint();

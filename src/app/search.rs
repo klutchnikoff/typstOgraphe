@@ -3,29 +3,30 @@ use super::*;
 impl App {
     pub(super) fn refresh_search(&mut self) {
         self.search
+            .engine
             .refresh(self.session.revision, &self.session.document.view);
     }
     pub fn capture_search(&mut self, query: String) {
         self.load_demo();
         self.apply(Command::FindReplace);
-        self.search.query = query;
+        self.search.engine.query = query;
         self.apply(Command::FindNext);
     }
     pub(super) fn close_search(&mut self) {
-        self.search_open = false;
-        self.search_focus_pending = false;
+        self.search.open = false;
+        self.search.focus_pending = false;
         self.force_selection = true;
     }
     pub(super) fn search_focus(&self, ctx: &egui::Context) -> Option<egui::Id> {
         ctx.memory(|memory| memory.focused()).filter(|id| {
-            self.search_open
+            self.search.open
                 && [SEARCH_ID, REPLACE_ID]
                     .iter()
                     .any(|name| *id == egui::Id::new(name))
         })
     }
     pub(super) fn select_search_result(&mut self, index: usize) {
-        if let Some(range) = self.search.matches.get(index) {
+        if let Some(range) = self.search.engine.matches.get(index) {
             // Une seule sélection native. Les autres résultats ne sont que des fonds colorés.
             self.selection = editor::cursor(range.clone());
             self.session.document.view.typing_style =
@@ -37,18 +38,19 @@ impl App {
         }
     }
     pub(super) fn replace_search(&mut self, all: bool) {
-        self.search_open = true;
-        self.replace_open = true;
+        self.search.open = true;
+        self.search.replace_open = true;
         self.refresh_search();
-        if !self.search.replacement_valid() {
+        if !self.search.engine.replacement_valid() {
             return;
         }
         let ranges = if all {
-            self.search.matches.clone()
+            self.search.engine.matches.clone()
         } else {
             self.search
+                .engine
                 .selected(&self.range())
-                .map(|index| vec![self.search.matches[index].clone()])
+                .map(|index| vec![self.search.engine.matches[index].clone()])
                 .unwrap_or_default()
         };
         if ranges.is_empty() {
@@ -56,18 +58,22 @@ impl App {
         }
         self.selection = self
             .session
-            .replace_ranges(self.selection.into(), &ranges, &self.search.replacement)
+            .replace_ranges(
+                self.selection.into(),
+                &ranges,
+                &self.search.engine.replacement,
+            )
             .into();
         self.force_selection = true;
         self.forward_pending = true;
         self.refresh_search();
-        if !all && let Some(index) = self.search.next(self.range(), false) {
+        if !all && let Some(index) = self.search.engine.next(self.range(), false) {
             self.select_search_result(index);
         }
         self.message = Some(crate::tr!("search-replaced", count = ranges.len()));
     }
     pub(super) fn search_ui(&mut self, ui: &mut egui::Ui) {
-        if !self.search_open {
+        if !self.search.open {
             return;
         }
         self.refresh_search();
@@ -91,7 +97,7 @@ impl App {
         if let Some(command) = self.search_replacement_row(ui) {
             action = Some(command);
         }
-        if self.search.failed {
+        if self.search.engine.failed {
             ui.colored_label(ui.visuals().error_fg_color, crate::tr!("search-too-large"));
         }
         if let Some((id, backward)) = enter {
@@ -125,7 +131,7 @@ impl App {
             let toggle = ui
                 .add(search_chevron(
                     ui,
-                    if self.replace_open {
+                    if self.search.replace_open {
                         0.0
                     } else {
                         -std::f32::consts::FRAC_PI_2
@@ -140,22 +146,21 @@ impl App {
                 )
             });
             if toggle.clicked() {
-                self.replace_open = !self.replace_open;
+                self.search.replace_open = !self.search.replace_open;
             }
             let width = (ui.available_width() - 260.0).max(60.0);
-            let mut output = egui::TextEdit::singleline(&mut self.search.query)
+            let mut output = egui::TextEdit::singleline(&mut self.search.engine.query)
                 .id(egui::Id::new(SEARCH_ID))
                 .hint_text(crate::tr!("search-placeholder"))
                 .desired_width(width)
                 .show(ui);
-            if self.search_focus_pending && ui.is_enabled() {
+            if self.search.focus_pending && ui.is_enabled() {
                 output.response.request_focus();
-                output
-                    .state
-                    .cursor
-                    .set_char_range(Some(editor::cursor(0..self.search.query.chars().count())));
+                output.state.cursor.set_char_range(Some(editor::cursor(
+                    0..self.search.engine.query.chars().count(),
+                )));
                 output.state.store(ui.ctx(), output.response.id);
-                self.search_focus_pending = false;
+                self.search.focus_pending = false;
             }
             self.refresh_search();
             self.search_result_controls(ui, &mut action);
@@ -167,13 +172,13 @@ impl App {
         (action, close)
     }
     fn search_result_controls(&mut self, ui: &mut egui::Ui, action: &mut Option<Command>) {
-        let counter = match self.search.selected(&self.range()) {
+        let counter = match self.search.engine.selected(&self.range()) {
             Some(index) => crate::tr!(
                 "search-active-result",
                 current = index + 1,
-                total = self.search.matches.len()
+                total = self.search.engine.matches.len()
             ),
-            None => crate::tr!("search-results", count = self.search.matches.len()),
+            None => crate::tr!("search-results", count = self.search.engine.matches.len()),
         };
         // Largeur stable : choisir un résultat ne doit pas déplacer le texte
         // sous le pointeur en repliant la barre sur une ligne supplémentaire.
@@ -181,7 +186,7 @@ impl App {
             [90.0, ui.spacing().interact_size.y],
             egui::Label::new(counter).truncate(),
         );
-        let has_matches = !self.search.matches.is_empty();
+        let has_matches = !self.search.engine.matches.is_empty();
         for (rotation, command) in [
             (std::f32::consts::PI, Command::FindPrevious),
             (0.0, Command::FindNext),
@@ -201,40 +206,40 @@ impl App {
             }
         }
         let case = ui
-            .selectable_label(self.search.case_sensitive, "Aa")
+            .selectable_label(self.search.engine.case_sensitive, "Aa")
             .on_hover_text(crate::tr!("search-match-case"));
         case.widget_info(|| {
             egui::WidgetInfo::selected(
                 egui::WidgetType::Checkbox,
                 ui.is_enabled(),
-                self.search.case_sensitive,
+                self.search.engine.case_sensitive,
                 crate::tr!("search-match-case"),
             )
         });
         if case.clicked() {
-            self.search.case_sensitive = !self.search.case_sensitive;
+            self.search.engine.case_sensitive = !self.search.engine.case_sensitive;
             self.refresh_search();
         }
     }
     fn search_replacement_row(&mut self, ui: &mut egui::Ui) -> Option<Command> {
         let mut action = None;
-        if self.replace_open {
+        if self.search.replace_open {
             ui.horizontal_wrapped(|ui| {
                 ui.add_space(20.0);
                 let width = (ui.available_width() - 230.0).max(80.0);
                 ui.add(
-                    egui::TextEdit::singleline(&mut self.search.replacement)
+                    egui::TextEdit::singleline(&mut self.search.engine.replacement)
                         .id(egui::Id::new(REPLACE_ID))
                         .hint_text(crate::tr!("search-replacement-placeholder"))
                         .desired_width(width),
                 );
-                let valid = self.search.replacement_valid();
+                let valid = self.search.engine.replacement_valid();
                 for (command, enabled) in [
                     (
                         Command::ReplaceCurrent,
-                        self.search.selected(&self.range()).is_some(),
+                        self.search.engine.selected(&self.range()).is_some(),
                     ),
-                    (Command::ReplaceAll, !self.search.matches.is_empty()),
+                    (Command::ReplaceAll, !self.search.engine.matches.is_empty()),
                 ] {
                     if ui
                         .add_enabled(valid && enabled, egui::Button::new(command.label()).small())
@@ -244,7 +249,7 @@ impl App {
                     }
                 }
             });
-            if !self.search.replacement_valid() {
+            if !self.search.engine.replacement_valid() {
                 ui.colored_label(ui.visuals().error_fg_color, crate::tr!("search-one-line"));
             }
         }

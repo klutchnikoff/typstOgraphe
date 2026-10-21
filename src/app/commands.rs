@@ -36,15 +36,16 @@ impl App {
             | Command::LearnSpelling
             | Command::ResetSpelling => self.apply_spelling_command(command),
             Command::Find | Command::FindReplace => {
-                self.search_open = true;
-                self.replace_open |= command == Command::FindReplace;
-                self.search_focus_pending = true;
+                self.search.open = true;
+                self.search.replace_open |= command == Command::FindReplace;
+                self.search.focus_pending = true;
             }
             Command::FindNext | Command::FindPrevious => {
-                self.search_open = true;
+                self.search.open = true;
                 self.refresh_search();
                 if let Some(index) = self
                     .search
+                    .engine
                     .next(self.range(), command == Command::FindPrevious)
                 {
                     self.select_search_result(index);
@@ -203,7 +204,7 @@ impl App {
         if self.modal_open() {
             return;
         }
-        if self.search_open
+        if self.search.open
             && ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
         {
             self.close_search();
@@ -263,7 +264,7 @@ impl App {
                         Command::Clear => self.history_field.is_none(),
                         Command::RecoverDocuments => !self.recovery.entries.is_empty(),
                         Command::FindNext | Command::FindPrevious => {
-                            !self.search.matches.is_empty()
+                            !self.search.engine.matches.is_empty()
                         }
                         Command::NextSpelling | Command::PreviousSpelling => {
                             !self.spelling.checker.issues.is_empty()

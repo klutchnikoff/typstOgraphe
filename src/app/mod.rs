@@ -70,6 +70,7 @@ enum PreferencesPage {
 }
 
 pub struct App {
+    search: SearchState,
     spelling: SpellingState,
     recovery: RecoveryState,
     capture: CaptureState,
@@ -77,10 +78,6 @@ pub struct App {
     // n'est ouvert : pas de rendu, d'édition ni de copie de récupération.
     document_open: bool,
     session: Session,
-    search: crate::search::Search,
-    search_open: bool,
-    replace_open: bool,
-    search_focus_pending: bool,
     preferences: Preferences,
     preferences_tracker: crate::preferences::SaveTracker,
     preferences_directory: Option<PathBuf>,
@@ -230,6 +227,12 @@ impl App {
         let document =
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
+            search: SearchState {
+                engine: Default::default(),
+                open: false,
+                replace_open: false,
+                focus_pending: false,
+            },
             spelling: SpellingState {
                 checker: spelling,
                 target: None,
@@ -251,10 +254,6 @@ impl App {
             },
             document_open: false,
             session: Session::new(saved, document, None, 1),
-            search: Default::default(),
-            search_open: false,
-            replace_open: false,
-            search_focus_pending: false,
             preferences,
             preferences_tracker,
             preferences_directory: None,

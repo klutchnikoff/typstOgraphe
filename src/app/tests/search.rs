@@ -37,10 +37,10 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
         &ctx,
         vec![key(egui::Key::F, egui::Modifiers::COMMAND)],
     );
-    assert!(app.search_open && app.search_focus(&ctx).is_some());
+    assert!(app.search.open && app.search_focus(&ctx).is_some());
     let caret = app.selection;
     let _ = search_draw(&mut app, &ctx, vec![egui::Event::Text("été".into())]);
-    assert_eq!(app.search.matches.len(), 3);
+    assert_eq!(app.search.engine.matches.len(), 3);
     assert_eq!(
         app.selection, caret,
         "la saisie de recherche ne déplace pas le curseur du document"
@@ -52,7 +52,7 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
         &ctx,
         vec![key(egui::Key::Enter, egui::Modifiers::NONE)],
     );
-    assert_eq!(app.range(), app.search.matches[0]);
+    assert_eq!(app.range(), app.search.engine.matches[0]);
     assert!(
         app.search_focus(&ctx).is_some(),
         "Entrée doit permettre de continuer la saisie de recherche"
@@ -67,7 +67,7 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
                 egui::Shape::Text(text)
                     if text.galley.job.text == app.session.document.view.text =>
                 {
-                    editor::range_rects(&text.galley, &app.search.matches)
+                    editor::range_rects(&text.galley, &app.search.engine.matches)
                         .into_iter()
                         .find(|(found, _)| *found == index)
                         .map(|(_, rect)| text.pos + rect.center().to_vec2())
@@ -91,15 +91,18 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
             );
         }
         let _ = search_draw(&mut app, &ctx, vec![]);
-        assert_eq!(app.range(), app.search.matches[index]);
+        assert_eq!(app.range(), app.search.engine.matches[index]);
         let native = egui::TextEdit::load_state(&ctx, egui::Id::new(editor::EDITOR_ID))
             .unwrap()
             .cursor
             .char_range()
             .unwrap();
-        assert_eq!(native.as_sorted_char_range(), app.search.matches[index]);
         assert_eq!(
-            app.search.matches.len(),
+            native.as_sorted_char_range(),
+            app.search.engine.matches[index]
+        );
+        assert_eq!(
+            app.search.engine.matches.len(),
             3,
             "l’ancienne occurrence reste un résultat surligné"
         );
@@ -114,8 +117,8 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
         &ctx,
         vec![key(egui::Key::Escape, egui::Modifiers::NONE)],
     );
-    assert!(!app.search_open);
-    assert_eq!(app.range(), app.search.matches[2]);
+    assert!(!app.search.open);
+    assert_eq!(app.range(), app.search.engine.matches[2]);
 }
 
 #[test]
@@ -131,21 +134,21 @@ fn replacement_commands_refresh_results_and_replace_all_is_a_single_document_tra
     )
     .unwrap();
     app.apply(Command::FindReplace);
-    app.search.query = "été".into();
-    app.search.replacement = "Noël".into();
+    app.search.engine.query = "été".into();
+    app.search.engine.replacement = "Noël".into();
     app.apply(Command::FindNext);
-    assert_eq!(app.search.matches.len(), 3);
+    assert_eq!(app.search.engine.matches.len(), 3);
     app.apply(Command::ReplaceCurrent);
-    assert_eq!(app.search.matches.len(), 2);
-    assert_eq!(app.range(), app.search.matches[0]);
+    assert_eq!(app.search.engine.matches.len(), 2);
+    assert_eq!(app.range(), app.search.engine.matches[0]);
     assert!(app.session.document.view.text.contains("Noël"));
     app.apply(Command::Undo);
     app.refresh_search();
     assert_eq!(app.stored_document(), stored);
-    app.search.replacement = "été été".into();
+    app.search.engine.replacement = "été été".into();
     app.apply(Command::ReplaceAll);
     assert_eq!(
-        app.search.matches.len(),
+        app.search.engine.matches.len(),
         6,
         "les nouveaux résultats ne sont pas remplacés en boucle"
     );
@@ -154,11 +157,11 @@ fn replacement_commands_refresh_results_and_replace_all_is_a_single_document_tra
     assert_eq!(app.stored_document(), stored);
     app.apply(Command::Redo);
     app.refresh_search();
-    assert_eq!(app.search.matches.len(), 6);
-    app.search.replacement.clear();
+    assert_eq!(app.search.engine.matches.len(), 6);
+    app.search.engine.replacement.clear();
     app.apply(Command::ReplaceAll);
-    assert!(app.search.matches.is_empty());
+    assert!(app.search.engine.matches.is_empty());
     app.apply(Command::Undo);
     app.refresh_search();
-    assert_eq!(app.search.matches.len(), 6);
+    assert_eq!(app.search.engine.matches.len(), 6);
 }

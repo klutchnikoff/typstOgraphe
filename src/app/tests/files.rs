@@ -24,7 +24,7 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
         app.apply(command);
     }
     assert_eq!(app.stored_document(), original);
-    assert!(!app.search_open && !app.export_open && app.file_command.is_none());
+    assert!(!app.search.open && !app.export_open && app.file_command.is_none());
     for (command, status) in app.menu_statuses() {
         if !command.available_without_document() {
             assert!(!status.enabled);

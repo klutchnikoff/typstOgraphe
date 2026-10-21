@@ -21,3 +21,10 @@ pub(super) struct SpellingState {
     pub(super) menu_position: Option<egui::Pos2>,
     pub(super) capture_active: bool,
 }
+
+pub(super) struct SearchState {
+    pub(super) engine: crate::search::Search,
+    pub(super) open: bool,
+    pub(super) replace_open: bool,
+    pub(super) focus_pending: bool,
+}

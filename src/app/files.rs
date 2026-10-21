@@ -116,10 +116,10 @@ impl App {
         let keymap = self.keymap.for_document(letter.metadata.document_type())?;
         self.clear_recovery();
         self.recovery.recovered_name = None;
-        self.search = Default::default();
-        self.search_open = false;
-        self.replace_open = false;
-        self.search_focus_pending = false;
+        self.search.engine = Default::default();
+        self.search.open = false;
+        self.search.replace_open = false;
+        self.search.focus_pending = false;
         self.spelling.target = None;
         self.spelling.menu_pending = false;
         self.spelling.menu_position = None;
