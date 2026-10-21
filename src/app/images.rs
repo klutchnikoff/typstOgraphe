@@ -17,18 +17,28 @@ impl App {
     ) -> Result<(), String> {
         let image = crate::assets::ImageData::read(path)?;
         let before = self.snapshot();
-        let asset_path = image.insert(&mut self.session.document.assets, "image");
+        let asset_path = image.insert(&mut self.document.session.document.assets, "image");
         let at = if let Some(id) = replace {
-            let Some(image) = self.session.document.view.images.get_mut(&id) else {
-                self.session.document = before.document;
+            let Some(image) = self.document.session.document.view.images.get_mut(&id) else {
+                self.document.session.document = before.document;
                 return Ok(());
             };
             image.path = asset_path;
-            self.session.document.view.image_range(id).unwrap().start
+            self.document
+                .session
+                .document
+                .view
+                .image_range(id)
+                .unwrap()
+                .start
         } else {
             let range = self.range();
-            self.session.document.view.delete_char_range(range.clone());
-            self.session.document.view.insert_image(
+            self.document
+                .session
+                .document
+                .view
+                .delete_char_range(range.clone());
+            self.document.session.document.view.insert_image(
                 range.start,
                 ImageBlock {
                     path: asset_path,
@@ -37,7 +47,7 @@ impl App {
             )
         };
         if let Err(error) = self.check_asset_budget() {
-            self.session.document = before.document;
+            self.document.session.document = before.document;
             return Err(error);
         }
         self.focus_annotation_target(at + 1..at + 1);
@@ -46,12 +56,14 @@ impl App {
     }
     pub(super) fn check_asset_budget(&self) -> Result<(), String> {
         let dependency_bytes = self
+            .document
             .session
             .dependencies
             .values()
             .map(|v| v.len())
             .sum::<usize>();
         if self
+            .document
             .session
             .document
             .assets
@@ -63,14 +75,14 @@ impl App {
         {
             return Ok(());
         }
-        let mut document = self.session.document.clone();
+        let mut document = self.document.session.document.clone();
         document.sync_source();
         let retained = crate::rendering::retained_assets(
             document.source(),
-            &self.session.metadata,
-            &self.session.template,
+            &self.document.session.metadata,
+            &self.document.session.template,
             &document.assets,
-            &self.session.dependencies,
+            &self.document.session.dependencies,
         )?;
         if retained.values().map(|v| v.len()).sum::<usize>() + dependency_bytes
             > crate::assets::MAX_DOCUMENT_BYTES as usize
@@ -80,15 +92,16 @@ impl App {
         Ok(())
     }
     pub(super) fn remove_image(&mut self, id: u64) {
-        if let Some(range) = self.session.document.view.image_range(id) {
+        if let Some(range) = self.document.session.document.view.image_range(id) {
             let before = self.snapshot();
-            let end = (range.end + 1).min(self.session.document.view.len());
-            self.session
+            let end = (range.end + 1).min(self.document.session.document.view.len());
+            self.document
+                .session
                 .document
                 .view
                 .delete_char_range(range.start..end);
-            self.selection = editor::cursor(range.start..range.start);
-            self.force_selection = true;
+            self.document.selection = editor::cursor(range.start..range.start);
+            self.document.force_selection = true;
             self.remember(before, false);
         }
     }

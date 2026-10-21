@@ -2,9 +2,10 @@ use super::*;
 
 impl App {
     pub(super) fn refresh_search(&mut self) {
-        self.search
-            .engine
-            .refresh(self.session.revision, &self.session.document.view);
+        self.search.engine.refresh(
+            self.document.session.revision,
+            &self.document.session.document.view,
+        );
     }
     pub fn capture_search(&mut self, query: String) {
         self.load_demo();
@@ -15,7 +16,7 @@ impl App {
     pub(super) fn close_search(&mut self) {
         self.search.open = false;
         self.search.focus_pending = false;
-        self.force_selection = true;
+        self.document.force_selection = true;
     }
     pub(super) fn search_focus(&self, ctx: &egui::Context) -> Option<egui::Id> {
         ctx.memory(|memory| memory.focused()).filter(|id| {
@@ -28,13 +29,13 @@ impl App {
     pub(super) fn select_search_result(&mut self, index: usize) {
         if let Some(range) = self.search.engine.matches.get(index) {
             // Une seule sélection native. Les autres résultats ne sont que des fonds colorés.
-            self.selection = editor::cursor(range.clone());
-            self.session.document.view.typing_style =
-                self.session.document.view.style_at(range.start);
-            self.force_selection = true;
+            self.document.selection = editor::cursor(range.clone());
+            self.document.session.document.view.typing_style =
+                self.document.session.document.view.style_at(range.start);
+            self.document.force_selection = true;
             self.preview.editor_scroll_pending = true;
             self.preview.forward_pending = true;
-            self.session.typing_group = false;
+            self.document.session.typing_group = false;
         }
     }
     pub(super) fn replace_search(&mut self, all: bool) {
@@ -56,15 +57,16 @@ impl App {
         if ranges.is_empty() {
             return;
         }
-        self.selection = self
+        self.document.selection = self
+            .document
             .session
             .replace_ranges(
-                self.selection.into(),
+                self.document.selection.into(),
                 &ranges,
                 &self.search.engine.replacement,
             )
             .into();
-        self.force_selection = true;
+        self.document.force_selection = true;
         self.preview.forward_pending = true;
         self.refresh_search();
         if !all && let Some(index) = self.search.engine.next(self.range(), false) {

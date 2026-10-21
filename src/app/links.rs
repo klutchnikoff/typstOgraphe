@@ -8,6 +8,7 @@ impl App {
             return;
         }
         if !self
+            .document
             .session
             .document
             .view
@@ -17,6 +18,7 @@ impl App {
             return;
         }
         self.dialogs.link_url = self
+            .document
             .session
             .document
             .view

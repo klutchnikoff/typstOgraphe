@@ -3,18 +3,18 @@ use super::*;
 impl App {
     pub(super) fn request(&self, export_dir: Option<PathBuf>) -> RenderRequest {
         RenderRequest {
-            revision: self.session.revision,
-            source: self.session.document.source().to_owned(),
-            source_map: self.session.document.source_map.clone(),
-            metadata: self.session.metadata.clone(),
-            template: self.session.template.clone(),
-            assets: self.session.document.assets.clone(),
-            dependencies: self.session.dependencies.clone(),
+            revision: self.document.session.revision,
+            source: self.document.session.document.source().to_owned(),
+            source_map: self.document.session.document.source_map.clone(),
+            metadata: self.document.session.metadata.clone(),
+            template: self.document.session.template.clone(),
+            assets: self.document.session.document.assets.clone(),
+            dependencies: self.document.session.dependencies.clone(),
             export_dir,
         }
     }
     pub(super) fn rendering(&mut self, ctx: &egui::Context) {
-        if !self.document_open {
+        if !self.document.open {
             while self.preview.worker.receiver.try_recv().is_ok() {}
             return;
         }
@@ -30,7 +30,7 @@ impl App {
                                 .map_or(String::new(), |p| p.display().to_string())
                         ));
                     }
-                    if response.revision == self.session.revision {
+                    if response.revision == self.document.session.revision {
                         self.preview.pages = rendered
                             .pages
                             .into_iter()
@@ -46,7 +46,7 @@ impl App {
                             })
                             .collect();
                         self.preview.elapsed = Some(rendered.elapsed);
-                        self.presentation = rendered.presentation;
+                        self.document.presentation = rendered.presentation;
                         self.preview.error = None;
                         self.preview.revision = Some(response.revision);
                         self.preview.sync = Some(rendered.sync);
@@ -54,22 +54,22 @@ impl App {
                     }
                 }
                 Err(error) => {
-                    if response.revision == self.session.revision || response.is_export {
+                    if response.revision == self.document.session.revision || response.is_export {
                         self.preview.error = Some(error);
                         self.preview.revision = Some(response.revision);
                     }
                 }
             }
         }
-        if self.preview.submitted != self.session.revision
-            && self.session.changed_at.elapsed() > Duration::from_millis(220)
+        if self.preview.submitted != self.document.session.revision
+            && self.document.session.changed_at.elapsed() > Duration::from_millis(220)
         {
             match self.preview.worker.sender.send(self.request(None)) {
-                Ok(()) => self.preview.submitted = self.session.revision,
+                Ok(()) => self.preview.submitted = self.document.session.revision,
                 Err(_) => self.preview.error = Some(crate::tr!("renderer-stopped")),
             }
         }
-        if self.preview.revision != Some(self.session.revision) {
+        if self.preview.revision != Some(self.document.session.revision) {
             ctx.request_repaint_after(Duration::from_millis(50));
         }
     }
@@ -77,7 +77,7 @@ impl App {
         ui.horizontal(|ui| {
             ui.label(RichText::new(crate::tr!("preview-title")).strong())
                 .on_hover_text(crate::tr!("preview-hint"));
-            if self.preview.revision != Some(self.session.revision) {
+            if self.preview.revision != Some(self.document.session.revision) {
                 ui.spinner();
                 ui.weak(crate::tr!("preview-updating"));
             } else if let Some(time) = self.preview.elapsed {
@@ -115,7 +115,7 @@ impl App {
             self.preview
                 .sync
                 .as_ref()
-                .and_then(|sync| sync.forward(self.selection.primary.index))
+                .and_then(|sync| sync.forward(self.document.selection.primary.index))
         } else {
             None
         };
@@ -212,7 +212,7 @@ impl App {
                 .preview
                 .sync
                 .as_ref()
-                .is_some_and(|sync| sync.revision == self.session.revision)
+                .is_some_and(|sync| sync.revision == self.document.session.revision)
     }
     pub(super) fn navigate_backward(&mut self, location: PagePoint, ctx: &egui::Context) {
         if !self.sync_is_current() {
@@ -224,18 +224,18 @@ impl App {
             .as_ref()
             .and_then(|sync| sync.backward(location))
         {
-            self.selection = CCursorRange::one(CCursor::new(
-                character.min(self.session.document.view.len()),
+            self.document.selection = CCursorRange::one(CCursor::new(
+                character.min(self.document.session.document.view.len()),
             ));
-            self.session.document.view.typing_style = if character > 0 {
-                self.session.document.view.style_at(character - 1)
+            self.document.session.document.view.typing_style = if character > 0 {
+                self.document.session.document.view.style_at(character - 1)
             } else {
                 InlineStyle::default()
             };
-            self.force_selection = true;
+            self.document.force_selection = true;
             self.preview.editor_scroll_pending = true;
             self.preview.forward_pending = false;
-            self.session.typing_group = false;
+            self.document.session.typing_group = false;
             ctx.request_repaint();
         }
     }

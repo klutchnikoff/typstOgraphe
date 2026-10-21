@@ -9,10 +9,10 @@ impl App {
             .expect("registre valide");
     }
     pub(super) fn stored_document(&self) -> StoredDocument {
-        self.session.stored_document()
+        self.document.session.stored_document()
     }
     pub(super) fn is_dirty(&self) -> bool {
-        self.document_open && self.session.is_dirty()
+        self.document.open && self.document.session.is_dirty()
     }
     pub(super) fn save_path(&mut self, path: PathBuf) -> bool {
         let letter = self.stored_document();
@@ -22,11 +22,11 @@ impl App {
                     "letter-saved",
                     path = path.display().to_string()
                 ));
-                self.session.file_path = Some(path);
+                self.document.session.file_path = Some(path);
                 // Le fichier est nettoyé par storage::save ; ce repère en mémoire
                 // garde les mêmes ressources que l’historique pour is_dirty.
-                self.session.saved = letter;
-                self.session.recovered = false;
+                self.document.session.saved = letter;
+                self.document.session.recovered = false;
                 self.recovery.recovered_name = None;
                 self.clear_recovery();
                 self.file.error = None;
@@ -39,17 +39,18 @@ impl App {
         }
     }
     pub(super) fn save_document(&mut self, save_as: bool) -> bool {
-        if !self.document_open {
+        if !self.document.open {
             return false;
         }
-        if !save_as && let Some(path) = self.session.file_path.clone() {
+        if !save_as && let Some(path) = self.document.session.file_path.clone() {
             return self.save_path(path);
         }
         let mut dialog = rfd::FileDialog::new()
             .set_title(crate::tr!("save-dialog"))
             .add_filter(crate::tr!("letter-filter"), &[storage::EXTENSION])
             .set_file_name(
-                self.session
+                self.document
+                    .session
                     .file_path
                     .as_ref()
                     .and_then(|path| path.file_name())
@@ -60,6 +61,7 @@ impl App {
                     }),
             );
         if let Some(parent) = self
+            .document
             .session
             .file_path
             .as_ref()
@@ -124,15 +126,16 @@ impl App {
         self.spelling.menu_pending = false;
         self.spelling.menu_position = None;
         self.keymap = keymap;
-        self.history_field = None;
-        self.session = Session::new(letter, document, path, self.session.revision + 1);
-        self.document_open = true;
+        self.document.history_field = None;
+        self.document.session =
+            Session::new(letter, document, path, self.document.session.revision + 1);
+        self.document.open = true;
         self.image_textures.clear();
         self.dialogs.image_info = None;
         self.dialogs.information_group = InformationGroup::General;
-        self.presentation = ModelPresentation::default();
-        self.selection = CCursorRange::one(CCursor::new(0));
-        self.force_selection = true;
+        self.document.presentation = ModelPresentation::default();
+        self.document.selection = CCursorRange::one(CCursor::new(0));
+        self.document.force_selection = true;
         self.preview.editor_scroll_pending = true;
         self.preview.forward_pending = true;
         self.preview.pages.clear();
@@ -159,11 +162,11 @@ impl App {
         // au document et les résultats de rendu. Les préférences restent globales.
         self.install_document(letter, document, None)
             .expect("registre valide");
-        self.document_open = false;
+        self.document.open = false;
         self.dialogs.information_open = false;
         self.dialogs.link_open = false;
         self.file.export_open = false;
-        self.history_field = None;
+        self.document.history_field = None;
     }
     pub(super) fn perform_action(&mut self, action: PendingAction, ctx: &egui::Context) {
         match action {
@@ -172,8 +175,8 @@ impl App {
                     .into_iter()
                     .find(|kind| {
                         kind.can_create()
-                            && self.document_open
-                            && *kind == self.session.metadata.document_type()
+                            && self.document.open
+                            && *kind == self.document.session.metadata.document_type()
                     })
                     .or_else(|| DocumentType::ALL.into_iter().find(|kind| kind.can_create()))
                     .unwrap_or(self.dialogs.new_document_type);
@@ -191,6 +194,7 @@ impl App {
                     .add_filter(crate::tr!("letter-filter"), &[storage::EXTENSION])
                     .add_filter(crate::tr!("all-files"), &["*"]);
                 if let Some(parent) = self
+                    .document
                     .session
                     .file_path
                     .as_ref()
@@ -258,7 +262,7 @@ impl App {
             FileCommand::SaveAs => {
                 self.save_document(true);
             }
-            FileCommand::Export => self.file.export_open = self.document_open,
+            FileCommand::Export => self.file.export_open = self.document.open,
         }
         ctx.request_repaint();
     }
@@ -303,7 +307,7 @@ impl App {
                 Some(2) => {
                     self.file.pending_action = None;
                     self.file.error = None;
-                    self.force_selection = true;
+                    self.document.force_selection = true;
                 }
                 _ => {}
             }
@@ -320,7 +324,7 @@ impl App {
                 });
             if close || !open {
                 self.file.error = None;
-                self.force_selection = true;
+                self.document.force_selection = true;
             }
         }
     }

@@ -42,7 +42,7 @@ impl App {
             self.dialogs.preferences_open = false;
         }
         if !self.dialogs.preferences_open {
-            self.force_selection = true;
+            self.document.force_selection = true;
         }
     }
     pub(super) fn appearance_preferences_ui(&mut self, ui: &mut egui::Ui) {
@@ -215,13 +215,14 @@ impl App {
         });
         self.create_document(DocumentType::Courrier);
         let before = self.snapshot();
-        if let crate::document_types::Metadata::Courrier(meta) = &mut self.session.metadata {
+        if let crate::document_types::Metadata::Courrier(meta) = &mut self.document.session.metadata
+        {
             meta.destinataire = "Secrétariat de la mairie".into();
             meta.objet = "Confirmation de notre rendez-vous".into();
             meta.lieu = "Rennes".into();
             meta.date = "2026-10-21".into();
         }
-        self.session.document.view.insert_text("Madame, Monsieur,\n\nJe vous confirme notre rendez-vous pour préparer la prochaine rencontre de l’association.\n\nJe vous remercie pour votre disponibilité.\n\nBien cordialement,", 0);
+        self.document.session.document.view.insert_text("Madame, Monsieur,\n\nJe vous confirme notre rendez-vous pour préparer la prochaine rencontre de l’association.\n\nJe vous remercie pour votre disponibilité.\n\nBien cordialement,", 0);
         self.remember(before, false);
         self.dialogs.preferences_page = PreferencesPage::Profile;
         self.dialogs.preferences_open = preferences;

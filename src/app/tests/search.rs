@@ -12,18 +12,18 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
     let mut world = crate::rendering::TypstWorld::default();
     let compiled = world
         .compile_with_template(
-            app.session.document.source(),
-            &app.session.metadata,
-            &app.session.template,
+            app.document.session.document.source(),
+            &app.document.session.metadata,
+            &app.document.session.template,
         )
         .unwrap();
     app.preview.sync = Some(RenderSync::new(
-        app.session.revision,
+        app.document.session.revision,
         world,
         compiled,
-        app.session.document.source_map.clone(),
+        app.document.session.document.source_map.clone(),
     ));
-    app.preview.revision = Some(app.session.revision);
+    app.preview.revision = Some(app.document.session.revision);
     let _ = search_draw(&mut app, &ctx, vec![]);
     let key = |key, modifiers| egui::Event::Key {
         key,
@@ -38,11 +38,11 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
         vec![key(egui::Key::F, egui::Modifiers::COMMAND)],
     );
     assert!(app.search.open && app.search_focus(&ctx).is_some());
-    let caret = app.selection;
+    let caret = app.document.selection;
     let _ = search_draw(&mut app, &ctx, vec![egui::Event::Text("été".into())]);
     assert_eq!(app.search.engine.matches.len(), 3);
     assert_eq!(
-        app.selection, caret,
+        app.document.selection, caret,
         "la saisie de recherche ne déplace pas le curseur du document"
     );
     assert_eq!(app.stored_document(), before);
@@ -65,7 +65,7 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
             .iter()
             .find_map(|shape| match &shape.shape {
                 egui::Shape::Text(text)
-                    if text.galley.job.text == app.session.document.view.text =>
+                    if text.galley.job.text == app.document.session.document.view.text =>
                 {
                     editor::range_rects(&text.galley, &app.search.engine.matches)
                         .into_iter()
@@ -146,7 +146,7 @@ fn replacement_commands_refresh_results_and_replace_all_is_a_single_document_tra
     app.apply(Command::ReplaceCurrent);
     assert_eq!(app.search.engine.matches.len(), 2);
     assert_eq!(app.range(), app.search.engine.matches[0]);
-    assert!(app.session.document.view.text.contains("Noël"));
+    assert!(app.document.session.document.view.text.contains("Noël"));
     app.apply(Command::Undo);
     app.refresh_search();
     assert_eq!(app.stored_document(), stored);
@@ -157,7 +157,7 @@ fn replacement_commands_refresh_results_and_replace_all_is_a_single_document_tra
         6,
         "les nouveaux résultats ne sont pas remplacés en boucle"
     );
-    assert_eq!(app.session.undo.len(), 1);
+    assert_eq!(app.document.session.undo.len(), 1);
     app.apply(Command::Undo);
     assert_eq!(app.stored_document(), stored);
     app.apply(Command::Redo);

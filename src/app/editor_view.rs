@@ -35,15 +35,15 @@ impl App {
         if let Some((id, action)) = image_action {
             match action {
                 editor::ImageAction::Select(at) => {
-                    self.selection = editor::cursor(at..at + 1);
-                    self.force_selection = true;
+                    self.document.selection = editor::cursor(at..at + 1);
+                    self.document.force_selection = true;
                     self.preview.forward_pending = true;
                 }
                 editor::ImageAction::Replace => self.choose_image(Some(id)),
                 editor::ImageAction::Information => {
                     self.dialogs
                         .image_alt
-                        .clone_from(&self.session.document.view.images[&id].alt);
+                        .clone_from(&self.document.session.document.view.images[&id].alt);
                     self.dialogs.image_info = Some(id);
                 }
                 editor::ImageAction::Remove => self.remove_image(id),
@@ -52,18 +52,18 @@ impl App {
     }
     fn editor_frame(&mut self, ctx: &egui::Context) -> EditorFrame {
         let before = self.snapshot();
-        let old_range = self.selection;
-        if self.force_selection {
+        let old_range = self.document.selection;
+        if self.document.force_selection {
             let search_focus = self.search_focus(ctx);
-            editor::restore_cursor(ctx, self.selection);
+            editor::restore_cursor(ctx, self.document.selection);
             if let Some(id) = search_focus {
                 ctx.memory_mut(|memory| memory.request_focus(id));
             }
-            self.force_selection = false;
+            self.document.force_selection = false;
         }
-        for image in self.session.document.view.images.values() {
+        for image in self.document.session.document.view.images.values() {
             if !self.image_textures.contains_key(&image.path)
-                && let Some(data) = self.session.document.assets.get(&image.path)
+                && let Some(data) = self.document.session.document.assets.get(&image.path)
                 && let Ok(thumbnail) =
                     crate::assets::thumbnail(data, image.path.rsplit('.').next().unwrap())
             {
@@ -73,10 +73,12 @@ impl App {
                 );
             }
         }
-        let view = self.session.document.view.clone();
+        let view = self.document.session.document.view.clone();
         let lock_tab = view.annotation_at(self.range()).is_some()
-            || (view.blocks[view.line_at(self.selection.primary.index)] == BlockKind::Description
-                || view.blocks[view.line_at(self.selection.primary.index)].is_letter_note());
+            || (view.blocks[view.line_at(self.document.selection.primary.index)]
+                == BlockKind::Description
+                || view.blocks[view.line_at(self.document.selection.primary.index)]
+                    .is_letter_note());
         let editor_style = self.preferences.editor;
         let matches = if self.search.open {
             self.search.engine.matches.clone()
@@ -120,7 +122,7 @@ impl App {
             }
         };
         let background = ui.painter().add(egui::Shape::Noop);
-        let output = egui::TextEdit::multiline(&mut self.session.document.view)
+        let output = egui::TextEdit::multiline(&mut self.document.session.document.view)
             .lock_focus(lock_tab)
             .id(egui::Id::new(editor::EDITOR_ID))
             .desired_width(f32::INFINITY)
@@ -144,13 +146,13 @@ impl App {
         let old_range = frame.old_range;
         let clicked_term = editor::paint_decorations(
             ui,
-            &self.session.document.view,
+            &self.document.session.document.view,
             &output,
             editor_style,
             background,
         );
         if let Some(range) = output.cursor_range {
-            self.selection = range;
+            self.document.selection = range;
         }
         if self.search.open
             && output.response.clicked()
@@ -163,19 +165,21 @@ impl App {
                             .contains(pointer)
                     })
         {
-            self.selection = editor::cursor(matches[*index].clone());
-            self.force_selection = true;
+            self.document.selection = editor::cursor(matches[*index].clone());
+            self.document.force_selection = true;
         }
         if let Some(at) = clicked_term {
-            self.selection = editor::cursor(at..at);
-            self.force_selection = true;
+            self.document.selection = editor::cursor(at..at);
+            self.document.force_selection = true;
         }
         self.editor_spelling(ui, &output, &frame.view);
         if self.preview.editor_scroll_pending {
             if self.search_focus(ui.ctx()).is_none() {
                 output.response.request_focus();
             }
-            let cursor = output.galley.pos_from_cursor(self.selection.primary);
+            let cursor = output
+                .galley
+                .pos_from_cursor(self.document.selection.primary);
             ui.scroll_to_rect(
                 cursor.translate(output.galley_pos.to_vec2()),
                 Some(egui::Align::Center),
@@ -184,7 +188,7 @@ impl App {
         }
         let image_action = editor::paint_images(
             ui,
-            &self.session.document.view,
+            &self.document.session.document.view,
             &output,
             &self.image_textures,
             self.range(),
@@ -192,8 +196,8 @@ impl App {
         );
         let changed = output.response.changed();
         let mut state = output.state;
-        if self.force_selection {
-            state.cursor.set_char_range(Some(self.selection));
+        if self.document.force_selection {
+            state.cursor.set_char_range(Some(self.document.selection));
         }
         state.clear_undoer();
         state.store(ui.ctx(), output.response.id);
@@ -203,19 +207,19 @@ impl App {
                 self.refresh_search();
             }
             ui.ctx().request_repaint();
-        } else if self.selection != old_range {
+        } else if self.document.selection != old_range {
             let selected = self.range();
-            let pos = self.selection.primary.index;
-            self.session.document.view.typing_style = if !selected.is_empty() {
-                self.session.document.view.style_at(selected.start)
+            let pos = self.document.selection.primary.index;
+            self.document.session.document.view.typing_style = if !selected.is_empty() {
+                self.document.session.document.view.style_at(selected.start)
             } else if pos > 0 {
-                self.session.document.view.style_at(pos - 1)
+                self.document.session.document.view.style_at(pos - 1)
             } else {
                 InlineStyle::default()
             };
-            self.session.typing_group = false;
+            self.document.session.typing_group = false;
         }
-        if self.selection != old_range {
+        if self.document.selection != old_range {
             self.preview.forward_pending = true;
             ui.ctx().request_repaint();
         }
@@ -227,10 +231,10 @@ impl App {
         output: &egui::text_edit::TextEditOutput,
         view: &Projection,
     ) {
-        if view.text == self.session.document.view.text {
+        if view.text == self.document.session.document.view.text {
             let editing = output.response.has_focus()
-                && self.selection.is_empty()
-                && self.session.changed_at.elapsed() < Duration::from_millis(700);
+                && self.document.selection.is_empty()
+                && self.document.session.changed_at.elapsed() < Duration::from_millis(700);
             let ranges: Vec<_> = self
                 .spelling
                 .checker
@@ -238,8 +242,8 @@ impl App {
                 .iter()
                 .filter(|issue| {
                     !editing
-                        || !(issue.range.start <= self.selection.primary.index
-                            && self.selection.primary.index <= issue.range.end)
+                        || !(issue.range.start <= self.document.selection.primary.index
+                            && self.document.selection.primary.index <= issue.range.end)
                 })
                 .map(|issue| issue.range.clone())
                 .collect();
@@ -247,7 +251,8 @@ impl App {
             self.spelling_context_menu(output);
             if editing {
                 ui.ctx().request_repaint_after(
-                    Duration::from_millis(700).saturating_sub(self.session.changed_at.elapsed()),
+                    Duration::from_millis(700)
+                        .saturating_sub(self.document.session.changed_at.elapsed()),
                 );
             }
         }

@@ -7,7 +7,7 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
     let dir = tempfile::tempdir().unwrap();
     app.start_recovery(dir.path().join("recovery"), ctx.clone());
     frame(&mut app, &ctx, vec![]);
-    assert!(!app.document_open && !app.is_dirty());
+    assert!(!app.document.open && !app.is_dirty());
     assert_eq!(app.file.window_title, "typstOgraphe");
     assert_eq!(app.preview.submitted, 0);
     assert!(app.preview.pages.is_empty() && app.preview.revision.is_none());
@@ -34,22 +34,26 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
     assert!(app.dialogs.preferences_open);
     app.dialogs.preferences_open = false;
     recovery_click(&mut app, &ctx, &Command::File(FileCommand::New).label());
-    assert!(app.dialogs.new_document_open && !app.document_open);
+    assert!(app.dialogs.new_document_open && !app.document.open);
     assert_eq!(app.dialogs.new_document_model, Some(Model::Personal));
     recovery_click(&mut app, &ctx, &crate::tr!("cancel"));
-    assert!(!app.dialogs.new_document_open && !app.document_open);
+    assert!(!app.dialogs.new_document_open && !app.document.open);
     app.perform_action(PendingAction::New, &ctx);
     recovery_click(&mut app, &ctx, &crate::tr!("new-document-create"));
-    assert!(app.document_open && !app.dialogs.new_document_open);
-    assert!(app.session.document.source().is_empty());
-    assert_eq!(app.session.template, Model::Personal.source());
+    assert!(app.document.open && !app.dialogs.new_document_open);
+    assert!(app.document.session.document.source().is_empty());
+    assert_eq!(app.document.session.template, Model::Personal.source());
     let path = dir.path().join("courrier.typsto");
     assert!(app.save_path(path.clone()));
     app.handle_file_command(FileCommand::Close, &ctx);
-    assert!(!app.document_open && !app.file.allow_close);
+    assert!(!app.document.open && !app.file.allow_close);
     assert!(app.open_path(path));
-    assert!(app.document_open);
-    app.session.document.view.insert_text("À conserver", 0);
+    assert!(app.document.open);
+    app.document
+        .session
+        .document
+        .view
+        .insert_text("À conserver", 0);
     app.changed();
     app.handle_file_command(FileCommand::Close, &ctx);
     assert!(matches!(
@@ -57,18 +61,18 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
         Some(PendingAction::CloseDocument)
     ));
     recovery_click(&mut app, &ctx, &crate::tr!("cancel"));
-    assert!(app.document_open && app.is_dirty());
+    assert!(app.document.open && app.is_dirty());
     app.handle_file_command(FileCommand::Close, &ctx);
     recovery_click(&mut app, &ctx, &crate::tr!("discard"));
-    assert!(!app.document_open && !app.is_dirty());
+    assert!(!app.document.open && !app.is_dirty());
 }
 
 #[test]
 fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplicates() {
     let ctx = egui::Context::default();
     let mut app = App::with_demo_context(ctx.clone(), None);
-    app.session.file_path = Some(PathBuf::from("exemple.typsto"));
-    let source = app.session.document.source().to_owned();
+    app.document.session.file_path = Some(PathBuf::from("exemple.typsto"));
+    let source = app.document.session.document.source().to_owned();
     let mut time = 0.0;
     let mut draw = |app: &mut App, events| {
         time += 0.1;
@@ -138,12 +142,12 @@ fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplica
         );
     }
     assert!(app.file.export_open);
-    assert_eq!(app.session.document.source(), source);
+    assert_eq!(app.document.session.document.source(), source);
     // Une commande native déjà en transit ne contourne pas un dialogue.
     app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
     assert!(app.file.command.is_none());
     app.file.export_open = false;
-    app.session.metadata.courrier_mut().objet = "Brouillon à conserver".into();
+    app.document.session.metadata.courrier_mut().objet = "Brouillon à conserver".into();
     let before = app.stored_document();
     app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
     let output = draw(&mut app, vec![]);
@@ -168,44 +172,57 @@ fn save_reopen_restores_the_letter_and_failed_open_preserves_current_work() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("courrier.typsto");
     assert!(!app.is_dirty());
-    app.selection = editor::cursor(20..35);
+    app.document.selection = editor::cursor(20..35);
     app.apply(Command::Bold);
     assert!(app.is_dirty());
     app.apply(Command::Undo);
     assert!(!app.is_dirty());
-    app.session.metadata.courrier_mut().objet = "Objet personnalisé".into();
-    app.session.template = Model::Personal.source();
-    app.session.template = app
+    app.document.session.metadata.courrier_mut().objet = "Objet personnalisé".into();
+    app.document.session.template = Model::Personal.source();
+    app.document.session.template = app
+        .document
         .session
         .template
         .replace("VILLE DE VALMONT", "MODÈLE ARCHIVÉ");
-    app.session.document.view.insert_text("Élodie : ", 0);
+    app.document
+        .session
+        .document
+        .view
+        .insert_text("Élodie : ", 0);
     app.changed();
     let letter = app.stored_document();
     assert!(app.save_path(path.clone()));
     assert!(!app.is_dirty());
-    app.session.document.view.insert_text("Brouillon ", 0);
+    app.document
+        .session
+        .document
+        .view
+        .insert_text("Brouillon ", 0);
     app.changed();
     assert!(app.is_dirty());
     assert!(app.open_path(path.clone()));
     assert_eq!(app.stored_document(), letter);
-    assert_eq!(app.session.file_path, Some(path.clone()));
+    assert_eq!(app.document.session.file_path, Some(path.clone()));
     assert!(!app.is_dirty());
-    assert!(app.session.undo.is_empty() && app.session.redo.is_empty());
-    assert_eq!(app.selection.primary.index, 0);
+    assert!(app.document.session.undo.is_empty() && app.document.session.redo.is_empty());
+    assert_eq!(app.document.selection.primary.index, 0);
     assert!(app.preview.pages.is_empty() && app.preview.sync.is_none());
     assert_eq!(app.request(None).template, letter.template);
-    app.session.document.view.insert_text("À conserver ", 0);
+    app.document
+        .session
+        .document
+        .view
+        .insert_text("À conserver ", 0);
     app.changed();
     let before = app.stored_document();
     let bad = dir.path().join("illisible.typsto");
     std::fs::write(&bad, "invalide").unwrap();
     assert!(!app.open_path(bad));
     assert_eq!(app.stored_document(), before);
-    assert_eq!(app.session.file_path, Some(path.clone()));
+    assert_eq!(app.document.session.file_path, Some(path.clone()));
     assert!(app.is_dirty());
     assert!(!app.save_path(dir.path().join("absent/impossible.typsto")));
-    assert_eq!(app.session.file_path, Some(path.clone()));
+    assert_eq!(app.document.session.file_path, Some(path.clone()));
     assert!(app.is_dirty());
     assert_eq!(storage::read(&path).unwrap(), letter);
 }
@@ -218,7 +235,11 @@ fn save_shortcut_and_save_as_keep_both_files_and_track_clean_state() {
     let first = dir.path().join("premier.typsto");
     assert!(app.save_path(first.clone()));
     let initial = storage::read(&first).unwrap();
-    app.session.document.view.insert_text("Un ajout. ", 0);
+    app.document
+        .session
+        .document
+        .view
+        .insert_text("Un ajout. ", 0);
     app.changed();
     frame(
         &mut app,
@@ -234,10 +255,10 @@ fn save_shortcut_and_save_as_keep_both_files_and_track_clean_state() {
     assert!(!app.is_dirty());
     assert_ne!(storage::read(&first).unwrap(), initial);
     let saved = app.stored_document();
-    app.session.metadata.courrier_mut().objet = "Deuxième courrier".into();
+    app.document.session.metadata.courrier_mut().objet = "Deuxième courrier".into();
     let second = dir.path().join("second.typsto");
     assert!(app.save_path(second.clone()));
-    assert_eq!(app.session.file_path, Some(second));
+    assert_eq!(app.document.session.file_path, Some(second));
     assert_eq!(storage::read(&first).unwrap(), saved);
     assert!(!app.is_dirty());
 }
@@ -246,7 +267,7 @@ fn save_shortcut_and_save_as_keep_both_files_and_track_clean_state() {
 fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
     let ctx = egui::Context::default();
     let mut app = App::with_demo_context(ctx.clone(), None);
-    app.session.metadata.courrier_mut().objet = "Travail à conserver".into();
+    app.document.session.metadata.courrier_mut().objet = "Travail à conserver".into();
     let before = app.stored_document();
     app.request_action(PendingAction::Open, &ctx);
     assert!(app.file.pending_action.is_some()); // Aucune fenêtre de fichier tant que la décision manque.
@@ -327,7 +348,7 @@ fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
     assert!(app.file.pending_action.is_none());
     assert!(app.dialogs.new_document_open);
     app.create_document(DocumentType::Courrier);
-    assert!(app.session.document.source().is_empty());
-    assert!(app.session.file_path.is_none());
+    assert!(app.document.session.document.source().is_empty());
+    assert!(app.document.session.file_path.is_none());
     assert!(!app.is_dirty());
 }

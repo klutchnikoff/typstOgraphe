@@ -4,9 +4,14 @@ impl App {
     pub fn capture_spelling(&mut self, ctx: &egui::Context) {
         self.load_demo();
         let before = self.snapshot();
-        self.session.metadata.options_mut().language = DocumentLanguage::French;
-        self.session.metadata.options_mut().spelling_ignored.clear();
-        self.session.document = Document::from_source("Madame, Monsieur,\n\nNous vous adressons ce *courrrier* pour confirmer la _réservvation_ de la salle.\n\nLa réunion aura lieu aujourd’hui à l’école, lors du rendez-vous prévu avec les associations.\n\nNous vous remercions de votre attention.").unwrap();
+        self.document.session.metadata.options_mut().language = DocumentLanguage::French;
+        self.document
+            .session
+            .metadata
+            .options_mut()
+            .spelling_ignored
+            .clear();
+        self.document.session.document = Document::from_source("Madame, Monsieur,\n\nNous vous adressons ce *courrrier* pour confirmer la _réservvation_ de la salle.\n\nLa réunion aura lieu aujourd’hui à l’école, lors du rendez-vous prévu avec les associations.\n\nNous vous remercions de votre attention.").unwrap();
         self.remember(before, false);
         self.preferences = Preferences::default();
         self.preferences.appearance = Appearance::Light;
@@ -14,13 +19,13 @@ impl App {
         self.spelling.capture_active = true;
     }
     pub(super) fn refresh_spelling(&mut self, ctx: &egui::Context) {
-        if !self.document_open {
+        if !self.document.open {
             return;
         }
-        let options = self.session.metadata.options();
+        let options = self.document.session.metadata.options();
         self.spelling.checker.synchronize(
-            self.session.revision,
-            &self.session.document.view.text,
+            self.document.session.revision,
+            &self.document.session.document.view.text,
             options.language,
             crate::spelling::accepted(
                 options.language,
@@ -36,7 +41,10 @@ impl App {
     }
     pub(super) fn selected_spelling_issue(&self) -> Option<crate::spelling::Issue> {
         if !self.preferences.spelling.enabled
-            || !self.spelling.checker.is_current(self.session.revision)
+            || !self
+                .spelling
+                .checker
+                .is_current(self.document.session.revision)
         {
             return None;
         }
@@ -56,11 +64,12 @@ impl App {
         revision: u64,
         issue: &crate::spelling::Issue,
     ) -> bool {
-        revision == self.session.revision
+        revision == self.document.session.revision
             && self.preferences.spelling.enabled
             && self.spelling.checker.is_current(revision)
             && self.spelling.checker.issues.contains(issue)
             && self
+                .document
                 .session
                 .document
                 .view
@@ -80,35 +89,40 @@ impl App {
         if !self.valid_spelling_target(revision, issue) {
             return;
         }
-        self.history_field = None;
-        self.selection = self
+        self.document.history_field = None;
+        self.document.selection = self
+            .document
             .session
             .replace_ranges(
-                self.selection.into(),
+                self.document.selection.into(),
                 std::slice::from_ref(&issue.range),
                 replacement,
             )
             .into();
-        self.force_selection = true;
+        self.document.force_selection = true;
         self.preview.forward_pending = true;
         self.spelling.target = None;
     }
     pub(super) fn open_spelling_target(&mut self, issue: crate::spelling::Issue) {
-        self.spelling
-            .checker
-            .request_suggestions(self.session.metadata.options().language, &issue.word);
-        self.selection = editor::cursor(issue.range.clone());
-        self.force_selection = true;
+        self.spelling.checker.request_suggestions(
+            self.document.session.metadata.options().language,
+            &issue.word,
+        );
+        self.document.selection = editor::cursor(issue.range.clone());
+        self.document.force_selection = true;
         self.preview.forward_pending = true;
-        self.history_field = None;
-        self.session.typing_group = false;
-        self.spelling.target = Some((self.session.revision, issue));
+        self.document.history_field = None;
+        self.document.session.typing_group = false;
+        self.spelling.target = Some((self.document.session.revision, issue));
     }
     pub(super) fn spelling_context_menu(&mut self, output: &egui::text_edit::TextEditOutput) {
         if output.response.secondary_clicked() {
             self.spelling.target = None;
             self.spelling.menu_position = None;
-            if self.spelling.checker.is_current(self.session.revision)
+            if self
+                .spelling
+                .checker
+                .is_current(self.document.session.revision)
                 && let Some(pointer) = output.response.interact_pointer_pos()
             {
                 let ranges: Vec<_> = self
@@ -179,7 +193,7 @@ impl App {
                 if ui.button(command.label()).clicked() {
                     self.apply(command);
                     self.spelling.target = None;
-                    self.force_selection = true;
+                    self.document.force_selection = true;
                     ui.close();
                 }
             }

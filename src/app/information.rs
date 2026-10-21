@@ -3,17 +3,24 @@ use super::*;
 impl App {
     pub(super) fn information_ui(&mut self, ui: &mut egui::Ui) {
         let before = self.snapshot();
-        let old_revision = self.session.revision;
+        let old_revision = self.document.session.revision;
         let groups: Vec<_> =
             std::iter::once((InformationGroup::General, crate::tr!("group-general")))
-                .chain(self.session.metadata.editor_groups().iter().map(|group| {
-                    (
-                        InformationGroup::Fields(group.id),
-                        crate::i18n::text(group.label_key),
-                    )
-                }))
+                .chain(
+                    self.document
+                        .session
+                        .metadata
+                        .editor_groups()
+                        .iter()
+                        .map(|group| {
+                            (
+                                InformationGroup::Fields(group.id),
+                                crate::i18n::text(group.label_key),
+                            )
+                        }),
+                )
                 .collect();
-        let full_heading = match self.session.metadata.document_type() {
+        let full_heading = match self.document.session.metadata.document_type() {
             DocumentType::Courrier => crate::tr!("document-settings-heading"),
             DocumentType::CompteRendu => crate::tr!("minutes-settings-heading"),
         };
@@ -64,7 +71,7 @@ impl App {
         });
         if let Some(group) = clicked {
             let close = self.dialogs.information_open && self.dialogs.information_group == group;
-            if let Some(id) = self.history_field.take() {
+            if let Some(id) = self.document.history_field.take() {
                 ui.ctx().memory_mut(|memory| memory.surrender_focus(id));
             }
             self.dialogs.information_group = group;
@@ -84,28 +91,29 @@ impl App {
                 .show(ui, |ui| match self.dialogs.information_group {
                     InformationGroup::General => self.general_information_ui(ui),
                     InformationGroup::Fields(group) => {
-                        self.session.metadata.editor_group_ui(ui, group);
+                        self.document.session.metadata.editor_group_ui(ui, group);
                         if group == "sender" {
                             self.document_signature_ui(ui);
                         }
                     }
                 });
         }
-        if self.session.revision == old_revision {
+        if self.document.session.revision == old_revision {
             let focused = ui.ctx().memory(|memory| memory.focused());
             let group = focused
                 .filter(|id| egui::TextEdit::load_state(ui.ctx(), *id).is_some())
                 .map_or(EditGroup::Discrete, |id| EditGroup::Metadata(id.value()));
-            self.selection = self
+            self.document.selection = self
+                .document
                 .session
-                .record(before, self.selection.into(), group)
+                .record(before, self.document.selection.into(), group)
                 .into();
         }
     }
     pub(super) fn general_information_ui(&mut self, ui: &mut egui::Ui) {
         let fixed_page = crate::document_types::models::ALL
             .iter()
-            .find(|model| model.source == self.session.template)
+            .find(|model| model.source == self.document.session.template)
             .and_then(|model| model.page);
         egui::Grid::new("general-fields")
             .num_columns(2)
@@ -122,11 +130,11 @@ impl App {
                         .on_hover_text(crate::tr!("model-fixed-page"));
                 } else {
                     egui::ComboBox::from_id_salt("document-paper")
-                        .selected_text(self.session.metadata.options().paper.label())
+                        .selected_text(self.document.session.metadata.options().paper.label())
                         .show_ui(ui, |ui| {
                             for paper in PaperFormat::ALL {
                                 ui.selectable_value(
-                                    &mut self.session.metadata.options_mut().paper,
+                                    &mut self.document.session.metadata.options_mut().paper,
                                     paper,
                                     paper.label(),
                                 );
@@ -144,19 +152,19 @@ impl App {
                     .on_hover_text(crate::tr!("model-fixed-page"));
                 } else {
                     egui::ComboBox::from_id_salt("document-orientation")
-                        .selected_text(if self.session.metadata.options().landscape {
+                        .selected_text(if self.document.session.metadata.options().landscape {
                             crate::tr!("orientation-landscape")
                         } else {
                             crate::tr!("orientation-portrait")
                         })
                         .show_ui(ui, |ui| {
                             ui.selectable_value(
-                                &mut self.session.metadata.options_mut().landscape,
+                                &mut self.document.session.metadata.options_mut().landscape,
                                 false,
                                 crate::tr!("orientation-portrait"),
                             );
                             ui.selectable_value(
-                                &mut self.session.metadata.options_mut().landscape,
+                                &mut self.document.session.metadata.options_mut().landscape,
                                 true,
                                 crate::tr!("orientation-landscape"),
                             );
@@ -165,11 +173,11 @@ impl App {
                 ui.end_row();
                 ui.label(crate::tr!("field-document-language"));
                 egui::ComboBox::from_id_salt("document-language")
-                    .selected_text(self.session.metadata.options().language.label())
+                    .selected_text(self.document.session.metadata.options().language.label())
                     .show_ui(ui, |ui| {
                         for language in DocumentLanguage::ALL {
                             ui.selectable_value(
-                                &mut self.session.metadata.options_mut().language,
+                                &mut self.document.session.metadata.options_mut().language,
                                 language,
                                 language.label(),
                             );
@@ -182,14 +190,21 @@ impl App {
             });
     }
     pub(super) fn bullet_marker_ui(&mut self, ui: &mut egui::Ui) {
-        let policy = &self.presentation;
+        let policy = &self.document.presentation;
         if policy.bullet_markers.is_empty() && !policy.custom_bullet_marker {
-            if self.session.metadata.options().bullet_marker.is_some() {
+            if self
+                .document
+                .session
+                .metadata
+                .options()
+                .bullet_marker
+                .is_some()
+            {
                 if ui
                     .button(crate::tr!("bullet-marker-restore-automatic"))
                     .clicked()
                 {
-                    self.session.metadata.options_mut().bullet_marker = None;
+                    self.document.session.metadata.options_mut().bullet_marker = None;
                 }
             } else {
                 ui.weak(crate::tr!("bullet-marker-automatic"))
@@ -197,7 +212,7 @@ impl App {
             }
             return;
         }
-        let marker = &mut self.session.metadata.options_mut().bullet_marker;
+        let marker = &mut self.document.session.metadata.options_mut().bullet_marker;
         ui.vertical(|ui| {
             egui::ComboBox::from_id_salt("document-bullet-marker")
                 .selected_text(

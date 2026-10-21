@@ -10,18 +10,18 @@ fn tab_places_the_native_caret_on_each_empty_annotation_placeholder() {
         let mut app = App::with_demo_context(ctx.clone(), None);
         // Vérifier la géométrie réellement peinte, indépendamment du clignotement.
         ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
-        app.session.document = Document::from_source(source).unwrap();
-        app.session.document.assets.insert(
+        app.document.session.document = Document::from_source(source).unwrap();
+        app.document.session.document.assets.insert(
             "images/parc.svg".into(),
             include_bytes!("../../../tests/fixtures/parc.svg")
                 .as_slice()
                 .into(),
         );
-        let annotation = app.session.document.view.annotations().remove(0);
+        let annotation = app.document.session.document.view.annotations().remove(0);
         let at = annotation.content.start;
         let placeholder = annotation.kind.placeholder();
-        app.selection = editor::cursor(annotation.main_target());
-        app.force_selection = true;
+        app.document.selection = editor::cursor(annotation.main_target());
+        app.document.force_selection = true;
         let mut time = 0.0;
         let mut draw = |app: &mut App, events| {
             time += 0.1;
@@ -78,18 +78,25 @@ fn tab_places_the_native_caret_on_each_empty_annotation_placeholder() {
             assert!(caret.height() < app.preferences.editor.size * 2.0);
             assert!(output.shapes.iter().any(|shape| matches!(shape.shape, egui::Shape::LineSegment { points, .. } if (points[0] - caret.center_top()).length() < 1.0 && (points[1] - caret.center_bottom()).length() < 1.0)), "le curseur doit être peint dans l’annotation");
             assert_eq!(
-                app.session.document.source(),
+                app.document.session.document.source(),
                 source,
                 "le texte indicatif reste virtuel"
             );
         }
         draw(&mut app, vec![egui::Event::Text("Une annotation.".into())]);
-        assert!(app.session.document.source().contains("[Une annotation.]"));
+        assert!(
+            app.document
+                .session
+                .document
+                .source()
+                .contains("[Une annotation.]")
+        );
         draw(&mut app, vec![tab()]);
         assert_eq!(app.range(), at..at);
         draw(&mut app, vec![egui::Event::Text("Été : ".into())]);
         assert!(
-            app.session
+            app.document
+                .session
                 .document
                 .view
                 .text
@@ -106,11 +113,11 @@ fn annotation_navigation_and_exit_preserve_content_selection_and_undo() {
     ] {
         let ctx = egui::Context::default();
         let mut app = App::with_demo_context(ctx.clone(), None);
-        app.session.document = Document::from_source(source).unwrap();
-        let annotation = app.session.document.view.annotations().remove(0);
+        app.document.session.document = Document::from_source(source).unwrap();
+        let annotation = app.document.session.document.view.annotations().remove(0);
         let at = annotation.content.start;
-        app.selection = editor::cursor(annotation.content.clone());
-        app.force_selection = true;
+        app.document.selection = editor::cursor(annotation.content.clone());
+        app.document.force_selection = true;
         frame(&mut app, &ctx, vec![]);
         let key = |key, modifiers| egui::Event::Key {
             key,
@@ -133,14 +140,14 @@ fn annotation_navigation_and_exit_preserve_content_selection_and_undo() {
         );
         assert_eq!(app.range(), at..at);
         assert!(
-            app.session.undo.is_empty(),
+            app.document.session.undo.is_empty(),
             "la navigation ne modifie pas le document"
         );
-        let original = app.session.document.clone();
+        let original = app.document.session.document.clone();
         // Entrée quitte toute la structure sans remplacer l’annotation sélectionnée.
-        app.selection = editor::cursor(annotation.content.clone());
-        let selection = app.selection;
-        app.force_selection = true;
+        app.document.selection = editor::cursor(annotation.content.clone());
+        let selection = app.document.selection;
+        app.document.force_selection = true;
         frame(&mut app, &ctx, vec![]);
         frame(
             &mut app,
@@ -152,14 +159,23 @@ fn annotation_navigation_and_exit_preserve_content_selection_and_undo() {
             annotation.structure.end + 1..annotation.structure.end + 1
         );
         assert_eq!(
-            app.session.document.view.blocks[app.session.document.view.line_at(app.range().start)],
+            app.document.session.document.view.blocks[app
+                .document
+                .session
+                .document
+                .view
+                .line_at(app.range().start)],
             BlockKind::Paragraph
         );
-        assert_eq!(app.session.document.view.annotations()[0], annotation);
+        assert_eq!(
+            app.document.session.document.view.annotations()[0],
+            annotation
+        );
         assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
         frame(&mut app, &ctx, vec![egui::Event::Text("Après.".into())]);
         assert!(
-            app.session
+            app.document
+                .session
                 .document
                 .view
                 .text
@@ -167,8 +183,8 @@ fn annotation_navigation_and_exit_preserve_content_selection_and_undo() {
         );
         app.apply(Command::Undo);
         app.apply(Command::Undo);
-        assert_eq!(app.session.document, original);
-        assert_eq!(app.selection, selection);
+        assert_eq!(app.document.session.document, original);
+        assert_eq!(app.document.selection, selection);
     }
 }
 
@@ -183,10 +199,10 @@ fn annotation_navigation_scrolls_to_the_target_in_both_structures() {
     ] {
         let ctx = egui::Context::default();
         let mut app = App::with_demo_context(ctx.clone(), None);
-        app.session.document = Document::from_source(&source).unwrap();
-        let annotation = app.session.document.view.annotations().remove(0);
-        app.selection = editor::cursor(annotation.main_target());
-        app.force_selection = true;
+        app.document.session.document = Document::from_source(&source).unwrap();
+        let annotation = app.document.session.document.view.annotations().remove(0);
+        app.document.selection = editor::cursor(annotation.main_target());
+        app.document.force_selection = true;
         let mut time = 0.0;
         let mut draw = |app: &mut App, events| {
             time += 0.1;
@@ -236,6 +252,6 @@ fn annotation_navigation_scrolls_to_the_target_in_both_structures() {
                 }
             );
         }
-        assert_eq!(app.session.document.source(), source);
+        assert_eq!(app.document.session.document.source(), source);
     }
 }

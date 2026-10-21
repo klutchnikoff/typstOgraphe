@@ -2,28 +2,36 @@ use super::*;
 
 impl App {
     pub(super) fn snapshot(&self) -> Snapshot {
-        self.session.snapshot(self.selection.into())
+        self.document
+            .session
+            .snapshot(self.document.selection.into())
     }
     pub(super) fn range(&self) -> Range<usize> {
-        let range = self.selection.as_sorted_char_range();
-        range.start.min(self.session.document.view.len())
-            ..range.end.min(self.session.document.view.len())
+        let range = self.document.selection.as_sorted_char_range();
+        range.start.min(self.document.session.document.view.len())
+            ..range.end.min(self.document.session.document.view.len())
     }
     #[cfg(test)]
     #[cfg_attr(coverage_nightly, coverage(off))]
     pub(super) fn changed(&mut self) {
-        let adjusted = self.session.changed(self.selection.into());
-        self.force_selection |= adjusted != self.selection.into();
-        self.selection = adjusted.into();
+        let adjusted = self
+            .document
+            .session
+            .changed(self.document.selection.into());
+        self.document.force_selection |= adjusted != self.document.selection.into();
+        self.document.selection = adjusted.into();
     }
     pub(super) fn remember(&mut self, before: Snapshot, typing: bool) {
-        let adjusted = self.session.remember(before, self.selection.into(), typing);
-        self.force_selection |= adjusted != self.selection.into();
-        self.selection = adjusted.into();
+        let adjusted =
+            self.document
+                .session
+                .remember(before, self.document.selection.into(), typing);
+        self.document.force_selection |= adjusted != self.document.selection.into();
+        self.document.selection = adjusted.into();
     }
     pub(super) fn apply(&mut self, command: Command) {
         if !self.keymap.registry().contains(command)
-            || (!self.document_open && !command.available_without_document())
+            || (!self.document.open && !command.available_without_document())
         {
             return;
         }
@@ -67,23 +75,23 @@ impl App {
             Command::Information => {
                 self.dialogs.information_open = !self.dialogs.information_open;
                 if !self.dialogs.information_open {
-                    self.history_field = None;
-                    self.force_selection = true;
+                    self.document.history_field = None;
+                    self.document.force_selection = true;
                 }
             }
             command @ Command::Model(_) => {
                 let template = command.model_source().expect("commande de modèle");
-                if self.session.template != template {
+                if self.document.session.template != template {
                     let before = self.snapshot();
-                    self.session.dependencies = crate::packages::for_template(&template);
-                    self.session.template = template;
-                    self.presentation = ModelPresentation::default();
-                    self.session.metadata.options_mut().bullet_marker = None;
+                    self.document.session.dependencies = crate::packages::for_template(&template);
+                    self.document.session.template = template;
+                    self.document.presentation = ModelPresentation::default();
+                    self.document.session.metadata.options_mut().bullet_marker = None;
                     if let Command::Model(model) = command
                         && let Some((paper, landscape)) = model.definition().page
                     {
-                        self.session.metadata.options_mut().paper = paper;
-                        self.session.metadata.options_mut().landscape = landscape;
+                        self.document.session.metadata.options_mut().paper = paper;
+                        self.document.session.metadata.options_mut().landscape = landscape;
                     }
                     self.remember(before, false);
                 }
@@ -95,7 +103,7 @@ impl App {
                 } else {
                     BlockKind::Attachment
                 };
-                let at = self.session.document.view.insert_letter_note(kind);
+                let at = self.document.session.document.view.insert_letter_note(kind);
                 self.remember(before, false);
                 self.focus_annotation_target(at..at);
             }
@@ -105,7 +113,7 @@ impl App {
                 let range = self.range();
                 if range.is_empty() {
                     self.dialogs.message = Some(crate::tr!("select-link-remove"));
-                } else if self.session.document.view.styles[range]
+                } else if self.document.session.document.view.styles[range]
                     .iter()
                     .any(|style| style.link.is_some())
                 {
@@ -150,7 +158,14 @@ impl App {
             }
             Command::IgnoreSpelling | Command::LearnSpelling => {
                 if let Some(issue) = self.selected_spelling_issue() {
-                    let language = self.session.metadata.options().language.code().to_owned();
+                    let language = self
+                        .document
+                        .session
+                        .metadata
+                        .options()
+                        .language
+                        .code()
+                        .to_owned();
                     let word = crate::spelling::word_key(&issue.word);
                     if command == Command::LearnSpelling {
                         self.preferences
@@ -161,7 +176,8 @@ impl App {
                             .insert(word);
                     } else {
                         let before = self.snapshot();
-                        self.session
+                        self.document
+                            .session
                             .metadata
                             .options_mut()
                             .spelling_ignored
@@ -174,31 +190,44 @@ impl App {
             }
             Command::ResetSpelling => {
                 let before = self.snapshot();
-                self.session.metadata.options_mut().spelling_ignored.clear();
+                self.document
+                    .session
+                    .metadata
+                    .options_mut()
+                    .spelling_ignored
+                    .clear();
                 self.remember(before, false);
             }
             _ => unreachable!("spelling command"),
         }
     }
     pub(super) fn apply_history(&mut self, undo: bool) {
-        let old_document = self.session.document.clone();
-        let old_template = self.session.template.clone();
-        if let Some(selection) = self.session.history(undo, self.selection.into()) {
+        let old_document = self.document.session.document.clone();
+        let old_template = self.document.session.template.clone();
+        if let Some(selection) = self
+            .document
+            .session
+            .history(undo, self.document.selection.into())
+        {
             self.image_textures.clear();
-            if self.session.template != old_template {
-                self.presentation = ModelPresentation::default();
+            if self.document.session.template != old_template {
+                self.document.presentation = ModelPresentation::default();
             }
-            self.selection = selection.into();
-            self.force_selection =
-                self.history_field.is_none() || self.session.document != old_document;
-            if self.force_selection {
-                self.history_field = None;
+            self.document.selection = selection.into();
+            self.document.force_selection = self.document.history_field.is_none()
+                || self.document.session.document != old_document;
+            if self.document.force_selection {
+                self.document.history_field = None;
             }
         }
     }
     pub(super) fn edit(&mut self, edit: impl FnOnce(&mut Projection, Range<usize>)) {
-        self.selection = self.session.edit(self.selection.into(), edit).into();
-        self.force_selection = true;
+        self.document.selection = self
+            .document
+            .session
+            .edit(self.document.selection.into(), edit)
+            .into();
+        self.document.force_selection = true;
     }
     pub(super) fn shortcuts(&mut self, ctx: &egui::Context) {
         if self.modal_open() {
@@ -225,7 +254,7 @@ impl App {
             }
             self.apply(command);
         }
-        if self.document_open && focused && !self.modal_open() {
+        if self.document.open && focused && !self.modal_open() {
             self.text_shortcuts(ctx);
         }
     }
@@ -241,13 +270,13 @@ impl App {
                     .iter()
                     .any(|search_id| id == egui::Id::new(search_id))
             {
-                self.history_field = None;
+                self.document.history_field = None;
             } else if egui::TextEdit::load_state(ctx, id).is_some() {
-                self.history_field = Some(id);
+                self.document.history_field = Some(id);
             }
         }
         if !self.dialogs.information_open && !self.modal_open() {
-            self.history_field = None;
+            self.document.history_field = None;
         }
     }
     pub(super) fn menu_statuses(&self) -> Vec<(Command, menus::Status)> {
@@ -257,11 +286,11 @@ impl App {
             .filter(|d| d.menu_position().is_some())
             .map(|d| {
                 let enabled = !self.modal_open()
-                    && (self.document_open || d.command.available_without_document())
+                    && (self.document.open || d.command.available_without_document())
                     && match d.command {
-                        Command::Undo => !self.session.undo.is_empty(),
-                        Command::Redo => !self.session.redo.is_empty(),
-                        Command::Clear => self.history_field.is_none(),
+                        Command::Undo => !self.document.session.undo.is_empty(),
+                        Command::Redo => !self.document.session.redo.is_empty(),
+                        Command::Clear => self.document.history_field.is_none(),
                         Command::RecoverDocuments => !self.recovery.entries.is_empty(),
                         Command::FindNext | Command::FindPrevious => {
                             !self.search.engine.matches.is_empty()
@@ -272,9 +301,13 @@ impl App {
                         Command::IgnoreSpelling
                         | Command::LearnSpelling
                         | Command::SpellingSuggestions => self.selected_spelling_issue().is_some(),
-                        Command::ResetSpelling => {
-                            !self.session.metadata.options().spelling_ignored.is_empty()
-                        }
+                        Command::ResetSpelling => !self
+                            .document
+                            .session
+                            .metadata
+                            .options()
+                            .spelling_ignored
+                            .is_empty(),
                         _ => true,
                     };
                 (

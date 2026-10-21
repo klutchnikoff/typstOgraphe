@@ -49,7 +49,7 @@ impl App {
             self.file.export_open = false;
             self.file.pending_action = None;
             self.file.error = None;
-            self.force_selection = true;
+            self.document.force_selection = true;
         }
     }
     fn new_document_dialog(&mut self, ctx: &egui::Context) {
@@ -131,17 +131,17 @@ impl App {
             }
             if apply {
                 let before = self.snapshot();
-                if let Some(image) = self.session.document.view.images.get_mut(&id) {
+                if let Some(image) = self.document.session.document.view.images.get_mut(&id) {
                     image.alt.clone_from(&self.dialogs.image_alt);
                     self.remember(before, false);
                 }
                 open = false;
-                self.force_selection = true;
+                self.document.force_selection = true;
                 self.preview.editor_scroll_pending = true;
             }
             if !open {
                 self.dialogs.image_info = None;
-                if let Some(range) = self.session.document.view.image_range(id) {
+                if let Some(range) = self.document.session.document.view.image_range(id) {
                     self.focus_annotation_target(range.start + 1..range.start + 1);
                 }
             }
@@ -161,6 +161,7 @@ impl App {
                     ui.label(crate::tr!(
                         "link-selected-text",
                         text = self
+                            .document
                             .session
                             .document
                             .view
@@ -190,11 +191,11 @@ impl App {
             self.dialogs.link_open &= open;
             if remove {
                 if self.range() != self.dialogs.link_range {
-                    self.selection = editor::cursor(self.dialogs.link_range.clone());
+                    self.document.selection = editor::cursor(self.dialogs.link_range.clone());
                 }
                 self.apply(Command::RemoveLink);
                 self.dialogs.link_open = false;
-                self.force_selection = true;
+                self.document.force_selection = true;
             } else if apply {
                 let url = self.dialogs.link_url.trim();
                 if (url.starts_with("https://")
@@ -203,13 +204,14 @@ impl App {
                     && !url.chars().any(char::is_whitespace)
                 {
                     let before = self.snapshot();
-                    self.session
+                    self.document
+                        .session
                         .document
                         .view
                         .set_link(self.dialogs.link_range.clone(), Some(url.into()));
                     self.remember(before, false);
                     self.dialogs.link_open = false;
-                    self.force_selection = true;
+                    self.document.force_selection = true;
                 } else {
                     self.dialogs.link_error = Some(crate::tr!("link-invalid-url"));
                 }
@@ -244,7 +246,7 @@ impl App {
                         .definitions()
                         .filter(|definition| {
                             definition.in_palette()
-                                && (self.document_open
+                                && (self.document.open
                                     || definition.command.available_without_document())
                         })
                         .map(|definition| definition.command);
@@ -313,7 +315,7 @@ impl App {
                 });
             self.file.export_open &= open;
             if export {
-                if !self.session.metadata.ready_for_export() {
+                if !self.document.session.metadata.ready_for_export() {
                     self.dialogs.message = Some(crate::tr!("export-required-fields"));
                 } else {
                     match self

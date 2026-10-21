@@ -2,17 +2,22 @@ use super::*;
 
 impl App {
     pub(super) fn toolbar(&mut self, ui: &mut egui::Ui) {
-        if let Some(command) =
-            crate::toolbar::show(ui, &self.session.document.view, self.range(), &self.keymap)
-        {
+        if let Some(command) = crate::toolbar::show(
+            ui,
+            &self.document.session.document.view,
+            self.range(),
+            &self.keymap,
+        ) {
             self.apply(command);
         }
     }
     pub(super) fn status_ui(&mut self, ui: &mut egui::Ui) {
         let range = self.range();
-        let (total, selected) =
-            self.statistics
-                .counts(self.session.revision, &self.session.document.view, range);
+        let (total, selected) = self.document.statistics.counts(
+            self.document.session.revision,
+            &self.document.session.document.view,
+            range,
+        );
         ui.horizontal_wrapped(|ui| {
             ui.label(crate::tr!(
                 "document-stats",
@@ -37,7 +42,7 @@ impl App {
             }
             if self.preferences.spelling.enabled {
                 ui.separator();
-                let language = self.session.metadata.options().language;
+                let language = self.document.session.metadata.options().language;
                 if !crate::spelling::supported(language) {
                     ui.weak(crate::tr!(
                         "spelling-no-dictionary",

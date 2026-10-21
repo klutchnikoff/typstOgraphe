@@ -7,21 +7,21 @@ fn today_button_keeps_a_fixed_date_through_history_and_reopening() {
     app.create_document(DocumentType::Courrier);
     app.dialogs.information_open = true;
     app.dialogs.information_group = InformationGroup::Fields("information");
-    let source = app.session.document.source().to_owned();
+    let source = app.document.session.document.source().to_owned();
     recovery_click(&mut app, &ctx, &crate::tr!("date-today"));
-    let fixed = app.session.metadata.courrier().date.clone();
+    let fixed = app.document.session.metadata.courrier().date.clone();
     assert_eq!(fixed, crate::dates::today());
     app.apply(Command::Undo);
-    assert!(app.session.metadata.courrier().date.is_empty());
+    assert!(app.document.session.metadata.courrier().date.is_empty());
     app.apply(Command::Redo);
-    assert_eq!(app.session.metadata.courrier().date, fixed);
-    assert_eq!(app.session.document.source(), source);
+    assert_eq!(app.document.session.metadata.courrier().date, fixed);
+    assert_eq!(app.document.session.document.source(), source);
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("date-fixe.typsto");
     assert!(app.save_path(path.clone()));
     app.close_document();
     assert!(app.open_path(path));
-    assert_eq!(app.session.metadata.courrier().date, fixed);
+    assert_eq!(app.document.session.metadata.courrier().date, fixed);
     assert!(!app.is_dirty());
 }
 
@@ -29,12 +29,12 @@ fn today_button_keeps_a_fixed_date_through_history_and_reopening() {
 fn general_settings_and_template_selection_preserve_letter_content() {
     let ctx = egui::Context::default();
     let mut app = App::with_demo_context(ctx.clone(), None);
-    app.session.template = "#let courrier(..args, options: (:), body) = { set page(paper: options.paper, flipped: options.landscape); body }".into();
-    app.session.saved.template = app.session.template.clone();
+    app.document.session.template = "#let courrier(..args, options: (:), body) = { set page(paper: options.paper, flipped: options.landscape); body }".into();
+    app.document.session.saved.template = app.document.session.template.clone();
     app.dialogs.information_open = true;
     ctx.style_mut(|s| s.animation_time = 0.0);
-    let source = app.session.document.source().to_owned();
-    let revision = app.session.revision;
+    let source = app.document.session.document.source().to_owned();
+    let revision = app.document.session.revision;
     let mut time = 0.0;
     let mut draw = |app: &mut App, events| {
         time += 0.1;
@@ -104,16 +104,19 @@ fn general_settings_and_template_selection_preserve_letter_content() {
         "Modèle du document",
         "Courrier personnel",
     );
-    assert_eq!(app.session.metadata.options_mut().paper, PaperFormat::A4);
-    assert!(!app.session.metadata.options_mut().landscape);
     assert_eq!(
-        app.session.metadata.options_mut().language,
+        app.document.session.metadata.options_mut().paper,
+        PaperFormat::A4
+    );
+    assert!(!app.document.session.metadata.options_mut().landscape);
+    assert_eq!(
+        app.document.session.metadata.options_mut().language,
         DocumentLanguage::English
     );
-    assert_eq!(app.session.template, Model::Personal.source());
+    assert_eq!(app.document.session.template, Model::Personal.source());
     assert!(app.is_dirty());
-    assert_eq!(app.session.revision, revision + 4);
-    assert_eq!(app.session.document.source(), source);
+    assert_eq!(app.document.session.revision, revision + 4);
+    assert_eq!(app.document.session.document.source(), source);
 
     assert!(!app.file.window_title.contains("typstOgraphe"));
 }
@@ -158,11 +161,11 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     let ctx = egui::Context::default();
     let mut app = App::with_demo_context(ctx.clone(), None);
     ctx.style_mut(|style| style.animation_time = 0.0);
-    app.selection = editor::cursor(10..20);
-    app.force_selection = true;
-    let source = app.session.document.source().to_owned();
-    let selection = app.selection;
-    let revision = app.session.revision;
+    app.document.selection = editor::cursor(10..20);
+    app.document.force_selection = true;
+    let source = app.document.session.document.source().to_owned();
+    let selection = app.document.selection;
+    let revision = app.document.session.revision;
     let mut time = 0.0;
     let mut draw = |app: &mut App, events| {
         time += 0.1;
@@ -200,14 +203,14 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     assert!(app.dialogs.information_open);
     assert!(!app.modal_open());
     assert!(!app.is_dirty());
-    assert_eq!(app.session.revision, revision);
+    assert_eq!(app.document.session.revision, revision);
     assert_eq!(text_rect(&opened, "Aperçu Typst"), preview);
     assert!(has_text(&opened, "Format du papier"));
     assert!(!has_text(&opened, "Adresse"));
     assert!(!has_text(&opened, "Nom complet"));
     // Même à la taille minimale de la fenêtre, le formulaire reste dans la
     // colonne de gauche et laisse une zone de rédaction utilisable.
-    let body = text_rect(&opened, &app.session.document.view.text);
+    let body = text_rect(&opened, &app.document.session.document.view.text);
     assert!(body.height() > 150.0, "zone de rédaction : {body:?}");
     click(
         &mut app,
@@ -224,7 +227,9 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     let collapsed = draw(&mut app, vec![]);
     assert!(!app.dialogs.information_open);
     assert!(!has_text(&collapsed, "Nom complet"));
-    assert!(text_rect(&collapsed, &app.session.document.view.text).height() >= body.height());
+    assert!(
+        text_rect(&collapsed, &app.document.session.document.view.text).height() >= body.height()
+    );
     app.apply(Command::Information);
     let reopened = draw(&mut app, vec![]);
     assert!(app.dialogs.information_open);
@@ -233,10 +238,10 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
         InformationGroup::Fields("sender")
     );
     assert!(has_text(&reopened, "Nom complet"));
-    assert_eq!(app.session.revision, revision);
+    assert_eq!(app.document.session.revision, revision);
     assert!(!app.is_dirty());
-    assert_eq!(app.session.document.source(), source);
-    assert_eq!(app.selection, selection);
+    assert_eq!(app.document.session.document.source(), source);
+    assert_eq!(app.document.selection, selection);
     click(
         &mut app,
         &mut draw,
@@ -244,8 +249,11 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     );
     draw(&mut app, vec![]);
     let correspondence = draw(&mut app, vec![]);
-    let original_subject = app.session.metadata.courrier_mut().objet.clone();
-    let subject = text_rect(&correspondence, &app.session.metadata.courrier_mut().objet);
+    let original_subject = app.document.session.metadata.courrier_mut().objet.clone();
+    let subject = text_rect(
+        &correspondence,
+        &app.document.session.metadata.courrier_mut().objet,
+    );
     assert!(subject.is_positive());
     assert!(subject.right() < preview.left());
     click(&mut app, &mut draw, subject.center());
@@ -262,10 +270,13 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
             egui::Event::Text("Objet modifié".into()),
         ],
     );
-    assert_eq!(app.session.metadata.courrier_mut().objet, "Objet modifié");
-    assert_eq!(app.session.document.source(), source);
-    assert_eq!(app.selection, selection);
-    assert_eq!(app.session.revision, revision + 1);
+    assert_eq!(
+        app.document.session.metadata.courrier_mut().objet,
+        "Objet modifié"
+    );
+    assert_eq!(app.document.session.document.source(), source);
+    assert_eq!(app.document.selection, selection);
+    assert_eq!(app.document.session.revision, revision + 1);
     assert!(app.is_dirty());
     assert!(app.dialogs.information_open);
     app.apply(Command::Palette);
@@ -283,12 +294,18 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     );
     assert!(!app.dialogs.palette_open);
     draw(&mut app, vec![]);
-    assert_eq!(app.session.metadata.courrier_mut().objet, original_subject);
-    assert_eq!(app.session.document.source(), source);
+    assert_eq!(
+        app.document.session.metadata.courrier_mut().objet,
+        original_subject
+    );
+    assert_eq!(app.document.session.document.source(), source);
     app.dispatch_action(Command::Redo, &ctx);
     draw(&mut app, vec![]);
-    assert_eq!(app.session.metadata.courrier_mut().objet, "Objet modifié");
-    assert_eq!(app.session.revision, revision + 3);
+    assert_eq!(
+        app.document.session.metadata.courrier_mut().objet,
+        "Objet modifié"
+    );
+    assert_eq!(app.document.session.revision, revision + 3);
     let current = draw(&mut app, vec![]);
     click(
         &mut app,
@@ -297,8 +314,11 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     );
     draw(&mut app, vec![]);
     assert!(!app.dialogs.information_open);
-    assert_eq!(app.session.metadata.courrier_mut().objet, "Objet modifié");
-    assert_eq!(app.session.revision, revision + 3);
+    assert_eq!(
+        app.document.session.metadata.courrier_mut().objet,
+        "Objet modifié"
+    );
+    assert_eq!(app.document.session.revision, revision + 3);
 }
 
 #[test]
@@ -330,7 +350,7 @@ fn document_information_offers_only_the_markers_allowed_by_the_template() {
     assert!(point(&output, "Automatique (modèle)").is_some());
     assert!(point(&output, "▪").is_none());
     assert!(point(&output, "Caractère personnalisé…").is_none());
-    app.presentation = world
+    app.document.presentation = world
         .model_presentation("#let editor-options = (bullet-markers: (\"▪\",),)")
         .unwrap();
     for label in ["Automatique (modèle)", "▪"] {
@@ -353,7 +373,12 @@ fn document_information_offers_only_the_markers_allowed_by_the_template() {
         }
     }
     assert_eq!(
-        app.session.metadata.options().bullet_marker.as_deref(),
+        app.document
+            .session
+            .metadata
+            .options()
+            .bullet_marker
+            .as_deref(),
         Some("▪")
     );
     let output = draw(&mut app, vec![]);

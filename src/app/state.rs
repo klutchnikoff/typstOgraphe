@@ -71,3 +71,13 @@ pub(super) struct DialogState {
     pub(super) message: Option<String>,
     pub(super) profile_error: Option<String>,
 }
+
+pub(super) struct DocumentState {
+    pub(super) open: bool,
+    pub(super) session: Session,
+    pub(super) selection: CCursorRange,
+    pub(super) force_selection: bool,
+    pub(super) statistics: crate::statistics::Counter,
+    pub(super) history_field: Option<egui::Id>,
+    pub(super) presentation: ModelPresentation,
+}

@@ -24,9 +24,9 @@ fn recovery_dialog_defers_restores_and_saves_a_copy_without_overwriting_the_orig
     app.recovery.worker.as_mut().unwrap().wait();
     assert!(!app.recovery.open);
     assert!(app.recovery.entries.is_empty());
-    assert!(app.is_dirty() && app.session.recovered);
-    assert!(app.session.file_path.is_none());
-    assert!(app.session.undo.is_empty() && app.session.redo.is_empty());
+    assert!(app.is_dirty() && app.document.session.recovered);
+    assert!(app.document.session.file_path.is_none());
+    assert!(app.document.session.undo.is_empty() && app.document.session.redo.is_empty());
     assert_eq!(app.stored_document(), unsaved);
     assert!(
         app.recovered_filename()
@@ -57,7 +57,7 @@ fn recovery_dialog_defers_restores_and_saves_a_copy_without_overwriting_the_orig
     let copy = dir.path().join("recupere.typsto");
     assert!(app.save_path(copy.clone()));
     app.recovery.worker.as_mut().unwrap().wait();
-    assert!(!app.is_dirty() && !app.session.recovered);
+    assert!(!app.is_dirty() && !app.document.session.recovered);
     assert_eq!(storage::read(&copy).unwrap(), unsaved);
     assert_eq!(storage::read(&original).unwrap(), saved);
     drop(app);
@@ -76,7 +76,11 @@ fn explicit_delete_and_discard_remove_recovery_but_cancelling_keeps_it() {
     recovery_click(&mut app, &ctx, &crate::tr!("recovery-delete"));
     assert!(app.recovery.entries.is_empty());
     assert!(!app.recovery.open);
-    app.session.document.view.insert_text("À conserver. ", 0);
+    app.document
+        .session
+        .document
+        .view
+        .insert_text("À conserver. ", 0);
     app.changed();
     app.recovery.worker.as_mut().unwrap().make_due();
     app.checkpoint_recovery();

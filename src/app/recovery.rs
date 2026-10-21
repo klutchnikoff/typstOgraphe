@@ -19,7 +19,7 @@ impl App {
         }
     }
     pub(super) fn checkpoint_recovery(&mut self) {
-        if !self.document_open {
+        if !self.document.open {
             return;
         }
         let dirty = self.is_dirty();
@@ -27,7 +27,7 @@ impl App {
             for result in recovery.poll() {
                 self.recovery.error = result.err();
             }
-            let session = &self.session;
+            let session = &self.document.session;
             let suggested = &self.recovery.recovered_name;
             if let Err(error) = recovery.checkpoint(session.revision, dirty, || {
                 let name = session
@@ -63,7 +63,7 @@ impl App {
         {
             Ok(()) => {
                 let entry = self.recovery.entries.remove(index);
-                self.session.recovered = true;
+                self.document.session.recovered = true;
                 self.recovery.recovered_name = Some(name);
                 if let Some(recovery) = &mut self.recovery.worker
                     && let Err(error) = recovery.adopt(entry)

@@ -6,15 +6,16 @@ impl App {
         image: Option<&crate::assets::ImageData>,
     ) -> Result<(), String> {
         if !matches!(
-            self.session.metadata,
+            self.document.session.metadata,
             crate::document_types::Metadata::Courrier(_)
         ) {
             return Ok(());
         }
-        let current = self.session.metadata.signature_path();
+        let current = self.document.session.metadata.signature_path();
         if match (image, current) {
             (None, None) => true,
             (Some(image), Some(path)) => self
+                .document
                 .session
                 .document
                 .assets
@@ -25,15 +26,17 @@ impl App {
             return Ok(());
         }
         let before = self.snapshot();
-        let path = image.map(|image| image.insert(&mut self.session.document.assets, "signature"));
-        if let crate::document_types::Metadata::Courrier(meta) = &mut self.session.metadata {
+        let path = image
+            .map(|image| image.insert(&mut self.document.session.document.assets, "signature"));
+        if let crate::document_types::Metadata::Courrier(meta) = &mut self.document.session.metadata
+        {
             meta.signature = path;
         }
         if image.is_some()
             && let Err(error) = self.check_asset_budget()
         {
-            self.session.document = before.document;
-            self.session.metadata = before.metadata;
+            self.document.session.document = before.document;
+            self.document.session.metadata = before.metadata;
             return Err(error);
         }
         self.remember(before, false);
@@ -43,7 +46,7 @@ impl App {
         let image = self
             .profile_signature
             .clone()
-            .filter(|_| self.document_open && self.preferences.profile.signature.is_some())
+            .filter(|_| self.document.open && self.preferences.profile.signature.is_some())
             .ok_or_else(|| crate::tr!("signature-profile-unavailable"))?;
         self.set_document_signature(Some(&image))
     }
@@ -106,7 +109,12 @@ impl App {
         }
     }
     pub(super) fn document_signature_ui(&mut self, ui: &mut egui::Ui) {
-        let path = self.session.metadata.signature_path().map(str::to_owned);
+        let path = self
+            .document
+            .session
+            .metadata
+            .signature_path()
+            .map(str::to_owned);
         ui.separator();
         ui.horizontal_wrapped(|ui| {
             ui.label(crate::tr!("signature-label"));
@@ -138,8 +146,13 @@ impl App {
                 self.file.error = Some(error);
             }
         });
-        if let Some(path) = self.session.metadata.signature_path().map(str::to_owned)
-            && let Some(data) = self.session.document.assets.get(&path).cloned()
+        if let Some(path) = self
+            .document
+            .session
+            .metadata
+            .signature_path()
+            .map(str::to_owned)
+            && let Some(data) = self.document.session.document.assets.get(&path).cloned()
         {
             let image = crate::assets::ImageData {
                 extension: path.rsplit('.').next().unwrap().into(),

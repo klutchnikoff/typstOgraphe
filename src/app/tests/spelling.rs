@@ -14,13 +14,15 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
     app.spelling.checker.wait();
     assert_eq!(app.spelling.checker.issues.len(), 2);
     let issue = app.spelling.checker.issues[0].clone();
-    let revision = app.session.revision;
+    let revision = app.document.session.revision;
     let output = search_draw(&mut app, &ctx, vec![]);
     let point = output
         .shapes
         .iter()
         .find_map(|shape| match &shape.shape {
-            egui::Shape::Text(text) if text.galley.text() == app.session.document.view.text => {
+            egui::Shape::Text(text)
+                if text.galley.text() == app.document.session.document.view.text =>
+            {
                 editor::range_rects(&text.galley, std::slice::from_ref(&issue.range))
                     .first()
                     .map(|(_, rect)| text.pos + rect.center().to_vec2())
@@ -48,15 +50,15 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
     app.spelling.checker.wait();
     recovery_click(&mut app, &ctx, "courrier");
     assert_eq!(
-        app.session.document.view.text,
+        app.document.session.document.view.text,
         "Un courrier et une réservvation."
     );
     assert!(
-        app.session.document.view.styles[3..11]
+        app.document.session.document.view.styles[3..11]
             .iter()
             .all(|style| style.bold)
     );
-    assert_eq!(app.session.undo.len(), 1);
+    assert_eq!(app.document.session.undo.len(), 1);
     app.apply(Command::Undo);
     assert_eq!(app.stored_document(), original);
     // Même mot et mêmes positions après annulation : le ticket ancien reste invalide.
@@ -64,7 +66,7 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
     assert_eq!(app.stored_document(), original);
     app.refresh_spelling(&ctx);
     app.spelling.checker.wait();
-    app.selection = editor::cursor(0..0);
+    app.document.selection = editor::cursor(0..0);
     app.apply(Command::NextSpelling);
     app.apply(Command::SpellingSuggestions);
     app.spelling.checker.wait();
@@ -84,7 +86,7 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
     );
     app.apply(Command::Redo);
     assert_eq!(
-        app.session.document.view.text,
+        app.document.session.document.view.text,
         "Un courrier et une réservvation."
     );
 }
@@ -97,7 +99,7 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     letter.source = "Courrrier courrrier réservvation".into();
     let document = Document::from_source(&letter.source).unwrap();
     app.install_document(letter, document, None).unwrap();
-    let original_main = app.session.metadata.main_source();
+    let original_main = app.document.session.metadata.main_source();
     app.refresh_spelling(&ctx);
     app.spelling.checker.wait();
     assert_eq!(app.spelling.checker.issues.len(), 3);
@@ -109,7 +111,7 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     assert_eq!(app.range(), first);
     app.apply(Command::IgnoreSpelling);
     assert!(app.is_dirty());
-    assert_eq!(app.session.metadata.main_source(), original_main);
+    assert_eq!(app.document.session.metadata.main_source(), original_main);
     app.refresh_spelling(&ctx);
     app.spelling.checker.wait();
     assert_eq!(app.spelling.checker.issues.len(), 1);
@@ -122,7 +124,14 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
         std::collections::BTreeSet::from(["courrrier".into()])
     );
     app.apply(Command::Undo);
-    assert!(app.session.metadata.options().spelling_ignored.is_empty());
+    assert!(
+        app.document
+            .session
+            .metadata
+            .options()
+            .spelling_ignored
+            .is_empty()
+    );
     app.apply(Command::Redo);
     app.refresh_spelling(&ctx);
     app.spelling.checker.wait();
@@ -143,7 +152,7 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     app.spelling.checker.wait();
     assert_eq!(app.spelling.checker.issues.len(), 2);
     let before = app.snapshot();
-    app.session.metadata.options_mut().language = DocumentLanguage::German;
+    app.document.session.metadata.options_mut().language = DocumentLanguage::German;
     app.remember(before, false);
     app.refresh_spelling(&ctx);
     assert!(app.spelling.checker.issues.is_empty() && !app.spelling.checker.ready);

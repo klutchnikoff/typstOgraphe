@@ -5,20 +5,25 @@ impl App {
         if template.len() > 1024 * 1024 {
             return Err(crate::tr!("model-too-large"));
         }
-        let mut metadata = self.session.metadata.clone();
+        let mut metadata = self.document.session.metadata.clone();
         metadata.options_mut().bullet_marker = None;
         let mut world = crate::rendering::TypstWorld::default();
-        let dependencies = crate::packages::with_existing(&template, &self.session.dependencies);
+        let dependencies =
+            crate::packages::with_existing(&template, &self.document.session.dependencies);
         world.set_dependencies(&dependencies);
-        world.set_assets(&self.session.document.assets);
+        world.set_assets(&self.document.session.document.assets);
         let presentation = world
-            .validate_model(self.session.document.source(), &metadata, &template)
+            .validate_model(
+                self.document.session.document.source(),
+                &metadata,
+                &template,
+            )
             .map_err(|error| format!("{}\n{}", metadata.model_signature(), error))?;
         let before = self.snapshot();
-        self.session.dependencies = dependencies;
-        self.session.template = template;
-        self.session.metadata = metadata;
-        self.presentation = presentation;
+        self.document.session.dependencies = dependencies;
+        self.document.session.template = template;
+        self.document.session.metadata = metadata;
+        self.document.presentation = presentation;
         self.remember(before, false);
         Ok(())
     }
@@ -53,7 +58,7 @@ impl App {
             .map(|d| d.command)
             .collect();
         let current = commands.iter().copied().find(|command| {
-            command.model_source().as_deref() == Some(self.session.template.as_str())
+            command.model_source().as_deref() == Some(self.document.session.template.as_str())
         });
         let mut selected = current;
         egui::ComboBox::from_id_salt("template")

@@ -70,6 +70,7 @@ enum PreferencesPage {
 }
 
 pub struct App {
+    document: DocumentState,
     dialogs: DialogState,
     file: FileState,
     preview: PreviewState,
@@ -79,8 +80,6 @@ pub struct App {
     capture: CaptureState,
     // La session vide sert uniquement de tampon interne tant qu'aucun document
     // n'est ouvert : pas de rendu, d'édition ni de copie de récupération.
-    document_open: bool,
-    session: Session,
     preferences: Preferences,
     preferences_tracker: crate::preferences::SaveTracker,
     preferences_directory: Option<PathBuf>,
@@ -88,11 +87,6 @@ pub struct App {
     keymap: Keymap,
     #[cfg(target_os = "macos")]
     native_menus: Option<menus::native::NativeMenus>,
-    history_field: Option<egui::Id>,
-    presentation: ModelPresentation,
-    selection: CCursorRange,
-    force_selection: bool,
-    statistics: crate::statistics::Counter,
     image_textures: std::collections::HashMap<String, egui::TextureHandle>,
 }
 
@@ -196,6 +190,15 @@ impl App {
         let document =
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
+            document: DocumentState {
+                open: false,
+                session: Session::new(saved, document, None, 1),
+                selection: CCursorRange::one(CCursor::new(0)),
+                force_selection: false,
+                statistics: Default::default(),
+                history_field: None,
+                presentation: ModelPresentation::default(),
+            },
             dialogs: DialogState {
                 preferences_page: PreferencesPage::default(),
                 preferences_open: false,
@@ -266,8 +269,6 @@ impl App {
                 screenshot_requested: false,
                 started: Instant::now(),
             },
-            document_open: false,
-            session: Session::new(saved, document, None, 1),
             preferences,
             preferences_tracker,
             preferences_directory: None,
@@ -275,11 +276,6 @@ impl App {
             keymap,
             #[cfg(target_os = "macos")]
             native_menus: None,
-            history_field: None,
-            presentation: ModelPresentation::default(),
-            selection: CCursorRange::one(CCursor::new(0)),
-            force_selection: false,
-            statistics: Default::default(),
             image_textures: Default::default(),
         }
     }
@@ -313,7 +309,7 @@ impl App {
         }
         self.rendering(ctx);
         self.refresh_spelling(ctx);
-        if self.document_open && !self.modal_open() {
+        if self.document.open && !self.modal_open() {
             let dropped = ctx.input(|i| i.raw.dropped_files.clone());
             for file in dropped {
                 if let Some(path) = file.path
@@ -354,7 +350,7 @@ impl App {
             if modal {
                 ui.disable();
             }
-            if self.document_open {
+            if self.document.open {
                 self.status_ui(ui);
             }
             if let Some(error) = &self.recovery.error {
@@ -371,7 +367,7 @@ impl App {
                 if modal {
                     ui.disable();
                 }
-                if self.document_open {
+                if self.document.open {
                     self.columns_ui(ui, modal);
                 } else {
                     self.welcome_ui(ui);
@@ -417,6 +413,7 @@ impl App {
     }
     fn update_window_title(&mut self, ctx: &egui::Context, dirty: bool) {
         let filename = self
+            .document
             .session
             .file_path
             .as_ref()
@@ -429,7 +426,7 @@ impl App {
                     .map(|name| crate::tr!("recovery-document-name", name = name.as_str()))
                     .unwrap_or_else(|| crate::tr!("untitled-letter"))
             });
-        let title = if !self.document_open {
+        let title = if !self.document.open {
             "typstOgraphe".into()
         } else {
             crate::tr!(
@@ -467,7 +464,7 @@ impl App {
                 return;
             }
         }
-        if (!self.document_open || self.preview.revision == Some(self.session.revision))
+        if (!self.document.open || self.preview.revision == Some(self.document.session.revision))
             && !self.capture.screenshot_requested
             && self.capture.started.elapsed() > Duration::from_secs(1)
         {
