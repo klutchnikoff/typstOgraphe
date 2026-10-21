@@ -244,39 +244,38 @@ indépendamment de la langue de l’interface.
 - **P3 :** équations en ligne et en bloc, blocs de code et structures spécialisées
   selon les besoins des types scientifiques ou techniques.
 
-### Décision préalable à l’étape 5 : modèle d’édition
+### Décision sur le modèle d’édition — validée le 22 octobre 2026
 
-**À discuter et valider ensemble avant d’implémenter les tableaux.** L’éditeur
-repose aujourd’hui sur le `TextEdit` d’egui : un tampon plat avec des caractères
-sentinelles (objet image `\u{fffc}`, séparateur de description `\t`) et une
-`Projection` (styles par caractère, type par ligne). Les tableaux (cellules,
-navigation, lignes et colonnes) sont le cas le plus exigeant pour ce modèle.
+L’orientation retenue après le prototype du chantier J est de décrire les blocs et
+cellules explicitement **en mémoire**, avec des zones de texte réutilisant la
+`Projection` et la saisie native d’egui. Typst reste la référence du contenu et du
+stockage ; la structure en mémoire est reconstruite depuis le source et sérialisée
+en Typst. Elle ne constitue pas un second format documentaire.
 
-- **Prototype borné avancé dans le chantier J** : après le rangement initial de
-  l’application, essayer l’édition de tableaux dans le modèle actuel, ainsi que la
-  composition IME, avant le gel des paramètres publics du moteur en phase 2.
-  Ce prototype prépare la décision ; la livraison des tableaux reste à l’étape 5.
-- **Trois voies** :
-  1. conserver le `TextEdit` d’egui et les sentinelles ;
-  2. un éditeur propre à l’application sur la pile texte Rust (`parley` ou
-     `cosmic-text`, `accesskit`), avec le texte en cours de composition hors du
-     tampon ; coût estimé à plusieurs mois, à confirmer par un prototype ;
-  3. un éditeur web (ProseMirror ou CodeMirror 6) : cela suppose soit toute
-     l’interface en web, soit une webview intégrée dont les widgets egui ne peuvent
-     pas recouvrir le contenu, et un moteur Rust resté maître de l’état
-     (transactions envoyées au moteur) pour éviter une double source de vérité.
-- **Critères de bascule** (l’un suffit à rouvrir la question) : échecs de saisie
-  (touches mortes, composition IME) impossibles à corriger dans le `TextEdit` ;
-  besoin de co-édition en temps réel ; priorité à une version web ou Nextcloud ;
-  tableaux impossibles à tenir dans le tampon plat.
-- **Investissement sans regret à discuter** : un modèle de document en arbre
-  (blocs, puis séquences en ligne) dans le cœur, la `Projection` plate devenant un
-  adaptateur pour egui. Il sert aussi bien un éditeur propre, une vue web qu’un CRDT.
-  Cet arbre est une représentation en mémoire reconstruite depuis le Typst et
-  sérialisée en Typst ; il ne crée pas une seconde référence documentaire.
-- **Éléments à instruire avant** : tests de composition et de touches mortes,
-  tests aléatoires du modèle (caractères sentinelles collés depuis l’extérieur) et
-  conception des cibles et paramètres des commandes du chantier J.
+- **État actuel :** la production utilise encore le tampon plat du `TextEdit`, ses
+  styles par caractère et ses types par ligne. La migration structurelle relève
+  de la phase 2 du chantier J, avant le gel des paramètres publics du moteur.
+- **Prototype réalisé :** grille simple, navigation, sélection, lignes/colonnes et
+  historique ; six essais ciblés, dont la composition IME via les événements egui.
+  L’utilisateur a confirmé les accents et touches mortes sur macOS. Le chemin
+  d’une véritable méthode IME du système reste à couvrir dans les essais multilingues.
+- **Conséquence pour les commandes :** prévoir des cibles par zone de texte et
+  position Unicode, avec validation structurelle avant publication. Les identifiants,
+  leur durée de vie et la sélection entre zones sont à préciser ensemble en 2.1.
+- **Limites observées :** un remplacement natif peut enlever une frontière entre
+  cellules ; la normalisation des paragraphes ne convient pas à toutes les cellules.
+  Le tampon unique protégé reste une alternative examinée, mais l’orientation
+  choisie est celle des blocs/cellules explicites.
+- **Éléments à instruire ensuite :** migration des structures existantes, aller-retour
+  du source, sélection, historique, tests aléatoires (dont les sentinelles collées)
+  et essais avec des méthodes de saisie du système.
+- **Critères pour rouvrir le choix du composant d’édition :** échecs de saisie ou
+  limites de présentation impossibles à corriger avec egui ; besoin de co-édition
+  en temps réel ou priorité à une version web/Nextcloud. Un éditeur Rust propre
+  ou une vue web restent des possibilités à réexaminer à ce moment-là.
+
+La livraison des tableaux à l’utilisateur reste à l’étape 5. Voir le
+[bilan du diagnostic](experiments/editor-model/README.md).
 
 ### Capacités communes et activation par type
 
@@ -555,7 +554,9 @@ coordonnées ni ressources fictives imposées.
 - Vérifications adaptées aux changements : contenu Unicode, aller-retour du
   fichier, historique, compilation Typst et export.
 - Essais manuels macOS, Windows et Linux : menus, dialogues, presse-papiers,
-  claviers, saisie IME et fermeture. La CI ne remplace pas ces essais.
+  claviers, saisie IME et fermeture. La CI ne remplace pas ces essais. Les accents
+  et touches mortes sont confirmés sur macOS pendant la phase 1 ; compléter le
+  test de composition avec une véritable méthode IME lors des essais multilingues.
 - Accessibilité : noms des commandes, navigation clavier, focus, contraste,
   lecteurs d’écran et textes alternatifs ; identifier les limites d’egui.
 - Traductions maintenues avec les nouvelles fonctions ; séparation entre langues
@@ -571,9 +572,10 @@ coordonnées ni ressources fictives imposées.
 **État :** plan établi le 21 octobre 2026, décisions D1 à D20 validées après relecture ;
 phase 0 terminée : tests et Clippy verts, couverture mesurée, huit captures
 reproductibles ([bilan](docs/architecture-phase-0.md)).
-Phase 1 : rangement 1.1–1.5 terminé ; prototype de tableau et orientation vers des
-blocs/cellules explicites en mémoire validés. Dernier essai de saisie du système
-encore ouvert ([bilan](docs/architecture-phase-1.md)).
+Phase 1 terminée : rangement, prototype de tableau et orientation vers des
+blocs/cellules explicites en mémoire validés ([bilan](docs/architecture-phase-1.md)).
+Accents et touches mortes confirmés sur macOS ; l’essai d’une méthode IME réelle
+reste dans les vérifications multilingues du chantier I.
 Le détail, les tâches et les critères de sortie sont dans
 [ROADMAP-ARCHITECTURE.md](ROADMAP-ARCHITECTURE.md).
 
@@ -582,7 +584,7 @@ commande à identifiant stable, pilotable par une ligne de commande et par MCP.
 
 - **Phase 0 :** garde-fous, base chiffrée et comparaison de captures d’écran.
 - **Phase 1 :** découper `app.rs` (7 223 lignes) en modules, dans le même crate ;
-  prototype borné du modèle d’édition avant le gel des commandes.
+  prototype du modèle d’édition réalisé et choix des blocs/cellules en mémoire validé.
 - **Phase 2 :** commandes strictes, paramètres typés, lectures séparées des
   écritures, moteur sans egui. Historique limité aux mutations documentaires,
   voie de commit commune à la saisie native et aux commandes.

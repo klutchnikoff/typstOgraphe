@@ -1,9 +1,11 @@
 # Phase 1 — Rangement de l’application et décision sur l’éditeur
 
-Les tâches 1.1 à 1.5 sont réalisées. Le prototype 1.6 est disponible et l’orientation
-vers des blocs/cellules explicites en mémoire a été validée ensemble le 22 octobre
-2026. Le dernier essai de saisie du système reste ouvert avant de clore la phase 1.
-L’inventaire de phase 2 précédera le gel des signatures du moteur.
+La phase 1 est terminée. Les tâches 1.1 à 1.5 et le prototype 1.6 sont réalisés ;
+l’orientation vers des blocs/cellules explicites en mémoire a été validée ensemble
+le 22 octobre 2026. L’utilisateur confirme les accents et touches mortes sur macOS.
+L’IME est vérifiée par événements egui ; l’essai d’une vraie méthode IME du système
+reste dans les vérifications multilingues du chantier I. L’inventaire de phase 2
+précédera le gel des signatures du moteur.
 
 ## Application
 
@@ -41,8 +43,13 @@ des textures et les menus natifs restent des champs propres à l’application.
 La [CI Rust sur `b829f61`](https://github.com/klutchnikoff/typstOgraphe/actions/runs/39691516869)
 est verte sur macOS, Windows et Linux. La
 [CI Coverage correspondante](https://github.com/klutchnikoff/typstOgraphe/actions/runs/39691516825)
-est également verte. Ces exécutions couvrent le rangement de l’application, avant
-l’ajout du diagnostic isolé et de sa tâche de CI dédiée.
+est également verte. Ces exécutions couvrent le rangement de l’application.
+
+Sur `1782c82`, la [CI Rust finale](https://github.com/klutchnikoff/typstOgraphe/actions/runs/39693004381)
+est verte sur les trois systèmes, y compris les six essais du diagnostic sous Linux
+et les garde-fous Python. La [couverture finale](https://github.com/klutchnikoff/typstOgraphe/actions/runs/39693004554)
+est également verte. Le diagnostic est exclu des builds par défaut ; sa vérification
+locale supplémentaire avec Clippy et `--features editor-model-spike` passe sans avertissement.
 
 ## Seuils et garde-fous
 
@@ -76,6 +83,9 @@ d’egui ni de Typst comme source de référence.
 **Choix validé le 22 octobre 2026 :** des blocs et cellules explicites en mémoire, avec la
 projection actuelle réutilisée pour les zones de texte. L’alternative du tampon
 unique protégé a été examinée. Les paramètres des commandes ne sont pas figés ;
-les conséquences du choix figurent désormais en entrée de l’inventaire 2.1. Les touches mortes et l’IME via une
-méthode de saisie du système restent à essayer : les événements egui simulés ne
-sont pas présentés comme des essais matériels.
+les conséquences du choix figurent désormais en entrée de l’inventaire 2.1.
+La migration est planifiée en 2.1 bis avant le gel des signatures ; elle n’est pas
+implémentée dans cette phase. Les accents et touches mortes sont confirmés par
+l’utilisateur sur macOS. L’IME via une méthode de saisie du système reste à essayer
+lors des tests multilingues : les événements egui simulés ne sont pas présentés
+comme un essai de ce chemin système.

@@ -47,9 +47,9 @@ le refuse encore, puisque cette capacité n’y est pas implémentée.
   cellules, ni largeur variable ou renvoi à la ligne. Les modifications de dimensions
   reconstruisent son texte simple ; elles ne prouvent pas la conservation de styles.
 - Les événements simulés ne valident pas le chemin clavier → système → winit.
-  Essayer encore des touches mortes réelles, une préédition, sa validation et son
-  annulation avec une méthode de saisie du système. Aucun essai manuel de ce type
-  n’est présenté comme réalisé.
+  L’utilisateur a confirmé les accents et touches mortes sur macOS. La préédition,
+  sa validation et son annulation avec une véritable méthode IME du système restent
+  à essayer lors des vérifications multilingues ; ce chemin n’est pas présenté comme testé.
 
 ## Orientation validée le 22 octobre 2026
 

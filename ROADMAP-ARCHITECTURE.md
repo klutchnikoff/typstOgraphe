@@ -294,10 +294,11 @@ Séparer les environ 70 champs d'`App` en structures nommées, sans changer la l
 
 - [x] Après le rangement initial, faire un prototype borné de tableau simple avec le
   tampon actuel : cellules, navigation, sélection, insertion/suppression, annulation.
-- [ ] Vérifier touches mortes et composition IME ; noter les limites observées.
+- [x] Vérifier touches mortes et composition IME ; noter les limites observées.
   Six essais du diagnostic valident les opérations et la saisie accentuée/IME via
-  les événements egui. Le chemin clavier → système → winit reste à essayer avec
-  une vraie méthode de saisie ; il n’est pas présenté comme testé.
+  les événements egui. L’utilisateur confirme les accents et touches mortes sur
+  macOS. Une vraie méthode IME du système reste à essayer lors des vérifications
+  multilingues du chantier I ; ce chemin n’est pas présenté comme testé.
 - [x] Décider ensemble si le moteur garde ce modèle ou accueille des blocs et séquences
   en ligne en mémoire. **Blocs et cellules explicites validés le 22 octobre 2026.**
   Le source Typst reste la référence du contenu et du stockage.
@@ -312,8 +313,9 @@ Séparer les environ 70 champs d'`App` en structures nommées, sans changer la l
 - `cargo clippy --locked --all-targets -- -D warnings` sans nouvelle exception injustifiée ;
   `clippy::too_many_lines` est activé dans `app/` avec le seuil de 120 lignes.
 
-**État :** tâches 1.1 à 1.5 réalisées, prototype et orientation 1.6 validés.
-Le dernier essai de saisie du système reste ouvert. Voir le
+**État : terminé.** Rangement et six essais du diagnostic validés ; accents et
+touches mortes confirmés par l’utilisateur sur macOS. L’IME est vérifiée via les
+événements egui ; l’essai d’une méthode IME réelle reste au chantier I. Voir le
 [bilan de phase 1](docs/architecture-phase-1.md).
 
 ---
@@ -350,6 +352,21 @@ exécutable **sans egui** par un `Engine`. C'est la phase qui rend la CLI et MCP
 - L’inventaire exhaustif reste à produire et à valider. Les identifiants de zones,
   leur durée de vie et les signatures Rust/JSON sont à décider en 2.1 ; le prototype
   n’ajoute aucune commande publique de tableau à ce stade.
+
+### 2.1 bis Représentation structurée en mémoire (D18)
+
+Après validation de l’inventaire et de ses cibles, avant le gel des signatures :
+
+- [ ] Définir les blocs, leurs zones de texte et leurs identifiants ; réutiliser la
+  projection actuelle pour l’édition du texte dans chaque zone.
+- [ ] Migrer les structures déjà prises en charge, avec aller-retour Typst et
+  ressources identiques ; aucune structure nouvelle livrée à l’utilisateur ici.
+- [ ] Adapter les positions, la sélection continue, les cartes de source, la recherche
+  et la synchronisation de l’aperçu ; préciser les règles entre zones avant de coder.
+- [ ] Faire porter par les transactions du cœur les changements de structure, de
+  contenu et de sélection, y compris l’adaptateur de saisie native (D15, D17).
+- [ ] Tester frontières, normalisation locale, IME, historique et Unicode. Préparer
+  le modèle pour les cellules sans avancer la livraison des tableaux prévue à l’étape 5.
 
 ### 2.2 Types du registre (taille M)
 
@@ -434,6 +451,7 @@ Dans le style du test existant sur les fichiers Fluent :
 - `App::apply` ne contient plus que des `UiCommand` et des appels à `Engine::run`.
 - Aucune publication directe de `self.session.*` par l’interface ; la saisie native
   utilise la voie commune de commit décrite en D17.
+- Représentation structurée migrée et cibles de sélection validées (2.1 bis).
 - Inventaire entièrement coché ; catalogue de commandes généré et relu.
 - **Gel des identifiants** : après cette phase, un identifiant publié ne change plus
   sans décision explicite (la phase préliminaire ne l'exigeait pas ; la CLI et MCP, si).
