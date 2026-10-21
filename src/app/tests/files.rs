@@ -9,8 +9,8 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
     frame(&mut app, &ctx, vec![]);
     assert!(!app.document_open && !app.is_dirty());
     assert_eq!(app.window_title, "typstOgraphe");
-    assert_eq!(app.submitted, 0);
-    assert!(app.pages.is_empty() && app.rendered_revision.is_none());
+    assert_eq!(app.preview.submitted, 0);
+    assert!(app.preview.pages.is_empty() && app.preview.revision.is_none());
     assert!(app.recovery.entries.is_empty());
     let original = app.stored_document();
     for command in [
@@ -190,7 +190,7 @@ fn save_reopen_restores_the_letter_and_failed_open_preserves_current_work() {
     assert!(!app.is_dirty());
     assert!(app.session.undo.is_empty() && app.session.redo.is_empty());
     assert_eq!(app.selection.primary.index, 0);
-    assert!(app.pages.is_empty() && app.sync.is_none());
+    assert!(app.preview.pages.is_empty() && app.preview.sync.is_none());
     assert_eq!(app.request(None).template, letter.template);
     app.session.document.view.insert_text("À conserver ", 0);
     app.changed();

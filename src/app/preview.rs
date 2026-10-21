@@ -15,10 +15,10 @@ impl App {
     }
     pub(super) fn rendering(&mut self, ctx: &egui::Context) {
         if !self.document_open {
-            while self.worker.receiver.try_recv().is_ok() {}
+            while self.preview.worker.receiver.try_recv().is_ok() {}
             return;
         }
-        while let Ok(response) = self.worker.receiver.try_recv() {
+        while let Ok(response) = self.preview.worker.receiver.try_recv() {
             match response.result {
                 Ok(rendered) => {
                     if response.is_export {
@@ -31,7 +31,7 @@ impl App {
                         ));
                     }
                     if response.revision == self.session.revision {
-                        self.pages = rendered
+                        self.preview.pages = rendered
                             .pages
                             .into_iter()
                             .enumerate()
@@ -45,31 +45,31 @@ impl App {
                                 )
                             })
                             .collect();
-                        self.rendering_time = Some(rendered.elapsed);
+                        self.preview.elapsed = Some(rendered.elapsed);
                         self.presentation = rendered.presentation;
-                        self.rendering_error = None;
-                        self.rendered_revision = Some(response.revision);
-                        self.sync = Some(rendered.sync);
-                        self.forward_pending = true;
+                        self.preview.error = None;
+                        self.preview.revision = Some(response.revision);
+                        self.preview.sync = Some(rendered.sync);
+                        self.preview.forward_pending = true;
                     }
                 }
                 Err(error) => {
                     if response.revision == self.session.revision || response.is_export {
-                        self.rendering_error = Some(error);
-                        self.rendered_revision = Some(response.revision);
+                        self.preview.error = Some(error);
+                        self.preview.revision = Some(response.revision);
                     }
                 }
             }
         }
-        if self.submitted != self.session.revision
+        if self.preview.submitted != self.session.revision
             && self.session.changed_at.elapsed() > Duration::from_millis(220)
         {
-            match self.worker.sender.send(self.request(None)) {
-                Ok(()) => self.submitted = self.session.revision,
-                Err(_) => self.rendering_error = Some(crate::tr!("renderer-stopped")),
+            match self.preview.worker.sender.send(self.request(None)) {
+                Ok(()) => self.preview.submitted = self.session.revision,
+                Err(_) => self.preview.error = Some(crate::tr!("renderer-stopped")),
             }
         }
-        if self.rendered_revision != Some(self.session.revision) {
+        if self.preview.revision != Some(self.session.revision) {
             ctx.request_repaint_after(Duration::from_millis(50));
         }
     }
@@ -77,10 +77,10 @@ impl App {
         ui.horizontal(|ui| {
             ui.label(RichText::new(crate::tr!("preview-title")).strong())
                 .on_hover_text(crate::tr!("preview-hint"));
-            if self.rendered_revision != Some(self.session.revision) {
+            if self.preview.revision != Some(self.session.revision) {
                 ui.spinner();
                 ui.weak(crate::tr!("preview-updating"));
-            } else if let Some(time) = self.rendering_time {
+            } else if let Some(time) = self.preview.elapsed {
                 let time = if self.capture.path.is_some() {
                     Duration::ZERO
                 } else {
@@ -88,13 +88,13 @@ impl App {
                 };
                 ui.weak(crate::tr!(
                     "preview-stats",
-                    pages = self.pages.len(),
+                    pages = self.preview.pages.len(),
                     milliseconds = time.as_millis() as f64
                 ));
             }
         });
         ui.separator();
-        if let Some(error) = &self.rendering_error {
+        if let Some(error) = &self.preview.error {
             ui.colored_label(Color32::from_rgb(183, 69, 57), crate::tr!("preview-failed"));
             ui.collapsing(crate::tr!("error-details"), |ui| {
                 ui.label(error);
@@ -102,16 +102,18 @@ impl App {
         }
         let current = self.sync_is_current();
         let highlights = if current {
-            self.sync
+            self.preview
+                .sync
                 .as_ref()
                 .map(|sync| sync.selection_highlights(self.range()))
                 .unwrap_or_default()
         } else {
             Vec::new()
         };
-        let target = if self.forward_pending && current {
-            self.forward_pending = false;
-            self.sync
+        let target = if self.preview.forward_pending && current {
+            self.preview.forward_pending = false;
+            self.preview
+                .sync
                 .as_ref()
                 .and_then(|sync| sync.forward(self.selection.primary.index))
         } else {
@@ -122,14 +124,14 @@ impl App {
             .id_salt("preview-scroll")
             .show(ui, |ui| {
                 let width = (ui.available_width() - 24.0).max(1.0);
-                if self.pages.is_empty() {
+                if self.preview.pages.is_empty() {
                     ui.add_space(60.0);
                     ui.vertical_centered(|ui| {
                         ui.spinner();
                         ui.label(crate::tr!("preview-composing"));
                     });
                 }
-                for (index, page) in self.pages.iter().enumerate() {
+                for (index, page) in self.preview.pages.iter().enumerate() {
                     let size = page.size_vec2();
                     let displayed = egui::vec2(width, width * size.y / size.x);
                     ui.add_space(10.0);
@@ -140,8 +142,11 @@ impl App {
                                 .fit_to_exact_size(displayed)
                                 .sense(egui::Sense::click()),
                         );
-                        if let Some(size) =
-                            self.sync.as_ref().and_then(|sync| sync.page_size(index))
+                        if let Some(size) = self
+                            .preview
+                            .sync
+                            .as_ref()
+                            .and_then(|sync| sync.page_size(index))
                         {
                             let painter = ui
                                 .painter()
@@ -202,8 +207,9 @@ impl App {
         }
     }
     pub(super) fn sync_is_current(&self) -> bool {
-        self.rendering_error.is_none()
+        self.preview.error.is_none()
             && self
+                .preview
                 .sync
                 .as_ref()
                 .is_some_and(|sync| sync.revision == self.session.revision)
@@ -212,7 +218,12 @@ impl App {
         if !self.sync_is_current() {
             return;
         }
-        if let Some(character) = self.sync.as_ref().and_then(|sync| sync.backward(location)) {
+        if let Some(character) = self
+            .preview
+            .sync
+            .as_ref()
+            .and_then(|sync| sync.backward(location))
+        {
             self.selection = CCursorRange::one(CCursor::new(
                 character.min(self.session.document.view.len()),
             ));
@@ -222,8 +233,8 @@ impl App {
                 InlineStyle::default()
             };
             self.force_selection = true;
-            self.editor_scroll_pending = true;
-            self.forward_pending = false;
+            self.preview.editor_scroll_pending = true;
+            self.preview.forward_pending = false;
             self.session.typing_group = false;
             ctx.request_repaint();
         }

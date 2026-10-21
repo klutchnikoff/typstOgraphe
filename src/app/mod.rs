@@ -70,6 +70,7 @@ enum PreferencesPage {
 }
 
 pub struct App {
+    preview: PreviewState,
     search: SearchState,
     spelling: SpellingState,
     recovery: RecoveryState,
@@ -100,16 +101,7 @@ pub struct App {
     window_title: String,
     selection: CCursorRange,
     force_selection: bool,
-    worker: RenderWorker,
     statistics: crate::statistics::Counter,
-    submitted: u64,
-    pages: Vec<egui::TextureHandle>,
-    rendering_time: Option<Duration>,
-    rendering_error: Option<String>,
-    rendered_revision: Option<u64>,
-    sync: Option<RenderSync>,
-    forward_pending: bool,
-    editor_scroll_pending: bool,
     information_open: bool,
     information_group: InformationGroup,
     palette_open: bool,
@@ -227,6 +219,17 @@ impl App {
         let document =
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
+            preview: PreviewState {
+                worker: worker,
+                pages: vec![],
+                submitted: 0,
+                elapsed: None,
+                error: None,
+                revision: None,
+                sync: None,
+                forward_pending: true,
+                editor_scroll_pending: false,
+            },
             search: SearchState {
                 engine: Default::default(),
                 open: false,
@@ -276,16 +279,7 @@ impl App {
             window_title: String::new(),
             selection: CCursorRange::one(CCursor::new(0)),
             force_selection: false,
-            worker,
             statistics: Default::default(),
-            submitted: 0,
-            pages: vec![],
-            rendering_time: None,
-            rendering_error: None,
-            rendered_revision: None,
-            sync: None,
-            forward_pending: true,
-            editor_scroll_pending: false,
             information_open: false,
             information_group: InformationGroup::General,
             palette_open: false,
@@ -492,7 +486,7 @@ impl App {
                 return;
             }
         }
-        if (!self.document_open || self.rendered_revision == Some(self.session.revision))
+        if (!self.document_open || self.preview.revision == Some(self.session.revision))
             && !self.capture.screenshot_requested
             && self.capture.started.elapsed() > Duration::from_secs(1)
         {

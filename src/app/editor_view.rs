@@ -37,7 +37,7 @@ impl App {
                 editor::ImageAction::Select(at) => {
                     self.selection = editor::cursor(at..at + 1);
                     self.force_selection = true;
-                    self.forward_pending = true;
+                    self.preview.forward_pending = true;
                 }
                 editor::ImageAction::Replace => self.choose_image(Some(id)),
                 editor::ImageAction::Information => {
@@ -170,7 +170,7 @@ impl App {
             self.force_selection = true;
         }
         self.editor_spelling(ui, &output, &frame.view);
-        if self.editor_scroll_pending {
+        if self.preview.editor_scroll_pending {
             if self.search_focus(ui.ctx()).is_none() {
                 output.response.request_focus();
             }
@@ -179,7 +179,7 @@ impl App {
                 cursor.translate(output.galley_pos.to_vec2()),
                 Some(egui::Align::Center),
             );
-            self.editor_scroll_pending = false;
+            self.preview.editor_scroll_pending = false;
         }
         let image_action = editor::paint_images(
             ui,
@@ -215,7 +215,7 @@ impl App {
             self.session.typing_group = false;
         }
         if self.selection != old_range {
-            self.forward_pending = true;
+            self.preview.forward_pending = true;
             ui.ctx().request_repaint();
         }
         image_action

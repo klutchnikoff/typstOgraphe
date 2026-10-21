@@ -17,8 +17,8 @@ impl App {
             self.selection.secondary.prefer_next_row = true;
         }
         self.force_selection = true;
-        self.editor_scroll_pending = true;
-        self.forward_pending = true;
+        self.preview.editor_scroll_pending = true;
+        self.preview.forward_pending = true;
         self.session.typing_group = false;
     }
     pub(super) fn leave_annotation(&mut self, annotation: &OptionalAnnotation) {

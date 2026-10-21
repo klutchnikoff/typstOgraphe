@@ -136,7 +136,7 @@ impl App {
                 }
                 open = false;
                 self.force_selection = true;
-                self.editor_scroll_pending = true;
+                self.preview.editor_scroll_pending = true;
             }
             if !open {
                 self.image_info = None;
@@ -312,6 +312,7 @@ impl App {
                     self.message = Some(crate::tr!("export-required-fields"));
                 } else {
                     match self
+                        .preview
                         .worker
                         .sender
                         .send(self.request(Some(PathBuf::from(&self.export_path))))

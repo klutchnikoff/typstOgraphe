@@ -28,3 +28,15 @@ pub(super) struct SearchState {
     pub(super) replace_open: bool,
     pub(super) focus_pending: bool,
 }
+
+pub(super) struct PreviewState {
+    pub(super) worker: RenderWorker,
+    pub(super) pages: Vec<egui::TextureHandle>,
+    pub(super) submitted: u64,
+    pub(super) elapsed: Option<Duration>,
+    pub(super) error: Option<String>,
+    pub(super) revision: Option<u64>,
+    pub(super) sync: Option<RenderSync>,
+    pub(super) forward_pending: bool,
+    pub(super) editor_scroll_pending: bool,
+}

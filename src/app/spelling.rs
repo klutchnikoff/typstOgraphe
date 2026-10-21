@@ -90,7 +90,7 @@ impl App {
             )
             .into();
         self.force_selection = true;
-        self.forward_pending = true;
+        self.preview.forward_pending = true;
         self.spelling.target = None;
     }
     pub(super) fn open_spelling_target(&mut self, issue: crate::spelling::Issue) {
@@ -99,7 +99,7 @@ impl App {
             .request_suggestions(self.session.metadata.options().language, &issue.word);
         self.selection = editor::cursor(issue.range.clone());
         self.force_selection = true;
-        self.forward_pending = true;
+        self.preview.forward_pending = true;
         self.history_field = None;
         self.session.typing_group = false;
         self.spelling.target = Some((self.session.revision, issue));

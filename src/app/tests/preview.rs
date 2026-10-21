@@ -105,13 +105,13 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
         )
         .unwrap();
     for page in 0..rendered.pages().len() {
-        app.pages.push(ctx.load_texture(
+        app.preview.pages.push(ctx.load_texture(
             format!("test-page-{page}"),
             egui::ColorImage::new([2, 3], vec![Color32::WHITE; 6]),
             egui::TextureOptions::LINEAR,
         ));
     }
-    app.sync = Some(RenderSync::new(
+    app.preview.sync = Some(RenderSync::new(
         app.session.revision,
         world,
         rendered,
@@ -119,7 +119,7 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
     ));
     let end = app.session.document.view.len() - 12;
     app.selection = editor::cursor(end..end);
-    let location = app.sync.as_ref().unwrap().forward(end).unwrap();
+    let location = app.preview.sync.as_ref().unwrap().forward(end).unwrap();
 
     let mut draw_pane = |preview: bool, time: f64| {
         let mut offset = 0.0;
@@ -161,13 +161,13 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
     app.navigate_backward(location, &ctx);
     assert_eq!(app.selection.primary.index, 0);
     app.session.revision -= 1;
-    app.rendering_error = Some("essai".into());
+    app.preview.error = Some("essai".into());
     app.navigate_backward(location, &ctx);
     assert_eq!(app.selection.primary.index, 0);
-    app.rendering_error = None;
+    app.preview.error = None;
     app.navigate_backward(location, &ctx);
     assert!(app.selection.primary.index.abs_diff(end) <= 1);
-    assert!(!app.forward_pending);
+    assert!(!app.preview.forward_pending);
 
     for i in 10..20 {
         let _ = ctx.run(
@@ -191,8 +191,8 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
     assert!(offset > 1000.0, "editor offset {offset}");
     assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
     assert!(app.selection.primary.index.abs_diff(end) <= 1);
-    assert!(!app.editor_scroll_pending);
-    assert!(!app.forward_pending);
+    assert!(!app.preview.editor_scroll_pending);
+    assert!(!app.preview.forward_pending);
 }
 
 #[test]
@@ -213,15 +213,15 @@ fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
         egui::TextureOptions::LINEAR,
     );
     let texture_id = texture.id();
-    app.pages = vec![texture];
-    app.sync = Some(RenderSync::new(
+    app.preview.pages = vec![texture];
+    app.preview.sync = Some(RenderSync::new(
         app.session.revision,
         world,
         rendered,
         app.session.document.source_map.clone(),
     ));
-    app.submitted = app.session.revision;
-    app.rendered_revision = Some(app.session.revision);
+    app.preview.submitted = app.session.revision;
+    app.preview.revision = Some(app.session.revision);
     let index = app
         .session
         .document
@@ -230,8 +230,14 @@ fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
         .find("Notre")
         .map(|byte| app.session.document.view.text[..byte].chars().count())
         .unwrap();
-    let location = app.sync.as_ref().unwrap().forward(index).unwrap();
-    let size = app.sync.as_ref().unwrap().page_size(location.page).unwrap();
+    let location = app.preview.sync.as_ref().unwrap().forward(index).unwrap();
+    let size = app
+        .preview
+        .sync
+        .as_ref()
+        .unwrap()
+        .page_size(location.page)
+        .unwrap();
     let draw = |app: &mut App, time, events| {
         ctx.run(
             egui::RawInput {
@@ -304,19 +310,19 @@ fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
             &app.session.template,
         )
         .unwrap();
-    app.pages = vec![ctx.load_texture(
+    app.preview.pages = vec![ctx.load_texture(
         "highlight-test",
         egui::ColorImage::new([2, 3], vec![Color32::WHITE; 6]),
         egui::TextureOptions::LINEAR,
     )];
-    app.sync = Some(RenderSync::new(
+    app.preview.sync = Some(RenderSync::new(
         app.session.revision,
         world,
         rendered,
         app.session.document.source_map.clone(),
     ));
-    app.submitted = app.session.revision;
-    app.rendered_revision = Some(app.session.revision);
+    app.preview.submitted = app.session.revision;
+    app.preview.revision = Some(app.session.revision);
     let byte = app.session.document.view.text.find("jeudi").unwrap();
     let index = app.session.document.view.text[..byte].chars().count();
     app.selection = editor::cursor(index..index + 5);
@@ -362,8 +368,8 @@ fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
     app.session.revision += 1;
     assert!(draw(&mut app, 400.0).is_empty());
     app.session.revision -= 1;
-    app.rendering_error = Some("essai".into());
+    app.preview.error = Some("essai".into());
     assert!(draw(&mut app, 400.0).is_empty());
-    app.rendering_error = None;
+    app.preview.error = None;
     assert!(!draw(&mut app, 400.0).is_empty());
 }

@@ -32,8 +32,8 @@ impl App {
             self.session.document.view.typing_style =
                 self.session.document.view.style_at(range.start);
             self.force_selection = true;
-            self.editor_scroll_pending = true;
-            self.forward_pending = true;
+            self.preview.editor_scroll_pending = true;
+            self.preview.forward_pending = true;
             self.session.typing_group = false;
         }
     }
@@ -65,7 +65,7 @@ impl App {
             )
             .into();
         self.force_selection = true;
-        self.forward_pending = true;
+        self.preview.forward_pending = true;
         self.refresh_search();
         if !all && let Some(index) = self.search.engine.next(self.range(), false) {
             self.select_search_result(index);

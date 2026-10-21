@@ -17,13 +17,13 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
             &app.session.template,
         )
         .unwrap();
-    app.sync = Some(RenderSync::new(
+    app.preview.sync = Some(RenderSync::new(
         app.session.revision,
         world,
         compiled,
         app.session.document.source_map.clone(),
     ));
-    app.rendered_revision = Some(app.session.revision);
+    app.preview.revision = Some(app.session.revision);
     let _ = search_draw(&mut app, &ctx, vec![]);
     let key = |key, modifiers| egui::Event::Key {
         key,
@@ -106,7 +106,12 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
             3,
             "l’ancienne occurrence reste un résultat surligné"
         );
-        let highlights = app.sync.as_ref().unwrap().selection_highlights(app.range());
+        let highlights = app
+            .preview
+            .sync
+            .as_ref()
+            .unwrap()
+            .selection_highlights(app.range());
         assert!(!highlights.is_empty());
         let first = highlights[0].corners;
         assert!(previous.is_none_or(|previous| previous != first));

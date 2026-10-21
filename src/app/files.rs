@@ -133,13 +133,13 @@ impl App {
         self.presentation = ModelPresentation::default();
         self.selection = CCursorRange::one(CCursor::new(0));
         self.force_selection = true;
-        self.editor_scroll_pending = true;
-        self.forward_pending = true;
-        self.pages.clear();
-        self.sync = None;
-        self.rendering_error = None;
-        self.rendered_revision = None;
-        self.rendering_time = None;
+        self.preview.editor_scroll_pending = true;
+        self.preview.forward_pending = true;
+        self.preview.pages.clear();
+        self.preview.sync = None;
+        self.preview.error = None;
+        self.preview.revision = None;
+        self.preview.elapsed = None;
         self.file_error = None;
         self.message = None;
         Ok(())
