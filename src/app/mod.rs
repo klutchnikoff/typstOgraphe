@@ -70,6 +70,7 @@ enum PreferencesPage {
 }
 
 pub struct App {
+    recovery: RecoveryState,
     capture: CaptureState,
     // La session vide sert uniquement de tampon interne tant qu'aucun document
     // n'est ouvert : pas de rendu, d'édition ni de copie de récupération.
@@ -80,11 +81,6 @@ pub struct App {
     spelling_menu_pending: bool,
     spelling_menu_position: Option<egui::Pos2>,
     capture_spelling: bool,
-    recovery: Option<crate::recovery::Recovery>,
-    recovery_entries: Vec<crate::recovery::Entry>,
-    recovery_open: bool,
-    recovery_error: Option<String>,
-    recovered_name: Option<String>,
     search: crate::search::Search,
     search_open: bool,
     replace_open: bool,
@@ -180,7 +176,7 @@ impl App {
                 Some(directory) => {
                     app.start_recovery(directory.join("recovery"), cc.egui_ctx.clone())
                 }
-                None => app.recovery_error = Some(crate::tr!("recovery-no-directory")),
+                None => app.recovery.error = Some(crate::tr!("recovery-no-directory")),
             }
         }
         #[cfg(target_os = "macos")]
@@ -238,6 +234,13 @@ impl App {
         let document =
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
+            recovery: RecoveryState {
+                worker: None,
+                entries: vec![],
+                open: false,
+                error: None,
+                recovered_name: None,
+            },
             capture: CaptureState {
                 path: capture,
                 screenshot_requested: false,
@@ -250,11 +253,6 @@ impl App {
             spelling_menu_pending: false,
             spelling_menu_position: None,
             capture_spelling: false,
-            recovery: None,
-            recovery_entries: vec![],
-            recovery_open: false,
-            recovery_error: None,
-            recovered_name: None,
             search: Default::default(),
             search_open: false,
             replace_open: false,
@@ -387,7 +385,7 @@ impl App {
             if self.document_open {
                 self.status_ui(ui);
             }
-            if let Some(error) = &self.recovery_error {
+            if let Some(error) = &self.recovery.error {
                 ui.colored_label(
                     ui.visuals().error_fg_color,
                     crate::tr!("recovery-unavailable"),
@@ -416,7 +414,7 @@ impl App {
         self.recovery_dialog(ctx);
         self.checkpoint_recovery();
         self.refresh_spelling(ctx);
-        if self.recovery.is_some() {
+        if self.recovery.worker.is_some() {
             ctx.request_repaint_after(crate::recovery::INTERVAL);
         }
         self.track_history_focus(ctx);
@@ -453,7 +451,8 @@ impl App {
             .and_then(|path| path.file_name())
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_else(|| {
-                self.recovered_name
+                self.recovery
+                    .recovered_name
                     .as_ref()
                     .map(|name| crate::tr!("recovery-document-name", name = name.as_str()))
                     .unwrap_or_else(|| crate::tr!("untitled-letter"))

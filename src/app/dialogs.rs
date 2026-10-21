@@ -2,7 +2,7 @@ use super::*;
 
 impl App {
     pub(super) fn modal_open(&self) -> bool {
-        self.recovery_open
+        self.recovery.open
             || self.new_document_open
             || self.image_info.is_some()
             || self.preferences_open
@@ -42,7 +42,7 @@ impl App {
         self.palette_dialog(ctx);
         self.export_dialog(ctx);
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
-            self.recovery_open = false;
+            self.recovery.open = false;
             self.palette_open = false;
             self.link_open = false;
             self.information_open = false;

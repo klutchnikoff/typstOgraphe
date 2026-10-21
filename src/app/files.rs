@@ -27,7 +27,7 @@ impl App {
                 // garde les mêmes ressources que l’historique pour is_dirty.
                 self.session.saved = letter;
                 self.session.recovered = false;
-                self.recovered_name = None;
+                self.recovery.recovered_name = None;
                 self.clear_recovery();
                 self.file_error = None;
                 true
@@ -115,7 +115,7 @@ impl App {
     ) -> Result<(), String> {
         let keymap = self.keymap.for_document(letter.metadata.document_type())?;
         self.clear_recovery();
-        self.recovered_name = None;
+        self.recovery.recovered_name = None;
         self.search = Default::default();
         self.search_open = false;
         self.replace_open = false;

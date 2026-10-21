@@ -53,7 +53,7 @@ impl App {
             Command::ReplaceCurrent | Command::ReplaceAll => {
                 self.replace_search(command == Command::ReplaceAll)
             }
-            Command::RecoverDocuments => self.recovery_open = !self.recovery_entries.is_empty(),
+            Command::RecoverDocuments => self.recovery.open = !self.recovery.entries.is_empty(),
             Command::ImportModel => self.import_model(),
             Command::InsertImage => self.choose_image(None),
             Command::Preferences => self.preferences_open = true,
@@ -261,7 +261,7 @@ impl App {
                         Command::Undo => !self.session.undo.is_empty(),
                         Command::Redo => !self.session.redo.is_empty(),
                         Command::Clear => self.history_field.is_none(),
-                        Command::RecoverDocuments => !self.recovery_entries.is_empty(),
+                        Command::RecoverDocuments => !self.recovery.entries.is_empty(),
                         Command::FindNext | Command::FindPrevious => {
                             !self.search.matches.is_empty()
                         }

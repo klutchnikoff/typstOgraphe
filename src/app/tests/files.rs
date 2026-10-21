@@ -11,7 +11,7 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
     assert_eq!(app.window_title, "typstOgraphe");
     assert_eq!(app.submitted, 0);
     assert!(app.pages.is_empty() && app.rendered_revision.is_none());
-    assert!(app.recovery_entries.is_empty());
+    assert!(app.recovery.entries.is_empty());
     let original = app.stored_document();
     for command in [
         Command::Bold,
