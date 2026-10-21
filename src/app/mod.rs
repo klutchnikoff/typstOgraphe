@@ -1,3 +1,5 @@
+#![warn(clippy::too_many_lines)]
+
 mod setup;
 mod state;
 use state::*;
@@ -79,8 +81,6 @@ pub struct App {
     spelling: SpellingState,
     recovery: RecoveryState,
     capture: CaptureState,
-    // La session vide sert uniquement de tampon interne tant qu'aucun document
-    // n'est ouvert : pas de rendu, d'édition ni de copie de récupération.
     preferences: Preferences,
     preferences_tracker: crate::preferences::SaveTracker,
     preferences_directory: Option<PathBuf>,
@@ -92,10 +92,6 @@ pub struct App {
 }
 
 impl App {
-    /// Une seule voie pour rendre visible et focaliser une cible d’annotation.
-    /// Diagnostic de présentation utilisant les mêmes commandes que l’interface.
-    /// La proportion appartient aux préférences, les rectangles à la frame.
-    /// Seuls les bords gardent une petite zone accessible pour chaque colonne.
     pub fn ui_frame(&mut self, ctx: &egui::Context) {
         if self.capture.path.is_some() {
             // Le pointeur réel ne doit pas modifier les survols des captures de référence.

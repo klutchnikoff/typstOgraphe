@@ -12,8 +12,7 @@ fn recovery_dialog_defers_restores_and_saves_a_copy_without_overwriting_the_orig
     unsaved.metadata.courrier_mut().objet = "Nouvel objet".into();
     unsaved.template = Model::Personal.source();
     seed_recovery(&root, &unsaved, Some("original.typsto".into()));
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.start_recovery(root.clone(), ctx.clone());
     assert!(app.recovery.open);
     recovery_click(&mut app, &ctx, &crate::tr!("recovery-later"));
@@ -70,8 +69,7 @@ fn explicit_delete_and_discard_remove_recovery_but_cancelling_keeps_it() {
     let root = dir.path().join("recovery");
     let saved = StoredDocument::demo(DocumentType::Courrier);
     seed_recovery(&root, &saved, None);
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.start_recovery(root.clone(), ctx.clone());
     recovery_click(&mut app, &ctx, &crate::tr!("recovery-delete"));
     assert!(app.recovery.entries.is_empty());

@@ -45,8 +45,7 @@ fn creation_and_template_import_preserve_the_type_and_use_unified_history() {
 
 #[test]
 fn information_and_presentations_work_from_palette_and_custom_shortcuts() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.document
         .session
         .template
@@ -192,8 +191,7 @@ fn remove_link_keeps_other_styles_and_selection_and_can_be_undone() {
 
 #[test]
 fn shortcut_override_updates_dispatch_and_hints_without_changing_the_document() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     frame(&mut app, &ctx, vec![]);
     let command = Command::File(FileCommand::Export);
     let original = app.keymap.hint(&ctx, command);

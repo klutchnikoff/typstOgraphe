@@ -74,32 +74,7 @@ impl App {
         }
     }
     pub(super) fn preview_ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label(RichText::new(crate::tr!("preview-title")).strong())
-                .on_hover_text(crate::tr!("preview-hint"));
-            if self.preview.revision != Some(self.document.session.revision) {
-                ui.spinner();
-                ui.weak(crate::tr!("preview-updating"));
-            } else if let Some(time) = self.preview.elapsed {
-                let time = if self.capture.path.is_some() {
-                    Duration::ZERO
-                } else {
-                    time
-                };
-                ui.weak(crate::tr!(
-                    "preview-stats",
-                    pages = self.preview.pages.len(),
-                    milliseconds = time.as_millis() as f64
-                ));
-            }
-        });
-        ui.separator();
-        if let Some(error) = &self.preview.error {
-            ui.colored_label(Color32::from_rgb(183, 69, 57), crate::tr!("preview-failed"));
-            ui.collapsing(crate::tr!("error-details"), |ui| {
-                ui.label(error);
-            });
-        }
+        self.preview_header(ui);
         let current = self.sync_is_current();
         let highlights = if current {
             self.preview
@@ -206,7 +181,35 @@ impl App {
             self.navigate_backward(location, ui.ctx());
         }
     }
-    pub(super) fn sync_is_current(&self) -> bool {
+    fn preview_header(&self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(crate::tr!("preview-title")).strong())
+                .on_hover_text(crate::tr!("preview-hint"));
+            if self.preview.revision != Some(self.document.session.revision) {
+                ui.spinner();
+                ui.weak(crate::tr!("preview-updating"));
+            } else if let Some(time) = self.preview.elapsed {
+                let time = if self.capture.path.is_some() {
+                    Duration::ZERO
+                } else {
+                    time
+                };
+                ui.weak(crate::tr!(
+                    "preview-stats",
+                    pages = self.preview.pages.len(),
+                    milliseconds = time.as_millis() as f64
+                ));
+            }
+        });
+        ui.separator();
+        if let Some(error) = &self.preview.error {
+            ui.colored_label(Color32::from_rgb(183, 69, 57), crate::tr!("preview-failed"));
+            ui.collapsing(crate::tr!("error-details"), |ui| {
+                ui.label(error);
+            });
+        }
+    }
+    fn sync_is_current(&self) -> bool {
         self.preview.error.is_none()
             && self
                 .preview

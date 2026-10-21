@@ -19,8 +19,7 @@ fn links_accept_soft_lines_and_reject_paragraph_or_list_boundaries() {
 
 #[test]
 fn native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopening() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.document.session.document = Document::from_source("Alpha").unwrap();
     app.document.selection = editor::cursor(5..5);
     app.document.force_selection = true;
@@ -61,8 +60,7 @@ fn native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopeni
 
 #[test]
 fn native_egui_replaces_a_unicode_selection_without_source_markers() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.document.session.document =
         Document::from_source("Élodie écrit.\n\nDeuxième paragraphe.").unwrap();
     app.document.selection = editor::cursor(0..6);
@@ -97,8 +95,7 @@ fn native_egui_replaces_a_unicode_selection_without_source_markers() {
 
 #[test]
 fn native_keyboard_shortcut_formats_multiple_paragraphs() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.document.selection = editor::cursor(0..180);
     app.document.force_selection = true;
     frame(&mut app, &ctx, vec![]);
@@ -133,8 +130,7 @@ fn text_shortcuts_can_be_undone_to_the_complete_literal_input() {
         ("\\>", " ", "> ", Some(BlockKind::Quote)),
         ("\\*Bonjour", "*", "*Bonjour*", None),
     ] {
-        let ctx = egui::Context::default();
-        let mut app = App::with_demo_context(ctx.clone(), None);
+        let (ctx, mut app) = demo_app();
         app.document.session.document = Document::from_source(source).unwrap();
         let end = app.document.session.document.view.len();
         app.document.selection = editor::cursor(end..end);
@@ -170,8 +166,7 @@ fn description_editing_uses_tab_and_colon_without_exposing_typst() {
         },
         egui::Event::Text(" ".into()),
     ] {
-        let ctx = egui::Context::default();
-        let mut app = App::with_demo_context(ctx.clone(), None);
+        let (ctx, mut app) = demo_app();
         app.document.session.document = Document::from_source("Échéance").unwrap();
         app.document.selection = editor::cursor(8..8);
         app.apply(Command::Block(BlockKind::Description));
@@ -255,8 +250,7 @@ fn description_editing_uses_tab_and_colon_without_exposing_typst() {
 
 #[test]
 fn quote_keyboard_edits_body_and_attribution_and_exits_without_losing_source() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.document.session.document = Document::from_source("Bonjour").unwrap();
     app.document.selection = editor::cursor(7..7);
     app.apply(Command::Block(BlockKind::Quote));
@@ -383,8 +377,7 @@ fn converting_multiple_paragraphs_to_quote_preserves_selection_and_can_be_undone
 
 #[test]
 fn description_tab_with_a_selection_and_enter_in_text_create_an_empty_label() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.document.session.document = Document::from_source("/ Échéance: Vendredi").unwrap();
     app.document.selection = editor::cursor(2..5);
     app.document.force_selection = true;
@@ -431,8 +424,7 @@ fn description_tab_with_a_selection_and_enter_in_text_create_an_empty_label() {
 
 #[test]
 fn letter_notes_insert_type_scope_editing_exit_and_undo_use_the_shared_session() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     let body = app.document.session.document.view.text.clone();
     app.apply(Command::InsertPostscript);
     frame(&mut app, &ctx, vec![]);

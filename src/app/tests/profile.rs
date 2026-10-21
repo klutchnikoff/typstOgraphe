@@ -2,8 +2,7 @@ use super::*;
 
 #[test]
 fn personal_profile_seeds_new_documents_and_signature_edits_are_independent_and_undoable() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (_ctx, mut app) = demo_app();
     let dir = tempfile::tempdir().unwrap();
     let original = dir.path().join("signature.svg");
     std::fs::write(
@@ -121,8 +120,7 @@ fn global_profile_saves_after_changes_or_closing_without_modifying_the_document(
         }
         fn flush(&mut self) {}
     }
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     let before = app.stored_document();
     let mut store = Store::default();
     let now = Instant::now();
@@ -165,8 +163,7 @@ fn global_profile_saves_after_changes_or_closing_without_modifying_the_document(
 
 #[test]
 fn editor_preferences_change_glyphs_and_theme_without_touching_the_letter() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     let letter = app.stored_document();
     let revision = app.document.session.revision;
     app.dispatch_action(Command::Preferences, &ctx);

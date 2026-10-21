@@ -17,8 +17,7 @@ fn compact_toolbar_and_status_show_unicode_totals_selection_and_tooltips() {
             _ => None,
         })
     }
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     ctx.style_mut(|style| style.interaction.tooltip_delay = 0.0);
     app.document.session.document = Document::from_source("#strong[e\u{301}] 👩🏽‍💻").unwrap();
     app.document.force_selection = true;
@@ -159,8 +158,7 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
         })
     }
     for dark in [false, true] {
-        let ctx = egui::Context::default();
-        let mut app = App::with_demo_context(ctx.clone(), None);
+        let (ctx, mut app) = demo_app();
         ctx.set_visuals(if dark {
             egui::Visuals::dark()
         } else {

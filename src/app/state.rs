@@ -72,6 +72,8 @@ pub(super) struct DialogState {
     pub(super) profile_error: Option<String>,
 }
 
+// La session vide sert de tampon interne sans document ouvert : aucun rendu,
+// aucune édition ni copie de récupération n’est alors déclenché.
 pub(super) struct DocumentState {
     pub(super) open: bool,
     pub(super) session: Session,

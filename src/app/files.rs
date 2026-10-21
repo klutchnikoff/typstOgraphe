@@ -38,7 +38,7 @@ impl App {
             }
         }
     }
-    pub(super) fn save_document(&mut self, save_as: bool) -> bool {
+    fn save_document(&mut self, save_as: bool) -> bool {
         if !self.document.open {
             return false;
         }

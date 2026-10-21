@@ -2,8 +2,7 @@ use super::*;
 
 #[test]
 fn column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_cap() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     let mut time = 0.0;
     let mut draw = |app: &mut App, width, events| {
         time += 0.1;
@@ -92,8 +91,7 @@ fn column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_ca
 
 #[test]
 fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.document.session.document =
         Document::from_source(&"Un paragraphe à retrouver.\n\n".repeat(100)).unwrap();
     let mut world = crate::rendering::TypstWorld::default();
@@ -197,8 +195,7 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
 
 #[test]
 fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     let mut world = crate::rendering::TypstWorld::default();
     let rendered = world
         .compile_with_template(
@@ -308,8 +305,7 @@ fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
 
 #[test]
 fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     let mut world = crate::rendering::TypstWorld::default();
     let rendered = world
         .compile_with_template(

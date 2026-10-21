@@ -2,8 +2,7 @@ use super::*;
 
 #[test]
 fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_preview_highlights() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     let mut letter = StoredDocument::blank(DocumentType::Courrier);
     letter.source = "Un *été*, puis un ÉTÉ et encore un _été_.".into();
     let document = Document::from_source(&letter.source).unwrap();
@@ -128,8 +127,7 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
 
 #[test]
 fn replacement_commands_refresh_results_and_replace_all_is_a_single_document_transaction() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (_ctx, mut app) = demo_app();
     let mut stored = StoredDocument::blank(DocumentType::Courrier);
     stored.source = "Un *été* et un _ÉTÉ_, été.".into();
     app.install_document(

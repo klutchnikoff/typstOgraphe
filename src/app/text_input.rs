@@ -10,6 +10,7 @@ struct ShortcutInput {
 }
 
 impl App {
+    /// Une seule voie pour rendre visible et focaliser une cible d’annotation.
     pub(super) fn focus_annotation_target(&mut self, range: Range<usize>) {
         self.document.selection = editor::cursor(range);
         if self.document.selection.is_empty() {
@@ -32,7 +33,7 @@ impl App {
         self.remember(before, false);
         self.focus_annotation_target(at..at);
     }
-    pub(super) fn annotation_shortcuts(&mut self, ctx: &egui::Context) -> bool {
+    fn annotation_shortcuts(&mut self, ctx: &egui::Context) -> bool {
         let range = self.range();
         let Some(annotation) = self
             .document

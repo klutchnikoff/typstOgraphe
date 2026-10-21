@@ -38,5 +38,10 @@ jobs:
           key: rust-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: rust-${{ runner.os }}-
       - run: cargo +stable fmt --check
+      - name: Architecture guards
+        if: runner.os == 'Linux'
+        run: |
+          python3 -m unittest discover -s scripts/tests -v
+          scripts/check-file-length.sh --warn
       - run: cargo +stable test --locked
       - run: cargo +stable clippy --locked --all-targets -- -D warnings

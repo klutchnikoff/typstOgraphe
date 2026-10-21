@@ -6,8 +6,7 @@ fn tab_places_the_native_caret_on_each_empty_annotation_placeholder() {
         "#figure(image(\"images/parc.svg\"))\n\nSuite.",
         "#quote(block: true)[Une pensée.]\n\nSuite.",
     ] {
-        let ctx = egui::Context::default();
-        let mut app = App::with_demo_context(ctx.clone(), None);
+        let (ctx, mut app) = demo_app();
         // Vérifier la géométrie réellement peinte, indépendamment du clignotement.
         ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
         app.document.session.document = Document::from_source(source).unwrap();
@@ -111,8 +110,7 @@ fn annotation_navigation_and_exit_preserve_content_selection_and_undo() {
         "#figure(image(\"images/parc.svg\"), caption: [Été *à Paris*.])\n\nSuite.",
         "#quote(block: true, attribution: [Été *à Paris*.])[Une pensée.]\n\nSuite.",
     ] {
-        let ctx = egui::Context::default();
-        let mut app = App::with_demo_context(ctx.clone(), None);
+        let (ctx, mut app) = demo_app();
         app.document.session.document = Document::from_source(source).unwrap();
         let annotation = app.document.session.document.view.annotations().remove(0);
         let at = annotation.content.start;
@@ -197,8 +195,7 @@ fn annotation_navigation_scrolls_to_the_target_in_both_structures() {
         ),
         format!("#quote(block: true)[{}]", "Une pensée.\n\n".repeat(80)),
     ] {
-        let ctx = egui::Context::default();
-        let mut app = App::with_demo_context(ctx.clone(), None);
+        let (ctx, mut app) = demo_app();
         app.document.session.document = Document::from_source(&source).unwrap();
         let annotation = app.document.session.document.view.annotations().remove(0);
         app.document.selection = editor::cursor(annotation.main_target());

@@ -55,23 +55,7 @@ impl App {
         Ok(app)
     }
     pub fn with_context(ctx: egui::Context, capture: Option<PathBuf>) -> Self {
-        editor::install_fonts(&ctx);
-        ctx.all_styles_mut(|style| {
-            style.spacing.item_spacing = egui::vec2(8.0, 8.0);
-            style.visuals.selection.bg_fill = if style.visuals.dark_mode {
-                Color32::from_rgb(40, 80, 108)
-            } else {
-                Color32::from_rgb(174, 211, 235)
-            };
-            style.visuals.selection.stroke = egui::Stroke::new(
-                1.0_f32,
-                if style.visuals.dark_mode {
-                    Color32::LIGHT_BLUE
-                } else {
-                    ACCENT
-                },
-            );
-        });
+        configure_context(&ctx);
         let initial_type = DocumentType::ALL
             .into_iter()
             .find(|kind| kind.can_create())
@@ -144,7 +128,7 @@ impl App {
                     .to_string(),
             },
             preview: PreviewState {
-                worker: worker,
+                worker,
                 pages: vec![],
                 submitted: 0,
                 elapsed: None,
@@ -189,4 +173,24 @@ impl App {
             image_textures: Default::default(),
         }
     }
+}
+
+fn configure_context(ctx: &egui::Context) {
+    editor::install_fonts(ctx);
+    ctx.all_styles_mut(|style| {
+        style.spacing.item_spacing = egui::vec2(8.0, 8.0);
+        style.visuals.selection.bg_fill = if style.visuals.dark_mode {
+            Color32::from_rgb(40, 80, 108)
+        } else {
+            Color32::from_rgb(174, 211, 235)
+        };
+        style.visuals.selection.stroke = egui::Stroke::new(
+            1.0_f32,
+            if style.visuals.dark_mode {
+                Color32::LIGHT_BLUE
+            } else {
+                ACCENT
+            },
+        );
+    });
 }

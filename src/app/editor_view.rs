@@ -257,6 +257,8 @@ impl App {
             }
         }
     }
+    /// La proportion appartient aux préférences, les rectangles à la frame.
+    /// Seuls les bords gardent une petite zone accessible pour chaque colonne.
     pub(super) fn columns_ui(&mut self, ui: &mut egui::Ui, disabled: bool) -> [egui::Rect; 2] {
         let bounds = ui.available_rect_before_wrap();
         let divider_width = 8.0;

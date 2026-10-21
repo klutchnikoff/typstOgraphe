@@ -69,8 +69,7 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
 
 #[test]
 fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplicates() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.document.session.file_path = Some(PathBuf::from("exemple.typsto"));
     let source = app.document.session.document.source().to_owned();
     let mut time = 0.0;
@@ -167,8 +166,7 @@ fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplica
 
 #[test]
 fn save_reopen_restores_the_letter_and_failed_open_preserves_current_work() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (_ctx, mut app) = demo_app();
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("courrier.typsto");
     assert!(!app.is_dirty());
@@ -229,8 +227,7 @@ fn save_reopen_restores_the_letter_and_failed_open_preserves_current_work() {
 
 #[test]
 fn save_shortcut_and_save_as_keep_both_files_and_track_clean_state() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     let dir = tempfile::tempdir().unwrap();
     let first = dir.path().join("premier.typsto");
     assert!(app.save_path(first.clone()));
@@ -265,8 +262,7 @@ fn save_shortcut_and_save_as_keep_both_files_and_track_clean_state() {
 
 #[test]
 fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.document.session.metadata.courrier_mut().objet = "Travail à conserver".into();
     let before = app.stored_document();
     app.request_action(PendingAction::Open, &ctx);

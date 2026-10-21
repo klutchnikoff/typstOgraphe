@@ -1,0 +1,2 @@
+# Seuil appliqué à app/ dès la phase 1 ; généralisation en phase 7.
+too-many-lines-threshold = 120

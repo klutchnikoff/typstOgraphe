@@ -5,33 +5,11 @@ pub(super) fn search_draw(
     ctx: &egui::Context,
     events: Vec<egui::Event>,
 ) -> egui::FullOutput {
-    ctx.run(
-        egui::RawInput {
-            screen_rect: Some(egui::Rect::from_min_size(
-                egui::Pos2::ZERO,
-                egui::vec2(1240.0, 900.0),
-            )),
-            events,
-            ..Default::default()
-        },
-        |ctx| app.ui_frame(ctx),
-    )
+    ctx.run(frame_input(events), |ctx| app.ui_frame(ctx))
 }
 
 pub(super) fn recovery_click(app: &mut App, ctx: &egui::Context, label: &str) {
-    let draw = |app: &mut App, events| {
-        ctx.run(
-            egui::RawInput {
-                screen_rect: Some(egui::Rect::from_min_size(
-                    egui::Pos2::ZERO,
-                    egui::vec2(1240.0, 900.0),
-                )),
-                events,
-                ..Default::default()
-            },
-            |ctx| app.ui_frame(ctx),
-        )
-    };
+    let draw = |app: &mut App, events| ctx.run(frame_input(events), |ctx| app.ui_frame(ctx));
     let _ = draw(app, vec![]);
     let output = draw(app, vec![]);
     let point = output
@@ -99,14 +77,7 @@ pub(super) fn icon_rect(
 }
 
 pub(super) fn frame(app: &mut App, ctx: &egui::Context, events: Vec<egui::Event>) {
-    let raw = egui::RawInput {
-        screen_rect: Some(egui::Rect::from_min_size(
-            egui::Pos2::ZERO,
-            egui::vec2(1240.0, 900.0),
-        )),
-        events,
-        ..Default::default()
-    };
+    let raw = frame_input(events);
     let _ = ctx.run(raw, |ctx| app.ui_frame(ctx));
 }
 
@@ -123,5 +94,22 @@ impl App {
             .changed(self.document.selection.into());
         self.document.force_selection |= adjusted != self.document.selection.into();
         self.document.selection = adjusted.into();
+    }
+}
+
+pub(super) fn demo_app() -> (egui::Context, App) {
+    let ctx = egui::Context::default();
+    let app = App::with_demo_context(ctx.clone(), None);
+    (ctx, app)
+}
+
+pub(super) fn frame_input(events: Vec<egui::Event>) -> egui::RawInput {
+    egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(1240.0, 900.0),
+        )),
+        events,
+        ..Default::default()
     }
 }

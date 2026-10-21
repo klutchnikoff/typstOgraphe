@@ -93,8 +93,7 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
 
 #[test]
 fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     let mut letter = StoredDocument::blank(DocumentType::Courrier);
     letter.source = "Courrrier courrrier réservvation".into();
     let document = Document::from_source(&letter.source).unwrap();

@@ -1,3 +1,8 @@
+#![allow(
+    clippy::too_many_lines,
+    reason = "Les scénarios d’interaction conservent leurs assertions ; le seuil concerne la production."
+)]
+
 use super::*;
 use support::*;
 

@@ -27,8 +27,7 @@ fn today_button_keeps_a_fixed_date_through_history_and_reopening() {
 
 #[test]
 fn general_settings_and_template_selection_preserve_letter_content() {
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     app.document.session.template = "#let courrier(..args, options: (:), body) = { set page(paper: options.paper, flipped: options.landscape); body }".into();
     app.document.session.saved.template = app.document.session.template.clone();
     app.dialogs.information_open = true;
@@ -158,8 +157,7 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
             );
         }
     }
-    let ctx = egui::Context::default();
-    let mut app = App::with_demo_context(ctx.clone(), None);
+    let (ctx, mut app) = demo_app();
     ctx.style_mut(|style| style.animation_time = 0.0);
     app.document.selection = editor::cursor(10..20);
     app.document.force_selection = true;

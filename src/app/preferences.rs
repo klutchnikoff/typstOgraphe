@@ -45,7 +45,7 @@ impl App {
             self.document.force_selection = true;
         }
     }
-    pub(super) fn appearance_preferences_ui(&mut self, ui: &mut egui::Ui) {
+    fn appearance_preferences_ui(&mut self, ui: &mut egui::Ui) {
         egui::Grid::new("appearance-preferences")
             .num_columns(2)
             .show(ui, |ui| {
@@ -84,7 +84,7 @@ impl App {
         ui.add_space(8.0);
         ui.weak(crate::tr!("preferences-help"));
     }
-    pub(super) fn spelling_preferences_ui(&mut self, ui: &mut egui::Ui) {
+    fn spelling_preferences_ui(&mut self, ui: &mut egui::Ui) {
         ui.checkbox(
             &mut self.preferences.spelling.enabled,
             crate::tr!("cmd-spelling-toggle"),
@@ -120,7 +120,7 @@ impl App {
             ui.weak(crate::tr!("spelling-personal-help"));
         });
     }
-    pub(super) fn profile_preferences_ui(&mut self, ui: &mut egui::Ui) {
+    fn profile_preferences_ui(&mut self, ui: &mut egui::Ui) {
         ui.weak(crate::tr!("profile-help"));
         ui.add_space(8.0);
         egui::Grid::new("profile-fields")

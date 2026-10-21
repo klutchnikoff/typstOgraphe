@@ -7,6 +7,7 @@ impl App {
             &self.document.session.document.view,
         );
     }
+    /// Diagnostic de présentation utilisant les mêmes commandes que l’interface.
     pub fn capture_search(&mut self, query: String) {
         self.load_demo();
         self.apply(Command::FindReplace);

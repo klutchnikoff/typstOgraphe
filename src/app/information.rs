@@ -110,7 +110,7 @@ impl App {
                 .into();
         }
     }
-    pub(super) fn general_information_ui(&mut self, ui: &mut egui::Ui) {
+    fn general_information_ui(&mut self, ui: &mut egui::Ui) {
         let fixed_page = crate::document_types::models::ALL
             .iter()
             .find(|model| model.source == self.document.session.template)

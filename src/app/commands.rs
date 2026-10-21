@@ -191,7 +191,7 @@ impl App {
             _ => unreachable!("spelling command"),
         }
     }
-    pub(super) fn apply_history(&mut self, undo: bool) {
+    fn apply_history(&mut self, undo: bool) {
         let old_document = self.document.session.document.clone();
         let old_template = self.document.session.template.clone();
         if let Some(selection) = self

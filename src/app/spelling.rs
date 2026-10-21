@@ -59,11 +59,7 @@ impl App {
             })
             .cloned()
     }
-    pub(super) fn valid_spelling_target(
-        &self,
-        revision: u64,
-        issue: &crate::spelling::Issue,
-    ) -> bool {
+    fn valid_spelling_target(&self, revision: u64, issue: &crate::spelling::Issue) -> bool {
         revision == self.document.session.revision
             && self.preferences.spelling.enabled
             && self.spelling.checker.is_current(revision)
