@@ -1,4 +1,5 @@
 use crate::{
+    annotations::OptionalAnnotation,
     commands::{Command, FileCommand, Keymap, Registry, ShortcutOverrides},
     document::{
         BlockKind, Document, DocumentLanguage, ImageBlock, InlineStyle, Mark, PaperFormat,
@@ -584,11 +585,7 @@ impl App {
                     .unwrap_or_else(|| crate::tr!("storage-letter-too-large")));
             }
         }
-        let mut cursor = CCursor::new(at + 1);
-        cursor.prefer_next_row = true;
-        self.selection = CCursorRange::one(cursor);
-        self.force_selection = true;
-        self.editor_scroll_pending = true;
+        self.focus_annotation_target(at + 1..at + 1);
         self.remember(before, false);
         Ok(())
     }
@@ -788,7 +785,64 @@ impl App {
             });
         }
     }
+    /// Une seule voie pour rendre visible et focaliser une cible d’annotation.
+    fn focus_annotation_target(&mut self, range: Range<usize>) {
+        self.selection = editor::cursor(range);
+        if self.selection.is_empty() {
+            self.selection.primary.prefer_next_row = true;
+            self.selection.secondary.prefer_next_row = true;
+        }
+        self.force_selection = true;
+        self.editor_scroll_pending = true;
+        self.forward_pending = true;
+        self.typing_group = false;
+    }
+    fn leave_annotation(&mut self, annotation: &OptionalAnnotation) {
+        let before = self.snapshot();
+        let at = self.document.view.leave_annotation(annotation);
+        self.remember(before, false);
+        self.focus_annotation_target(at..at);
+    }
+    fn annotation_shortcuts(&mut self, ctx: &egui::Context) -> bool {
+        let range = self.range();
+        let Some(annotation) = self.document.view.annotation_at(range.clone()) else {
+            return false;
+        };
+        let shift = ctx.input(|i| i.events.iter().any(|event| matches!(event,
+            egui::Event::Key { key: egui::Key::Tab, pressed: true, modifiers, .. } if modifiers.shift
+        )));
+        let tab = ctx.input_mut(|i| {
+            i.consume_key(
+                if shift {
+                    egui::Modifiers::SHIFT
+                } else {
+                    egui::Modifiers::NONE
+                },
+                egui::Key::Tab,
+            )
+        });
+        if tab {
+            ctx.memory_mut(|m| m.move_focus(egui::FocusDirection::None));
+            let target = if shift {
+                annotation.main_target()
+            } else {
+                annotation.content.start..annotation.content.start
+            };
+            self.focus_annotation_target(target);
+            return true;
+        }
+        if annotation.enter_leaves(&range)
+            && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
+        {
+            self.leave_annotation(&annotation);
+            return true;
+        }
+        false
+    }
     fn text_shortcuts(&mut self, ctx: &egui::Context) {
+        if self.annotation_shortcuts(ctx) {
+            return;
+        }
         let range = self.range();
         let line = self.document.view.line_at(range.start);
         let lines = self.document.view.line_ranges();
@@ -840,25 +894,6 @@ impl App {
                 self.force_selection = true;
                 return;
             }
-            let tab = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab));
-            let enter = ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
-            if tab || enter {
-                ctx.memory_mut(|m| m.move_focus(egui::FocusDirection::None));
-                if tab {
-                    let mut cursor = CCursor::new(start + 1);
-                    cursor.prefer_next_row = true;
-                    self.selection = CCursorRange::one(cursor);
-                    self.editor_scroll_pending = true;
-                } else {
-                    let before = self.snapshot();
-                    let end = lines[line].end;
-                    self.document.view.insert_text("\n", end);
-                    self.selection = editor::cursor(end + 1..end + 1);
-                    self.remember(before, false);
-                }
-                self.force_selection = true;
-                return;
-            }
         }
         if typed.as_deref() == Some(" ") {
             let kind = match prefix.as_str() {
@@ -888,73 +923,42 @@ impl App {
                 return;
             }
         }
-        if matches!(
-            self.document.view.blocks[line],
-            BlockKind::Quote | BlockKind::QuoteAttribution
-        ) {
-            let group = self
-                .document
-                .view
-                .quote_groups()
-                .into_iter()
-                .find(|g| g.body.contains(&line) || g.attribution == Some(line));
-            if let Some(group) = group {
-                let shift = ctx.input(|i| i.events.iter().any(|event| matches!(event,
-                    egui::Event::Key { key: egui::Key::Tab, pressed: true, modifiers, .. } if modifiers.shift
-                )));
-                if ctx.input_mut(|i| {
-                    i.consume_key(
-                        if shift {
-                            egui::Modifiers::SHIFT
-                        } else {
-                            egui::Modifiers::NONE
-                        },
-                        egui::Key::Tab,
-                    )
-                }) {
-                    ctx.memory_mut(|m| m.move_focus(egui::FocusDirection::None));
-                    let target = if shift {
-                        group.body.start
-                    } else {
-                        group.attribution.unwrap_or(group.body.end - 1)
-                    };
-                    let at = lines[target].start;
-                    self.selection = editor::cursor(at..at);
-                    self.force_selection = true;
-                    return;
+        if self.document.view.blocks[line] == BlockKind::Quote
+            && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
+        {
+            let before = self.snapshot();
+            if lines[line].is_empty() && range.is_empty() {
+                let group = self
+                    .document
+                    .view
+                    .quote_groups()
+                    .into_iter()
+                    .find(|group| group.body.contains(&line))
+                    .expect("paragraphe de citation");
+                // La terminaison du corps cité reste une règle propre à la citation.
+                // Retirer sa ligne vide, puis utiliser la sortie d’annotation commune.
+                if group.body.len() > 1 {
+                    self.document.view.delete_char_range(start..start + 1);
+                    self.document.view.blocks
+                        [group.attribution.expect("attribution éditable") - 1] =
+                        BlockKind::QuoteAttribution;
                 }
-                if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
-                    let before = self.snapshot();
-                    let attribution = group.attribution.unwrap_or(group.body.end - 1);
-                    let leave = self.document.view.blocks[line] == BlockKind::QuoteAttribution
-                        || (lines[line].is_empty() && range.is_empty());
-                    if leave {
-                        let mut attribution = attribution;
-                        // Retirer le paragraphe vide qui a servi à terminer la citation.
-                        if self.document.view.blocks[line] == BlockKind::Quote
-                            && lines[line].is_empty()
-                            && group.body.len() > 1
-                        {
-                            self.document
-                                .view
-                                .delete_char_range(lines[line].start..lines[line].start + 1);
-                            attribution -= 1;
-                            self.document.view.blocks[attribution] = BlockKind::QuoteAttribution;
-                        }
-                        let at = self.document.view.line_ranges()[attribution].end;
-                        self.document.view.insert_text("\n", at);
-                        self.document.view.blocks[attribution + 1] = BlockKind::Paragraph;
-                        self.selection = editor::cursor(at + 1..at + 1);
-                    } else {
-                        self.document.view.delete_char_range(range.clone());
-                        self.document.view.insert_text("\n", range.start);
-                        self.selection = editor::cursor(range.start + 1..range.start + 1);
-                    }
-                    self.remember(before, false);
-                    self.force_selection = true;
-                    return;
-                }
+                let annotation = self
+                    .document
+                    .view
+                    .annotation_at(start..start)
+                    .expect("annotation de citation");
+                let at = self.document.view.leave_annotation(&annotation);
+                self.remember(before, false);
+                self.focus_annotation_target(at..at);
+            } else {
+                self.document.view.delete_char_range(range.clone());
+                self.document.view.insert_text("\n", range.start);
+                self.selection = editor::cursor(range.start + 1..range.start + 1);
+                self.remember(before, false);
+                self.force_selection = true;
             }
+            return;
         }
         if self.document.view.blocks[line] == BlockKind::Description {
             let text = &self.document.view.text[self.document.view.byte_index(lines[line].start)
@@ -1397,13 +1401,8 @@ impl App {
             }
         }
         let view = self.document.view.clone();
-        let description = matches!(
-            view.blocks[view.line_at(self.selection.primary.index)],
-            BlockKind::Description
-                | BlockKind::Quote
-                | BlockKind::QuoteAttribution
-                | BlockKind::Image(_)
-        );
+        let lock_tab = view.annotation_at(self.range()).is_some()
+            || view.blocks[view.line_at(self.selection.primary.index)] == BlockKind::Description;
         let editor_style = self.preferences.editor;
         let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, width: f32| {
             editor::layout(ui, &view, text.as_str(), width, editor_style)
@@ -1420,7 +1419,7 @@ impl App {
                     .show(ui, |ui| {
                         let background = ui.painter().add(egui::Shape::Noop);
                         let output = egui::TextEdit::multiline(&mut self.document.view)
-                            .lock_focus(description)
+                            .lock_focus(lock_tab)
                             .id(egui::Id::new(editor::EDITOR_ID))
                             .desired_width(f32::INFINITY)
                             .desired_rows(25)
@@ -1825,12 +1824,8 @@ impl App {
             if !open {
                 self.image_info = None;
                 if let Some(range) = self.document.view.image_range(id) {
-                    let mut cursor = CCursor::new(range.start + 1);
-                    cursor.prefer_next_row = true;
-                    self.selection = CCursorRange::one(cursor);
+                    self.focus_annotation_target(range.start + 1..range.start + 1);
                 }
-                self.force_selection = true;
-                self.editor_scroll_pending = true;
             }
         }
 
@@ -2271,85 +2266,233 @@ mod interaction_tests {
     use crate::document_types::courrier::Model;
 
     #[test]
-    fn tab_places_the_native_caret_in_an_empty_image_caption() {
-        let ctx = egui::Context::default();
-        let mut app = App::with_context(ctx.clone(), None);
-        // Vérifier la géométrie réellement peinte, indépendamment du clignotement.
-        ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
-        app.document =
-            Document::from_source("#figure(image(\"images/parc.svg\"))\n\nSuite.").unwrap();
-        app.document.assets.insert(
-            "images/parc.svg".into(),
-            include_bytes!("../tests/fixtures/parc.svg")
-                .as_slice()
-                .into(),
-        );
-        app.selection = editor::cursor(0..1);
-        app.force_selection = true;
-        let mut time = 0.0;
-        let mut draw = |app: &mut App, events| {
-            time += 0.1;
-            ctx.run(
-                egui::RawInput {
-                    screen_rect: Some(egui::Rect::from_min_size(
-                        egui::Pos2::ZERO,
-                        egui::vec2(1240.0, 900.0),
-                    )),
-                    time: Some(time),
-                    events,
-                    focused: true,
-                    ..Default::default()
-                },
-                |ctx| app.ui_frame(ctx),
-            )
-        };
-        draw(&mut app, vec![]);
-        let tab = || egui::Event::Key {
-            key: egui::Key::Tab,
-            physical_key: None,
-            pressed: true,
-            repeat: false,
-            modifiers: egui::Modifiers::NONE,
-        };
-        for _ in 0..2 {
-            let output = draw(&mut app, vec![tab()]);
-            assert_eq!(app.range(), 1..1);
-            assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
-            fn caption_hint(shape: &egui::Shape) -> Option<egui::Pos2> {
-                match shape {
-                    egui::Shape::Text(text)
-                        if text.galley.text() == crate::tr!("image-caption-placeholder") =>
-                    {
-                        Some(text.pos)
-                    }
-                    egui::Shape::Vec(shapes) => shapes.iter().find_map(caption_hint),
-                    _ => None,
-                }
-            }
-            let hint = output
-                .shapes
-                .iter()
-                .find_map(|shape| caption_hint(&shape.shape))
-                .expect("légende vide visible");
-            let caret = output
-                .platform_output
-                .ime
-                .expect("curseur natif du TextEdit")
-                .cursor_rect;
-            assert!(
-                (caret.top() - hint.y).abs() < 2.0,
-                "curseur {caret:?}, légende {hint:?}"
+    fn tab_places_the_native_caret_on_each_empty_annotation_placeholder() {
+        for source in [
+            "#figure(image(\"images/parc.svg\"))\n\nSuite.",
+            "#quote(block: true)[Une pensée.]\n\nSuite.",
+        ] {
+            let ctx = egui::Context::default();
+            let mut app = App::with_context(ctx.clone(), None);
+            // Vérifier la géométrie réellement peinte, indépendamment du clignotement.
+            ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
+            app.document = Document::from_source(source).unwrap();
+            app.document.assets.insert(
+                "images/parc.svg".into(),
+                include_bytes!("../tests/fixtures/parc.svg")
+                    .as_slice()
+                    .into(),
             );
-            assert!((caret.left() - hint.x).abs() < 2.0);
-            assert!(caret.height() < app.preferences.editor.size * 2.0);
-            assert!(output.shapes.iter().any(|shape| matches!(shape.shape, egui::Shape::LineSegment { points, .. } if (points[0] - caret.center_top()).length() < 1.0 && (points[1] - caret.center_bottom()).length() < 1.0)), "le curseur doit être peint dans la légende");
+            let annotation = app.document.view.annotations().remove(0);
+            let at = annotation.content.start;
+            let placeholder = annotation.kind.placeholder();
+            app.selection = editor::cursor(annotation.main_target());
+            app.force_selection = true;
+            let mut time = 0.0;
+            let mut draw = |app: &mut App, events| {
+                time += 0.1;
+                ctx.run(
+                    egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            egui::vec2(1240.0, 900.0),
+                        )),
+                        time: Some(time),
+                        events,
+                        focused: true,
+                        ..Default::default()
+                    },
+                    |ctx| app.ui_frame(ctx),
+                )
+            };
+            draw(&mut app, vec![]);
+            let tab = || egui::Event::Key {
+                key: egui::Key::Tab,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            };
+            for _ in 0..2 {
+                let output = draw(&mut app, vec![tab()]);
+                assert_eq!(app.range(), at..at);
+                assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
+                fn annotation_hint(shape: &egui::Shape, placeholder: &str) -> Option<egui::Pos2> {
+                    match shape {
+                        egui::Shape::Text(text) if text.galley.text() == placeholder => {
+                            Some(text.pos)
+                        }
+                        egui::Shape::Vec(shapes) => shapes
+                            .iter()
+                            .find_map(|shape| annotation_hint(shape, placeholder)),
+                        _ => None,
+                    }
+                }
+                let hint = output
+                    .shapes
+                    .iter()
+                    .find_map(|shape| annotation_hint(&shape.shape, &placeholder))
+                    .expect("texte indicatif de l’annotation vide");
+                let caret = output
+                    .platform_output
+                    .ime
+                    .expect("curseur natif du TextEdit")
+                    .cursor_rect;
+                assert!(
+                    (caret.top() - hint.y).abs() < 2.0,
+                    "curseur {caret:?}, annotation {hint:?}"
+                );
+                assert!((caret.left() - hint.x).abs() < 2.0);
+                assert!(caret.height() < app.preferences.editor.size * 2.0);
+                assert!(output.shapes.iter().any(|shape| matches!(shape.shape, egui::Shape::LineSegment { points, .. } if (points[0] - caret.center_top()).length() < 1.0 && (points[1] - caret.center_bottom()).length() < 1.0)), "le curseur doit être peint dans l’annotation");
+                assert_eq!(
+                    app.document.source(),
+                    source,
+                    "le texte indicatif reste virtuel"
+                );
+            }
+            draw(&mut app, vec![egui::Event::Text("Une annotation.".into())]);
+            assert!(app.document.source().contains("[Une annotation.]"));
+            draw(&mut app, vec![tab()]);
+            assert_eq!(app.range(), at..at);
+            draw(&mut app, vec![egui::Event::Text("Été : ".into())]);
+            assert!(app.document.view.text.contains("Été : Une annotation."));
         }
-        draw(&mut app, vec![egui::Event::Text("Une légende.".into())]);
-        assert!(app.document.source().contains("caption: [Une légende.]"));
-        draw(&mut app, vec![tab()]);
-        assert_eq!(app.range(), 1..1);
-        draw(&mut app, vec![egui::Event::Text("Été : ".into())]);
-        assert!(app.document.view.text.contains("Été : Une légende."));
+    }
+
+    #[test]
+    fn annotation_navigation_and_exit_preserve_content_selection_and_undo() {
+        for source in [
+            "#figure(image(\"images/parc.svg\"), caption: [Été *à Paris*.])\n\nSuite.",
+            "#quote(block: true, attribution: [Été *à Paris*.])[Une pensée.]\n\nSuite.",
+        ] {
+            let ctx = egui::Context::default();
+            let mut app = App::with_context(ctx.clone(), None);
+            app.document = Document::from_source(source).unwrap();
+            let annotation = app.document.view.annotations().remove(0);
+            let at = annotation.content.start;
+            app.selection = editor::cursor(annotation.content.clone());
+            app.force_selection = true;
+            frame(&mut app, &ctx, vec![]);
+            let key = |key, modifiers| egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers,
+            };
+            frame(
+                &mut app,
+                &ctx,
+                vec![key(egui::Key::Tab, egui::Modifiers::SHIFT)],
+            );
+            assert_eq!(app.range(), annotation.main_target());
+            assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
+            frame(
+                &mut app,
+                &ctx,
+                vec![key(egui::Key::Tab, egui::Modifiers::NONE)],
+            );
+            assert_eq!(app.range(), at..at);
+            assert!(
+                app.undo.is_empty(),
+                "la navigation ne modifie pas le document"
+            );
+            let original = app.document.clone();
+            // Entrée quitte toute la structure sans remplacer l’annotation sélectionnée.
+            app.selection = editor::cursor(annotation.content.clone());
+            let selection = app.selection;
+            app.force_selection = true;
+            frame(&mut app, &ctx, vec![]);
+            frame(
+                &mut app,
+                &ctx,
+                vec![key(egui::Key::Enter, egui::Modifiers::NONE)],
+            );
+            assert_eq!(
+                app.range(),
+                annotation.structure.end + 1..annotation.structure.end + 1
+            );
+            assert_eq!(
+                app.document.view.blocks[app.document.view.line_at(app.range().start)],
+                BlockKind::Paragraph
+            );
+            assert_eq!(app.document.view.annotations()[0], annotation);
+            assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
+            frame(&mut app, &ctx, vec![egui::Event::Text("Après.".into())]);
+            assert!(app.document.view.text.contains("Été à Paris.\nAprès."));
+            app.apply(Command::Undo);
+            app.apply(Command::Undo);
+            assert_eq!(app.document, original);
+            assert_eq!(app.selection, selection);
+        }
+    }
+
+    #[test]
+    fn annotation_navigation_scrolls_to_the_target_in_both_structures() {
+        for source in [
+            format!(
+                "{}#figure(image(\"images/parc.svg\"))",
+                "Avant.\n\n".repeat(80)
+            ),
+            format!("#quote(block: true)[{}]", "Une pensée.\n\n".repeat(80)),
+        ] {
+            let ctx = egui::Context::default();
+            let mut app = App::with_context(ctx.clone(), None);
+            app.document = Document::from_source(&source).unwrap();
+            let annotation = app.document.view.annotations().remove(0);
+            app.selection = editor::cursor(annotation.main_target());
+            app.force_selection = true;
+            let mut time = 0.0;
+            let mut draw = |app: &mut App, events| {
+                time += 0.1;
+                ctx.run(
+                    egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            egui::vec2(1240.0, 900.0),
+                        )),
+                        time: Some(time),
+                        events,
+                        focused: true,
+                        ..Default::default()
+                    },
+                    |ctx| app.ui_frame(ctx),
+                )
+            };
+            draw(&mut app, vec![]);
+            let key = |modifiers| egui::Event::Key {
+                key: egui::Key::Tab,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers,
+            };
+            for modifiers in [egui::Modifiers::NONE, egui::Modifiers::SHIFT] {
+                draw(&mut app, vec![key(modifiers)]);
+                // Laisser le défilement animé d’egui atteindre la cible.
+                let mut output = draw(&mut app, vec![]);
+                for _ in 0..8 {
+                    output = draw(&mut app, vec![]);
+                }
+                let ime = output.platform_output.ime.expect("focus natif conservé");
+                assert!(
+                    ime.cursor_rect.top() >= 100.0 && ime.cursor_rect.bottom() <= 900.0,
+                    "annotation {:?}, cible {:?}, curseur {:?}",
+                    annotation.kind,
+                    app.range(),
+                    ime.cursor_rect
+                );
+                assert_eq!(
+                    app.range(),
+                    if modifiers.shift {
+                        annotation.main_target()
+                    } else {
+                        annotation.content.clone()
+                    }
+                );
+            }
+            assert_eq!(app.document.source(), source);
+        }
     }
 
     #[test]

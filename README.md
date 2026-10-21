@@ -424,6 +424,24 @@ rétablit le mode automatique pour appliquer la nouvelle charte.
 Les choix d’interface autorisés et les conventions typographiques sont ainsi
 définis dans le modèle, sans ajouter une nouvelle commande par forme de puce.
 
+## Annotations facultatives dans l’éditeur
+
+Les légendes d’images et les attributions de citations partagent une notion
+d’annotation facultative, décrite dans `src/annotations.rs`. Chaque structure
+déclare son corps principal, la plage de son annotation et son texte indicatif
+traduit. La navigation, le focus natif, le défilement vers la cible, le style du
+texte et l’affichage des textes indicatifs sont communs :
+
+- `Tab` rejoint le début de l’annotation, même vide ;
+- `Maj+Tab` revient au début du corps cité ou sélectionne l’objet image ;
+- `Entrée` dans l’annotation poursuit la rédaction dans un paragraphe normal
+  après toute la structure, en conservant son contenu ;
+- le texte indicatif disparaît à la saisie et reste absent du source Typst.
+
+Les présentations conservent leurs règles propres : attribution sous le texte
+cité, légende dans le cadre de l’image. De futures structures pourront déclarer
+leur annotation en réutilisant ce comportement.
+
 ## Citations en bloc
 
 Le contenu utilise l’élément natif Typst `quote`, avec `block: true` et un
@@ -476,9 +494,9 @@ les liens. Un clic sur l’image la sélectionne et affiche **Remplacer…**,
 alternatif ; supprimer le bloc retire aussi sa légende. Ces actions s’annulent
 et se rétablissent avec l’historique du document.
 
-`Tab` rejoint le début de la légende, même vide, avec le curseur natif visible
-et un défilement pour rendre la zone accessible. `Entrée` poursuit la rédaction dans un
-paragraphe normal après l’image. Au début de la légende, `Retour arrière`
+La légende utilise la navigation commune aux annotations facultatives.
+`Entrée` quitte également le bloc quand l’objet image est sélectionné.
+Au début de la légende, `Retour arrière`
 sélectionne l’objet ; une seconde pression supprime le bloc. L’éditeur reste
 une zone de sélection continue, avec un caractère objet interne par image.
 Ce caractère n’est jamais exporté dans le source Typst.

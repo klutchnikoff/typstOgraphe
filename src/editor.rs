@@ -1,5 +1,8 @@
-use crate::document::{BlockKind, InlineStyle, Projection};
 use crate::preferences::{EditorFont, EditorStyle};
+use crate::{
+    annotations::AnnotationKind,
+    document::{BlockKind, InlineStyle, Projection},
+};
 use eframe::egui::{
     self, Color32, FontFamily, Stroke, TextBuffer, TextFormat,
     text::{CCursor, CCursorRange, Galley, LayoutJob},
@@ -11,6 +14,7 @@ const DESCRIPTION_LABEL_SCALE: f32 = 0.9;
 const IMAGE_HEIGHT: f32 = 220.0;
 const IMAGE_PADDING: f32 = 10.0;
 const IMAGE_CAPTION_GAP: f32 = 8.0;
+const ANNOTATION_SCALE: f32 = 0.9;
 
 pub fn install_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
@@ -75,7 +79,7 @@ fn text_format(
     editor: EditorStyle,
 ) -> TextFormat {
     let heading = matches!(kind, BlockKind::Heading(_));
-    let annotation = matches!(kind, BlockKind::QuoteAttribution | BlockKind::Image(_));
+    let annotation = AnnotationKind::for_block(kind).is_some();
     let bold = style.bold || matches!(kind, BlockKind::Heading(1 | 2));
     let italic = style.italic || annotation || matches!(kind, BlockKind::Heading(3));
     let variant = match (bold, italic) {
@@ -86,7 +90,7 @@ fn text_format(
     };
     let size = match kind {
         BlockKind::Heading(level) => editor.size * 1.2_f32.powi(4 - i32::from(level)),
-        BlockKind::QuoteAttribution | BlockKind::Image(_) => editor.size * 0.9,
+        _ if annotation => editor.size * ANNOTATION_SCALE,
         _ => editor.size,
     };
     TextFormat {
@@ -660,20 +664,6 @@ pub fn paint_decorations(
                 5.0,
                 ui.visuals().faint_bg_color,
             ));
-            if range.len() == 1 {
-                let point = output.galley.pos_from_cursor(CCursor::new(range.start + 1));
-                let hint = painter.layout_no_wrap(
-                    crate::tr!("image-caption-placeholder"),
-                    editor.font.font_id(editor.size * 0.9, 2),
-                    ui.visuals().weak_text_color(),
-                );
-                // Le texte indicatif se place derrière le curseur natif.
-                backgrounds.push(egui::Shape::galley(
-                    output.galley_pos + point.min.to_vec2(),
-                    hint,
-                    ui.visuals().weak_text_color(),
-                ));
-            }
         }
     }
     for group in view.quote_groups() {
@@ -695,23 +685,26 @@ pub fn paint_decorations(
             1.0,
             colors.accent,
         ));
-        if let Some(line) = group.attribution
-            && ranges[line].is_empty()
-        {
-            let point = output
-                .galley
-                .pos_from_cursor(CCursor::new(ranges[line].start));
-            let hint = painter.layout_no_wrap(
-                crate::tr!("quote-attribution-placeholder"),
-                editor.font.font_id(editor.size * 0.9, 2),
-                ui.visuals().weak_text_color(),
-            );
-            backgrounds.push(egui::Shape::galley(
-                output.galley_pos + point.min.to_vec2(),
-                hint,
-                ui.visuals().weak_text_color(),
-            ));
-        }
+    }
+    for annotation in view
+        .annotations()
+        .into_iter()
+        .filter(|annotation| annotation.content.is_empty())
+    {
+        let mut cursor = CCursor::new(annotation.content.start);
+        cursor.prefer_next_row = true;
+        let point = output.galley.pos_from_cursor(cursor);
+        let hint = painter.layout_no_wrap(
+            annotation.kind.placeholder(),
+            editor.font.font_id(editor.size * ANNOTATION_SCALE, 2),
+            ui.visuals().weak_text_color(),
+        );
+        // Tous les textes indicatifs restent derrière le curseur et la sélection.
+        backgrounds.push(egui::Shape::galley(
+            output.galley_pos + point.min.to_vec2(),
+            hint,
+            ui.visuals().weak_text_color(),
+        ));
     }
     for label in boxes {
         let rect = label.rect.translate(output.galley_pos.to_vec2());
