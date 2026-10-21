@@ -1,0 +1,17 @@
+{
+  "reviewer": "Codex ; appréciation exploratoire sur le courrier C26, sans validation humaine indépendante. Les cinq répétitions servent à mesurer le temps ; elles ne sont pas cinq propositions différentes.",
+  "scope": "Dernier essai demandé : Qwen2.5-3B-Instruct Q4_K_M, même passage et mêmes paramètres que l'essai administratif précédent. Seul ajout au prompt : « Corrige les fautes et allège les lourdeurs sans renforcer le ton. » Aucun autre ajout. Metal sur M1 Max / 32 Gio, cinq requêtes chaudes après une première requête séparée.",
+  "conclusion": "L'ajout réduit l'emphase : « particulièrement crucial » et « dans les plus brefs délais » disparaissent. Le texte est plus court, mais « cette information sera utile pour être diffusée » reste maladroit et le caractère particulièrement important est conservé. Le potentiel d'utilisation formulé dans le texte source devient aussi plus affirmatif avec « sera utile ». Le gain reste insuffisant pour retenir cette fonction dans l'application. Conformément au choix conditionnel de l'utilisateur, la piste de reformulation locale avec ces petits modèles est mise de côté ; les essais sont conservés, sans nouvelle expérimentation automatique.",
+  "runs": {
+    "qwen-metal-user-3b-admin": {
+      "label": "Qwen 3B · prompt administratif précédent",
+      "note": "Référence avant l'ajout : « sujet particulièrement crucial » et « dans les plus brefs délais » renforcent le ton. Les phrases sont remaniées mais ne répondent pas assez à la demande de sobriété.",
+      "output_sha256": "4a559da0852e0b7bce4f5b048b55314b520e7b0ebd60372cfa5a86dc816baf54"
+    },
+    "qwen-metal-user-3b-admin-sobre": {
+      "label": "Qwen 3B · ajout sur les fautes, lourdeurs et le ton",
+      "note": "Ton moins appuyé, texte plus court et disparition des principales fautes orthographiques. La construction « cette information sera utile pour être diffusée » reste peu naturelle, la redondance sur l'importance persiste et « sera utile » affirme l'utilité au lieu de conserver sa seule possibilité. Résultat encore insuffisant pour le service attendu.",
+      "output_sha256": "d0270900cab3098afa3f58361e44dcb7f4526a5766bf5ed568f2bc993fdd7a8a"
+    }
+  }
+}

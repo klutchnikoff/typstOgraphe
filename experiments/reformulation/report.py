@@ -224,6 +224,9 @@ HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation
 HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --corpus corpus-user.json --prompt-file prompts/administratif-utilisateur.txt --repeats 5 --label qwen-metal-user-15b-admin
 HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --qwen-size 3b --corpus corpus-user.json --prompt-file prompts/administratif-utilisateur.txt --repeats 5 --label qwen-metal-user-3b-admin
 
+# Dernier essai 3B : seule la phrase d'allègement sans renforcement du ton est ajoutée.
+HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --qwen-size 3b --corpus corpus-user.json --prompt-file prompts/administratif-sobre.txt --repeats 5 --label qwen-metal-user-3b-admin-sobre
+
 output/reformulation/.venv/bin/python experiments/reformulation/report.py
 # Les appréciations sont liées au SHA-256 des sorties effectivement relues.
 # En cas de sortie différente, les relire : ne pas recycler automatiquement les notes.
@@ -244,10 +247,10 @@ a{color:var(--accent)}p{max-width:100ch}small,.scores,.checks{color:var(--muted)
 <p><small>typstOgraphe · expérimentation du 21 octobre 2026 · génération entièrement locale</small></p>
 <h1>Reformuler sans changer les faits</h1>
 <p class='lead'>CATIE french_paraphrase_flan-t5-base et Qwen2.5-Instruct (1,5B et 3B), sur Apple M1 Max avec 32 Gio de mémoire.</p>
-<nav><a href='#prompt-administratif'>Votre prompt administratif</a><a href='#qwen-plus-grand'>Qwen 1,5B / 3B</a><a href='#exemple-utilisateur'>Votre exemple fautif</a><a href='#mesures'>Mesures</a><a href='#qualite'>Qualité</a><a href='#passages'>20 passages</a><a href='#complement'>5 textes maladroits</a><a href='#integration'>Intégration Rust</a><a href='#protocole'>Protocole et reproduction</a></nav>
-<div class='banner'><strong>Le premier corpus vérifie surtout la conservation des faits ; il ne suffit pas à juger l’aide à la rédaction sur un texte fautif.</strong>
-<p>Les compléments fournis par l’utilisateur testent la correction et l’allègement des lourdeurs avec plusieurs consignes. Le prompt administratif améliore certains points avec le 3B, mais le ton reste amplifié ; le 1,5B invente encore « par votre ordre ». Aucun modèle ni moteur n’est choisi pour l’application à ce stade.</p></div>
-""" + comparison_section("admin-prompt-review.json", "prompt-administratif", "Votre prompt administratif : essai sans modification") + comparison_section("qwen-size-review.json", "qwen-plus-grand", "Qwen 1,5B et 3B sur le même courrier fautif") + user_section + """
+<nav><a href='#dernier-essai'>Dernier essai et décision</a><a href='#prompt-administratif'>Votre prompt administratif</a><a href='#qwen-plus-grand'>Qwen 1,5B / 3B</a><a href='#exemple-utilisateur'>Votre exemple fautif</a><a href='#mesures'>Mesures</a><a href='#qualite'>Qualité</a><a href='#passages'>20 passages</a><a href='#complement'>5 textes maladroits</a><a href='#integration'>Intégration Rust</a><a href='#protocole'>Protocole et reproduction</a></nav>
+<div class='banner'><strong>La reformulation locale avec les petits modèles testés est mise de côté pour l’application.</strong>
+<p>Le dernier ajout au prompt rend le 3B moins emphatique, mais des maladresses subsistent. Le bénéfice reste insuffisant pour notre usage. Les mesures et les sorties brutes sont conservées ; aucune intégration ni poursuite automatique des essais n’est prévue.</p></div>
+""" + comparison_section("admin-sober-review.json", "dernier-essai", "Dernier essai du 3B : allègement sans renforcer le ton") + comparison_section("admin-prompt-review.json", "prompt-administratif", "Votre prompt administratif : essai sans modification") + comparison_section("qwen-size-review.json", "qwen-plus-grand", "Qwen 1,5B et 3B sur le même courrier fautif") + user_section + """
 <h2 id='mesures'>Latence et mémoire</h2>
 <p>40 requêtes mesurées par configuration (20 passages × 2), après une première requête séparée. Durée jusqu’au texte complet ; P95 au rang le plus proche, sur ce petit échantillon. La plus longue sélection fait environ 110 mots. Aucune sortie tronquée.</p>
 <div class='scroll'><table><thead><tr><th>Configuration</th><th>Médiane</th><th>P95</th><th>Maximum</th><th>Premier jeton, médiane</th><th>Pic RSS</th><th>Empreinte macOS</th></tr></thead><tbody>

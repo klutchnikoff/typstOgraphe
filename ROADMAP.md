@@ -184,22 +184,15 @@ conserve texte, métadonnées, modèle et ressources.
   accès aux caractères utiles lorsque la saisie ordinaire ne suffit pas.
 - **P3 :** correction grammaticale et suggestions de rédaction, avec acceptation
   explicite ; le texte de l’utilisateur ne doit pas être réécrit silencieusement.
-- **P3, piste à préciser ensemble :** reformulation d’une sélection avec un petit
-  LLM local. Choisir le moteur, le modèle, les ressources matérielles nécessaires
-  et l’interface de comparaison/acceptation ; chantier distinct de l’orthographe.
-  Les [essais locaux du 21 octobre 2026](experiments/reformulation/report.html)
-  comparent CATIE FLAN-T5 et Qwen2.5 1.5B (qualité, latence, mémoire) sur des
-  passages synthétiques. Les deux configurations présentent des défauts de
-  fidélité ou de langue ; aucun modèle n’est retenu pour l’application à ce stade.
-  L’intégration Rust reste possible via une bibliothèque embarquée ; le moteur
-  et le téléchargement facultatif des poids restent à choisir ensemble.
-  Le complément sur un courrier fautif fourni par l’utilisateur distingue
-  correction, amélioration stylistique et fidélité : la consigne courte aide
-  Qwen sur ce passage, mais les lourdeurs restent. La suite de l’évaluation
-  devra privilégier des textes réellement maladroits, avec une consigne stable.
-  Un essai Qwen2.5-3B avec la même consigne courte n’améliore pas ce courrier
-  de façon convaincante ; latence et mémoire augmentent. Mesures et sorties
-  brutes sont conservées dans le même rapport, sans choix d’intégration.
+- **P3, piste mise de côté après essais :** reformulation d’une sélection avec
+  un petit modèle local, chantier distinct de l’orthographe. Les
+  [essais du 21 octobre 2026](experiments/reformulation/report.html) comparent
+  CATIE FLAN-T5 et Qwen2.5 1,5B/3B (qualité, latence et mémoire), puis plusieurs
+  consignes sur un courrier fautif fourni par l’utilisateur. Le dernier ajout
+  au prompt réduit l’emphase du 3B, mais des maladresses et des écarts de
+  fidélité subsistent ; le gain est insuffisant pour retenir la fonction.
+  Aucun modèle n’est intégré. Les scripts, mesures et sorties brutes sont
+  conservés ; une éventuelle reprise sera décidée ensemble.
 
 **Choix ensemble :** interface et périmètre de recherche (corps, annotations,
 métadonnées), présentation des suggestions, langues et dictionnaires,
