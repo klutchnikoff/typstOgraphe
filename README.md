@@ -5,6 +5,10 @@ avec egui/eframe et le moteur Typst embarqué. Le POC validé évolue vers
 l’application : Courrier et Compte-rendu de réunion sont les deux premiers types.
 Le projet reste en développement préliminaire.
 
+La [feuille de route](ROADMAP.md) regroupe les chantiers, les priorités proposées,
+leurs dépendances et les décisions à prendre ensemble avant chaque étape.
+Ce README décrit les fonctionnalités actuellement disponibles.
+
 ## Lancer
 
 Prérequis : Rust **1.92 ou supérieur**. Typst, les polices et le modèle sont

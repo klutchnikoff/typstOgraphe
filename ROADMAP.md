@@ -1,0 +1,312 @@
+# Feuille de route de typstOgraphe
+
+Document de travail établi le **21 octobre 2026**, à faire évoluer au fil des
+décisions et des réalisations. Le POC est validé ; l’application continue à être
+construite dans ce dépôt. Cette feuille de route ne constitue pas un calendrier.
+Le [README](README.md) décrit les fonctions déjà disponibles et leur utilisation.
+
+## Comment nous avançons
+
+**À chaque étape, les choix principaux sont discutés et validés ensemble avant
+leur implémentation.** L’accord sur cette feuille de route ne vaut pas validation
+anticipée des interfaces, des dépendances ou des comportements encore à définir.
+
+Pour chaque étape :
+
+1. Choisir ensemble un périmètre limité et un résultat concret pour l’utilisateur.
+2. Présenter les décisions nécessaires : comportement, interface ou maquette,
+   conséquences sur les documents et principales options techniques.
+3. Consigner les choix retenus ici ou dans une note liée, puis implémenter.
+4. Vérifier le fonctionnement et les cas importants, faire un essai ensemble,
+   puis actualiser l’état du chantier et choisir la suite.
+
+Les détails ordinaires de mise en œuvre restent du ressort du développement.
+Une découverte qui change sensiblement le périmètre ou les choix validés doit
+revenir dans la discussion avant de poursuivre la partie concernée.
+
+## Principes retenus
+
+- Une application macOS, Windows et Linux, d’abord individuelle et locale.
+- Un utilisateur rédige sans voir de code ; les créateurs de modèles travaillent
+  en pur Typst, avec une interface publique simple et une implémentation libre.
+- Les types sont intégrés en Rust : métadonnées, capacités et contrat des modèles.
+- Le source Typst restreint reste la référence du contenu, avec des métadonnées
+  séparées et un modèle embarqué dans un fichier unique `.typsto`.
+- La présentation de l’éditeur reste cohérente entre les types et indépendante
+  de la présentation finale, qui appartient au modèle.
+- Les commandes publiques passent par un registre commun aux menus, à la palette,
+  aux boutons et aux raccourcis, complété selon le type de document.
+- La langue du document est indépendante de celle de l’interface. L’interface
+  suit par défaut le système, avec le français comme langue de repli.
+- La composition typographique appartient à Typst et aux modèles. Nous vérifions
+  les besoins non couverts avant d’ajouter des corrections dans l’éditeur.
+- Le collaboratif reste une évolution possible, secondaire. Nous préservons la
+  séparation entre contenu, opérations et interface, sans construire dès maintenant
+  une infrastructure de collaboration.
+- Aucun mécanisme de rétrocompatibilité n’est requis pendant cette phase
+  préliminaire. Le format et les contrats peuvent évoluer pour rester simples.
+
+## Point de départ
+
+Les éléments suivants existent déjà ; leur présence ne signifie pas que tous
+les cas d’usage sont aboutis :
+
+- Éditeur visuel egui, rendu Typst réel, navigation dans les deux sens et
+  surlignage de la sélection dans l’aperçu.
+- Paragraphes, titres 1–3, gras, italique, liens, trois formes de listes,
+  citations en bloc avec attribution, images avec légende et texte alternatif.
+- Enregistrement et réouverture d’un fichier autonome, export PDF et sources Typst.
+- Session documentaire et historique commun au texte, aux métadonnées et au modèle.
+- Types Courrier et Compte-rendu de réunion, création vierge et premiers modèles.
+- Import d’un modèle autonome dans le document courant et validation de son appel.
+- Menus, palette, registre de commandes, préférences visuelles et internationalisation.
+- Contrôles automatisés sur macOS, Windows et Linux ; les essais manuels Windows
+  et Linux restent à faire.
+
+La récupération après incident, la recherche, les correcteurs, les tableaux,
+les notes, les références bibliographiques, les profils et la bibliothèque
+persistante de modèles restent à développer.
+
+## Priorités proposées
+
+Ces priorités servent à choisir les prochaines étapes ensemble. Elles ne fixent
+pas encore l’ordre de chaque fonctionnalité au sein d’un chantier.
+
+| Priorité | But | Chantiers concernés |
+| --- | --- | --- |
+| **P0 — Protection du travail** | Pouvoir reprendre son travail après un incident | A ; vérifications transversales I |
+| **P1 — Usage quotidien utile** | Rédiger, corriger et produire un vrai courrier ou compte-rendu | B, C pour les tableaux et notes, D, premier périmètre E et H |
+| **P2 — Organisation et documents longs** | Retrouver ses documents et structurer des contenus plus riches | G, suite C et E, rapport puis mémoire dans H |
+| **P3 — Extensions** | Convertir entre types et approfondir l’assistance | F, correction grammaticale avancée dans B, capacités spécialisées dans C |
+
+L’accessibilité, les performances, les traductions et les vérifications
+multiplateformes accompagnent chaque étape ; elles ne sont pas reportées en bloc
+à la fin du projet.
+
+## A. Fiabilité et cycle de vie des documents — P0, puis P1/P2
+
+**Objectif :** conserver le travail, reprendre un document et comprendre les
+éventuels incidents.
+
+- **P0 :** récupération des documents modifiés après arrêt inattendu, y compris
+  d’un document qui n’a encore jamais été enregistré.
+- **P0 :** restauration proposée au redémarrage, erreurs d’écriture explicites,
+  vérification des scénarios d’échec et de fermeture.
+- **P1 :** enregistrement automatique configurable, en distinguant sauvegarde du
+  fichier et copie de récupération.
+- **P1 :** détection des modifications externes et gestion des conflits d’accès.
+- **P1 :** export PDF et Typst plus direct, impression et accès au fichier enregistré.
+- **P2 :** plusieurs documents ouverts, avec une gestion claire des modifications.
+
+**Choix ensemble :** emplacement et fréquence de récupération, durée de conservation,
+comportement de restauration, éventuelle sauvegarde automatique du fichier,
+réaction aux modifications externes et fenêtres ou onglets pour plusieurs documents.
+
+**Validation :** une interruption ou une erreur d’écriture ne remplace pas le
+dernier fichier valide ; la reprise est compréhensible et le travail récupéré
+conserve texte, métadonnées, modèle et ressources.
+
+## B. Outils de rédaction — P1, puis P2/P3
+
+**Objectif :** faciliter la saisie et la révision sans exposer le source.
+
+- **P1 :** rechercher/remplacer dans le document ou la sélection, recherche
+  suivante/précédente, casse et mots entiers, annulation des remplacements.
+- **P1 :** correction orthographique selon la langue du document, suggestions,
+  mots ignorés et dictionnaire personnel.
+- **P1/P2 :** copier/coller structuré pour les styles et blocs pris en charge,
+  avec une option pour coller du texte seul ; collage d’images.
+- **P2 :** déplacer et dupliquer des paragraphes ou des blocs, navigation par titres,
+  affichage facultatif des caractères invisibles.
+- **P2 :** personnalisation persistante des raccourcis dans les préférences et
+  accès aux caractères utiles lorsque la saisie ordinaire ne suffit pas.
+- **P3 :** correction grammaticale et suggestions de rédaction, avec acceptation
+  explicite ; le texte de l’utilisateur ne doit pas être réécrit silencieusement.
+
+**Choix ensemble :** interface et périmètre de recherche (corps, annotations,
+métadonnées), présentation des suggestions, langues et dictionnaires,
+fonctionnement local ou service facultatif pour les correcteurs, formats de collage.
+Tout recours à un service externe doit faire l’objet d’un choix explicite.
+
+**Validation :** les opérations respectent Unicode, les frontières des structures,
+les mises en forme et l’historique ; le correcteur suit la langue du document,
+indépendamment de la langue de l’interface.
+
+## C. Capacités documentaires Typst — P1 à P3
+
+**Objectif :** proposer des structures simples à éditer, composées par le modèle.
+
+- **P1 :** tableaux simples : en-tête, lignes et colonnes, édition au clavier,
+  ajout/suppression, alignement et légende facultative.
+- **P1 :** notes de bas de page : insertion, édition, suppression et navigation
+  entre l’appel et le contenu de la note.
+- **P2 :** citations bibliographiques et bibliographie, distinctes des citations
+  en bloc déjà présentes ; import et conservation des références nécessaires.
+- **P2 :** renvois internes vers titres, figures, tableaux et autres éléments
+  identifiables ; numérotation calculée sans saisie manuelle.
+- **P2 :** table des matières et, selon les types, listes des figures et tableaux.
+- **P2/P3 :** saut de page explicite et autres contrôles de composition réellement
+  nécessaires, à exposer avec parcimonie.
+- **P3 :** équations en ligne et en bloc, blocs de code et structures spécialisées
+  selon les besoins des types scientifiques ou techniques.
+
+### Capacités communes et activation par type
+
+Une capacité doit être implémentée une seule fois et réutilisée dans les types
+qui la proposent. Cette organisation est retenue comme direction ; sa forme
+exacte en Rust reste à définir avant d’ajouter les prochaines structures.
+
+| Niveau | Responsabilité |
+| --- | --- |
+| Application | Commandes, paramètres, édition visuelle et production du source Typst de la capacité |
+| Type intégré | Capacités disponibles, métadonnées et contrat à respecter par les modèles |
+| Modèle Typst | Présentation, numérotation, valeurs par défaut et personnalisations autorisées |
+| Document | Contenu et paramètres propres à son usage |
+
+Une note ou une citation bibliographique doit donc avoir la même interface dans
+les types où elle est présente, avec un rendu défini par chaque modèle. Ajouter
+une capacité ne signifie pas la rendre disponible dans tous les types.
+
+**Choix ensemble :** liste des capacités par type, paramètres publics minimaux,
+édition des structures imbriquées, numérotation et options laissées au modèle.
+Pour les tableaux : limites initiales, cellules riches ou simples, fusions éventuelles.
+Pour la bibliographie : format des références, saisie/import et éventuelle intégration
+à un gestionnaire de références. Pour les équations : mode de saisie accessible.
+
+**Validation :** une structure s’édite, se sélectionne, s’annule, se sauvegarde et
+se rouvre sans perte ; son aperçu et ses exports respectent le modèle. La
+synchronisation doit prendre en compte les nouveaux contenus.
+
+## D. Profils personnels et signatures — P1
+
+**Objectif :** créer un document avec ses coordonnées sans les ressaisir.
+
+- Profil personnel, puis plusieurs identités : personnelle, professionnelle,
+  associative, par exemple.
+- Coordonnées, fonction, organisme, logo et image de signature.
+- Valeurs proposées à la création et modifiables dans les paramètres du document.
+- Ressources nécessaires copiées dans le document pour préserver son autonomie.
+
+**Choix ensemble :** champs, nombre de profils au premier périmètre, sélection du
+profil, insertion de signature et comportement lors d’un changement d’identité.
+La copie des valeurs dans le document, sans mise à jour rétroactive après une
+modification du profil, est la proposition à confirmer.
+
+La signature envisagée ici est une image ; une signature électronique
+cryptographique constituerait un chantier distinct.
+
+## E. Bibliothèque persistante de modèles — P1, puis P2
+
+**Objectif :** réutiliser des modèles personnels ou d’organisation au-delà d’un
+seul document. L’import dans le document courant existe déjà.
+
+- **P1 :** installer, retrouver, choisir et retirer un modèle ; description,
+  type associé, provenance et modèle par défaut.
+- **P1 :** importer ses ressources et vérifier son contrat avant utilisation.
+- **P1 :** conserver dans le document une copie autonome du modèle et des ressources.
+- **P2 :** aperçu, favoris, variantes, remplacement et gestion des mises à jour.
+- **P2 :** documentation pour les créateurs, exemple minimal par type et diagnostics
+  compréhensibles lors d’un contrat invalide.
+
+**Choix ensemble :** format de distribution des modèles et ressources, stockage
+local, identification des versions, polices et imports autorisés, comportement
+lors d’une mise à jour. Proposition : mettre à jour un modèle installé ne change
+les documents existants que sur demande.
+
+**Validation typographique :** vérifier des exemples concrets selon les langues
+(guillemets, ponctuation double, espaces, nombres et unités). Utiliser Typst et
+des règles de modèle réutilisables ; compléter l’éditeur uniquement pour des
+besoins non couverts identifiés. Ne pas recréer un moteur de composition en Rust.
+
+## F. Conversion entre types — P3
+
+**Objectif :** réutiliser un contenu dans un autre cadre documentaire.
+
+- Distinguer le changement de modèle au sein du même type, déjà possible, de la
+  conversion vers un autre type.
+- Définir les correspondances entre métadonnées et conserver les capacités communes.
+- Expliquer les structures non prises en charge par la cible et proposer leur
+  transformation sans suppression silencieuse.
+- Présenter un bilan avant validation.
+
+**Choix ensemble :** premiers couples de types convertibles, correspondances,
+traitement des contenus incompatibles et création d’un nouveau document plutôt
+que remplacement de l’original. Une conversion sans perte n’est pas garantie
+pour tous les couples de types.
+
+**Dépendances :** capacités des types et métadonnées suffisamment stabilisées ;
+au moins deux usages réels permettant de justifier une conversion.
+
+## G. Barre latérale et organisation — P2
+
+**Objectif :** retrouver rapidement ses documents et les réglages du logiciel.
+
+- Documents récents, favoris, création et accès au fichier ou dossier d’origine.
+- Dossiers de travail ou projets légers, sans imposer la gestion d’un projet informatique.
+- Accès à la bibliothèque de modèles, aux profils et aux préférences globales.
+- Plan du document et navigation par titres, dans un contexte clairement identifiable.
+- Panneau repliable pour préserver la place de rédaction et d’aperçu.
+
+**Choix ensemble :** sens de « projet », regroupement des documents, distinction
+entre navigation globale et plan du document, maquette et comportement sur petite
+fenêtre. L’organisation par dossiers ou projets reste à décider.
+
+## H. Types et modèles utiles — P1, puis P2
+
+**Objectif :** disposer de quelques parcours complets avec un modèle utilisable,
+au-delà des démonstrations fictives.
+
+- **P1 : Courrier**, avec un modèle personnel utile et un modèle professionnel
+  ou administratif ; raccordement au profil et à la signature.
+- **P1 : Compte-rendu de réunion**, avec un modèle utilisable à titre personnel :
+  intitulé, date, lieu/visioconférence, rédacteur, participants, personnes excusées
+  et corps libre. Ces métadonnées ont déjà été validées et sont implémentées.
+- **P2 : Note ou rapport court**, pour éprouver les tableaux, notes et renvois.
+- **P2 : Mémoire ou rapport long**, après les références bibliographiques, renvois,
+  sommaire et vérifications sur des documents longs.
+
+« Personnel », « professionnel » ou « institutionnel » peut désigner un modèle
+d’un même type. Nous ne créons un nouveau type que si ses métadonnées, ses
+capacités ou son contrat le justifient.
+
+**Choix ensemble :** usage précis, métadonnées, champs obligatoires, capacités,
+paramètres publics et maquette du modèle pour chaque type. Le périmètre du
+mémoire et sa proximité avec le rapport restent à définir.
+
+**Validation :** créer un document vierge, le rédiger, le reprendre, changer de
+modèle compatible et produire un PDF utilisable ; les modèles fonctionnent sans
+coordonnées ni ressources fictives imposées.
+
+## I. Qualité transversale — à chaque étape
+
+- Vérifications adaptées aux changements : contenu Unicode, aller-retour du
+  fichier, historique, compilation Typst et export.
+- Essais manuels macOS, Windows et Linux : menus, dialogues, presse-papiers,
+  claviers, saisie IME et fermeture. La CI ne remplace pas ces essais.
+- Accessibilité : noms des commandes, navigation clavier, focus, contraste,
+  lecteurs d’écran et textes alternatifs ; identifier les limites d’egui.
+- Traductions maintenues avec les nouvelles fonctions ; séparation entre langues
+  de l’interface, du document et du correcteur.
+- Mesures sur documents représentatifs : latence de saisie, compilation,
+  défilement, mémoire et traitement des images ; optimiser selon les résultats.
+- Préparation d’une distribution installable : paquets par système, identité
+  de l’application, association `.typsto`, puis signature et mises à jour selon
+  le mode de diffusion choisi ensemble.
+
+## Ordre de réalisation proposé
+
+| Étape | Résultat attendu | Décisions principales avant de coder |
+| --- | --- | --- |
+| 1 | Reprendre un travail après incident (A) | Politique de récupération et parcours de restauration |
+| 2 | Rechercher/remplacer confortablement (B) | Périmètre, interface, raccourcis et remplacements globaux |
+| 3 | Corriger l’orthographe (B) | Moteur, dictionnaires, langues et interface des suggestions |
+| 4 | Produire un courrier et un compte-rendu utiles (D, E, H) | Profils/signature, modèles réels et premier périmètre de bibliothèque |
+| 5 | Enrichir les documents courants (C, B) | Architecture des capacités, tableaux, notes et collage structuré |
+| 6 | Retrouver et organiser son travail (G, A) | Barre latérale, dossiers/projets et plusieurs documents |
+| 7 | Rédiger des documents longs (C, H) | Bibliographie, renvois, sommaire, rapport et mémoire |
+| 8 | Étendre les usages (F, B, C) | Conversions, grammaire avancée et besoins spécialisés |
+
+Chaque ligne sera découpée en étapes plus petites. Les dépendances concrètes
+peuvent conduire à revoir cet ordre ensemble. Le premier choix à discuter est
+le périmètre de récupération du travail ; aucune de ces nouvelles étapes n’est
+considérée comme commencée par la rédaction de cette feuille de route.
