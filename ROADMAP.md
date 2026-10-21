@@ -240,6 +240,36 @@ indépendamment de la langue de l’interface.
 - **P3 :** équations en ligne et en bloc, blocs de code et structures spécialisées
   selon les besoins des types scientifiques ou techniques.
 
+### Décision préalable à l’étape 5 : modèle d’édition
+
+**À discuter et valider ensemble avant d’implémenter les tableaux.** L’éditeur
+repose aujourd’hui sur le `TextEdit` d’egui : un tampon plat avec des caractères
+sentinelles (objet image `\u{fffc}`, séparateur de description `\t`) et une
+`Projection` (styles par caractère, type par ligne). Les tableaux (cellules,
+navigation, lignes et colonnes) sont le cas le plus exigeant pour ce modèle.
+
+- **Prototype borné d’abord** : en début d’étape, essayer l’édition de tableaux
+  dans le modèle actuel, pour une durée limitée, et juger si elle tient.
+- **Trois voies** :
+  1. conserver le `TextEdit` d’egui et les sentinelles ;
+  2. un éditeur propre à l’application sur la pile texte Rust (`parley` ou
+     `cosmic-text`, `accesskit`), avec le texte en cours de composition hors du
+     tampon ; coût estimé à plusieurs mois, à confirmer par un prototype ;
+  3. un éditeur web (ProseMirror ou CodeMirror 6) : cela suppose soit toute
+     l’interface en web, soit une webview intégrée dont les widgets egui ne peuvent
+     pas recouvrir le contenu, et un moteur Rust resté maître de l’état
+     (transactions envoyées au moteur) pour éviter une double source de vérité.
+- **Critères de bascule** (l’un suffit à rouvrir la question) : échecs de saisie
+  (touches mortes, composition IME) impossibles à corriger dans le `TextEdit` ;
+  besoin de co-édition en temps réel ; priorité à une version web ou Nextcloud ;
+  tableaux impossibles à tenir dans le tampon plat.
+- **Investissement sans regret à discuter** : un modèle de document en arbre
+  (blocs, puis séquences en ligne) dans le cœur, la `Projection` plate devenant un
+  adaptateur pour egui. Il sert aussi bien un éditeur propre, une vue web qu’un CRDT.
+- **Éléments à instruire avant** : tests de composition et de touches mortes,
+  tests aléatoires du modèle (caractères sentinelles collés depuis l’extérieur) et
+  résultat du chantier J (moteur de commandes sans interface).
+
 ### Capacités communes et activation par type
 
 Une capacité doit être implémentée une seule fois et réutilisée dans les types
@@ -536,7 +566,7 @@ coordonnées ni ressources fictives imposées.
 | 2 | Rechercher/remplacer confortablement (B) | Périmètre, interface, raccourcis et remplacements globaux |
 | 3 | Corriger l’orthographe (B) | Moteur, dictionnaires, langues et interface des suggestions |
 | 4 | Produire un courrier et un compte-rendu utiles (D, E, H) | Profils/signature, modèles réels et premier périmètre de bibliothèque |
-| 5 | Enrichir les documents courants (C, B) | Architecture des capacités, tableaux, notes et collage structuré |
+| 5 | Enrichir les documents courants (C, B) | Modèle d’édition (voir « Décision préalable à l’étape 5 » du chantier C), architecture des capacités, tableaux, notes et collage structuré |
 | 6 | Retrouver et organiser son travail (G, A) | Barre latérale, dossiers/projets et plusieurs documents |
 | 7 | Rédiger des documents longs (C, H) | Bibliographie, renvois, sommaire, rapport et mémoire |
 | 8 | Étendre les usages (F, B, C) | Conversions, grammaire avancée et besoins spécialisés |
