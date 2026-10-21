@@ -398,6 +398,16 @@ au-delà des démonstrations fictives.
   L'accueil ne crée aucun document et Fermer y revient, avec confirmation des
   modifications éventuelles. Prochaine validation : essai utilisateur et essai
   papier à 100 % dans une enveloppe réelle.
+- **En-tête du courrier :** Général, Destinataire (identité/adresse), Informations
+  (objet, référence, lieu, date) et Expéditeur. La date reste dans Informations ;
+  son format relève du modèle, sans onglet de réglages typographiques.
+  « Aujourd'hui » insère la date locale calculée par Chrono ; `today`,
+  `aujourd'hui` et `aujourd’hui` sont des raccourcis de saisie résolus aussitôt en
+  date fixe, jamais des valeurs évolutives. Les dates numériques reconnues
+  (`JJ/MM/AAAA` ou ISO) sont conservées en ISO ; les libellés libres restent
+  possibles. Le modèle personnel compose les dates ISO avec les noms de mois
+  selon la langue du document, dont « 1er » en exposant en français. L'annulation,
+  l'enregistrement et la réouverture conservent la date choisie.
 - **P1 : Compte-rendu de réunion**, avec un modèle utilisable à titre personnel :
   intitulé, date, lieu/visioconférence, rédacteur, participants, personnes excusées
   et corps libre. Ces métadonnées ont déjà été validées et sont implémentées.

@@ -4,6 +4,27 @@
 // Feuille A4 pliée à 99 et 198 mm. Vérification papier à 100 % indispensable.
 #let editor-options = (bullet-markers: (), custom-bullet-marker: false)
 
+// Les dates fixes ISO viennent du document ; le modèle choisit leur présentation.
+// Les libellés libres restent possibles (par exemple « mars 2026 »).
+#let date-courrier(valeur, langue) = {
+  if valeur.match(regex("^\\d{4}-\\d{2}-\\d{2}$")) == none { return valeur }
+  let morceaux = valeur.split("-").map(int)
+  let jour = datetime(year: morceaux.at(0), month: morceaux.at(1), day: morceaux.at(2))
+  let mois = (
+    fr: ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"),
+    en: ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"),
+    de: ("Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"),
+    es: ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"),
+    it: ("gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"),
+    pt: ("janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"),
+    nl: ("januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"),
+  ).at(langue).at(jour.month() - 1)
+  let numero = if langue == "fr" and jour.day() == 1 { [1#super[er]] } else { str(jour.day()) }
+  if langue == "de" { [#numero. #mois #jour.year()] }
+  else if langue in ("es", "pt") { [#numero de #mois de #jour.year()] }
+  else { [#numero #mois #jour.year()] }
+}
+
 #let courrier(
   expediteur: "",
   fonction: "",
@@ -125,7 +146,7 @@
   // Seul le premier feuillet réserve une grande zone pour les adresses.
   v(63mm)
   let datation = if date == "" { lieu } else {
-    (if lieu == "" { "" } else { lieu + ", " }) + labels.date-prefix + date
+    [#if lieu != "" { [#lieu, ] }#labels.date-prefix#date-courrier(date, options.language)]
   }
   if datation != "" { align(right, datation); v(7mm) }
   if objet != "" { block(below: 3mm, strong[#labels.subject : #objet]) }

@@ -1,5 +1,5 @@
 //! Compte-rendu de réunion : contrat intégré, présentation en pur Typst.
-use super::{FieldGroup, ModelContract, TextField};
+use super::{FieldGroup, FieldKind, ModelContract, TextField};
 use crate::document::DocumentOptions;
 use serde::{Deserialize, Serialize};
 
@@ -34,6 +34,7 @@ macro_rules! field {
             label_key: $label,
             group: $group,
             multiline: $multiline,
+            kind: FieldKind::Text,
             required_for_export: $required,
             get: |m: &Metadata| &m.$name,
             get_mut: |m: &mut Metadata| &mut m.$name,
@@ -42,7 +43,10 @@ macro_rules! field {
 }
 pub const FIELDS: &[TextField<Metadata>] = &[
     field!(titre, "field-meeting-title", "meeting", false, true),
-    field!(date, "field-date", "meeting", false, false),
+    TextField {
+        kind: FieldKind::Date,
+        ..field!(date, "field-date", "meeting", false, false)
+    },
     field!(lieu, "field-meeting-place", "meeting", false, false),
     field!(redacteur, "field-minutes-author", "meeting", false, false),
     field!(participants, "field-attendees", "attendees", true, false),

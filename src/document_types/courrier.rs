@@ -1,5 +1,5 @@
 //! Le type Courrier : données, contrat du modèle et commandes propres au type.
-use super::{FieldGroup, ModelContract, TextField};
+use super::{FieldGroup, FieldKind, ModelContract, TextField};
 use crate::document::DocumentOptions;
 use serde::{Deserialize, Serialize};
 
@@ -73,6 +73,7 @@ macro_rules! field {
             label_key: $label,
             group: $group,
             multiline: $multiline,
+            kind: FieldKind::Text,
             required_for_export: $required,
             get: |m: &Metadata| &m.$name,
             get_mut: |m: &mut Metadata| &mut m.$name,
@@ -119,7 +120,7 @@ pub const FIELDS: &[TextField<Metadata>] = &[
         destinataire,
         "recipient",
         "field-recipient",
-        "correspondence",
+        "recipient",
         false,
         true
     ),
@@ -127,7 +128,7 @@ pub const FIELDS: &[TextField<Metadata>] = &[
         adresse,
         "address",
         "field-address",
-        "correspondence",
+        "recipient",
         true,
         false
     ),
@@ -135,7 +136,7 @@ pub const FIELDS: &[TextField<Metadata>] = &[
         objet,
         "subject",
         "field-subject",
-        "correspondence",
+        "information",
         false,
         true
     ),
@@ -143,17 +144,24 @@ pub const FIELDS: &[TextField<Metadata>] = &[
         reference,
         "reference",
         "field-reference",
-        "correspondence",
+        "information",
         false,
         false
     ),
-    field!(lieu, "place", "field-place", "correspondence", false, false),
-    field!(date, "date", "field-date", "correspondence", false, false),
+    field!(lieu, "place", "field-place", "information", false, false),
+    TextField {
+        kind: FieldKind::Date,
+        ..field!(date, "date", "field-date", "information", false, false)
+    },
 ];
 pub const GROUPS: &[FieldGroup] = &[
     FieldGroup {
-        id: "correspondence",
-        label_key: "group-correspondence",
+        id: "recipient",
+        label_key: "group-recipient",
+    },
+    FieldGroup {
+        id: "information",
+        label_key: "group-letter-information",
     },
     FieldGroup {
         id: "sender",
@@ -175,20 +183,57 @@ mod tests {
     use crate::document_types::{DocumentType, Metadata as DocumentMetadata};
     use crate::rendering::TypstWorld;
 
+    use typst::layout::{Frame, FrameItem};
+    fn text(frame: &Frame) -> String {
+        let mut result = String::new();
+        for (_, item) in frame.items() {
+            match item {
+                FrameItem::Group(group) => result.push_str(&text(&group.frame)),
+                FrameItem::Text(run) => result.push_str(&run.text),
+                _ => {}
+            }
+        }
+        result
+    }
+
+    #[test]
+    fn fixed_dates_are_presented_by_the_model_in_the_document_language() {
+        use crate::document::DocumentLanguage;
+        let template = Model::Personal.source();
+        let mut world = TypstWorld::default();
+        let mut metadata = DocumentMetadata::blank(DocumentType::Courrier);
+        metadata.courrier_mut().date = "2026-10-01".into();
+        metadata.courrier_mut().lieu = "Rennes".into();
+        for (language, month) in [
+            (DocumentLanguage::French, "octobre"),
+            (DocumentLanguage::English, "October"),
+            (DocumentLanguage::German, "Oktober"),
+            (DocumentLanguage::Spanish, "octubre"),
+            (DocumentLanguage::Italian, "ottobre"),
+            (DocumentLanguage::Portuguese, "outubro"),
+            (DocumentLanguage::Dutch, "oktober"),
+        ] {
+            metadata.options_mut().language = language;
+            let document = world
+                .compile_with_template("Bonjour.", &metadata, &template)
+                .unwrap();
+            let rendered = text(&document.pages()[0].frame);
+            assert!(rendered.contains(month), "{rendered}");
+            assert!(rendered.contains("2026"));
+            assert!(!rendered.contains("2026-10-01"));
+            if language == DocumentLanguage::French {
+                assert!(rendered.contains("1er"));
+            }
+        }
+        let custom = template.replace("#date-courrier(date, options.language)", "#date");
+        let document = world
+            .compile_with_template("Bonjour.", &metadata, &custom)
+            .unwrap();
+        assert!(text(&document.pages()[0].frame).contains("2026-10-01"));
+    }
+
     #[test]
     fn personal_window_letter_compiles_in_app_and_keeps_addresses_on_first_page() {
-        use typst::layout::{Frame, FrameItem};
-        fn text(frame: &Frame) -> String {
-            let mut result = String::new();
-            for (_, item) in frame.items() {
-                match item {
-                    FrameItem::Group(group) => result.push_str(&text(&group.frame)),
-                    FrameItem::Text(run) => result.push_str(&run.text),
-                    _ => {}
-                }
-            }
-            result
-        }
         let template = include_str!("../../templates/courrier-personnel.typ");
         let mut world = TypstWorld::default();
         let mut metadata = DocumentMetadata::blank(DocumentType::Courrier);

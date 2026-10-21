@@ -3414,12 +3414,16 @@ impl App {
             meta.destinataire = "Secrétariat de la mairie".into();
             meta.objet = "Confirmation de notre rendez-vous".into();
             meta.lieu = "Rennes".into();
-            meta.date = "21 octobre 2026".into();
+            meta.date = "2026-10-21".into();
         }
         self.session.document.view.insert_text("Madame, Monsieur,\n\nJe vous confirme notre rendez-vous pour préparer la prochaine rencontre de l’association.\n\nJe vous remercie pour votre disponibilité.\n\nBien cordialement,", 0);
         self.remember(before, false);
         self.preferences_page = PreferencesPage::Profile;
         self.preferences_open = preferences;
+        if !preferences {
+            self.information_group = InformationGroup::Fields("information");
+            self.information_open = true;
+        }
     }
     pub fn ui_frame(&mut self, ctx: &egui::Context) {
         if ctx.input(|input| input.viewport().close_requested())
@@ -3660,6 +3664,31 @@ impl eframe::App for App {
 mod interaction_tests {
     use super::*;
     use crate::document_types::models::Model;
+
+    #[test]
+    fn today_button_keeps_a_fixed_date_through_history_and_reopening() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.create_document(DocumentType::Courrier);
+        app.information_open = true;
+        app.information_group = InformationGroup::Fields("information");
+        let source = app.session.document.source().to_owned();
+        recovery_click(&mut app, &ctx, &crate::tr!("date-today"));
+        let fixed = app.session.metadata.courrier().date.clone();
+        assert_eq!(fixed, crate::dates::today());
+        app.apply(Command::Undo);
+        assert!(app.session.metadata.courrier().date.is_empty());
+        app.apply(Command::Redo);
+        assert_eq!(app.session.metadata.courrier().date, fixed);
+        assert_eq!(app.session.document.source(), source);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("date-fixe.typsto");
+        assert!(app.save_path(path.clone()));
+        app.close_document();
+        assert!(app.open_path(path));
+        assert_eq!(app.session.metadata.courrier().date, fixed);
+        assert!(!app.is_dirty());
+    }
 
     #[test]
     fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
@@ -5018,6 +5047,7 @@ mod interaction_tests {
             output
                 .shapes
                 .iter()
+                .rev()
                 .find_map(|shape| {
                     if let egui::Shape::Text(text) = &shape.shape
                         && text.galley.text() == label
@@ -5631,7 +5661,7 @@ mod interaction_tests {
         let closed = draw(&mut app, vec![]);
         let header = text_rect(&closed, "Général");
         assert!(header.top() > icon_rect(&closed, &ctx, crate::icons::Icon::Heading).bottom());
-        for label in ["Correspondance", "Expéditeur"] {
+        for label in ["Destinataire", "Informations", "Expéditeur"] {
             let button = text_rect(&closed, label);
             assert_eq!(button.center().y, header.center().y);
         }
@@ -5651,7 +5681,7 @@ mod interaction_tests {
         assert_eq!(app.session.revision, revision);
         assert_eq!(text_rect(&opened, "Aperçu Typst"), preview);
         assert!(has_text(&opened, "Format du papier"));
-        assert!(!has_text(&opened, "Destinataire"));
+        assert!(!has_text(&opened, "Adresse"));
         assert!(!has_text(&opened, "Nom complet"));
         // Même à la taille minimale de la fenêtre, le formulaire reste dans la
         // colonne de gauche et laisse une zone de rédaction utilisable.
@@ -5666,7 +5696,7 @@ mod interaction_tests {
         let sender = draw(&mut app, vec![]);
         assert!(has_text(&sender, "Nom complet"));
         assert!(!has_text(&sender, "Format du papier"));
-        assert!(!has_text(&sender, "Destinataire"));
+        assert!(!has_text(&sender, "Adresse"));
         let sender_button = text_rect(&sender, "Expéditeur");
         click(&mut app, &mut draw, sender_button.center());
         let collapsed = draw(&mut app, vec![]);
@@ -5685,7 +5715,7 @@ mod interaction_tests {
         click(
             &mut app,
             &mut draw,
-            text_rect(&reopened, "Correspondance").center(),
+            text_rect(&reopened, "Informations").center(),
         );
         draw(&mut app, vec![]);
         let correspondence = draw(&mut app, vec![]);
@@ -5738,7 +5768,7 @@ mod interaction_tests {
         click(
             &mut app,
             &mut draw,
-            text_rect(&current, "Correspondance").center(),
+            text_rect(&current, "Informations").center(),
         );
         draw(&mut app, vec![]);
         assert!(!app.information_open);

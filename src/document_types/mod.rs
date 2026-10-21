@@ -153,12 +153,18 @@ pub struct FieldGroup {
     pub id: &'static str,
     pub label_key: &'static str,
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FieldKind {
+    Text,
+    Date,
+}
 pub struct TextField<T: 'static> {
     pub parameter: &'static str,
     pub editor_id: &'static str,
     pub label_key: &'static str,
     pub group: &'static str,
     pub multiline: bool,
+    pub kind: FieldKind,
     pub required_for_export: bool,
     pub get: fn(&T) -> &str,
     pub get_mut: fn(&mut T) -> &mut String,
@@ -231,15 +237,47 @@ fn fields_ui<T>(ui: &mut egui::Ui, metadata: &mut T, fields: &[TextField<T>], gr
             for field in fields.iter().filter(|f| f.group == group) {
                 let label = ui.label(crate::i18n::text(field.label_key));
                 let value = (field.get_mut)(metadata);
-                let widget = if field.multiline {
-                    egui::TextEdit::multiline(value).desired_rows(3)
-                } else {
-                    egui::TextEdit::singleline(value)
+                let is_date = field.kind == FieldKind::Date;
+                let edit = |ui: &mut egui::Ui, value: &mut String, width| {
+                    let widget = if field.multiline {
+                        egui::TextEdit::multiline(value).desired_rows(3)
+                    } else {
+                        egui::TextEdit::singleline(value)
+                    };
+                    let widget = widget.id_salt(field.editor_id).desired_width(width);
+                    if is_date {
+                        widget.hint_text(crate::tr!("date-input-hint"))
+                    } else {
+                        widget
+                    }
+                    .show(ui)
                 };
-                let output = widget
-                    .id_salt(field.editor_id)
-                    .desired_width(width)
-                    .show(ui);
+                let output = if is_date {
+                    ui.horizontal_wrapped(|ui| {
+                        let mut output = edit(ui, value, (width - 100.0).max(80.0));
+                        let entered = value.clone();
+                        let today = ui
+                            .button(crate::tr!("date-today"))
+                            .on_hover_text(crate::tr!("date-today-help"))
+                            .clicked();
+                        if today || crate::dates::is_today(value) {
+                            *value = crate::dates::today();
+                        } else if output.response.lost_focus() || value.trim().len() == 10 {
+                            crate::dates::normalize(value);
+                        }
+                        if *value != entered {
+                            output.state.cursor.set_char_range(Some(
+                                egui::text::CCursorRange::one(egui::text::CCursor::new(
+                                    value.chars().count(),
+                                )),
+                            ));
+                        }
+                        output
+                    })
+                    .inner
+                } else {
+                    edit(ui, value, width)
+                };
                 let response = output.response.labelled_by(label.id);
                 let mut state = output.state;
                 state.clear_undoer();

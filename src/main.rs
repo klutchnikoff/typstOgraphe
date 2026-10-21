@@ -4,6 +4,7 @@ mod annotations;
 mod app;
 mod assets;
 mod commands;
+mod dates;
 mod document;
 mod document_types;
 mod editor;
