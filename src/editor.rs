@@ -157,9 +157,6 @@ pub fn layout(
         if kind == BlockKind::Description && in_term {
             format.font_id.size *= DESCRIPTION_LABEL_SCALE;
         }
-        if character == '\n' {
-            format.line_height = Some(editor.size * 2.0);
-        }
         let mut leading = if at_line_start && kind.is_list() {
             editor.size * 22.0 / 18.0
         } else {
@@ -658,6 +655,25 @@ pub fn paint_decorations(
     let mut clicked_term = None;
     let ranges = view.line_ranges();
     for (line, range) in ranges.iter().enumerate() {
+        if range.is_empty()
+            && line > 0
+            && line + 1 < ranges.len()
+            && matches!(view.blocks[line], BlockKind::Paragraph | BlockKind::Quote)
+        {
+            let mut cursor = CCursor::new(range.start);
+            cursor.prefer_next_row = true;
+            let row = output.galley.pos_from_cursor(cursor);
+            let marker = painter.layout_no_wrap(
+                "¶".into(),
+                editor.font.font_id(editor.size * 0.75, 0),
+                ui.visuals().weak_text_color(),
+            );
+            backgrounds.push(egui::Shape::galley(
+                output.galley_pos + egui::vec2(row.left(), row.center().y - marker.size().y / 2.0),
+                marker,
+                ui.visuals().weak_text_color(),
+            ));
+        }
         if matches!(view.blocks[line], BlockKind::Image(_)) {
             let rect =
                 image_frame(&output.galley, range.clone()).translate(output.galley_pos.to_vec2());
@@ -788,6 +804,60 @@ pub fn paint_decorations(
 mod tests {
     use super::*;
     use crate::document::Document;
+
+    #[test]
+    fn paragraph_marker_is_visual_only_and_keeps_native_blank_line_cursors() {
+        fn markers(shape: &egui::Shape) -> usize {
+            match shape {
+                egui::Shape::Text(text) => usize::from(text.galley.text() == "¶"),
+                egui::Shape::Vec(shapes) => shapes.iter().map(markers).sum(),
+                _ => 0,
+            }
+        }
+        let ctx = egui::Context::default();
+        install_fonts(&ctx);
+        for theme in [egui::Theme::Light, egui::Theme::Dark] {
+            ctx.set_theme(theme);
+            let mut document = Document::from_source("Un\nDeux\n\nTrois").unwrap();
+            let original = document.clone();
+            let editor = EditorStyle::default();
+            let output = ctx.run(egui::RawInput::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let view = document.view.clone();
+                    let mut layouter = |ui: &egui::Ui, text: &dyn TextBuffer, width| {
+                        layout(ui, &view, text.as_str(), width, editor)
+                    };
+                    let background = ui.painter().add(egui::Shape::Noop);
+                    let output = egui::TextEdit::multiline(&mut document.view)
+                        .layouter(&mut layouter)
+                        .show(ui);
+                    paint_decorations(ui, &document.view, &output, editor, background);
+                    assert_eq!(output.galley.job.text, "Un\nDeux\n\nTrois");
+                    let mut cursor = CCursor::new(8);
+                    cursor.prefer_next_row = true;
+                    let blank = output.galley.pos_from_cursor(cursor);
+                    let next = output.galley.pos_from_cursor(CCursor::new(9));
+                    assert!((next.top() - blank.top() - editor.size * 1.55).abs() < 1.0);
+                    assert_eq!(
+                        output
+                            .galley
+                            .cursor_from_pos((blank.center() + egui::vec2(8.0, 0.0)).to_vec2())
+                            .index,
+                        8
+                    );
+                });
+            });
+            assert_eq!(
+                output
+                    .shapes
+                    .iter()
+                    .map(|shape| markers(&shape.shape))
+                    .sum::<usize>(),
+                1
+            );
+            assert_eq!(document, original);
+        }
+    }
 
     #[test]
     fn image_layout_keeps_native_indices_wrapping_and_caption_inside_the_frame() {

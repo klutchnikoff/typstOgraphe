@@ -51,6 +51,11 @@ les commandes du registre, comme les menus de l’application et la palette.
   l’utilisation d’un bouton.
 - Utiliser `⌘B`, `⌘I`, `⌘K` sur macOS, ou `Ctrl+B`, `Ctrl+I`, `Ctrl+K`.
 - Annuler avec `⌘Z` / `Ctrl+Z`. Rétablir avec `⌘⇧Z` / `Ctrl+Y`.
+- Dans le texte courant, Entrée ajoute un retour simple, traité comme une
+  espace par Typst dans le même paragraphe. Deux retours créent un nouveau
+  paragraphe. Les retours supplémentaires se limitent à une seule ligne vide,
+  repérée par un petit **¶** discret dans l’éditeur. Ce repère visuel reste
+  absent du contenu, du comptage et des exports.
 - Ouvrir la palette avec `⌘⇧P` / `Ctrl+Shift+P`. Rechercher une commande,
   utiliser les flèches, puis Entrée.
 - En début de paragraphe : `= `, `== `, `=== ` pour les titres, `- ` pour
@@ -74,7 +79,7 @@ les commandes du registre, comme les menus de l’application et la palette.
   la repère dans l’éditeur, y compris les lignes repliées. La zone facultative
   **Attribution / source** apparaît sous son texte, dans un style distinct.
   `Tab` rejoint cette zone et `Maj+Tab` revient au début de la citation.
-  Entrée poursuit la citation ; sur un paragraphe vide ou dans l’attribution,
+  Entrée poursuit la citation ; sur une ligne vide ou dans l’attribution,
   Entrée crée un paragraphe normal après le bloc.
 - Saisir `*texte*` ou `_texte_` pour convertir la saisie en gras ou italique.
 - Entrée sur un élément de liste vide permet de sortir de la liste.

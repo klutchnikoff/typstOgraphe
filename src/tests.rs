@@ -6,6 +6,81 @@ use crate::document_types::{
 use eframe::egui::TextBuffer;
 
 #[test]
+fn soft_newlines_and_paragraph_breaks_round_trip_with_unicode_styles_and_blocks() {
+    for source in [
+        "Été\nNoël\n\nSuite.",
+        "Été\n",
+        "Été\n\n",
+        "Un *été\nà Noël*\n\nSuite.",
+        "= Titre\nSuite\n\n- Un\n- Deux\n\nFin.",
+        "#quote(block: true)[Un\nété\n\nUne seconde idée.]\n\nSuite.",
+    ] {
+        let mut document = Document::from_source(source).unwrap();
+        let original = document.view.clone();
+        document.sync_source();
+        let restored = Document::from_source(document.source()).unwrap();
+        assert_eq!(restored.view, original, "{source:?}");
+        assert!(!document.source().contains('¶'));
+        for (index, character) in document.view.text.chars().enumerate() {
+            if !character.is_whitespace() {
+                assert_eq!(
+                    document
+                        .source_map
+                        .to_visible(document.source_map.to_source(index)),
+                    index
+                );
+            }
+        }
+    }
+    let mut document = Document::from_source("Été\n\n\n\nNoël").unwrap();
+    assert_eq!(document.view.text, "Été\n\nNoël");
+    document.sync_source();
+    assert_eq!(document.source(), "Été\n\nNoël");
+    let mut projection = Projection::default();
+    projection.insert_text("Un\r\n\r\n\r\nDeux", 0);
+    assert_eq!(projection.text, "Un\n\nDeux");
+    assert_eq!(projection.insert_text("\n", 3), 0);
+    assert_eq!(projection.text, "Un\n\nDeux");
+}
+
+#[test]
+fn real_typst_keeps_a_soft_newline_on_the_same_line_and_starts_a_new_paragraph_after_two() {
+    use typst::layout::{Frame, FrameItem};
+    fn runs(frame: &Frame, y: f64, result: &mut Vec<(String, f64)>) {
+        for (position, item) in frame.items() {
+            let y = y + position.y.to_pt();
+            match item {
+                FrameItem::Group(group) => runs(&group.frame, y, result),
+                FrameItem::Text(text) => result.push((text.text.to_string(), y)),
+                _ => {}
+            }
+        }
+    }
+    let mut document = Document::from_source("Alpha\nBeta\n\nGamma").unwrap();
+    document.sync_source();
+    assert_eq!(document.source(), "Alpha\nBeta\n\nGamma");
+    let mut world = crate::rendering::TypstWorld::default();
+    let template = "#let courrier(..args, body) = { set page(width: 200mm, height: 200mm); set par(spacing: 20pt); body }";
+    let rendered = world
+        .compile_with_template(
+            document.source(),
+            &Metadata::demo(DocumentType::Courrier),
+            template,
+        )
+        .unwrap();
+    let mut text = Vec::new();
+    runs(&rendered.pages()[0].frame, 0.0, &mut text);
+    let at = |word: &str| {
+        text.iter()
+            .find(|(value, _)| value.contains(word))
+            .unwrap()
+            .1
+    };
+    assert!((at("Alpha") - at("Beta")).abs() < 0.01, "{text:?}");
+    assert!(at("Gamma") - at("Beta") > 20.0, "{text:?}");
+}
+
+#[test]
 fn demo_projects_native_typst_without_exposing_source() {
     let document = Document::demo();
     assert!(document.view.text.contains("jeudi 12 novembre 2026"));
@@ -300,6 +375,8 @@ fn selecting_to_the_start_of_next_paragraph_excludes_it() {
         [
             BlockKind::Heading(1),
             BlockKind::Paragraph,
+            BlockKind::Paragraph,
+            BlockKind::Paragraph,
             BlockKind::Paragraph
         ]
     );
@@ -319,6 +396,7 @@ fn inserting_and_deleting_paragraphs_keeps_structure_aligned() {
         document.view.blocks,
         [
             BlockKind::Heading(1),
+            BlockKind::Paragraph,
             BlockKind::Paragraph,
             BlockKind::Paragraph
         ]

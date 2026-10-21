@@ -2234,6 +2234,48 @@ mod interaction_tests {
     use crate::document_types::courrier::Model;
 
     #[test]
+    fn native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopening() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        app.document = Document::from_source("Alpha").unwrap();
+        app.selection = editor::cursor(5..5);
+        app.force_selection = true;
+        frame(&mut app, &ctx, vec![]);
+        let key = |key| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        assert_eq!(app.document.source(), "Alpha\n");
+        frame(&mut app, &ctx, vec![egui::Event::Text("Beta".into())]);
+        assert_eq!(app.document.source(), "Alpha\nBeta");
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        assert_eq!(app.document.view.text, "Alpha\nBeta\n\n");
+        frame(&mut app, &ctx, vec![egui::Event::Text("Gamma".into())]);
+        let paragraphs = app.document.clone();
+        app.selection = editor::cursor(12..12);
+        app.force_selection = true;
+        app.typing_group = false;
+        frame(&mut app, &ctx, vec![]);
+        frame(&mut app, &ctx, vec![key(egui::Key::Backspace)]);
+        assert_eq!(app.document.source(), "Alpha\nBeta\nGamma");
+        app.apply(Command::Undo);
+        assert_eq!(app.document, paragraphs);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("paragraphes.typsto");
+        assert!(app.save_path(path.clone()));
+        assert!(app.open_path(path));
+        assert_eq!(app.document.view, paragraphs.view);
+        assert_eq!(app.document.source(), paragraphs.source());
+        assert!(!app.document.source().contains('¶'));
+    }
+
+    #[test]
     fn compact_toolbar_and_status_show_unicode_totals_selection_and_tooltips() {
         fn text_rect(output: &egui::FullOutput, label: &str) -> Option<egui::Rect> {
             output.shapes.iter().find_map(|shape| match &shape.shape {
@@ -4332,12 +4374,14 @@ mod interaction_tests {
         app.apply(Command::Block(BlockKind::Quote));
         assert_eq!(app.selection.primary.index, 0);
         assert_eq!(app.selection.secondary.index, 3);
-        assert_eq!(app.document.view.text, "Un.\n\nDeux.\nTrois.");
+        assert_eq!(app.document.view.text, "Un.\n\n\nDeux.\n\nTrois.");
         assert_eq!(
             app.document.view.blocks,
             [
                 BlockKind::Quote,
                 BlockKind::QuoteAttribution,
+                BlockKind::Paragraph,
+                BlockKind::Paragraph,
                 BlockKind::Paragraph,
                 BlockKind::Paragraph
             ]
@@ -4350,7 +4394,7 @@ mod interaction_tests {
         assert_eq!(app.document, original);
         app.selection = editor::cursor(0..8);
         app.apply(Command::Block(BlockKind::Quote));
-        assert_eq!(app.document.view.quote_groups()[0].body, 0..2);
+        assert_eq!(app.document.view.quote_groups()[0].body, 0..3);
         app.selection = editor::cursor(0..app.document.view.len());
         app.apply(Command::Block(BlockKind::Paragraph));
         assert!(

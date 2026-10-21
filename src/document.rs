@@ -133,6 +133,7 @@ impl Document {
             ..Default::default()
         };
         parser.markup(markup, &InlineStyle::default())?;
+        parser.finish();
         parser.view.typing_style = InlineStyle::default();
         Ok(Self {
             source: source.to_owned(),
@@ -161,6 +162,7 @@ impl Document {
     pub fn sync_source(&mut self) -> Vec<usize> {
         let mut inserted = self.view.ensure_description_separators();
         inserted.extend(self.view.ensure_quote_attributions());
+        inserted.extend(self.view.ensure_list_boundaries());
         (self.source, self.source_map) = self.view.to_typst_mapped();
         inserted
     }
@@ -215,7 +217,16 @@ impl Projection {
             .unwrap_or_default()
     }
     pub fn set_block(&mut self, range: Range<usize>, kind: BlockKind) {
+        let lines = self.line_ranges();
+        let selected = !range.is_empty();
         for index in self.selected_lines(range) {
+            if selected
+                && lines[index].is_empty()
+                && self.blocks[index] == BlockKind::Paragraph
+                && kind != BlockKind::Quote
+            {
+                continue;
+            }
             if matches!(self.blocks[index], BlockKind::Image(_)) {
                 continue;
             }
@@ -360,6 +371,23 @@ impl Projection {
         }
         inserted
     }
+    /// Sans ligne vide, Typst lirait le texte suivant comme la suite de la liste.
+    fn ensure_list_boundaries(&mut self) -> Vec<usize> {
+        let mut inserted = Vec::new();
+        for (line, range) in self.line_ranges().into_iter().enumerate().rev() {
+            if line > 0
+                && self.blocks[line - 1].is_list()
+                && self.blocks[line] == BlockKind::Paragraph
+                && !range.is_empty()
+            {
+                let at = range.start - 1;
+                self.insert_text("\n", at);
+                self.blocks[line] = BlockKind::Paragraph;
+                inserted.push(at);
+            }
+        }
+        inserted
+    }
     pub fn mark_state(&self, range: Range<usize>, mark: Mark) -> (bool, bool) {
         let enabled = |s: &InlineStyle| match mark {
             Mark::Bold => s.bold,
@@ -442,12 +470,7 @@ impl Projection {
             let kind = self.blocks[index];
             if index > 0 {
                 let start = result.len();
-                let previous = self.blocks[index - 1];
-                result.push_str(if previous == kind && kind.is_list() {
-                    "\n"
-                } else {
-                    "\n\n"
-                });
+                result.push('\n');
                 origins[ranges[index].start - 1] = start..result.len();
             }
             if let BlockKind::Image(id) = kind {
@@ -492,7 +515,7 @@ impl Projection {
                 for line in index..end {
                     if line > index {
                         let start = result.len();
-                        result.push_str("\n\n");
+                        result.push('\n');
                         origins[ranges[line].start - 1] = start..result.len();
                     }
                     self.write_inline_line(line, &mut result, &mut origins);
@@ -597,12 +620,53 @@ impl TextBuffer for Projection {
     }
     fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
         let mut text = text.replace("\r\n", "\n").replace('\r', "\n");
+        let at = char_index.min(self.len());
+        let line = self.line_at(at);
+        // Un séparateur de paragraphes occupe exactement une ligne vide.
+        // Les retours excédentaires d’une saisie ou d’un collage sont superflus.
+        if self.blocks[line] == BlockKind::Paragraph {
+            let mut consecutive = self.text[..self.byte_index(at)]
+                .chars()
+                .rev()
+                .take_while(|c| *c == '\n')
+                .count()
+                .min(
+                    self.blocks[..line]
+                        .iter()
+                        .rev()
+                        .take_while(|kind| **kind == BlockKind::Paragraph)
+                        .count(),
+                );
+            text.retain(|c| {
+                if c == '\n' {
+                    if consecutive >= 2 {
+                        return false;
+                    }
+                    consecutive += 1;
+                } else {
+                    consecutive = 0;
+                }
+                true
+            });
+            let following = self.text[self.byte_index(at)..]
+                .chars()
+                .take_while(|c| *c == '\n')
+                .count()
+                .min(
+                    self.blocks[line + 1..]
+                        .iter()
+                        .take_while(|kind| **kind == BlockKind::Paragraph)
+                        .count(),
+                );
+            let trailing = text.chars().rev().take_while(|c| *c == '\n').count();
+            for _ in 0..trailing.min((consecutive + following).saturating_sub(2)) {
+                text.pop();
+            }
+        }
         let count = text.chars().count();
         if count == 0 {
             return 0;
         }
-        let at = char_index.min(self.len());
-        let line = self.line_at(at);
         let image_before = match self.blocks[line] {
             BlockKind::Image(id) if at == self.line_ranges()[line].start => Some(id),
             _ => None,
@@ -690,6 +754,7 @@ fn escape_markup(text: &str) -> String {
 struct Projector {
     view: Projection,
     pending_break: bool,
+    pending_newlines: usize,
     source: Option<typst_syntax::Source>,
     origin: Range<usize>,
     origins: Vec<Range<usize>>,
@@ -697,13 +762,23 @@ struct Projector {
 impl Projector {
     fn ensure_block(&mut self, kind: BlockKind) {
         if self.pending_break && !self.view.text.is_empty() {
-            self.view.push("\n", &InlineStyle::default());
-            self.origins.push(self.origin.start..self.origin.start);
+            let count = self.pending_newlines.max(1);
+            self.view.push(&"\n".repeat(count), &InlineStyle::default());
+            self.origins.extend(std::iter::repeat_n(
+                self.origin.start..self.origin.start,
+                count,
+            ));
         }
         if let Some(last) = self.view.blocks.last_mut() {
             *last = kind;
         }
         self.pending_break = false;
+        self.pending_newlines = 0;
+    }
+    fn finish(&mut self) {
+        if self.pending_newlines > 0 {
+            self.ensure_block(BlockKind::Paragraph);
+        }
     }
     fn append(&mut self, text: &str, style: &InlineStyle) {
         if self.pending_break {
@@ -738,14 +813,29 @@ impl Projector {
                     self.append(if quote.double() { "\"" } else { "'" }, style)
                 }
                 Expr::Space(_) => {
-                    if !self.pending_break
+                    let newline = self
+                        .source
+                        .as_ref()
+                        .and_then(|source| source.text().get(self.origin.clone()))
+                        .is_some_and(|space| space.contains('\n'));
+                    if newline && self.pending_break {
+                        self.pending_newlines = self.pending_newlines.max(1);
+                    } else if newline
+                        && !self.view.text.is_empty()
+                        && self.view.blocks.last() == Some(&BlockKind::Paragraph)
+                    {
+                        self.append("\n", &InlineStyle::default());
+                    } else if !self.pending_break
                         && !self.view.text.is_empty()
                         && !self.view.text.ends_with([' ', '\n'])
                     {
                         self.append(" ", style);
                     }
                 }
-                Expr::Parbreak(_) => self.pending_break = true,
+                Expr::Parbreak(_) => {
+                    self.pending_break = true;
+                    self.pending_newlines = 2;
+                }
                 Expr::Strong(strong) => {
                     let mut nested = style.clone();
                     nested.bold = true;
