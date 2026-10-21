@@ -466,7 +466,9 @@ son fichier d’origine ne change donc pas le document enregistré.
 Dans l’éditeur, chaque image forme un bloc avec une vignette proportionnelle
 et une légende facultative juste dessous, à l’intérieur du même cadre. Un filet
 fin centré sur 80 % de la largeur sépare l’image de la légende ; le cadre suit
-la hauteur de la légende quand elle occupe plusieurs lignes.
+la hauteur de la légende quand elle occupe plusieurs lignes. La légende
+reprend le style de l’attribution des citations : texte plus petit, italique et
+bleu atténué, indépendant du modèle Typst.
 **Ajouter une légende…** est un texte
 indicatif, jamais enregistré dans le source. La légende accepte les styles et
 les liens. Un clic sur l’image la sélectionne et affiche **Remplacer…**,
@@ -474,7 +476,8 @@ les liens. Un clic sur l’image la sélectionne et affiche **Remplacer…**,
 alternatif ; supprimer le bloc retire aussi sa légende. Ces actions s’annulent
 et se rétablissent avec l’historique du document.
 
-`Tab` rejoint le début de la légende. `Entrée` poursuit la rédaction dans un
+`Tab` rejoint le début de la légende, même vide, avec le curseur natif visible
+et un défilement pour rendre la zone accessible. `Entrée` poursuit la rédaction dans un
 paragraphe normal après l’image. Au début de la légende, `Retour arrière`
 sélectionne l’objet ; une seconde pression supprime le bloc. L’éditeur reste
 une zone de sélection continue, avec un caractère objet interne par image.

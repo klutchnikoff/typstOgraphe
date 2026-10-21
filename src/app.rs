@@ -848,6 +848,7 @@ impl App {
                     let mut cursor = CCursor::new(start + 1);
                     cursor.prefer_next_row = true;
                     self.selection = CCursorRange::one(cursor);
+                    self.editor_scroll_pending = true;
                 } else {
                     let before = self.snapshot();
                     let end = lines[line].end;
@@ -2268,6 +2269,88 @@ impl eframe::App for App {
 mod interaction_tests {
     use super::*;
     use crate::document_types::courrier::Model;
+
+    #[test]
+    fn tab_places_the_native_caret_in_an_empty_image_caption() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        // Vérifier la géométrie réellement peinte, indépendamment du clignotement.
+        ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
+        app.document =
+            Document::from_source("#figure(image(\"images/parc.svg\"))\n\nSuite.").unwrap();
+        app.document.assets.insert(
+            "images/parc.svg".into(),
+            include_bytes!("../tests/fixtures/parc.svg")
+                .as_slice()
+                .into(),
+        );
+        app.selection = editor::cursor(0..1);
+        app.force_selection = true;
+        let mut time = 0.0;
+        let mut draw = |app: &mut App, events| {
+            time += 0.1;
+            ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1240.0, 900.0),
+                    )),
+                    time: Some(time),
+                    events,
+                    focused: true,
+                    ..Default::default()
+                },
+                |ctx| app.ui_frame(ctx),
+            )
+        };
+        draw(&mut app, vec![]);
+        let tab = || egui::Event::Key {
+            key: egui::Key::Tab,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        for _ in 0..2 {
+            let output = draw(&mut app, vec![tab()]);
+            assert_eq!(app.range(), 1..1);
+            assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
+            fn caption_hint(shape: &egui::Shape) -> Option<egui::Pos2> {
+                match shape {
+                    egui::Shape::Text(text)
+                        if text.galley.text() == crate::tr!("image-caption-placeholder") =>
+                    {
+                        Some(text.pos)
+                    }
+                    egui::Shape::Vec(shapes) => shapes.iter().find_map(caption_hint),
+                    _ => None,
+                }
+            }
+            let hint = output
+                .shapes
+                .iter()
+                .find_map(|shape| caption_hint(&shape.shape))
+                .expect("légende vide visible");
+            let caret = output
+                .platform_output
+                .ime
+                .expect("curseur natif du TextEdit")
+                .cursor_rect;
+            assert!(
+                (caret.top() - hint.y).abs() < 2.0,
+                "curseur {caret:?}, légende {hint:?}"
+            );
+            assert!((caret.left() - hint.x).abs() < 2.0);
+            assert!(caret.height() < app.preferences.editor.size * 2.0);
+            assert!(output.shapes.iter().any(|shape| matches!(shape.shape, egui::Shape::LineSegment { points, .. } if (points[0] - caret.center_top()).length() < 1.0 && (points[1] - caret.center_bottom()).length() < 1.0)), "le curseur doit être peint dans la légende");
+        }
+        draw(&mut app, vec![egui::Event::Text("Une légende.".into())]);
+        assert!(app.document.source().contains("caption: [Une légende.]"));
+        draw(&mut app, vec![tab()]);
+        assert_eq!(app.range(), 1..1);
+        draw(&mut app, vec![egui::Event::Text("Été : ".into())]);
+        assert!(app.document.view.text.contains("Été : Une légende."));
+    }
 
     #[test]
     fn discarded_images_in_memory_do_not_exhaust_the_document_size_limit() {

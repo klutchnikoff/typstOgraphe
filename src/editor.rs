@@ -75,9 +75,9 @@ fn text_format(
     editor: EditorStyle,
 ) -> TextFormat {
     let heading = matches!(kind, BlockKind::Heading(_));
+    let annotation = matches!(kind, BlockKind::QuoteAttribution | BlockKind::Image(_));
     let bold = style.bold || matches!(kind, BlockKind::Heading(1 | 2));
-    let italic =
-        style.italic || matches!(kind, BlockKind::Heading(3) | BlockKind::QuoteAttribution);
+    let italic = style.italic || annotation || matches!(kind, BlockKind::Heading(3));
     let variant = match (bold, italic) {
         (false, false) => 0,
         (true, false) => 1,
@@ -97,7 +97,7 @@ fn text_format(
             colors.bold
         } else if style.italic {
             colors.italic
-        } else if kind == BlockKind::QuoteAttribution {
+        } else if annotation {
             colors.accent.gamma_multiply(0.85)
         } else {
             colors.text
@@ -258,7 +258,7 @@ fn layout_quote_paragraphs(
             );
         }
         if matches!(kind, BlockKind::Image(_)) && text.starts_with(crate::document::IMAGE_OBJECT) {
-            paragraphs.push(layout_image(ui, local, editor));
+            paragraphs.push(layout_image(ui, local));
             start = end + 1;
             continue;
         }
@@ -283,70 +283,26 @@ fn layout_quote_paragraphs(
     Arc::new(Galley::concat(job, &paragraphs, ui.pixels_per_point()))
 }
 
-/// L’objet reste un seul caractère sélectionnable. Sa ligne visuelle précède
-/// les lignes de légende, sans ajouter de saut de paragraphe au texte réel.
-fn layout_image(ui: &egui::Ui, job: LayoutJob, editor: EditorStyle) -> Arc<Galley> {
-    let object_bytes = crate::document::IMAGE_OBJECT.len_utf8();
-    let mut object = LayoutJob::default();
-    object.append(
-        &crate::document::IMAGE_OBJECT.to_string(),
-        0.0,
-        TextFormat {
-            font_id: editor.font.font_id(editor.size, 0),
-            color: Color32::TRANSPARENT,
-            line_height: Some(IMAGE_HEIGHT),
-            ..Default::default()
-        },
-    );
-    let mut image = ui.fonts_mut(|f| f.layout_job(object));
+/// L’image occupe un espace au-dessus de sa légende. Son caractère objet est
+/// invisible, avec son avance compensée au début de la légende : celle-ci reste ainsi
+/// une vraie ligne native, même vide. Deux lignes partageant le même indice de
+/// curseur perdaient cette distinction lors du clamp effectué par le TextEdit.
+fn layout_image(ui: &egui::Ui, mut job: LayoutJob) -> Arc<Galley> {
     let width = job.wrap.max_width.max(1.0);
-    let composed = Arc::make_mut(&mut image);
-    for row in &mut composed.rows {
-        let row = Arc::make_mut(&mut row.row);
-        row.glyphs[0].pos.x = 0.0;
-        row.glyphs[0].advance_width = width;
-        row.size.x = width;
-        row.visuals.mesh.clear();
-        row.visuals.mesh_bounds = egui::Rect::NOTHING;
-        row.visuals.glyph_index_start = 0;
-        row.visuals.glyph_vertex_range = 0..0;
-        row.glyphs[0].first_vertex = 0;
-    }
-    composed.rect.max.x = width;
-    composed.mesh_bounds = egui::Rect::NOTHING;
-    composed.num_vertices = 0;
-    composed.num_indices = 0;
-    let mut caption = LayoutJob {
-        text: job.text[object_bytes..].into(),
-        wrap: job.wrap.clone(),
-        ..Default::default()
-    };
-    caption.wrap.max_width = (width - 2.0 * IMAGE_PADDING).max(1.0);
-    for section in &job.sections {
-        let start = section.byte_range.start.max(object_bytes);
-        if start < section.byte_range.end {
-            let mut part = section.clone();
-            part.byte_range = start - object_bytes..section.byte_range.end - object_bytes;
-            caption.sections.push(part);
-        }
-    }
-    if caption.sections.is_empty() {
-        caption.append(
-            "",
-            0.0,
-            TextFormat {
-                font_id: editor.font.font_id(editor.size * 0.9, 0),
-                line_height: Some(editor.size * 1.55),
-                ..Default::default()
-            },
-        );
-    }
-    let mut caption = ui.fonts_mut(|f| f.layout_job(caption));
+    job.wrap.max_width = (width - 2.0 * IMAGE_PADDING).max(1.0);
+    let object = &mut job.sections[0];
+    object.leading_space = -ui.fonts_mut(|fonts| {
+        fonts.glyph_width(&object.format.font_id, crate::document::IMAGE_OBJECT)
+    });
+    object.format.color = Color32::TRANSPARENT;
+    let mut caption = ui.fonts_mut(|f| f.layout_job(job));
     let inset = Arc::make_mut(&mut caption);
+    let top = IMAGE_HEIGHT + IMAGE_CAPTION_GAP;
     for row in &mut inset.rows {
-        row.pos.y += IMAGE_CAPTION_GAP;
+        row.pos.y += top;
         let row = Arc::make_mut(&mut row.row);
-        // Les positions des glyphes sont aussi celles utilisées par les curseurs.
+        // Déplacer les glyphes plutôt que row.pos.x garde les correspondances
+        // entre clics et curseurs utilisées par egui.
         for glyph in &mut row.glyphs {
             glyph.pos.x += IMAGE_PADDING;
         }
@@ -359,21 +315,15 @@ fn layout_image(ui: &egui::Ui, job: LayoutJob, editor: EditorStyle) -> Arc<Galle
             .translate(egui::vec2(IMAGE_PADDING, 0.0));
         row.size.x += IMAGE_PADDING;
     }
-    inset.rect = inset
-        .rect
-        .translate(egui::vec2(IMAGE_PADDING, IMAGE_CAPTION_GAP));
-    inset.mesh_bounds = inset
-        .mesh_bounds
-        .translate(egui::vec2(IMAGE_PADDING, IMAGE_CAPTION_GAP));
-    let mut merged = Galley::concat(Arc::new(job), &[image, caption], ui.pixels_per_point());
-    // concat sépare normalement des paragraphes. Ici la frontière est seulement
-    // un repli de ligne : aucun caractère supplémentaire ne doit être compté.
-    Arc::make_mut(&mut merged.rows[0].row).ends_with_newline = false;
-    Arc::new(merged)
+    inset.rect = inset.rect.translate(egui::vec2(IMAGE_PADDING, top));
+    inset.rect.max.x = width;
+    inset.mesh_bounds = inset.mesh_bounds.translate(egui::vec2(IMAGE_PADDING, top));
+    caption
 }
 
 fn image_frame(galley: &Galley, range: Range<usize>) -> egui::Rect {
-    let top = galley.pos_from_cursor(CCursor::new(range.start)).top();
+    let top =
+        galley.pos_from_cursor(CCursor::new(range.start)).top() - IMAGE_HEIGHT - IMAGE_CAPTION_GAP;
     let mut end = CCursor::new(range.end);
     end.prefer_next_row = range.len() == 1;
     let bottom = galley.pos_from_cursor(end).bottom() + IMAGE_PADDING;
@@ -500,18 +450,6 @@ pub fn paint_images(
                 egui::Align2::LEFT_TOP,
                 crate::tr!("image-label"),
                 editor.font.font_id(editor.size * 0.8, 0),
-                ui.visuals().weak_text_color(),
-            );
-        }
-        if range.len() == 1 {
-            let mut cursor = CCursor::new(range.start + 1);
-            cursor.prefer_next_row = true;
-            let point = output.galley.pos_from_cursor(cursor);
-            painter.text(
-                output.galley_pos + point.min.to_vec2(),
-                egui::Align2::LEFT_TOP,
-                crate::tr!("image-caption-placeholder"),
-                editor.font.font_id(editor.size * 0.9, 2),
                 ui.visuals().weak_text_color(),
             );
         }
@@ -722,6 +660,20 @@ pub fn paint_decorations(
                 5.0,
                 ui.visuals().faint_bg_color,
             ));
+            if range.len() == 1 {
+                let point = output.galley.pos_from_cursor(CCursor::new(range.start + 1));
+                let hint = painter.layout_no_wrap(
+                    crate::tr!("image-caption-placeholder"),
+                    editor.font.font_id(editor.size * 0.9, 2),
+                    ui.visuals().weak_text_color(),
+                );
+                // Le texte indicatif se place derrière le curseur natif.
+                backgrounds.push(egui::Shape::galley(
+                    output.galley_pos + point.min.to_vec2(),
+                    hint,
+                    ui.visuals().weak_text_color(),
+                ));
+            }
         }
     }
     for group in view.quote_groups() {
@@ -874,13 +826,12 @@ mod tests {
                                     .sum::<usize>(),
                                 document.view.len()
                             );
-                            let object = galley.pos_from_cursor(CCursor::new(range.start));
                             let mut caption = CCursor::new(range.start + 1);
                             caption.prefer_next_row = true;
-                            let position = galley.pos_from_cursor(caption);
-                            assert!(position.top() >= object.bottom());
-                            assert!(position.height() < object.height() / 4.0);
+                            let position = galley.pos_from_cursor(galley.clamp_cursor(&caption));
                             let frame = image_frame(&galley, range.clone());
+                            assert!(position.top() >= frame.top() + IMAGE_HEIGHT);
+                            assert!(position.height() < EditorStyle::default().size * 2.0);
                             let last = galley.pos_from_cursor(if range.len() == 1 {
                                 caption
                             } else {
@@ -1041,6 +992,31 @@ mod tests {
             .find(|s| s.byte_range.contains(&byte))
             .unwrap()
             .format
+    }
+
+    #[test]
+    fn image_captions_share_the_quote_attribution_style_without_altering_source() {
+        let source = "#figure(image(\"images/parc.svg\"), caption: [Légende.])\n\n#quote(block: true, attribution: [Attribution.])[Citation.]";
+        let document = Document::from_source(source).unwrap();
+        let ctx = egui::Context::default();
+        install_fonts(&ctx);
+        for theme in [egui::Theme::Light, egui::Theme::Dark] {
+            ctx.set_theme(theme);
+            let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    for font in EditorFont::ALL {
+                        let editor = EditorStyle { font, size: 20.0 };
+                        let galley = layout(ui, &document.view, &document.view.text, 500.0, editor);
+                        let caption = format_at(&galley, "Légende");
+                        let attribution = format_at(&galley, "Attribution");
+                        assert_eq!(caption.font_id, attribution.font_id);
+                        assert_eq!(caption.color, attribution.color);
+                        assert_eq!(caption.font_id, font.font_id(18.0, 2));
+                    }
+                });
+            });
+        }
+        assert_eq!(document.source(), source);
     }
 
     #[test]
