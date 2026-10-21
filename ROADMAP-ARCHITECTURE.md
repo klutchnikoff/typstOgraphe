@@ -142,6 +142,11 @@ contenu du crate `core`) ; 3 avant 4 ; 4 avant 5 (MCP réutilise les commandes, 
 schémas et les politiques de chemins de la CLI). Les phases 1 et 2 peuvent être
 interrompues entre deux PR sans laisser le dépôt dans un état intermédiaire.
 
+Autres chantiers : l'étape 5 de `ROADMAP.md` (tableaux, notes) vient après la phase 7.
+L'harmonisation de la présentation des blocs de l'éditeur (chantier B) vient après la
+phase 2, car les tâches 2.4.2 (structure et annotations) et 2.4.3 (images) réécrivent
+les mêmes comportements.
+
 ---
 
 ## Phase 0 — Garde-fous (taille S)

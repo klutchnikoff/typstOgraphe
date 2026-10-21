@@ -197,6 +197,10 @@ conserve texte, métadonnées, modèle et ressources.
   la gestion commune des annotations déjà présente. Valider les choix visuels
   ensemble avant l’implémentation ; vérifier les thèmes clair/sombre, les curseurs,
   les sélections et les lignes repliées. Le rendu final reste défini par le modèle.
+  **À entreprendre après la phase 2 du chantier J** (commandes strictes) : elle
+  migre vers des commandes les annotations, le focus, la navigation et les images,
+  que cette harmonisation touche aussi ; les mener ensemble obligerait à refaire
+  l’un des deux travaux.
 - **P2 :** déplacer et dupliquer des paragraphes ou des blocs, navigation par titres,
   affichage facultatif des caractères invisibles.
 - **P2 :** personnalisation persistante des raccourcis dans les préférences et
@@ -558,6 +562,29 @@ coordonnées ni ressources fictives imposées.
   de l’application, association `.typsto`, puis signature et mises à jour selon
   le mode de diffusion choisi ensemble.
 
+## J. Architecture, commandes, CLI et MCP — avant l’étape 5
+
+**État :** plan établi le 21 octobre 2026, décisions D1 à D14 validées ; aucune phase
+n’est démarrée. Le détail, les tâches et les critères de sortie sont dans
+[ROADMAP-ARCHITECTURE.md](ROADMAP-ARCHITECTURE.md).
+
+**Objectif :** un cœur indépendant de l’interface, dont toute action est une
+commande à identifiant stable, pilotable par une ligne de commande et par MCP.
+
+- **Phase 0 :** garde-fous, base chiffrée et comparaison de captures d’écran.
+- **Phase 1 :** découper `app.rs` (7 223 lignes) en modules, dans le même crate.
+- **Phase 2 :** commandes strictes, paramètres typés, lectures séparées des
+  écritures, moteur sans egui.
+- **Phase 3 :** espace de travail en quatre crates (`core`, `i18n`, application, CLI).
+- **Phase 4 :** CLI (commandes, scripts atomiques, vérification, exports).
+- **Phase 5 :** serveur MCP, accès aux fichiers refusé par défaut.
+- **Phase 6 :** canal de contrôle de l’application en cours d’exécution, reporté.
+- **Phase 7 :** consolidation et documentation.
+
+**Ordre avec les autres chantiers :** ce chantier passe avant l’étape 5.
+L’harmonisation de la présentation des blocs (chantier B) attend la fin de sa
+phase 2. La décision sur le modèle d’édition (chantier C) s’appuie sur son résultat.
+
 ## Ordre de réalisation proposé
 
 | Étape | Résultat attendu | Décisions principales avant de coder |
@@ -566,6 +593,7 @@ coordonnées ni ressources fictives imposées.
 | 2 | Rechercher/remplacer confortablement (B) | Périmètre, interface, raccourcis et remplacements globaux |
 | 3 | Corriger l’orthographe (B) | Moteur, dictionnaires, langues et interface des suggestions |
 | 4 | Produire un courrier et un compte-rendu utiles (D, E, H) | Profils/signature, modèles réels et premier périmètre de bibliothèque |
+| 4 bis | Architecture, commandes, CLI et MCP (J) | Décisions D1 à D14 validées ; voir [ROADMAP-ARCHITECTURE.md](ROADMAP-ARCHITECTURE.md) |
 | 5 | Enrichir les documents courants (C, B) | Modèle d’édition (voir « Décision préalable à l’étape 5 » du chantier C), architecture des capacités, tableaux, notes et collage structuré |
 | 6 | Retrouver et organiser son travail (G, A) | Barre latérale, dossiers/projets et plusieurs documents |
 | 7 | Rédiger des documents longs (C, H) | Bibliographie, renvois, sommaire, rapport et mémoire |
