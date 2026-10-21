@@ -115,7 +115,8 @@ y compris lorsque leur titre se répartit sur plusieurs lignes. L’espace avant
 les titres est plus grand que l’espace après eux.
 
 Le gras est rouille, l’italique vert bouteille ; le gras italique conserve la
-couleur rouille. Les teintes sont plus lumineuses en thème sombre. Les titres
+couleur rouille. En thème clair, les teintes sont soutenues et saturées pour se
+distinguer du texte courant ; en thème sombre, elles sont plus lumineuses. Les titres
 et les liens gardent leur couleur bleue ; les liens restent soulignés. Les
 filets, les espacements et l’italique visuel des H3 n’ajoutent aucun contenu ou
 style au source : le modèle reste responsable de toute la présentation produite
