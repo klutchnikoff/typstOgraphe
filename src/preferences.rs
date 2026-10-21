@@ -101,6 +101,7 @@ impl Preferences {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use eframe::Storage;

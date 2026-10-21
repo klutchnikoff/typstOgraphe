@@ -93,6 +93,7 @@ fn structural_character(character: char) -> bool {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::document::Document;

@@ -42,6 +42,7 @@ macro_rules! tr {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use fluent_syntax::{ast, parser};

@@ -1,0 +1,82 @@
+name: Coverage
+
+on:
+  push:
+    branches-ignore: [coverage]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_BUILD_JOBS: "2"
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Linux libraries
+        run: >-
+          sudo apt-get update && sudo apt-get install -y
+          pkg-config libx11-dev libxi-dev libxcursor-dev libxrandr-dev
+          libxinerama-dev libxkbcommon-dev libwayland-dev libgl1-mesa-dev
+      # Nightly is used only here to exclude test implementations via coverage(off).
+      # The application and the three-platform CI continue to use stable Rust.
+      - name: Coverage toolchain
+        run: rustup toolchain install nightly --profile minimal --component llvm-tools-preview
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov@0.9.1
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: coverage-linux-nightly-${{ hashFiles('Cargo.lock') }}
+          restore-keys: coverage-linux-nightly-
+      - name: Run instrumented tests
+        run: cargo +nightly llvm-cov --locked --workspace --no-report
+      - name: Generate reports
+        run: |
+          mkdir -p output/coverage
+          cargo +nightly llvm-cov report --html --output-dir output/coverage
+          cargo +nightly llvm-cov report --lcov --output-path output/coverage/lcov.info
+          cargo +nightly llvm-cov report --json --summary-only --output-path output/coverage/summary.json
+          python3 .github/scripts/coverage_summary.py output/coverage/summary.json output/coverage/badge
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: output/coverage/
+          if-no-files-found: error
+          retention-days: 30
+
+  # Only a successful main-branch run can update the public badge.
+  # This isolated job executes no repository code with write permissions.
+  badge:
+    needs: measure
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: coverage-report
+          path: coverage-report
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: coverage
+          publish_dir: coverage-report/badge
+          enable_jekyll: true
+          commit_message: Update coverage badge

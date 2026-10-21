@@ -235,6 +235,7 @@ fn fields_ui<T>(ui: &mut egui::Ui, metadata: &mut T, fields: &[TextField<T>], gr
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::{

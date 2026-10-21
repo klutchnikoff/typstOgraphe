@@ -484,6 +484,7 @@ impl RenderWorker {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod asset_tests {
     use super::*;
     use crate::{assets::Assets, document_types::DocumentType};

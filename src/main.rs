@@ -1,3 +1,5 @@
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 mod annotations;
 mod app;
 mod assets;
@@ -17,6 +19,7 @@ mod session;
 mod statistics;
 mod storage;
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
 mod toolbar;
 

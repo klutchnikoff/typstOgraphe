@@ -2804,6 +2804,7 @@ impl eframe::App for App {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod interaction_tests {
     use super::*;
     use crate::document_types::courrier::{Command as CourrierCommand, Model};

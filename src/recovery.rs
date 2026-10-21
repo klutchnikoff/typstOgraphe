@@ -371,6 +371,7 @@ impl Drop for Recovery {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::document_types::DocumentType;

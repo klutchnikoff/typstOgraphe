@@ -703,6 +703,7 @@ fn equivalent(a: &KeyboardShortcut, b: &KeyboardShortcut, is_mac: bool) -> bool 
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 

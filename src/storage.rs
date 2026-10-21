@@ -276,6 +276,7 @@ pub(crate) fn save_archive(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 

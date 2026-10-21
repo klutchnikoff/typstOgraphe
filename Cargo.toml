@@ -38,6 +38,9 @@ muda = { version = "0.21", default-features = false }
 [dev-dependencies]
 fluent-syntax = "0.12"
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+
 [profile.dev]
 debug = 0
 

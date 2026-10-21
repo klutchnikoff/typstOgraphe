@@ -1,7 +1,7 @@
 # typstOgraphe
 
 [![CI](https://github.com/klutchnikoff/typstOgraphe/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/klutchnikoff/typstOgraphe/actions/workflows/ci.yml)
-![Couverture : non mesurée](https://img.shields.io/badge/couverture-non%20mesur%C3%A9e-lightgrey)
+[![Couverture des lignes — Linux](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fklutchnikoff%2FtypstOgraphe%2Fcoverage%2Fcoverage.json)](https://github.com/klutchnikoff/typstOgraphe/actions/workflows/coverage.yml)
 [![Rust 1.92+](https://img.shields.io/badge/Rust-1.92%2B-orange?logo=rust)](https://www.rust-lang.org/)
 [![egui 0.33.3](https://img.shields.io/badge/egui-0.33.3-blue)](https://docs.rs/egui/0.33.3/egui/)
 [![Typst 0.15.1](https://img.shields.io/badge/Typst-0.15.1-239DAD?logo=typst)](https://typst.app/)

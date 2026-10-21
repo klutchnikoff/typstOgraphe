@@ -88,6 +88,7 @@ pub fn thumbnail(data: &[u8], extension: &str) -> Result<eframe::egui::ColorImag
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     #[test]
