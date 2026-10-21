@@ -1,0 +1,40 @@
+{
+  "reviewer": "Codex ; relecture exploratoire, sans validation humaine indépendante.",
+  "scope": "Un passage fourni par l'utilisateur, testé avec les poids et paramètres précédents. Trois répétitions chaudes par configuration ; répétitions déterministes, pas trois variantes créatives. Aucune proposition n'a été corrigée à la main.",
+  "ambiguity": "La forme fautive « la France pourrai produire » peut appeler « pourra » ou « pourrait » selon l'intention. Le contrôle préparatoire du corpus privilégiait « pourrait » par prudence ; « pourra » ne doit donc pas être compté à lui seul comme une invention. De même, « Cheres » suggère « Chères », mais le genre du groupe n'a pas été précisé.",
+  "conclusion": "Le corpus initial était surtout un test de conservation des faits, pas un test suffisant du bénéfice sur une rédaction fautive. Sur ce nouvel exemple, CATIE reste insuffisant. Qwen avec une consigne courte corrige plusieurs fautes sans inventer « votre ordre », mais conserve l'essentiel des lourdeurs. Avec les deux consignes plus longues, il invente cette indication d'autorité. Le choix du prompt doit donc être évalué sur plusieurs textes réellement maladroits avant de conclure sur le modèle.",
+  "editorial_target": "Chères collègues,\n\nAvez-vous pu consulter le document que je vous ai envoyé hier sur la production potentielle de blé en France pour l'année suivante ? Ces informations sont particulièrement importantes, car elles pourraient être communiquées aux décideurs.\n\nJ'espère que vous pourrez me transmettre rapidement les informations demandées.",
+  "editorial_target_note": "Exemple de cible éditoriale rédigé par Codex, distinct des sorties des modèles testés ; retient une lecture prudente de la conjugaison ambiguë et la formule d'adresse au féminin.",
+  "runs": {
+    "catie-mps-user": {
+      "label": "CATIE · texte brut · génération gloutonne",
+      "note": "Supprime l'adresse, mélange tu et vous, produit « pourraiti » et « tu pourrez », conserve « charactère » et les lourdeurs. « importnt » est corrigé. Résultat insuffisant.",
+      "output_sha256": "58e1d009e46c61e0f24f246e0892b45fe8a719724189d4938d4a306ac690c8b9",
+      "identical_repetitions": true
+    },
+    "catie-mps-user-beam4": {
+      "label": "CATIE · texte brut · quatre faisceaux",
+      "note": "Le vouvoiement est préservé, mais « pourraiti » et « charactère » restent ; l'adresse disparaît et les lourdeurs sont conservées. Résultat insuffisant.",
+      "output_sha256": "50ac2f99b8e067d38b3a1d5bae277d965e2f94d407c94f4d1644491b723bf346",
+      "identical_repetitions": true
+    },
+    "qwen-metal-user-original": {
+      "label": "Qwen · consigne de reformulation initiale",
+      "note": "Corrige plusieurs fautes, mais remplace « par mes soins » par « par votre ordre », ajout d'une instruction des destinataires. Amplifie aussi le registre avec « cruciale » et « dans les plus brefs délais ». Construction de la diffusion encore lourde.",
+      "output_sha256": "2a11ed312dd26b895f9caaa65d25b7a5edd268b634ed119b494ba179994be7d8",
+      "identical_repetitions": true
+    },
+    "qwen-metal-user-correct": {
+      "label": "Qwen · consigne explicite de correction et reformulation",
+      "note": "Même invention « par votre ordre », malgré la consigne de correction. L'ouverture « Je vous prie de bien vouloir vérifier si vous avez eu la possibilité » ajoute une lourdeur.",
+      "output_sha256": "21cb3e85983e06fb08def1b5da9bf7cb9af132107be92171a933c2f847ccddef",
+      "identical_repetitions": true
+    },
+    "qwen-metal-user-simple": {
+      "label": "Qwen · consigne courte de correction",
+      "note": "Corrige plusieurs fautes et conserve « par mes soins », sans l'invention des deux autres consignes. Choisit « pourra » et « Chers », à apprécier selon l'intention. Garde « Il est important de noter », « pourra servir à être diffusée » et la redondance sur l'importance : correction plus convaincante que véritable amélioration de la rédaction.",
+      "output_sha256": "5d85bed804b8627182d5550f1a4f8df9b6ab98f6c7dd3d2a662e9fb9c351f4c6",
+      "identical_repetitions": true
+    }
+  }
+}

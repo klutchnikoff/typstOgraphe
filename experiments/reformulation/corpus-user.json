@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "description": "Exemple fourni par l'utilisateur pour tester la correction de fautes explicites et l'allègement de lourdeurs. Complément distinct du corpus initial de conservation des faits.",
+  "cases": [
+    {
+      "id": "C26",
+      "category": "Courrier — syntaxe, grammaire et orthographe à corriger",
+      "text": "Cheres collègues,\n\nJe voudrais savoir si vous avez pu regarder le document, envoyé hier, par mes soins, qui concerne la quantité de blé que la France pourrai produire l'année suivante. Il est important de noter que cette information pourra servir à être diffusée auprès des décideurs et qu'elle a donc un charactère particulièrement importnt.\n\nJ'espère que vous pourrez me transmettre les informations demandées assez rapidement.",
+      "anchors": ["collègues", "hier", "blé", "France", "décideurs"],
+      "checks": [
+        "Corriger Cheres → Chères, pourrai → pourrait, charactère → caractère, importnt → important.",
+        "Alléger les incises et la construction pourra servir à être diffusée, sans remplacer la production potentielle par une production certaine.",
+        "Conserver l'envoi du document hier, la France, le blé, l'année suivante, les décideurs et la demande d'informations dans un délai bref non chiffré.",
+        "Préserver le vouvoiement et la formule d'adresse au féminin pluriel, sans ajouter de noms ni de date limite."
+      ]
+    }
+  ]
+}

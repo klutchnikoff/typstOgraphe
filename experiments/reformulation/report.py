@@ -113,6 +113,40 @@ for mode in MODES:
     memory_rows.append(f"{LABELS[mode]} : chargé en {num(r['startup_seconds'])} s ; première requête en {num(r['first_request']['seconds'])} s")
 driver = max(row.get("mps_allocated_bytes") or 0 for row in rows("catie-mps-memory"))
 
+user_case = read("corpus-user.json")["cases"][0]
+user_review = read("user-review.json")
+
+
+def user_output(mode):
+    row = first(mode)["C26"]
+    review = user_review["runs"][mode]
+    if hashlib.sha256(row["output"].encode()).hexdigest() != review["output_sha256"]:
+        raise ValueError(f"User example output changed: {mode}. Review before reuse.")
+    metadata = read(f"results/{mode}.json")
+    prompt = metadata.get("system_prompt", metadata.get("prompt", ""))
+    return (f"<section class='result'><h4>{e(review['label'])}</h4>"
+            f"<p class='output'>{e(row['output'])}</p><p>{e(review['note'])}</p>"
+            f"<p class='scores'>Médiane de 3 requêtes : {num(metadata['summary']['median_seconds'])} s"
+            f" · Pic RSS : {num(metadata['rss_sampled_peak_bytes'] / 1e9)} Go"
+            f" · Sorties identiques entre répétitions : {'oui' if review['identical_repetitions'] else 'non'}</p>"
+            f"<details><summary>Consigne exacte / entrée</summary><p>{e(prompt)}</p></details></section>")
+
+
+user_section = (
+    "<h2 id='exemple-utilisateur'>Un courrier réellement fautif : votre exemple</h2>"
+    f"<p>{e(user_review['scope'])}</p><p><strong>{e(user_review['conclusion'])}</strong></p>"
+    "<article class='case' id='C26' data-material='true'><h3>C26 · Correction et rédaction</h3>"
+    f"<div class='source'><h4>Texte fourni</h4><p>{e(user_case['text'])}</p></div>"
+    f"<p>{e(user_review['ambiguity'])}</p><div class='pair'>"
+    + user_output("catie-mps-user") + user_output("qwen-metal-user-simple")
+    + "</div><details><summary>Autres réglages testés : quatre faisceaux et consignes plus longues</summary>"
+    + user_output("catie-mps-user-beam4") + user_output("qwen-metal-user-original")
+    + user_output("qwen-metal-user-correct") + "</details>"
+    f"<details><summary>Exemple de résultat éditorial attendu, rédigé par Codex</summary>"
+    f"<p>{e(user_review['editorial_target_note'])}</p><p class='output'>{e(user_review['editorial_target'])}</p></details>"
+    "</article><p>Ces essais exploratoires sur un seul passage ne remplacent pas un corpus plus large de textes fautifs. Les mesures et les appréciations de ce complément ne sont pas fusionnées avec les statistiques initiales.</p>"
+)
+
 replicate = """# Depuis la racine du dépôt ; Python 3.12 et llama-server dans le PATH.
 uv venv --python 3.12 output/reformulation/.venv
 uv pip install --python output/reformulation/.venv/bin/python -r experiments/reformulation/requirements.lock.txt
@@ -129,6 +163,13 @@ HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation
 # Pour chaque modèle Metal, utiliser --corpus corpus-difficult.json --repeats 1
 # et --label catie-mps-difficult / qwen-metal-difficult.
 # Pour chacun des quatre modes, utiliser --repeats 1 --label <mode>-memory.
+
+# Exemple fourni par l'utilisateur, trois répétitions de chaque configuration :
+HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py catie-mps --corpus corpus-user.json --repeats 3 --label catie-mps-user
+HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py catie-mps --corpus corpus-user.json --beams 4 --repeats 3 --label catie-mps-user-beam4
+HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --corpus corpus-user.json --repeats 3 --label qwen-metal-user-original
+HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --corpus corpus-user.json --task correct-rewrite --repeats 3 --label qwen-metal-user-correct
+HF_HUB_OFFLINE=1 output/reformulation/.venv/bin/python experiments/reformulation/benchmark.py qwen-metal --corpus corpus-user.json --task correct-simple --repeats 3 --label qwen-metal-user-simple
 
 output/reformulation/.venv/bin/python experiments/reformulation/report.py
 # Les appréciations sont liées au SHA-256 des sorties effectivement relues.
@@ -150,9 +191,10 @@ a{color:var(--accent)}p{max-width:100ch}small,.scores,.checks{color:var(--muted)
 <p><small>typstOgraphe · expérimentation du 21 octobre 2026 · génération entièrement locale</small></p>
 <h1>Reformuler sans changer les faits</h1>
 <p class='lead'>CATIE french_paraphrase_flan-t5-base et Qwen2.5-1.5B-Instruct, sur Apple M1 Max avec 32 Gio de mémoire.</p>
-<nav><a href='#mesures'>Mesures</a><a href='#qualite'>Qualité</a><a href='#passages'>20 passages</a><a href='#complement'>5 textes maladroits</a><a href='#integration'>Intégration Rust</a><a href='#protocole'>Protocole et reproduction</a></nav>
-<div class='banner'><strong>La vitesse convient à un outil ponctuel ; la qualité ne justifie pas encore de retenir un modèle pour l’application.</strong>
-<p>CATIE copie souvent le texte et peut introduire des fautes. Qwen reformule davantage, mais modifie parfois des faits malgré les consignes. Qwen paraît la base la plus intéressante à poursuivre entre ces deux configurations, avec comparaison explicite avant toute acceptation. Aucun modèle ni moteur n’est choisi pour l’application à ce stade.</p></div>
+<nav><a href='#exemple-utilisateur'>Votre exemple fautif</a><a href='#mesures'>Mesures</a><a href='#qualite'>Qualité</a><a href='#passages'>20 passages</a><a href='#complement'>5 textes maladroits</a><a href='#integration'>Intégration Rust</a><a href='#protocole'>Protocole et reproduction</a></nav>
+<div class='banner'><strong>Le premier corpus vérifie surtout la conservation des faits ; il ne suffit pas à juger l’aide à la rédaction sur un texte fautif.</strong>
+<p>Le complément fourni par l’utilisateur teste maintenant la correction et l’allègement des lourdeurs. Qwen s’en sort mieux avec une consigne courte, mais le bénéfice stylistique reste limité sur cet exemple. Les consignes plus longues produisent une invention. Aucun modèle ni moteur n’est choisi pour l’application à ce stade.</p></div>
+""" + user_section + """
 <h2 id='mesures'>Latence et mémoire</h2>
 <p>40 requêtes mesurées par configuration (20 passages × 2), après une première requête séparée. Durée jusqu’au texte complet ; P95 au rang le plus proche, sur ce petit échantillon. La plus longue sélection fait environ 110 mots. Aucune sortie tronquée.</p>
 <div class='scroll'><table><thead><tr><th>Configuration</th><th>Médiane</th><th>P95</th><th>Maximum</th><th>Premier jeton, médiane</th><th>Pic RSS</th><th>Empreinte macOS</th></tr></thead><tbody>

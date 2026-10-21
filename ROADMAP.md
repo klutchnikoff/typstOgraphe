@@ -193,6 +193,10 @@ conserve texte, métadonnées, modèle et ressources.
   fidélité ou de langue ; aucun modèle n’est retenu pour l’application à ce stade.
   L’intégration Rust reste possible via une bibliothèque embarquée ; le moteur
   et le téléchargement facultatif des poids restent à choisir ensemble.
+  Le complément sur un courrier fautif fourni par l’utilisateur distingue
+  correction, amélioration stylistique et fidélité : la consigne courte aide
+  Qwen sur ce passage, mais les lourdeurs restent. La suite de l’évaluation
+  devra privilégier des textes réellement maladroits, avec une consigne stable.
 
 **Choix ensemble :** interface et périmètre de recherche (corps, annotations,
 métadonnées), présentation des suggestions, langues et dictionnaires,
