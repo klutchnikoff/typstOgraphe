@@ -327,7 +327,18 @@ bibliothèque installable et persistante décrite ci-dessous.
 - **P1 :** installer, retrouver, choisir et retirer un modèle ; description,
   type associé, provenance et modèle par défaut.
 - **P1 :** importer ses ressources et vérifier son contrat avant utilisation.
-- **P1 :** conserver dans le document une copie autonome du modèle et des ressources.
+- **Implémenté pour le modèle fourni :** copie autonome des dépendances Typst.
+  Datify 1.3.0 et Datify-core 2.1.0 sont embarqués avec toutes leurs locales et
+  licences. Imports relatifs, aucun téléchargement ni cache externe pendant le
+  rendu. Les `.typsto` (format 8), copies de récupération et exports Typst
+  conservent ces fichiers, y compris les langues non utilisées actuellement.
+  Les dépendances suivent le modèle dans l’historique ; les images gardent
+  leur mécanisme distinct de suppression des ressources inutilisées.
+  Provenance et modification d’import dans `templates/packages/PROVENANCE.md`.
+  Vérifié : réouverture avec les données propres à l’archive, changement de langue,
+  annulation d’un changement de modèle et recompilation d’un export déplacé avec
+  le CLI Typst, répertoires de paquets et de cache vides.
+- **P1 :** généraliser l’import des ressources aux modèles installables.
 - **P2 :** aperçu, favoris, variantes, remplacement et gestion des mises à jour.
 - **P2 :** documentation pour les créateurs, exemple minimal par type et diagnostics
   compréhensibles lors d’un contrat invalide.
@@ -405,9 +416,12 @@ au-delà des démonstrations fictives.
   `aujourd'hui` et `aujourd’hui` sont des raccourcis de saisie résolus aussitôt en
   date fixe, jamais des valeurs évolutives. Les dates numériques reconnues
   (`JJ/MM/AAAA` ou ISO) sont conservées en ISO ; les libellés libres restent
-  possibles. Le modèle personnel compose les dates ISO avec les noms de mois
-  selon la langue du document, dont « 1er » en exposant en français. L'annulation,
-  l'enregistrement et la réouverture conservent la date choisie.
+  possibles. Le modèle personnel utilise Datify (`custom-date-format`, format
+  `long`) pour la présentation locale des dates ISO, avec l’ordre et la ponctuation
+  de chaque langue. Il garde la règle « 1er » en exposant en français, sans table
+  manuelle des mois. L’annulation, l’enregistrement et la réouverture conservent
+  la date choisie. Les dépendances locales complètes assurent le rendu hors ligne
+  et l’autonomie des exports (voir E).
 - **P1 : Compte-rendu de réunion**, avec un modèle utilisable à titre personnel :
   intitulé, date, lieu/visioconférence, rédacteur, participants, personnes excusées
   et corps libre. Ces métadonnées ont déjà été validées et sont implémentées.

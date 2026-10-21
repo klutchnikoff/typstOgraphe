@@ -12,7 +12,7 @@ use std::{
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 pub const EXTENSION: &str = "typsto";
-const FORMAT_VERSION: u32 = 7;
+const FORMAT_VERSION: u32 = 8;
 const LIMIT: u64 = crate::assets::MAX_DOCUMENT_BYTES;
 pub(crate) const EXTRA_ENTRY_LIMIT: u64 = 16 * 1024;
 const ENTRIES: [&str; 5] = [
@@ -29,12 +29,14 @@ pub struct StoredDocument {
     pub metadata: Metadata,
     pub template: String,
     pub assets: crate::assets::Assets,
+    pub dependencies: crate::packages::Dependencies,
 }
 impl StoredDocument {
     pub fn demo(kind: DocumentType) -> Self {
         Self {
             source: kind.demo_source().into(),
             metadata: Metadata::demo(kind),
+            dependencies: crate::packages::for_template(&kind.default_model()),
             template: kind.default_model(),
             assets: Default::default(),
         }
@@ -43,6 +45,7 @@ impl StoredDocument {
         Self {
             source: String::new(),
             metadata: Metadata::blank(kind),
+            dependencies: crate::packages::for_template(&kind.default_model()),
             template: kind.default_model(),
             assets: Default::default(),
         }
@@ -68,7 +71,7 @@ impl Manifest {
 pub fn read(path: &Path) -> Result<StoredDocument, String> {
     let file =
         File::open(path).map_err(|e| crate::tr!("storage-open-failed", error = e.to_string()))?;
-    if file.metadata().map_err(|e| e.to_string())?.len() > LIMIT + 512 * 1024 {
+    if file.metadata().map_err(|e| e.to_string())?.len() > LIMIT + 2 * 1024 * 1024 {
         return Err(crate::tr!("storage-file-too-large"));
     }
     decode(file).map_err(|e| crate::tr!("storage-invalid", error = e))
@@ -87,7 +90,7 @@ pub(crate) fn decode_archive(
     let mut zip = ZipArchive::new(reader)
         .map_err(|e| crate::tr!("storage-zip-unreadable", error = e.to_string()))?;
     let extra_count = usize::from(extra_name.is_some());
-    if zip.len() < ENTRIES.len() + extra_count || zip.len() > 1024 + extra_count {
+    if zip.len() < ENTRIES.len() + extra_count || zip.len() > 4096 + extra_count {
         return Err(crate::tr!("storage-file-count"));
     }
     let mut total = 0_u64;
@@ -96,7 +99,8 @@ pub(crate) fn decode_archive(
         let file = zip.by_index(index).map_err(|e| e.to_string())?;
         if (!ENTRIES.contains(&file.name())
             && Some(file.name()) != extra_name
-            && !crate::assets::valid_path(file.name()))
+            && !crate::assets::valid_path(file.name())
+            && !crate::packages::valid_path(file.name()))
             || !names.insert(file.name().to_owned())
         {
             return Err(crate::tr!("storage-unknown-entry"));
@@ -129,12 +133,26 @@ pub(crate) fn decode_archive(
             .map_err(|e| e.to_string())?;
         assets.insert(name.clone(), data.into());
     }
+    let mut dependencies = std::collections::BTreeMap::new();
+    for name in names
+        .iter()
+        .filter(|name| crate::packages::valid_path(name))
+    {
+        let mut data = Vec::new();
+        zip.by_name(name)
+            .map_err(|e| e.to_string())?
+            .take(crate::assets::MAX_IMAGE_BYTES as u64 + 1)
+            .read_to_end(&mut data)
+            .map_err(|e| e.to_string())?;
+        dependencies.insert(name.clone(), data.into());
+    }
     let letter = StoredDocument {
         source: entry(&mut zip, "contenu.typ")?,
         metadata: serde_json::from_str(&entry(&mut zip, "metadonnees.json")?)
             .map_err(|e| crate::tr!("storage-metadata-unreadable", error = e.to_string()))?,
         template: entry(&mut zip, "modele.typ")?,
         assets,
+        dependencies: std::sync::Arc::new(dependencies),
     };
     if manifest.document_type != letter.metadata.document_type() {
         return Err(crate::tr!("storage-unsupported"));
@@ -168,6 +186,7 @@ fn entry<R: Read + std::io::Seek>(zip: &mut ZipArchive<R>, name: &str) -> Result
 }
 
 fn validate(letter: &StoredDocument) -> Result<(), String> {
+    crate::packages::validate(&letter.template, &letter.dependencies)?;
     let document = Document::from_source(&letter.source)?;
     if let Some(path) = letter.metadata.signature_path() {
         if !crate::assets::valid_path(path) {
@@ -211,6 +230,7 @@ pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
         &letter.metadata,
         &letter.template,
         &letter.assets,
+        &letter.dependencies,
     )?;
     save_archive(path, &letter, None)
 }
@@ -223,7 +243,7 @@ pub(crate) fn save_archive(
     extra: Option<(&str, &str)>,
 ) -> Result<(), String> {
     validate(letter)?;
-    if letter.assets.len() + ENTRIES.len() > 1024 {
+    if letter.assets.len() + letter.dependencies.len() + ENTRIES.len() > 4096 {
         return Err(crate::tr!("storage-file-count"));
     }
     if extra.is_some_and(|(_, text)| text.len() as u64 > EXTRA_ENTRY_LIMIT) {
@@ -243,6 +263,11 @@ pub(crate) fn save_archive(
     if files.iter().map(|text| text.len() as u64).sum::<u64>()
         + letter
             .assets
+            .values()
+            .map(|data| data.len() as u64)
+            .sum::<u64>()
+        + letter
+            .dependencies
             .values()
             .map(|data| data.len() as u64)
             .sum::<u64>()
@@ -269,7 +294,7 @@ pub(crate) fn save_archive(
             zip.start_file(name, options).map_err(|e| e.to_string())?;
             zip.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
         }
-        for (name, data) in &letter.assets {
+        for (name, data) in letter.assets.iter().chain(letter.dependencies.iter()) {
             zip.start_file(name, options).map_err(|e| e.to_string())?;
             zip.write_all(data).map_err(|e| e.to_string())?;
         }
@@ -339,7 +364,10 @@ mod tests {
             }
             save(&path, &letter).unwrap();
             let mut zip = ZipArchive::new(File::open(&path).unwrap()).unwrap();
-            assert_eq!(zip.len(), 6 + usize::from(with_image));
+            assert_eq!(
+                zip.len(),
+                6 + letter.dependencies.len() + usize::from(with_image)
+            );
             assert!(zip.by_name("images/deleted.svg").is_err());
             assert!(zip.by_name("images/logo.svg").is_ok());
             assert_eq!(zip.by_name("images/active.svg").is_ok(), with_image);
@@ -359,6 +387,7 @@ mod tests {
                     metadata: letter.metadata.clone(),
                     template: letter.template.clone(),
                     assets: letter.assets.clone(),
+                    dependencies: letter.dependencies.clone(),
                     export_dir: Some(export.clone()),
                 },
             )
@@ -372,6 +401,7 @@ mod tests {
             assert_eq!(export.join("images/active.svg").exists(), with_image);
             let mut clean_world = crate::rendering::TypstWorld::default();
             clean_world.set_assets(&restored.assets);
+            clean_world.set_dependencies(&restored.dependencies);
             clean_world
                 .compile_with_template(&restored.source, &restored.metadata, &restored.template)
                 .unwrap();
@@ -406,6 +436,7 @@ mod tests {
             metadata: restored.metadata,
             template: restored.template,
             assets: restored.assets,
+            dependencies: restored.dependencies.clone(),
             export_dir: Some(export.clone()),
         };
         let output = crate::rendering::render(&mut world, &request).unwrap();
@@ -425,6 +456,19 @@ mod tests {
         );
         let mut other_world = crate::rendering::TypstWorld::default();
         other_world.set_assets(&exported);
+        let exported_dependencies = std::sync::Arc::new(
+            request
+                .dependencies
+                .keys()
+                .map(|name| {
+                    (
+                        name.clone(),
+                        std::fs::read(export.join(name)).unwrap().into(),
+                    )
+                })
+                .collect(),
+        );
+        other_world.set_dependencies(&exported_dependencies);
         other_world
             .compile_with_template(
                 &std::fs::read_to_string(export.join("contenu.typ")).unwrap(),
@@ -435,12 +479,18 @@ mod tests {
         for corrupt in 0..4 {
             save(&archive, &letter).unwrap();
             rewrite(&archive, |files| match corrupt {
-                0 => {
-                    files.pop();
+                0 => files.retain(|(name, _)| name != "images/parc.svg"),
+                _ => {
+                    let image = files
+                        .iter_mut()
+                        .find(|(name, _)| name == "images/parc.svg")
+                        .unwrap();
+                    match corrupt {
+                        1 => image.0 = "images/../escape.svg".into(),
+                        2 => image.1 = b"invalide".to_vec(),
+                        _ => image.0 = "images/parc.png".into(),
+                    }
                 }
-                1 => files.last_mut().unwrap().0 = "images/../escape.svg".into(),
-                2 => files.last_mut().unwrap().1 = b"invalide".to_vec(),
-                _ => files.last_mut().unwrap().0 = "images/parc.png".into(),
             });
             assert!(read(&archive).is_err(), "cas {corrupt}");
         }
@@ -473,7 +523,7 @@ mod tests {
         assert!(std::fs::read(&path).unwrap().starts_with(b"PK"));
         assert_eq!(read(&path).unwrap(), letter);
         let mut zip = ZipArchive::new(File::open(&path).unwrap()).unwrap();
-        assert_eq!(zip.len(), 5);
+        assert_eq!(zip.len(), 5 + letter.dependencies.len());
         assert_eq!(entry(&mut zip, "contenu.typ").unwrap(), letter.source);
         assert_eq!(
             entry(&mut zip, "main.typ").unwrap(),
@@ -488,6 +538,7 @@ mod tests {
             &crate::rendering::RenderRequest {
                 revision: 1,
                 assets: restored.assets.clone(),
+                dependencies: restored.dependencies.clone(),
                 source: restored.source.clone(),
                 source_map: document.source_map,
                 metadata: restored.metadata,
@@ -573,5 +624,134 @@ mod tests {
             assert!(read(&path).is_err(), "cas {invalid}");
         }
         assert!(!dir.path().parent().unwrap().join("hors-archive").exists());
+    }
+    #[test]
+    fn datify_archive_and_export_use_their_own_complete_local_dependencies() {
+        fn rendered_text(
+            world: &mut crate::rendering::TypstWorld,
+            letter: &StoredDocument,
+        ) -> String {
+            fn frame_text(frame: &typst::layout::Frame) -> String {
+                frame
+                    .items()
+                    .map(|(_, item)| match item {
+                        typst::layout::FrameItem::Group(group) => frame_text(&group.frame),
+                        typst::layout::FrameItem::Text(text) => text.text.to_string(),
+                        _ => String::new(),
+                    })
+                    .collect()
+            }
+            world.set_dependencies(&letter.dependencies);
+            let doc = world
+                .compile_with_template(&letter.source, &letter.metadata, &letter.template)
+                .unwrap();
+            doc.pages()
+                .iter()
+                .map(|page| frame_text(&page.frame))
+                .collect()
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("autonome.typsto");
+        let mut letter = StoredDocument::blank(DocumentType::Courrier);
+        letter.source = "Un courrier autonome.".into();
+        letter.metadata.courrier_mut().date = "2026-10-02".into();
+        let locale = "packages/datify-core-2.1.0/src/translations/locales/fr.toml";
+        // Un exemplaire différent de celui du binaire prouve l’origine des données utilisées.
+        let original = letter.dependencies[locale].clone();
+        std::sync::Arc::make_mut(&mut letter.dependencies).insert(
+            locale.into(),
+            String::from_utf8(original.to_vec())
+                .unwrap()
+                .replace("octobre", "MOISARCHIVE")
+                .into_bytes()
+                .into(),
+        );
+        save(&path, &letter).unwrap();
+        let restored = read(&path).unwrap();
+        assert!(restored == letter);
+        assert!(
+            restored
+                .dependencies
+                .contains_key("packages/datify-1.3.0/LICENSE")
+        );
+        assert!(
+            restored
+                .dependencies
+                .contains_key("packages/datify-core-2.1.0/UNICODE-LICENSE.txt")
+        );
+        let mut world = crate::rendering::TypstWorld::default();
+        world.set_dependencies(&Default::default());
+        assert!(
+            world
+                .compile_with_template(&restored.source, &restored.metadata, &restored.template)
+                .is_err()
+        );
+        assert!(rendered_text(&mut world, &restored).contains("MOISARCHIVE"));
+        let mut english = restored.clone();
+        english.metadata.options_mut().language = crate::document::DocumentLanguage::English;
+        assert!(rendered_text(&mut world, &english).contains("October 2, 2026"));
+        let export = dir.path().join("export");
+        let request = crate::rendering::RenderRequest {
+            revision: 1,
+            source: restored.source.clone(),
+            source_map: Document::from_source(&restored.source).unwrap().source_map,
+            metadata: restored.metadata.clone(),
+            template: restored.template.clone(),
+            assets: restored.assets.clone(),
+            dependencies: restored.dependencies.clone(),
+            export_dir: Some(export.clone()),
+        };
+        crate::rendering::render(&mut world, &request).unwrap();
+        let mut exported = restored.clone();
+        exported.dependencies = std::sync::Arc::new(
+            restored
+                .dependencies
+                .keys()
+                .map(|name| {
+                    (
+                        name.clone(),
+                        std::fs::read(export.join(name)).unwrap().into(),
+                    )
+                })
+                .collect(),
+        );
+        exported.source = std::fs::read_to_string(export.join("contenu.typ")).unwrap();
+        exported.template = std::fs::read_to_string(export.join("modele.typ")).unwrap();
+        assert!(rendered_text(&mut world, &exported).contains("MOISARCHIVE"));
+        // Changer de copie dans le même moteur invalide aussi les données mises en cache.
+        std::sync::Arc::make_mut(&mut exported.dependencies).insert(locale.into(), original);
+        let text = rendered_text(&mut world, &exported);
+        assert!(text.contains("octobre") && !text.contains("MOISARCHIVE"));
+    }
+
+    #[test]
+    fn incomplete_or_unsafe_package_resources_are_rejected_before_replacing_a_document() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("courrier.typsto");
+        let letter = StoredDocument::blank(DocumentType::Courrier);
+        save(&path, &letter).unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        for bad_path in [
+            "packages/../escape.typ",
+            "packages/datify-1.3.0/src/../../escape.typ",
+        ] {
+            let mut invalid = letter.clone();
+            std::sync::Arc::make_mut(&mut invalid.dependencies)
+                .insert(bad_path.into(), b"escape".as_slice().into());
+            assert!(save(&path, &invalid).is_err());
+            assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        }
+        // Même une locale inutilisée par ce courrier est indispensable à son autonomie.
+        let unused = "packages/datify-core-2.1.0/src/translations/locales/ja.toml";
+        let mut invalid = letter.clone();
+        assert!(
+            std::sync::Arc::make_mut(&mut invalid.dependencies)
+                .remove(unused)
+                .is_some()
+        );
+        assert!(save(&path, &invalid).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        rewrite(&path, |files| files.retain(|(name, _)| name != unused));
+        assert!(read(&path).is_err());
     }
 }

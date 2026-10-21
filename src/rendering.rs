@@ -30,6 +30,7 @@ pub struct TypstWorld {
     fonts: Vec<Font>,
     files: HashMap<FileId, Source>,
     assets: HashMap<FileId, Bytes>,
+    dependencies: HashMap<FileId, Bytes>,
     main: FileId,
 }
 
@@ -46,6 +47,10 @@ impl Default for TypstWorld {
             fonts,
             files: HashMap::new(),
             assets: HashMap::new(),
+            dependencies: crate::packages::bundled()
+                .iter()
+                .map(|(path, data)| (file_id(path), Bytes::new(data.clone())))
+                .collect(),
             main,
         }
     }
@@ -58,6 +63,15 @@ pub(crate) fn file_id(path: &str) -> FileId {
 }
 
 impl TypstWorld {
+    /// Remplacement intégral : le rendu d’un fichier ne complète jamais ses ressources
+    /// avec celles de l’application ou du cache Typst de la machine.
+    pub fn set_dependencies(&mut self, files: &crate::packages::Dependencies) {
+        self.dependencies = files
+            .iter()
+            .map(|(path, data)| (file_id(path), Bytes::new(data.clone())))
+            .collect();
+    }
+
     pub fn set_assets(&mut self, assets: &crate::assets::Assets) {
         self.assets = assets
             .iter()
@@ -215,16 +229,26 @@ impl World for TypstWorld {
         self.main
     }
     fn source(&self, id: FileId) -> FileResult<Source> {
-        self.files
+        if let Some(source) = self.files.get(&id) {
+            return Ok(source.clone());
+        }
+        let bytes = self
+            .dependencies
             .get(&id)
-            .cloned()
-            .ok_or_else(|| FileError::NotFound(id.vpath().get_with_slash().into()))
+            .ok_or_else(|| FileError::NotFound(id.vpath().get_with_slash().into()))?;
+        let text = std::str::from_utf8(bytes).map_err(|_| FileError::InvalidUtf8)?;
+        Ok(Source::new(id, text.to_owned()))
     }
     fn file(&self, id: FileId) -> FileResult<Bytes> {
-        self.assets.get(&id).cloned().map(Ok).unwrap_or_else(|| {
-            self.source(id)
-                .map(|s| Bytes::new(s.text().as_bytes().to_vec()))
-        })
+        self.assets
+            .get(&id)
+            .or_else(|| self.dependencies.get(&id))
+            .cloned()
+            .map(Ok)
+            .unwrap_or_else(|| {
+                self.source(id)
+                    .map(|s| Bytes::new(s.text().as_bytes().to_vec()))
+            })
     }
     fn font(&self, index: usize) -> Option<Font> {
         self.fonts.get(index).cloned()
@@ -245,6 +269,7 @@ pub struct RenderRequest {
     pub revision: u64,
     pub source: String,
     pub assets: crate::assets::Assets,
+    pub dependencies: crate::packages::Dependencies,
     pub source_map: SourceMap,
     pub metadata: Metadata,
     pub template: String,
@@ -276,6 +301,7 @@ pub fn retained_assets(
     metadata: &Metadata,
     template: &str,
     assets: &crate::assets::Assets,
+    dependencies: &crate::packages::Dependencies,
 ) -> Result<crate::assets::Assets, String> {
     if assets.is_empty() {
         return Ok(assets.clone());
@@ -318,6 +344,7 @@ pub fn retained_assets(
     }
     let mut world = TypstWorld::default();
     world.set_assets(assets);
+    world.set_dependencies(dependencies);
     let Ok(baseline) = world.compile_with_template(source, metadata, template) else {
         // L’enregistrement doit rester possible pendant une erreur de modèle.
         // Sans résultat de référence, conserver les ressources est le seul choix sûr.
@@ -360,7 +387,9 @@ pub fn retained_assets(
 
 pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendered, String> {
     let start = Instant::now();
+    crate::packages::validate(&request.template, &request.dependencies)?;
     world.set_assets(&request.assets);
+    world.set_dependencies(&request.dependencies);
     let document =
         world.compile_with_template(&request.source, &request.metadata, &request.template)?;
     let presentation = world.model_presentation(&request.template)?;
@@ -393,6 +422,7 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
             &request.metadata,
             &request.template,
             &request.assets,
+            &request.dependencies,
         )?;
         if !assets.is_empty() {
             std::fs::create_dir(path.join("images")).map_err(|e| e.to_string())?;
@@ -400,6 +430,13 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
         for (name, data) in &assets {
             if !crate::assets::valid_path(name) {
                 return Err(crate::tr!("storage-unknown-entry"));
+            }
+            write(path, name, data)?;
+        }
+        for (name, data) in request.dependencies.iter() {
+            // Les chemins sont validés avant de créer le répertoire d’export.
+            if let Some(parent) = path.join(name).parent() {
+                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             }
             write(path, name, data)?;
         }
@@ -509,7 +546,14 @@ mod asset_tests {
         let source = "#figure(image(\"images/shared.svg\"), caption: [Un parc.])";
         let expected: Vec<String> = vec!["images/future.svg".into(), "images/shared.svg".into()];
         for body in [source, "Texte sans image.", source, ""] {
-            let retained = retained_assets(body, &metadata, &template, &assets).unwrap();
+            let retained = retained_assets(
+                body,
+                &metadata,
+                &template,
+                &assets,
+                &crate::packages::for_template(&template),
+            )
+            .unwrap();
             assert_eq!(retained.keys().cloned().collect::<Vec<_>>(), expected);
             let mut world = TypstWorld::default();
             world.set_assets(&retained);
@@ -534,7 +578,8 @@ mod asset_tests {
                 "",
                 &Metadata::demo(DocumentType::Courrier),
                 "#let courrier(..args) = panic(\"modèle à réparer\")",
-                &assets
+                &assets,
+                &Default::default(),
             )
             .unwrap(),
             assets

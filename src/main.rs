@@ -12,6 +12,7 @@ mod i18n;
 mod icons;
 mod menus;
 mod navigation;
+mod packages;
 mod preferences;
 mod profile;
 mod recovery;
@@ -54,6 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     metadata: document_types::Metadata::demo(
                         document_types::DocumentType::Courrier,
                     ),
+                    dependencies: packages::for_template(&kind.default_model()),
                     template: kind.default_model(),
                     export_dir: Some(PathBuf::from(dir)),
                 };

@@ -38,7 +38,7 @@ impl Default for Metadata {
             objet: "Demande de réservation d’une salle".into(),
             reference: "VA / 2026 / 042".into(),
             lieu: "Valmont".into(),
-            date: "19 octobre 2026".into(),
+            date: "2026-10-19".into(),
         }
     }
 }

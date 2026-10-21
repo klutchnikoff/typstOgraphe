@@ -358,6 +358,7 @@ mod tests {
                     metadata: restored.metadata,
                     template: restored.template,
                     assets: restored.assets,
+                    dependencies: restored.dependencies.clone(),
                     export_dir: Some(export.clone()),
                 },
             )

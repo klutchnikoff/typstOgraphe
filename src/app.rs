@@ -839,6 +839,7 @@ impl App {
                 let template = command.model_source().expect("commande de modèle");
                 if self.session.template != template {
                     let before = self.snapshot();
+                    self.session.dependencies = crate::packages::for_template(&template);
                     self.session.template = template;
                     self.presentation = ModelPresentation::default();
                     self.session.metadata.options_mut().bullet_marker = None;
@@ -897,11 +898,14 @@ impl App {
         let mut metadata = self.session.metadata.clone();
         metadata.options_mut().bullet_marker = None;
         let mut world = crate::rendering::TypstWorld::default();
+        let dependencies = crate::packages::with_existing(&template, &self.session.dependencies);
+        world.set_dependencies(&dependencies);
         world.set_assets(&self.session.document.assets);
         let presentation = world
             .validate_model(self.session.document.source(), &metadata, &template)
             .map_err(|error| format!("{}\n{}", metadata.model_signature(), error))?;
         let before = self.snapshot();
+        self.session.dependencies = dependencies;
         self.session.template = template;
         self.session.metadata = metadata;
         self.presentation = presentation;
@@ -970,6 +974,12 @@ impl App {
         Ok(())
     }
     fn check_asset_budget(&self) -> Result<(), String> {
+        let dependency_bytes = self
+            .session
+            .dependencies
+            .values()
+            .map(|v| v.len())
+            .sum::<usize>();
         if self
             .session
             .document
@@ -977,6 +987,7 @@ impl App {
             .values()
             .map(|v| v.len())
             .sum::<usize>()
+            + dependency_bytes
             <= crate::assets::MAX_DOCUMENT_BYTES as usize
         {
             return Ok(());
@@ -988,8 +999,9 @@ impl App {
             &self.session.metadata,
             &self.session.template,
             &document.assets,
+            &self.session.dependencies,
         )?;
-        if retained.values().map(|v| v.len()).sum::<usize>()
+        if retained.values().map(|v| v.len()).sum::<usize>() + dependency_bytes
             > crate::assets::MAX_DOCUMENT_BYTES as usize
         {
             return Err(crate::tr!("storage-letter-too-large"));
@@ -1191,6 +1203,7 @@ impl App {
             metadata: self.session.metadata.clone(),
             template: self.session.template.clone(),
             assets: self.session.document.assets.clone(),
+            dependencies: self.session.dependencies.clone(),
             export_dir,
         }
     }
@@ -7064,5 +7077,29 @@ mod interaction_tests {
         );
         let output = draw(&mut app, vec![]);
         assert!(point(&output, "Caractère personnalisé…").is_none());
+    }
+    #[test]
+    fn model_dependencies_follow_imports_choices_and_undo_without_changing_the_body() {
+        let mut app = App::with_demo_context(egui::Context::default(), None);
+        let original = app.session.dependencies.clone();
+        assert!(!original.is_empty());
+        let body = app.session.document.source().to_owned();
+        app.install_model(app.session.template.clone() + "\n// Modèle dérivé")
+            .unwrap();
+        assert!(app.session.dependencies == original);
+        app.install_model("#let courrier(..args) = args.pos().last()".into())
+            .unwrap();
+        assert!(app.session.dependencies.is_empty());
+        assert!(app.request(None).dependencies.is_empty());
+        app.apply(Command::Undo);
+        assert!(app.session.dependencies == original);
+        assert!(app.stored_document().dependencies == original);
+        app.apply(Command::Redo);
+        assert!(app.session.dependencies.is_empty());
+        app.apply(Command::Model(Model::Personal));
+        assert!(app.session.dependencies == original);
+        app.apply(Command::Undo);
+        assert!(app.session.dependencies.is_empty());
+        assert_eq!(app.session.document.source(), body);
     }
 }

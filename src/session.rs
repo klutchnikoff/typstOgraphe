@@ -31,6 +31,7 @@ pub struct Snapshot {
     pub document: Document,
     pub metadata: Metadata,
     pub template: String,
+    pub dependencies: crate::packages::Dependencies,
     pub selection: Selection,
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -45,6 +46,7 @@ pub struct Session {
     pub document: Document,
     pub metadata: Metadata,
     pub template: String,
+    pub dependencies: crate::packages::Dependencies,
     pub file_path: Option<PathBuf>,
     pub saved: StoredDocument,
     pub undo: Vec<Snapshot>,
@@ -68,6 +70,7 @@ impl Session {
             document,
             metadata: letter.metadata.clone(),
             template: letter.template.clone(),
+            dependencies: letter.dependencies.clone(),
             file_path: path,
             saved: letter,
             undo: vec![],
@@ -84,6 +87,7 @@ impl Session {
             document: self.document.clone(),
             metadata: self.metadata.clone(),
             template: self.template.clone(),
+            dependencies: self.dependencies.clone(),
             selection,
         }
     }
@@ -92,6 +96,7 @@ impl Session {
             source: self.document.source().into(),
             metadata: self.metadata.clone(),
             template: self.template.clone(),
+            dependencies: self.dependencies.clone(),
             assets: self.document.assets.clone(),
         }
     }
@@ -101,6 +106,7 @@ impl Session {
             || self.saved.metadata != self.metadata
             || self.saved.template != self.template
             || self.saved.assets != self.document.assets
+            || self.saved.dependencies != self.dependencies
     }
     pub fn changed(&mut self, mut selection: Selection) -> Selection {
         for at in self.document.sync_source() {
@@ -137,6 +143,7 @@ impl Session {
         if before.document == self.document
             && before.metadata == self.metadata
             && before.template == self.template
+            && before.dependencies == self.dependencies
         {
             return selection;
         }
@@ -178,6 +185,7 @@ impl Session {
         self.document = item.document;
         self.metadata = item.metadata;
         self.template = item.template;
+        self.dependencies = item.dependencies;
         self.typing_group = false;
         self.revision += 1;
         self.changed_at = Instant::now();

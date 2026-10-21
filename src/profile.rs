@@ -166,6 +166,7 @@ mod tests {
                 metadata: letter.metadata.clone(),
                 template: letter.template.clone(),
                 assets: letter.assets.clone(),
+                dependencies: letter.dependencies.clone(),
                 export_dir: Some(export.clone()),
             },
         )

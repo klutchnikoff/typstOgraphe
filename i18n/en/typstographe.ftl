@@ -61,7 +61,7 @@ source-heading-depth = Only heading levels 1–3 are supported.
 source-computed-call = Computed function calls are not supported.
 source-nested-blocks = Nested blocks are not supported in this prototype.
 storage-file-too-large = The letter file exceeds the size limit.
-storage-file-count = the archive must contain the five letter files and at most 1,019 images
+storage-file-count = the archive must contain the five document files, with at most 4,096 files in total
 storage-unknown-entry = unknown or duplicate file in the archive
 storage-invalid-size = invalid archive size
 storage-expanded-too-large = the expanded content exceeds 64 MiB
@@ -361,3 +361,5 @@ cmd-personal-letter = Use the personal letter template
 model-personal-letter = Personal letter
 model-fixed-page = This template fixes the paper size and orientation for a window envelope.
 cli-usage-capture-creation = Usage: --capture-new-document IMAGE.png
+
+package-resource-missing = Missing Typst dependency: { $path }

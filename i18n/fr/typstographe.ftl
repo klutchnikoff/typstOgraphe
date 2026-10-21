@@ -123,7 +123,7 @@ source-heading-depth = Seuls les titres de niveaux 1 à 3 sont pris en charge.
 source-computed-call = Appel calculé non pris en charge.
 source-nested-blocks = Les blocs imbriqués ne sont pas pris en charge dans ce prototype.
 storage-file-too-large = Le fichier de courrier dépasse la taille autorisée.
-storage-file-count = l’archive doit contenir les cinq fichiers du courrier et au plus 1 019 images
+storage-file-count = l’archive doit contenir les cinq fichiers du document, avec au plus 4 096 fichiers au total
 storage-unknown-entry = fichier inconnu ou présent plusieurs fois dans l’archive
 storage-invalid-size = taille d’archive invalide
 storage-expanded-too-large = le contenu décompressé dépasse 64 Mio
@@ -364,3 +364,5 @@ cmd-personal-letter = Utiliser le modèle de courrier personnel
 model-personal-letter = Courrier personnel
 model-fixed-page = Le format et l’orientation sont imposés par ce modèle pour l’enveloppe à fenêtre.
 cli-usage-capture-creation = Usage : --capture-new-document IMAGE.png
+
+package-resource-missing = Dépendance Typst manquante : { $path }
