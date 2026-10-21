@@ -274,6 +274,11 @@ synchronisation doit prendre en compte les nouveaux contenus.
 - Les documents déjà ouverts ou enregistrés ne sont pas actualisés quand le
   profil change. Les champs d’expéditeur et la signature restent modifiables
   par courrier ; remplacement et retrait participent à son historique commun.
+- Dans les paramètres d'expéditeur, « Signature du profil » permet de reprendre
+  à la demande l'image actuelle des préférences, après remplacement ou retrait.
+  La copie reste indépendante et l'action s'annule ; sans image disponible dans
+  le profil, le bouton est désactivé. Reprendre une image déjà identique ne
+  modifie pas le courrier et ne crée pas de ressource supplémentaire.
 - Le modèle Typst choisit la place et la présentation de la signature. Le
   contrat Courrier ajoute `organisme`, `adresse_expediteur`, `telephone` et
   `signature` (chemin embarqué ou `none`). Le format `.typsto` passe en version 7,

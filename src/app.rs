@@ -1006,6 +1006,19 @@ impl App {
         ) {
             return Ok(());
         }
+        let current = self.session.metadata.signature_path();
+        if match (image, current) {
+            (None, None) => true,
+            (Some(image), Some(path)) => self
+                .session
+                .document
+                .assets
+                .get(path)
+                .is_some_and(|data| data == &image.data),
+            _ => false,
+        } {
+            return Ok(());
+        }
         let before = self.snapshot();
         let path = image.map(|image| image.insert(&mut self.session.document.assets, "signature"));
         if let crate::document_types::Metadata::Courrier(meta) = &mut self.session.metadata {
@@ -1020,6 +1033,14 @@ impl App {
         }
         self.remember(before, false);
         Ok(())
+    }
+    fn use_profile_signature(&mut self) -> Result<(), String> {
+        let image = self
+            .profile_signature
+            .clone()
+            .filter(|_| self.document_open && self.preferences.profile.signature.is_some())
+            .ok_or_else(|| crate::tr!("signature-profile-unavailable"))?;
+        self.set_document_signature(Some(&image))
     }
     fn choose_signature(&mut self, profile: bool) {
         let Some(path) = rfd::FileDialog::new()
@@ -1081,7 +1102,7 @@ impl App {
     fn document_signature_ui(&mut self, ui: &mut egui::Ui) {
         let path = self.session.metadata.signature_path().map(str::to_owned);
         ui.separator();
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.label(crate::tr!("signature-label"));
             if ui
                 .button(if path.is_some() {
@@ -1095,6 +1116,20 @@ impl App {
             }
             if path.is_some() && ui.button(crate::tr!("image-remove")).clicked() {
                 let _ = self.set_document_signature(None);
+            }
+            let available =
+                self.preferences.profile.signature.is_some() && self.profile_signature.is_some();
+            if ui
+                .add_enabled(
+                    available,
+                    egui::Button::new(crate::tr!("signature-from-profile")),
+                )
+                .on_hover_text(crate::tr!("signature-from-profile-help"))
+                .on_disabled_hover_text(crate::tr!("signature-profile-unavailable"))
+                .clicked()
+                && let Err(error) = self.use_profile_signature()
+            {
+                self.file_error = Some(error);
             }
         });
         if let Some(path) = self.session.metadata.signature_path().map(str::to_owned)
@@ -3731,6 +3766,39 @@ mod interaction_tests {
         app.apply(Command::Undo);
         assert_eq!(app.stored_document(), initial);
         app.apply(Command::Redo);
+        assert_eq!(app.stored_document(), changed);
+        // Une absence de signature dans le profil ne doit pas effacer celle du courrier.
+        assert!(app.use_profile_signature().is_err());
+        assert_eq!(app.stored_document(), changed);
+        app.preferences.profile.signature = Some("signature-profile.svg".into());
+        app.profile_signature = Some(crate::assets::ImageData {
+            extension: "svg".into(),
+            data: initial.assets[initial.metadata.signature_path().unwrap()].clone(),
+        });
+        let preferences = app.preferences.clone();
+        app.use_profile_signature().unwrap();
+        let restored = app.stored_document();
+        assert_eq!(
+            restored.assets[restored.metadata.signature_path().unwrap()],
+            initial.assets[initial.metadata.signature_path().unwrap()]
+        );
+        assert_eq!(app.preferences, preferences);
+        let revision = app.session.revision;
+        let assets = app.session.document.assets.len();
+        app.use_profile_signature().unwrap();
+        assert_eq!(app.session.revision, revision);
+        assert_eq!(app.session.document.assets.len(), assets);
+        app.apply(Command::Undo);
+        assert_eq!(app.stored_document(), changed);
+        app.apply(Command::Redo);
+        assert_eq!(app.stored_document(), restored);
+        app.set_document_signature(None).unwrap();
+        app.use_profile_signature().unwrap();
+        assert!(app.session.metadata.signature_path().is_some());
+        // Revenir à la signature remplacée pour poursuivre le test d'archivage.
+        app.apply(Command::Undo);
+        app.apply(Command::Undo);
+        app.apply(Command::Undo);
         assert_eq!(app.stored_document(), changed);
         let path = dir.path().join("document.typsto");
         assert!(app.save_path(path.clone()));
