@@ -43,5 +43,9 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts/tests -v
           scripts/check-file-length.sh --warn
+          scripts/check-file-length.sh --root src/app
+      - name: Editor model experiment
+        if: runner.os == 'Linux'
+        run: cargo +stable test --locked --features editor-model-spike --example editor-model-spike model_spike
       - run: cargo +stable test --locked
       - run: cargo +stable clippy --locked --all-targets -- -D warnings

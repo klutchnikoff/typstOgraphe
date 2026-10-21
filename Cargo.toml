@@ -6,6 +6,14 @@ rust-version = "1.92"
 description = "Édition visuelle de documents avec egui et Typst"
 publish = false
 
+[features]
+editor-model-spike = []
+
+[[example]]
+name = "editor-model-spike"
+path = "experiments/editor-model/main.rs"
+required-features = ["editor-model-spike"]
+
 [dependencies]
 eframe = { version = "=0.33.3", default-features = false, features = ["default_fonts", "glow", "x11", "wayland", "accesskit", "persistence"] }
 resvg = { version = "=0.47.0", default-features = false }

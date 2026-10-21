@@ -130,7 +130,7 @@ Fuites à traiter avant tout découpage en crates :
 | D15 | Historique | **Validée après relecture.** Une mutation documentaire validée constitue une transaction ; sélection, navigation, recherche et enregistrement n’ajoutent pas d’étape d’annulation. La frappe conserve ses groupes naturels ; un lot d’édition se défait en une étape | 2 |
 | D16 | Atomicité des lots | **Validée après relecture.** D’abord un document, modifié sur une session temporaire puis enregistré une seule fois par écriture atomique. Les étapes ne peuvent ni enregistrer ni exporter, ni modifier le profil ou le dictionnaire global. Export et autres effets externes sont des opérations séparées ; une atomicité multi-fichiers demanderait une autre décision | 2, 4, 5 |
 | D17 | Saisie native | **Validée après relecture.** L’adaptateur egui peut préparer une édition native, mais validation, normalisation, révision et historique utilisent la même voie du cœur que les commandes. Une erreur ne publie aucune mutation partielle ; tests de parité avec `text.insert` | 2 |
-| D18 | Modèle d’édition | **Validée après relecture.** Prototype borné de tableaux et vérification de la composition IME après le rangement initial, avant le gel des paramètres publics du moteur en phase 2. L’arbre éventuel est une représentation en mémoire reconstruite depuis le Typst et sérialisée en Typst, qui reste la référence documentaire | 1, 2 |
+| D18 | Modèle d’édition | **Validée après relecture.** Prototype borné de tableaux et vérification de la composition IME après le rangement initial, avant le gel des paramètres publics du moteur en phase 2. **Choix validé le 22 octobre 2026 après le prototype : blocs et cellules explicites en mémoire**, avec des zones de texte réutilisant la projection actuelle et la saisie egui. Cette représentation est reconstruite depuis le Typst et sérialisée en Typst, qui reste la référence documentaire | 1, 2 |
 | D19 | Captures comparables | **Validée après relecture.** Figer en mode capture la langue, le thème, le curseur, les animations et le temps de rendu affiché. Fixtures et dates fixes, attente des résultats asynchrones. Les empreintes PNG ne servent de contrôle qu’après répétition réussie sur le même environnement | 0 |
 | D20 | Granularité des changements | **Validée après relecture.** Un déplacement par commit, plusieurs commits cohérents possibles par PR. Les limites portent sur le code de production ; le découpage de `document.rs` et d’`editor.rs` est planifié avant leur application globale | 1, 3, 7 |
 
@@ -187,8 +187,8 @@ les mêmes comportements.
 **Critère de sortie** : base chiffrée consignée, script de captures utilisable.
 
 **État : terminé.** Voir le [bilan de phase 0](docs/architecture-phase-0.md) pour
-les résultats, leur provenance et la procédure de comparaison. La phase 1 reste
-à commencer.
+les résultats, leur provenance et la procédure de comparaison. La phase 1 est
+détaillée ci-dessous.
 
 ---
 
@@ -204,17 +204,18 @@ des seuils attend les tâches complémentaires de 3.8 et la phase 7. **Un seul c
 
 ### 1.1 Sortir les tests (zéro risque pour la production)
 
-- [ ] Créer `src/app/` et convertir `app.rs` en `src/app/mod.rs`.
-- [ ] Déplacer les lignes 3717–7223 vers `src/app/tests/` : `mod.rs` (déclarations),
+- [x] Créer `src/app/` et convertir `app.rs` en `src/app/mod.rs`.
+- [x] Déplacer les lignes 3717–7223 vers `src/app/tests/` : `mod.rs` (déclarations),
   `support.rs` (assistants partagés), puis un fichier par thème :
   `files.rs` (enregistrer, rouvrir, fermer), `recovery.rs`, `search.rs`, `spelling.rs`,
   `images.rs`, `annotations.rs`, `preview.rs` (synchronisation, sélection, échelle),
   `toolbar.rs`, `commands.rs` (raccourcis, historique, modèles), `information.rs`,
   `profile.rs`, `text_input.rs` (Tab, Entrée, descriptions, citations).
-- [ ] Au passage, factoriser l'amorce répétée dans les tests
-  (`Context::default`, `install_fonts`, boucle sur les thèmes et les largeurs) dans
-  `support.rs`. Ne rien changer aux assertions.
-- [ ] Mettre à jour les chemins des `include_bytes!` des fixtures.
+- [x] Au passage, factoriser l'amorce répétée dans les tests
+  (contexte et application de démonstration, entrée de frame standard) dans
+  `support.rs`. Garder explicites les thèmes et dimensions propres à chaque scénario.
+  Ne rien changer aux assertions.
+- [x] Mettre à jour les chemins des `include_bytes!` des fixtures.
 
 ### 1.2 Fichiers par responsabilité (déplacements)
 
@@ -222,7 +223,9 @@ Les numéros de ligne datent du 21 octobre ; les ajuster au moment du déplaceme
 
 | Fichier cible | Contenu actuel d'`app.rs` |
 | --- | --- |
-| `app/mod.rs` | constantes, énumérations, `struct App`, `new`, `with_context`, `ui_frame`, `capture`, `impl eframe::App` (1–294, 3483–3716) |
+| `app/mod.rs` | constantes, énumérations, `struct App`, `ui_frame`, `capture`, `impl eframe::App` |
+| `app/setup.rs` | `new`, `with_context` et configuration du contexte ; déplacés séparément pour garder `mod.rs` sous 400 lignes |
+| `app/state.rs` | structures d’état de 1.4 |
 | `app/files.rs` | `stored_document`, `is_dirty`, `save_path`, `save_document`, `open_path`, `install_document`, `request_action`, `close_document`, `perform_action`, `create_document`, `handle_file_command`, `file_dialogs` |
 | `app/recovery.rs` | `start_recovery`, `clear_recovery`, `checkpoint_recovery`, `recovered_filename`, `recover_document`, `recovery_dialog` (312–455) |
 | `app/commands.rs` | `range`, `changed`, `remember`, `apply`, `apply_history`, `edit`, `shortcuts`, `track_history_focus`, `menu_statuses`, `dispatch_action` |
@@ -240,22 +243,23 @@ Les numéros de ligne datent du 21 octobre ; les ajuster au moment du déplaceme
 | `app/preferences.rs` | `preferences_ui`, `appearance_preferences_ui`, `spelling_preferences_ui`, `profile_preferences_ui`, `persist_preferences`, `capture_profile` |
 | `app/dialogs.rs` | `dialogs`, `welcome_ui`, `modal_open` |
 
-- [ ] Un commit de déplacement par ligne de ce tableau, regroupables par responsabilités
-  cohérentes dans une même PR, dans l'ordre croissant du risque : `links`,
+- [x] Un commit de déplacement par responsabilité extraite (les structures de
+  `state.rs` relèvent de 1.4), regroupables dans une même PR, dans l'ordre croissant
+  du risque : `links`,
   `images`, `signature`, `models`, `search`, `spelling`, `preferences`, `information`,
   `chrome`, `recovery`, `files`, `preview`, `editor_view`, `commands`, `text_input`,
   `dialogs`, `mod`.
-- [ ] À chaque PR : tests, `clippy`, puis `scripts/capture-baseline.sh --compare`.
+- [x] À chaque PR : tests, `clippy`, puis `scripts/capture-baseline.sh --compare`.
 
 ### 1.3 Couper les fonctions trop longues
 
-- [ ] `text_shortcuts` (306 lignes) en une fonction par comportement : Entrée, Tab,
+- [x] `text_shortcuts` (306 lignes) en une fonction par comportement : Entrée, Tab,
   deux-points des descriptions, citations, listes, texte littéral annulable.
-- [ ] `dialogs` (278 lignes) en une fonction par fenêtre : nouveau document, informations
+- [x] `dialogs` (278 lignes) en une fonction par fenêtre : nouveau document, informations
   d'image, lien, palette, export.
-- [ ] `editor_ui` (194), `search_ui` (179) : isoler les sous-parties (barre de recherche,
+- [x] `editor_ui` (194), `search_ui` (179) : isoler les sous-parties (barre de recherche,
   rangée de remplacement, zone de texte, retour d'éditeur).
-- [ ] Aucun changement de signature publique.
+- [x] Aucun changement de signature publique.
 
 ### 1.4 Regrouper l'état (réorganisation)
 
@@ -269,37 +273,48 @@ Séparer les environ 70 champs d'`App` en structures nommées, sans changer la l
 | `SpellingState` | `spelling`, `spelling_target`, `spelling_menu_pending`, `spelling_menu_position`, `capture_spelling` |
 | `RecoveryState` | `recovery`, `recovery_entries`, `recovery_open`, `recovery_error`, `recovered_name` |
 | `PreviewState` | `worker`, `pages`, `submitted`, `rendering_time`, `rendering_error`, `rendered_revision`, `sync`, `forward_pending`, `editor_scroll_pending` |
-| `DialogState` | `palette_*`, `new_document_*`, `link_*`, `image_*`, `information_*`, `preferences_*`, `message` |
+| `DialogState` | `palette_*`, `new_document_*`, `link_*`, `image_info`, `image_alt`, `information_*`, `preferences_page`, `preferences_open`, `profile_error`, `message` |
 | `CaptureState` | `capture`, `screenshot_requested`, `started` |
 
-- [ ] Un commit de réorganisation par structure, regroupables par PR, dans l'ordre : `CaptureState`, `RecoveryState`,
+- [x] Un commit de réorganisation par structure, regroupables par PR, dans l'ordre : `CaptureState`, `RecoveryState`,
   `SpellingState`, `SearchState`, `PreviewState`, `FileState`, `DialogState`,
   `DocumentState`.
-- [ ] Retirer les `pub(super)` devenus inutiles.
+- [x] Retirer les `pub(super)` devenus inutiles.
 
 ### 1.5 Seuils (D13)
 
-- [ ] Ajouter `clippy.toml` avec `too-many-lines-threshold = 120`.
-- [ ] Ajouter `scripts/check-file-length.sh` : échoue si un fichier de production de
+- [x] Ajouter `clippy.toml` avec `too-many-lines-threshold = 120`.
+- [x] Ajouter `scripts/check-file-length.sh` : échoue si un fichier de production de
   `src/` dépasse 800 lignes (fichiers de tests exclus). En CI, en avertissement
-  (non bloquant) jusqu'à la phase 7.
+  (non bloquant) jusqu'à la phase 7 ; `app/` est déjà contrôlé de façon bloquante.
+  Le lint des fonctions est activé sur la production d’`app/` ; les scénarios de tests
+  sont exemptés pour conserver leurs assertions. L’activation globale attend la phase 7.
 
 ### 1.6 Prototype de décision du modèle d’édition (D18)
 
-- [ ] Après le rangement initial, faire un prototype borné de tableau simple avec le
+- [x] Après le rangement initial, faire un prototype borné de tableau simple avec le
   tampon actuel : cellules, navigation, sélection, insertion/suppression, annulation.
 - [ ] Vérifier touches mortes et composition IME ; noter les limites observées.
-- [ ] Décider ensemble si le moteur garde ce modèle ou accueille des blocs et séquences
-  en ligne en mémoire. Le source Typst reste la référence du contenu et du stockage.
-- [ ] Reporter la décision et ses conséquences sur les cibles et paramètres des commandes
-  dans l’inventaire 2.1, avant leur gel en fin de phase 2.
+  Six essais du diagnostic valident les opérations et la saisie accentuée/IME via
+  les événements egui. Le chemin clavier → système → winit reste à essayer avec
+  une vraie méthode de saisie ; il n’est pas présenté comme testé.
+- [x] Décider ensemble si le moteur garde ce modèle ou accueille des blocs et séquences
+  en ligne en mémoire. **Blocs et cellules explicites validés le 22 octobre 2026.**
+  Le source Typst reste la référence du contenu et du stockage.
+- [x] Reporter la décision et ses conséquences sur les cibles et paramètres des commandes
+  dans les entrées de l’inventaire 2.1 ci-dessous, avant leur gel en fin de phase 2.
 
 ### 1.7 Critères de sortie
 
 - Aucun fichier de production d'`app/` au-dessus de 800 lignes ; `app/mod.rs` sous 400.
 - Nombre de tests inchangé par plateforme (143 sur macOS, 142 sous Linux et Windows),
   tous verts ; mêmes captures qu'à la phase 0 sur le même environnement.
-- Un `cargo clippy -D warnings -W clippy::too_many_lines` sans nouvelle exception injustifiée.
+- `cargo clippy --locked --all-targets -- -D warnings` sans nouvelle exception injustifiée ;
+  `clippy::too_many_lines` est activé dans `app/` avec le seuil de 120 lignes.
+
+**État :** tâches 1.1 à 1.5 réalisées, prototype et orientation 1.6 validés.
+Le dernier essai de saisie du système reste ouvert. Voir le
+[bilan de phase 1](docs/architecture-phase-1.md).
 
 ---
 
@@ -319,6 +334,22 @@ exécutable **sans egui** par un `Engine`. C'est la phase qui rend la CLI et MCP
   PDF, exporter Typst), la saisie de texte, la sélection, le choix de métadonnées,
   d'options (papier, langue, marqueur de puce), l'import d'image, l'ajout de lien.
 - [ ] Faire valider l'inventaire avant d'écrire du code (décisions D2 à D6).
+
+**Entrées issues du choix de 1.6 (22 octobre 2026) :**
+
+- Prévoir des blocs et cellules explicites en mémoire. Typst reste la source de
+  référence ; cette structure ne devient pas un second format documentaire.
+- Une cible textuelle doit pouvoir désigner une zone de texte et une position
+  Unicode dans cette zone. Un indice global ne doit pas être la seule cible possible.
+- Une sélection continue peut traverser plusieurs zones ; son remplacement doit
+  avoir une sémantique structurelle validée avant toute publication (D17).
+- Les opérations sur les cellules ou blocs sont distinctes de la saisie de texte ;
+  les mutations structurelles et leur sélection se restaurent ensemble par l’historique.
+- La normalisation du corps ne doit pas supprimer des lignes ou du contenu d’une
+  cellule. Préserver la composition IME dans la zone éditée.
+- L’inventaire exhaustif reste à produire et à valider. Les identifiants de zones,
+  leur durée de vie et les signatures Rust/JSON sont à décider en 2.1 ; le prototype
+  n’ajoute aucune commande publique de tableau à ce stade.
 
 ### 2.2 Types du registre (taille M)
 
