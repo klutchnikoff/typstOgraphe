@@ -3,7 +3,7 @@
 Document de travail établi le **21 octobre 2026**, à faire évoluer au fil des
 décisions et des réalisations. Le POC est validé ; l’application continue à être
 construite dans ce dépôt. Cette feuille de route ne constitue pas un calendrier.
-Le [README](README.md) décrit les fonctions déjà disponibles et leur utilisation.
+Le [README](README.md) présente l’objectif et le lancement de l’application.
 
 ## Comment nous avançons
 
