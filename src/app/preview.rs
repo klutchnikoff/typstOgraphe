@@ -81,7 +81,7 @@ impl App {
                 ui.spinner();
                 ui.weak(crate::tr!("preview-updating"));
             } else if let Some(time) = self.rendering_time {
-                let time = if self.capture.is_some() {
+                let time = if self.capture.path.is_some() {
                     Duration::ZERO
                 } else {
                     time

@@ -1,3 +1,5 @@
+mod state;
+use state::*;
 mod chrome;
 mod commands;
 mod dialogs;
@@ -68,6 +70,7 @@ enum PreferencesPage {
 }
 
 pub struct App {
+    capture: CaptureState,
     // La session vide sert uniquement de tampon interne tant qu'aucun document
     // n'est ouvert : pas de rendu, d'édition ni de copie de récupération.
     document_open: bool,
@@ -133,9 +136,6 @@ pub struct App {
     export_open: bool,
     export_path: String,
     message: Option<String>,
-    capture: Option<PathBuf>,
-    screenshot_requested: bool,
-    started: Instant,
 }
 
 impl App {
@@ -154,7 +154,7 @@ impl App {
                 .send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::vec2(1240.0, 900.0)));
         }
         let mut app = Self::with_context(cc.egui_ctx.clone(), capture);
-        if app.capture.is_none() {
+        if app.capture.path.is_none() {
             app.preferences = Preferences::load(cc.storage);
             app.preferences_directory = eframe::storage_dir("typstOgraphe");
             if let Some(directory) = &app.preferences_directory {
@@ -175,7 +175,7 @@ impl App {
         // Les captures et les tests restent isolés des données réelles.
         if let Some(directory) = capture_recovery {
             app.start_recovery(directory, cc.egui_ctx.clone());
-        } else if app.capture.is_none() {
+        } else if app.capture.path.is_none() {
             match eframe::storage_dir("typstOgraphe") {
                 Some(directory) => {
                     app.start_recovery(directory.join("recovery"), cc.egui_ctx.clone())
@@ -238,6 +238,11 @@ impl App {
         let document =
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
+            capture: CaptureState {
+                path: capture,
+                screenshot_requested: false,
+                started: Instant::now(),
+            },
             document_open: false,
             session: Session::new(saved, document, None, 1),
             spelling,
@@ -306,9 +311,6 @@ impl App {
                 .display()
                 .to_string(),
             message: None,
-            capture,
-            screenshot_requested: false,
-            started: Instant::now(),
         }
     }
     #[cfg(test)]
@@ -322,7 +324,7 @@ impl App {
     /// La proportion appartient aux préférences, les rectangles à la frame.
     /// Seuls les bords gardent une petite zone accessible pour chaque colonne.
     pub fn ui_frame(&mut self, ctx: &egui::Context) {
-        if self.capture.is_some() {
+        if self.capture.path.is_some() {
             // Le pointeur réel ne doit pas modifier les survols des captures de référence.
             ctx.input_mut(|input| input.pointer = Default::default());
         }
@@ -471,7 +473,7 @@ impl App {
         }
     }
     fn capture(&mut self, ctx: &egui::Context) {
-        if self.capture.is_none() {
+        if self.capture.path.is_none() {
             return;
         }
         if self.capture_spelling {
@@ -494,11 +496,11 @@ impl App {
             }
         }
         if (!self.document_open || self.rendered_revision == Some(self.session.revision))
-            && !self.screenshot_requested
-            && self.started.elapsed() > Duration::from_secs(1)
+            && !self.capture.screenshot_requested
+            && self.capture.started.elapsed() > Duration::from_secs(1)
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
-            self.screenshot_requested = true;
+            self.capture.screenshot_requested = true;
         }
         let image = ctx.input(|i| {
             i.events.iter().find_map(|event| {
@@ -509,7 +511,7 @@ impl App {
                 }
             })
         });
-        if let (Some(image), Some(path)) = (image, self.capture.as_ref()) {
+        if let (Some(image), Some(path)) = (image, self.capture.path.as_ref()) {
             let result = crate::write_screenshot(path, &image);
             if let Err(error) = result {
                 eprintln!(
@@ -525,7 +527,7 @@ impl App {
 }
 impl eframe::App for App {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        if self.capture.is_some() {
+        if self.capture.path.is_some() {
             return;
         }
         self.persist_preferences(storage, Instant::now(), true);
@@ -546,7 +548,7 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         let preferences_were_open = self.preferences_open;
         self.ui_frame(ctx);
-        if self.capture.is_none()
+        if self.capture.path.is_none()
             && let Some(storage) = frame.storage_mut()
         {
             let force = (preferences_were_open && !self.preferences_open)

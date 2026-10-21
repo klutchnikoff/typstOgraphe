@@ -186,7 +186,7 @@ impl App {
         now: Instant,
         force: bool,
     ) {
-        if self.capture.is_some() {
+        if self.capture.path.is_some() {
             return;
         }
         if let Some(delay) = self.preferences_tracker.observe(&self.preferences, now)

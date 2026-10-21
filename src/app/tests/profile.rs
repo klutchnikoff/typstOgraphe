@@ -153,7 +153,7 @@ fn global_profile_saves_after_changes_or_closing_without_modifying_the_document(
     frame(&mut app, &ctx, vec![]);
     assert_eq!(app.stored_document(), before);
     assert!(!app.is_dirty());
-    app.capture = Some("ignored.png".into());
+    app.capture.path = Some("ignored.png".into());
     assert!(!eframe::App::persist_egui_memory(&app));
     app.preferences.profile.name = "Capture isolée".into();
     eframe::App::save(&mut app, &mut store);
