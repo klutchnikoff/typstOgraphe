@@ -166,12 +166,12 @@ les mêmes comportements.
 
 **But** : pouvoir prouver qu'une étape ne change pas le comportement.
 
-- [ ] **0.1** Relever la base : `cargo test --locked`, `clippy -D warnings`, couverture.
+- [x] **0.1** Relever la base : `cargo test --locked`, `clippy -D warnings`, couverture.
   Consigner les commandes, le commit, la plateforme, le nombre de tests et la couverture
   dans `docs/architecture-phase-0.md`. La mesure Linux de la CI existante peut servir
   de référence, avec son exécution et son commit exacts ; ne pas la présenter comme
   une mesure locale. Relever et corriger séparément toute CI déjà en échec.
-- [ ] **0.2** Créer `scripts/capture-baseline.sh` qui produit, dans `output/baseline/`
+- [x] **0.2** Créer `scripts/capture-baseline.sh` qui produit, dans `output/baseline/`
   (déjà ignoré par git), les captures d'écran de référence avec les options existantes :
   `--capture`, `--capture-new-document`, `--capture-search <requête>`,
   `--capture-spelling`, `--capture-profile`, `--capture-profile-letter`,
@@ -181,10 +181,14 @@ les mêmes comportements.
   nouvelles captures séparément ; ne jamais écraser les références en mode comparaison.
   Faire deux passages consécutifs pour vérifier la reproductibilité. La comparaison
   est locale : les polices, la densité d’écran et le rendu varient entre environnements.
-- [ ] **0.3** Étiqueter le commit de départ (`pre-refactor-architecture`).
-- [ ] **0.4** Décisions D1 à D20 de la section 3 : validées.
+- [x] **0.3** Étiqueter le commit de départ (`pre-refactor-architecture`).
+- [x] **0.4** Décisions D1 à D20 de la section 3 : validées.
 
 **Critère de sortie** : base chiffrée consignée, script de captures utilisable.
+
+**État : terminé.** Voir le [bilan de phase 0](docs/architecture-phase-0.md) pour
+les résultats, leur provenance et la procédure de comparaison. La phase 1 reste
+à commencer.
 
 ---
 
@@ -293,7 +297,8 @@ Séparer les environ 70 champs d'`App` en structures nommées, sans changer la l
 ### 1.7 Critères de sortie
 
 - Aucun fichier de production d'`app/` au-dessus de 800 lignes ; `app/mod.rs` sous 400.
-- Même nombre de tests, tous verts sur trois systèmes ; mêmes captures qu'à la phase 0.
+- Nombre de tests inchangé par plateforme (143 sur macOS, 142 sous Linux et Windows),
+  tous verts ; mêmes captures qu'à la phase 0 sur le même environnement.
 - Un `cargo clippy -D warnings -W clippy::too_many_lines` sans nouvelle exception injustifiée.
 
 ---

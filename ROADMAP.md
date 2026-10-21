@@ -569,7 +569,9 @@ coordonnées ni ressources fictives imposées.
 ## J. Architecture, commandes, CLI et MCP — avant l’étape 5
 
 **État :** plan établi le 21 octobre 2026, décisions D1 à D20 validées après relecture ;
-phase 0 en cours (base mesurée et captures reproductibles). Le détail, les tâches et les critères de sortie sont dans
+phase 0 terminée : tests et Clippy verts, couverture mesurée, huit captures
+reproductibles ([bilan](docs/architecture-phase-0.md)). La phase 1 reste à commencer.
+Le détail, les tâches et les critères de sortie sont dans
 [ROADMAP-ARCHITECTURE.md](ROADMAP-ARCHITECTURE.md).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une
