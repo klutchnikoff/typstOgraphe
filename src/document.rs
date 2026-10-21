@@ -146,6 +146,7 @@ impl Document {
     }
 
     #[cfg(test)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn demo() -> Self {
         Self::from_source(include_str!("../examples/courrier.typ"))
             .expect("courrier d’exemple valide")

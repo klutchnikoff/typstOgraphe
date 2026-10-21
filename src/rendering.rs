@@ -148,6 +148,7 @@ impl TypstWorld {
         Ok(policy)
     }
     #[cfg(test)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn compile_courrier(
         &mut self,
         source: &str,

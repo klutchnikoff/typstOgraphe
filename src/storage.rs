@@ -242,12 +242,14 @@ pub(crate) fn save_archive(
     {
         return Err(crate::tr!("storage-letter-too-large"));
     }
-    let mut options = atomic_write_file::AtomicWriteFile::options();
+    let options = atomic_write_file::AtomicWriteFile::options();
     #[cfg(unix)]
-    {
+    let options = {
         use std::os::unix::fs::OpenOptionsExt;
+        let mut options = options;
         options.mode(0o600);
-    }
+        options
+    };
     let mut temporary = options
         .open(path)
         .map_err(|e| crate::tr!("storage-temporary-failed", error = e.to_string()))?;

@@ -351,10 +351,12 @@ impl Recovery {
         })
     }
     #[cfg(test)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub(crate) fn make_due(&mut self) {
         self.last_check = Instant::now() - INTERVAL;
     }
     #[cfg(test)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub(crate) fn wait(&mut self) {
         let (sender, receiver) = mpsc::channel();
         self.send(Task::Barrier(sender)).unwrap();

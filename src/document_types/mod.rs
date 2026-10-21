@@ -129,6 +129,7 @@ impl Metadata {
         }
     }
     #[cfg(test)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn courrier(&self) -> &courrier::Metadata {
         let Self::Courrier(meta) = self else {
             panic!("métadonnées Courrier attendues")
@@ -136,6 +137,7 @@ impl Metadata {
         meta
     }
     #[cfg(test)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn courrier_mut(&mut self) -> &mut courrier::Metadata {
         let Self::Courrier(meta) = self else {
             panic!("métadonnées Courrier attendues")

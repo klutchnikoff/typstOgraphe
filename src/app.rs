@@ -582,6 +582,7 @@ impl App {
             ..range.end.min(self.session.document.view.len())
     }
     #[cfg(test)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
     fn changed(&mut self) {
         let adjusted = self.session.changed(self.selection.into());
         self.force_selection |= adjusted != self.selection.into();

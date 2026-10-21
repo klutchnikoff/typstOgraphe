@@ -325,6 +325,9 @@ coordonnées ni ressources fictives imposées.
 
 ## I. Qualité transversale — à chaque étape
 
+- Couverture mesurée en CI avec `cargo-llvm-cov` sous Linux : rapport HTML/LCOV,
+  résumé et badge des lignes exécutées, hors code des tests et dépendances.
+  Le premier résultat sert de référence ; un éventuel seuil reste à choisir.
 - Vérifications adaptées aux changements : contenu Unicode, aller-retour du
   fichier, historique, compilation Typst et export.
 - Essais manuels macOS, Windows et Linux : menus, dialogues, presse-papiers,
