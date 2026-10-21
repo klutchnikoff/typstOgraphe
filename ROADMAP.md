@@ -308,6 +308,9 @@ synchronisation doit prendre en compte les nouveaux contenus.
   La copie reste indépendante et l'action s'annule ; sans image disponible dans
   le profil, le bouton est désactivé. Reprendre une image déjà identique ne
   modifie pas le courrier et ne crée pas de ressource supplémentaire.
+- Sans image de signature, le modèle de courrier réserve une zone blanche de
+  14 mm de haut pour signer à la main, au-dessus du nom et de la fonction.
+  Le bloc reste indivisible pour conserver cet espace avec le nom en fin de page.
 - Le modèle Typst choisit la place et la présentation de la signature. Le
   contrat Courrier ajoute `organisme`, `adresse_expediteur`, `telephone` et
   `signature` (chemin embarqué ou `none`). Le format `.typsto` passe en version 7,

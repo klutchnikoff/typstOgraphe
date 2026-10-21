@@ -134,17 +134,18 @@
   if reference != "" { block(below: 3mm, text(size: 10pt)[#labels.reference : #reference]) }
   v(5mm)
   body
+  // Même sans image, réserver la même place pour une signature manuscrite.
   // La signature et le nom restent ensemble ; la signature n'est pas un flottant.
   let elements = ()
   if signature != none {
     elements.push(image(signature, width: 35mm, height: 14mm, fit: "contain", alt: expediteur))
+  } else {
+    elements.push(box(width: 35mm, height: 14mm))
   }
   if expediteur != "" { elements.push(text(expediteur)) }
   if fonction != "" { elements.push(text(size: 10pt, fonction)) }
-  if elements.len() > 0 {
-    block(width: 100%, breakable: false, above: 8mm)[
-      #align(right, box(width: 65mm,
-        align(center, stack(dir: ttb, spacing: 2mm, ..elements))))
-    ]
-  }
+  block(width: 100%, breakable: false, above: 8mm)[
+    #align(right, box(width: 65mm,
+      align(center, stack(dir: ttb, spacing: 2mm, ..elements))))
+  ]
 }
