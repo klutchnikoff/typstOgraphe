@@ -232,6 +232,61 @@ mod tests {
     use crate::rendering::TypstWorld;
 
     #[test]
+    fn personal_window_letter_compiles_in_app_and_keeps_addresses_on_first_page() {
+        use typst::layout::{Frame, FrameItem};
+        fn text(frame: &Frame) -> String {
+            let mut result = String::new();
+            for (_, item) in frame.items() {
+                match item {
+                    FrameItem::Group(group) => result.push_str(&text(&group.frame)),
+                    FrameItem::Text(run) => result.push_str(&run.text),
+                    _ => {}
+                }
+            }
+            result
+        }
+        let template = include_str!("../../templates/courrier-personnel.typ");
+        let mut world = TypstWorld::default();
+        let mut metadata = DocumentMetadata::blank(DocumentType::Courrier);
+        world
+            .validate_model("Bonjour.", &metadata, template)
+            .unwrap();
+        metadata.courrier_mut().expediteur = "EXPEDITEURTEST".into();
+        metadata.courrier_mut().destinataire = "DESTINATAIRETEST".into();
+        metadata.courrier_mut().adresse =
+            "Maison des associations\n4 avenue des Tilleuls\n35000 RENNES".into();
+        let body = "Un paragraphe de courrier assez long pour éprouver le passage sur la page suivante et la conservation de la mise en page.\n\n".repeat(45);
+        let pages = world
+            .compile_with_template(&body, &metadata, template)
+            .unwrap();
+        assert!(pages.pages().len() > 1);
+        assert!(text(&pages.pages()[0].frame).contains("DESTINATAIRETEST"));
+        for page in &pages.pages()[1..] {
+            assert!(!text(&page.frame).contains("DESTINATAIRETEST"));
+        }
+        // Une adresse excessive est refusée, jamais tronquée dans la fenêtre.
+        metadata.courrier_mut().adresse = "Une ligne d'adresse\n".repeat(12);
+        assert!(
+            world
+                .compile_with_template("Bonjour.", &metadata, template)
+                .is_err()
+        );
+        metadata.courrier_mut().adresse = "W".repeat(120);
+        assert!(
+            world
+                .compile_with_template("Bonjour.", &metadata, template)
+                .is_err()
+        );
+        metadata.courrier_mut().adresse.clear();
+        metadata.options_mut().landscape = true;
+        assert!(
+            world
+                .compile_with_template("Bonjour.", &metadata, template)
+                .is_err()
+        );
+    }
+
+    #[test]
     fn courrier_contract_accepts_independent_typst_models_without_presentation_flags() {
         let mut world = TypstWorld::default();
         let metadata = DocumentMetadata::demo(DocumentType::Courrier);

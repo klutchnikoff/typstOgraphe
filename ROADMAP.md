@@ -365,6 +365,19 @@ au-delà des démonstrations fictives.
 
 - **P1 : Courrier**, avec un modèle personnel utile et un modèle professionnel
   ou administratif ; raccordement au profil et à la signature.
+- **Courrier personnel : première maquette à examiner.** La présentation retenue
+  est composée en pur Typst dans [le modèle](templates/courrier-personnel.typ),
+  avec [un exemple autonome](examples/courrier-personnel.typ). Cible : A4 portrait,
+  plis à 99/198 mm, enveloppe DL 110 × 220 mm, fenêtre 100 × 35 mm à 20 mm du bas
+  et de droite ([GPV 60013 / ES35F110](https://myprint.gpvfrance.fr/products/60013-boite-de-500-enveloppes-blanches-dl-110x220-90-g-m2-fenetre-35x100-bande-de-protection-es35f110)).
+  Zone d'adresse de 82 × 18 mm, centrée verticalement à x=104/y=58 mm ; marges
+  pour le jeu théorique de la feuille pliée. Expéditeur à gauche, date sous
+  l'adresse, objet/référence facultatifs, signature à droite et pagination à
+  partir du deuxième feuillet. Composition noire en Libertinus Serif 11 pt,
+  champs vides masqués, repères de pliage discrets. Une adresse qui déborde est
+  signalée. La maquette se compile dans le moteur embarqué et dispose d'un mode
+  de contrôle avec fenêtre et plis. Prochaine validation : présentation et essai
+  papier à 100 % dans une enveloppe réelle, avant ajout au choix des modèles.
 - **P1 : Compte-rendu de réunion**, avec un modèle utilisable à titre personnel :
   intitulé, date, lieu/visioconférence, rédacteur, participants, personnes excusées
   et corps libre. Ces métadonnées ont déjà été validées et sont implémentées.
