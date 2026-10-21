@@ -367,3 +367,9 @@ cli-usage-capture-creation = Usage : --capture-new-document IMAGE.png
 
 package-resource-missing = Dépendance Typst manquante : { $path }
 package-inventory-invalid = L’inventaire des capacités et des paquets Typst est invalide ou incohérent.
+
+cmd-insert-postscript = Insérer un post-scriptum
+cmd-insert-attachment = Ajouter une pièce jointe (mention)
+postscript-placeholder = Texte du post-scriptum…
+attachment-placeholder = Document joint…
+source-letter-note-signature = Un post-scriptum contient du texte ; chaque mention de pièce jointe occupe une seule ligne.

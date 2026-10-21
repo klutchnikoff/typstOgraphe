@@ -8,6 +8,12 @@
       "packages": [
         "datify"
       ]
+    },
+    {
+      "id": "correspondence",
+      "entrypoint": "capabilities/correspondence.typ",
+      "signature": "postscript(body), piece-jointe(body), notes-courrier(postscript: body => body, pieces-jointes: items => items.join(parbreak()))",
+      "packages": []
     }
   ],
   "packages": [

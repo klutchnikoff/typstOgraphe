@@ -262,6 +262,25 @@ condition Rust spécifique à Datify. Chaque document et export reçoit son prop
 `dependencies.json`, limité aux capacités et paquets effectivement embarqués.
 Le wrapper, les paquets et les données associées sont copiés avec le modèle.
 
+**Capacité Courrier implémentée : Post-scriptum et pièces jointes.**
+Deux commandes propres au type Courrier, disponibles dans Insertion, la palette
+et la barre d’outils. Un cadre discret distingue le P.-S. ; un second rassemble
+les mentions de P.J., sans incorporer de fichiers. Le contenu conserve le gras,
+l’italique, les liens et la synchronisation avec l’aperçu. Entrée ajoute une
+ligne ; sur une ligne vide elle quitte le bloc. Tab permet également d’en sortir.
+Le bouton P.-S. rejoint le bloc existant, ou le crée avant les P.J. ; le bouton
+P.J. ajoute une mention en fin de liste.
+
+L’interface Typst est `postscript(body)` et `piece-jointe(body)`, fournie par
+`capabilities/correspondence.typ`, sans paquet externe. Le source ajoute un
+import explicite de ces deux fonctions depuis le modèle, masqué dans l’éditeur.
+Les modèles du type Courrier doivent exposer ces fonctions lorsqu’elles sont
+utilisées ; le modèle fourni les réexporte depuis cet adaptateur. Son point
+`notes-courrier(postscript: ..., pieces-jointes: ...)` collecte les contenus et
+applique les deux présentations données par le modèle, après la signature.
+Les blocs vides ne produisent aucune mention dans le rendu. Les interfaces,
+l’archivage, l’export autonome et les sélections restent testés ensemble.
+
 Pour toute nouvelle capacité : convenir du contrat public minimal, écrire son
 adaptateur Typst si nécessaire, déclarer ses dépendances, puis vérifier le même
 contrat dans les types concernés, l’archivage et la compilation hors ligne.

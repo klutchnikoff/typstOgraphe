@@ -852,6 +852,17 @@ impl App {
                     self.remember(before, false);
                 }
             }
+            Command::InsertPostscript | Command::InsertAttachment => {
+                let before = self.snapshot();
+                let kind = if command == Command::InsertPostscript {
+                    BlockKind::Postscript
+                } else {
+                    BlockKind::Attachment
+                };
+                let at = self.session.document.view.insert_letter_note(kind);
+                self.remember(before, false);
+                self.focus_annotation_target(at..at);
+            }
             Command::Undo | Command::Redo => self.apply_history(command == Command::Undo),
             Command::Link => self.open_link(),
             Command::RemoveLink => {
@@ -1502,6 +1513,36 @@ impl App {
                     i.events
                         .retain(|e| !matches!(e,egui::Event::Text(t) if t==" "))
                 });
+                return;
+            }
+        }
+        if self.session.document.view.blocks[line].is_letter_note() {
+            if range.is_empty()
+                && lines[line].is_empty()
+                && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
+            {
+                let before = self.snapshot();
+                self.session.document.view.blocks[line] = BlockKind::Paragraph;
+                self.remember(before, false);
+                self.focus_annotation_target(start..start);
+                return;
+            }
+            if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab)) {
+                let before = self.snapshot();
+                let (_, group) = self
+                    .session
+                    .document
+                    .view
+                    .letter_note_groups()
+                    .into_iter()
+                    .find(|(_, lines)| lines.contains(&line))
+                    .expect("bloc de courrier");
+                let at = lines[group.end - 1].end;
+                self.session.document.view.insert_text("\n", at);
+                let next = self.session.document.view.line_at(at + 1);
+                self.session.document.view.blocks[next] = BlockKind::Paragraph;
+                self.remember(before, false);
+                self.focus_annotation_target(at + 1..at + 1);
                 return;
             }
         }
@@ -2484,7 +2525,8 @@ impl App {
         }
         let view = self.session.document.view.clone();
         let lock_tab = view.annotation_at(self.range()).is_some()
-            || view.blocks[view.line_at(self.selection.primary.index)] == BlockKind::Description;
+            || (view.blocks[view.line_at(self.selection.primary.index)] == BlockKind::Description
+                || view.blocks[view.line_at(self.selection.primary.index)].is_letter_note());
         let editor_style = self.preferences.editor;
         let matches = if self.search_open {
             self.search.matches.clone()
@@ -7101,5 +7143,81 @@ mod interaction_tests {
         app.apply(Command::Undo);
         assert!(app.session.dependencies.is_empty());
         assert_eq!(app.session.document.source(), body);
+    }
+    #[test]
+    fn letter_notes_insert_type_scope_editing_exit_and_undo_use_the_shared_session() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_demo_context(ctx.clone(), None);
+        let body = app.session.document.view.text.clone();
+        app.apply(Command::InsertPostscript);
+        frame(&mut app, &ctx, vec![]);
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Text("Merci encore.".into())],
+        );
+        assert!(
+            app.session
+                .document
+                .source()
+                .contains("#postscript[Merci encore.]")
+        );
+        app.apply(Command::InsertAttachment);
+        frame(&mut app, &ctx, vec![]);
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Text("Formulaire signé".into())],
+        );
+        let key = |key| egui::Event::Key {
+            key,
+            pressed: true,
+            repeat: false,
+            physical_key: None,
+            modifiers: egui::Modifiers::NONE,
+        };
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        frame(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Text("Rapport annuel".into())],
+        );
+        assert!(
+            app.session
+                .document
+                .source()
+                .contains("#piece-jointe[Formulaire signé]")
+        );
+        assert!(
+            app.session
+                .document
+                .source()
+                .contains("#piece-jointe[Rapport annuel]")
+        );
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
+        let line = app.session.document.view.line_at(app.range().start);
+        assert_eq!(app.session.document.view.blocks[line], BlockKind::Paragraph);
+        app.apply(Command::Undo);
+        assert_eq!(
+            app.session.document.view.blocks[line],
+            BlockKind::Attachment
+        );
+        app.apply(Command::Redo);
+        assert_eq!(app.session.document.view.blocks[line], BlockKind::Paragraph);
+        let dir = tempfile::tempdir().unwrap();
+        let archive = dir.path().join("courrier.typsto");
+        assert!(app.save_path(archive.clone()));
+        let stored = crate::storage::read(&archive).unwrap();
+        assert_eq!(stored.source, app.session.document.source());
+        assert!(app.session.document.view.text.starts_with(&body));
+        assert!(
+            stored
+                .dependencies
+                .contains_key("capabilities/correspondence.typ")
+        );
+        let registry = crate::commands::Registry::new(DocumentType::CompteRendu);
+        assert!(!registry.contains(Command::InsertPostscript));
+        assert!(!registry.contains(Command::InsertAttachment));
     }
 }

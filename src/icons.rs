@@ -50,7 +50,8 @@ impl Icon {
             BlockKind::Bullet => Self::List,
             BlockKind::Numbered => Self::ListOrdered,
             BlockKind::Description => Self::ListDescription,
-            BlockKind::Quote | BlockKind::QuoteAttribution => Self::Quote,
+            BlockKind::Quote | BlockKind::QuoteAttribution | BlockKind::Postscript => Self::Quote,
+            BlockKind::Attachment => Self::ListDescription,
             BlockKind::Image(_) => Self::Image,
         }
     }

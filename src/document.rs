@@ -3,6 +3,7 @@
 use std::{collections::BTreeMap, ops::Range};
 
 pub const IMAGE_OBJECT: char = '\u{fffc}';
+pub const LETTER_NOTES_IMPORT: &str = "#import \"modele.typ\": postscript, piece-jointe\n\n";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ImageBlock {
@@ -30,9 +31,14 @@ pub enum BlockKind {
     Description,
     Quote,
     QuoteAttribution,
+    Postscript,
+    Attachment,
     Image(u64),
 }
 impl BlockKind {
+    pub fn is_letter_note(self) -> bool {
+        matches!(self, Self::Postscript | Self::Attachment)
+    }
     pub fn is_list(self) -> bool {
         matches!(self, Self::Bullet | Self::Numbered | Self::Description)
     }
@@ -217,7 +223,11 @@ impl Projection {
         let kind = self.blocks[line];
         let mut first = line;
         let mut last = line;
-        if matches!(kind, BlockKind::Paragraph | BlockKind::Quote) && !ranges[line].is_empty() {
+        if matches!(
+            kind,
+            BlockKind::Paragraph | BlockKind::Quote | BlockKind::Postscript
+        ) && !ranges[line].is_empty()
+        {
             while first > 0 && self.blocks[first - 1] == kind && !ranges[first - 1].is_empty() {
                 first -= 1;
             }
@@ -362,6 +372,66 @@ impl Projection {
                 self.styles.remove(at);
             }
         }
+    }
+    /// Blocs textuels de fin de courrier ; les lignes de P.J. sont des mentions.
+    pub fn letter_note_groups(&self) -> Vec<(BlockKind, Range<usize>)> {
+        let mut groups = Vec::new();
+        let mut line = 0;
+        while line < self.blocks.len() {
+            let kind = self.blocks[line];
+            let first = line;
+            line += 1;
+            if kind.is_letter_note() {
+                while self.blocks.get(line) == Some(&kind) {
+                    line += 1;
+                }
+                groups.push((kind, first..line));
+            }
+        }
+        groups
+    }
+    pub fn insert_letter_note(&mut self, kind: BlockKind) -> usize {
+        assert!(kind.is_letter_note());
+        let ranges = self.line_ranges();
+        if let Some((_, lines)) = self
+            .letter_note_groups()
+            .into_iter()
+            .find(|(k, _)| *k == kind)
+        {
+            if kind == BlockKind::Postscript {
+                return ranges[lines.start].start;
+            }
+            let last = &ranges[lines.end - 1];
+            if last.is_empty() {
+                return last.start;
+            }
+            let at = last.end;
+            self.insert_text("\n", at);
+            return at + 1;
+        }
+        if kind == BlockKind::Postscript
+            && let Some(line) = self
+                .blocks
+                .iter()
+                .position(|kind| *kind == BlockKind::Attachment)
+        {
+            let at = ranges[line].start;
+            self.insert_text("\n\n", at);
+            self.blocks[line] = BlockKind::Postscript;
+            self.blocks[line + 1] = BlockKind::Paragraph;
+            return at;
+        }
+        let at = self.len();
+        let separator = if self.text.is_empty() || self.text.ends_with("\n\n") {
+            ""
+        } else if self.text.ends_with('\n') {
+            "\n"
+        } else {
+            "\n\n"
+        };
+        let count = self.insert_text(separator, at);
+        *self.blocks.last_mut().unwrap() = kind;
+        at + count
     }
     pub fn quote_groups(&self) -> Vec<QuoteGroup> {
         let mut groups = Vec::new();
@@ -513,7 +583,11 @@ impl Projection {
         ));
     }
     pub fn to_typst_mapped(&self) -> (String, SourceMap) {
-        let mut result = String::new();
+        let mut result = if self.blocks.iter().any(|kind| kind.is_letter_note()) {
+            LETTER_NOTES_IMPORT.into()
+        } else {
+            String::new()
+        };
         let mut origins = vec![0..0; self.len()];
         let ranges = self.line_ranges();
         let mut index = 0;
@@ -545,6 +619,33 @@ impl Projection {
                 }
                 result.push(')');
                 index += 1;
+                continue;
+            }
+            if kind.is_letter_note() {
+                let end = if kind == BlockKind::Postscript {
+                    let mut end = index + 1;
+                    while self.blocks.get(end) == Some(&kind) {
+                        end += 1;
+                    }
+                    end
+                } else {
+                    index + 1
+                };
+                result.push_str(if kind == BlockKind::Postscript {
+                    "#postscript["
+                } else {
+                    "#piece-jointe["
+                });
+                for line in index..end {
+                    if line > index {
+                        let start = result.len();
+                        result.push('\n');
+                        origins[ranges[line].start - 1] = start..result.len();
+                    }
+                    self.write_inline_line(line, &mut result, &mut origins);
+                }
+                result.push(']');
+                index = end;
                 continue;
             }
             if kind == BlockKind::Quote {
@@ -803,7 +904,9 @@ struct Projector {
 }
 impl Projector {
     fn ensure_block(&mut self, kind: BlockKind) {
-        if self.pending_break && !self.view.text.is_empty() {
+        if self.pending_break
+            && (!self.view.text.is_empty() || self.view.blocks[0].is_letter_note())
+        {
             let count = self.pending_newlines.max(1);
             self.view.push(&"\n".repeat(count), &InlineStyle::default());
             self.origins.extend(std::iter::repeat_n(
@@ -848,6 +951,10 @@ impl Projector {
                 .and_then(|s| s.find(expr.span()))
                 .map_or(0..0, |node| node.range());
             match expr {
+                Expr::ModuleImport(import)
+                    if self.view.text.is_empty()
+                        && import.to_untyped().full_text().trim()
+                            == LETTER_NOTES_IMPORT.trim().trim_start_matches('#') => {}
                 Expr::Text(text) => self.append(text.get(), style),
                 Expr::Escape(escaped) => self.append(&escaped.get().to_string(), style),
                 Expr::Shorthand(short) => self.append(&short.get().to_string(), style),
@@ -948,6 +1055,9 @@ impl Projector {
             return Err(crate::tr!("source-computed-call"));
         };
         let args: Vec<_> = call.args().items().collect();
+        if matches!(callee.as_str(), "postscript" | "piece-jointe") {
+            return self.letter_note(callee.as_str(), &args, style);
+        }
         if callee.as_str() == "figure" {
             return self.figure(&args);
         }
@@ -1058,6 +1168,36 @@ impl Projector {
         self.pending_break = true;
         Ok(())
     }
+    fn letter_note(
+        &mut self,
+        name: &str,
+        args: &[ast::Arg<'_>],
+        style: &InlineStyle,
+    ) -> Result<(), String> {
+        let [ast::Arg::Pos(Expr::ContentBlock(body))] = args else {
+            return Err(crate::tr!("source-letter-note-signature"));
+        };
+        let kind = if name == "postscript" {
+            BlockKind::Postscript
+        } else {
+            BlockKind::Attachment
+        };
+        let mut note = Projector {
+            source: self.source.clone(),
+            ..Default::default()
+        };
+        note.inline_markup(body.body(), style)?;
+        if kind == BlockKind::Attachment && note.view.blocks.len() != 1 {
+            return Err(crate::tr!("source-letter-note-signature"));
+        }
+        note.view.blocks.fill(kind);
+        self.pending_break =
+            !self.view.text.is_empty() || self.view.blocks[0] != BlockKind::Paragraph;
+        self.ensure_block(kind);
+        self.extend(note);
+        self.pending_break = true;
+        Ok(())
+    }
     fn quote(&mut self, args: &[ast::Arg<'_>], style: &InlineStyle) -> Result<(), String> {
         let invalid = || crate::tr!("source-quote-signature");
         let mut block = false;
@@ -1126,9 +1266,9 @@ impl Projector {
         if markup.exprs().any(|expr| {
             matches!(
                 expr,
-                Expr::Heading(_) | Expr::ListItem(_) | Expr::EnumItem(_) | Expr::TermItem(_)
+                Expr::Heading(_) | Expr::ListItem(_) | Expr::EnumItem(_) | Expr::TermItem(_) | Expr::ModuleImport(_)
             )
-            || matches!(expr, Expr::FuncCall(call) if matches!(call.callee(), Expr::Ident(name) if matches!(name.as_str(), "quote" | "figure")))
+            || matches!(expr, Expr::FuncCall(call) if matches!(call.callee(), Expr::Ident(name) if matches!(name.as_str(), "quote" | "figure" | "postscript" | "piece-jointe")))
         }) {
             return Err(crate::tr!("source-nested-blocks"));
         }

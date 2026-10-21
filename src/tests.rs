@@ -956,3 +956,114 @@ fn image_insertions_and_cross_block_deletions_keep_the_projection_valid() {
     assert_eq!(adjacent.images.len(), 1);
     assert_eq!(adjacent.images[&2].path, "images/second.png");
 }
+
+#[test]
+fn letter_notes_round_trip_rich_text_and_keep_exact_source_positions() {
+    for source in [
+        "Avant.\n\n#postscript[Un *été* utile.\nSuite _précise_.\n\nSecond paragraphe.]\n\n#piece-jointe[Formulaire *signé*]\n#piece-jointe[#link(\"https://example.org\")[Rapport annuel]]",
+        "#postscript[]",
+        "#postscript[]\n#piece-jointe[]",
+        "#piece-jointe[]",
+        "#postscript[Texte]\n#piece-jointe[]",
+    ] {
+        let mut document = Document::from_source(source).unwrap();
+        let original = document.view.clone();
+        document.sync_source();
+        assert_eq!(
+            Document::from_source(document.source()).unwrap().view,
+            original
+        );
+        assert!(!document.view.text.contains("#postscript"));
+        for (index, character) in document.view.text.chars().enumerate() {
+            if !character.is_whitespace() {
+                let byte = document.source_map.to_source(index);
+                assert_eq!(document.source_map.to_visible(byte), index);
+                assert!(
+                    document.source()[document.source_map.characters[index].clone()]
+                        .contains(character)
+                );
+            }
+        }
+    }
+    for invalid in [
+        "#postscript(\"texte\")",
+        "#piece-jointe[Un\n\nDeux]",
+        "#postscript[#piece-jointe[Imbriquée]]",
+        "#quote(block: true)[#postscript[Imbriqué]]",
+    ] {
+        assert!(Document::from_source(invalid).is_err(), "{invalid}");
+    }
+}
+
+#[test]
+fn letter_notes_render_after_signature_and_keep_bidirectional_selection_mapping() {
+    use crate::{navigation::RenderSync, rendering::TypstWorld};
+    fn text(frame: &typst::layout::Frame) -> String {
+        frame
+            .items()
+            .map(|(_, item)| match item {
+                typst::layout::FrameItem::Text(run) => run.text.to_string(),
+                typst::layout::FrameItem::Group(group) => text(&group.frame),
+                _ => String::new(),
+            })
+            .collect()
+    }
+    let source = "#postscript[POSTSCRIPTUM été *utile*.]\n\nCORPS PRINCIPAL.\n\n#piece-jointe[FORMULAIRE signé]\n#piece-jointe[RAPPORT annuel]";
+    let mut document = Document::from_source(source).unwrap();
+    document.sync_source();
+    let source = document.source();
+    let mut metadata = Metadata::blank(DocumentType::Courrier);
+    metadata.courrier_mut().expediteur = "SIGNATAIRE".into();
+    let template = Model::Personal.source();
+    let mut world = TypstWorld::default();
+    let pages = world
+        .compile_with_template(source, &metadata, &template)
+        .unwrap();
+    let content: String = pages.pages().iter().map(|page| text(&page.frame)).collect();
+    assert!(
+        content.find("CORPS").unwrap() < content.rfind("SIGNATAIRE").unwrap(),
+        "{content}"
+    );
+    assert!(
+        content.rfind("SIGNATAIRE").unwrap() < content.find("POSTSCRIPTUM").unwrap(),
+        "{content}"
+    );
+    assert!(
+        content.find("POSTSCRIPTUM").unwrap() < content.find("FORMULAIRE").unwrap(),
+        "{content}"
+    );
+    assert!(content.find("FORMULAIRE").unwrap() < content.find("RAPPORT").unwrap());
+    assert_eq!(content.matches("POSTSCRIPTUM").count(), 1);
+    let sync = RenderSync::new(1, world, pages, document.source_map.clone());
+    for word in ["POSTSCRIPTUM", "FORMULAIRE", "RAPPORT"] {
+        let at = document.view.text[..document.view.text.find(word).unwrap()]
+            .chars()
+            .count();
+        assert!(
+            !sync.selection_highlights(at..at + word.len()).is_empty(),
+            "{word}"
+        );
+        let point = sync.forward(at + 3).unwrap();
+        let back = sync.backward(point).unwrap();
+        assert!((at..=at + word.len()).contains(&back), "{word}: {back}");
+    }
+}
+
+#[test]
+fn postscript_insertion_precedes_existing_enclosures_and_reuses_its_existing_block() {
+    let mut document = Document::from_source("Corps.\n\n#piece-jointe[Formulaire]").unwrap();
+    let at = document.view.insert_letter_note(BlockKind::Postscript);
+    document.view.insert_text("Complément.", at);
+    document.sync_source();
+    assert!(
+        document.view.text.find("Complément.").unwrap()
+            < document.view.text.find("Formulaire").unwrap()
+    );
+    let before = document.view.clone();
+    assert_eq!(document.view.insert_letter_note(BlockKind::Postscript), at);
+    assert_eq!(document.view, before);
+    assert_eq!(
+        Document::from_source(document.source()).unwrap().view,
+        document.view
+    );
+}

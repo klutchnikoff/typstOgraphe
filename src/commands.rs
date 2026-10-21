@@ -42,6 +42,8 @@ pub enum Command {
     Link,
     RemoveLink,
     InsertImage,
+    InsertPostscript,
+    InsertAttachment,
     ImportModel,
     RecoverDocuments,
     Find,
@@ -82,6 +84,11 @@ impl Command {
         }
         COMMON_COMMANDS
             .iter()
+            .chain(
+                DocumentType::ALL
+                    .iter()
+                    .flat_map(|kind| kind.commands().iter()),
+            )
             .find(|definition| definition.command == self)
             .expect("commande enregistrée")
     }
@@ -142,6 +149,8 @@ impl Definition {
             Command::ResetSpelling => (MenuGroup::Edit, 56),
             Command::Information => (MenuGroup::View, 0),
             Command::InsertImage => (MenuGroup::Insert, 0),
+            Command::InsertPostscript => (MenuGroup::Insert, 10),
+            Command::InsertAttachment => (MenuGroup::Insert, 11),
             Command::ImportModel => (MenuGroup::View, 10),
             _ => return None,
         })
@@ -541,6 +550,7 @@ impl Registry {
     pub fn definitions(self) -> impl Iterator<Item = &'static Definition> + Clone {
         COMMON_COMMANDS
             .iter()
+            .chain(self.kind.commands().iter())
             .chain(self.kind.models().map(|model| &model.command))
     }
     pub fn contains(self, command: Command) -> bool {

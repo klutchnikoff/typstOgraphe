@@ -229,6 +229,37 @@ pub fn show(
             {
                 action = Some(command);
             }
+            for (command, label) in [
+                (Command::InsertPostscript, "P.-S."),
+                (Command::InsertAttachment, "P.J."),
+            ] {
+                if keymap.registry().contains(command) {
+                    let active = !mixed
+                        && kind
+                            == if command == Command::InsertPostscript {
+                                BlockKind::Postscript
+                            } else {
+                                BlockKind::Attachment
+                            };
+                    let response = ui.add(
+                        egui::Button::new(label)
+                            .min_size(egui::vec2(38.0, 32.0))
+                            .selected(active)
+                            .frame_when_inactive(false),
+                    );
+                    if describe(
+                        response,
+                        command.label(),
+                        keymap.hint(ui.ctx(), command),
+                        active,
+                        false,
+                    )
+                    .clicked()
+                    {
+                        action = Some(command);
+                    }
+                }
+            }
         });
     });
     action

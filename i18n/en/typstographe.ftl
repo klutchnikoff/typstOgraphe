@@ -364,3 +364,9 @@ cli-usage-capture-creation = Usage: --capture-new-document IMAGE.png
 
 package-resource-missing = Missing Typst dependency: { $path }
 package-inventory-invalid = The Typst capability and package inventory is invalid or inconsistent.
+
+cmd-insert-postscript = Insert a postscript
+cmd-insert-attachment = Add an enclosure mention
+postscript-placeholder = Postscript text…
+attachment-placeholder = Enclosed document…
+source-letter-note-signature = A postscript contains text; each enclosure mention occupies a single line.

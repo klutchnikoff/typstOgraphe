@@ -5,6 +5,7 @@
 #let editor-options = (bullet-markers: (), custom-bullet-marker: false)
 
 #import "capabilities/dates.typ": format-date
+#import "capabilities/correspondence.typ": postscript, piece-jointe, notes-courrier
 
 #let courrier(
   expediteur: "",
@@ -29,13 +30,13 @@
   assert(options.paper == "a4" and not options.landscape,
     message: "Le modèle pour enveloppe DL demande une page A4 en portrait.")
   let labels = (
-    fr: (subject: "Objet", reference: "Référence", date-prefix: "le "),
-    en: (subject: "Subject", reference: "Reference", date-prefix: ""),
-    de: (subject: "Betreff", reference: "Referenz", date-prefix: "den "),
-    es: (subject: "Asunto", reference: "Referencia", date-prefix: "el "),
-    it: (subject: "Oggetto", reference: "Riferimento", date-prefix: "il "),
-    pt: (subject: "Assunto", reference: "Referência", date-prefix: "em "),
-    nl: (subject: "Onderwerp", reference: "Referentie", date-prefix: "op "),
+    fr: (postscript: "P.-S.", attachments: "P.J.", subject: "Objet", reference: "Référence", date-prefix: "le "),
+    en: (postscript: "P.S.", attachments: "Enclosures", subject: "Subject", reference: "Reference", date-prefix: ""),
+    de: (postscript: "P.S.", attachments: "Anlagen", subject: "Betreff", reference: "Referenz", date-prefix: "den "),
+    es: (postscript: "P.D.", attachments: "Adjuntos", subject: "Asunto", reference: "Referencia", date-prefix: "el "),
+    it: (postscript: "P.S.", attachments: "Allegati", subject: "Oggetto", reference: "Riferimento", date-prefix: "il "),
+    pt: (postscript: "P.S.", attachments: "Anexos", subject: "Assunto", reference: "Referência", date-prefix: "em "),
+    nl: (postscript: "P.S.", attachments: "Bijlagen", subject: "Onderwerp", reference: "Referentie", date-prefix: "op "),
   ).at(options.language)
   set document(title: objet, author: expediteur)
   set text(font: "Libertinus Serif", size: 11pt, lang: options.language, fill: black)
@@ -148,4 +149,11 @@
     #align(right, box(width: 65mm,
       align(center, stack(dir: ttb, spacing: 2mm, ..elements))))
   ]
+  notes-courrier(
+    postscript: body => block(above: 6mm)[#strong[#labels.postscript :] #body],
+    pieces-jointes: items => block(above: 5mm)[
+      #strong[#labels.attachments :]
+      #list(..items)
+    ],
+  )
 }

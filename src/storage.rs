@@ -653,7 +653,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("autonome.typsto");
         let mut letter = StoredDocument::blank(DocumentType::Courrier);
-        letter.source = "Un courrier autonome.".into();
+        letter.source = format!(
+            "{}Un courrier autonome.\n\n#postscript[Un complément.]\n\n#piece-jointe[Formulaire signé]",
+            crate::document::LETTER_NOTES_IMPORT
+        );
         letter.metadata.courrier_mut().date = "2026-10-02".into();
         let locale = "packages/datify-core-2.1.0/src/translations/locales/fr.toml";
         // Un exemplaire différent de celui du binaire prouve l’origine des données utilisées.

@@ -291,4 +291,20 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn native_correspondence_capability_does_not_pull_in_unrelated_packages() {
+        let template = "#import \"capabilities/correspondence.typ\": postscript, piece-jointe";
+        let files = for_template(template);
+        validate(template, &files).unwrap();
+        let inventory: Catalog = serde_json::from_slice(&files[INVENTORY]).unwrap();
+        assert_eq!(inventory.capabilities[0].id, "correspondence");
+        assert!(inventory.packages.is_empty());
+        assert!(files.contains_key("capabilities/correspondence.typ"));
+        assert!(!files.contains_key("capabilities/dates.typ"));
+        assert!(
+            !files
+                .keys()
+                .any(|name| name.starts_with("packages/datify-"))
+        );
+    }
 }

@@ -267,7 +267,7 @@ pub fn layout_with_search(
     let mut galley = if aligned
         .blocks
         .iter()
-        .any(|k| matches!(k, BlockKind::Quote | BlockKind::Image(_)))
+        .any(|k| matches!(k, BlockKind::Quote | BlockKind::Image(_)) || k.is_letter_note())
     {
         layout_quote_paragraphs(ui, job, &aligned, editor)
     } else {
@@ -305,7 +305,9 @@ fn layout_quote_paragraphs(
     for (line, text) in job.text.split('\n').enumerate() {
         let end = start + text.len();
         let kind = view.blocks[line];
-        let indent = if matches!(kind, BlockKind::Quote | BlockKind::QuoteAttribution) {
+        let indent = if kind.is_letter_note() {
+            editor.size * 4.0
+        } else if matches!(kind, BlockKind::Quote | BlockKind::QuoteAttribution) {
             editor.size * 1.2
         } else {
             0.0
@@ -345,6 +347,9 @@ fn layout_quote_paragraphs(
         let mut galley = ui.fonts_mut(|fonts| fonts.layout_job(local));
         let composed = Arc::make_mut(&mut galley);
         for row in &mut composed.rows {
+            if row.glyphs.is_empty() {
+                row.pos.x += indent;
+            }
             let row = Arc::make_mut(&mut row.row);
             for glyph in &mut row.glyphs {
                 glyph.pos.x += indent;
@@ -824,7 +829,10 @@ pub fn paint_decorations(
         if range.is_empty()
             && line > 0
             && line + 1 < ranges.len()
-            && matches!(view.blocks[line], BlockKind::Paragraph | BlockKind::Quote)
+            && matches!(
+                view.blocks[line],
+                BlockKind::Paragraph | BlockKind::Quote | BlockKind::Postscript
+            )
         {
             let mut cursor = CCursor::new(range.start);
             cursor.prefer_next_row = true;
@@ -848,6 +856,74 @@ pub fn paint_decorations(
                 5.0,
                 ui.visuals().faint_bg_color,
             ));
+        }
+    }
+    for (kind, group) in view.letter_note_groups() {
+        let first = output
+            .galley
+            .pos_from_cursor(CCursor::new(ranges[group.start].start));
+        let last = output
+            .galley
+            .pos_from_cursor(CCursor::new(ranges[group.end - 1].end));
+        let rect = egui::Rect::from_min_max(
+            output.galley_pos + egui::vec2(0.0, first.top() - 2.0),
+            output.galley_pos + egui::vec2(output.galley.job.wrap.max_width, last.bottom() + 2.0),
+        );
+        backgrounds.push(egui::Shape::rect_filled(
+            rect,
+            5.0,
+            ui.visuals().faint_bg_color,
+        ));
+        backgrounds.push(egui::Shape::rect_stroke(
+            rect,
+            5.0,
+            Stroke::new(
+                0.75_f32,
+                ui.visuals().widgets.noninteractive.bg_stroke.color,
+            ),
+            egui::StrokeKind::Inside,
+        ));
+        for line in group.clone() {
+            let mut cursor = CCursor::new(ranges[line].start);
+            cursor.prefer_next_row = true;
+            let row = output.galley.pos_from_cursor(cursor);
+            let label = if line == group.start {
+                if kind == BlockKind::Postscript {
+                    "P.-S."
+                } else {
+                    "P.J."
+                }
+            } else if kind == BlockKind::Attachment {
+                "•"
+            } else {
+                ""
+            };
+            let label = painter.layout_no_wrap(
+                label.into(),
+                editor.font.font_id(editor.size * 0.8, 1),
+                ui.visuals().weak_text_color(),
+            );
+            backgrounds.push(egui::Shape::galley(
+                output.galley_pos + egui::vec2(editor.size * 0.35, row.top()),
+                label,
+                ui.visuals().weak_text_color(),
+            ));
+            if ranges[line].is_empty() && (kind == BlockKind::Attachment || group.len() == 1) {
+                let hint = painter.layout_no_wrap(
+                    if kind == BlockKind::Postscript {
+                        crate::tr!("postscript-placeholder")
+                    } else {
+                        crate::tr!("attachment-placeholder")
+                    },
+                    editor.font.font_id(editor.size * ANNOTATION_SCALE, 2),
+                    ui.visuals().weak_text_color(),
+                );
+                backgrounds.push(egui::Shape::galley(
+                    output.galley_pos + row.min.to_vec2(),
+                    hint,
+                    ui.visuals().weak_text_color(),
+                ));
+            }
         }
     }
     for group in view.quote_groups() {
@@ -1454,5 +1530,60 @@ mod tests {
         assert!((rules[0][0].x - left).abs() < 0.01);
         assert!((rules[0][1].x - right).abs() < 0.01);
         assert_eq!(document, original);
+    }
+    #[test]
+    fn letter_note_frames_keep_wrapped_and_empty_text_native_cursors_in_both_themes() {
+        let ctx = egui::Context::default();
+        install_fonts(&ctx);
+        for source in [
+            "#postscript[]\n#piece-jointe[]",
+            "#postscript[Une information supplémentaire assez longue pour se replier sur plusieurs lignes, avec du *gras*.]\n\n#piece-jointe[Un formulaire signé assez long pour se replier également]\n#piece-jointe[]",
+        ] {
+            let mut document = Document::from_source(source).unwrap();
+            let original = document.clone();
+            for theme in [egui::Theme::Light, egui::Theme::Dark] {
+                ctx.set_theme(theme);
+                for width in [180.0, 500.0] {
+                    let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                        egui::CentralPanel::default().show(ctx, |ui| {
+                            let view = document.view.clone();
+                            let editor = EditorStyle::default();
+                            let mut layouter = |ui: &egui::Ui, text: &dyn TextBuffer, _| {
+                                layout(ui, &view, text.as_str(), width, editor)
+                            };
+                            let background = ui.painter().add(egui::Shape::Noop);
+                            let output = egui::TextEdit::multiline(&mut document.view)
+                                .layouter(&mut layouter)
+                                .show(ui);
+                            for (line, range) in view.line_ranges().iter().enumerate() {
+                                if view.blocks[line].is_letter_note() {
+                                    let mut cursor = CCursor::new(range.start);
+                                    cursor.prefer_next_row = true;
+                                    let rect = output.galley.pos_from_cursor(cursor);
+                                    assert!(
+                                        rect.left() >= editor.size * 4.0 - 1.0,
+                                        "{range:?}: {rect:?}"
+                                    );
+                                }
+                            }
+                            for (index, c) in view.text.chars().enumerate() {
+                                if !c.is_whitespace() {
+                                    let rect = output.galley.pos_from_cursor(CCursor::new(index));
+                                    assert_eq!(
+                                        output
+                                            .galley
+                                            .cursor_from_pos(rect.center().to_vec2())
+                                            .index,
+                                        index
+                                    );
+                                }
+                            }
+                            paint_decorations(ui, &view, &output, editor, background);
+                        });
+                    });
+                }
+            }
+            assert_eq!(document, original);
+        }
     }
 }
