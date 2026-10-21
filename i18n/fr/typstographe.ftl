@@ -181,6 +181,9 @@ mac-show-all = Tout afficher
 native-menu-error = Impossible de mettre à jour les menus : { $error }
 
 group-general = Général
+document-settings-heading = Paramètres du courrier :
+document-settings-short = Paramètres :
+document-settings-close = Replier les paramètres
 field-document-type = Type de document
 field-template = Modèle
 field-paper = Format du papier

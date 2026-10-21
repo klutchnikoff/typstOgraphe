@@ -38,6 +38,13 @@ enum PendingAction {
     Close,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+enum InformationGroup {
+    #[default]
+    General,
+    Fields(&'static str),
+}
+
 pub struct App {
     preferences: Preferences,
     preferences_open: bool,
@@ -76,6 +83,7 @@ pub struct App {
     forward_pending: bool,
     editor_scroll_pending: bool,
     information_open: bool,
+    information_group: InformationGroup,
     palette_open: bool,
     palette_query: String,
     palette_index: usize,
@@ -181,6 +189,7 @@ impl App {
             forward_pending: true,
             editor_scroll_pending: false,
             information_open: false,
+            information_group: InformationGroup::General,
             palette_open: false,
             palette_query: String::new(),
             palette_index: 0,
@@ -325,6 +334,7 @@ impl App {
         self.document.assets = letter.assets.clone();
         self.image_textures.clear();
         self.image_info = None;
+        self.information_group = InformationGroup::General;
         self.metadata = letter.metadata.clone();
         self.template = letter.template.clone();
         self.presentation = ModelPresentation::default();
@@ -445,7 +455,14 @@ impl App {
                 self.palette_query.clear();
                 self.palette_index = 0;
             }
-            Command::Information => self.information_open = !self.information_open,
+            Command::Information => {
+                self.information_open = !self.information_open;
+                if !self.information_open {
+                    self.history_field = None;
+                    self.field_history_action = None;
+                    self.force_selection = true;
+                }
+            }
             Command::Courrier(CourrierCommand::Model(model)) => {
                 let template = model.source();
                 if self.template != template {
@@ -1131,98 +1148,151 @@ impl App {
     }
     fn information_ui(&mut self, ui: &mut egui::Ui) {
         let old = self.metadata.clone();
-        // L’en-tête et le corps ont des défilements distincts. Même sur une petite
-        // fenêtre, le formulaire ne doit pas occuper toute la zone de rédaction.
-        let max_height = (ui.available_height() * 0.45).min(320.0);
-        let response = egui::CollapsingHeader::new(Command::Information.label())
-            .id_salt("document-information")
-            .open(Some(self.information_open))
-            .show(ui, |ui| {
-                egui::ScrollArea::vertical()
-                    .id_salt("information-scroll")
-                    .max_height(max_height)
-                    .auto_shrink([false, true])
-                    .show(ui, |ui| {
-                        egui::CollapsingHeader::new(crate::tr!("group-general"))
-                            .id_salt("information-general")
-                            .default_open(true)
-                            .show(ui, |ui| {
-                                egui::Grid::new("general-fields")
-                                    .num_columns(2)
-                                    .show(ui, |ui| {
-                                        ui.label(crate::tr!("field-document-type"));
-                                        ui.weak(self.keymap.registry().document_type().label());
-                                        ui.end_row();
-                                        ui.label(crate::tr!("field-template"));
-                                        self.template_selector(ui);
-                                        ui.end_row();
-                                        ui.label(crate::tr!("field-paper"));
-                                        egui::ComboBox::from_id_salt("document-paper")
-                                            .selected_text(self.metadata.options().paper.label())
-                                            .show_ui(ui, |ui| {
-                                                for paper in PaperFormat::ALL {
-                                                    ui.selectable_value(
-                                                        &mut self.metadata.options_mut().paper,
-                                                        paper,
-                                                        paper.label(),
-                                                    );
-                                                }
-                                            });
-                                        ui.end_row();
-                                        ui.label(crate::tr!("field-orientation"));
-                                        egui::ComboBox::from_id_salt("document-orientation")
-                                            .selected_text(if self.metadata.options().landscape {
-                                                crate::tr!("orientation-landscape")
-                                            } else {
-                                                crate::tr!("orientation-portrait")
-                                            })
-                                            .show_ui(ui, |ui| {
-                                                ui.selectable_value(
-                                                    &mut self.metadata.options_mut().landscape,
-                                                    false,
-                                                    crate::tr!("orientation-portrait"),
-                                                );
-                                                ui.selectable_value(
-                                                    &mut self.metadata.options_mut().landscape,
-                                                    true,
-                                                    crate::tr!("orientation-landscape"),
-                                                );
-                                            });
-                                        ui.end_row();
-                                        ui.label(crate::tr!("field-document-language"));
-                                        egui::ComboBox::from_id_salt("document-language")
-                                            .selected_text(self.metadata.options().language.label())
-                                            .show_ui(ui, |ui| {
-                                                for language in DocumentLanguage::ALL {
-                                                    ui.selectable_value(
-                                                        &mut self.metadata.options_mut().language,
-                                                        language,
-                                                        language.label(),
-                                                    );
-                                                }
-                                            });
-                                        ui.end_row();
-                                        ui.label(crate::tr!("field-bullet-marker"));
-                                        self.bullet_marker_ui(ui);
-                                        ui.end_row();
-                                    });
-                            });
-                        self.metadata.editor_ui(ui);
-                    });
-            });
-        if response
-            .header_response
-            .on_hover_text(self.keymap.hint(ui.ctx(), Command::Information))
-            .clicked()
+        let groups: Vec<_> =
+            std::iter::once((InformationGroup::General, crate::tr!("group-general")))
+                .chain(self.metadata.editor_groups().iter().map(|group| {
+                    (
+                        InformationGroup::Fields(group.id),
+                        crate::i18n::text(group.label_key),
+                    )
+                }))
+                .collect();
+        let full_heading = crate::tr!("document-settings-heading");
+        let font = egui::TextStyle::Button.resolve(ui.style());
+        let label_width = |label: &str| {
+            ui.fonts_mut(|fonts| {
+                fonts
+                    .layout_no_wrap(label.to_owned(), font.clone(), ui.visuals().text_color())
+                    .size()
+                    .x
+            })
+        };
+        let controls_width: f32 = groups
+            .iter()
+            .map(|(_, label)| label_width(label) + 2.0 * ui.spacing().button_padding.x)
+            .sum();
+        let heading = if label_width(&full_heading)
+            + controls_width
+            + groups.len() as f32 * ui.spacing().item_spacing.x
+            <= ui.available_width()
         {
-            self.apply(Command::Information);
+            full_heading.clone()
+        } else {
+            crate::tr!("document-settings-short")
+        };
+        let mut clicked = None;
+        ui.scope(|ui| {
+            crate::toolbar::neutral_selection(ui);
+            ui.horizontal_wrapped(|ui| {
+                ui.add(egui::Label::new(heading).truncate())
+                    .on_hover_text(&full_heading);
+                for (group, label) in groups {
+                    let active = self.information_open && self.information_group == group;
+                    if ui
+                        .add(egui::Button::selectable(active, label.clone()).small())
+                        .on_hover_text(if active {
+                            crate::tr!("document-settings-close")
+                        } else {
+                            label
+                        })
+                        .clicked()
+                    {
+                        clicked = Some(group);
+                    }
+                }
+            });
+        });
+        if let Some(group) = clicked {
+            let close = self.information_open && self.information_group == group;
+            if let Some(id) = self.history_field.take() {
+                ui.ctx().memory_mut(|memory| memory.surrender_focus(id));
+            }
+            self.field_history_action = None;
+            self.information_group = group;
+            if close || !self.information_open {
+                self.apply(Command::Information);
+            }
             ui.ctx().request_repaint();
+        }
+        if self.information_open {
+            // Une seule rubrique est visible ; chaque rubrique garde son défilement.
+            let max_height = (ui.available_height() * 0.45).min(320.0);
+            ui.add_space(4.0);
+            egui::ScrollArea::vertical()
+                .id_salt(("information-scroll", self.information_group))
+                .max_height(max_height)
+                .auto_shrink([false, true])
+                .show(ui, |ui| match self.information_group {
+                    InformationGroup::General => self.general_information_ui(ui),
+                    InformationGroup::Fields(group) => self.metadata.editor_group_ui(ui, group),
+                });
         }
         if self.metadata != old {
             self.revision += 1;
             self.changed_at = Instant::now();
             ui.ctx().request_repaint();
         }
+    }
+    fn general_information_ui(&mut self, ui: &mut egui::Ui) {
+        egui::Grid::new("general-fields")
+            .num_columns(2)
+            .show(ui, |ui| {
+                ui.label(crate::tr!("field-document-type"));
+                ui.weak(self.keymap.registry().document_type().label());
+                ui.end_row();
+                ui.label(crate::tr!("field-template"));
+                self.template_selector(ui);
+                ui.end_row();
+                ui.label(crate::tr!("field-paper"));
+                egui::ComboBox::from_id_salt("document-paper")
+                    .selected_text(self.metadata.options().paper.label())
+                    .show_ui(ui, |ui| {
+                        for paper in PaperFormat::ALL {
+                            ui.selectable_value(
+                                &mut self.metadata.options_mut().paper,
+                                paper,
+                                paper.label(),
+                            );
+                        }
+                    });
+                ui.end_row();
+                ui.label(crate::tr!("field-orientation"));
+                egui::ComboBox::from_id_salt("document-orientation")
+                    .selected_text(if self.metadata.options().landscape {
+                        crate::tr!("orientation-landscape")
+                    } else {
+                        crate::tr!("orientation-portrait")
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(
+                            &mut self.metadata.options_mut().landscape,
+                            false,
+                            crate::tr!("orientation-portrait"),
+                        );
+                        ui.selectable_value(
+                            &mut self.metadata.options_mut().landscape,
+                            true,
+                            crate::tr!("orientation-landscape"),
+                        );
+                    });
+                ui.end_row();
+                ui.label(crate::tr!("field-document-language"));
+                egui::ComboBox::from_id_salt("document-language")
+                    .selected_text(self.metadata.options().language.label())
+                    .show_ui(ui, |ui| {
+                        for language in DocumentLanguage::ALL {
+                            ui.selectable_value(
+                                &mut self.metadata.options_mut().language,
+                                language,
+                                language.label(),
+                            );
+                        }
+                    });
+                ui.end_row();
+                ui.label(crate::tr!("field-bullet-marker"));
+                self.bullet_marker_ui(ui);
+                ui.end_row();
+            });
     }
     fn bullet_marker_ui(&mut self, ui: &mut egui::Ui) {
         let policy = &self.presentation;
@@ -3285,8 +3355,18 @@ mod interaction_tests {
         };
         draw(&mut app, vec![]);
         let closed = draw(&mut app, vec![]);
-        let header = text_rect(&closed, "Informations du courrier");
+        let header = text_rect(&closed, "Général");
         assert!(header.top() > icon_rect(&closed, &ctx, crate::icons::Icon::Heading).bottom());
+        for label in ["Correspondance", "Expéditeur"] {
+            let button = text_rect(&closed, label);
+            assert_eq!(button.center().y, header.center().y);
+        }
+        let has_text = |output: &egui::FullOutput, value: &str| {
+            output.shapes.iter().any(|shape| {
+                matches!(&shape.shape, egui::Shape::Text(text) if text.galley.text() == value)
+            })
+        };
+        assert!(!has_text(&closed, "Format du papier"));
         let preview = text_rect(&closed, "Aperçu Typst");
         click(&mut app, &mut draw, header.center());
         draw(&mut app, vec![]);
@@ -3296,13 +3376,43 @@ mod interaction_tests {
         assert!(!app.is_dirty());
         assert_eq!(app.revision, revision);
         assert_eq!(text_rect(&opened, "Aperçu Typst"), preview);
+        assert!(has_text(&opened, "Format du papier"));
+        assert!(!has_text(&opened, "Destinataire"));
+        assert!(!has_text(&opened, "Nom complet"));
         // Même à la taille minimale de la fenêtre, le formulaire reste dans la
         // colonne de gauche et laisse une zone de rédaction utilisable.
         let body = text_rect(&opened, &app.document.view.text);
         assert!(body.height() > 150.0, "zone de rédaction : {body:?}");
-        // Les nouveaux réglages occupent Général ; replier ce groupe permet
-        // d’accéder aux champs de correspondance dans la petite fenêtre.
-        click(&mut app, &mut draw, text_rect(&opened, "Général").center());
+        click(
+            &mut app,
+            &mut draw,
+            text_rect(&opened, "Expéditeur").center(),
+        );
+        draw(&mut app, vec![]);
+        let sender = draw(&mut app, vec![]);
+        assert!(has_text(&sender, "Nom complet"));
+        assert!(!has_text(&sender, "Format du papier"));
+        assert!(!has_text(&sender, "Destinataire"));
+        let sender_button = text_rect(&sender, "Expéditeur");
+        click(&mut app, &mut draw, sender_button.center());
+        let collapsed = draw(&mut app, vec![]);
+        assert!(!app.information_open);
+        assert!(!has_text(&collapsed, "Nom complet"));
+        assert!(text_rect(&collapsed, &app.document.view.text).height() >= body.height());
+        app.apply(Command::Information);
+        let reopened = draw(&mut app, vec![]);
+        assert!(app.information_open);
+        assert_eq!(app.information_group, InformationGroup::Fields("sender"));
+        assert!(has_text(&reopened, "Nom complet"));
+        assert_eq!(app.revision, revision);
+        assert!(!app.is_dirty());
+        assert_eq!(app.document.source(), source);
+        assert_eq!(app.selection, selection);
+        click(
+            &mut app,
+            &mut draw,
+            text_rect(&reopened, "Correspondance").center(),
+        );
         draw(&mut app, vec![]);
         let correspondence = draw(&mut app, vec![]);
         let original_subject = app.metadata.courrier_mut().objet.clone();
@@ -3350,7 +3460,12 @@ mod interaction_tests {
         draw(&mut app, vec![]);
         assert_eq!(app.metadata.courrier_mut().objet, "Objet modifié");
         assert_eq!(app.revision, revision + 3);
-        click(&mut app, &mut draw, header.center());
+        let current = draw(&mut app, vec![]);
+        click(
+            &mut app,
+            &mut draw,
+            text_rect(&current, "Correspondance").center(),
+        );
         draw(&mut app, vec![]);
         assert!(!app.information_open);
         assert_eq!(app.metadata.courrier_mut().objet, "Objet modifié");

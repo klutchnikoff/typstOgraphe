@@ -181,6 +181,9 @@ mac-show-all = Show All
 native-menu-error = Could not update the menus: { $error }
 
 group-general = General
+document-settings-heading = Letter settings:
+document-settings-short = Settings:
+document-settings-close = Collapse settings
 field-document-type = Document type
 field-template = Template
 field-paper = Paper size

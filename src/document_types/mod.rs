@@ -76,9 +76,14 @@ impl Metadata {
             Self::Courrier(meta) => courrier::CONTRACT.main_source(meta),
         }
     }
-    pub fn editor_ui(&mut self, ui: &mut egui::Ui) {
+    pub fn editor_groups(&self) -> &'static [FieldGroup] {
         match self {
-            Self::Courrier(meta) => fields_ui(ui, meta, courrier::FIELDS, courrier::GROUPS),
+            Self::Courrier(_) => courrier::GROUPS,
+        }
+    }
+    pub fn editor_group_ui(&mut self, ui: &mut egui::Ui, group: &str) {
+        match self {
+            Self::Courrier(meta) => fields_ui(ui, meta, courrier::FIELDS, group),
         }
     }
     pub fn ready_for_export(&self) -> bool {
@@ -103,7 +108,6 @@ impl Metadata {
 pub struct FieldGroup {
     pub id: &'static str,
     pub label_key: &'static str,
-    pub default_open: bool,
 }
 pub struct TextField<T: 'static> {
     pub parameter: &'static str,
@@ -160,34 +164,22 @@ impl<T> ModelContract<T> {
     }
 }
 
-fn fields_ui<T>(
-    ui: &mut egui::Ui,
-    metadata: &mut T,
-    fields: &[TextField<T>],
-    groups: &[FieldGroup],
-) {
+fn fields_ui<T>(ui: &mut egui::Ui, metadata: &mut T, fields: &[TextField<T>], group: &str) {
     let width = (ui.available_width() - 120.0).max(80.0);
-    for group in groups {
-        egui::CollapsingHeader::new(crate::i18n::text(group.label_key))
-            .id_salt(format!("information-{}", group.id))
-            .default_open(group.default_open)
-            .show(ui, |ui| {
-                egui::Grid::new(format!("{}-fields", group.id))
-                    .num_columns(2)
-                    .show(ui, |ui| {
-                        for field in fields.iter().filter(|f| f.group == group.id) {
-                            let label = ui.label(crate::i18n::text(field.label_key));
-                            let value = (field.get_mut)(metadata);
-                            let widget = if field.multiline {
-                                egui::TextEdit::multiline(value).desired_rows(3)
-                            } else {
-                                egui::TextEdit::singleline(value)
-                            };
-                            ui.add(widget.id_salt(field.editor_id).desired_width(width))
-                                .labelled_by(label.id);
-                            ui.end_row();
-                        }
-                    });
-            });
-    }
+    egui::Grid::new(format!("{group}-fields"))
+        .num_columns(2)
+        .show(ui, |ui| {
+            for field in fields.iter().filter(|f| f.group == group) {
+                let label = ui.label(crate::i18n::text(field.label_key));
+                let value = (field.get_mut)(metadata);
+                let widget = if field.multiline {
+                    egui::TextEdit::multiline(value).desired_rows(3)
+                } else {
+                    egui::TextEdit::singleline(value)
+                };
+                ui.add(widget.id_salt(field.editor_id).desired_width(width))
+                    .labelled_by(label.id);
+                ui.end_row();
+            }
+        });
 }

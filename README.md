@@ -81,13 +81,15 @@ les commandes du registre, comme les menus de l’application et la palette.
 - Modifier les informations du courrier ou changer de présentation. Les
   en-têtes et les coordonnées en marge sont produits par le modèle Typst.
 
-Les **Informations du courrier** se déplient avec le chevron sous la barre de
-mise en forme, dans la colonne de rédaction. Le panneau reste fixé au-dessus du
-texte pendant son défilement. Ses champs sont regroupés en Général, Correspondance et
-Expéditeur ; sa hauteur est limitée, avec un défilement propre pour garder le
-texte accessible. Les modifications actualisent l’aperçu et sont enregistrées
-dans le courrier. La commande Informations du menu Affichage ou de la palette
-permet également de déplier ou replier ce panneau, sans bloquer la rédaction.
+La ligne **Paramètres du courrier :** sous la barre de mise en forme propose
+trois boutons egui : **Général**, **Correspondance** et **Expéditeur**. Un clic
+affiche les champs de la rubrique ; un autre bouton change de rubrique et un
+second clic sur le bouton actif replie le panneau. Le libellé devient
+**Paramètres :** quand la colonne est étroite. Le panneau reste fixé au-dessus du
+texte, avec une hauteur limitée et un défilement propre à chaque rubrique.
+Les modifications actualisent l’aperçu et sont enregistrées dans le courrier.
+La commande Informations du menu Affichage ou de la palette ouvre également la
+dernière rubrique consultée ou replie le panneau, sans bloquer la rédaction.
 
 **Général** regroupe le type du document (en lecture seule), le modèle, le format
 du papier, l’orientation, la langue du document et les puces des listes.

@@ -9,7 +9,7 @@ use std::ops::Range;
 
 pub const ICON_SIZE: f32 = 18.0;
 
-fn neutral_selection(ui: &mut egui::Ui) {
+pub fn neutral_selection(ui: &mut egui::Ui) {
     let ink = ui.visuals().text_color();
     let dark = ui.visuals().dark_mode;
     ui.visuals_mut().selection.bg_fill = Color32::from_gray(if dark { 64 } else { 224 });

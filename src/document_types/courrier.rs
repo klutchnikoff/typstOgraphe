@@ -116,12 +116,10 @@ pub const GROUPS: &[FieldGroup] = &[
     FieldGroup {
         id: "correspondence",
         label_key: "group-correspondence",
-        default_open: true,
     },
     FieldGroup {
         id: "sender",
         label_key: "group-sender",
-        default_open: false,
     },
 ];
 pub const CONTRACT: ModelContract<Metadata> = ModelContract {
