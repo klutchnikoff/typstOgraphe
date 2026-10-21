@@ -1,0 +1,43 @@
+{
+  "mode": "catie-cpu",
+  "threads": 4,
+  "repeats": 1,
+  "max_new_tokens": 256,
+  "seed": 42,
+  "beams": 4,
+  "python": "3.12.12",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "corpus_sha256": "7eb2b1d83ac92bd564ffa429d05b39ed7fe8f3c4e1da2604113a7422a26f9baf",
+  "started_utc": "2026-10-21T13:42:06Z",
+  "memory_definition": "Inference-process RSS, sampled every 20 ms; includes runtime overhead, excludes separate benchmark client for Qwen. GPU allocations not separately summed.",
+  "latency_definition": "Tokenization/request through decoded final output; warm samples exclude model startup; no prompt cache; one request at a time.",
+  "torch": "2.14.1",
+  "transformers": "5.20.2",
+  "precision": "float32",
+  "device": "cpu",
+  "prompt": "Raw input, per model card (no task prefix).",
+  "startup_seconds": 3.0870778746902943,
+  "rss_after_load_bytes": 387284992,
+  "first_request": {
+    "output": "Notre association souhaite disposer de la salle des Tilleuls le jeudi 12 novembre 2026, de 14 h à 18 h, afin d'organiser une rencontre réunissant une trentaine de personnes. Pourriez-vous nous indiquer si cette salle est disponible et préciser les démarches nécessaires à sa réservation ?",
+    "seconds": 4.06597000034526,
+    "first_token_seconds": 1.0970185003243387,
+    "input_tokens": 77,
+    "output_tokens": 76,
+    "truncated": false,
+    "input_unknown_tokens": 0,
+    "mps_allocated_bytes": null
+  },
+  "rss_after_first_request_bytes": 1365065728,
+  "rss_end_bytes": 1538719744,
+  "rss_sampled_peak_bytes": 1621803008,
+  "rss_os_lifetime_peak_bytes": 1621803008,
+  "summary": {
+    "requests": 20,
+    "median_seconds": 2.6365827079862356,
+    "p95_seconds": 3.980231416877359,
+    "max_seconds": 7.689622499980032,
+    "median_first_token_seconds": 0.08066231245175004,
+    "truncated_requests": 0
+  }
+}

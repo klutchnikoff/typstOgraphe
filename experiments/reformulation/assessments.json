@@ -1,0 +1,77 @@
+{
+  "reviewer": "Codex, lecture comparée des sources et des sorties ; appréciation subjective, non aveugle, sans juge LLM supplémentaire ni validation humaine indépendante.",
+  "rubric": {
+    "fidelity": "0 : inutilisable ; 1 : sens central altéré ; 2 : information importante perdue ou changée ; 3 : nuance modifiée ; 4 : aucune altération décelée.",
+    "french": "0 : incompréhensible ; 1 : plusieurs fautes nettes ou notation illisible ; 2 : faute nette ou lourdeur majeure ; 3 : compréhensible avec maladresse ; 4 : français fluide et correct.",
+    "rewrite_value": "0 : copie ou modification sans bénéfice ; 1 : variante minimale ; 2 : amélioration locale ou tentative utile ; 3 : amélioration nette de l'ensemble ; 4 : reformulation particulièrement aboutie. Cette note ne garantit jamais la fidélité.",
+    "material_error": "Altération importante explicitement identifiée, distincte d'une faute de français. Aucun pourcentage n'est une garantie de fiabilité hors de ces cas.",
+    "fields": ["fidelity", "french", "rewrite_value", "material_error", "note"]
+  },
+  "catie-cpu": {
+    "C01": [4,4,1,false,"Suppression du second « nous » seulement ; variante minimale."],
+    "C02": [4,4,0,false,"Copie exacte."],
+    "C03": [3,2,0,false,"« ne remet pas en raison » remplace l'expression correcte « ne remet pas en cause »."],
+    "C04": [4,4,1,false,"Variante de temps verbal, sans gain notable."],
+    "C05": [4,4,0,false,"Copie exacte."],
+    "C06": [4,4,0,false,"Une virgule supprimée seulement."],
+    "C07": [4,3,0,false,"Fusion des deux phrases par une virgule ; gain peu convaincant."],
+    "C08": [4,4,0,false,"Copie exacte."],
+    "C09": [4,4,0,false,"Copie exacte."],
+    "C10": [2,4,0,true,"« ce report » devient « ce rapport » : l'objet de la réserve sur les achats est modifié."],
+    "C11": [4,2,0,false,"Introduit « inscriptions individuels ». Chiffres préservés."],
+    "C12": [4,3,0,false,"Liste aplatie : les sauts de ligne disparaissent, contenu conservé."],
+    "C13": [4,2,0,false,"Le « À » initial disparaît ; la lourde phrase est sinon recopiée."],
+    "C14": [4,2,0,false,"Perte de « À » et accord fautif « horaires habituelles »."],
+    "C15": [4,4,0,false,"Ajoute « et » et fusionne deux phrases : pas d'amélioration claire."],
+    "C16": [1,1,0,true,"Le tokenizer produit des jetons inconnus : « ≤ » et « α » disparaissent. La règle scientifique n'est plus lisible."],
+    "C17": [3,4,0,false,"« représentera » devient « représente » ; noms et citation conservés."],
+    "C18": [4,4,1,false,"« relative au » devient « concernant le » ; adresses et référence intactes."],
+    "C19": [4,2,0,false,"Introduit « des seules services municipaux »."],
+    "C20": [4,1,0,false,"Mélange « tu », « peux » et « vos remarques » : registre et accords incohérents."]
+  },
+  "qwen-cpu": {
+    "C01": [4,3,1,false,"Informations préservées ; « recherche la disponibilité » est maladroit."],
+    "C02": [4,4,0,false,"Copie exacte."],
+    "C03": [4,4,0,false,"Copie exacte."],
+    "C04": [4,4,2,false,"Courrier légèrement allégé ; réserves préservées."],
+    "C05": [4,4,1,false,"Changement de connecteur surtout ; montant et condition conservés."],
+    "C06": [4,3,1,false,"Dates correctes ; « en bureau 204 » est peu naturel."],
+    "C07": [4,4,0,false,"Ajout de « une » devant discussion seulement."],
+    "C08": [2,4,1,true,"Jean-Paul devait transmettre ses remarques, mais transmet désormais les données financières."],
+    "C09": [4,4,1,false,"Variante légère ; le « pour » est implicite après les neuf voix."],
+    "C10": [3,4,1,false,"« réinscrit » devient « inscrit » ; l'antériorité de l'inscription disparaît."],
+    "C11": [2,4,1,true,"L'année de départ 2024 disparaît et la hausse n'est plus présentée comme approximative."],
+    "C12": [4,4,2,false,"Liste numérotée claire, contenu préservé. La reprise de cette structure dans l'éditeur resterait à gérer."],
+    "C13": [3,3,2,false,"Allège le passage, mais « assurerait » devient « s'occupera ». La réserve globale reste présente ; construction « avant d'avoir ... et d'obtenir » maladroite."],
+    "C14": [3,2,1,false,"« expérience expérimentale » ; disponibilité de volontaires reformulée comme capacité à en attirer."],
+    "C15": [2,3,1,true,"Le caractère volontaire du recrutement devient la « volonté des participants » ; « causalité directe » affaiblit aussi la réserve d'origine."],
+    "C16": [4,4,1,false,"Notations, inégalité et règles préservées."],
+    "C17": [4,4,0,false,"Copie exacte ; citation littérale préservée."],
+    "C18": [4,3,1,false,"Référence et adresses exactes ; construction « contacter l'adresse ..., indiquant » maladroite."],
+    "C19": [1,2,1,true,"« peuvent prêter matériel » inverse le rôle des associations destinataires du prêt ; l'exclusivité des services municipaux n'est plus explicite."],
+    "C20": [4,4,1,false,"Variante correcte sans amélioration majeure."]
+  },
+  "qwen-metal-overrides": {
+    "C04": [4,4,2,false,"Variante « accord financier », réserves préservées."],
+    "C08": [2,4,1,true,"Même changement d'objet : les données financières sont transmises à la place des remarques."],
+    "C11": [2,3,1,true,"L'année 2024 disparaît ; « de environ » est fautif. L'approximation est ici conservée."],
+    "C13": [4,3,2,false,"Le conditionnel « s'occuperait » est ici conservé. Construction finale encore maladroite."],
+    "C15": [2,3,1,true,"Même perte de la réserve sur le volontariat et ajout de « directe » à la causalité."],
+    "C18": [4,3,1,false,"Adresses et référence conservées ; formulation encore maladroite."],
+    "C20": [4,4,1,false,"Variante correcte et plus fluide que la sortie CPU."]
+  },
+  "catie-mps-difficult": {
+    "C21": [4,2,0,false,"Copie exacte : aucune des lourdeurs n'est allégée."],
+    "C22": [4,1,1,false,"Deux accords corrigés, mais « participants a décidé », « Léa les relancent » restent ; introduit « deviss »."],
+    "C23": [4,3,0,false,"Copie exacte : répétitions intactes."],
+    "C24": [4,2,0,false,"Copie exacte : pas de mise en forme scientifique ni de découpage des phrases."],
+    "C25": [4,1,0,false,"Introduit « que tu a présenté » au milieu d'un courrier au vouvoiement."]
+  },
+  "qwen-metal-difficult": {
+    "C21": [4,2,2,false,"Raccourcit le texte, mais introduit « la commencement » et conserve des répétitions."],
+    "C22": [4,2,1,false,"Corrige plusieurs accords, mais introduit « ont décidé de reporté »."],
+    "C23": [4,4,2,false,"Regroupe certaines répétitions et conserve les informations ; ensemble encore mécanique."],
+    "C24": [1,4,2,true,"Ajoute « cette association est purement fortuite », conclusion absente de la source. La fluidité masque l'invention."],
+    "C25": [4,3,2,false,"Allège la demande, mais « pour nous préparer la prochaine réunion » reste maladroit."]
+  }
+}

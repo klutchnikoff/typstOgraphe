@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-21",
+  "machine": "Apple M1 Max",
+  "physical_memory_bytes": 34359738368,
+  "physical_cpu_count": 10,
+  "logical_cpu_count": 10,
+  "os": "macOS 26.6.2 arm64",
+  "python": "3.12.12 (uv managed, isolated in output/reformulation)",
+  "llama_cpp": "Homebrew 0.5.0, build 11146, commit 7fe450e19, AppleClang 21.0.0.21000334",
+  "application_base_commit": "a98541d",
+  "application_changed": false,
+  "measurement_context": "Normal desktop session, no competing model runs from this experiment; other desktop applications were not closed. No system-wide cold-cache reset. Not a hardware-isolated performance test.",
+  "quality_review": "Sources and outputs read by Codex. Subjective, not blinded, not independently human-validated. No second inference model used as judge.",
+  "storage": "Weights, Python environment and caches are ignored under output/reformulation/. Only scripts, corpus, manifests, results and report are versioned.",
+  "network": "Downloads of public model assets only. Generation used local files and loopback HTTP for Qwen; no corpus text sent to a remote inference service."
+}
