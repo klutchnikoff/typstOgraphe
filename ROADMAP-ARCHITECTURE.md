@@ -22,8 +22,17 @@ tâche numérotée vise une demande de fusion (PR) autonome, avec les tests au v
 fonctions d'édition (tableaux, notes), correction grammaticale. La section 9 liste
 des points repérés en chemin et volontairement laissés de côté.
 
-**Règle d'or de toutes les phases** : aucune modification de comportement. Les tests
-existants (137 attributs `#[test]` relevés) restent verts à chaque commit.
+**Règle de toutes les phases** : les déplacements et réorganisations de code ne
+changent pas le comportement, et les tests existants (137 attributs `#[test]` relevés)
+restent verts à chaque commit.
+
+**Assouplissement (décidé le 21 octobre 2026)** : un changement de comportement
+*volontaire* est permis à deux conditions. Il est décidé avec vous, et consigné dans la
+section 3 ou dans la PR. Il vit dans un commit séparé, sans déplacement de code, avec les
+tests et les captures de référence régénérés. Il n'y a aucun utilisateur actuel : aucune
+compatibilité de format ou d'interface n'est à préserver (`ROADMAP.md` le prévoit déjà).
+Ce qui reste interdit, c'est de mêler un changement de comportement à un déplacement :
+la comparaison des captures ne serait plus un signal fiable.
 
 ## 2. État des lieux (relevé)
 
@@ -100,15 +109,15 @@ Fuites à traiter avant tout découpage en crates :
 
 | N° | Décision | Recommandation | Phase |
 | --- | --- | --- | --- |
-| D1 | Découpage en crates | **Validée le 21 octobre 2026.** Trois crates : `typstographe-core` (modèle, moteur, E/S, rendu Typst), `typstographe` (application egui) et `typstographe-cli` (CLI + MCP). Pas plus fin pour l'instant : `Session` dépend de `Metadata`, `StoredDocument` et `Dependencies`, donc un cœur « modèle seul » ne tient pas | 3 |
+| D1 | Découpage en crates | **Validée le 21 octobre 2026, complétée par D7.** Quatre crates : `typstographe-core` (modèle, moteur, E/S, rendu Typst), `typstographe-i18n` (catalogues Fluent et mise en phrases des codes ; dépend du cœur), `typstographe` (application egui) et `typstographe-cli` (CLI + MCP). Pas plus fin pour l'instant : `Session` dépend de `Metadata`, `StoredDocument` et `Dependencies`, donc un cœur « modèle seul » ne tient pas | 3 |
 | D2 | Schéma des identifiants de commande | **Validée le 21 octobre 2026.** Garder le schéma existant : `domaine.action` en minuscules ASCII, tirets bas dans l'action (`text.bold`, `block.heading_1`, `edit.replace_all`, `document.save_as`). Corriger seulement `letter.insert-postscript` et `letter.insert-attachment` (tirets). La convention en tirets concerne les identifiants Typst, pas ceux de l'application | 2 |
 | D3 | Représentation des paramètres | **Validée le 21 octobre 2026.** Énumération Rust typée avec données, `serde` pour le JSON et `schemars` pour générer les schémas d'entrée | 2 |
 | D4 | Lectures et écritures | **Validée le 21 octobre 2026.** Deux familles distinctes : `Command` (modifie la session) et `Query` (lecture seule : texte, structure, erreurs d'orthographe, métadonnées, catalogue) | 2 |
 | D5 | Commandes d'interface seule | **Validée le 21 octobre 2026.** Une énumération `UiCommand` (palette, préférences, ouverture de dialogues, focus) non exposée par la CLI ni MCP | 2 |
-| D6 | Erreurs | **Validée le 21 octobre 2026.** Type `CommandError` avec code stable, message de repli en anglais ; l'application les traduit | 2 |
-| D7 | Internationalisation dans le cœur | **Validée le 21 octobre 2026** (sans préférence exprimée : recommandation retenue, découle de D6). Le cœur ne dépend pas de Fluent : il renvoie des codes, des paramètres et des clés Fluent comme données ; l'application localise (environ 90 appels de `tr!` à convertir). La CLI et MCP répondent en anglais avec des codes ; pas de `--lang` en v1. Un crate `typstographe-i18n` partagé reste l'option de repli si le besoin d'une CLI traduite se confirme | 3 |
+| D6 | Erreurs | **Validée le 21 octobre 2026, reprise le même jour.** Type `CommandError` avec code stable et paramètres structurés ; énumérations `thiserror` par module converties vers lui. La phrase lisible n'est pas produite par le cœur : voir D7. Le cœur n'a qu'un `Display` à usage de développeur (journaux, tests) | 2 |
+| D7 | Internationalisation | **Validée le 21 octobre 2026** (option C, choisie après examen de trois options). Le cœur ne dépend pas de Fluent : il renvoie des codes, des paramètres et des clés Fluent comme données (environ 90 appels de `tr!` à convertir). Un crate `typstographe-i18n`, **en aval** du cœur (il en connaît les codes, le cœur l'ignore), porte le chargeur, la macro `tr!`, un catalogue unique français et anglais (aujourd'hui `i18n/`, 310 clés) et la mise en phrases des erreurs. L'application et la CLI en dépendent. L'application et la CLI suivent la langue du système avec **repli en anglais** (l'application avait le français pour repli) ; MCP répond en anglais par défaut. Un autre front-end (web, terminal) réutilise le même catalogue | 3 |
 | D8 | Réveil de l'interface | **Validée le 21 octobre 2026.** Rappel `Arc<dyn Fn() + Send + Sync>` à la place de `egui::Context` | 3 |
-| D9 | Emplacement des ressources | **Validée le 21 octobre 2026.** `templates/`, `examples/` et `assets/dictionaries/` passent dans `crates/core` ; `assets/icons/` et `i18n/` dans l'application ; `tests/fixtures/` devient un dossier partagé `fixtures/` à la racine de l'espace de travail, utilisé par les tests des deux crates | 3 |
+| D9 | Emplacement des ressources | **Validée le 21 octobre 2026.** `templates/`, `examples/` et `assets/dictionaries/` passent dans `crates/core` ; `assets/icons/` dans l'application ; `i18n/` dans `crates/i18n` (D7) ; `tests/fixtures/` devient un dossier partagé `fixtures/` à la racine de l'espace de travail, utilisé par les tests des deux crates | 3 |
 | D10 | CLI | **Validée le 21 octobre 2026.** Binaire séparé `typstographe-cli`, `clap` en mode dérivation, sortie `--json` au contrat stable | 4 |
 | D11 | MCP | **Validée le 21 octobre 2026.** SDK Rust officiel `rmcp` après un prototype d'une journée qui vérifie : liste d'outils dynamique dérivée du registre, taille du binaire, temps de compilation, version courante de l'API (versions majeures successives constatées sur docs.rs). `tokio` uniquement dans la CLI. Repli : JSON-RPC minimal sur stdio. Transport stdio d'abord | 5 |
 | D12 | Sécurité MCP par défaut | **Validée le 21 octobre 2026.** Aucun accès aux fichiers hors racines déclarées (`--read-root`, `--write-root` séparées), enregistrement explicite, mode `--read-only`, aucune action réseau | 5 |
@@ -119,9 +128,9 @@ Fuites à traiter avant tout découpage en crates :
 
 ```
 Phase 0  garde-fous ───────────────────────────────┐
-Phase 1  découper app.rs (un seul crate)           │ comportement inchangé
+Phase 1  découper app.rs (un seul crate)           │ déplacements purs
 Phase 2  commandes strictes + moteur (Engine)      │ cœur de la refonte
-Phase 3  espace de travail : core / app            │ comportement inchangé
+Phase 3  espace de travail : core / i18n / app     │ déplacements + changements volontaires isolés
 Phase 4  CLI                                       │ première exposition
 Phase 5  MCP                                       │ deuxième exposition
 Phase 6  canal de contrôle (facultatif, reporté)   │
@@ -290,8 +299,9 @@ Dans `src/engine/` (futur crate `core`) :
   (`menu_position`), icône. Séparer ce qui est actuellement dans `Definition`.
 - [ ] `Command::from_call(id, json) -> Result<Command, CommandError>` et
   `Command::to_call()` ; test d'aller-retour pour chaque variante.
-- [ ] `CommandError { code, message, params }` avec des codes stables
-  (`unavailable`, `invalid-params`, `not-found`, `io`, `document`, `template`).
+- [ ] `CommandError { code, params }` avec des codes stables en snake_case
+  (`unavailable`, `invalid_params`, `not_found`, `io`, `document`, `template`) ; le texte
+  affiché vient du crate `typstographe-i18n` (D6, D7).
 
 ### 2.3 Moteur (taille L)
 
@@ -365,8 +375,10 @@ Dans le style du test existant sur les fichiers Fluent :
   `CommandSpec` / `Presentation`. Un PR par fuite.
 - [ ] **3.2** Internationalisation (D7) : remplacer les environ 90 appels à `tr!` du
   cœur par des erreurs typées (`SourceError`, `StorageError`, `RecoveryError`,
-  `TemplateError`, etc.) avec codes et paramètres. L'application convertit en messages
-  Fluent ; étendre le test des catalogues pour couvrir les nouveaux codes.
+  `TemplateError`, etc.) avec codes et paramètres. Les libellés du cœur deviennent des
+  clés Fluent (données). Les messages sont produits par le futur crate `typstographe-i18n`
+  (tâche 3.4b) ; étendre le test des catalogues pour que chaque code ait une phrase
+  en français et en anglais.
 - [ ] **3.3** Créer l'espace de travail : `Cargo.toml` racine `[workspace]`,
   `resolver = "3"`, `[workspace.dependencies]` pour les versions épinglées
   (`typst =0.15.1`, etc.).
@@ -376,18 +388,28 @@ Dans le style du test existant sur les fichiers Fluent :
   `src/tests.rs`. Déplacer avec eux `templates/`, `examples/` et `assets/dictionaries/` ;
   déplacer `tests/fixtures/` vers un dossier partagé `fixtures/` à la racine (D9) ;
   corriger les `include_*` et les `#[folder]`.
-- [ ] **3.5** Créer l'application (`typstographe`) : `app/`, `editor`, `toolbar`, `menus`,
-  `icons`, `preferences`, `i18n`, `commands` (présentation), `main`.
+- [ ] **3.4b** Créer `crates/i18n` (`typstographe-i18n`, dépend de `typstographe-core`) :
+  déplacer `src/i18n.rs` (chargeur, macro `tr!`, test des catalogues) et `i18n/` (fr, en,
+  `i18n.toml`) ; y ajouter la mise en phrases de `CommandError` et des erreurs typées du
+  cœur. Une seule langue active, choisie une fois par le programme appelant. La langue
+  de repli est l'**anglais pour tous les programmes** (application, CLI, MCP) : passer
+  `fallback_language` de `"fr"` à `"en"` dans `i18n.toml`. C'est un changement de
+  comportement visible (un système dont la langue n'est ni le français ni l'anglais passe
+  de l'interface française à l'interface anglaise) : à faire dans un commit distinct et
+  à signaler dans la PR : c'est un changement volontaire au sens de la section 1.
+- [ ] **3.5** Créer l'application (`typstographe`, dépend de `core` et de `i18n`) : `app/`,
+  `editor`, `toolbar`, `menus`, `icons`, `preferences`, `commands` (présentation), `main`.
   Reproduire `#![cfg_attr(coverage_nightly, feature(coverage_attribute))]` dans chaque racine.
 - [ ] **3.6** CI : `cargo test --workspace`, `cargo clippy --workspace --all-targets`,
   couverture inchangée (`--workspace`). Ajouter une étape **bloquante** :
   `cargo tree -p typstographe-core -e normal` ne doit contenir aucun de
-  `egui`, `eframe`, `winit`, `rfd`, `muda`.
+  `egui`, `eframe`, `winit`, `rfd`, `muda`, ni `fluent*` et `i18n-embed*`.
 - [ ] **3.7** Ajouter une étape **informative** (non bloquante) :
   `cargo check -p typstographe-core --target wasm32-unknown-unknown`. Elle échouera au
   début ; elle mesure la distance à une éventuelle cible WASM sans l'engager.
 
-**Critères de sortie** : mêmes tests et mêmes captures qu'avant ; l'arbre de dépendances
+**Critères de sortie** : mêmes tests et mêmes captures qu'avant, hors changements
+volontaires consignés (par exemple le repli en anglais) ; l'arbre de dépendances
 du cœur est propre ; l'application se lance et ouvre un fichier existant.
 
 ---
@@ -425,7 +447,9 @@ du cœur est propre ; l'application se lance et ouvre un fichier existant.
 - [ ] Codes de sortie : 0 succès, 1 erreur de commande, 2 usage, 3 entrée/sortie.
 - [ ] Sortie `--json` stable : `{ "ok": true, "outcome": … }` ou
   `{ "ok": false, "error": { "code", "message", "params" } }`.
-- [ ] Messages en anglais avec codes stables ; pas de `--lang` en v1 (D7).
+- [ ] Messages en français ou en anglais via `typstographe-i18n` (D7) : option `--lang fr|en`,
+  les codes du JSON restent identiques. **Langue par défaut : celle du système, avec repli
+  en anglais**, comme l'application (décidé le 21 octobre 2026).
 - [ ] Format du script (`job.json`) versionné : `{ "version": 1, "document": …, "steps": [ {"command": …, "params": …} ] }`.
 
 ### 4.4 Tests
@@ -475,7 +499,7 @@ JSON, sans fenêtre.
 
 - [ ] Ressources : `typstographe://document`, `typstographe://commands`, `typstographe://models`.
 - [ ] Les erreurs MCP reprennent les codes de `CommandError`, lisibles et corrigeables
-  par l'agent.
+  par l'agent, avec un texte en anglais par défaut (option explicite pour une autre langue).
 
 ### 5.3 Sécurité (D12)
 
@@ -527,7 +551,8 @@ assistés). Ne rien construire avant d'avoir tranché.
   fichiers (800 lignes) en CI (D13).
 - [ ] Mettre à jour `README.md` (installation, CLI, MCP) et `ROADMAP.md` : nouveau chantier J,
   principes « commandes à identifiant stable exposées par CLI et MCP » et
-  « cœur indépendant de l'interface ».
+  « cœur indépendant de l'interface ». (Le principe de `ROADMAP.md` sur la langue de
+  repli, devenue l'anglais, est déjà corrigé.)
 - [ ] Vérifier la CI sur trois systèmes, la couverture et les temps de compilation.
 - [ ] Rétrospective courte : ce qui a changé de périmètre, ce qui reste.
 
@@ -572,11 +597,12 @@ assistés). Ne rien construire avant d'avoir tranché.
 La refonte est terminée lorsque :
 
 1. aucun fichier de production n'excède 800 lignes et aucune fonction 120 ;
-2. `typstographe-core` compile et passe ses tests sans egui, eframe, winit, `rfd` ni `muda` ;
+2. `typstographe-core` compile et passe ses tests sans egui, eframe, winit, `rfd`, `muda`,
+   Fluent ni `i18n-embed` ;
 3. toute action utilisateur passe par une `Command`, une `Query` ou une `UiCommand`,
    vérifiée par un test d'aiguillage ;
 4. le catalogue de commandes, la documentation de la CLI et celle de MCP sont générés
    depuis le registre et contrôlés dans la CI ;
 5. le scénario d'acceptation de la CLI et celui de MCP passent sur trois systèmes ;
 6. les captures d'écran et les tests de l'application sont identiques à ceux de la
-   phase 0.
+   phase 0, aux changements volontaires consignés près.

@@ -40,7 +40,7 @@ revenir dans la discussion avant de poursuivre la partie concernée.
 - Les commandes publiques passent par un registre commun aux menus, à la palette,
   aux boutons et aux raccourcis, complété selon le type de document.
 - La langue du document est indépendante de celle de l’interface. L’interface
-  suit par défaut le système, avec le français comme langue de repli.
+  suit par défaut le système, avec l’anglais comme langue de repli.
 - La composition typographique appartient à Typst et aux modèles. Nous vérifions
   les besoins non couverts avant d’ajouter des corrections dans l’éditeur.
 - Le collaboratif reste une évolution possible, secondaire. Nous préservons la
@@ -64,7 +64,7 @@ les cas d’usage sont aboutis :
 - Import d’un modèle autonome dans le document courant et validation de son appel.
 - Menus, palette, registre de commandes, préférences visuelles et internationalisation.
 - Contrôles automatisés sur macOS, Windows et Linux ; les essais manuels Windows
-  et Linux restent à faire.
+  et Linux sont faits.
 
 Au départ, la récupération après incident, la recherche, les correcteurs, les tableaux,
 les notes, les références bibliographiques, les profils et la bibliothèque
@@ -72,17 +72,17 @@ persistante de modèles restent à développer.
 
 ### Suivi de réalisation
 
-- **Étape 1 — Récupération : implémentée ; essai utilisateur à faire.** Les choix
+- **Étape 1 — Récupération : implémentée ; essai utilisateur fait.** Les choix
   validés et le périmètre livré sont précisés dans le chantier A ci-dessous.
-- **Étape 2 — Rechercher/remplacer : implémentée ; essai utilisateur à faire.**
+- **Étape 2 — Rechercher/remplacer : implémentée ; essai utilisateur fait.**
   Les choix validés et le périmètre livré sont précisés dans le chantier B.
-- **Étape 3 — Orthographe : implémentée ; essai utilisateur à faire.** Spellbook,
+- **Étape 3 — Orthographe : implémentée ; essai utilisateur fait.** Spellbook,
   dictionnaires embarqués français/anglais, suggestions et dictionnaire personnel ;
   le périmètre livré est précisé dans le chantier B.
 - **Étape 4 — Profil/signature et premier modèle personnel implémentés (D, H).**
   Le courrier français pour enveloppe DL est le seul modèle fourni. L'accueil
   démarre sans document ; création, sélecteurs et commandes suivent le catalogue
-  intégré des types et modèles. Essai utilisateur et essai papier à faire.
+  intégré des types et modèles. Essai utilisateur et essai papier faits.
   Prochaine suite à définir ensemble : modèle de compte-rendu et premier périmètre
   de bibliothèque persistante (H, E).
 - **Reformulation locale : essais terminés, piste mise de côté.** Le bilan est
@@ -123,7 +123,7 @@ multiplateformes accompagnent chaque étape ; elles ne sont pas reportées en bl
   la récupération ; eframe pour le dossier applicatif et les échéances.
 - Vérifications locales : sortie brutale d’un processus, session encore ouverte,
   copie illisible, erreurs d’écriture et parcours d’interface. L’essai utilisateur
-  et les essais natifs Windows/Linux restent à faire.
+  et les essais natifs Windows/Linux sont faits.
 
 **Objectif :** conserver le travail, reprendre un document et comprendre les
 éventuels incidents.
@@ -167,7 +167,7 @@ conserve texte, métadonnées, modèle et ressources.
 
 **Objectif :** faciliter la saisie et la révision sans exposer le source.
 
-**Orthographe implémentée, choix validés le 21 octobre 2026 — essai utilisateur à faire :**
+**Orthographe implémentée, choix validés le 21 octobre 2026 — essai utilisateur fait :**
 
 - Spellbook avec les dictionnaires Hunspell embarqués français classique 7.7 et
   anglais américain de LibreOffice ; aucune transmission de texte ni compte.
@@ -327,7 +327,7 @@ synchronisation doit prendre en compte les nouveaux contenus.
 
 **Objectif :** créer un document avec ses coordonnées sans les ressaisir.
 
-**Première étape implémentée, choix validés le 21 octobre 2026 — essai utilisateur à faire :**
+**Première étape implémentée, choix validés le 21 octobre 2026 — essai utilisateur fait :**
 
 - Un profil global dans les préférences : nom, organisme, fonction, adresse
   postale, courriel, téléphone et image de signature facultative (PNG/JPEG/SVG).
@@ -475,7 +475,7 @@ au-delà des démonstrations fictives.
   de contrôle avec fenêtre et plis. Il est proposé à la création et dans les
   paramètres du courrier. L'A4 portrait est imposé par le modèle dans l'interface.
   L'accueil ne crée aucun document et Fermer y revient, avec confirmation des
-  modifications éventuelles. Prochaine validation : essai utilisateur et essai
+  modifications éventuelles. Validations faites : essai utilisateur et essai
   papier à 100 % dans une enveloppe réelle.
 - **En-tête du courrier :** Général, Destinataire (identité/adresse), Informations
   (objet, référence, lieu, date) et Expéditeur. La date reste dans Informations ;
