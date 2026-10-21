@@ -8,9 +8,9 @@ impl App {
             || self.preferences_open
             || self.palette_open
             || self.link_open
-            || self.export_open
-            || self.pending_action.is_some()
-            || self.file_error.is_some()
+            || self.file.export_open
+            || self.file.pending_action.is_some()
+            || self.file.error.is_some()
     }
     pub(super) fn welcome_ui(&mut self, ui: &mut egui::Ui) {
         let height = ui.available_height();
@@ -46,9 +46,9 @@ impl App {
             self.palette_open = false;
             self.link_open = false;
             self.information_open = false;
-            self.export_open = false;
-            self.pending_action = None;
-            self.file_error = None;
+            self.file.export_open = false;
+            self.file.pending_action = None;
+            self.file.error = None;
             self.force_selection = true;
         }
     }
@@ -289,7 +289,7 @@ impl App {
         }
     }
     fn export_dialog(&mut self, ctx: &egui::Context) {
-        if self.export_open {
+        if self.file.export_open {
             let mut open = true;
             let mut export = false;
             egui::Window::new(crate::tr!("export-title"))
@@ -300,13 +300,13 @@ impl App {
                 .show(ctx, |ui| {
                     ui.label(crate::tr!("export-folder"));
                     ui.add(
-                        egui::TextEdit::singleline(&mut self.export_path)
+                        egui::TextEdit::singleline(&mut self.file.export_path)
                             .desired_width(f32::INFINITY),
                     );
                     ui.weak(crate::tr!("export-help"));
                     export = ui.button(crate::tr!("export-button")).clicked();
                 });
-            self.export_open &= open;
+            self.file.export_open &= open;
             if export {
                 if !self.session.metadata.ready_for_export() {
                     self.message = Some(crate::tr!("export-required-fields"));
@@ -315,10 +315,10 @@ impl App {
                         .preview
                         .worker
                         .sender
-                        .send(self.request(Some(PathBuf::from(&self.export_path))))
+                        .send(self.request(Some(PathBuf::from(&self.file.export_path))))
                     {
                         Ok(()) => {
-                            self.export_open = false;
+                            self.file.export_open = false;
                             self.message = Some(crate::tr!("export-pending"));
                         }
                         Err(_) => self.message = Some(crate::tr!("renderer-stopped")),

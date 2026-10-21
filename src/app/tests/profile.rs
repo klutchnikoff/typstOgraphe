@@ -94,7 +94,7 @@ fn personal_profile_seeds_new_documents_and_signature_edits_are_independent_and_
     assert_eq!(app.stored_document(), changed);
     assert!(app.save_path(path.clone()));
     app.create_document(DocumentType::CompteRendu);
-    assert!(app.file_error.is_some());
+    assert!(app.file.error.is_some());
     assert_eq!(app.stored_document(), changed);
     assert!(app.open_path(path));
     assert_eq!(app.session.metadata.courrier().expediteur, "Zoé Martin");

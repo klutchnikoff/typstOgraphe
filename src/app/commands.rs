@@ -58,7 +58,7 @@ impl App {
             Command::ImportModel => self.import_model(),
             Command::InsertImage => self.choose_image(None),
             Command::Preferences => self.preferences_open = true,
-            Command::File(command) => self.file_command = Some(command),
+            Command::File(command) => self.file.command = Some(command),
             Command::Palette => {
                 self.palette_open = !self.palette_open;
                 self.palette_query.clear();

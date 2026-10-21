@@ -18,7 +18,7 @@ fn discarded_images_in_memory_do_not_exhaust_the_document_size_limit() {
     std::fs::write(&image, include_bytes!("../../../tests/fixtures/parc.svg")).unwrap();
     app.import_image(&image, None).unwrap();
     let path = dir.path().join("courrier.typsto");
-    assert!(app.save_path(path.clone()), "{:?}", app.file_error);
+    assert!(app.save_path(path.clone()), "{:?}", app.file.error);
     assert_eq!(storage::read(&path).unwrap().assets.len(), 1);
     assert!(!app.is_dirty());
 }

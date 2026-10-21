@@ -8,7 +8,7 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
     app.start_recovery(dir.path().join("recovery"), ctx.clone());
     frame(&mut app, &ctx, vec![]);
     assert!(!app.document_open && !app.is_dirty());
-    assert_eq!(app.window_title, "typstOgraphe");
+    assert_eq!(app.file.window_title, "typstOgraphe");
     assert_eq!(app.preview.submitted, 0);
     assert!(app.preview.pages.is_empty() && app.preview.revision.is_none());
     assert!(app.recovery.entries.is_empty());
@@ -24,7 +24,7 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
         app.apply(command);
     }
     assert_eq!(app.stored_document(), original);
-    assert!(!app.search.open && !app.export_open && app.file_command.is_none());
+    assert!(!app.search.open && !app.file.export_open && app.file.command.is_none());
     for (command, status) in app.menu_statuses() {
         if !command.available_without_document() {
             assert!(!status.enabled);
@@ -46,14 +46,14 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
     let path = dir.path().join("courrier.typsto");
     assert!(app.save_path(path.clone()));
     app.handle_file_command(FileCommand::Close, &ctx);
-    assert!(!app.document_open && !app.allow_close);
+    assert!(!app.document_open && !app.file.allow_close);
     assert!(app.open_path(path));
     assert!(app.document_open);
     app.session.document.view.insert_text("À conserver", 0);
     app.changed();
     app.handle_file_command(FileCommand::Close, &ctx);
     assert!(matches!(
-        app.pending_action,
+        app.file.pending_action,
         Some(PendingAction::CloseDocument)
     ));
     recovery_click(&mut app, &ctx, &crate::tr!("cancel"));
@@ -104,7 +104,7 @@ fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplica
             "{label} reste dans la barre d’outils"
         );
     }
-    assert!(app.window_title.contains("exemple.typsto"));
+    assert!(app.file.window_title.contains("exemple.typsto"));
     let pos = text_point(&output, "Fichier").unwrap();
     for pressed in [true, false] {
         draw(
@@ -137,18 +137,21 @@ fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplica
             ],
         );
     }
-    assert!(app.export_open);
+    assert!(app.file.export_open);
     assert_eq!(app.session.document.source(), source);
     // Une commande native déjà en transit ne contourne pas un dialogue.
     app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
-    assert!(app.file_command.is_none());
-    app.export_open = false;
+    assert!(app.file.command.is_none());
+    app.file.export_open = false;
     app.session.metadata.courrier_mut().objet = "Brouillon à conserver".into();
     let before = app.stored_document();
     app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
     let output = draw(&mut app, vec![]);
-    assert!(matches!(app.pending_action, Some(PendingAction::Close)));
-    assert!(!app.allow_close);
+    assert!(matches!(
+        app.file.pending_action,
+        Some(PendingAction::Close)
+    ));
+    assert!(!app.file.allow_close);
     assert_eq!(app.stored_document(), before);
     assert!(
         output.viewport_output[&egui::ViewportId::ROOT]
@@ -246,7 +249,7 @@ fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
     app.session.metadata.courrier_mut().objet = "Travail à conserver".into();
     let before = app.stored_document();
     app.request_action(PendingAction::Open, &ctx);
-    assert!(app.pending_action.is_some()); // Aucune fenêtre de fichier tant que la décision manque.
+    assert!(app.file.pending_action.is_some()); // Aucune fenêtre de fichier tant que la décision manque.
     assert_eq!(app.stored_document(), before);
     frame(
         &mut app,
@@ -259,7 +262,7 @@ fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
             modifiers: egui::Modifiers::NONE,
         }],
     );
-    assert!(app.pending_action.is_none());
+    assert!(app.file.pending_action.is_none());
     assert_eq!(app.stored_document(), before);
 
     let mut input = egui::RawInput::default();
@@ -276,9 +279,9 @@ fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
             .iter()
             .any(|command| matches!(command, egui::ViewportCommand::CancelClose))
     );
-    assert!(app.pending_action.is_some());
+    assert!(app.file.pending_action.is_some());
     assert_eq!(app.stored_document(), before);
-    app.pending_action = None;
+    app.file.pending_action = None;
     app.request_action(PendingAction::New, &ctx);
     let draw = |app: &mut App, time, events| {
         ctx.run(
@@ -321,7 +324,7 @@ fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
             ],
         );
     }
-    assert!(app.pending_action.is_none());
+    assert!(app.file.pending_action.is_none());
     assert!(app.new_document_open);
     app.create_document(DocumentType::Courrier);
     assert!(app.session.document.source().is_empty());

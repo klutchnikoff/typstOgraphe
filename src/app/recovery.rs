@@ -73,11 +73,11 @@ impl App {
                 self.recovery.open = false;
                 self.message = Some(crate::tr!("recovery-restored"));
             }
-            Err(error) => self.file_error = Some(crate::tr!("recovery-load-failed", error = error)),
+            Err(error) => self.file.error = Some(crate::tr!("recovery-load-failed", error = error)),
         }
     }
     pub(super) fn recovery_dialog(&mut self, ctx: &egui::Context) {
-        if !self.recovery.open || self.pending_action.is_some() || self.file_error.is_some() {
+        if !self.recovery.open || self.file.pending_action.is_some() || self.file.error.is_some() {
             return;
         }
         let mut open = true;
@@ -138,7 +138,7 @@ impl App {
                         self.recovery.entries.remove(index);
                     }
                     Err(error) => {
-                        self.file_error = Some(crate::tr!("recovery-delete-failed", error = error))
+                        self.file.error = Some(crate::tr!("recovery-delete-failed", error = error))
                     }
                 }
                 self.recovery.open &= !self.recovery.entries.is_empty();

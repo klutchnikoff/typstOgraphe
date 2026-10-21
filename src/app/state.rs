@@ -40,3 +40,13 @@ pub(super) struct PreviewState {
     pub(super) forward_pending: bool,
     pub(super) editor_scroll_pending: bool,
 }
+
+pub(super) struct FileState {
+    pub(super) command: Option<FileCommand>,
+    pub(super) pending_action: Option<PendingAction>,
+    pub(super) error: Option<String>,
+    pub(super) allow_close: bool,
+    pub(super) window_title: String,
+    pub(super) export_open: bool,
+    pub(super) export_path: String,
+}

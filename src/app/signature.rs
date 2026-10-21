@@ -75,7 +75,7 @@ impl App {
             let result = crate::assets::ImageData::read(&path)
                 .and_then(|image| self.set_document_signature(Some(&image)));
             if let Err(error) = result {
-                self.file_error = Some(error);
+                self.file.error = Some(error);
             }
         }
     }
@@ -134,7 +134,7 @@ impl App {
                 .clicked()
                 && let Err(error) = self.use_profile_signature()
             {
-                self.file_error = Some(error);
+                self.file.error = Some(error);
             }
         });
         if let Some(path) = self.session.metadata.signature_path().map(str::to_owned)

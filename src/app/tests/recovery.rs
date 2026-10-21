@@ -34,7 +34,7 @@ fn recovery_dialog_defers_restores_and_saves_a_copy_without_overwriting_the_orig
             .contains("original-recupere")
     );
     app.request_action(PendingAction::Close, &ctx);
-    assert!(app.pending_action.is_some());
+    assert!(app.file.pending_action.is_some());
     frame(
         &mut app,
         &ctx,
@@ -46,7 +46,7 @@ fn recovery_dialog_defers_restores_and_saves_a_copy_without_overwriting_the_orig
             modifiers: egui::Modifiers::NONE,
         }],
     );
-    assert!(app.pending_action.is_none() && app.is_dirty());
+    assert!(app.file.pending_action.is_none() && app.is_dirty());
     assert!(!app.save_path(dir.path().join("absent/fichier.typsto")));
     drop(app); // L’échec d’enregistrement laisse la récupération intacte.
     let mut app = App::with_demo_context(ctx.clone(), None);
@@ -83,10 +83,10 @@ fn explicit_delete_and_discard_remove_recovery_but_cancelling_keeps_it() {
     app.recovery.worker.as_mut().unwrap().wait();
     app.request_action(PendingAction::Close, &ctx);
     recovery_click(&mut app, &ctx, &crate::tr!("cancel"));
-    assert!(app.pending_action.is_none() && app.is_dirty());
+    assert!(app.file.pending_action.is_none() && app.is_dirty());
     app.request_action(PendingAction::Close, &ctx);
     recovery_click(&mut app, &ctx, &crate::tr!("discard"));
-    assert!(app.allow_close);
+    assert!(app.file.allow_close);
     drop(app);
     let (recovery, entries) = crate::recovery::Recovery::start(&root, ctx).unwrap();
     assert!(entries.is_empty());

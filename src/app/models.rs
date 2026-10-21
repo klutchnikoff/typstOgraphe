@@ -41,7 +41,7 @@ impl App {
                 self.install_model(source)
             });
         if let Err(error) = result {
-            self.file_error = Some(crate::tr!("model-import-error", error = error));
+            self.file.error = Some(crate::tr!("model-import-error", error = error));
         }
     }
     pub(super) fn template_selector(&mut self, ui: &mut egui::Ui) {

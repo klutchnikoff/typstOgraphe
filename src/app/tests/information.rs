@@ -115,7 +115,7 @@ fn general_settings_and_template_selection_preserve_letter_content() {
     assert_eq!(app.session.revision, revision + 4);
     assert_eq!(app.session.document.source(), source);
 
-    assert!(!app.window_title.contains("typstOgraphe"));
+    assert!(!app.file.window_title.contains("typstOgraphe"));
 }
 
 #[test]

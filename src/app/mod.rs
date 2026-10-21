@@ -70,6 +70,7 @@ enum PreferencesPage {
 }
 
 pub struct App {
+    file: FileState,
     preview: PreviewState,
     search: SearchState,
     spelling: SpellingState,
@@ -94,11 +95,6 @@ pub struct App {
     native_menus: Option<menus::native::NativeMenus>,
     history_field: Option<egui::Id>,
     presentation: ModelPresentation,
-    file_command: Option<FileCommand>,
-    pending_action: Option<PendingAction>,
-    file_error: Option<String>,
-    allow_close: bool,
-    window_title: String,
     selection: CCursorRange,
     force_selection: bool,
     statistics: crate::statistics::Counter,
@@ -114,8 +110,6 @@ pub struct App {
     link_url: String,
     link_error: Option<String>,
     link_range: Range<usize>,
-    export_open: bool,
-    export_path: String,
     message: Option<String>,
 }
 
@@ -219,6 +213,20 @@ impl App {
         let document =
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
+            file: FileState {
+                command: None,
+                pending_action: None,
+                error: None,
+                allow_close: false,
+                window_title: String::new(),
+                export_open: false,
+                export_path: std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("output")
+                    .join("courrier")
+                    .display()
+                    .to_string(),
+            },
             preview: PreviewState {
                 worker: worker,
                 pages: vec![],
@@ -272,11 +280,6 @@ impl App {
             native_menus: None,
             history_field: None,
             presentation: ModelPresentation::default(),
-            file_command: None,
-            pending_action: None,
-            file_error: None,
-            allow_close: false,
-            window_title: String::new(),
             selection: CCursorRange::one(CCursor::new(0)),
             force_selection: false,
             statistics: Default::default(),
@@ -292,13 +295,6 @@ impl App {
             link_url: String::new(),
             link_error: None,
             link_range: 0..0,
-            export_open: false,
-            export_path: std::env::current_dir()
-                .unwrap_or_default()
-                .join("output")
-                .join("courrier")
-                .display()
-                .to_string(),
             message: None,
         }
     }
@@ -318,7 +314,7 @@ impl App {
             ctx.input_mut(|input| input.pointer = Default::default());
         }
         if ctx.input(|input| input.viewport().close_requested())
-            && !self.allow_close
+            && !self.file.allow_close
             && self.is_dirty()
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
@@ -326,9 +322,9 @@ impl App {
             self.preferences_open = false;
             self.palette_open = false;
             self.link_open = false;
-            self.export_open = false;
+            self.file.export_open = false;
             self.information_open = false;
-            self.pending_action = Some(PendingAction::Close);
+            self.file.pending_action = Some(PendingAction::Close);
         }
         self.rendering(ctx);
         self.refresh_spelling(ctx);
@@ -338,7 +334,7 @@ impl App {
                 if let Some(path) = file.path
                     && let Err(error) = self.import_image(&path, None)
                 {
-                    self.file_error = Some(error);
+                    self.file.error = Some(error);
                     break;
                 }
             }
@@ -398,7 +394,7 @@ impl App {
             });
         self.preferences_ui(ctx);
         self.dialogs(ctx);
-        if let Some(command) = self.file_command.take() {
+        if let Some(command) = self.file.command.take() {
             self.handle_file_command(command, ctx);
         }
         self.file_dialogs(ctx);
@@ -419,7 +415,7 @@ impl App {
                 match menus::native::NativeMenus::new(ctx.clone(), &self.keymap) {
                     Ok(menus) => self.native_menus = Some(menus),
                     Err(error) => {
-                        self.file_error =
+                        self.file.error =
                             Some(crate::tr!("native-menu-error", error = error.to_string()))
                     }
                 }
@@ -428,7 +424,7 @@ impl App {
             if let Some(menus) = &mut self.native_menus
                 && let Err(error) = menus.update(&self.keymap, &statuses)
             {
-                self.file_error = Some(crate::tr!("native-menu-error", error = error.to_string()));
+                self.file.error = Some(crate::tr!("native-menu-error", error = error.to_string()));
                 ctx.request_repaint();
             }
         }
@@ -457,9 +453,9 @@ impl App {
                 marker = if dirty { " *" } else { "" }
             )
         };
-        if title != self.window_title {
+        if title != self.file.window_title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
-            self.window_title = title;
+            self.file.window_title = title;
         }
     }
     fn capture(&mut self, ctx: &egui::Context) {
@@ -510,7 +506,7 @@ impl App {
                     crate::tr!("cli-capture-error", error = error.to_string())
                 );
             }
-            self.allow_close = true;
+            self.file.allow_close = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
         ctx.request_repaint_after(Duration::from_millis(100));

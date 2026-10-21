@@ -7,7 +7,7 @@ impl App {
             .pick_file()
             && let Err(error) = self.import_image(&path, replace)
         {
-            self.file_error = Some(error);
+            self.file.error = Some(error);
         }
     }
     pub(super) fn import_image(

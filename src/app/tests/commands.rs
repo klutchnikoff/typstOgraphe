@@ -8,8 +8,8 @@ fn creation_and_template_import_preserve_the_type_and_use_unified_history() {
     frame(&mut app, &ctx, vec![]);
     assert!(app.new_document_open && !app.document_open);
     app.create_document(DocumentType::CompteRendu);
-    assert!(app.file_error.is_some() && !app.document_open);
-    app.file_error = None;
+    assert!(app.file.error.is_some() && !app.document_open);
+    app.file.error = None;
     app.create_document(DocumentType::Courrier);
     assert!(app.document_open && !app.new_document_open);
     assert_eq!(
@@ -199,7 +199,7 @@ fn shortcut_override_updates_dispatch_and_hints_without_changing_the_document() 
                 modifiers,
             }],
         );
-        assert_eq!(app.export_open, key == egui::Key::F6);
+        assert_eq!(app.file.export_open, key == egui::Key::F6);
     }
     assert_eq!(app.session.document.source(), source);
     assert!(!app.is_dirty());
