@@ -221,7 +221,7 @@ pub mod native {
             entries: &mut Vec<Entry>,
         ) -> muda::Result<()> {
             let definition = command.definition();
-            let item = if command == Command::Information {
+            let item = if matches!(command, Command::Information | Command::ToggleSpelling) {
                 Item::Toggle(CheckMenuItem::with_id(
                     definition.id,
                     command.label(),
@@ -340,6 +340,13 @@ mod tests {
                 (Command::FindPrevious, false),
                 (Command::Palette, true),
                 (Command::Preferences, true),
+                (Command::ToggleSpelling, true),
+                (Command::NextSpelling, false),
+                (Command::PreviousSpelling, false),
+                (Command::SpellingSuggestions, false),
+                (Command::IgnoreSpelling, false),
+                (Command::LearnSpelling, false),
+                (Command::ResetSpelling, false),
             ]
         );
         assert_eq!(

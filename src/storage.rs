@@ -12,7 +12,7 @@ use std::{
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
 
 pub const EXTENSION: &str = "typsto";
-const FORMAT_VERSION: u32 = 5;
+const FORMAT_VERSION: u32 = 6;
 const LIMIT: u64 = crate::assets::MAX_DOCUMENT_BYTES;
 pub(crate) const EXTRA_ENTRY_LIMIT: u64 = 16 * 1024;
 const ENTRIES: [&str; 5] = [

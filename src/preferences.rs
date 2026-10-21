@@ -72,6 +72,8 @@ pub struct Preferences {
     pub editor: EditorStyle,
     pub appearance: Appearance,
     pub editor_fraction: f32,
+    #[serde(default)]
+    pub spelling: crate::spelling::Preferences,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -79,6 +81,7 @@ impl Default for Preferences {
             editor: EditorStyle::default(),
             appearance: Appearance::System,
             editor_fraction: 0.5,
+            spelling: Default::default(),
         }
     }
 }
@@ -126,6 +129,13 @@ mod tests {
             },
             appearance: Appearance::Dark,
             editor_fraction: 0.31,
+            spelling: crate::spelling::Preferences {
+                enabled: false,
+                personal: std::collections::BTreeMap::from([(
+                    "fr".into(),
+                    std::collections::BTreeSet::from(["typstographe".into()]),
+                )]),
+            },
         };
         preferences.save(&mut storage);
         assert_eq!(Preferences::load(Some(&storage)), preferences);

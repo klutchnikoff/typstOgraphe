@@ -1229,6 +1229,8 @@ pub struct DocumentOptions {
     pub language: DocumentLanguage,
     /// None laisse au modèle le choix du marqueur selon sa charte et la langue.
     pub bullet_marker: Option<String>,
+    /// Exceptions de relecture du document, jamais transmises au modèle Typst.
+    pub spelling_ignored: crate::spelling::WordLists,
 }
 
 pub fn valid_bullet_marker(marker: &str) -> bool {

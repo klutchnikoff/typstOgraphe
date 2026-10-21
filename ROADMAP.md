@@ -156,6 +156,22 @@ conserve texte, métadonnées, modèle et ressources.
 
 **Objectif :** faciliter la saisie et la révision sans exposer le source.
 
+**Orthographe implémentée, choix validés le 21 octobre 2026 — essai utilisateur à faire :**
+
+- Spellbook avec les dictionnaires Hunspell embarqués français classique 7.7 et
+  anglais américain de LibreOffice ; aucune transmission de texte ni compte.
+- Analyse en arrière-plan après une pause de saisie, cache des lignes inchangées,
+  positions Unicode et rejet des résultats et suggestions périmés.
+- Soulignement ondulé dans l’éditeur, suggestions au clic droit ou depuis les
+  commandes d’Édition et la palette ; navigation entre les mots signalés.
+- Correction explicite conservant les styles, avec l’historique commun.
+- Mots ignorés par document et langue dans ses métadonnées ; dictionnaire
+  personnel par langue dans les préférences, avec possibilité de retirer un mot.
+- Corps et annotations vérifiés ; métadonnées, source masqué et destinations des
+  liens exclus. Les adresses web, courriels et identifiants numériques sont ignorés.
+- La langue suit le document. Les autres langues de composition restent
+  disponibles ; l’absence de dictionnaire est indiquée, sans repli sur le français.
+
 - **P1 :** rechercher/remplacer dans le document ou la sélection, recherche
   suivante/précédente, casse et mots entiers, annulation des remplacements.
 - **P1 :** correction orthographique selon la langue du document, suggestions,
@@ -168,6 +184,9 @@ conserve texte, métadonnées, modèle et ressources.
   accès aux caractères utiles lorsque la saisie ordinaire ne suffit pas.
 - **P3 :** correction grammaticale et suggestions de rédaction, avec acceptation
   explicite ; le texte de l’utilisateur ne doit pas être réécrit silencieusement.
+- **P3, piste à préciser ensemble :** reformulation d’une sélection avec un petit
+  LLM local. Choisir le moteur, le modèle, les ressources matérielles nécessaires
+  et l’interface de comparaison/acceptation ; chantier distinct de l’orthographe.
 
 **Choix ensemble :** interface et périmètre de recherche (corps, annotations,
 métadonnées), présentation des suggestions, langues et dictionnaires,
@@ -356,5 +375,5 @@ coordonnées ni ressources fictives imposées.
 | 8 | Étendre les usages (F, B, C) | Conversions, grammaire avancée et besoins spécialisés |
 
 Chaque ligne sera découpée en étapes plus petites. Les dépendances concrètes
-peuvent conduire à revoir cet ordre ensemble. Après l’essai de rechercher/remplacer,
-le prochain périmètre proposé à discuter est la correction orthographique.
+peuvent conduire à revoir cet ordre ensemble. Après l’essai de rechercher/remplacer
+et du correcteur orthographique, choisir ensemble le prochain périmètre.

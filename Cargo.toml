@@ -31,6 +31,8 @@ rust-embed = { version = "8", features = ["debug-embed"] }
 atomic-write-file = "0.3.1"
 time = { version = "0.3", features = ["formatting"] }
 regex = "1.13.1"
+spellbook = "0.4.2"
+unicode-normalization = "0.1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 muda = { version = "0.21", default-features = false }

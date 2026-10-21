@@ -44,6 +44,11 @@ enum InformationGroup {
 
 pub struct App {
     session: Session,
+    spelling: crate::spelling::Checker,
+    spelling_target: Option<(u64, crate::spelling::Issue)>,
+    spelling_menu_pending: bool,
+    spelling_menu_position: Option<egui::Pos2>,
+    capture_spelling: bool,
     recovery: Option<crate::recovery::Recovery>,
     recovery_entries: Vec<crate::recovery::Entry>,
     recovery_open: bool,
@@ -157,11 +162,18 @@ impl App {
             &ShortcutOverrides::default(),
         )
         .expect("raccourcis par défaut cohérents");
+        let spelling_ctx = ctx.clone();
+        let spelling = crate::spelling::Checker::new(move || spelling_ctx.request_repaint());
         let worker = RenderWorker::spawn(ctx);
         let document =
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
             session: Session::new(saved, document, None, 1),
+            spelling,
+            spelling_target: None,
+            spelling_menu_pending: false,
+            spelling_menu_position: None,
+            capture_spelling: false,
             recovery: None,
             recovery_entries: vec![],
             recovery_open: false,
@@ -486,6 +498,9 @@ impl App {
         self.search_open = false;
         self.replace_open = false;
         self.search_focus_pending = false;
+        self.spelling_target = None;
+        self.spelling_menu_pending = false;
+        self.spelling_menu_position = None;
         self.keymap = keymap;
         self.history_field = None;
         self.session = Session::new(letter, document, path, self.session.revision + 1);
@@ -598,6 +613,63 @@ impl App {
             return;
         }
         match command {
+            Command::ToggleSpelling => {
+                self.preferences.spelling.enabled = !self.preferences.spelling.enabled
+            }
+            Command::SpellingSuggestions => {
+                if let Some(issue) = self.selected_spelling_issue() {
+                    self.open_spelling_target(issue);
+                    self.spelling_menu_pending = true;
+                }
+            }
+            Command::NextSpelling | Command::PreviousSpelling => {
+                let range = self.range();
+                let issues = &self.spelling.issues;
+                let target = if command == Command::PreviousSpelling {
+                    issues
+                        .iter()
+                        .rfind(|issue| issue.range.start < range.start)
+                        .or_else(|| issues.last())
+                } else {
+                    issues
+                        .iter()
+                        .find(|issue| issue.range.start >= range.end)
+                        .or_else(|| issues.first())
+                }
+                .cloned();
+                if let Some(issue) = target {
+                    self.focus_annotation_target(issue.range);
+                }
+            }
+            Command::IgnoreSpelling | Command::LearnSpelling => {
+                if let Some(issue) = self.selected_spelling_issue() {
+                    let language = self.session.metadata.options().language.code().to_owned();
+                    let word = crate::spelling::word_key(&issue.word);
+                    if command == Command::LearnSpelling {
+                        self.preferences
+                            .spelling
+                            .personal
+                            .entry(language)
+                            .or_default()
+                            .insert(word);
+                    } else {
+                        let before = self.snapshot();
+                        self.session
+                            .metadata
+                            .options_mut()
+                            .spelling_ignored
+                            .entry(language)
+                            .or_default()
+                            .insert(word);
+                        self.remember(before, false);
+                    }
+                }
+            }
+            Command::ResetSpelling => {
+                let before = self.snapshot();
+                self.session.metadata.options_mut().spelling_ignored.clear();
+                self.remember(before, false);
+            }
             Command::Find | Command::FindReplace => {
                 self.search_open = true;
                 self.replace_open |= command == Command::FindReplace;
@@ -980,13 +1052,24 @@ impl App {
                         Command::FindNext | Command::FindPrevious => {
                             !self.search.matches.is_empty()
                         }
+                        Command::NextSpelling | Command::PreviousSpelling => {
+                            !self.spelling.issues.is_empty()
+                        }
+                        Command::IgnoreSpelling
+                        | Command::LearnSpelling
+                        | Command::SpellingSuggestions => self.selected_spelling_issue().is_some(),
+                        Command::ResetSpelling => {
+                            !self.session.metadata.options().spelling_ignored.is_empty()
+                        }
                         _ => true,
                     };
                 (
                     d.command,
                     menus::Status {
                         enabled,
-                        checked: d.command == Command::Information && self.information_open,
+                        checked: (d.command == Command::Information && self.information_open)
+                            || (d.command == Command::ToggleSpelling
+                                && self.preferences.spelling.enabled),
                     },
                 )
             })
@@ -1363,6 +1446,36 @@ impl App {
                     without_spaces = selected.signs_without_spaces
                 ));
             }
+            if self.preferences.spelling.enabled {
+                ui.separator();
+                let language = self.session.metadata.options().language;
+                if !crate::spelling::supported(language) {
+                    ui.weak(crate::tr!(
+                        "spelling-no-dictionary",
+                        language = language.label()
+                    ))
+                    .on_hover_text(crate::tr!("spelling-dictionaries"));
+                } else if let Some(error) = &self.spelling.error {
+                    ui.colored_label(ui.visuals().error_fg_color, crate::tr!("spelling-error"))
+                        .on_hover_text(error);
+                } else if self.spelling.ready {
+                    let response = ui.add(
+                        egui::Button::new(crate::tr!(
+                            "spelling-count",
+                            count = self.spelling.issues.len()
+                        ))
+                        .frame(false),
+                    );
+                    let clicked = response
+                        .on_hover_text(crate::tr!("spelling-hint"))
+                        .clicked();
+                    if clicked {
+                        self.apply(Command::NextSpelling);
+                    }
+                } else {
+                    ui.weak(crate::tr!("spelling-checking"));
+                }
+            }
             if let Some(message) = &self.message {
                 ui.separator();
                 ui.add(egui::Label::new(message).truncate())
@@ -1625,6 +1738,17 @@ impl App {
         self.search.query = query;
         self.apply(Command::FindNext);
     }
+    pub fn capture_spelling(&mut self, ctx: &egui::Context) {
+        let before = self.snapshot();
+        self.session.metadata.options_mut().language = DocumentLanguage::French;
+        self.session.metadata.options_mut().spelling_ignored.clear();
+        self.session.document = Document::from_source("Madame, Monsieur,\n\nNous vous adressons ce *courrrier* pour confirmer la _réservvation_ de la salle.\n\nLa réunion aura lieu aujourd’hui à l’école, lors du rendez-vous prévu avec les associations.\n\nNous vous remercions de votre attention.").unwrap();
+        self.remember(before, false);
+        self.preferences = Preferences::default();
+        self.preferences.appearance = Appearance::Light;
+        ctx.set_theme(egui::ThemePreference::Light);
+        self.capture_spelling = true;
+    }
     fn close_search(&mut self) {
         self.search_open = false;
         self.search_focus_pending = false;
@@ -1859,12 +1983,172 @@ impl App {
         }
         ui.separator();
     }
+    fn refresh_spelling(&mut self, ctx: &egui::Context) {
+        let options = self.session.metadata.options();
+        self.spelling.synchronize(
+            self.session.revision,
+            &self.session.document.view.text,
+            options.language,
+            crate::spelling::accepted(
+                options.language,
+                &self.preferences.spelling.personal,
+                &options.spelling_ignored,
+            ),
+            self.preferences.spelling.enabled,
+            Instant::now(),
+        );
+        if let Some(delay) = self.spelling.next_wake(Instant::now()) {
+            ctx.request_repaint_after(delay);
+        }
+    }
+    fn selected_spelling_issue(&self) -> Option<crate::spelling::Issue> {
+        if !self.preferences.spelling.enabled || !self.spelling.is_current(self.session.revision) {
+            return None;
+        }
+        let range = self.range();
+        self.spelling
+            .issues
+            .iter()
+            .find(|issue| {
+                issue.range.contains(&range.start)
+                    || (range.is_empty() && range.start == issue.range.end)
+            })
+            .cloned()
+    }
+    fn valid_spelling_target(&self, revision: u64, issue: &crate::spelling::Issue) -> bool {
+        revision == self.session.revision
+            && self.preferences.spelling.enabled
+            && self.spelling.is_current(revision)
+            && self.spelling.issues.contains(issue)
+            && self
+                .session
+                .document
+                .view
+                .text
+                .chars()
+                .skip(issue.range.start)
+                .take(issue.range.len())
+                .collect::<String>()
+                == issue.word
+    }
+    fn correct_spelling(
+        &mut self,
+        revision: u64,
+        issue: &crate::spelling::Issue,
+        replacement: &str,
+    ) {
+        if !self.valid_spelling_target(revision, issue) {
+            return;
+        }
+        self.history_field = None;
+        self.selection = self
+            .session
+            .replace_ranges(
+                self.selection.into(),
+                std::slice::from_ref(&issue.range),
+                replacement,
+            )
+            .into();
+        self.force_selection = true;
+        self.forward_pending = true;
+        self.spelling_target = None;
+    }
+    fn open_spelling_target(&mut self, issue: crate::spelling::Issue) {
+        self.spelling
+            .request_suggestions(self.session.metadata.options().language, &issue.word);
+        self.selection = editor::cursor(issue.range.clone());
+        self.force_selection = true;
+        self.forward_pending = true;
+        self.history_field = None;
+        self.session.typing_group = false;
+        self.spelling_target = Some((self.session.revision, issue));
+    }
+    fn spelling_context_menu(&mut self, output: &egui::text_edit::TextEditOutput) {
+        if output.response.secondary_clicked() {
+            self.spelling_target = None;
+            self.spelling_menu_position = None;
+            if self.spelling.is_current(self.session.revision)
+                && let Some(pointer) = output.response.interact_pointer_pos()
+            {
+                let ranges: Vec<_> = self
+                    .spelling
+                    .issues
+                    .iter()
+                    .map(|issue| issue.range.clone())
+                    .collect();
+                if let Some((index, _)) =
+                    editor::range_rects(&output.galley, &ranges)
+                        .iter()
+                        .find(|(_, rect)| {
+                            rect.translate(output.galley_pos.to_vec2())
+                                .contains(pointer)
+                        })
+                {
+                    let issue = self.spelling.issues[*index].clone();
+                    self.open_spelling_target(issue);
+                }
+            }
+        }
+        let mut popup = egui::Popup::context_menu(&output.response);
+        if self.spelling_menu_pending {
+            self.spelling_menu_pending = false;
+            if let Some((_, issue)) = &self.spelling_target {
+                self.spelling_menu_position = Some(
+                    output.galley_pos
+                        + output
+                            .galley
+                            .pos_from_cursor(CCursor::new(issue.range.start))
+                            .left_bottom()
+                            .to_vec2(),
+                );
+                egui::Popup::open_id(&output.response.ctx, popup.get_id());
+            }
+        }
+        if let Some(position) = self.spelling_menu_position {
+            popup = popup.at_position(position);
+        }
+        popup.show(|ui| {
+            let Some((revision, issue)) = self
+                .spelling_target
+                .clone()
+                .filter(|(revision, issue)| self.valid_spelling_target(*revision, issue))
+            else {
+                ui.weak(crate::tr!("spelling-no-issue-here"));
+                return;
+            };
+            ui.label(egui::RichText::new(&issue.word).strong());
+            if let Some((_, Some(suggestions))) = &self.spelling.suggestions {
+                let suggestions = suggestions.clone();
+                if suggestions.is_empty() {
+                    ui.weak(crate::tr!("spelling-no-suggestions"));
+                }
+                for suggestion in suggestions {
+                    if ui.button(&suggestion).clicked() {
+                        self.correct_spelling(revision, &issue, &suggestion);
+                        ui.close();
+                    }
+                }
+            } else {
+                ui.weak(crate::tr!("spelling-loading-suggestions"));
+            }
+            ui.separator();
+            for command in [Command::IgnoreSpelling, Command::LearnSpelling] {
+                if ui.button(command.label()).clicked() {
+                    self.apply(command);
+                    self.spelling_target = None;
+                    self.force_selection = true;
+                    ui.close();
+                }
+            }
+        });
+    }
     fn editor_ui(&mut self, ui: &mut egui::Ui) {
         self.toolbar(ui);
         ui.separator();
         self.information_ui(ui);
         ui.separator();
         self.search_ui(ui);
+        self.refresh_spelling(ui.ctx());
         let before = self.snapshot();
         let old_range = self.selection;
         if self.force_selection {
@@ -1946,7 +2230,7 @@ impl App {
                         if self.search_open
                             && output.response.clicked()
                             && let Some(pointer) = output.response.interact_pointer_pos()
-                            && let Some((index, _)) = editor::search_rects(&output.galley, &matches)
+                            && let Some((index, _)) = editor::range_rects(&output.galley, &matches)
                                 .iter()
                                 .find(|(_, rect)| {
                                     rect.translate(output.galley_pos.to_vec2())
@@ -1959,6 +2243,30 @@ impl App {
                         if let Some(at) = clicked_term {
                             self.selection = editor::cursor(at..at);
                             self.force_selection = true;
+                        }
+                        if view.text == self.session.document.view.text {
+                            let editing = output.response.has_focus()
+                                && self.selection.is_empty()
+                                && self.session.changed_at.elapsed() < Duration::from_millis(700);
+                            let ranges: Vec<_> = self
+                                .spelling
+                                .issues
+                                .iter()
+                                .filter(|issue| {
+                                    !editing
+                                        || !(issue.range.start <= self.selection.primary.index
+                                            && self.selection.primary.index <= issue.range.end)
+                                })
+                                .map(|issue| issue.range.clone())
+                                .collect();
+                            editor::paint_spelling(ui, &output, &ranges);
+                            self.spelling_context_menu(&output);
+                            if editing {
+                                ui.ctx().request_repaint_after(
+                                    Duration::from_millis(700)
+                                        .saturating_sub(self.session.changed_at.elapsed()),
+                                );
+                            }
                         }
                         if self.editor_scroll_pending {
                             if self.search_focus(ui.ctx()).is_none() {
@@ -2223,6 +2531,44 @@ impl App {
                 });
             ui.add_space(8.0);
             ui.weak(crate::tr!("preferences-help"));
+            ui.separator();
+            ui.checkbox(
+                &mut self.preferences.spelling.enabled,
+                crate::tr!("cmd-spelling-toggle"),
+            );
+            ui.weak(crate::tr!("spelling-dictionaries"));
+            egui::CollapsingHeader::new(crate::tr!("spelling-personal-dictionary")).show(
+                ui,
+                |ui| {
+                    let mut remove = None;
+                    egui::ScrollArea::vertical()
+                        .max_height(160.0)
+                        .show(ui, |ui| {
+                            for (language, words) in &self.preferences.spelling.personal {
+                                for word in words {
+                                    ui.horizontal(|ui| {
+                                        ui.label(format!("{word} ({language})"));
+                                        if ui
+                                            .small_button(crate::tr!("spelling-forget-word"))
+                                            .clicked()
+                                        {
+                                            remove = Some((language.clone(), word.clone()));
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    if let Some((language, word)) = remove {
+                        self.preferences
+                            .spelling
+                            .personal
+                            .get_mut(&language)
+                            .unwrap()
+                            .remove(&word);
+                    }
+                    ui.weak(crate::tr!("spelling-personal-help"));
+                },
+            );
             ui.add_space(8.0);
             if ui.button(crate::tr!("close")).clicked() {
                 self.preferences_open = false;
@@ -2638,6 +2984,7 @@ impl App {
             self.pending_action = Some(PendingAction::Close);
         }
         self.rendering(ctx);
+        self.refresh_spelling(ctx);
         if !self.modal_open() {
             let dropped = ctx.input(|i| i.raw.dropped_files.clone());
             for file in dropped {
@@ -2721,6 +3068,7 @@ impl App {
         self.file_dialogs(ctx);
         self.recovery_dialog(ctx);
         self.checkpoint_recovery();
+        self.refresh_spelling(ctx);
         if self.recovery.is_some() {
             ctx.request_repaint_after(crate::recovery::INTERVAL);
         }
@@ -2754,6 +3102,25 @@ impl App {
         if self.capture.is_none() {
             return;
         }
+        if self.capture_spelling {
+            if !self.spelling.ready {
+                return;
+            }
+            if self.spelling_target.is_none() {
+                self.apply(Command::NextSpelling);
+                self.apply(Command::SpellingSuggestions);
+                ctx.request_repaint();
+                return;
+            }
+            if self
+                .spelling
+                .suggestions
+                .as_ref()
+                .is_none_or(|(_, values)| values.is_none())
+            {
+                return;
+            }
+        }
         if self.rendered_revision == Some(self.session.revision)
             && !self.screenshot_requested
             && self.started.elapsed() > Duration::from_secs(1)
@@ -2778,6 +3145,7 @@ impl App {
                     crate::tr!("cli-capture-error", error = error.to_string())
                 );
             }
+            self.allow_close = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
         ctx.request_repaint_after(Duration::from_millis(100));
@@ -2785,6 +3153,9 @@ impl App {
 }
 impl eframe::App for App {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        if self.capture.is_some() {
+            return;
+        }
         self.preferences.save(storage);
         self.checkpoint_recovery();
     }
@@ -2809,6 +3180,177 @@ impl eframe::App for App {
 mod interaction_tests {
     use super::*;
     use crate::document_types::courrier::{Command as CourrierCommand, Model};
+
+    #[test]
+    fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_suggestion() {
+        let ctx = egui::Context::default();
+        ctx.set_theme(egui::ThemePreference::Dark);
+        let mut app = App::with_context(ctx.clone(), None);
+        let mut letter = StoredDocument::blank(DocumentType::Courrier);
+        letter.source = "Un *courrrier* et une _réservvation_.".into();
+        let document = Document::from_source(&letter.source).unwrap();
+        app.install_document(letter, document, None).unwrap();
+        let original = app.stored_document();
+        let _ = search_draw(&mut app, &ctx, vec![]);
+        app.spelling.wait();
+        assert_eq!(app.spelling.issues.len(), 2);
+        let issue = app.spelling.issues[0].clone();
+        let revision = app.session.revision;
+        let output = search_draw(&mut app, &ctx, vec![]);
+        let point = output
+            .shapes
+            .iter()
+            .find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.text() == app.session.document.view.text => {
+                    editor::range_rects(&text.galley, std::slice::from_ref(&issue.range))
+                        .first()
+                        .map(|(_, rect)| text.pos + rect.center().to_vec2())
+                }
+                _ => None,
+            })
+            .unwrap();
+        for pressed in [true, false] {
+            let _ = search_draw(
+                &mut app,
+                &ctx,
+                vec![
+                    egui::Event::PointerMoved(point),
+                    egui::Event::PointerButton {
+                        pos: point,
+                        button: egui::PointerButton::Secondary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+        assert_eq!(app.spelling_target, Some((revision, issue.clone())));
+        assert_eq!(app.range(), issue.range);
+        app.spelling.wait();
+        recovery_click(&mut app, &ctx, "courrier");
+        assert_eq!(
+            app.session.document.view.text,
+            "Un courrier et une réservvation."
+        );
+        assert!(
+            app.session.document.view.styles[3..11]
+                .iter()
+                .all(|style| style.bold)
+        );
+        assert_eq!(app.session.undo.len(), 1);
+        app.apply(Command::Undo);
+        assert_eq!(app.stored_document(), original);
+        // Même mot et mêmes positions après annulation : le ticket ancien reste invalide.
+        app.correct_spelling(revision, &issue, "courrier");
+        assert_eq!(app.stored_document(), original);
+        app.refresh_spelling(&ctx);
+        app.spelling.wait();
+        app.selection = editor::cursor(0..0);
+        app.apply(Command::NextSpelling);
+        app.apply(Command::SpellingSuggestions);
+        app.spelling.wait();
+        let _ = search_draw(&mut app, &ctx, vec![]);
+        let output = search_draw(&mut app, &ctx, vec![]);
+        assert!(output.shapes.iter().any(|shape| matches!(&shape.shape, egui::Shape::Text(text) if text.galley.text() == "courrier")), "les suggestions sont accessibles sans souris");
+        let _ = search_draw(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+        );
+        app.apply(Command::Redo);
+        assert_eq!(
+            app.session.document.view.text,
+            "Un courrier et une réservvation."
+        );
+    }
+
+    #[test]
+    fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst() {
+        let ctx = egui::Context::default();
+        let mut app = App::with_context(ctx.clone(), None);
+        let mut letter = StoredDocument::blank(DocumentType::Courrier);
+        letter.source = "Courrrier courrrier réservvation".into();
+        let document = Document::from_source(&letter.source).unwrap();
+        app.install_document(letter, document, None).unwrap();
+        let original_main = app.session.metadata.main_source();
+        app.refresh_spelling(&ctx);
+        app.spelling.wait();
+        assert_eq!(app.spelling.issues.len(), 3);
+        app.apply(Command::NextSpelling);
+        let first = app.range();
+        app.apply(Command::NextSpelling);
+        assert_ne!(app.range(), first);
+        app.apply(Command::PreviousSpelling);
+        assert_eq!(app.range(), first);
+        app.apply(Command::IgnoreSpelling);
+        assert!(app.is_dirty());
+        assert_eq!(app.session.metadata.main_source(), original_main);
+        app.refresh_spelling(&ctx);
+        app.spelling.wait();
+        assert_eq!(app.spelling.issues.len(), 1);
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("orthographe.typsto");
+        assert!(app.save_path(path.clone()));
+        let stored = storage::read(&path).unwrap();
+        assert_eq!(
+            stored.metadata.options().spelling_ignored["fr"],
+            std::collections::BTreeSet::from(["courrrier".into()])
+        );
+        app.apply(Command::Undo);
+        assert!(app.session.metadata.options().spelling_ignored.is_empty());
+        app.apply(Command::Redo);
+        app.refresh_spelling(&ctx);
+        app.spelling.wait();
+        app.apply(Command::NextSpelling);
+        app.apply(Command::LearnSpelling);
+        app.refresh_spelling(&ctx);
+        app.spelling.wait();
+        assert!(app.spelling.issues.is_empty());
+        assert!(
+            !app.is_dirty(),
+            "apprendre un mot ne modifie pas le document"
+        );
+        let encoded = serde_json::to_string(&app.preferences).unwrap();
+        let restored: Preferences = serde_json::from_str(&encoded).unwrap();
+        assert!(restored.spelling.personal["fr"].contains("réservvation"));
+        app.apply(Command::ResetSpelling);
+        app.refresh_spelling(&ctx);
+        app.spelling.wait();
+        assert_eq!(app.spelling.issues.len(), 2);
+        let before = app.snapshot();
+        app.session.metadata.options_mut().language = DocumentLanguage::German;
+        app.remember(before, false);
+        app.refresh_spelling(&ctx);
+        assert!(app.spelling.issues.is_empty() && !app.spelling.ready);
+        app.apply(Command::ToggleSpelling);
+        assert!(!app.preferences.spelling.enabled);
+        app.apply(Command::ToggleSpelling);
+        let mut another = StoredDocument::blank(DocumentType::CompteRendu);
+        another.source = stored.source.clone();
+        let document = Document::from_source(&another.source).unwrap();
+        app.install_document(another, document, None).unwrap();
+        app.refresh_spelling(&ctx);
+        app.spelling.wait();
+        assert_eq!(
+            app.spelling.issues.len(),
+            2,
+            "les mots ignorés ne fuient pas vers un autre document ; le dictionnaire personnel reste partagé"
+        );
+        let document = Document::from_source(&stored.source).unwrap();
+        app.install_document(stored, document, Some(path)).unwrap();
+        app.refresh_spelling(&ctx);
+        app.spelling.wait();
+        assert!(
+            app.spelling.issues.is_empty(),
+            "la réouverture réapplique les deux niveaux d’exceptions"
+        );
+    }
 
     fn search_draw(
         app: &mut App,
@@ -2895,7 +3437,7 @@ mod interaction_tests {
                     egui::Shape::Text(text)
                         if text.galley.job.text == app.session.document.view.text =>
                     {
-                        editor::search_rects(&text.galley, &app.search.matches)
+                        editor::range_rects(&text.galley, &app.search.matches)
                             .into_iter()
                             .find(|(found, _)| *found == index)
                             .map(|(_, rect)| text.pos + rect.center().to_vec2())

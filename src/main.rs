@@ -16,6 +16,7 @@ mod recovery;
 mod rendering;
 mod search;
 mod session;
+mod spelling;
 mod statistics;
 mod storage;
 #[cfg(test)]
@@ -32,6 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut capture = None;
     let mut capture_recovery = None;
     let mut capture_search = None;
+    let mut capture_spelling = false;
     let mut open_path = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -74,6 +76,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ));
                 capture_search = Some(args.next().ok_or(crate::tr!("cli-usage-capture-search"))?);
             }
+            "--capture-spelling" => {
+                capture = Some(PathBuf::from(
+                    args.next()
+                        .ok_or(crate::tr!("cli-usage-capture-spelling"))?,
+                ));
+                capture_spelling = true;
+            }
             "--capture-recovery" => {
                 capture = Some(PathBuf::from(
                     args.next()
@@ -110,6 +119,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut app = app::App::new(cc, capture, open_path, capture_recovery)?;
             if let Some(query) = capture_search {
                 app.capture_search(query);
+            }
+            if capture_spelling {
+                app.capture_spelling(&cc.egui_ctx);
             }
             Ok(Box::new(app))
         }),

@@ -140,6 +140,7 @@ cli-help =
       cargo run -- --capture IMAGE.png
       cargo run -- --capture-recovery IMAGE.png RECOVERY_FOLDER
       cargo run -- --capture-search IMAGE.png QUERY
+      cargo run -- --capture-spelling IMAGE.png
 preview-stats =
     { $pages ->
         [one] { $pages } page · { $milliseconds } ms
@@ -311,3 +312,23 @@ recovery-no-directory = The application data directory could not be located.
 recovery-worker-stopped = The recovery service has stopped.
 recovery-load-failed = Unable to recover this copy: { $error }
 recovery-delete-failed = Unable to delete this copy: { $error }
+cmd-spelling-toggle = Check spelling while typing
+cmd-spelling-next = Next spelling issue
+cmd-spelling-previous = Previous spelling issue
+cmd-spelling-suggestions = Spelling suggestions…
+cli-usage-capture-spelling = Usage: --capture-spelling IMAGE.png
+cmd-spelling-ignore = Ignore this word in the document
+cmd-spelling-learn = Add to personal dictionary
+cmd-spelling-reset = Reset ignored words in the document
+spelling-count = Spelling: { $count }
+spelling-checking = Checking spelling…
+spelling-hint = Words to check. Click to select the next one; right-click an underlined word for suggestions. Local analysis uses the document language.
+spelling-no-dictionary = Spelling unavailable ({ $language })
+spelling-dictionaries = Bundled dictionaries: classical French and American English. No text is sent to an external service.
+spelling-error = Spelling unavailable
+spelling-no-issue-here = No spelling issue at this position.
+spelling-no-suggestions = No suggestions.
+spelling-loading-suggestions = Looking up suggestions…
+spelling-personal-dictionary = Personal dictionary
+spelling-personal-help = Add words by right-clicking in the editor. Words are saved in preferences, per language.
+spelling-forget-word = Remove

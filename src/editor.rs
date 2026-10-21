@@ -680,7 +680,15 @@ pub fn store_cursor(ctx: &egui::Context, range: CCursorRange) {
 
 /// Rectangles des résultats, fondés sur les glyphes natifs : précis aussi pour
 /// les lignes repliées, les descriptions et les légendes d’images décalées.
-pub fn search_rects(galley: &Galley, matches: &[Range<usize>]) -> Vec<(usize, egui::Rect)> {
+pub fn range_rects(galley: &Galley, matches: &[Range<usize>]) -> Vec<(usize, egui::Rect)> {
+    glyph_range_rects(galley, matches, false)
+}
+
+fn glyph_range_rects(
+    galley: &Galley,
+    matches: &[Range<usize>],
+    font_box: bool,
+) -> Vec<(usize, egui::Rect)> {
     let mut result = Vec::new();
     let mut character = 0;
     let mut index = 0;
@@ -697,7 +705,10 @@ pub fn search_rects(galley: &Galley, matches: &[Range<usize>]) -> Vec<(usize, eg
                 .get(index)
                 .is_some_and(|range| range.contains(&character))
             {
-                let rect = glyph.logical_rect().translate(row.pos.to_vec2());
+                let mut rect = glyph.logical_rect().translate(row.pos.to_vec2());
+                if font_box {
+                    rect.max.y = rect.min.y + glyph.font_height;
+                }
                 match &mut run {
                     Some((previous, bounds)) if *previous == index => *bounds = bounds.union(rect),
                     _ => {
@@ -718,6 +729,36 @@ pub fn search_rects(galley: &Galley, matches: &[Range<usize>]) -> Vec<(usize, eg
         character += usize::from(row.ends_with_newline);
     }
     result
+}
+
+/// Décoration du galley : ne change ni le contenu, ni les styles, ni le curseur.
+pub fn paint_spelling(
+    ui: &egui::Ui,
+    output: &egui::text_edit::TextEditOutput,
+    ranges: &[Range<usize>],
+) {
+    let painter = ui.painter_at(output.text_clip_rect);
+    let color = if ui.visuals().dark_mode {
+        Color32::from_rgb(245, 122, 122)
+    } else {
+        Color32::from_rgb(198, 42, 49)
+    };
+    for (_, rect) in glyph_range_rects(&output.galley, ranges, true) {
+        let rect = rect.translate(output.galley_pos.to_vec2());
+        if !rect.intersects(output.text_clip_rect) {
+            continue;
+        }
+        let steps = (rect.width() / 2.0).ceil().max(1.0) as usize;
+        let points = (0..=steps)
+            .map(|step| {
+                egui::pos2(
+                    rect.left() + rect.width() * step as f32 / steps as f32,
+                    rect.bottom() + if step % 2 == 0 { 0.0 } else { 1.5 },
+                )
+            })
+            .collect();
+        painter.add(egui::Shape::line(points, Stroke::new(1.1_f32, color)));
+    }
 }
 
 pub fn cursor(range: Range<usize>) -> CCursorRange {
@@ -974,7 +1015,7 @@ mod tests {
                             });
                             assert_eq!(section.format.background != Color32::TRANSPARENT, found);
                         }
-                        let rectangles = search_rects(&highlighted, &search.matches);
+                        let rectangles = range_rects(&highlighted, &search.matches);
                         for index in 0..search.matches.len() {
                             assert!(
                                 rectangles

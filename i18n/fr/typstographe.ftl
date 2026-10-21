@@ -1,5 +1,26 @@
 # Interface typstOgraphe. Ne pas traduire les données des courriers.
 
+cmd-spelling-toggle = Vérifier l’orthographe pendant la saisie
+cmd-spelling-next = Erreur orthographique suivante
+cmd-spelling-previous = Erreur orthographique précédente
+cmd-spelling-suggestions = Suggestions orthographiques…
+cli-usage-capture-spelling = Usage : --capture-spelling IMAGE.png
+cmd-spelling-ignore = Ignorer ce mot dans le document
+cmd-spelling-learn = Ajouter au dictionnaire personnel
+cmd-spelling-reset = Réinitialiser les mots ignorés du document
+spelling-count = Orthographe : { $count }
+spelling-checking = Vérification orthographique…
+spelling-hint = Mots à vérifier. Cliquer pour sélectionner le suivant ; clic droit sur un mot souligné pour les suggestions. Analyse locale selon la langue du document.
+spelling-no-dictionary = Orthographe indisponible ({ $language })
+spelling-dictionaries = Dictionnaires embarqués : français classique et anglais américain. Aucun texte n’est envoyé à un service externe.
+spelling-error = Orthographe indisponible
+spelling-no-issue-here = Aucun mot signalé à cet endroit.
+spelling-no-suggestions = Aucune suggestion.
+spelling-loading-suggestions = Recherche des suggestions…
+spelling-personal-dictionary = Dictionnaire personnel
+spelling-personal-help = Ajouter un mot par clic droit dans l’éditeur. Les mots sont enregistrés dans les préférences, par langue.
+spelling-forget-word = Retirer
+
 cmd-find = Rechercher…
 cmd-find-replace = Rechercher et remplacer…
 cmd-find-next = Occurrence suivante
@@ -181,6 +202,7 @@ cli-help =
       cargo run -- --capture IMAGE.png
       cargo run -- --capture-recovery IMAGE.png DOSSIER_RECUPERATION
       cargo run -- --capture-search IMAGE.png RECHERCHE
+      cargo run -- --capture-spelling IMAGE.png
 preview-stats =
     { $pages ->
         [one] { $pages } page · { $milliseconds } ms
