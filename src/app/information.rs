@@ -46,7 +46,8 @@ impl App {
                 ui.add(egui::Label::new(heading).truncate())
                     .on_hover_text(&full_heading);
                 for (group, label) in groups {
-                    let active = self.information_open && self.information_group == group;
+                    let active =
+                        self.dialogs.information_open && self.dialogs.information_group == group;
                     if ui
                         .add(egui::Button::selectable(active, label.clone()).small())
                         .on_hover_text(if active {
@@ -62,25 +63,25 @@ impl App {
             });
         });
         if let Some(group) = clicked {
-            let close = self.information_open && self.information_group == group;
+            let close = self.dialogs.information_open && self.dialogs.information_group == group;
             if let Some(id) = self.history_field.take() {
                 ui.ctx().memory_mut(|memory| memory.surrender_focus(id));
             }
-            self.information_group = group;
-            if close || !self.information_open {
+            self.dialogs.information_group = group;
+            if close || !self.dialogs.information_open {
                 self.apply(Command::Information);
             }
             ui.ctx().request_repaint();
         }
-        if self.information_open {
+        if self.dialogs.information_open {
             // Une seule rubrique est visible ; chaque rubrique garde son défilement.
             let max_height = (ui.available_height() * 0.45).min(320.0);
             ui.add_space(4.0);
             egui::ScrollArea::vertical()
-                .id_salt(("information-scroll", self.information_group))
+                .id_salt(("information-scroll", self.dialogs.information_group))
                 .max_height(max_height)
                 .auto_shrink([false, true])
-                .show(ui, |ui| match self.information_group {
+                .show(ui, |ui| match self.dialogs.information_group {
                     InformationGroup::General => self.general_information_ui(ui),
                     InformationGroup::Fields(group) => {
                         self.session.metadata.editor_group_ui(ui, group);

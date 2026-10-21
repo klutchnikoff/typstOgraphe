@@ -70,7 +70,7 @@ impl App {
         if !all && let Some(index) = self.search.engine.next(self.range(), false) {
             self.select_search_result(index);
         }
-        self.message = Some(crate::tr!("search-replaced", count = ranges.len()));
+        self.dialogs.message = Some(crate::tr!("search-replaced", count = ranges.len()));
     }
     pub(super) fn search_ui(&mut self, ui: &mut egui::Ui) {
         if !self.search.open {

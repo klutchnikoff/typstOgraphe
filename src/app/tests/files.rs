@@ -31,16 +31,16 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
         }
     }
     app.apply(Command::Preferences);
-    assert!(app.preferences_open);
-    app.preferences_open = false;
+    assert!(app.dialogs.preferences_open);
+    app.dialogs.preferences_open = false;
     recovery_click(&mut app, &ctx, &Command::File(FileCommand::New).label());
-    assert!(app.new_document_open && !app.document_open);
-    assert_eq!(app.new_document_model, Some(Model::Personal));
+    assert!(app.dialogs.new_document_open && !app.document_open);
+    assert_eq!(app.dialogs.new_document_model, Some(Model::Personal));
     recovery_click(&mut app, &ctx, &crate::tr!("cancel"));
-    assert!(!app.new_document_open && !app.document_open);
+    assert!(!app.dialogs.new_document_open && !app.document_open);
     app.perform_action(PendingAction::New, &ctx);
     recovery_click(&mut app, &ctx, &crate::tr!("new-document-create"));
-    assert!(app.document_open && !app.new_document_open);
+    assert!(app.document_open && !app.dialogs.new_document_open);
     assert!(app.session.document.source().is_empty());
     assert_eq!(app.session.template, Model::Personal.source());
     let path = dir.path().join("courrier.typsto");
@@ -325,7 +325,7 @@ fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
         );
     }
     assert!(app.file.pending_action.is_none());
-    assert!(app.new_document_open);
+    assert!(app.dialogs.new_document_open);
     app.create_document(DocumentType::Courrier);
     assert!(app.session.document.source().is_empty());
     assert!(app.session.file_path.is_none());

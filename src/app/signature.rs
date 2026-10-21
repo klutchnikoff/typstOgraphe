@@ -65,10 +65,11 @@ impl App {
                 Ok((name, image)) => {
                     self.preferences.profile.signature = Some(name);
                     self.profile_signature = Some(image);
-                    self.profile_error = None;
+                    self.dialogs.profile_error = None;
                 }
                 Err(error) => {
-                    self.profile_error = Some(crate::tr!("profile-signature-error", error = error))
+                    self.dialogs.profile_error =
+                        Some(crate::tr!("profile-signature-error", error = error))
                 }
             }
         } else {

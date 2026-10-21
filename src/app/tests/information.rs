@@ -5,8 +5,8 @@ fn today_button_keeps_a_fixed_date_through_history_and_reopening() {
     let ctx = egui::Context::default();
     let mut app = App::with_context(ctx.clone(), None);
     app.create_document(DocumentType::Courrier);
-    app.information_open = true;
-    app.information_group = InformationGroup::Fields("information");
+    app.dialogs.information_open = true;
+    app.dialogs.information_group = InformationGroup::Fields("information");
     let source = app.session.document.source().to_owned();
     recovery_click(&mut app, &ctx, &crate::tr!("date-today"));
     let fixed = app.session.metadata.courrier().date.clone();
@@ -31,7 +31,7 @@ fn general_settings_and_template_selection_preserve_letter_content() {
     let mut app = App::with_demo_context(ctx.clone(), None);
     app.session.template = "#let courrier(..args, options: (:), body) = { set page(paper: options.paper, flipped: options.landscape); body }".into();
     app.session.saved.template = app.session.template.clone();
-    app.information_open = true;
+    app.dialogs.information_open = true;
     ctx.style_mut(|s| s.animation_time = 0.0);
     let source = app.session.document.source().to_owned();
     let revision = app.session.revision;
@@ -197,7 +197,7 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     click(&mut app, &mut draw, header.center());
     draw(&mut app, vec![]);
     let opened = draw(&mut app, vec![]);
-    assert!(app.information_open);
+    assert!(app.dialogs.information_open);
     assert!(!app.modal_open());
     assert!(!app.is_dirty());
     assert_eq!(app.session.revision, revision);
@@ -222,13 +222,16 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     let sender_button = text_rect(&sender, "Expéditeur");
     click(&mut app, &mut draw, sender_button.center());
     let collapsed = draw(&mut app, vec![]);
-    assert!(!app.information_open);
+    assert!(!app.dialogs.information_open);
     assert!(!has_text(&collapsed, "Nom complet"));
     assert!(text_rect(&collapsed, &app.session.document.view.text).height() >= body.height());
     app.apply(Command::Information);
     let reopened = draw(&mut app, vec![]);
-    assert!(app.information_open);
-    assert_eq!(app.information_group, InformationGroup::Fields("sender"));
+    assert!(app.dialogs.information_open);
+    assert_eq!(
+        app.dialogs.information_group,
+        InformationGroup::Fields("sender")
+    );
     assert!(has_text(&reopened, "Nom complet"));
     assert_eq!(app.session.revision, revision);
     assert!(!app.is_dirty());
@@ -264,9 +267,9 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     assert_eq!(app.selection, selection);
     assert_eq!(app.session.revision, revision + 1);
     assert!(app.is_dirty());
-    assert!(app.information_open);
+    assert!(app.dialogs.information_open);
     app.apply(Command::Palette);
-    app.palette_query = "Annuler".into();
+    app.dialogs.palette_query = "Annuler".into();
     draw(&mut app, vec![]);
     draw(
         &mut app,
@@ -278,7 +281,7 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
             repeat: false,
         }],
     );
-    assert!(!app.palette_open);
+    assert!(!app.dialogs.palette_open);
     draw(&mut app, vec![]);
     assert_eq!(app.session.metadata.courrier_mut().objet, original_subject);
     assert_eq!(app.session.document.source(), source);
@@ -293,7 +296,7 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
         text_rect(&current, "Informations").center(),
     );
     draw(&mut app, vec![]);
-    assert!(!app.information_open);
+    assert!(!app.dialogs.information_open);
     assert_eq!(app.session.metadata.courrier_mut().objet, "Objet modifié");
     assert_eq!(app.session.revision, revision + 3);
 }

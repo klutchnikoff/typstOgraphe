@@ -22,7 +22,7 @@ impl App {
             match response.result {
                 Ok(rendered) => {
                     if response.is_export {
-                        self.message = Some(crate::tr!(
+                        self.dialogs.message = Some(crate::tr!(
                             "letter-exported",
                             path = rendered
                                 .export_dir

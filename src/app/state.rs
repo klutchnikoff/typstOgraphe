@@ -50,3 +50,24 @@ pub(super) struct FileState {
     pub(super) export_open: bool,
     pub(super) export_path: String,
 }
+
+pub(super) struct DialogState {
+    pub(super) preferences_page: PreferencesPage,
+    pub(super) preferences_open: bool,
+    pub(super) new_document_open: bool,
+    pub(super) new_document_type: DocumentType,
+    pub(super) new_document_model: Option<Model>,
+    pub(super) information_open: bool,
+    pub(super) information_group: InformationGroup,
+    pub(super) palette_open: bool,
+    pub(super) palette_query: String,
+    pub(super) palette_index: usize,
+    pub(super) image_info: Option<u64>,
+    pub(super) image_alt: String,
+    pub(super) link_open: bool,
+    pub(super) link_url: String,
+    pub(super) link_error: Option<String>,
+    pub(super) link_range: Range<usize>,
+    pub(super) message: Option<String>,
+    pub(super) profile_error: Option<String>,
+}

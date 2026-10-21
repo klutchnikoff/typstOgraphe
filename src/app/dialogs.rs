@@ -3,11 +3,11 @@ use super::*;
 impl App {
     pub(super) fn modal_open(&self) -> bool {
         self.recovery.open
-            || self.new_document_open
-            || self.image_info.is_some()
-            || self.preferences_open
-            || self.palette_open
-            || self.link_open
+            || self.dialogs.new_document_open
+            || self.dialogs.image_info.is_some()
+            || self.dialogs.preferences_open
+            || self.dialogs.palette_open
+            || self.dialogs.link_open
             || self.file.export_open
             || self.file.pending_action.is_some()
             || self.file.error.is_some()
@@ -43,9 +43,9 @@ impl App {
         self.export_dialog(ctx);
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
             self.recovery.open = false;
-            self.palette_open = false;
-            self.link_open = false;
-            self.information_open = false;
+            self.dialogs.palette_open = false;
+            self.dialogs.link_open = false;
+            self.dialogs.information_open = false;
             self.file.export_open = false;
             self.file.pending_action = None;
             self.file.error = None;
@@ -53,7 +53,7 @@ impl App {
         }
     }
     fn new_document_dialog(&mut self, ctx: &egui::Context) {
-        if self.new_document_open {
+        if self.dialogs.new_document_open {
             let mut create = false;
             let mut cancel = false;
             let modal = egui::Modal::new(egui::Id::new("new-document")).show(ctx, |ui| {
@@ -63,10 +63,11 @@ impl App {
                 for kind in DocumentType::ALL {
                     ui.add_enabled_ui(kind.can_create(), |ui| {
                         if ui
-                            .radio_value(&mut self.new_document_type, kind, kind.label())
+                            .radio_value(&mut self.dialogs.new_document_type, kind, kind.label())
                             .changed()
                         {
-                            self.new_document_model = kind.models().next().map(|entry| entry.model);
+                            self.dialogs.new_document_model =
+                                kind.models().next().map(|entry| entry.model);
                         }
                     })
                     .response
@@ -74,9 +75,9 @@ impl App {
                 }
                 ui.add_space(8.0);
                 ui.label(crate::tr!("field-template"));
-                for entry in self.new_document_type.models() {
+                for entry in self.dialogs.new_document_type.models() {
                     ui.radio_value(
-                        &mut self.new_document_model,
+                        &mut self.dialogs.new_document_model,
                         Some(entry.model),
                         entry.command.command.short_label(),
                     );
@@ -84,23 +85,23 @@ impl App {
                 ui.separator();
                 ui.horizontal(|ui| {
                     cancel = ui.button(crate::tr!("cancel")).clicked();
-                    let valid = self
-                        .new_document_model
-                        .is_some_and(|model| model.definition().kind == self.new_document_type);
+                    let valid = self.dialogs.new_document_model.is_some_and(|model| {
+                        model.definition().kind == self.dialogs.new_document_type
+                    });
                     create = ui
                         .add_enabled(valid, egui::Button::new(crate::tr!("new-document-create")))
                         .clicked();
                 });
             });
             if create {
-                self.create_document(self.new_document_type);
+                self.create_document(self.dialogs.new_document_type);
             } else if cancel || modal.should_close() {
-                self.new_document_open = false;
+                self.dialogs.new_document_open = false;
             }
         }
     }
     fn image_dialog(&mut self, ctx: &egui::Context) {
-        if let Some(id) = self.image_info {
+        if let Some(id) = self.dialogs.image_info {
             let mut open = true;
             let mut apply = false;
             let mut cancel = false;
@@ -111,7 +112,7 @@ impl App {
                 .show(ctx, |ui| {
                     ui.label(crate::tr!("image-alt-label"));
                     ui.add(
-                        egui::TextEdit::multiline(&mut self.image_alt)
+                        egui::TextEdit::multiline(&mut self.dialogs.image_alt)
                             .desired_width(f32::INFINITY)
                             .desired_rows(3),
                     );
@@ -131,7 +132,7 @@ impl App {
             if apply {
                 let before = self.snapshot();
                 if let Some(image) = self.session.document.view.images.get_mut(&id) {
-                    image.alt.clone_from(&self.image_alt);
+                    image.alt.clone_from(&self.dialogs.image_alt);
                     self.remember(before, false);
                 }
                 open = false;
@@ -139,7 +140,7 @@ impl App {
                 self.preview.editor_scroll_pending = true;
             }
             if !open {
-                self.image_info = None;
+                self.dialogs.image_info = None;
                 if let Some(range) = self.session.document.view.image_range(id) {
                     self.focus_annotation_target(range.start + 1..range.start + 1);
                 }
@@ -147,7 +148,7 @@ impl App {
         }
     }
     fn link_dialog(&mut self, ctx: &egui::Context) {
-        if self.link_open {
+        if self.dialogs.link_open {
             let mut open = true;
             let mut apply = false;
             let mut remove = false;
@@ -165,17 +166,17 @@ impl App {
                             .view
                             .text
                             .chars()
-                            .skip(self.link_range.start)
-                            .take(self.link_range.len())
+                            .skip(self.dialogs.link_range.start)
+                            .take(self.dialogs.link_range.len())
                             .collect::<String>()
                     ));
                     ui.label(crate::tr!("field-address"));
                     ui.add(
-                        egui::TextEdit::singleline(&mut self.link_url)
+                        egui::TextEdit::singleline(&mut self.dialogs.link_url)
                             .desired_width(f32::INFINITY)
                             .hint_text("https://…"),
                     );
-                    if let Some(error) = &self.link_error {
+                    if let Some(error) = &self.dialogs.link_error {
                         ui.colored_label(Color32::from_rgb(183, 69, 57), error);
                     }
                     ui.horizontal(|ui| {
@@ -186,16 +187,16 @@ impl App {
                             .clicked();
                     });
                 });
-            self.link_open &= open;
+            self.dialogs.link_open &= open;
             if remove {
-                if self.range() != self.link_range {
-                    self.selection = editor::cursor(self.link_range.clone());
+                if self.range() != self.dialogs.link_range {
+                    self.selection = editor::cursor(self.dialogs.link_range.clone());
                 }
                 self.apply(Command::RemoveLink);
-                self.link_open = false;
+                self.dialogs.link_open = false;
                 self.force_selection = true;
             } else if apply {
-                let url = self.link_url.trim();
+                let url = self.dialogs.link_url.trim();
                 if (url.starts_with("https://")
                     || url.starts_with("http://")
                     || url.starts_with("mailto:"))
@@ -205,18 +206,18 @@ impl App {
                     self.session
                         .document
                         .view
-                        .set_link(self.link_range.clone(), Some(url.into()));
+                        .set_link(self.dialogs.link_range.clone(), Some(url.into()));
                     self.remember(before, false);
-                    self.link_open = false;
+                    self.dialogs.link_open = false;
                     self.force_selection = true;
                 } else {
-                    self.link_error = Some(crate::tr!("link-invalid-url"));
+                    self.dialogs.link_error = Some(crate::tr!("link-invalid-url"));
                 }
             }
         }
     }
     fn palette_dialog(&mut self, ctx: &egui::Context) {
-        if self.palette_open {
+        if self.dialogs.palette_open {
             let mut open = true;
             let mut choice = None;
             egui::Window::new(Command::Palette.label())
@@ -227,7 +228,7 @@ impl App {
                 .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, 85.0))
                 .show(ctx, |ui| {
                     let response = ui.add(
-                        egui::TextEdit::singleline(&mut self.palette_query)
+                        egui::TextEdit::singleline(&mut self.dialogs.palette_query)
                             .hint_text(crate::tr!("command-search"))
                             .desired_width(f32::INFINITY),
                     );
@@ -235,7 +236,7 @@ impl App {
                         response.request_focus();
                     }
                     if response.changed() {
-                        self.palette_index = 0;
+                        self.dialogs.palette_index = 0;
                     }
                     let commands = self
                         .keymap
@@ -247,32 +248,36 @@ impl App {
                                     || definition.command.available_without_document())
                         })
                         .map(|definition| definition.command);
-                    let query = self.palette_query.to_lowercase();
+                    let query = self.dialogs.palette_query.to_lowercase();
                     let filtered: Vec<_> = commands
                         .into_iter()
                         .filter(|c| c.label().to_lowercase().contains(&query))
                         .collect();
-                    self.palette_index = self.palette_index.min(filtered.len().saturating_sub(1));
+                    self.dialogs.palette_index = self
+                        .dialogs
+                        .palette_index
+                        .min(filtered.len().saturating_sub(1));
                     if ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown))
                         && !filtered.is_empty()
                     {
-                        self.palette_index = (self.palette_index + 1) % filtered.len();
+                        self.dialogs.palette_index =
+                            (self.dialogs.palette_index + 1) % filtered.len();
                     }
                     if ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp))
                         && !filtered.is_empty()
                     {
-                        self.palette_index =
-                            (self.palette_index + filtered.len() - 1) % filtered.len();
+                        self.dialogs.palette_index =
+                            (self.dialogs.palette_index + filtered.len() - 1) % filtered.len();
                     }
                     if ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
-                        choice = filtered.get(self.palette_index).copied();
+                        choice = filtered.get(self.dialogs.palette_index).copied();
                     }
                     for (index, command) in filtered.into_iter().enumerate() {
                         if ui
                             .add(
                                 egui::Button::new(command.label())
                                     .frame(false)
-                                    .selected(index == self.palette_index)
+                                    .selected(index == self.dialogs.palette_index)
                                     .shortcut_text(self.keymap.shortcut_text(ui.ctx(), command)),
                             )
                             .clicked()
@@ -281,9 +286,9 @@ impl App {
                         }
                     }
                 });
-            self.palette_open &= open;
+            self.dialogs.palette_open &= open;
             if let Some(command) = choice {
-                self.palette_open = false;
+                self.dialogs.palette_open = false;
                 self.dispatch_action(command, ctx);
             }
         }
@@ -309,7 +314,7 @@ impl App {
             self.file.export_open &= open;
             if export {
                 if !self.session.metadata.ready_for_export() {
-                    self.message = Some(crate::tr!("export-required-fields"));
+                    self.dialogs.message = Some(crate::tr!("export-required-fields"));
                 } else {
                     match self
                         .preview
@@ -319,9 +324,9 @@ impl App {
                     {
                         Ok(()) => {
                             self.file.export_open = false;
-                            self.message = Some(crate::tr!("export-pending"));
+                            self.dialogs.message = Some(crate::tr!("export-pending"));
                         }
-                        Err(_) => self.message = Some(crate::tr!("renderer-stopped")),
+                        Err(_) => self.dialogs.message = Some(crate::tr!("renderer-stopped")),
                     }
                 }
             }

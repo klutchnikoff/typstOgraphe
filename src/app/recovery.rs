@@ -71,7 +71,7 @@ impl App {
                     self.recovery.error = Some(error);
                 }
                 self.recovery.open = false;
-                self.message = Some(crate::tr!("recovery-restored"));
+                self.dialogs.message = Some(crate::tr!("recovery-restored"));
             }
             Err(error) => self.file.error = Some(crate::tr!("recovery-load-failed", error = error)),
         }

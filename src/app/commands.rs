@@ -57,16 +57,16 @@ impl App {
             Command::RecoverDocuments => self.recovery.open = !self.recovery.entries.is_empty(),
             Command::ImportModel => self.import_model(),
             Command::InsertImage => self.choose_image(None),
-            Command::Preferences => self.preferences_open = true,
+            Command::Preferences => self.dialogs.preferences_open = true,
             Command::File(command) => self.file.command = Some(command),
             Command::Palette => {
-                self.palette_open = !self.palette_open;
-                self.palette_query.clear();
-                self.palette_index = 0;
+                self.dialogs.palette_open = !self.dialogs.palette_open;
+                self.dialogs.palette_query.clear();
+                self.dialogs.palette_index = 0;
             }
             Command::Information => {
-                self.information_open = !self.information_open;
-                if !self.information_open {
+                self.dialogs.information_open = !self.dialogs.information_open;
+                if !self.dialogs.information_open {
                     self.history_field = None;
                     self.force_selection = true;
                 }
@@ -104,7 +104,7 @@ impl App {
             Command::RemoveLink => {
                 let range = self.range();
                 if range.is_empty() {
-                    self.message = Some(crate::tr!("select-link-remove"));
+                    self.dialogs.message = Some(crate::tr!("select-link-remove"));
                 } else if self.session.document.view.styles[range]
                     .iter()
                     .any(|style| style.link.is_some())
@@ -246,7 +246,7 @@ impl App {
                 self.history_field = Some(id);
             }
         }
-        if !self.information_open && !self.modal_open() {
+        if !self.dialogs.information_open && !self.modal_open() {
             self.history_field = None;
         }
     }
@@ -281,7 +281,8 @@ impl App {
                     d.command,
                     menus::Status {
                         enabled,
-                        checked: (d.command == Command::Information && self.information_open)
+                        checked: (d.command == Command::Information
+                            && self.dialogs.information_open)
                             || (d.command == Command::ToggleSpelling
                                 && self.preferences.spelling.enabled),
                     },

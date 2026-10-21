@@ -2,7 +2,7 @@ use super::*;
 
 impl App {
     pub(super) fn load_demo(&mut self) {
-        let kind = self.new_document_type;
+        let kind = self.dialogs.new_document_type;
         let stored = StoredDocument::demo(kind);
         let document = Document::from_source(&stored.source).expect("démonstration valide");
         self.install_document(stored, document, None)
@@ -18,7 +18,7 @@ impl App {
         let letter = self.stored_document();
         match storage::save(&path, &letter) {
             Ok(()) => {
-                self.message = Some(crate::tr!(
+                self.dialogs.message = Some(crate::tr!(
                     "letter-saved",
                     path = path.display().to_string()
                 ));
@@ -98,7 +98,7 @@ impl App {
                     self.file.error = Some(error);
                     return false;
                 }
-                self.message = Some(crate::tr!("letter-opened"));
+                self.dialogs.message = Some(crate::tr!("letter-opened"));
                 true
             }
             Err(error) => {
@@ -128,8 +128,8 @@ impl App {
         self.session = Session::new(letter, document, path, self.session.revision + 1);
         self.document_open = true;
         self.image_textures.clear();
-        self.image_info = None;
-        self.information_group = InformationGroup::General;
+        self.dialogs.image_info = None;
+        self.dialogs.information_group = InformationGroup::General;
         self.presentation = ModelPresentation::default();
         self.selection = CCursorRange::one(CCursor::new(0));
         self.force_selection = true;
@@ -141,7 +141,7 @@ impl App {
         self.preview.revision = None;
         self.preview.elapsed = None;
         self.file.error = None;
-        self.message = None;
+        self.dialogs.message = None;
         Ok(())
     }
     pub(super) fn request_action(&mut self, action: PendingAction, ctx: &egui::Context) {
@@ -152,7 +152,7 @@ impl App {
         }
     }
     pub(super) fn close_document(&mut self) {
-        let kind = self.new_document_type;
+        let kind = self.dialogs.new_document_type;
         let letter = StoredDocument::blank(kind);
         let document = Document::from_source("").expect("document vide valide");
         // install_document réinitialise aussi l'historique, les dialogues liés
@@ -160,15 +160,15 @@ impl App {
         self.install_document(letter, document, None)
             .expect("registre valide");
         self.document_open = false;
-        self.information_open = false;
-        self.link_open = false;
+        self.dialogs.information_open = false;
+        self.dialogs.link_open = false;
         self.file.export_open = false;
         self.history_field = None;
     }
     pub(super) fn perform_action(&mut self, action: PendingAction, ctx: &egui::Context) {
         match action {
             PendingAction::New => {
-                self.new_document_type = DocumentType::ALL
+                self.dialogs.new_document_type = DocumentType::ALL
                     .into_iter()
                     .find(|kind| {
                         kind.can_create()
@@ -176,13 +176,14 @@ impl App {
                             && *kind == self.session.metadata.document_type()
                     })
                     .or_else(|| DocumentType::ALL.into_iter().find(|kind| kind.can_create()))
-                    .unwrap_or(self.new_document_type);
-                self.new_document_model = self
+                    .unwrap_or(self.dialogs.new_document_type);
+                self.dialogs.new_document_model = self
+                    .dialogs
                     .new_document_type
                     .models()
                     .next()
                     .map(|entry| entry.model);
-                self.new_document_open = true;
+                self.dialogs.new_document_open = true;
             }
             PendingAction::Open => {
                 let mut dialog = rfd::FileDialog::new()
@@ -212,6 +213,7 @@ impl App {
     }
     pub(super) fn create_document(&mut self, kind: DocumentType) {
         let Some(model) = self
+            .dialogs
             .new_document_model
             .filter(|model| model.definition().kind == kind)
             .or_else(|| kind.models().next().map(|entry| entry.model))
@@ -235,7 +237,7 @@ impl App {
         if let Err(error) = self.install_document(letter, document, None) {
             self.file.error = Some(error);
         } else {
-            self.new_document_open = false;
+            self.dialogs.new_document_open = false;
             self.file.export_path = std::env::current_dir()
                 .unwrap_or_default()
                 .join("output")

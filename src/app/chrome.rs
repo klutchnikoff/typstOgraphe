@@ -65,7 +65,7 @@ impl App {
                     ui.weak(crate::tr!("spelling-checking"));
                 }
             }
-            if let Some(message) = &self.message {
+            if let Some(message) = &self.dialogs.message {
                 ui.separator();
                 ui.add(egui::Label::new(message).truncate())
                     .on_hover_text(message);

@@ -11,9 +11,9 @@ fn links_accept_soft_lines_and_reject_paragraph_or_list_boundaries() {
     ] {
         app.session.document = Document::from_source(source).unwrap();
         app.selection = editor::cursor(selection);
-        app.link_open = false;
+        app.dialogs.link_open = false;
         app.apply(Command::Link);
-        assert_eq!(app.link_open, allowed, "{source}");
+        assert_eq!(app.dialogs.link_open, allowed, "{source}");
     }
 }
 

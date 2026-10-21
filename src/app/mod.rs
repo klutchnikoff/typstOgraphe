@@ -70,6 +70,7 @@ enum PreferencesPage {
 }
 
 pub struct App {
+    dialogs: DialogState,
     file: FileState,
     preview: PreviewState,
     search: SearchState,
@@ -83,13 +84,7 @@ pub struct App {
     preferences: Preferences,
     preferences_tracker: crate::preferences::SaveTracker,
     preferences_directory: Option<PathBuf>,
-    preferences_page: PreferencesPage,
     profile_signature: Option<crate::assets::ImageData>,
-    profile_error: Option<String>,
-    preferences_open: bool,
-    new_document_open: bool,
-    new_document_type: DocumentType,
-    new_document_model: Option<Model>,
     keymap: Keymap,
     #[cfg(target_os = "macos")]
     native_menus: Option<menus::native::NativeMenus>,
@@ -98,19 +93,7 @@ pub struct App {
     selection: CCursorRange,
     force_selection: bool,
     statistics: crate::statistics::Counter,
-    information_open: bool,
-    information_group: InformationGroup,
-    palette_open: bool,
-    palette_query: String,
-    palette_index: usize,
-    image_info: Option<u64>,
-    image_alt: String,
     image_textures: std::collections::HashMap<String, egui::TextureHandle>,
-    link_open: bool,
-    link_url: String,
-    link_error: Option<String>,
-    link_range: Range<usize>,
-    message: Option<String>,
 }
 
 impl App {
@@ -136,7 +119,7 @@ impl App {
                 match app.preferences.profile.load_signature(directory) {
                     Ok(signature) => app.profile_signature = signature,
                     Err(error) => {
-                        app.profile_error =
+                        app.dialogs.profile_error =
                             Some(crate::tr!("profile-signature-error", error = error))
                     }
                 }
@@ -213,6 +196,26 @@ impl App {
         let document =
             Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
+            dialogs: DialogState {
+                preferences_page: PreferencesPage::default(),
+                preferences_open: false,
+                new_document_open: false,
+                new_document_type: initial_type,
+                new_document_model: initial_type.models().next().map(|entry| entry.model),
+                information_open: false,
+                information_group: InformationGroup::General,
+                palette_open: false,
+                palette_query: String::new(),
+                palette_index: 0,
+                image_info: None,
+                image_alt: String::new(),
+                link_open: false,
+                link_url: String::new(),
+                link_error: None,
+                link_range: 0..0,
+                message: None,
+                profile_error: None,
+            },
             file: FileState {
                 command: None,
                 pending_action: None,
@@ -268,13 +271,7 @@ impl App {
             preferences,
             preferences_tracker,
             preferences_directory: None,
-            preferences_page: PreferencesPage::default(),
             profile_signature: None,
-            profile_error: None,
-            preferences_open: false,
-            new_document_open: false,
-            new_document_type: initial_type,
-            new_document_model: initial_type.models().next().map(|entry| entry.model),
             keymap,
             #[cfg(target_os = "macos")]
             native_menus: None,
@@ -283,19 +280,7 @@ impl App {
             selection: CCursorRange::one(CCursor::new(0)),
             force_selection: false,
             statistics: Default::default(),
-            information_open: false,
-            information_group: InformationGroup::General,
-            palette_open: false,
-            palette_query: String::new(),
-            palette_index: 0,
-            image_info: None,
-            image_alt: String::new(),
             image_textures: Default::default(),
-            link_open: false,
-            link_url: String::new(),
-            link_error: None,
-            link_range: 0..0,
-            message: None,
         }
     }
     #[cfg(test)]
@@ -318,12 +303,12 @@ impl App {
             && self.is_dirty()
         {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-            self.new_document_open = false;
-            self.preferences_open = false;
-            self.palette_open = false;
-            self.link_open = false;
+            self.dialogs.new_document_open = false;
+            self.dialogs.preferences_open = false;
+            self.dialogs.palette_open = false;
+            self.dialogs.link_open = false;
             self.file.export_open = false;
-            self.information_open = false;
+            self.dialogs.information_open = false;
             self.file.pending_action = Some(PendingAction::Close);
         }
         self.rendering(ctx);
@@ -533,12 +518,12 @@ impl eframe::App for App {
         false
     }
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        let preferences_were_open = self.preferences_open;
+        let preferences_were_open = self.dialogs.preferences_open;
         self.ui_frame(ctx);
         if self.capture.path.is_none()
             && let Some(storage) = frame.storage_mut()
         {
-            let force = (preferences_were_open && !self.preferences_open)
+            let force = (preferences_were_open && !self.dialogs.preferences_open)
                 || ctx.input(|input| input.viewport().close_requested());
             self.persist_preferences(storage, Instant::now(), force);
             if let Some(delay) = self

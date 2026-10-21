@@ -2,7 +2,7 @@ use super::*;
 
 impl App {
     pub(super) fn preferences_ui(&mut self, ctx: &egui::Context) {
-        if !self.preferences_open {
+        if !self.dialogs.preferences_open {
             return;
         }
         let response = egui::Modal::new(egui::Id::new("preferences")).show(ctx, |ui| {
@@ -20,28 +20,28 @@ impl App {
                         crate::tr!("preferences-spelling"),
                     ),
                 ] {
-                    ui.selectable_value(&mut self.preferences_page, page, label);
+                    ui.selectable_value(&mut self.dialogs.preferences_page, page, label);
                 }
             });
             ui.separator();
             egui::ScrollArea::vertical()
                 .id_salt("preferences-content")
                 .max_height((ctx.content_rect().height() - 180.0).max(160.0))
-                .show(ui, |ui| match self.preferences_page {
+                .show(ui, |ui| match self.dialogs.preferences_page {
                     PreferencesPage::Profile => self.profile_preferences_ui(ui),
                     PreferencesPage::Appearance => self.appearance_preferences_ui(ui),
                     PreferencesPage::Spelling => self.spelling_preferences_ui(ui),
                 });
             ui.add_space(8.0);
             if ui.button(crate::tr!("close")).clicked() {
-                self.preferences_open = false;
+                self.dialogs.preferences_open = false;
             }
         });
         ctx.set_theme(self.preferences.appearance.theme());
         if response.should_close() {
-            self.preferences_open = false;
+            self.dialogs.preferences_open = false;
         }
-        if !self.preferences_open {
+        if !self.dialogs.preferences_open {
             self.force_selection = true;
         }
     }
@@ -164,7 +164,7 @@ impl App {
             {
                 self.preferences.profile.signature = None;
                 self.profile_signature = None;
-                self.profile_error = None;
+                self.dialogs.profile_error = None;
             }
         });
         if let (Some(name), Some(image)) = (
@@ -176,7 +176,7 @@ impl App {
             ui.weak(crate::tr!("signature-none"));
         }
         ui.weak(crate::tr!("profile-signature-help"));
-        if let Some(error) = &self.profile_error {
+        if let Some(error) = &self.dialogs.profile_error {
             ui.colored_label(ui.visuals().error_fg_color, error);
         }
     }
@@ -223,11 +223,11 @@ impl App {
         }
         self.session.document.view.insert_text("Madame, Monsieur,\n\nJe vous confirme notre rendez-vous pour préparer la prochaine rencontre de l’association.\n\nJe vous remercie pour votre disponibilité.\n\nBien cordialement,", 0);
         self.remember(before, false);
-        self.preferences_page = PreferencesPage::Profile;
-        self.preferences_open = preferences;
+        self.dialogs.preferences_page = PreferencesPage::Profile;
+        self.dialogs.preferences_open = preferences;
         if !preferences {
-            self.information_group = InformationGroup::Fields("information");
-            self.information_open = true;
+            self.dialogs.information_group = InformationGroup::Fields("information");
+            self.dialogs.information_open = true;
         }
     }
 }

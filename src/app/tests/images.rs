@@ -225,11 +225,11 @@ fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
         &mut app,
         text_point(&output, &crate::tr!("image-information")),
     );
-    assert_eq!(app.image_info, Some(1));
-    app.image_alt = "Des arbres et un chemin".into();
+    assert_eq!(app.dialogs.image_info, Some(1));
+    app.dialogs.image_alt = "Des arbres et un chemin".into();
     let output = ctx.run(egui::RawInput::default(), |ctx| app.ui_frame(ctx));
     click(&mut app, text_point(&output, &crate::tr!("image-apply")));
-    assert!(app.image_info.is_none());
+    assert!(app.dialogs.image_info.is_none());
     assert!(
         app.session
             .document

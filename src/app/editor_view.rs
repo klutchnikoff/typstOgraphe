@@ -41,9 +41,10 @@ impl App {
                 }
                 editor::ImageAction::Replace => self.choose_image(Some(id)),
                 editor::ImageAction::Information => {
-                    self.image_alt
+                    self.dialogs
+                        .image_alt
                         .clone_from(&self.session.document.view.images[&id].alt);
-                    self.image_info = Some(id);
+                    self.dialogs.image_info = Some(id);
                 }
                 editor::ImageAction::Remove => self.remove_image(id),
             }

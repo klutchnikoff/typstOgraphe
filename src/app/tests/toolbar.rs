@@ -232,9 +232,9 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
         let (output, _) = draw(&mut app, &ctx, vec![]);
         let pos = icon_rect(&output, &ctx, Icon::Link).center();
         assert_eq!(click(&mut app, &ctx, pos), Some(Command::Link));
-        assert!(app.link_open);
-        assert_eq!(app.link_range, 0..3);
-        app.link_open = false;
+        assert!(app.dialogs.link_open);
+        assert_eq!(app.dialogs.link_range, 0..3);
+        app.dialogs.link_open = false;
         let (output, _) = draw(&mut app, &ctx, vec![]);
         let pos = icon_rect(&output, &ctx, Icon::Image).center();
         assert_eq!(click(&mut app, &ctx, pos), Some(Command::InsertImage));

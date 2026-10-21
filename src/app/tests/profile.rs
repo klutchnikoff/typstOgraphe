@@ -144,12 +144,12 @@ fn global_profile_saves_after_changes_or_closing_without_modifying_the_document(
     );
     assert_eq!(store.writes, 2);
     assert_eq!(eframe::App::auto_save_interval(&app), Duration::MAX);
-    app.preferences_open = true;
-    app.preferences_page = PreferencesPage::Profile;
+    app.dialogs.preferences_open = true;
+    app.dialogs.preferences_page = PreferencesPage::Profile;
     frame(&mut app, &ctx, vec![]);
-    app.preferences_page = PreferencesPage::Appearance;
+    app.dialogs.preferences_page = PreferencesPage::Appearance;
     frame(&mut app, &ctx, vec![]);
-    app.preferences_page = PreferencesPage::Spelling;
+    app.dialogs.preferences_page = PreferencesPage::Spelling;
     frame(&mut app, &ctx, vec![]);
     assert_eq!(app.stored_document(), before);
     assert!(!app.is_dirty());
@@ -167,7 +167,7 @@ fn editor_preferences_change_glyphs_and_theme_without_touching_the_letter() {
     let letter = app.stored_document();
     let revision = app.session.revision;
     app.dispatch_action(Command::Preferences, &ctx);
-    assert!(app.preferences_open);
+    assert!(app.dialogs.preferences_open);
     let mut time = 0.0;
     let mut draw = |app: &mut App, events| {
         time += 0.1;

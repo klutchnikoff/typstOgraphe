@@ -6,12 +6,12 @@ fn creation_and_template_import_preserve_the_type_and_use_unified_history() {
     let mut app = App::with_context(ctx.clone(), None);
     app.perform_action(PendingAction::New, &ctx);
     frame(&mut app, &ctx, vec![]);
-    assert!(app.new_document_open && !app.document_open);
+    assert!(app.dialogs.new_document_open && !app.document_open);
     app.create_document(DocumentType::CompteRendu);
     assert!(app.file.error.is_some() && !app.document_open);
     app.file.error = None;
     app.create_document(DocumentType::Courrier);
-    assert!(app.document_open && !app.new_document_open);
+    assert!(app.document_open && !app.dialogs.new_document_open);
     assert_eq!(
         app.keymap.registry().document_type(),
         DocumentType::Courrier
@@ -49,7 +49,7 @@ fn information_and_presentations_work_from_palette_and_custom_shortcuts() {
     let source = app.session.document.source().to_owned();
     let revision = app.session.revision;
     app.apply(Command::Palette);
-    app.palette_query = "Informations du document".into();
+    app.dialogs.palette_query = "Informations du document".into();
     frame(&mut app, &ctx, vec![]);
     frame(
         &mut app,
@@ -62,8 +62,8 @@ fn information_and_presentations_work_from_palette_and_custom_shortcuts() {
             physical_key: None,
         }],
     );
-    assert!(app.information_open);
-    assert!(!app.palette_open);
+    assert!(app.dialogs.information_open);
+    assert!(!app.dialogs.palette_open);
     assert_eq!(app.session.revision, revision);
     assert!(!app.is_dirty());
     frame(
@@ -78,7 +78,7 @@ fn information_and_presentations_work_from_palette_and_custom_shortcuts() {
         }],
     );
     app.apply(Command::Palette);
-    app.palette_query = "modèle de courrier personnel".into();
+    app.dialogs.palette_query = "modèle de courrier personnel".into();
     frame(&mut app, &ctx, vec![]);
     frame(
         &mut app,
@@ -130,7 +130,7 @@ fn information_and_presentations_work_from_palette_and_custom_shortcuts() {
             physical_key: None,
         }],
     );
-    assert!(app.information_open);
+    assert!(app.dialogs.information_open);
     assert_eq!(app.session.document.source(), source);
 }
 
