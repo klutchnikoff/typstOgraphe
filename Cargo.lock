@@ -5128,6 +5128,7 @@ dependencies = [
  "i18n-embed-fl",
  "muda",
  "png",
+ "resvg",
  "rfd",
  "rust-embed",
  "serde",

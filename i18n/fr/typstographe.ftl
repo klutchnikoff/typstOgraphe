@@ -205,7 +205,9 @@ column-divider-hint = Glissez pour répartir les colonnes. Double-cliquez pour r
 description-edit-hint = Saisissez le terme, puis Tab ou « : » suivi d’une espace pour passer à la description. Maj+Tab revient au terme.
 bullet-marker-restore-automatic = Revenir au choix du modèle
 
-list-menu = Liste
+list-menu = Listes
+heading-menu = Titres
+heading-menu-hint = Titres et retour au texte courant
 description-placeholder = Description
 
 cmd-quote = Citation en bloc

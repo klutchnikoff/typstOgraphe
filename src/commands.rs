@@ -112,10 +112,10 @@ impl Definition {
     pub fn in_model_menu(&self) -> bool {
         matches!(self.command, Command::Courrier(courrier::Command::Model(_)))
     }
-    pub fn in_block_style_menu(&self) -> bool {
+    pub fn in_heading_menu(&self) -> bool {
         matches!(
             self.command,
-            Command::Block(BlockKind::Paragraph | BlockKind::Heading(_) | BlockKind::Quote)
+            Command::Block(BlockKind::Paragraph | BlockKind::Heading(_))
         )
     }
     pub fn in_list_menu(&self) -> bool {

@@ -1087,111 +1087,11 @@ impl App {
         }
     }
     fn toolbar(&mut self, ui: &mut egui::Ui) {
-        let range = self.range();
-        let lines = self.document.view.selected_lines(range.clone());
-        let kind = self.document.view.blocks[lines.start].public_kind();
-        let mixed = self.document.view.blocks[lines]
-            .iter()
-            .any(|k| k.public_kind() != kind);
-        let mut selected = kind;
-        ui.horizontal_wrapped(|ui| {
-            egui::ComboBox::from_id_salt("paragraph-style")
-                .width(112.0)
-                .selected_text(if mixed {
-                    crate::tr!("multiple-styles")
-                } else {
-                    Command::Block(if kind.is_list() {
-                        BlockKind::Paragraph
-                    } else {
-                        kind
-                    })
-                    .short_label()
-                })
-                .show_ui(ui, |ui| {
-                    for definition in self
-                        .keymap
-                        .registry()
-                        .definitions()
-                        .filter(|definition| definition.in_block_style_menu())
-                    {
-                        if let Command::Block(option) = definition.command {
-                            ui.selectable_value(
-                                &mut selected,
-                                option,
-                                definition.command.short_label(),
-                            )
-                            .on_hover_text(self.keymap.hint(ui.ctx(), definition.command));
-                        }
-                    }
-                })
-                .response
-                .on_hover_text(if kind == BlockKind::Description {
-                    crate::tr!("description-edit-hint")
-                } else {
-                    Command::Block(kind).label()
-                });
-            if selected != kind {
-                self.apply(Command::Block(selected));
-            }
-            ui.separator();
-            for (mark, command) in [(Mark::Bold, Command::Bold), (Mark::Italic, Command::Italic)] {
-                let label = command.short_label();
-                let (active, mixed) = self.document.view.mark_state(self.range(), mark);
-                let text = if mixed { format!("{label} ·") } else { label };
-                let button = egui::Button::new(RichText::new(text).strong()).selected(active);
-                if ui
-                    .add(button)
-                    .on_hover_text(if mixed {
-                        crate::tr!(
-                            "mixed-command",
-                            command = self.keymap.hint(ui.ctx(), command)
-                        )
-                    } else {
-                        self.keymap.hint(ui.ctx(), command)
-                    })
-                    .clicked()
-                {
-                    self.apply(command);
-                }
-            }
-            if ui
-                .button(Command::Link.short_label())
-                .on_hover_text(self.keymap.hint(ui.ctx(), Command::Link))
-                .clicked()
-            {
-                self.apply(Command::Link);
-            }
-            ui.separator();
-            let mut list_command = None;
-            ui.menu_button(crate::tr!("list-menu"), |ui| {
-                for definition in self
-                    .keymap
-                    .registry()
-                    .definitions()
-                    .filter(|d| d.in_list_menu())
-                {
-                    let command = definition.command;
-                    if ui
-                        .selectable_label(
-                            !mixed && command == Command::Block(kind),
-                            command.label(),
-                        )
-                        .on_hover_text(self.keymap.hint(ui.ctx(), command))
-                        .clicked()
-                    {
-                        list_command = Some(if !mixed && command == Command::Block(kind) {
-                            Command::Block(BlockKind::Paragraph)
-                        } else {
-                            command
-                        });
-                        ui.close();
-                    }
-                }
-            });
-            if let Some(command) = list_command {
-                self.apply(command);
-            }
-        });
+        if let Some(command) =
+            crate::toolbar::show(ui, &self.document.view, self.range(), &self.keymap)
+        {
+            self.apply(command);
+        }
     }
     fn information_ui(&mut self, ui: &mut egui::Ui) {
         let old = self.metadata.clone();
@@ -2265,6 +2165,34 @@ mod interaction_tests {
     use super::*;
     use crate::document_types::courrier::Model;
 
+    fn icon_rect(
+        output: &egui::FullOutput,
+        ctx: &egui::Context,
+        icon: crate::icons::Icon,
+    ) -> egui::Rect {
+        fn find(shape: &egui::Shape, texture: egui::TextureId) -> Option<egui::Rect> {
+            match shape {
+                egui::Shape::Mesh(mesh) if mesh.texture_id == texture => Some(mesh.calc_bounds()),
+                egui::Shape::Rect(rect)
+                    if rect
+                        .brush
+                        .as_ref()
+                        .is_some_and(|brush| brush.fill_texture_id == texture) =>
+                {
+                    Some(rect.rect)
+                }
+                egui::Shape::Vec(shapes) => shapes.iter().find_map(|shape| find(shape, texture)),
+                _ => None,
+            }
+        }
+        let texture = icon.texture(ctx, crate::toolbar::ICON_SIZE).id();
+        output
+            .shapes
+            .iter()
+            .find_map(|shape| find(&shape.shape, texture))
+            .unwrap_or_else(|| panic!("icône absente : {icon:?}"))
+    }
+
     #[test]
     fn tab_places_the_native_caret_on_each_empty_annotation_placeholder() {
         for source in [
@@ -3268,7 +3196,7 @@ mod interaction_tests {
         draw(&mut app, vec![]);
         let closed = draw(&mut app, vec![]);
         let header = text_rect(&closed, "Informations du courrier");
-        assert!(header.top() > text_rect(&closed, "Paragraphe").bottom());
+        assert!(header.top() > icon_rect(&closed, &ctx, crate::icons::Icon::Heading).bottom());
         let preview = text_rect(&closed, "Aperçu Typst");
         click(&mut app, &mut draw, header.center());
         draw(&mut app, vec![]);
@@ -4266,6 +4194,161 @@ mod interaction_tests {
     }
 
     #[test]
+    fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
+        use crate::icons::Icon;
+        fn draw(
+            app: &mut App,
+            ctx: &egui::Context,
+            events: Vec<egui::Event>,
+        ) -> (egui::FullOutput, Option<Command>) {
+            let mut action = None;
+            let output = ctx.run(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(520.0, 260.0),
+                    )),
+                    events,
+                    ..Default::default()
+                },
+                |ctx| {
+                    egui::CentralPanel::default().show(ctx, |ui| {
+                        action =
+                            crate::toolbar::show(ui, &app.document.view, app.range(), &app.keymap);
+                    });
+                },
+            );
+            // Vérifier le dispatch de l’image sans ouvrir un sélecteur natif pendant le test.
+            if let Some(command) = action
+                && command != Command::InsertImage
+            {
+                app.apply(command);
+            }
+            (output, action)
+        }
+        fn click(app: &mut App, ctx: &egui::Context, pos: egui::Pos2) -> Option<Command> {
+            let mut action = None;
+            for pressed in [true, false] {
+                action = draw(
+                    app,
+                    ctx,
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        },
+                    ],
+                )
+                .1
+                .or(action);
+            }
+            action
+        }
+        fn text_point(output: &egui::FullOutput, label: &str) -> Option<egui::Pos2> {
+            output.shapes.iter().find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.text() == label => {
+                    Some(text.pos + text.galley.rect.center().to_vec2())
+                }
+                _ => None,
+            })
+        }
+        for dark in [false, true] {
+            let ctx = egui::Context::default();
+            let mut app = App::with_context(ctx.clone(), None);
+            ctx.set_visuals(if dark {
+                egui::Visuals::dark()
+            } else {
+                egui::Visuals::light()
+            });
+            ctx.style_mut(|style| style.animation_time = 0.0);
+            app.document = Document::from_source("Été à Paris.").unwrap();
+            app.selection = editor::cursor(0..3);
+            let text = app.document.view.text.clone();
+            for (icon, command, mark) in [
+                (Icon::Bold, Command::Bold, Mark::Bold),
+                (Icon::Italic, Command::Italic, Mark::Italic),
+            ] {
+                let (output, _) = draw(&mut app, &ctx, vec![]);
+                let pos = icon_rect(&output, &ctx, icon).center();
+                assert_eq!(click(&mut app, &ctx, pos), Some(command));
+                assert!(app.document.view.mark_state(0..3, mark).0);
+                assert_eq!(app.range(), 0..3);
+                let (output, _) = draw(&mut app, &ctx, vec![]);
+                let texture = icon.texture(&ctx, crate::toolbar::ICON_SIZE).id();
+                let tint = output
+                    .shapes
+                    .iter()
+                    .find_map(|shape| match &shape.shape {
+                        egui::Shape::Rect(rect)
+                            if rect
+                                .brush
+                                .as_ref()
+                                .is_some_and(|brush| brush.fill_texture_id == texture) =>
+                        {
+                            Some(rect.fill)
+                        }
+                        _ => None,
+                    })
+                    .expect("icône active peinte");
+                assert_eq!(tint.r(), tint.g());
+                assert_eq!(tint.g(), tint.b());
+            }
+            let mut heading_icon = Icon::Heading;
+            for (kind, next_icon) in [
+                (BlockKind::Heading(1), Icon::Heading1),
+                (BlockKind::Heading(2), Icon::Heading2),
+                (BlockKind::Heading(3), Icon::Heading3),
+                (BlockKind::Paragraph, Icon::Heading),
+            ] {
+                let (output, _) = draw(&mut app, &ctx, vec![]);
+                click(
+                    &mut app,
+                    &ctx,
+                    icon_rect(&output, &ctx, heading_icon).center(),
+                );
+                let (menu, _) = draw(&mut app, &ctx, vec![]);
+                assert!(text_point(&menu, &Command::Block(BlockKind::Quote).label()).is_none());
+                let command = Command::Block(kind);
+                let pos = text_point(&menu, &command.short_label()).expect("entrée du menu Titres");
+                assert_eq!(click(&mut app, &ctx, pos), Some(command));
+                assert_eq!(app.document.view.blocks[0], kind);
+                assert_eq!(app.range(), 0..3);
+                heading_icon = next_icon;
+            }
+            let (output, _) = draw(&mut app, &ctx, vec![]);
+            let pos = icon_rect(&output, &ctx, Icon::Link).center();
+            assert_eq!(click(&mut app, &ctx, pos), Some(Command::Link));
+            assert!(app.link_open);
+            assert_eq!(app.link_range, 0..3);
+            app.link_open = false;
+            let (output, _) = draw(&mut app, &ctx, vec![]);
+            let pos = icon_rect(&output, &ctx, Icon::Image).center();
+            assert_eq!(click(&mut app, &ctx, pos), Some(Command::InsertImage));
+            assert_eq!(app.document.view.text, text);
+            let (output, _) = draw(&mut app, &ctx, vec![]);
+            let pos = icon_rect(&output, &ctx, Icon::Quote).center();
+            assert_eq!(
+                click(&mut app, &ctx, pos),
+                Some(Command::Block(BlockKind::Quote))
+            );
+            assert_eq!(
+                app.document.view.blocks,
+                [BlockKind::Quote, BlockKind::QuoteAttribution]
+            );
+            let (output, _) = draw(&mut app, &ctx, vec![]);
+            let pos = icon_rect(&output, &ctx, Icon::Quote).center();
+            assert_eq!(
+                click(&mut app, &ctx, pos),
+                Some(Command::Block(BlockKind::Paragraph))
+            );
+            assert_eq!(app.document.view.blocks[0], BlockKind::Paragraph);
+        }
+    }
+
+    #[test]
     fn toolbar_groups_the_three_list_commands_in_a_single_menu() {
         let ctx = egui::Context::default();
         ctx.style_mut(|s| s.animation_time = 0.0);
@@ -4298,7 +4381,7 @@ mod interaction_tests {
             let output = draw(&mut app, vec![]);
             assert!(point(&output, "• Liste").is_none());
             assert!(point(&output, "1. Liste").is_none());
-            let pos = point(&output, "Liste").unwrap();
+            let pos = icon_rect(&output, &ctx, crate::icons::Icon::List).center();
             for pressed in [true, false] {
                 draw(
                     &mut app,

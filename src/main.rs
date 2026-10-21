@@ -6,6 +6,7 @@ mod document;
 mod document_types;
 mod editor;
 mod i18n;
+mod icons;
 mod menus;
 mod navigation;
 mod preferences;
@@ -13,6 +14,7 @@ mod rendering;
 mod storage;
 #[cfg(test)]
 mod tests;
+mod toolbar;
 
 use std::path::{Path, PathBuf};
 

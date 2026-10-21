@@ -34,6 +34,15 @@ Linux restent nécessaires avant de déclarer ces plateformes validées.
 
 ## Essayer la rédaction
 
+La barre compacte utilise des icônes monochromes Lucide embarquées, nettes à la
+densité de l’écran et disponibles hors ligne. Elle regroupe **Titres**, puis
+**Gras / Italique / Lien**, puis **Listes / Citation / Image**. Les deux menus
+gardent des libellés explicites ; les boutons affichent des info-bulles traduites
+avec les raccourcis actifs et possèdent des noms accessibles. Les états actifs
+utilisent un fond gris ; un petit trait indique une sélection de styles mixtes.
+Le menu Titres permet aussi de revenir au paragraphe normal. La barre réutilise
+les commandes du registre, comme les menus de l’application et la palette.
+
 - Sélectionner un passage, y compris entre deux paragraphes, puis appliquer
   gras, italique, un titre ou une liste. La sélection reste disponible après
   l’utilisation d’un bouton.
@@ -44,7 +53,7 @@ Linux restent nécessaires avant de déclarer ces plateformes validées.
 - En début de paragraphe : `= `, `== `, `=== ` pour les titres, `- ` pour
   les puces, `+ ` ou `1. ` pour une liste numérotée, `/ ` pour une liste de descriptions,
   `> ` pour une citation en bloc.
-- Le menu **Liste** regroupe les listes à puces, numérotées et de descriptions.
+- Le menu **Listes** regroupe les listes à puces, numérotées et de descriptions.
   Choisir à nouveau le type actif retire la liste. Les trois commandes restent
   accessibles dans la palette.
 - Dans une liste de descriptions, chaque élément possède une puce et une étiquette
@@ -56,7 +65,8 @@ Linux restent nécessaires avant de déclarer ces plateformes validées.
   entièrement vide termine la liste.
   Les puces, encadrés, couleurs et textes indicatifs appartiennent uniquement
   à l’éditeur ; le modèle garde la maîtrise de la présentation finale.
-- Choisir **Citation en bloc** dans le sélecteur de style ou dans la palette.
+- Le bouton **Citation en bloc**, séparé des titres, active ou retire la citation.
+  La commande reste accessible dans la palette.
   La citation peut couvrir plusieurs paragraphes ; une bordure gauche épaisse
   la repère dans l’éditeur, y compris les lignes repliées. La zone facultative
   **Attribution / source** apparaît sous son texte, dans un style distinct.
