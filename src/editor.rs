@@ -410,7 +410,9 @@ pub fn paint_images(
         let response = ui.interact(
             image_area.intersect(output.text_clip_rect),
             ui.id().with(("image", id)),
-            egui::Sense::click(),
+            // Réserver aussi le début d’un glissement : sinon le TextEdit situé
+            // dessous déplace le curseur dès l’appui, avant le clic des boutons.
+            egui::Sense::click_and_drag(),
         );
         response.widget_info(|| {
             egui::WidgetInfo::labeled(

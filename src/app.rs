@@ -2585,10 +2585,85 @@ mod interaction_tests {
     }
 
     #[test]
+    fn image_remove_button_deletes_the_selected_block_and_caption_with_undo() {
+        for caption in ["", ", caption: [Le parc.]"] {
+            let ctx = egui::Context::default();
+            let mut app = App::with_context(ctx.clone(), None);
+            app.document = Document::from_source(&format!(
+                "Avant.\n\n#figure(image(\"images/parc.svg\"){caption})\n\nAprès."
+            ))
+            .unwrap();
+            app.document.assets.insert(
+                "images/parc.svg".into(),
+                include_bytes!("../tests/fixtures/parc.svg")
+                    .as_slice()
+                    .into(),
+            );
+            let original = app.document.clone();
+            let at = app.document.view.image_range(1).unwrap().start;
+            // Boutons accessibles depuis l’objet sélectionné comme depuis la légende.
+            let selection = if caption.is_empty() {
+                at..at + 1
+            } else {
+                at + 1..at + 1
+            };
+            app.selection = editor::cursor(selection.clone());
+            app.force_selection = true;
+            frame(&mut app, &ctx, vec![]);
+            let output = ctx.run(egui::RawInput::default(), |ctx| app.ui_frame(ctx));
+            let pos = output
+                .shapes
+                .iter()
+                .find_map(|shape| {
+                    if let egui::Shape::Text(text) = &shape.shape
+                        && text.galley.text() == crate::tr!("image-remove")
+                    {
+                        Some(text.pos + text.galley.rect.center().to_vec2())
+                    } else {
+                        None
+                    }
+                })
+                .expect("bouton Supprimer de l’image sélectionnée");
+            for pressed in [true, false] {
+                frame(
+                    &mut app,
+                    &ctx,
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        },
+                    ],
+                );
+                if pressed {
+                    assert_eq!(
+                        app.range(),
+                        selection,
+                        "l’appui sur le bouton ne déplace pas le curseur dans le texte sous-jacent"
+                    );
+                }
+            }
+            assert!(
+                app.document.view.images.is_empty(),
+                "le clic doit supprimer l’image entière"
+            );
+            assert!(!app.document.view.text.contains("Le parc."));
+            assert!(app.document.view.text.contains("Avant."));
+            assert!(app.document.view.text.contains("Après."));
+            app.apply(Command::Undo);
+            assert_eq!(app.document, original);
+        }
+    }
+
+    #[test]
     fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
         let ctx = egui::Context::default();
         let mut app = App::with_context(ctx.clone(), None);
-        app.document = Document::from_source("").unwrap();
+        app.document = Document::from_source("Avant.\n\nAprès.").unwrap();
+        app.selection = editor::cursor(6..6);
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("parc.svg");
         std::fs::write(&path, include_bytes!("../tests/fixtures/parc.svg")).unwrap();
