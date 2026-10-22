@@ -428,6 +428,19 @@ modèles fictifs ont été retirés ; le type Compte-rendu reste intégré et at
 son prochain modèle. Ce catalogue fourni avec l'application précède la
 bibliothèque installable et persistante décrite ci-dessous.
 
+**Polices — orientation validée le 22 octobre 2026 :** conserver un socle libre
+embarqué à large couverture, puis permettre le choix de polices système.
+Le catalogue partagé fournit les fontes latines et mathématiques de `typst-assets`
+et le secours Noto Sans CJK 2.004 en normal et gras. L’éditeur et l’aperçu utilisent
+ces données hors ligne ; les exports de sources joignent les faces CJK utilisées
+et leur licence. Leur provenance est dans [le catalogue des fontes](assets/fonts/noto-cjk/README.md).
+
+Le sélecteur de polices système reste à réaliser. Distinguer la préférence de
+lecture de l’éditeur des polices de présentation choisies par le modèle ; définir
+leur identification, les droits d’incorporation, le transport des fontes utiles
+et le comportement en cas d’absence, avant de dépendre d’une police locale pour
+un document d’organisation.
+
 - **P1 :** installer, retrouver, choisir et retirer un modèle ; description,
   type associé, provenance et modèle par défaut.
 - **P1 :** importer ses ressources et vérifier son contrat avant utilisation.

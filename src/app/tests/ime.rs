@@ -469,3 +469,38 @@ fn ime_commit_and_explicit_replacement_have_the_same_literal_source_styles_and_s
         assert_eq!(app.document.selection, selection);
     }
 }
+
+#[test]
+fn japanese_ime_commit_keeps_unicode_and_displays_real_glyphs_in_each_editor_font() {
+    let (ctx, mut app) = editing("Test : ", 7..7);
+    start(&mut app, &ctx);
+    ime(&mut app, &ctx, vec![ImeEvent::Commit("にほん 日本".into())]);
+    assert_eq!(
+        app.document.session.document.view.text,
+        "Test : にほん 日本"
+    );
+    assert_eq!(
+        app.document.session.document.source(),
+        "Test \\: にほん 日本"
+    );
+    assert_eq!(app.document.session.undo.len(), 1);
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("japonais.typsto");
+    assert!(app.save_path(path.clone()));
+    app.close_document();
+    assert!(app.open_path(path));
+    frame(&mut app, &ctx, vec![]);
+    assert_eq!(
+        app.document.session.document.view.text,
+        "Test : にほん 日本"
+    );
+    for font in EditorFont::ALL {
+        for variant in 0..4 {
+            assert!(
+                ctx.fonts_mut(|fonts| fonts
+                    .has_glyphs(&font.font_id(18.0, variant), "にほん日本中国繁體中文")),
+                "glyphes japonais absents : {font:?}, variante {variant}"
+            );
+        }
+    }
+}

@@ -8,6 +8,7 @@ mod dates;
 mod document;
 mod document_types;
 mod editor;
+mod fonts;
 mod i18n;
 mod icons;
 mod identity;

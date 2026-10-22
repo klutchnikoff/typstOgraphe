@@ -2,6 +2,41 @@ use crate::document::{BlockKind, Document, InlineStyle, Mark, Projection};
 use crate::document_types::{DocumentType, Metadata, courrier, models::Model};
 
 #[test]
+fn japanese_text_uses_real_glyphs_in_typst_preview() {
+    use typst::layout::{Frame, FrameItem};
+    fn check(frame: &Frame, text: &mut String) {
+        for (_, item) in frame.items() {
+            match item {
+                FrameItem::Group(group) => check(&group.frame, text),
+                FrameItem::Text(run) => {
+                    text.push_str(&run.text);
+                    assert!(
+                        run.glyphs.iter().all(|glyph| glyph.id != 0),
+                        "glyphe absent dans {:?}, police {}",
+                        run.text,
+                        run.font.info().family
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut world = crate::rendering::TypstWorld::default();
+    let rendered = world
+        .compile_with_template(
+            "にほん 日本 中国 繁體中文\n\n#strong[日本 中国]\n\n#smallcaps[Bonjour]\n\n$integral_0^1 x^2 dif x = 1/3$",
+            &Metadata::demo(DocumentType::Courrier),
+            "#let courrier(..args, body) = body",
+        )
+        .unwrap();
+    let mut text = String::new();
+    for page in rendered.pages() {
+        check(&page.frame, &mut text);
+    }
+    assert!(text.contains("にほん") && text.contains("日本") && text.contains("繁體中文"));
+}
+
+#[test]
 fn soft_newlines_and_paragraph_breaks_round_trip_with_unicode_styles_and_blocks() {
     for source in [
         "Été\nNoël\n\nSuite.",

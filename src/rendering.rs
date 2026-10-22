@@ -36,9 +36,7 @@ pub struct TypstWorld {
 
 impl Default for TypstWorld {
     fn default() -> Self {
-        let fonts: Vec<Font> = typst_assets::fonts()
-            .flat_map(|data| Font::iter(Bytes::new(data)))
-            .collect();
+        let fonts = crate::fonts::typst_fonts();
         let book = FontBook::from_fonts(fonts.iter());
         let main = file_id("main.typ");
         Self {
@@ -448,6 +446,13 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
                 .map_err(|e| e.to_string())?
                 .as_bytes(),
         )?;
+        crate::fonts::export_used(&document, path).map_err(|error| {
+            crate::tr!(
+                "export-write-failed",
+                name = "fonts",
+                error = error.to_string()
+            )
+        })?;
     }
     let mut pages = vec![];
     for (index, page) in document.pages().iter().enumerate() {

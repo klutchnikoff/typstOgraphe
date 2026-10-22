@@ -131,9 +131,24 @@ leur traitement IME natif. Pendant la composition, le Typst, les cartes de sourc
 les identités, les ressources, les compteurs, le rendu, la sauvegarde et la
 récupération continuent de lire uniquement la session publiée.
 
+Le test manuel macOS `Option E`, puis `e`, confirme les touches mortes après ce
+lot. Le premier essai japonais ouvre la fenêtre de candidats mais affiche des
+carrés dans l’éditeur : les tests précédents vérifiaient le texte Unicode sans
+vérifier la présence des glyphes. Le défaut a été reproduit dans egui et dans
+Typst, indépendamment de la conservation correcte du texte par le commit.
+
+Le catalogue `src/fonts.rs` fournit maintenant aux deux moteurs les mêmes
+polices embarquées, avec Noto Sans CJK JP 2.004 normal et gras en secours.
+Le Latin conserve ses familles et variantes existantes ; les petites capitales
+et les mathématiques restent composées par Typst avec les fontes déjà embarquées.
+L’export des sources joint uniquement les faces CJK effectivement utilisées et
+leur licence, avec l’option `--font-path fonts` indiquée pour le CLI Typst.
+Le format `.typsto` reste inchangé. Le choix ultérieur de polices système est
+consigné dans le chantier E ; aucune découverte de polices système n’est ajoutée ici.
+
 ## Vérifications
 
-- 195 tests de l’application réussis, dont 52 tests ajoutés depuis le début de
+- 198 tests de l’application réussis, dont 55 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -142,8 +157,12 @@ récupération continuent de lire uniquement la session publiée.
   l’annulation, les événements tardifs, les frontières, les styles et identités,
   l’historique, les pertes de focus et les changements de document. La parité avec
   un remplacement explicite et les archives de sauvegarde/récupération sont testées.
+- Trois tests supplémentaires reproduisent les glyphes manquants, puis vérifient
+  le texte validé et rouvert, les glyphes japonais/chinois dans toutes les familles
+  et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
+  petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 104 tests partagés réussissent aussi.
+  avertissement ; ses 105 tests partagés réussissent aussi.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
 - Huit captures strictement identiques après les premiers lots, dans
   `output/baseline/run-ioma5t0l/` et `output/baseline/run-uvqd1xwk/`, puis après la
@@ -151,6 +170,13 @@ récupération continuent de lire uniquement la session publiée.
   code de ce lot est également identique, dans `output/baseline/run-do7d7apa/`.
   Après l’isolation IME, les huit captures restent strictement identiques dans
   `output/baseline/run-t2opy5ig/`.
+  L’ajout du secours CJK conserve également les huit captures dans
+  `output/baseline/run-wuwd1114/`. La capture supplémentaire
+  `output/font-diagnostics/cjk-4jxcam3g/cjk.png` a été vérifiée visuellement :
+  hiragana, kanji et chinois sont lisibles dans les deux panneaux, en normal et gras.
+- La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
+  Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
+  paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
 - Le scénario existant qui essayait une insertion d’image à chaque caractère
   conserve ses contrôles de validité. Il vérifie désormais soit l’insertion aux
   positions autorisées, soit le refus sans mutation dans une zone protégée.
