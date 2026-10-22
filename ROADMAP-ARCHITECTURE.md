@@ -55,7 +55,7 @@ et l'état d'interface (`Palette`, `Preferences`, `Find` qui ouvre la barre, `In
 
 ### 2.2 Commandes
 
-- `commands.rs` : énumération `Command` de 33 variantes ; `Definition` porte un
+- `commands.rs` : énumération `Command` de 31 variantes (44 entrées concrètes pour le Courrier) ; `Definition` porte un
   `id` textuel, une clé de libellé Fluent, la portée et les raccourcis (types egui) ;
   `Registry` par type de document ; `Keymap` pour les raccourcis.
 - Identifiants actuels (`Definition.id`) : déjà de la forme `domaine.action`
@@ -327,15 +327,23 @@ exécutable **sans egui** par un `Engine`. C'est la phase qui rend la CLI et MCP
 
 ### 2.1 Inventaire (taille S)
 
-- [ ] Produire `docs/commands-inventory.md` : un tableau exhaustif de toutes les actions
+- [x] Produire `docs/commands-inventory.md` : un tableau exhaustif de toutes les actions
   actuelles. Colonnes : chemin actuel (fonction), identifiant cible, paramètres,
   famille (commande, requête, interface seule), nécessite un dialogue (oui/non),
   utilisable sans interface (oui/non), testée par (nom du test).
-- [ ] Y classer au minimum : les 33 variantes de `Command`, les contournements de la
+- [x] Y classer au minimum : les 31 variantes de `Command`, les contournements de la
   section 2.2, les opérations de fichier (nouveau, ouvrir, enregistrer sous, exporter
   PDF, exporter Typst), la saisie de texte, la sélection, le choix de métadonnées,
   d'options (papier, langue, marqueur de puce), l'import d'image, l'ajout de lien.
 - [ ] Faire valider l'inventaire avant d'écrire du code (décisions D2 à D6).
+
+**État : inventaire préparé, validation en attente.** Voir
+[docs/commands-inventory.md](docs/commands-inventory.md), avec les 44 entrées du
+registre, les actions hors registre, les cibles, les tests existants et les choix V1–V6.
+Les noms et signatures proposés ne sont pas validés ni implémentés. V5 précise la
+frontière de D5 pour les réglages globaux ; la séparation entre navigation, requêtes
+et ouverture d’interface et les comportements de V2/V4/V6 restent à approuver ensemble.
+Aucun code de moteur ni représentation structurée n’est commencé.
 
 **Entrées issues du choix de 1.6 (22 octobre 2026) :**
 
@@ -349,7 +357,7 @@ exécutable **sans egui** par un `Engine`. C'est la phase qui rend la CLI et MCP
   les mutations structurelles et leur sélection se restaurent ensemble par l’historique.
 - La normalisation du corps ne doit pas supprimer des lignes ou du contenu d’une
   cellule. Préserver la composition IME dans la zone éditée.
-- L’inventaire exhaustif reste à produire et à valider. Les identifiants de zones,
+- L’inventaire exhaustif est préparé et reste à valider. Les identifiants de zones,
   leur durée de vie et les signatures Rust/JSON sont à décider en 2.1 ; le prototype
   n’ajoute aucune commande publique de tableau à ce stade.
 

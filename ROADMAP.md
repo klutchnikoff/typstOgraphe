@@ -578,6 +578,8 @@ Accents et touches mortes confirmés sur macOS ; l’essai d’une méthode IME 
 reste dans les vérifications multilingues du chantier I.
 Le détail, les tâches et les critères de sortie sont dans
 [ROADMAP-ARCHITECTURE.md](ROADMAP-ARCHITECTURE.md).
+Phase 2.1 : [inventaire des commandes et cibles](docs/commands-inventory.md) préparé ;
+choix principaux V1–V6 à valider ensemble avant toute implémentation du moteur.
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une
 commande à identifiant stable, pilotable par une ligne de commande et par MCP.
