@@ -5,6 +5,8 @@ use std::{collections::BTreeMap, ops::Range};
 #[path = "document/structure.rs"]
 pub mod structure;
 use structure::{LineId, Structure};
+#[path = "document/edits.rs"]
+pub mod edits;
 
 pub const IMAGE_OBJECT: char = '\u{fffc}';
 pub const LETTER_NOTES_IMPORT: &str = "#import \"modele.typ\": postscript, attachment\n\n";
@@ -77,15 +79,12 @@ pub struct Projection {
     pub images: BTreeMap<u64, ImageBlock>,
     /// Ancres transitoires, conservées par les instantanés mais jamais exportées.
     line_ids: Vec<LineId>,
+    pub(crate) edit_error: Option<edits::EditError>,
 }
 
 impl PartialEq for Projection {
     fn eq(&self, other: &Self) -> bool {
-        self.text == other.text
-            && self.styles == other.styles
-            && self.blocks == other.blocks
-            && self.typing_style == other.typing_style
-            && self.images == other.images
+        self.same_content(other) && self.typing_style == other.typing_style
     }
 }
 impl Eq for Projection {}
@@ -99,6 +98,7 @@ impl Default for Projection {
             typing_style: InlineStyle::default(),
             images: BTreeMap::new(),
             line_ids: vec![LineId::new()],
+            edit_error: None,
         }
     }
 }
@@ -114,10 +114,7 @@ pub struct Document {
 
 impl PartialEq for Document {
     fn eq(&self, other: &Self) -> bool {
-        self.source == other.source
-            && self.source_map == other.source_map
-            && self.view == other.view
-            && self.assets == other.assets
+        self.same_content(other) && self.view.typing_style == other.view.typing_style
     }
 }
 impl Eq for Document {}
@@ -153,6 +150,12 @@ impl SourceMap {
 }
 
 impl Document {
+    pub(crate) fn same_content(&self, other: &Self) -> bool {
+        self.source == other.source
+            && self.source_map == other.source_map
+            && self.view.same_content(&other.view)
+            && self.assets == other.assets
+    }
     pub fn from_source(source: &str) -> Result<Self, String> {
         let parsed = typst_syntax::Source::detached(source);
         let tree = parsed.root();
@@ -205,11 +208,18 @@ impl Document {
         let committed = self.structure.to_projection();
         debug_assert_eq!(committed, self.view);
         (self.source, self.source_map) = committed.to_typst_mapped();
+        self.view.edit_error = None;
         inserted
     }
 }
 
 impl Projection {
+    fn same_content(&self, other: &Self) -> bool {
+        self.text == other.text
+            && self.styles == other.styles
+            && self.blocks == other.blocks
+            && self.images == other.images
+    }
     pub fn len(&self) -> usize {
         self.styles.len()
     }
@@ -348,17 +358,28 @@ impl Projection {
     }
     /// Un caractère objet représente l’image ; le reste du paragraphe est sa légende.
     pub fn insert_image(&mut self, at: usize, image: ImageBlock) -> usize {
+        if let Err(error) = self.validate_object_insertion(&(at..at)) {
+            self.edit_error = Some(error);
+            return at;
+        }
         let id = self.images.keys().next_back().copied().unwrap_or(0) + 1;
         let at = at.min(self.len());
         let line = self.line_at(at);
-        let start = self.line_ranges()[line].start;
-        let prefix = if at == start { "" } else { "\n" };
+        let range = self.line_ranges()[line].clone();
+        let old_kind = self.blocks[line];
+        let before_block = at == range.start && old_kind != BlockKind::QuoteAttribution;
+        let prefix = if before_block { "" } else { "\n" };
         let text = format!("{prefix}{IMAGE_OBJECT}\n");
         self.insert_text(&text, at);
+        if before_block && range.is_empty() {
+            self.line_ids.swap(line, line + 1);
+        }
         let position = at + prefix.len();
         let line = self.line_at(position);
         self.blocks[line] = BlockKind::Image(id);
-        if !matches!(self.blocks[line + 1], BlockKind::Image(_)) {
+        if before_block {
+            self.blocks[line + 1] = old_kind;
+        } else if !matches!(self.blocks[line + 1], BlockKind::Image(_)) {
             self.blocks[line + 1] = BlockKind::Paragraph;
         }
         self.images.insert(id, image);
@@ -800,6 +821,9 @@ impl Projection {
 
 impl Projection {
     pub fn insert_text(&mut self, text: &str, char_index: usize) -> usize {
+        if self.edit_error.is_some() {
+            return 0;
+        }
         let mut text = text.replace("\r\n", "\n").replace('\r', "\n");
         let at = char_index.min(self.len());
         let line = self.line_at(at);
@@ -894,6 +918,9 @@ impl Projection {
         count
     }
     pub fn delete_char_range(&mut self, range: Range<usize>) {
+        if !self.prepare_deletion(&range) {
+            return;
+        }
         let start = range.start.min(self.len());
         let end = range.end.min(self.len()).max(start);
         let line = self.line_at(start);
@@ -910,7 +937,9 @@ impl Projection {
         self.clean_images();
     }
     pub fn replace_with(&mut self, text: &str) {
+        let error = self.edit_error;
         *self = Self::default();
+        self.edit_error = error;
         self.insert_text(text, 0);
     }
 }

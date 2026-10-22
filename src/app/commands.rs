@@ -12,12 +12,39 @@ impl App {
             ..range.end.min(self.document.session.document.view.len())
     }
     pub(super) fn remember(&mut self, before: Snapshot, typing: bool) {
-        let adjusted =
-            self.document
-                .session
-                .remember(before, self.document.selection.into(), typing);
+        let previous = before.selection;
+        let result = self
+            .document
+            .session
+            .remember(before, self.document.selection.into(), typing);
+        self.accept_edit(result, previous);
+    }
+    pub(super) fn accept_edit(
+        &mut self,
+        result: Result<crate::session::Selection, crate::document::edits::EditError>,
+        previous: crate::session::Selection,
+    ) -> bool {
+        let adjusted = match result {
+            Ok(selection) => selection,
+            Err(error) => {
+                self.document.selection = previous.into();
+                self.document.force_selection = true;
+                self.dialogs.message = Some(Self::edit_error_text(error));
+                return false;
+            }
+        };
         self.document.force_selection |= adjusted != self.document.selection.into();
         self.document.selection = adjusted.into();
+        true
+    }
+    pub(super) fn edit_error_text(error: crate::document::edits::EditError) -> String {
+        crate::i18n::text(match error {
+            crate::document::edits::EditError::ProtectedBoundary => "edit-protected-boundary",
+            crate::document::edits::EditError::InvalidText => "edit-invalid-text",
+            crate::document::edits::EditError::StaleDraft
+            | crate::document::edits::EditError::Target(_) => "edit-stale-draft",
+            _ => "edit-invalid-draft",
+        })
     }
     pub(super) fn apply(&mut self, command: Command) {
         if !self.keymap.registry().contains(command)
@@ -212,11 +239,9 @@ impl App {
         }
     }
     pub(super) fn edit(&mut self, edit: impl FnOnce(&mut Projection, Range<usize>)) {
-        self.document.selection = self
-            .document
-            .session
-            .edit(self.document.selection.into(), edit)
-            .into();
+        let previous = self.document.selection.into();
+        let result = self.document.session.edit(previous, edit);
+        self.accept_edit(result, previous);
         self.document.force_selection = true;
     }
     pub(super) fn shortcuts(&mut self, ctx: &egui::Context) {

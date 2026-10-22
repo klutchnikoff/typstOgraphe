@@ -64,6 +64,27 @@ impl TextBuffer for Projection {
     }
 }
 
+impl TextBuffer for crate::document::edits::TextInput {
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<Self>()
+    }
+    fn is_mutable(&self) -> bool {
+        true
+    }
+    fn as_str(&self) -> &str {
+        &self.view.text
+    }
+    fn insert_text(&mut self, text: &str, at: usize) -> usize {
+        Self::insert_text(self, text, at)
+    }
+    fn delete_char_range(&mut self, range: Range<usize>) {
+        Self::delete_char_range(self, range);
+    }
+    fn replace_with(&mut self, text: &str) {
+        Self::replace_with(self, text);
+    }
+}
+
 pub fn install_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
     let bundled: Vec<_> = typst_assets::fonts().collect();

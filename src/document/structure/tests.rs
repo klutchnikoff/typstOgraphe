@@ -143,7 +143,7 @@ fn removing_the_first_quote_line_preserves_body_and_attribution_identities() {
 }
 
 #[test]
-fn replacing_an_image_keeps_its_block_and_caption_identity_but_deleting_it_does_not() {
+fn replacing_an_image_keeps_identities_and_only_whole_block_deletion_removes_them() {
     let mut document =
         Document::from_source("#figure(image(\"images/parc.svg\"), caption: [Légende])").unwrap();
     let original = identities(&document);
@@ -152,10 +152,18 @@ fn replacing_an_image_keeps_its_block_and_caption_identity_but_deleting_it_does_
     document.sync_source();
     assert_eq!(identities(&document), original);
     document.view.delete_char_range(0..1);
+    assert_eq!(
+        document.view.validate_edit(),
+        Err(crate::document::edits::EditError::ProtectedBoundary)
+    );
+    document.sync_source();
+    assert_eq!(identities(&document), original);
+    assert!(!document.view.images.is_empty());
+    document.view.delete_char_range(0..document.view.len());
     document.sync_source();
     assert_ne!(identities(&document)[0].0, original[0].0);
     assert!(document.view.images.is_empty());
-    assert_eq!(document.view.text, "Légende !");
+    assert_eq!(document.view.text, "");
 }
 
 #[test]
@@ -171,7 +179,7 @@ fn undo_redo_restores_identities_and_a_new_branch_never_reuses_deleted_ones() {
         .document
         .view
         .insert_text("\n\nSuite", session.document.view.len());
-    session.remember(before, selection, false);
+    session.remember(before, selection, false).unwrap();
     let extended = identities(&session.document);
     assert_eq!(extended[0], initial[0]);
     session.history(true, selection).unwrap();
@@ -185,7 +193,7 @@ fn undo_redo_restores_identities_and_a_new_branch_never_reuses_deleted_ones() {
         .document
         .view
         .insert_text("\n\nSuite", session.document.view.len());
-    session.remember(before, selection, false);
+    session.remember(before, selection, false).unwrap();
     let branched = identities(&session.document);
     for (id, zones) in &branched[1..] {
         assert!(!extended.iter().any(|(old, _)| old == id));
@@ -317,7 +325,7 @@ fn a_no_op_native_replacement_keeps_committed_identities_and_revision() {
     let selection = Selection::default();
     let before = session.snapshot(selection);
     session.document.view.replace_with("Un texte");
-    session.remember(before, selection, false);
+    session.remember(before, selection, false).unwrap();
     assert_eq!(session.revision, 1);
     assert!(session.undo.is_empty());
     assert_eq!(identities(&session.document), original);
@@ -326,6 +334,49 @@ fn a_no_op_native_replacement_keeps_committed_identities_and_revision() {
         .document
         .view
         .insert_text(" !", session.document.view.len());
-    session.remember(before, selection, false);
+    session.remember(before, selection, false).unwrap();
     assert_eq!(identities(&session.document), original);
+}
+
+#[test]
+fn inserting_images_at_compound_boundaries_preserves_all_existing_zone_identities() {
+    for source in [
+        "#quote(block: true, attribution: [Autrice])[Texte]",
+        "#quote(block: true)[]",
+        "/ Mot: Définition",
+        "= Titre",
+        "",
+    ] {
+        let mut document = Document::from_source(source).unwrap();
+        let before = identities(&document);
+        document.view.insert_image(
+            0,
+            ImageBlock {
+                path: "images/parc.svg".into(),
+                alt: String::new(),
+            },
+        );
+        document.sync_source();
+        assert_eq!(&identities(&document)[1..], before);
+        assert_eq!(
+            Document::from_source(document.source()).unwrap().view,
+            document.view
+        );
+    }
+    let mut document = Document::from_source("#quote(block: true)[Texte]").unwrap();
+    let before = identities(&document);
+    document.view.insert_image(
+        document.view.len(),
+        ImageBlock {
+            path: "images/parc.svg".into(),
+            alt: String::new(),
+        },
+    );
+    document.sync_source();
+    assert_eq!(identities(&document)[0], before[0]);
+    let BlockContent::Quote { body, attribution } = &document.structure.blocks[0].content else {
+        panic!("quote")
+    };
+    assert_eq!(body.view.text, "Texte");
+    assert_eq!(attribution.view.text, "");
 }

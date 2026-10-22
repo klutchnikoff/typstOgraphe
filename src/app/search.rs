@@ -58,15 +58,15 @@ impl App {
         if ranges.is_empty() {
             return;
         }
-        self.document.selection = self
-            .document
-            .session
-            .replace_ranges(
-                self.document.selection.into(),
-                &ranges,
-                &self.search.engine.replacement,
-            )
-            .into();
+        let previous = self.document.selection.into();
+        let result = self.document.session.replace_ranges(
+            self.document.selection.into(),
+            &ranges,
+            &self.search.engine.replacement,
+        );
+        if !self.accept_edit(result, previous) {
+            return;
+        }
         self.document.force_selection = true;
         self.preview.forward_pending = true;
         self.refresh_search();

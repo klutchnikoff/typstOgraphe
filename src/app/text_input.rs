@@ -273,22 +273,25 @@ impl App {
                     .expect("paragraphe de citation");
                 // La terminaison du corps cité reste une règle propre à la citation.
                 // Retirer sa ligne vide, puis utiliser la sortie d’annotation commune.
-                if group.body.len() > 1 {
+                let at = if group.body.len() > 1 {
                     self.document
                         .session
                         .document
                         .view
-                        .delete_char_range(start..start + 1);
+                        .delete_char_range(start - 1..start);
                     self.document.session.document.view.blocks
                         [group.attribution.expect("attribution éditable") - 1] =
                         BlockKind::QuoteAttribution;
-                }
+                    start - 1
+                } else {
+                    start
+                };
                 let annotation = self
                     .document
                     .session
                     .document
                     .view
-                    .annotation_at(start..start)
+                    .annotation_at(at..at)
                     .expect("annotation de citation");
                 let at = self
                     .document

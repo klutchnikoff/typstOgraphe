@@ -1,9 +1,18 @@
 use super::*;
 use std::ops::Range;
 
-pub(super) fn blocks(view: &Projection) -> Vec<Block> {
+pub(crate) struct Layout {
+    pub kind: BlockKind,
+    pub lines: Range<usize>,
+    pub range: Range<usize>,
+    pub zones: Vec<(ZoneRole, Range<usize>)>,
+}
+
+/// Même découpage pour les blocs et la validation, y compris un brouillon qui
+/// n'a pas encore reçu ses séparateurs facultatifs de normalisation.
+pub(crate) fn layout(view: &Projection) -> Vec<Layout> {
     let ranges = view.line_ranges();
-    let mut blocks = Vec::new();
+    let mut result = Vec::new();
     let mut line = 0;
     while line < ranges.len() {
         let start = line;
@@ -19,8 +28,23 @@ pub(super) fn blocks(view: &Projection) -> Vec<Block> {
             }
         }
         let body = ranges[start].start..ranges[line - 1].end;
-        let content = match kind {
-            BlockKind::Description => description(view, body),
+        let zones = match kind {
+            BlockKind::Description => {
+                let separator = view
+                    .text
+                    .chars()
+                    .skip(body.start)
+                    .take(body.len())
+                    .position(|c| c == '\t');
+                let at = separator.map_or(body.end, |at| body.start + at);
+                vec![
+                    (ZoneRole::Term, body.start..at),
+                    (
+                        ZoneRole::Definition,
+                        (at + usize::from(separator.is_some()))..body.end,
+                    ),
+                ]
+            }
             BlockKind::Quote => {
                 let attribution = if view.blocks.get(line) == Some(&BlockKind::QuoteAttribution) {
                     line += 1;
@@ -28,46 +52,56 @@ pub(super) fn blocks(view: &Projection) -> Vec<Block> {
                 } else {
                     body.end..body.end
                 };
-                BlockContent::Quote {
-                    body: zone(view, ZoneRole::Body, body),
-                    attribution: zone(view, ZoneRole::Attribution, attribution),
-                }
+                vec![
+                    (ZoneRole::Body, body.clone()),
+                    (ZoneRole::Attribution, attribution),
+                ]
             }
-            BlockKind::Image(resource) => BlockContent::Image {
-                resource,
-                image: view.images[&resource].clone(),
-                caption: zone(view, ZoneRole::Caption, body.start + 1..body.end),
-            },
-            _ => BlockContent::Text {
-                kind,
-                body: zone(view, ZoneRole::Body, body),
-            },
+            BlockKind::Image(_) => vec![(ZoneRole::Caption, body.start + 1..body.end)],
+            _ => vec![(ZoneRole::Body, body)],
         };
-        blocks.push(Block {
-            id: BlockId(fresh_id()),
-            content,
-            lines: view.line_ids[start..line].to_vec(),
+        result.push(Layout {
+            kind,
+            lines: start..line,
+            range: ranges[start].start..ranges[line - 1].end,
+            zones,
         });
     }
-    blocks
+    result
 }
 
-fn description(view: &Projection, body: Range<usize>) -> BlockContent {
-    let separator = view
-        .text
-        .chars()
-        .skip(body.start)
-        .take(body.len())
-        .position(|c| c == '\t');
-    let at = separator.map_or(body.end, |at| body.start + at);
-    BlockContent::Description {
-        term: zone(view, ZoneRole::Term, body.start..at),
-        definition: zone(
-            view,
-            ZoneRole::Definition,
-            (at + usize::from(separator.is_some()))..body.end,
-        ),
-    }
+pub(super) fn blocks(view: &Projection) -> Vec<Block> {
+    layout(view)
+        .into_iter()
+        .map(|item| {
+            let mut zones = item
+                .zones
+                .into_iter()
+                .map(|(role, range)| zone(view, role, range));
+            let first = zones.next().expect("block text zone");
+            let content = match item.kind {
+                BlockKind::Description => BlockContent::Description {
+                    term: first,
+                    definition: zones.next().unwrap(),
+                },
+                BlockKind::Quote => BlockContent::Quote {
+                    body: first,
+                    attribution: zones.next().unwrap(),
+                },
+                BlockKind::Image(resource) => BlockContent::Image {
+                    resource,
+                    image: view.images[&resource].clone(),
+                    caption: first,
+                },
+                kind => BlockContent::Text { kind, body: first },
+            };
+            Block {
+                id: BlockId(fresh_id()),
+                content,
+                lines: view.line_ids[item.lines].to_vec(),
+            }
+        })
+        .collect()
 }
 
 fn zone(view: &Projection, role: ZoneRole, range: Range<usize>) -> TextZone {

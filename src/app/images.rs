@@ -15,6 +15,14 @@ impl App {
         path: &std::path::Path,
         replace: Option<u64>,
     ) -> Result<(), String> {
+        if replace.is_none() {
+            self.document
+                .session
+                .document
+                .view
+                .validate_object_insertion(&self.range())
+                .map_err(Self::edit_error_text)?;
+        }
         let image = crate::assets::ImageData::read(path)?;
         let before = self.snapshot();
         let asset_path = image.insert(&mut self.document.session.document.assets, "image");

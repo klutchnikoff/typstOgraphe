@@ -943,11 +943,26 @@ fn image_insertions_and_cross_block_deletions_keep_the_projection_valid() {
             },
         );
         check(&inserted);
-        assert_eq!(inserted.images.len(), 3);
+        if original
+            .view
+            .validate_object_insertion(&(start..start))
+            .is_ok()
+        {
+            assert_eq!(inserted.images.len(), 3);
+        } else {
+            assert_eq!(inserted, original.view);
+            assert_eq!(
+                inserted.validate_edit(),
+                Err(crate::document::edits::EditError::ProtectedBoundary)
+            );
+        }
         for end in start + 1..=original.view.len() {
             let mut deleted = original.view.clone();
             deleted.delete_char_range(start..end);
             check(&deleted);
+            if original.view.validate_deletion(&(start..end)).is_err() {
+                assert_eq!(deleted, original.view);
+            }
         }
     }
     let mut adjacent = original.view.clone();

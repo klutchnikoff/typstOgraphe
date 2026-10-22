@@ -103,11 +103,12 @@ impl App {
             let group = focused
                 .filter(|id| egui::TextEdit::load_state(ui.ctx(), *id).is_some())
                 .map_or(EditGroup::Discrete, |id| EditGroup::Metadata(id.value()));
-            self.document.selection = self
-                .document
-                .session
-                .record(before, self.document.selection.into(), group)
-                .into();
+            let previous = before.selection;
+            let result =
+                self.document
+                    .session
+                    .record(before, self.document.selection.into(), group);
+            self.accept_edit(result, previous);
         }
     }
     fn general_information_ui(&mut self, ui: &mut egui::Ui) {

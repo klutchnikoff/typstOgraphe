@@ -8,6 +8,7 @@ use support::*;
 
 mod annotations;
 mod commands;
+mod edit_validation;
 mod files;
 mod images;
 mod information;

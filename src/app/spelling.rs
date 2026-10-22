@@ -86,15 +86,17 @@ impl App {
             return;
         }
         self.document.history_field = None;
-        self.document.selection = self
+        let previous = self.document.selection.into();
+        let target = self
             .document
             .session
-            .replace_ranges(
-                self.document.selection.into(),
-                std::slice::from_ref(&issue.range),
-                replacement,
-            )
-            .into();
+            .selection_target(editor::cursor(issue.range.clone()).into());
+        let result = target
+            .map_err(crate::document::edits::EditError::Target)
+            .and_then(|target| self.document.session.replace_text(target, replacement));
+        if !self.accept_edit(result, previous) {
+            return;
+        }
         self.document.force_selection = true;
         self.preview.forward_pending = true;
         self.spelling.target = None;

@@ -373,3 +373,9 @@ cmd-insert-attachment = Ajouter une pièce jointe (mention)
 postscript-placeholder = Texte du post-scriptum…
 attachment-placeholder = Document joint…
 source-letter-note-signature = Un post-scriptum contient du texte ; chaque mention de pièce jointe occupe une seule ligne.
+
+# Validation des éditions
+edit-protected-boundary = Cette modification traverse une frontière de bloc ou de zone. Sélectionnez le bloc entier pour le supprimer.
+edit-invalid-text = Ce texte contient un séparateur incompatible avec cette zone.
+edit-stale-draft = Le document a changé depuis le début de cette modification. Veuillez recommencer.
+edit-invalid-draft = Cette modification ne peut pas être appliquée au document.

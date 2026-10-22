@@ -2,6 +2,7 @@
 use crate::{
     document::{
         Document, Projection,
+        edits::{EditError, TextInput},
         structure::{LogicalSelection, TargetError},
     },
     document_types::Metadata,
@@ -13,6 +14,13 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
     time::{Duration, Instant},
 };
+
+#[path = "session/edits.rs"]
+mod edits;
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[path = "session/edits_tests.rs"]
+mod edits_tests;
 
 static NEXT_SESSION: AtomicU64 = AtomicU64::new(1);
 
@@ -49,6 +57,7 @@ impl Selection {
 }
 #[derive(Clone)]
 pub struct Snapshot {
+    guard: TargetGuard,
     pub document: Document,
     pub metadata: Metadata,
     pub template: String,
@@ -112,6 +121,7 @@ impl Session {
     }
     pub fn snapshot(&self, selection: Selection) -> Snapshot {
         Snapshot {
+            guard: self.target_guard(),
             document: self.document.clone(),
             metadata: self.metadata.clone(),
             template: self.template.clone(),
@@ -164,6 +174,8 @@ impl Session {
             || self.saved.assets != self.document.assets
             || self.saved.dependencies != self.dependencies
     }
+    #[cfg(test)]
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn changed(&mut self, mut selection: Selection) -> Selection {
         for at in self.document.sync_source() {
             for cursor in [&mut selection.primary, &mut selection.secondary] {
@@ -178,59 +190,6 @@ impl Session {
         self.revision += 1;
         self.changed_at = Instant::now();
         selection
-    }
-    pub fn remember(&mut self, before: Snapshot, selection: Selection, typing: bool) -> Selection {
-        self.record(
-            before,
-            selection,
-            if typing {
-                EditGroup::Body
-            } else {
-                EditGroup::Discrete
-            },
-        )
-    }
-    pub fn record(
-        &mut self,
-        before: Snapshot,
-        selection: Selection,
-        group: EditGroup,
-    ) -> Selection {
-        if before.document == self.document
-            && before.metadata == self.metadata
-            && before.template == self.template
-            && before.dependencies == self.dependencies
-        {
-            // Un remplacement identique peut avoir préparé de nouvelles ancres.
-            // Sans publication ni nouvelle révision, conserver les identités lues.
-            self.document = before.document;
-            return selection;
-        }
-        let body_changed = before.document != self.document;
-        if !body_changed {
-            self.document = before.document.clone();
-        }
-        if group == EditGroup::Discrete
-            || !self.typing_group
-            || self.last_group != group
-            || self.last_edit.elapsed() > Duration::from_millis(650)
-        {
-            self.undo.push(before);
-            if self.undo.len() > 100 {
-                self.undo.remove(0);
-            }
-        }
-        self.redo.clear();
-        self.typing_group = group != EditGroup::Discrete;
-        self.last_group = group;
-        self.last_edit = Instant::now();
-        if body_changed {
-            self.changed(selection)
-        } else {
-            self.revision += 1;
-            self.changed_at = Instant::now();
-            selection
-        }
     }
     pub fn history(&mut self, undo: bool, selection: Selection) -> Option<Selection> {
         let current = self.snapshot(selection);
@@ -263,53 +222,6 @@ impl Session {
         }
         Some(selection)
     }
-    pub fn edit(
-        &mut self,
-        mut selection: Selection,
-        edit: impl FnOnce(&mut Projection, Range<usize>),
-    ) -> Selection {
-        for cursor in [&mut selection.primary, &mut selection.secondary] {
-            cursor.index = cursor.index.min(self.document.view.len());
-        }
-        let before = self.snapshot(selection);
-        let range = selection.range();
-        edit(&mut self.document.view, range.clone());
-        if !range.is_empty() {
-            self.document.view.typing_style = self.document.view.style_at(range.start);
-        }
-        self.remember(before, selection, false)
-    }
-    /// Remplacements non chevauchants, en une transaction. Les frontières de
-    /// blocs restent en place ; le texte reprend le style du premier caractère.
-    pub fn replace_ranges(
-        &mut self,
-        selection: Selection,
-        ranges: &[Range<usize>],
-        replacement: &str,
-    ) -> Selection {
-        let Some(first) = ranges.first() else {
-            return selection;
-        };
-        let before = self.snapshot(selection);
-        let old_typing_style = self.document.view.typing_style.clone();
-        for range in ranges.iter().rev() {
-            self.document.view.typing_style = self.document.view.style_at(range.start);
-            self.document.view.delete_char_range(range.clone());
-            self.document.view.insert_text(replacement, range.start);
-        }
-        self.document.view.typing_style = old_typing_style;
-        let after = Selection {
-            primary: Caret {
-                index: first.start + replacement.chars().count(),
-                ..Default::default()
-            },
-            secondary: Caret {
-                index: first.start,
-                ..Default::default()
-            },
-        };
-        self.remember(before, after, false)
-    }
 }
 
 #[cfg(test)]
@@ -341,7 +253,9 @@ mod tests {
             },
             ..Default::default()
         };
-        let after = session.replace_ranges(old_selection, &search.matches, "Noël");
+        let after = session
+            .replace_ranges(old_selection, &search.matches, "Noël")
+            .unwrap();
         assert_eq!(session.undo.len(), 1);
         assert_eq!(session.document.view.blocks, original.view.blocks);
         assert_eq!(session.document.view.images, original.view.images);
@@ -387,17 +301,21 @@ mod tests {
         };
         let before = session.snapshot(selection);
         session.metadata.courrier_mut().objet = "Nouvel objet".into();
-        session.record(before, selection, EditGroup::Metadata(1));
+        session
+            .record(before, selection, EditGroup::Metadata(1))
+            .unwrap();
         assert_eq!(session.document.source(), letter.source);
         let before = session.snapshot(selection);
         session.template.push_str("\n// Autre modèle");
-        session.record(before, selection, EditGroup::Discrete);
+        session
+            .record(before, selection, EditGroup::Discrete)
+            .unwrap();
         let before = session.snapshot(selection);
         session
             .document
             .view
             .insert_text("Suite.", session.document.view.len());
-        session.remember(before, selection, true);
+        session.remember(before, selection, true).unwrap();
         assert_eq!(session.undo.len(), 3);
         for _ in 0..3 {
             assert_eq!(session.history(true, selection), Some(selection));
@@ -417,12 +335,16 @@ mod tests {
         let document = Document::from_source(&letter.source).unwrap();
         let mut session = Session::new(letter, document, None, 1);
         let selection = Selection::default();
-        session.record(session.snapshot(selection), selection, EditGroup::Discrete);
+        session
+            .record(session.snapshot(selection), selection, EditGroup::Discrete)
+            .unwrap();
         assert!(session.undo.is_empty());
         for (field, value) in [(1, "A"), (1, "AB"), (2, "ABC")] {
             let before = session.snapshot(selection);
             session.metadata.courrier_mut().objet = value.into();
-            session.record(before, selection, EditGroup::Metadata(field));
+            session
+                .record(before, selection, EditGroup::Metadata(field))
+                .unwrap();
         }
         assert_eq!(session.undo.len(), 2);
         session.history(true, selection);

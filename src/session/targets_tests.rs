@@ -32,7 +32,7 @@ fn stale_targets_are_rejected_after_edits_and_even_after_undo_restores_their_zon
         .document
         .view
         .insert_text(" !", session.document.view.len());
-    session.remember(before, selection, false);
+    session.remember(before, selection, false).unwrap();
     assert_eq!(
         session.resolve_target(target),
         Err(TargetError::StaleRevision)
@@ -80,7 +80,9 @@ fn selection_reads_do_not_invalidate_guards_but_metadata_edits_do() {
     assert_eq!(session.target_guard(), target.guard);
     let before = session.snapshot(selection());
     session.metadata.courrier_mut().objet = "Nouvel objet".into();
-    session.record(before, selection(), EditGroup::Metadata(1));
+    session
+        .record(before, selection(), EditGroup::Metadata(1))
+        .unwrap();
     assert_eq!(
         session.resolve_target(target),
         Err(TargetError::StaleRevision)
@@ -100,7 +102,7 @@ fn no_op_keeps_a_previously_read_target_valid_and_invalid_external_positions_fai
     let mut session = session();
     let target = session.selection_target(selection()).unwrap();
     let before = session.snapshot(selection());
-    session.remember(before, selection(), false);
+    session.remember(before, selection(), false).unwrap();
     assert_eq!(session.resolve_target(target), Ok((7, 1)));
     let bad = Selection {
         primary: Caret {

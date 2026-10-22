@@ -2,6 +2,7 @@ use super::*;
 
 struct EditorFrame {
     before: Snapshot,
+    guard: crate::session::TargetGuard,
     old_range: CCursorRange,
     view: Projection,
     lock_tab: bool,
@@ -88,6 +89,7 @@ impl App {
         let active = self.search.engine.selected(&self.range());
         EditorFrame {
             before,
+            guard: self.document.session.target_guard(),
             old_range,
             view,
             lock_tab,
@@ -122,7 +124,10 @@ impl App {
             }
         };
         let background = ui.painter().add(egui::Shape::Noop);
-        let output = egui::TextEdit::multiline(&mut self.document.session.document.view)
+        let mut draft = crate::document::edits::TextInput {
+            view: frame.view.clone(),
+        };
+        let output = egui::TextEdit::multiline(&mut draft)
             .lock_focus(lock_tab)
             .id(egui::Id::new(editor::EDITOR_ID))
             .desired_width(f32::INFINITY)
@@ -131,7 +136,7 @@ impl App {
             .font(editor_style.font.font_id(editor_style.size, 0))
             .layouter(&mut layouter)
             .show(ui);
-        self.editor_feedback(ui, output, frame, background)
+        self.editor_feedback(ui, output, frame, background, draft)
     }
     fn editor_feedback(
         &mut self,
@@ -139,18 +144,14 @@ impl App {
         output: egui::text_edit::TextEditOutput,
         frame: &EditorFrame,
         background: egui::layers::ShapeIdx,
+        draft: crate::document::edits::TextInput,
     ) -> Option<(u64, editor::ImageAction)> {
         let matches = &frame.matches;
         let editor_style = frame.style;
         let before = &frame.before;
         let old_range = frame.old_range;
-        let clicked_term = editor::paint_decorations(
-            ui,
-            &self.document.session.document.view,
-            &output,
-            editor_style,
-            background,
-        );
+        let clicked_term =
+            editor::paint_decorations(ui, &draft.view, &output, editor_style, background);
         if let Some(range) = output.cursor_range {
             self.document.selection = range;
         }
@@ -188,13 +189,13 @@ impl App {
         }
         let image_action = editor::paint_images(
             ui,
-            &self.document.session.document.view,
+            &draft.view,
             &output,
             &self.image_textures,
             self.range(),
             editor_style,
         );
-        let changed = output.response.changed();
+        let changed = output.response.changed() || draft.view.edit_error.is_some();
         let mut state = output.state;
         if self.document.force_selection {
             state.cursor.set_char_range(Some(self.document.selection));
@@ -202,7 +203,14 @@ impl App {
         state.clear_undoer();
         state.store(ui.ctx(), output.response.id);
         if changed {
-            self.remember(before.clone(), true);
+            let result = self.document.session.commit_projection(
+                frame.guard,
+                before.clone(),
+                draft.view,
+                self.document.selection.into(),
+                EditGroup::Body,
+            );
+            self.accept_edit(result, before.selection);
             if self.search.open {
                 self.refresh_search();
             }
@@ -231,7 +239,7 @@ impl App {
         output: &egui::text_edit::TextEditOutput,
         view: &Projection,
     ) {
-        if view.text == self.document.session.document.view.text {
+        if view.text == output.galley.text() {
             let editing = output.response.has_focus()
                 && self.document.selection.is_empty()
                 && self.document.session.changed_at.elapsed() < Duration::from_millis(700);

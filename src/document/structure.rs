@@ -11,6 +11,7 @@ use std::{
 
 #[path = "structure/build.rs"]
 mod build;
+pub(super) use build::layout;
 #[path = "structure/flatten.rs"]
 mod flatten;
 #[path = "structure/targets.rs"]

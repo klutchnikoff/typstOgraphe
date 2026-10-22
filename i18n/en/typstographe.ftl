@@ -370,3 +370,9 @@ cmd-insert-attachment = Add an enclosure mention
 postscript-placeholder = Postscript text…
 attachment-placeholder = Enclosed document…
 source-letter-note-signature = A postscript contains text; each enclosure mention occupies a single line.
+
+# Validation des éditions
+edit-protected-boundary = This edit crosses a block or text zone boundary. Select the entire block to delete it.
+edit-invalid-text = This text contains a separator that is not supported in this zone.
+edit-stale-draft = The document has changed since this edit began. Please try again.
+edit-invalid-draft = This edit cannot be applied to the document.
