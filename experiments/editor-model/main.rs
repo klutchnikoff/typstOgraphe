@@ -23,6 +23,8 @@ mod editor;
 mod i18n;
 #[path = "../../src/icons.rs"]
 mod icons;
+#[path = "../../src/identity.rs"]
+mod identity;
 #[path = "../../src/menus.rs"]
 mod menus;
 #[path = "../../src/navigation.rs"]

@@ -10,6 +10,7 @@ mod document_types;
 mod editor;
 mod i18n;
 mod icons;
+mod identity;
 mod menus;
 mod navigation;
 mod packages;

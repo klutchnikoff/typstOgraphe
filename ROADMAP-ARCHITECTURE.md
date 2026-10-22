@@ -505,7 +505,7 @@ Dans le style du test existant sur les fichiers Fluent :
   `resolver = "3"`, `[workspace.dependencies]` pour les versions épinglées
   (`typst =0.15.1`, etc.).
 - [ ] **3.4** Créer `crates/core` : y déplacer `document`, `annotations`, `search`,
-  `statistics`, `session`, `storage`, `packages`, `profile`, `spelling`, `recovery`,
+  `statistics`, `session`, `identity`, `storage`, `packages`, `profile`, `spelling`, `recovery`,
   `rendering`, `navigation`, `assets`, `dates`, `document_types`, `engine` et
   `src/tests.rs`. Déplacer avec eux `templates/`, `examples/` et `assets/dictionaries/` ;
   déplacer `tests/fixtures/` vers un dossier partagé `fixtures/` à la racine (D9) ;

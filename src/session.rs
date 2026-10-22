@@ -11,7 +11,7 @@ use crate::{
 use std::{
     ops::Range,
     path::PathBuf,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::atomic::AtomicU64,
     time::{Duration, Instant},
 };
 
@@ -98,11 +98,7 @@ impl Session {
     ) -> Self {
         document.assets = letter.assets.clone();
         Self {
-            id: DocumentId(
-                NEXT_SESSION
-                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
-                    .expect("document session space exhausted"),
-            ),
+            id: DocumentId(crate::identity::next(&NEXT_SESSION)),
             recovered: false,
             document,
             metadata: letter.metadata.clone(),

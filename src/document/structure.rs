@@ -6,7 +6,7 @@
 use super::{BlockKind, ImageBlock, InlineStyle, Projection};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    sync::atomic::{AtomicU64, Ordering},
+    sync::atomic::AtomicU64,
 };
 
 #[path = "structure/build.rs"]
@@ -29,9 +29,7 @@ mod tests;
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 
 fn fresh_id() -> u64 {
-    NEXT_ID
-        .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
-        .expect("document identity space exhausted")
+    crate::identity::next(&NEXT_ID)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

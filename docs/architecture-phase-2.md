@@ -102,12 +102,12 @@ rendu continuent de lire le document publié.
 
 ## Vérifications
 
-- 179 tests de l’application réussis, dont 36 tests ajoutés depuis le début de
+- 181 tests de l’application réussis, dont 38 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 102 tests partagés réussissent aussi.
+  avertissement ; ses 104 tests partagés réussissent aussi.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
 - Huit captures strictement identiques après les premiers lots, dans
   `output/baseline/run-ioma5t0l/` et `output/baseline/run-uvqd1xwk/`, puis après la
@@ -116,6 +116,12 @@ rendu continuent de lire le document publié.
 - Le scénario existant qui essayait une insertion d’image à chaque caractère
   conserve ses contrôles de validité. Il vérifie désormais soit l’insertion aux
   positions autorisées, soit le refus sans mutation dans une zone protégée.
+
+La CI du lot précédent a signalé la dépréciation de `AtomicU64::fetch_update`
+par sa version de Rust stable, plus récente que l’installation locale. Les deux
+allocateurs utilisent désormais `identity::next`, fondé sur
+`compare_exchange_weak`, sans changer le minimum Rust déclaré. Deux tests
+vérifient l’unicité concurrente et le refus de boucler au dépassement de capacité.
 
 ## Suite de la phase
 
