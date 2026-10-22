@@ -384,8 +384,13 @@ Après validation de l’inventaire et de ses cibles, avant le gel des signature
 **En cours :** tous les blocs existants sont représentés et alimentent le
 sérialiseur via un adaptateur vers la projection. Les identités, les positions
 locales Unicode et les gardes session/révision sont testées ; l’historique conserve
-les sélections logiques. Le tampon de saisie reste plat et les protections entre
-rôles, la voie commune de commit, la recherche et l’aperçu restent à migrer.
+les sélections logiques. Les frontières de rôles sont protégées ; les éditions
+refusées ne publient aucune mutation partielle. La saisie native travaille sur un
+brouillon et rejoint la validation/normalisation/publication commune de `Session`,
+comme les commandes et remplacements. Les préparations encore faites dans `App`
+utilisent un adaptateur transitoire vers cette voie. Le tampon reste plat ; la
+préédition IME à conserver entre frames, les raccourcis de transformation, la
+recherche et l’aperçu restent à migrer.
 Voir [le suivi de phase 2](docs/architecture-phase-2.md) pour les vérifications
 et les limites de ces premiers lots. Aucune commande de tableau n’est ajoutée.
 
