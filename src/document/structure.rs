@@ -13,6 +13,13 @@ use std::{
 mod build;
 #[path = "structure/flatten.rs"]
 mod flatten;
+#[path = "structure/targets.rs"]
+pub mod targets;
+pub use targets::{LogicalSelection, TargetError};
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[path = "structure/targets_tests.rs"]
+mod targets_tests;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 #[path = "structure/tests.rs"]

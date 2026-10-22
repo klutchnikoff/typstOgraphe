@@ -1,14 +1,35 @@
 //! État et transactions d’un document ouvert, indépendants de l’interface.
 use crate::{
-    document::{Document, Projection},
+    document::{
+        Document, Projection,
+        structure::{LogicalSelection, TargetError},
+    },
     document_types::Metadata,
     storage::StoredDocument,
 };
 use std::{
     ops::Range,
     path::PathBuf,
+    sync::atomic::{AtomicU64, Ordering},
     time::{Duration, Instant},
 };
+
+static NEXT_SESSION: AtomicU64 = AtomicU64::new(1);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DocumentId(u64);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TargetGuard {
+    pub document_id: DocumentId,
+    pub revision: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SelectionTarget {
+    pub guard: TargetGuard,
+    pub selection: LogicalSelection,
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Caret {
@@ -33,6 +54,7 @@ pub struct Snapshot {
     pub template: String,
     pub dependencies: crate::packages::Dependencies,
     pub selection: Selection,
+    logical_selection: Option<SelectionTarget>,
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum EditGroup {
@@ -41,6 +63,7 @@ pub enum EditGroup {
     Discrete,
 }
 pub struct Session {
+    id: DocumentId,
     /// Une copie récupérée doit être enregistrée, même sans nouvelle édition.
     pub recovered: bool,
     pub document: Document,
@@ -66,6 +89,11 @@ impl Session {
     ) -> Self {
         document.assets = letter.assets.clone();
         Self {
+            id: DocumentId(
+                NEXT_SESSION
+                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+                    .expect("document session space exhausted"),
+            ),
             recovered: false,
             document,
             metadata: letter.metadata.clone(),
@@ -89,7 +117,35 @@ impl Session {
             template: self.template.clone(),
             dependencies: self.dependencies.clone(),
             selection,
+            logical_selection: self.selection_target(selection).ok(),
         }
+    }
+
+    pub fn target_guard(&self) -> TargetGuard {
+        TargetGuard {
+            document_id: self.id,
+            revision: self.revision,
+        }
+    }
+
+    pub fn selection_target(&self, selection: Selection) -> Result<SelectionTarget, TargetError> {
+        Ok(SelectionTarget {
+            guard: self.target_guard(),
+            selection: self
+                .document
+                .structure
+                .selection_at(selection.secondary.index, selection.primary.index)?,
+        })
+    }
+
+    pub fn resolve_target(&self, target: SelectionTarget) -> Result<(usize, usize), TargetError> {
+        if target.guard.document_id != self.id {
+            return Err(TargetError::ForeignDocument);
+        }
+        if target.guard.revision != self.revision {
+            return Err(TargetError::StaleRevision);
+        }
+        self.document.structure.resolve_selection(target.selection)
     }
     pub fn stored_document(&self) -> StoredDocument {
         StoredDocument {
@@ -195,7 +251,17 @@ impl Session {
         self.typing_group = false;
         self.revision += 1;
         self.changed_at = Instant::now();
-        Some(item.selection)
+        let mut selection = item.selection;
+        if let Some(mut target) = item.logical_selection {
+            // Restauration d’un instantané connu : nouvelle révision, mêmes objets.
+            // Cette remise à jour interne n’est jamais appliquée à une cible externe.
+            target.guard.revision = self.revision;
+            if let Ok((anchor, head)) = self.resolve_target(target) {
+                selection.primary.index = head;
+                selection.secondary.index = anchor;
+            }
+        }
+        Some(selection)
     }
     pub fn edit(
         &mut self,
@@ -245,6 +311,11 @@ impl Session {
         self.remember(before, after, false)
     }
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[path = "session/targets_tests.rs"]
+mod targets_tests;
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
