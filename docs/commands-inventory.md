@@ -2,7 +2,9 @@
 
 **État : orientations V1–V6 et démarrage de la phase 2 validés ensemble le 22 octobre 2026.**
 Relevé du 22 octobre 2026 sur `b3e1e986c250a80f70f65899f35d010145d63d26`.
-Aucun moteur, commande ou schéma décrit ci-dessous n’est encore ajouté au logiciel.
+L’implémentation a commencé par les blocs, leurs zones, leurs identités et les
+cibles de sélection ; voir [le suivi de phase 2](architecture-phase-2.md).
+Le moteur, les appels de commandes et leurs schémas JSON ne sont pas encore ajoutés.
 Les règles déjà validées sont dans [la feuille de route technique](../ROADMAP-ARCHITECTURE.md),
 D1–D20. Les propositions qui les précisent ou les font évoluer sont signalées.
 

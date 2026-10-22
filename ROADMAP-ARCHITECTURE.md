@@ -370,7 +370,7 @@ complet par défaut. Le travail commence par la représentation structurée (2.1
 
 Après validation de l’inventaire et de ses cibles, avant le gel des signatures :
 
-- [ ] Définir les blocs, leurs zones de texte et leurs identifiants ; réutiliser la
+- [x] Définir les blocs, leurs zones de texte et leurs identifiants ; réutiliser la
   projection actuelle pour l’édition du texte dans chaque zone.
 - [ ] Migrer les structures déjà prises en charge, avec aller-retour Typst et
   ressources identiques ; aucune structure nouvelle livrée à l’utilisateur ici.
@@ -380,6 +380,14 @@ Après validation de l’inventaire et de ses cibles, avant le gel des signature
   contenu et de sélection, y compris l’adaptateur de saisie native (D15, D17).
 - [ ] Tester frontières, normalisation locale, IME, historique et Unicode. Préparer
   le modèle pour les cellules sans avancer la livraison des tableaux prévue à l’étape 5.
+
+**En cours :** tous les blocs existants sont représentés et alimentent le
+sérialiseur via un adaptateur vers la projection. Les identités, les positions
+locales Unicode et les gardes session/révision sont testées ; l’historique conserve
+les sélections logiques. Le tampon de saisie reste plat et les protections entre
+rôles, la voie commune de commit, la recherche et l’aperçu restent à migrer.
+Voir [le suivi de phase 2](docs/architecture-phase-2.md) pour les vérifications
+et les limites de ces premiers lots. Aucune commande de tableau n’est ajoutée.
 
 ### 2.2 Types du registre (taille M)
 

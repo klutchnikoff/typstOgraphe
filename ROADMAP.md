@@ -584,6 +584,10 @@ aux interfaces) et V4 (saisie et préédition) validés le 22 octobre 2026.
 V5 (réglages globaux hors du premier périmètre CLI/MCP) et V6 (création, dates,
 exports) validés également ; implémentation autorisée, en commençant par les blocs
 et zones de texte en mémoire.
+Premiers lots réalisés : blocs et zones avec identités, aller-retour vers le
+sérialiseur, positions logiques et gardes de révision, restauration des sélections
+par l’historique. Le moteur et la migration des commandes restent à réaliser
+([suivi de phase 2](docs/architecture-phase-2.md)).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une
 commande à identifiant stable, pilotable par une ligne de commande et par MCP.
