@@ -1,6 +1,6 @@
 # Inventaire des commandes et des cibles — phase 2.1
 
-**État : proposition à relire et valider ensemble, avant implémentation.**
+**État : V1 et V2 validés ensemble le 22 octobre 2026 ; V3–V6 restent à valider avant implémentation.**
 Relevé du 22 octobre 2026 sur `b3e1e986c250a80f70f65899f35d010145d63d26`.
 Aucun moteur, commande ou schéma décrit ci-dessous n’est encore ajouté au logiciel.
 Les règles déjà validées sont dans [la feuille de route technique](../ROADMAP-ARCHITECTURE.md),
@@ -42,14 +42,17 @@ ne deviennent pas des commandes publiques dans cette phase.
   **du comportement actuel**, pas des tests d’un moteur inexistant. « À ajouter »
   signale une couverture directe absente ; les nouveaux contrats auront leurs tests propres.
 
-## 2. Choix principaux proposés
+## 2. Choix principaux et état de validation
 
 Tous les paramètres ci-dessous restent des descriptions de contrat, pas des signatures Rust figées.
+V1 et V2 sont validés dans leur orientation ; la forme exacte des identifiants,
+les schémas Rust/JSON et les jonctions entre types de paragraphes restent à préciser.
+Les autres propositions et le classement détaillé des commandes ne sont pas encore validés.
 
-| Choix | Proposition recommandée | À valider / conséquence |
+| Choix | Orientation | Conséquences / points à préciser |
 | --- | --- | --- |
-| **V1 — Cibles et identités** | Positions par zone de texte + indice Unicode ; références de blocs distinctes. Identifiants opaques stables pendant une session, restaurés par annuler/rétablir et jamais réaffectés à un autre objet. Réouverture = nouvelle session et nouveaux identifiants. | Ne pas modifier l’archive pour stocker ces identifiants maintenant. Toutes les cibles externes sont liées à une session et une révision ; aucun repositionnement silencieux d’une cible périmée. |
-| **V2 — Sélections entre structures** | Garder une sélection continue orientée ; mise en forme sur les zones textuelles admissibles. Suppression/remplacement libre dans une zone et entre paragraphes d’un même corps. Refuser les remplacements partiels ambigus entre rôles ; supprimer un objet explicitement ciblé ou entièrement couvert par la sélection. | Préciser les jonctions entre types de paragraphes avant migration. C’est une restriction volontaire pour les nouveaux passages ambigus, pas une promesse de reproduire toute suppression accidentelle du tampon plat. |
+| **V1 — Cibles et identités — validé le 22 octobre 2026** | Positions par zone de texte + indice Unicode ; références de blocs distinctes. Identifiants opaques stables pendant une session, restaurés par annuler/rétablir et jamais réaffectés à un autre objet. Réouverture = nouvelle session et nouveaux identifiants. | Ne pas modifier l’archive pour stocker ces identifiants maintenant. Toutes les cibles externes sont liées à une session et une révision ; aucun repositionnement silencieux d’une cible périmée. |
+| **V2 — Sélections entre structures — validé le 22 octobre 2026** | Garder une sélection continue orientée ; mise en forme sur les zones textuelles admissibles. Suppression/remplacement libre dans une zone et entre paragraphes d’un même corps. Refuser les remplacements partiels ambigus entre rôles ; supprimer un objet explicitement ciblé ou entièrement couvert par la sélection. | Préciser les jonctions entre types de paragraphes avant migration. C’est une restriction volontaire pour les nouveaux passages ambigus, pas une promesse de reproduire toute suppression accidentelle du tampon plat. |
 | **V3 — Appels explicites et déclencheurs graphiques** | Une action métier a une commande canonique paramétrée. Les menus et raccourcis recueillent au besoin les paramètres par un `UiCommand`, puis appellent cette même commande. Hors interface : paramètres explicites ou sélection détenue par le moteur. | Pas de dépendance au focus, à un index de menu ou à des pixels dans le cœur. Les identifiants existants sont conservés, sauf les deux corrections D2 déjà décidées. |
 | **V4 — Saisie et préédition** | Une insertion est littérale par défaut. Le mode de frappe interactif peut demander les règles textuelles existantes, à traiter dans le cœur. La préédition IME reste un brouillon de l’adaptateur, puis sa validation devient une transaction. | Ne pas interpréter du Typst collé/importé comme du code. Même validation/normalisation/commit pour saisie et commandes (D17). Le passage de la préédition à une publication unique est à vérifier, pas déjà démontré par le diagnostic de phase 1. |
 | **V5 — Profil et réglages globaux** | Registre commun, mais préférences, profil et dictionnaire personnel restent des actions d’application non exposées sans interface dans ce premier moteur. Le moteur reçoit leurs valeurs nécessaires comme configuration ou données explicites. | Précision à valider de D5 et de 2.4.5 : `spelling.learn` reste accessible dans l’application, sans mutation des préférences par `Engine`. Une future API de services globaux est distincte ; aucune action globale dans un lot documentaire (D16). |

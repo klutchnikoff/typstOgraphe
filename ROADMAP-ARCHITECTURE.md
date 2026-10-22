@@ -337,12 +337,14 @@ exécutable **sans egui** par un `Engine`. C'est la phase qui rend la CLI et MCP
   d'options (papier, langue, marqueur de puce), l'import d'image, l'ajout de lien.
 - [ ] Faire valider l'inventaire avant d'écrire du code (décisions D2 à D6).
 
-**État : inventaire préparé, validation en attente.** Voir
+**État : inventaire préparé, V1 et V2 validés le 22 octobre 2026 ; V3–V6 en attente.** Voir
 [docs/commands-inventory.md](docs/commands-inventory.md), avec les 44 entrées du
 registre, les actions hors registre, les cibles, les tests existants et les choix V1–V6.
-Les noms et signatures proposés ne sont pas validés ni implémentés. V5 précise la
-frontière de D5 pour les réglages globaux ; la séparation entre navigation, requêtes
-et ouverture d’interface et les comportements de V2/V4/V6 restent à approuver ensemble.
+Les noms et signatures proposés ne sont pas validés ni implémentés. Les orientations
+sur les cibles, leur durée de vie et les sélections entre structures sont validées ;
+la forme des identifiants et les jonctions entre types de paragraphes restent à préciser.
+V5 précise la frontière de D5 pour les réglages globaux ; la séparation entre navigation, requêtes
+et ouverture d’interface et les comportements de V4/V6 restent à approuver ensemble.
 Aucun code de moteur ni représentation structurée n’est commencé.
 
 **Entrées issues du choix de 1.6 (22 octobre 2026) :**
@@ -357,9 +359,10 @@ Aucun code de moteur ni représentation structurée n’est commencé.
   les mutations structurelles et leur sélection se restaurent ensemble par l’historique.
 - La normalisation du corps ne doit pas supprimer des lignes ou du contenu d’une
   cellule. Préserver la composition IME dans la zone éditée.
-- L’inventaire exhaustif est préparé et reste à valider. Les identifiants de zones,
-  leur durée de vie et les signatures Rust/JSON sont à décider en 2.1 ; le prototype
-  n’ajoute aucune commande publique de tableau à ce stade.
+- L’inventaire exhaustif est préparé et sa validation reste à terminer. La durée
+  de vie des identifiants est validée en V1 ; leur forme exacte et les signatures
+  Rust/JSON restent à décider en 2.1. Le prototype n’ajoute aucune commande publique
+  de tableau à ce stade.
 
 ### 2.1 bis Représentation structurée en mémoire (D18)
 
