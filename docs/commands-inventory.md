@@ -1,6 +1,6 @@
 # Inventaire des commandes et des cibles — phase 2.1
 
-**État : V1–V4 validés ensemble le 22 octobre 2026 ; V5 et V6 restent à valider avant implémentation.**
+**État : orientations V1–V6 et démarrage de la phase 2 validés ensemble le 22 octobre 2026.**
 Relevé du 22 octobre 2026 sur `b3e1e986c250a80f70f65899f35d010145d63d26`.
 Aucun moteur, commande ou schéma décrit ci-dessous n’est encore ajouté au logiciel.
 Les règles déjà validées sont dans [la feuille de route technique](../ROADMAP-ARCHITECTURE.md),
@@ -32,7 +32,7 @@ ne deviennent pas des commandes publiques dans cette phase.
   cache de rendu/orthographe n’en fait pas une mutation documentaire.
 - **UI** : action prise en charge par l’application, absente du catalogue CLI/MCP.
   **UI-global** signale un véritable effet sur les préférences ou les ressources
-  globales : ce n’est pas une action visuelle sans effet. Ce classement est proposé en V5.
+  globales : ce n’est pas une action visuelle sans effet. Cette frontière est validée en V5.
 - **Dialogue** : nécessaire à la préparation graphique actuelle, jamais un argument
   obligatoire d’une commande utilisable sans interface. « Cond. » = seulement si le
   chemin manque ou s’il faut traiter du travail non enregistré.
@@ -45,10 +45,11 @@ ne deviennent pas des commandes publiques dans cette phase.
 ## 2. Choix principaux et état de validation
 
 Tous les paramètres ci-dessous restent des descriptions de contrat, pas des signatures Rust figées.
-V1–V4 sont validés dans leur orientation ; la forme exacte des identifiants,
+V1–V6 sont validés dans leur orientation ; la forme exacte des identifiants,
 les schémas Rust/JSON et les jonctions entre types de paragraphes restent à préciser.
 La publication unique après composition IME reste à vérifier lors de l’implémentation.
-V5, V6 et le classement détaillé des commandes ne sont pas encore validés.
+Le classement détaillé sert de référence de migration ; les signatures exactes seront
+précisées et testées progressivement avant le gel du catalogue.
 
 | Choix | Orientation | Conséquences / points à préciser |
 | --- | --- | --- |
@@ -56,8 +57,8 @@ V5, V6 et le classement détaillé des commandes ne sont pas encore validés.
 | **V2 — Sélections entre structures — validé le 22 octobre 2026** | Garder une sélection continue orientée ; mise en forme sur les zones textuelles admissibles. Suppression/remplacement libre dans une zone et entre paragraphes d’un même corps. Refuser les remplacements partiels ambigus entre rôles ; supprimer un objet explicitement ciblé ou entièrement couvert par la sélection. | Préciser les jonctions entre types de paragraphes avant migration. C’est une restriction volontaire pour les nouveaux passages ambigus, pas une promesse de reproduire toute suppression accidentelle du tampon plat. |
 | **V3 — Appels explicites et déclencheurs graphiques — validé le 22 octobre 2026** | Une action métier a une commande canonique paramétrée. Les menus et raccourcis recueillent au besoin les paramètres par un `UiCommand`, puis appellent cette même commande. Hors interface : paramètres explicites ou sélection détenue par le moteur. | Pas de dépendance au focus, à un index de menu ou à des pixels dans le cœur. Les identifiants existants sont conservés, sauf les deux corrections D2 déjà décidées. |
 | **V4 — Saisie et préédition — validé le 22 octobre 2026** | Une insertion est littérale par défaut. Le mode de frappe interactif peut demander les règles textuelles existantes, à traiter dans le cœur. La préédition IME reste un brouillon de l’adaptateur, puis sa validation devient une transaction. | Ne pas interpréter du Typst collé/importé comme du code. Même validation/normalisation/commit pour saisie et commandes (D17). Le passage de la préédition à une publication unique est à vérifier, pas déjà démontré par le diagnostic de phase 1. |
-| **V5 — Profil et réglages globaux** | Registre commun, mais préférences, profil et dictionnaire personnel restent des actions d’application non exposées sans interface dans ce premier moteur. Le moteur reçoit leurs valeurs nécessaires comme configuration ou données explicites. | Précision à valider de D5 et de 2.4.5 : `spelling.learn` reste accessible dans l’application, sans mutation des préférences par `Engine`. Une future API de services globaux est distincte ; aucune action globale dans un lot documentaire (D16). |
-| **V6 — Création, dates et export** | Création sans interface vide, sauf valeurs initiales fournies ; l’UI transmet une copie du profil. « Aujourd’hui » est résolu en date ISO avant mutation. Export vers un dossier neuf/vide, avec `format: pdf / typst / both`. | L’export actuel produit PDF + sources + PNG : proposer `both` et `page_images: true` par défaut pour préserver cet export, avec une option explicite pour omettre les PNG de diagnostic. Les formats séparés seraient un changement volontaire, à valider. Aucun export dans un lot d’édition. |
+| **V5 — Profil et réglages globaux — validé le 22 octobre 2026** | Registre commun, mais préférences, profil et dictionnaire personnel restent des actions d’application non exposées sans interface dans ce premier moteur. Le moteur reçoit leurs valeurs nécessaires comme configuration ou données explicites. | Précision validée de D5 et de 2.4.5 : `spelling.learn` reste accessible dans l’application, sans mutation des préférences par `Engine`. Une future API de services globaux est distincte ; aucune action globale dans un lot documentaire (D16). |
+| **V6 — Création, dates et export — validé le 22 octobre 2026** | Création sans interface vide, sauf valeurs initiales fournies ; l’UI transmet une copie du profil. « Aujourd’hui » est résolu en date ISO avant mutation. Export vers un dossier neuf/vide, avec `format: pdf / typst / both`. | L’export actuel produit PDF + sources + PNG : proposer `both` et `page_images: true` par défaut pour préserver cet export, avec une option explicite pour omettre les PNG de diagnostic. Les formats séparés sont un changement volontaire validé, à implémenter. Aucun export dans un lot d’édition. |
 
 D2–D6 restent les bases : identifiants, enum typée, commandes/requêtes séparées,
 UI distincte et erreurs structurées. V5 précise une frontière encore ambiguë :
@@ -156,7 +157,7 @@ Exemple indicatif, non schéma JSON validé :
 ```
 
 Le texte d’une insertion est du texte visible : `_bonjour_` reste littéral en mode
-normal. Le mode interactif proposé en V4 applique les règles existantes dans la
+normal. Le mode interactif validé en V4 applique les règles existantes dans la
 même transaction, en gardant l’annulation qui restitue la saisie littérale.
 Les prééditions IME ne passent ni dans les requêtes sur le document validé ni dans
 son historique ; l’adaptateur conserve le focus et annule/résout une composition
@@ -343,7 +344,7 @@ URL, alt, métadonnées et séparateurs. Un résultat ne traverse pas une fronti
 structure. Les requêtes ne modifient aucune sélection. Aucun dictionnaire personnel
 n’est incorporé au document à l’exception de ses propres mots ignorés.
 
-### 5.5 Préférences et profil (actions d’application proposées en V5)
+### 5.5 Préférences et profil (actions d’application selon V5)
 
 | Action / cible proposée | Chemin actuel | Paramètres proposés | Famille | Dialogue | Sans UI | Tests actuels |
 | --- | --- | --- | --- | --- | --- | --- |

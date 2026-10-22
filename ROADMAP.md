@@ -581,7 +581,9 @@ Le détail, les tâches et les critères de sortie sont dans
 Phase 2.1 : [inventaire des commandes et cibles](docs/commands-inventory.md) préparé ;
 choix V1 (cibles et identités), V2 (sélections entre structures), V3 (appels communs
 aux interfaces) et V4 (saisie et préédition) validés le 22 octobre 2026.
-V5 et V6 restent à valider ensemble avant toute implémentation du moteur.
+V5 (réglages globaux hors du premier périmètre CLI/MCP) et V6 (création, dates,
+exports) validés également ; implémentation autorisée, en commençant par les blocs
+et zones de texte en mémoire.
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une
 commande à identifiant stable, pilotable par une ligne de commande et par MCP.

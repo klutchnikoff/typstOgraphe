@@ -335,19 +335,19 @@ exécutable **sans egui** par un `Engine`. C'est la phase qui rend la CLI et MCP
   section 2.2, les opérations de fichier (nouveau, ouvrir, enregistrer sous, exporter
   PDF, exporter Typst), la saisie de texte, la sélection, le choix de métadonnées,
   d'options (papier, langue, marqueur de puce), l'import d'image, l'ajout de lien.
-- [ ] Faire valider l'inventaire avant d'écrire du code (décisions D2 à D6).
+- [x] Faire valider les orientations de l’inventaire avant d’écrire du code (V1–V6,
+  22 octobre 2026) ; préciser les signatures pendant la migration avant le gel.
 
-**État : inventaire préparé, V1–V4 validés le 22 octobre 2026 ; V5 et V6 en attente.** Voir
+**État : orientations V1–V6 validées le 22 octobre 2026 ; implémentation autorisée.** Voir
 [docs/commands-inventory.md](docs/commands-inventory.md), avec les 44 entrées du
-registre, les actions hors registre, les cibles, les tests existants et les choix V1–V6.
-Les noms et signatures proposés ne sont pas validés ni implémentés. Les orientations
-sur les cibles, leur durée de vie, les sélections entre structures, les appels communs
-aux interfaces et la saisie sont validées. La forme des identifiants et les jonctions
-entre types de paragraphes restent à préciser ; la publication unique après composition
-IME reste à vérifier. V5 précise la frontière de D5 pour les réglages globaux ; V6
-décrit les opérations de création, dates et export. Ces deux choix et le classement
-détaillé des commandes restent à approuver ensemble.
-Aucun code de moteur ni représentation structurée n’est commencé.
+registre, les actions hors registre, les cibles et les tests existants.
+La forme exacte des identifiants, les signatures et les jonctions entre types de
+paragraphes seront précisées et testées pendant la migration, avant le gel.
+La publication unique après composition IME reste à vérifier.
+V5 confirme que les réglages globaux restent des actions d’application, hors du
+premier périmètre CLI/MCP. V6 valide la création avec valeurs initiales explicites,
+les dates fixes et les formats d’export séparés, avec conservation de l’export
+complet par défaut. Le travail commence par la représentation structurée (2.1 bis).
 
 **Entrées issues du choix de 1.6 (22 octobre 2026) :**
 
@@ -361,7 +361,7 @@ Aucun code de moteur ni représentation structurée n’est commencé.
   les mutations structurelles et leur sélection se restaurent ensemble par l’historique.
 - La normalisation du corps ne doit pas supprimer des lignes ou du contenu d’une
   cellule. Préserver la composition IME dans la zone éditée.
-- L’inventaire exhaustif est préparé et sa validation reste à terminer. La durée
+- Les orientations de l’inventaire sont validées ; les contrats précis restent à tester. La durée
   de vie des identifiants est validée en V1 ; leur forme exacte et les signatures
   Rust/JSON restent à décider en 2.1. Le prototype n’ajoute aucune commande publique
   de tableau à ce stade.
@@ -436,12 +436,15 @@ JSON** et compare avec le chemin d'interface.
 - [ ] 2.4.3 Images : insérer, remplacer, supprimer, texte alternatif, légende ;
   signature de document.
 - [ ] 2.4.4 Recherche : requête, suivant, précédent, remplacer, tout remplacer.
-- [ ] 2.4.5 Orthographe : corriger un mot, ignorer, apprendre, réinitialiser.
+- [ ] 2.4.5 Orthographe : corriger un mot, ignorer, réinitialiser les exceptions
+  documentaires ; apprendre/oublier un mot et activer la correction restent des
+  actions globales de l’application (V5), hors du premier périmètre CLI/MCP.
 - [ ] 2.4.6 Métadonnées et options : champs, papier, orientation, langue, marqueur de puce.
 - [ ] 2.4.7 Modèles : changer, importer.
 - [ ] 2.4.8 Fichiers, en gardant les identifiants existants : `document.new { type, model }`,
   `document.open { path }`, `document.save { path? }`, `document.save_as { path }`,
-  `document.export { format: "pdf" | "typst", path }`.
+  `document.export { format: "pdf" | "typst" | "both", directory, page_images? }`
+  (V6 : dossier neuf/vide, export complet avec PNG par défaut).
   Les dialogues de choix de fichier restent dans l'application, qui appelle le moteur
   avec le chemin choisi.
 - [ ] 2.4.9 Historique : `edit.undo`, `edit.redo`.
