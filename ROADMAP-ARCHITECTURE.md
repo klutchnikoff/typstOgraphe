@@ -337,14 +337,16 @@ exécutable **sans egui** par un `Engine`. C'est la phase qui rend la CLI et MCP
   d'options (papier, langue, marqueur de puce), l'import d'image, l'ajout de lien.
 - [ ] Faire valider l'inventaire avant d'écrire du code (décisions D2 à D6).
 
-**État : inventaire préparé, V1 et V2 validés le 22 octobre 2026 ; V3–V6 en attente.** Voir
+**État : inventaire préparé, V1–V4 validés le 22 octobre 2026 ; V5 et V6 en attente.** Voir
 [docs/commands-inventory.md](docs/commands-inventory.md), avec les 44 entrées du
 registre, les actions hors registre, les cibles, les tests existants et les choix V1–V6.
 Les noms et signatures proposés ne sont pas validés ni implémentés. Les orientations
-sur les cibles, leur durée de vie et les sélections entre structures sont validées ;
-la forme des identifiants et les jonctions entre types de paragraphes restent à préciser.
-V5 précise la frontière de D5 pour les réglages globaux ; la séparation entre navigation, requêtes
-et ouverture d’interface et les comportements de V4/V6 restent à approuver ensemble.
+sur les cibles, leur durée de vie, les sélections entre structures, les appels communs
+aux interfaces et la saisie sont validées. La forme des identifiants et les jonctions
+entre types de paragraphes restent à préciser ; la publication unique après composition
+IME reste à vérifier. V5 précise la frontière de D5 pour les réglages globaux ; V6
+décrit les opérations de création, dates et export. Ces deux choix et le classement
+détaillé des commandes restent à approuver ensemble.
 Aucun code de moteur ni représentation structurée n’est commencé.
 
 **Entrées issues du choix de 1.6 (22 octobre 2026) :**
