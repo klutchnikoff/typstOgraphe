@@ -145,9 +145,15 @@ impl Session {
             && before.template == self.template
             && before.dependencies == self.dependencies
         {
+            // Un remplacement identique peut avoir préparé de nouvelles ancres.
+            // Sans publication ni nouvelle révision, conserver les identités lues.
+            self.document = before.document;
             return selection;
         }
         let body_changed = before.document != self.document;
+        if !body_changed {
+            self.document = before.document.clone();
+        }
         if group == EditGroup::Discrete
             || !self.typing_group
             || self.last_group != group

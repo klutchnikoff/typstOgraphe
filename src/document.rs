@@ -2,6 +2,10 @@
 //! indices de caractères Unicode (comme les curseurs egui), jamais des octets.
 use std::{collections::BTreeMap, ops::Range};
 
+#[path = "document/structure.rs"]
+pub mod structure;
+use structure::{LineId, Structure};
+
 pub const IMAGE_OBJECT: char = '\u{fffc}';
 pub const LETTER_NOTES_IMPORT: &str = "#import \"modele.typ\": postscript, attachment\n\n";
 
@@ -64,14 +68,27 @@ pub enum Mark {
 
 /// Une seule chaîne visible : la sélection n'est jamais coupée aux frontières
 /// des paragraphes. Les styles sont une projection du source, non un format disque.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct Projection {
     pub text: String,
     pub styles: Vec<InlineStyle>,
     pub blocks: Vec<BlockKind>,
     pub typing_style: InlineStyle,
     pub images: BTreeMap<u64, ImageBlock>,
+    /// Ancres transitoires, conservées par les instantanés mais jamais exportées.
+    line_ids: Vec<LineId>,
 }
+
+impl PartialEq for Projection {
+    fn eq(&self, other: &Self) -> bool {
+        self.text == other.text
+            && self.styles == other.styles
+            && self.blocks == other.blocks
+            && self.typing_style == other.typing_style
+            && self.images == other.images
+    }
+}
+impl Eq for Projection {}
 
 impl Default for Projection {
     fn default() -> Self {
@@ -81,17 +98,29 @@ impl Default for Projection {
             blocks: vec![BlockKind::Paragraph],
             typing_style: InlineStyle::default(),
             images: BTreeMap::new(),
+            line_ids: vec![LineId::new()],
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct Document {
     source: String,
     pub source_map: SourceMap,
     pub view: Projection,
     pub assets: crate::assets::Assets,
+    pub structure: Structure,
 }
+
+impl PartialEq for Document {
+    fn eq(&self, other: &Self) -> bool {
+        self.source == other.source
+            && self.source_map == other.source_map
+            && self.view == other.view
+            && self.assets == other.assets
+    }
+}
+impl Eq for Document {}
 
 /// Chaque caractère visible pointe vers sa plage d'octets dans le source réel.
 /// Les commandes et les délimiteurs ne sont jamais comptés comme du texte.
@@ -140,6 +169,8 @@ impl Document {
         parser.markup(markup, &InlineStyle::default())?;
         parser.finish();
         parser.view.typing_style = InlineStyle::default();
+        let mut structure = Structure::default();
+        structure.rebuild(&parser.view);
         Ok(Self {
             source: source.to_owned(),
             source_map: SourceMap {
@@ -148,6 +179,7 @@ impl Document {
             },
             view: parser.view,
             assets: Default::default(),
+            structure,
         })
     }
 
@@ -169,7 +201,10 @@ impl Document {
         let mut inserted = self.view.ensure_description_separators();
         inserted.extend(self.view.ensure_quote_attributions());
         inserted.extend(self.view.ensure_list_boundaries());
-        (self.source, self.source_map) = self.view.to_typst_mapped();
+        self.structure.rebuild(&self.view);
+        let committed = self.structure.to_projection();
+        debug_assert_eq!(committed, self.view);
+        (self.source, self.source_map) = committed.to_typst_mapped();
         inserted
     }
 }
@@ -275,6 +310,7 @@ impl Projection {
                     let byte = self.byte_index(ranges[line].end);
                     self.text.replace_range(byte..byte + 1, " ");
                     self.blocks.remove(line + 1);
+                    self.line_ids.remove(line + 1);
                 }
             }
         }
@@ -581,6 +617,8 @@ impl Projection {
             BlockKind::Paragraph,
             text.matches('\n').count(),
         ));
+        self.line_ids
+            .extend(text.matches('\n').map(|_| LineId::new()));
     }
     pub fn to_typst_mapped(&self) -> (String, SourceMap) {
         let mut result = if self.blocks.iter().any(|kind| kind.is_letter_note()) {
@@ -824,6 +862,18 @@ impl Projection {
             kind => kind,
         };
         let newlines = text.matches('\n').count();
+        let old_id = self.line_ids[line];
+        self.line_ids
+            .splice(line + 1..line + 1, (0..newlines).map(|_| LineId::new()));
+        // Insérer des lignes avant un bloc conserve l’identité du contenu déplacé.
+        // Un partage au milieu conserve en revanche l’identité de la partie gauche.
+        if newlines > 0
+            && at == self.line_ranges()[line].start
+            && !self.line_ranges()[line].is_empty()
+        {
+            self.line_ids[line] = LineId::new();
+            self.line_ids[line + newlines] = old_id;
+        }
         self.blocks
             .splice(line + 1..line + 1, std::iter::repeat_n(next_kind, newlines));
         self.text.insert_str(self.byte_index(at), &text);
@@ -851,8 +901,10 @@ impl Projection {
         let newlines = self.text[bytes.clone()].matches('\n').count();
         if start == self.line_ranges()[line].start && newlines > 0 {
             self.blocks[line] = self.blocks[line + newlines];
+            self.line_ids[line] = self.line_ids[line + newlines];
         }
         self.blocks.drain(line + 1..line + newlines + 1);
+        self.line_ids.drain(line + 1..line + newlines + 1);
         self.text.replace_range(bytes, "");
         self.styles.drain(start..end);
         self.clean_images();
@@ -1256,6 +1308,8 @@ impl Projector {
         self.view.styles.extend(other.view.styles);
         self.view.blocks.pop();
         self.view.blocks.extend(other.view.blocks);
+        self.view.line_ids.pop();
+        self.view.line_ids.extend(other.view.line_ids);
         self.origins.extend(other.origins);
     }
     fn inline_markup(
