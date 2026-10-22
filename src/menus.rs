@@ -1,5 +1,5 @@
 //! Deux présentations des mêmes menus, construites depuis le registre.
-use crate::commands::{Command, FileCommand, Keymap, MenuGroup, Registry};
+use crate::commands::{FileCommand, Keymap, MenuGroup, Registry, UiCommand as Command};
 use eframe::egui;
 
 pub const GROUPS: [MenuGroup; 4] = [

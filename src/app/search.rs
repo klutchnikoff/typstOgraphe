@@ -3,8 +3,8 @@ use super::*;
 impl App {
     pub(super) fn refresh_search(&mut self) {
         self.search.engine.refresh(
-            self.document.session.revision,
-            &self.document.session.document.view,
+            self.document.engine.revision,
+            &self.document.engine.document.view,
         );
     }
     /// Diagnostic de présentation utilisant les mêmes commandes que l’interface.
@@ -31,12 +31,12 @@ impl App {
         if let Some(range) = self.search.engine.matches.get(index) {
             // Une seule sélection native. Les autres résultats ne sont que des fonds colorés.
             self.document.selection = editor::cursor(range.clone());
-            self.document.session.document.view.typing_style =
-                self.document.session.document.view.style_at(range.start);
+            self.document.engine.document.view.typing_style =
+                self.document.engine.document.view.style_at(range.start);
             self.document.force_selection = true;
             self.preview.editor_scroll_pending = true;
             self.preview.forward_pending = true;
-            self.document.session.typing_group = false;
+            self.document.engine.typing_group = false;
         }
     }
     pub(super) fn replace_search(&mut self, all: bool) {
@@ -59,7 +59,7 @@ impl App {
             return;
         }
         let previous = self.document.selection.into();
-        let result = self.document.session.replace_ranges(
+        let result = self.document.engine.replace_ranges(
             self.document.selection.into(),
             &ranges,
             &self.search.engine.replacement,

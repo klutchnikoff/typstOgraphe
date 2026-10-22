@@ -215,14 +215,14 @@ impl App {
         });
         self.create_document(DocumentType::Courrier);
         let before = self.snapshot();
-        if let crate::document_types::Metadata::Courrier(meta) = &mut self.document.session.metadata
+        if let crate::document_types::Metadata::Courrier(meta) = &mut self.document.engine.metadata
         {
             meta.destinataire = "Secrétariat de la mairie".into();
             meta.objet = "Confirmation de notre rendez-vous".into();
             meta.lieu = "Rennes".into();
             meta.date = "2026-10-21".into();
         }
-        self.document.session.document.view.insert_text("Madame, Monsieur,\n\nJe vous confirme notre rendez-vous pour préparer la prochaine rencontre de l’association.\n\nJe vous remercie pour votre disponibilité.\n\nBien cordialement,", 0);
+        self.document.engine.document.view.insert_text("Madame, Monsieur,\n\nJe vous confirme notre rendez-vous pour préparer la prochaine rencontre de l’association.\n\nJe vous remercie pour votre disponibilité.\n\nBien cordialement,", 0);
         self.remember(before, false);
         self.dialogs.preferences_page = PreferencesPage::Profile;
         self.dialogs.preferences_open = preferences;

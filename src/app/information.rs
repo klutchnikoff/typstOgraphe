@@ -3,12 +3,12 @@ use super::*;
 impl App {
     pub(super) fn information_ui(&mut self, ui: &mut egui::Ui) {
         let before = self.snapshot();
-        let old_revision = self.document.session.revision;
+        let old_revision = self.document.engine.revision;
         let groups: Vec<_> =
             std::iter::once((InformationGroup::General, crate::tr!("group-general")))
                 .chain(
                     self.document
-                        .session
+                        .engine
                         .metadata
                         .editor_groups()
                         .iter()
@@ -20,7 +20,7 @@ impl App {
                         }),
                 )
                 .collect();
-        let full_heading = match self.document.session.metadata.document_type() {
+        let full_heading = match self.document.engine.metadata.document_type() {
             DocumentType::Courrier => crate::tr!("document-settings-heading"),
             DocumentType::CompteRendu => crate::tr!("minutes-settings-heading"),
         };
@@ -91,30 +91,30 @@ impl App {
                 .show(ui, |ui| match self.dialogs.information_group {
                     InformationGroup::General => self.general_information_ui(ui),
                     InformationGroup::Fields(group) => {
-                        self.document.session.metadata.editor_group_ui(ui, group);
+                        self.document.engine.metadata.editor_group_ui(ui, group);
                         if group == "sender" {
                             self.document_signature_ui(ui);
                         }
                     }
                 });
         }
-        if self.document.session.revision == old_revision {
+        if self.document.engine.revision == old_revision {
             let focused = ui.ctx().memory(|memory| memory.focused());
             let group = focused
                 .filter(|id| egui::TextEdit::load_state(ui.ctx(), *id).is_some())
                 .map_or(EditGroup::Discrete, |id| EditGroup::Metadata(id.value()));
             let previous = before.selection;
-            let result =
-                self.document
-                    .session
-                    .record(before, self.document.selection.into(), group);
+            let result = self
+                .document
+                .engine
+                .record(before, self.document.selection.into(), group);
             self.accept_edit(result, previous);
         }
     }
     fn general_information_ui(&mut self, ui: &mut egui::Ui) {
         let fixed_page = crate::document_types::models::ALL
             .iter()
-            .find(|model| model.source == self.document.session.template)
+            .find(|model| model.source == self.document.engine.template)
             .and_then(|model| model.page);
         egui::Grid::new("general-fields")
             .num_columns(2)
@@ -131,11 +131,11 @@ impl App {
                         .on_hover_text(crate::tr!("model-fixed-page"));
                 } else {
                     egui::ComboBox::from_id_salt("document-paper")
-                        .selected_text(self.document.session.metadata.options().paper.label())
+                        .selected_text(self.document.engine.metadata.options().paper.label())
                         .show_ui(ui, |ui| {
                             for paper in PaperFormat::ALL {
                                 ui.selectable_value(
-                                    &mut self.document.session.metadata.options_mut().paper,
+                                    &mut self.document.engine.metadata.options_mut().paper,
                                     paper,
                                     paper.label(),
                                 );
@@ -153,19 +153,19 @@ impl App {
                     .on_hover_text(crate::tr!("model-fixed-page"));
                 } else {
                     egui::ComboBox::from_id_salt("document-orientation")
-                        .selected_text(if self.document.session.metadata.options().landscape {
+                        .selected_text(if self.document.engine.metadata.options().landscape {
                             crate::tr!("orientation-landscape")
                         } else {
                             crate::tr!("orientation-portrait")
                         })
                         .show_ui(ui, |ui| {
                             ui.selectable_value(
-                                &mut self.document.session.metadata.options_mut().landscape,
+                                &mut self.document.engine.metadata.options_mut().landscape,
                                 false,
                                 crate::tr!("orientation-portrait"),
                             );
                             ui.selectable_value(
-                                &mut self.document.session.metadata.options_mut().landscape,
+                                &mut self.document.engine.metadata.options_mut().landscape,
                                 true,
                                 crate::tr!("orientation-landscape"),
                             );
@@ -174,11 +174,11 @@ impl App {
                 ui.end_row();
                 ui.label(crate::tr!("field-document-language"));
                 egui::ComboBox::from_id_salt("document-language")
-                    .selected_text(self.document.session.metadata.options().language.label())
+                    .selected_text(self.document.engine.metadata.options().language.label())
                     .show_ui(ui, |ui| {
                         for language in DocumentLanguage::ALL {
                             ui.selectable_value(
-                                &mut self.document.session.metadata.options_mut().language,
+                                &mut self.document.engine.metadata.options_mut().language,
                                 language,
                                 language.label(),
                             );
@@ -195,7 +195,7 @@ impl App {
         if policy.bullet_markers.is_empty() && !policy.custom_bullet_marker {
             if self
                 .document
-                .session
+                .engine
                 .metadata
                 .options()
                 .bullet_marker
@@ -205,7 +205,7 @@ impl App {
                     .button(crate::tr!("bullet-marker-restore-automatic"))
                     .clicked()
                 {
-                    self.document.session.metadata.options_mut().bullet_marker = None;
+                    self.document.engine.metadata.options_mut().bullet_marker = None;
                 }
             } else {
                 ui.weak(crate::tr!("bullet-marker-automatic"))
@@ -213,7 +213,7 @@ impl App {
             }
             return;
         }
-        let marker = &mut self.document.session.metadata.options_mut().bullet_marker;
+        let marker = &mut self.document.engine.metadata.options_mut().bullet_marker;
         ui.vertical(|ui| {
             egui::ComboBox::from_id_salt("document-bullet-marker")
                 .selected_text(

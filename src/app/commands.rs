@@ -3,19 +3,19 @@ use super::*;
 impl App {
     pub(super) fn snapshot(&self) -> Snapshot {
         self.document
-            .session
+            .engine
             .snapshot(self.document.selection.into())
     }
     pub(super) fn range(&self) -> Range<usize> {
         let range = self.document.selection.as_sorted_char_range();
-        range.start.min(self.document.session.document.view.len())
-            ..range.end.min(self.document.session.document.view.len())
+        range.start.min(self.document.engine.document.view.len())
+            ..range.end.min(self.document.engine.document.view.len())
     }
     pub(super) fn remember(&mut self, before: Snapshot, typing: bool) {
         let previous = before.selection;
         let result = self
             .document
-            .session
+            .engine
             .remember(before, self.document.selection.into(), typing);
         self.accept_edit(result, previous);
     }
@@ -53,6 +53,10 @@ impl App {
             return;
         }
         self.cancel_ime();
+        if let Some(core) = command.document_command() {
+            self.apply_document_command(command, core);
+            return;
+        }
         match command {
             Command::ToggleSpelling
             | Command::SpellingSuggestions
@@ -99,49 +103,23 @@ impl App {
             }
             command @ Command::Model(_) => {
                 let template = command.model_source().expect("commande de modèle");
-                if self.document.session.template != template {
+                if self.document.engine.template != template {
                     let before = self.snapshot();
-                    self.document.session.dependencies = crate::packages::for_template(&template);
-                    self.document.session.template = template;
+                    self.document.engine.dependencies = crate::packages::for_template(&template);
+                    self.document.engine.template = template;
                     self.document.presentation = ModelPresentation::default();
-                    self.document.session.metadata.options_mut().bullet_marker = None;
+                    self.document.engine.metadata.options_mut().bullet_marker = None;
                     if let Command::Model(model) = command
                         && let Some((paper, landscape)) = model.definition().page
                     {
-                        self.document.session.metadata.options_mut().paper = paper;
-                        self.document.session.metadata.options_mut().landscape = landscape;
+                        self.document.engine.metadata.options_mut().paper = paper;
+                        self.document.engine.metadata.options_mut().landscape = landscape;
                     }
                     self.remember(before, false);
                 }
             }
-            Command::InsertPostscript | Command::InsertAttachment => {
-                let before = self.snapshot();
-                let kind = if command == Command::InsertPostscript {
-                    BlockKind::Postscript
-                } else {
-                    BlockKind::Attachment
-                };
-                let at = self.document.session.document.view.insert_letter_note(kind);
-                self.remember(before, false);
-                self.focus_annotation_target(at..at);
-            }
-            Command::Undo | Command::Redo => self.apply_history(command == Command::Undo),
             Command::Link => self.open_link(),
-            Command::RemoveLink => {
-                let range = self.range();
-                if range.is_empty() {
-                    self.dialogs.message = Some(crate::tr!("select-link-remove"));
-                } else if self.document.session.document.view.styles[range]
-                    .iter()
-                    .any(|style| style.link.is_some())
-                {
-                    self.edit(|view, range| view.set_link(range, None));
-                }
-            }
-            Command::Bold => self.edit(|view, range| view.toggle_mark(range, Mark::Bold)),
-            Command::Italic => self.edit(|view, range| view.toggle_mark(range, Mark::Italic)),
-            Command::Clear => self.edit(|view, range| view.clear_marks(range)),
-            Command::Block(kind) => self.edit(|view, range| view.set_block(range, kind)),
+            _ => unreachable!("document command dispatched through Engine"),
         }
     }
     fn apply_spelling_command(&mut self, command: Command) {
@@ -178,7 +156,7 @@ impl App {
                 if let Some(issue) = self.selected_spelling_issue() {
                     let language = self
                         .document
-                        .session
+                        .engine
                         .metadata
                         .options()
                         .language
@@ -195,7 +173,7 @@ impl App {
                     } else {
                         let before = self.snapshot();
                         self.document
-                            .session
+                            .engine
                             .metadata
                             .options_mut()
                             .spelling_ignored
@@ -209,7 +187,7 @@ impl App {
             Command::ResetSpelling => {
                 let before = self.snapshot();
                 self.document
-                    .session
+                    .engine
                     .metadata
                     .options_mut()
                     .spelling_ignored
@@ -218,33 +196,6 @@ impl App {
             }
             _ => unreachable!("spelling command"),
         }
-    }
-    fn apply_history(&mut self, undo: bool) {
-        let old_document = self.document.session.document.clone();
-        let old_template = self.document.session.template.clone();
-        if let Some(selection) = self
-            .document
-            .session
-            .history(undo, self.document.selection.into())
-        {
-            self.image_textures.clear();
-            if self.document.session.template != old_template {
-                self.document.presentation = ModelPresentation::default();
-            }
-            self.document.selection = selection.into();
-            self.document.force_selection = self.document.history_field.is_none()
-                || self.document.session.document != old_document;
-            if self.document.force_selection {
-                self.document.history_field = None;
-            }
-        }
-    }
-    pub(super) fn edit(&mut self, edit: impl FnOnce(&mut Projection, Range<usize>)) {
-        self.cancel_ime();
-        let previous = self.document.selection.into();
-        let result = self.document.session.edit(previous, edit);
-        self.accept_edit(result, previous);
-        self.document.force_selection = true;
     }
     pub(super) fn shortcuts(&mut self, ctx: &egui::Context) {
         if self.modal_open() {
@@ -304,9 +255,13 @@ impl App {
             .map(|d| {
                 let enabled = !self.modal_open()
                     && (self.document.open || d.command.available_without_document())
+                    && d.command.document_command().is_none_or(|command| {
+                        matches!(
+                            self.document.engine.available(&command),
+                            crate::engine::Availability::Enabled
+                        )
+                    })
                     && match d.command {
-                        Command::Undo => !self.document.session.undo.is_empty(),
-                        Command::Redo => !self.document.session.redo.is_empty(),
                         Command::Clear => self.document.history_field.is_none(),
                         Command::RecoverDocuments => !self.recovery.entries.is_empty(),
                         Command::FindNext | Command::FindPrevious => {
@@ -320,7 +275,7 @@ impl App {
                         | Command::SpellingSuggestions => self.selected_spelling_issue().is_some(),
                         Command::ResetSpelling => !self
                             .document
-                            .session
+                            .engine
                             .metadata
                             .options()
                             .spelling_ignored
@@ -346,5 +301,30 @@ impl App {
         }
         self.apply(command);
         ctx.request_repaint();
+    }
+    #[cfg(target_os = "macos")]
+    pub(super) fn refresh_native_menus(&mut self, ctx: &egui::Context) {
+        if self
+            .native_menus
+            .as_ref()
+            .is_some_and(|menus| menus.document_type() != self.keymap.registry().document_type())
+        {
+            // Retirer les anciens menus avant d’installer ceux du type actif.
+            self.native_menus.take();
+            match menus::native::NativeMenus::new(ctx.clone(), &self.keymap) {
+                Ok(menus) => self.native_menus = Some(menus),
+                Err(error) => {
+                    self.file.error =
+                        Some(crate::tr!("native-menu-error", error = error.to_string()))
+                }
+            }
+        }
+        let statuses = self.menu_statuses();
+        if let Some(menus) = &mut self.native_menus
+            && let Err(error) = menus.update(&self.keymap, &statuses)
+        {
+            self.file.error = Some(crate::tr!("native-menu-error", error = error.to_string()));
+            ctx.request_repaint();
+        }
     }
 }

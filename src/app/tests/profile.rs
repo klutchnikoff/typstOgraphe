@@ -61,18 +61,18 @@ fn personal_profile_seeds_new_documents_and_signature_edits_are_independent_and_
         initial.assets[initial.metadata.signature_path().unwrap()]
     );
     assert_eq!(app.preferences, preferences);
-    let revision = app.document.session.revision;
-    let assets = app.document.session.document.assets.len();
+    let revision = app.document.engine.revision;
+    let assets = app.document.engine.document.assets.len();
     app.use_profile_signature().unwrap();
-    assert_eq!(app.document.session.revision, revision);
-    assert_eq!(app.document.session.document.assets.len(), assets);
+    assert_eq!(app.document.engine.revision, revision);
+    assert_eq!(app.document.engine.document.assets.len(), assets);
     app.apply(Command::Undo);
     assert_eq!(app.stored_document(), changed);
     app.apply(Command::Redo);
     assert_eq!(app.stored_document(), restored);
     app.set_document_signature(None).unwrap();
     app.use_profile_signature().unwrap();
-    assert!(app.document.session.metadata.signature_path().is_some());
+    assert!(app.document.engine.metadata.signature_path().is_some());
     // Revenir à la signature remplacée pour poursuivre le test d'archivage.
     app.apply(Command::Undo);
     app.apply(Command::Undo);
@@ -97,7 +97,7 @@ fn personal_profile_seeds_new_documents_and_signature_edits_are_independent_and_
     assert_eq!(app.stored_document(), changed);
     assert!(app.open_path(path));
     assert_eq!(
-        app.document.session.metadata.courrier().expediteur,
+        app.document.engine.metadata.courrier().expediteur,
         "Zoé Martin"
     );
     assert_eq!(app.preferences.profile.name, "Autre nom");
@@ -165,7 +165,7 @@ fn global_profile_saves_after_changes_or_closing_without_modifying_the_document(
 fn editor_preferences_change_glyphs_and_theme_without_touching_the_letter() {
     let (ctx, mut app) = demo_app();
     let letter = app.stored_document();
-    let revision = app.document.session.revision;
+    let revision = app.document.engine.revision;
     app.dispatch_action(Command::Preferences, &ctx);
     assert!(app.dialogs.preferences_open);
     let mut time = 0.0;
@@ -258,6 +258,6 @@ fn editor_preferences_change_glyphs_and_theme_without_touching_the_letter() {
         });
     });
     assert_eq!(app.stored_document(), letter);
-    assert_eq!(app.document.session.revision, revision);
+    assert_eq!(app.document.engine.revision, revision);
     assert!(!app.is_dirty());
 }

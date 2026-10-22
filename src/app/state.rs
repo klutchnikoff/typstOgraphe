@@ -68,6 +68,7 @@ pub(super) struct DialogState {
     pub(super) link_url: String,
     pub(super) link_error: Option<String>,
     pub(super) link_range: Range<usize>,
+    pub(super) link_target: Option<crate::session::SelectionTarget>,
     pub(super) message: Option<String>,
     pub(super) profile_error: Option<String>,
 }
@@ -76,7 +77,7 @@ pub(super) struct DialogState {
 // aucune édition ni copie de récupération n’est alors déclenché.
 pub(super) struct DocumentState {
     pub(super) open: bool,
-    pub(super) session: Session,
+    pub(super) engine: crate::engine::Engine,
     pub(super) selection: CCursorRange,
     pub(super) force_selection: bool,
     pub(super) ime: super::ime::Ime,

@@ -4,14 +4,14 @@ impl App {
     pub fn capture_spelling(&mut self, ctx: &egui::Context) {
         self.load_demo();
         let before = self.snapshot();
-        self.document.session.metadata.options_mut().language = DocumentLanguage::French;
+        self.document.engine.metadata.options_mut().language = DocumentLanguage::French;
         self.document
-            .session
+            .engine
             .metadata
             .options_mut()
             .spelling_ignored
             .clear();
-        self.document.session.document = Document::from_source("Madame, Monsieur,\n\nNous vous adressons ce *courrrier* pour confirmer la _réservvation_ de la salle.\n\nLa réunion aura lieu aujourd’hui à l’école, lors du rendez-vous prévu avec les associations.\n\nNous vous remercions de votre attention.").unwrap();
+        self.document.engine.document = Document::from_source("Madame, Monsieur,\n\nNous vous adressons ce *courrrier* pour confirmer la _réservvation_ de la salle.\n\nLa réunion aura lieu aujourd’hui à l’école, lors du rendez-vous prévu avec les associations.\n\nNous vous remercions de votre attention.").unwrap();
         self.remember(before, false);
         self.preferences = Preferences::default();
         self.preferences.appearance = Appearance::Light;
@@ -22,10 +22,10 @@ impl App {
         if !self.document.open {
             return;
         }
-        let options = self.document.session.metadata.options();
+        let options = self.document.engine.metadata.options();
         self.spelling.checker.synchronize(
-            self.document.session.revision,
-            &self.document.session.document.view.text,
+            self.document.engine.revision,
+            &self.document.engine.document.view.text,
             options.language,
             crate::spelling::accepted(
                 options.language,
@@ -44,7 +44,7 @@ impl App {
             || !self
                 .spelling
                 .checker
-                .is_current(self.document.session.revision)
+                .is_current(self.document.engine.revision)
         {
             return None;
         }
@@ -60,13 +60,13 @@ impl App {
             .cloned()
     }
     fn valid_spelling_target(&self, revision: u64, issue: &crate::spelling::Issue) -> bool {
-        revision == self.document.session.revision
+        revision == self.document.engine.revision
             && self.preferences.spelling.enabled
             && self.spelling.checker.is_current(revision)
             && self.spelling.checker.issues.contains(issue)
             && self
                 .document
-                .session
+                .engine
                 .document
                 .view
                 .text
@@ -89,11 +89,11 @@ impl App {
         let previous = self.document.selection.into();
         let target = self
             .document
-            .session
+            .engine
             .selection_target(editor::cursor(issue.range.clone()).into());
         let result = target
             .map_err(crate::document::edits::EditError::Target)
-            .and_then(|target| self.document.session.replace_text(target, replacement));
+            .and_then(|target| self.document.engine.replace_text(target, replacement));
         if !self.accept_edit(result, previous) {
             return;
         }
@@ -103,15 +103,15 @@ impl App {
     }
     pub(super) fn open_spelling_target(&mut self, issue: crate::spelling::Issue) {
         self.spelling.checker.request_suggestions(
-            self.document.session.metadata.options().language,
+            self.document.engine.metadata.options().language,
             &issue.word,
         );
         self.document.selection = editor::cursor(issue.range.clone());
         self.document.force_selection = true;
         self.preview.forward_pending = true;
         self.document.history_field = None;
-        self.document.session.typing_group = false;
-        self.spelling.target = Some((self.document.session.revision, issue));
+        self.document.engine.typing_group = false;
+        self.spelling.target = Some((self.document.engine.revision, issue));
     }
     pub(super) fn spelling_context_menu(&mut self, output: &egui::text_edit::TextEditOutput) {
         if output.response.secondary_clicked() {
@@ -120,7 +120,7 @@ impl App {
             if self
                 .spelling
                 .checker
-                .is_current(self.document.session.revision)
+                .is_current(self.document.engine.revision)
                 && let Some(pointer) = output.response.interact_pointer_pos()
             {
                 let ranges: Vec<_> = self

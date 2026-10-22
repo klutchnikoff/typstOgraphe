@@ -8,6 +8,8 @@ use crate::{
     document_types::Metadata,
     storage::StoredDocument,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::{
     ops::Range,
     path::PathBuf,
@@ -24,16 +26,19 @@ mod edits_tests;
 
 static NEXT_SESSION: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(transparent)]
 pub struct DocumentId(u64);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TargetGuard {
     pub document_id: DocumentId,
     pub revision: u64,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SelectionTarget {
     pub guard: TargetGuard,
     pub selection: LogicalSelection,

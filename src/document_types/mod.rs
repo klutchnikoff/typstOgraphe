@@ -33,7 +33,7 @@ impl DocumentType {
             Self::CompteRendu => "compte-rendu",
         }
     }
-    pub fn commands(self) -> &'static [crate::commands::Definition] {
+    pub fn commands(self) -> &'static [crate::commands::Presentation] {
         match self {
             Self::Courrier => courrier::COMMANDS,
             Self::CompteRendu => &[],

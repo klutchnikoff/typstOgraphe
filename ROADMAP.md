@@ -603,7 +603,10 @@ par l’historique. Frontières de zones protégées et voie commune de validati
 normalisation et publication des éditions en place. La préédition IME reste
 isolée entre frames, avec une publication unique à validation, vérifiée par les
 événements egui ; l’essai d’une méthode IME du système reste au chantier I.
-Le moteur et la migration des commandes restent à réaliser
+Le registre typé, ses schémas et un premier moteur possédant la session et sa
+sélection sont en place : 20 commandes et six requêtes, décrites par un
+[catalogue généré](docs/commands.md). Mise en forme, blocs, P.-S./P.J. et historique
+sont raccordés à l’interface. Les autres familles et les lots restent à migrer
 ([suivi de phase 2](docs/architecture-phase-2.md)).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une

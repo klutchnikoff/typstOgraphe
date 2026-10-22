@@ -1,6 +1,6 @@
 //! Présentation de la barre : les actions retournent les commandes du registre.
 use crate::{
-    commands::{Command, Keymap},
+    commands::{Keymap, UiCommand as Command},
     document::{BlockKind, Mark, Projection},
     icons::Icon,
 };
@@ -32,7 +32,10 @@ fn button(ui: &egui::Ui, icon: Icon, active: bool, menu: bool) -> egui::Button<'
 
 fn menu_item(ui: &mut egui::Ui, kind: BlockKind, active: bool, label: String) -> Response {
     neutral_selection(ui);
-    let image = Icon::for_block(kind).image(ui.ctx(), ICON_SIZE);
+    let image = Command::Block(kind)
+        .icon()
+        .expect("block icon")
+        .image(ui.ctx(), ICON_SIZE);
     ui.add(egui::Button::selectable(active, (image, label)).image_tint_follows_text_color(true))
 }
 
@@ -84,7 +87,9 @@ pub fn show(
             ui.add(egui::Label::new(egui::RichText::new("typstOgraphe").size(17.0)).truncate());
             ui.separator();
             let heading = match (mixed, kind) {
-                (false, BlockKind::Heading(_)) => Icon::for_block(kind),
+                (false, BlockKind::Heading(_)) => {
+                    Command::Block(kind).icon().expect("heading icon")
+                }
                 _ => Icon::Heading,
             };
             let active = !mixed && matches!(kind, BlockKind::Heading(_));
@@ -122,10 +127,8 @@ pub fn show(
                 mixed,
             );
             ui.separator();
-            for (mark, command, icon) in [
-                (Mark::Bold, Command::Bold, Icon::Bold),
-                (Mark::Italic, Command::Italic, Icon::Italic),
-            ] {
+            for (mark, command) in [(Mark::Bold, Command::Bold), (Mark::Italic, Command::Italic)] {
+                let icon = command.definition().icon().expect("format icon");
                 let (active, mixed) = view.mark_state(range.clone(), mark);
                 let response = ui.add(button(ui, icon, active, false));
                 if describe(
@@ -147,7 +150,12 @@ pub fn show(
                     .iter()
                     .all(|style| style.link.is_some())
             };
-            let response = ui.add(button(ui, Icon::Link, linked, false));
+            let response = ui.add(button(
+                ui,
+                Command::Link.definition().icon().expect("link icon"),
+                linked,
+                false,
+            ));
             if describe(
                 response,
                 Command::Link.label(),
@@ -200,7 +208,12 @@ pub fn show(
             );
             let command = Command::Block(BlockKind::Quote);
             let active = !mixed && kind == BlockKind::Quote;
-            let response = ui.add(button(ui, Icon::Quote, active, false));
+            let response = ui.add(button(
+                ui,
+                command.definition().icon().expect("quote icon"),
+                active,
+                false,
+            ));
             if describe(
                 response,
                 command.label(),
@@ -217,7 +230,12 @@ pub fn show(
                 });
             }
             let command = Command::InsertImage;
-            let response = ui.add(button(ui, Icon::Image, false, false));
+            let response = ui.add(button(
+                ui,
+                command.definition().icon().expect("image icon"),
+                false,
+                false,
+            ));
             if describe(
                 response,
                 command.label(),

@@ -9,6 +9,7 @@ use support::*;
 mod annotations;
 mod commands;
 mod edit_validation;
+mod engine;
 mod files;
 mod images;
 mod ime;

@@ -4,6 +4,8 @@
 //! suivent les éditions, sans rapprochement par le texte ni par les indices.
 //! Les identités ne sont jamais sérialisées et ne participent pas à l’état modifié.
 use super::{BlockKind, ImageBlock, InlineStyle, Projection};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
     sync::atomic::AtomicU64,
@@ -40,9 +42,15 @@ impl LineId {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(transparent)]
 pub struct BlockId(u64);
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(transparent)]
 pub struct ZoneId(u64);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

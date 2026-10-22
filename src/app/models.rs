@@ -5,24 +5,20 @@ impl App {
         if template.len() > 1024 * 1024 {
             return Err(crate::tr!("model-too-large"));
         }
-        let mut metadata = self.document.session.metadata.clone();
+        let mut metadata = self.document.engine.metadata.clone();
         metadata.options_mut().bullet_marker = None;
         let mut world = crate::rendering::TypstWorld::default();
         let dependencies =
-            crate::packages::with_existing(&template, &self.document.session.dependencies);
+            crate::packages::with_existing(&template, &self.document.engine.dependencies);
         world.set_dependencies(&dependencies);
-        world.set_assets(&self.document.session.document.assets);
+        world.set_assets(&self.document.engine.document.assets);
         let presentation = world
-            .validate_model(
-                self.document.session.document.source(),
-                &metadata,
-                &template,
-            )
+            .validate_model(self.document.engine.document.source(), &metadata, &template)
             .map_err(|error| format!("{}\n{}", metadata.model_signature(), error))?;
         let before = self.snapshot();
-        self.document.session.dependencies = dependencies;
-        self.document.session.template = template;
-        self.document.session.metadata = metadata;
+        self.document.engine.dependencies = dependencies;
+        self.document.engine.template = template;
+        self.document.engine.metadata = metadata;
         self.document.presentation = presentation;
         self.remember(before, false);
         Ok(())
@@ -58,7 +54,7 @@ impl App {
             .map(|d| d.command)
             .collect();
         let current = commands.iter().copied().find(|command| {
-            command.model_source().as_deref() == Some(self.document.session.template.as_str())
+            command.model_source().as_deref() == Some(self.document.engine.template.as_str())
         });
         let mut selected = current;
         egui::ComboBox::from_id_salt("template")

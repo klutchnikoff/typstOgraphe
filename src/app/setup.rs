@@ -86,7 +86,7 @@ impl App {
         Self {
             document: DocumentState {
                 open: false,
-                session: Session::new(saved, document, None, 1),
+                engine: Session::new(saved, document, None, 1).into(),
                 selection: CCursorRange::one(CCursor::new(0)),
                 force_selection: false,
                 ime: Default::default(),
@@ -111,6 +111,7 @@ impl App {
                 link_url: String::new(),
                 link_error: None,
                 link_range: 0..0,
+                link_target: None,
                 message: None,
                 profile_error: None,
             },

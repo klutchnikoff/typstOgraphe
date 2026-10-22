@@ -6,13 +6,16 @@ L’implémentation a commencé par les blocs, leurs zones, leurs identités et 
 cibles de sélection, puis la protection des frontières et la voie commune de
 publication des éditions, puis l’isolation IME entre frames ; voir
 [le suivi de phase 2](architecture-phase-2.md).
-Le moteur, les appels de commandes et leurs schémas JSON ne sont pas encore ajoutés.
+Le premier moteur, 20 commandes documentaires et six requêtes sont maintenant
+implémentés avec leurs schémas JSON ; voir le [catalogue généré](commands.md).
+Les tableaux ci-dessous restent l’inventaire de migration de toutes les actions,
+pas la liste des opérations déjà disponibles sans interface.
 Les règles déjà validées sont dans [la feuille de route technique](../ROADMAP-ARCHITECTURE.md),
 D1–D20. Les propositions qui les précisent ou les font évoluer sont signalées.
 
 ## 1. Périmètre et relevé
 
-Le code contient **31 variantes de `Command`**, dont `File`, `Block` et `Model`
+Le registre graphique contient **31 variantes de `UiCommand`** (ancien `Command`), dont `File`, `Block` et `Model`
 paramétrées : **41 définitions communes**, **2 commandes Courrier**, **1 modèle fourni**,
 soit **44 entrées concrètes** pour un courrier. Un compte-rendu possède les 41
 entrées communes ; son type est défini mais aucun modèle n’est actuellement fourni,

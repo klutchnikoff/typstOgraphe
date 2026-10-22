@@ -19,7 +19,7 @@ fn compact_toolbar_and_status_show_unicode_totals_selection_and_tooltips() {
     }
     let (ctx, mut app) = demo_app();
     ctx.style_mut(|style| style.interaction.tooltip_delay = 0.0);
-    app.document.session.document = Document::from_source("#strong[e\u{301}] 👩🏽‍💻").unwrap();
+    app.document.engine.document = Document::from_source("#strong[e\u{301}] 👩🏽‍💻").unwrap();
     app.document.force_selection = true;
     let mut time = 0.0;
     let mut draw = |app: &mut App, events| {
@@ -113,7 +113,7 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
                 egui::CentralPanel::default().show(ctx, |ui| {
                     action = crate::toolbar::show(
                         ui,
-                        &app.document.session.document.view,
+                        &app.document.engine.document.view,
                         app.range(),
                         &app.keymap,
                     );
@@ -165,9 +165,9 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
             egui::Visuals::light()
         });
         ctx.style_mut(|style| style.animation_time = 0.0);
-        app.document.session.document = Document::from_source("Été à Paris.").unwrap();
+        app.document.engine.document = Document::from_source("Été à Paris.").unwrap();
         app.document.selection = editor::cursor(0..3);
-        let text = app.document.session.document.view.text.clone();
+        let text = app.document.engine.document.view.text.clone();
         for (icon, command, mark) in [
             (Icon::Bold, Command::Bold, Mark::Bold),
             (Icon::Italic, Command::Italic, Mark::Italic),
@@ -175,7 +175,7 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
             let (output, _) = draw(&mut app, &ctx, vec![]);
             let pos = icon_rect(&output, &ctx, icon).center();
             assert_eq!(click(&mut app, &ctx, pos), Some(command));
-            assert!(app.document.session.document.view.mark_state(0..3, mark).0);
+            assert!(app.document.engine.document.view.mark_state(0..3, mark).0);
             assert_eq!(app.range(), 0..3);
             let (output, _) = draw(&mut app, &ctx, vec![]);
             let texture = icon.texture(&ctx, crate::toolbar::ICON_SIZE).id();
@@ -223,7 +223,7 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
             let command = Command::Block(kind);
             let pos = text_point(&menu, &command.short_label()).expect("entrée du menu Titres");
             assert_eq!(click(&mut app, &ctx, pos), Some(command));
-            assert_eq!(app.document.session.document.view.blocks[0], kind);
+            assert_eq!(app.document.engine.document.view.blocks[0], kind);
             assert_eq!(app.range(), 0..3);
             heading_icon = next_icon;
         }
@@ -236,7 +236,7 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
         let (output, _) = draw(&mut app, &ctx, vec![]);
         let pos = icon_rect(&output, &ctx, Icon::Image).center();
         assert_eq!(click(&mut app, &ctx, pos), Some(Command::InsertImage));
-        assert_eq!(app.document.session.document.view.text, text);
+        assert_eq!(app.document.engine.document.view.text, text);
         let (output, _) = draw(&mut app, &ctx, vec![]);
         let pos = icon_rect(&output, &ctx, Icon::Quote).center();
         assert_eq!(
@@ -244,7 +244,7 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
             Some(Command::Block(BlockKind::Quote))
         );
         assert_eq!(
-            app.document.session.document.view.blocks,
+            app.document.engine.document.view.blocks,
             [BlockKind::Quote, BlockKind::QuoteAttribution]
         );
         let (output, _) = draw(&mut app, &ctx, vec![]);
@@ -254,7 +254,7 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
             Some(Command::Block(BlockKind::Paragraph))
         );
         assert_eq!(
-            app.document.session.document.view.blocks[0],
+            app.document.engine.document.view.blocks[0],
             BlockKind::Paragraph
         );
     }
@@ -337,6 +337,6 @@ fn toolbar_groups_the_three_list_commands_in_a_single_menu() {
                 ],
             );
         }
-        assert_eq!(app.document.session.document.view.blocks[0], kind);
+        assert_eq!(app.document.engine.document.view.blocks[0], kind);
     }
 }

@@ -7,6 +7,7 @@ mod chrome;
 mod commands;
 mod dialogs;
 mod editor_view;
+mod engine;
 mod files;
 mod images;
 mod ime;
@@ -22,7 +23,7 @@ mod spelling;
 mod text_input;
 use crate::{
     annotations::OptionalAnnotation,
-    commands::{Command, FileCommand, Keymap, Registry, ShortcutOverrides},
+    commands::{FileCommand, Keymap, Registry, ShortcutOverrides, UiCommand as Command},
     document::{
         BlockKind, Document, DocumentLanguage, ImageBlock, InlineStyle, Mark, PaperFormat,
         Projection,
@@ -192,35 +193,15 @@ impl App {
             ctx.request_repaint_after(crate::recovery::INTERVAL);
         }
         self.track_history_focus(ctx);
+        self.sync_published_selection();
         #[cfg(target_os = "macos")]
-        {
-            if self.native_menus.as_ref().is_some_and(|menus| {
-                menus.document_type() != self.keymap.registry().document_type()
-            }) {
-                // Retirer les anciens menus avant d’installer ceux du type actif.
-                self.native_menus.take();
-                match menus::native::NativeMenus::new(ctx.clone(), &self.keymap) {
-                    Ok(menus) => self.native_menus = Some(menus),
-                    Err(error) => {
-                        self.file.error =
-                            Some(crate::tr!("native-menu-error", error = error.to_string()))
-                    }
-                }
-            }
-            let statuses = self.menu_statuses();
-            if let Some(menus) = &mut self.native_menus
-                && let Err(error) = menus.update(&self.keymap, &statuses)
-            {
-                self.file.error = Some(crate::tr!("native-menu-error", error = error.to_string()));
-                ctx.request_repaint();
-            }
-        }
+        self.refresh_native_menus(ctx);
         self.capture(ctx);
     }
     fn update_window_title(&mut self, ctx: &egui::Context, dirty: bool) {
         let filename = self
             .document
-            .session
+            .engine
             .file_path
             .as_ref()
             .and_then(|path| path.file_name())
@@ -270,7 +251,7 @@ impl App {
                 return;
             }
         }
-        if (!self.document.open || self.preview.revision == Some(self.document.session.revision))
+        if (!self.document.open || self.preview.revision == Some(self.document.engine.revision))
             && !self.capture.screenshot_requested
             && self.capture.started.elapsed() > Duration::from_secs(1)
         {

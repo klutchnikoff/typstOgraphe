@@ -88,10 +88,7 @@ impl App {
         app
     }
     pub(in crate::app) fn changed(&mut self) {
-        let adjusted = self
-            .document
-            .session
-            .changed(self.document.selection.into());
+        let adjusted = self.document.engine.changed(self.document.selection.into());
         self.document.force_selection |= adjusted != self.document.selection.into();
         self.document.selection = adjusted.into();
     }

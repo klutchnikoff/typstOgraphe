@@ -8,6 +8,7 @@ mod dates;
 mod document;
 mod document_types;
 mod editor;
+mod engine;
 mod fonts;
 mod i18n;
 mod icons;
@@ -44,6 +45,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut open_path = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--commands-catalogue" | "--commands-catalogue-json" => {
+                let stored = storage::StoredDocument::blank(document_types::DocumentType::Courrier);
+                let document = document::Document::from_source("")?;
+                let engine: engine::Engine =
+                    session::Session::new(stored, document, None, 0).into();
+                let value =
+                    engine.query_call(engine::Query::Commands(engine::Empty {}).to_call())?;
+                if arg.ends_with("-json") {
+                    println!("{}", serde_json::to_string_pretty(&value)?);
+                } else {
+                    print!("{}", engine::registry::catalogue_markdown(&value));
+                }
+                return Ok(());
+            }
             "--render-demo" => {
                 let dir = args.next().ok_or(crate::tr!("cli-usage-render"))?;
                 let mut world = rendering::TypstWorld::default();

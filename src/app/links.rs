@@ -9,7 +9,7 @@ impl App {
         }
         if !self
             .document
-            .session
+            .engine
             .document
             .view
             .is_single_paragraph(range.clone())
@@ -19,7 +19,7 @@ impl App {
         }
         self.dialogs.link_url = self
             .document
-            .session
+            .engine
             .document
             .view
             .styles
@@ -27,6 +27,11 @@ impl App {
             .and_then(|s| s.link.clone())
             .unwrap_or_default();
         self.dialogs.link_range = range;
+        self.dialogs.link_target = self
+            .document
+            .engine
+            .selection_target(self.document.selection.into())
+            .ok();
         self.dialogs.link_error = None;
         self.dialogs.link_open = true;
     }

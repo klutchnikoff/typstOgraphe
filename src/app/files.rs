@@ -9,10 +9,10 @@ impl App {
             .expect("registre valide");
     }
     pub(super) fn stored_document(&self) -> StoredDocument {
-        self.document.session.stored_document()
+        self.document.engine.stored_document()
     }
     pub(super) fn is_dirty(&self) -> bool {
-        self.document.open && self.document.session.is_dirty()
+        self.document.open && self.document.engine.is_dirty()
     }
     pub(super) fn save_path(&mut self, path: PathBuf) -> bool {
         self.cancel_ime();
@@ -23,11 +23,11 @@ impl App {
                     "letter-saved",
                     path = path.display().to_string()
                 ));
-                self.document.session.file_path = Some(path);
+                self.document.engine.file_path = Some(path);
                 // Le fichier est nettoyé par storage::save ; ce repère en mémoire
                 // garde les mêmes ressources que l’historique pour is_dirty.
-                self.document.session.saved = letter;
-                self.document.session.recovered = false;
+                self.document.engine.saved = letter;
+                self.document.engine.recovered = false;
                 self.recovery.recovered_name = None;
                 self.clear_recovery();
                 self.file.error = None;
@@ -43,7 +43,7 @@ impl App {
         if !self.document.open {
             return false;
         }
-        if !save_as && let Some(path) = self.document.session.file_path.clone() {
+        if !save_as && let Some(path) = self.document.engine.file_path.clone() {
             return self.save_path(path);
         }
         let mut dialog = rfd::FileDialog::new()
@@ -51,7 +51,7 @@ impl App {
             .add_filter(crate::tr!("letter-filter"), &[storage::EXTENSION])
             .set_file_name(
                 self.document
-                    .session
+                    .engine
                     .file_path
                     .as_ref()
                     .and_then(|path| path.file_name())
@@ -63,7 +63,7 @@ impl App {
             );
         if let Some(parent) = self
             .document
-            .session
+            .engine
             .file_path
             .as_ref()
             .and_then(|path| path.parent())
@@ -129,11 +129,12 @@ impl App {
         self.spelling.menu_position = None;
         self.keymap = keymap;
         self.document.history_field = None;
-        self.document.session =
-            Session::new(letter, document, path, self.document.session.revision + 1);
+        self.document.engine =
+            Session::new(letter, document, path, self.document.engine.revision + 1).into();
         self.document.open = true;
         self.image_textures.clear();
         self.dialogs.image_info = None;
+        self.dialogs.link_target = None;
         self.dialogs.information_group = InformationGroup::General;
         self.document.presentation = ModelPresentation::default();
         self.document.selection = CCursorRange::one(CCursor::new(0));
@@ -178,7 +179,7 @@ impl App {
                     .find(|kind| {
                         kind.can_create()
                             && self.document.open
-                            && *kind == self.document.session.metadata.document_type()
+                            && *kind == self.document.engine.metadata.document_type()
                     })
                     .or_else(|| DocumentType::ALL.into_iter().find(|kind| kind.can_create()))
                     .unwrap_or(self.dialogs.new_document_type);
@@ -197,7 +198,7 @@ impl App {
                     .add_filter(crate::tr!("all-files"), &["*"]);
                 if let Some(parent) = self
                     .document
-                    .session
+                    .engine
                     .file_path
                     .as_ref()
                     .and_then(|path| path.parent())

@@ -379,3 +379,5 @@ edit-protected-boundary = Cette modification traverse une frontière de bloc ou 
 edit-invalid-text = Ce texte contient un séparateur incompatible avec cette zone.
 edit-stale-draft = Le document a changé depuis le début de cette modification. Veuillez recommencer.
 edit-invalid-draft = Cette modification ne peut pas être appliquée au document.
+engine-invalid-params = Les paramètres de cette commande sont invalides.
+engine-unavailable = Cette commande n’est pas disponible dans le contexte actuel.

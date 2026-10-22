@@ -50,7 +50,7 @@ impl App {
     /// devenir un raccourci de transformation de texte.
     pub(super) fn guard_ime(&mut self, ctx: &egui::Context) {
         let invalid = self.document.ime.draft.as_ref().is_some_and(|draft| {
-            draft.guard != self.document.session.target_guard()
+            draft.guard != self.document.engine.target_guard()
                 || draft.before.selection != self.document.selection.into()
                 || self.document.force_selection
         });
@@ -170,7 +170,7 @@ impl App {
                         .expect("composition préparée");
                     let end = draft.selection.as_sorted_char_range().end;
                     self.document.selection = editor::cursor(end..end);
-                    let result = self.document.session.commit_projection(
+                    let result = self.document.engine.commit_projection(
                         draft.guard,
                         draft.before.clone(),
                         draft.input.view,
@@ -197,10 +197,10 @@ impl App {
     fn ime_replace(&mut self, text: &str) {
         if self.document.ime.draft.is_none() {
             self.document.ime.draft = Some(Composition {
-                guard: self.document.session.target_guard(),
+                guard: self.document.engine.target_guard(),
                 before: self.snapshot(),
                 input: TextInput {
-                    view: self.document.session.document.view.clone(),
+                    view: self.document.engine.document.view.clone(),
                 },
                 selection: self.document.selection,
             });

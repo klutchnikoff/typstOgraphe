@@ -6,17 +6,17 @@ impl App {
         image: Option<&crate::assets::ImageData>,
     ) -> Result<(), String> {
         if !matches!(
-            self.document.session.metadata,
+            self.document.engine.metadata,
             crate::document_types::Metadata::Courrier(_)
         ) {
             return Ok(());
         }
-        let current = self.document.session.metadata.signature_path();
+        let current = self.document.engine.metadata.signature_path();
         if match (image, current) {
             (None, None) => true,
             (Some(image), Some(path)) => self
                 .document
-                .session
+                .engine
                 .document
                 .assets
                 .get(path)
@@ -26,17 +26,17 @@ impl App {
             return Ok(());
         }
         let before = self.snapshot();
-        let path = image
-            .map(|image| image.insert(&mut self.document.session.document.assets, "signature"));
-        if let crate::document_types::Metadata::Courrier(meta) = &mut self.document.session.metadata
+        let path =
+            image.map(|image| image.insert(&mut self.document.engine.document.assets, "signature"));
+        if let crate::document_types::Metadata::Courrier(meta) = &mut self.document.engine.metadata
         {
             meta.signature = path;
         }
         if image.is_some()
             && let Err(error) = self.check_asset_budget()
         {
-            self.document.session.document = before.document;
-            self.document.session.metadata = before.metadata;
+            self.document.engine.document = before.document;
+            self.document.engine.metadata = before.metadata;
             return Err(error);
         }
         self.remember(before, false);
@@ -111,7 +111,7 @@ impl App {
     pub(super) fn document_signature_ui(&mut self, ui: &mut egui::Ui) {
         let path = self
             .document
-            .session
+            .engine
             .metadata
             .signature_path()
             .map(str::to_owned);
@@ -148,11 +148,11 @@ impl App {
         });
         if let Some(path) = self
             .document
-            .session
+            .engine
             .metadata
             .signature_path()
             .map(str::to_owned)
-            && let Some(data) = self.document.session.document.assets.get(&path).cloned()
+            && let Some(data) = self.document.engine.document.assets.get(&path).cloned()
         {
             let image = crate::assets::ImageData {
                 extension: path.rsplit('.').next().unwrap().into(),

@@ -9,6 +9,11 @@ use eframe::egui::{self, Key, KeyboardShortcut, Modifiers};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+#[path = "commands/presentation.rs"]
+mod presentation;
+pub use presentation::Presentation;
+pub(crate) use presentation::{define, short};
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileCommand {
     New,
@@ -29,7 +34,7 @@ pub enum MenuGroup {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Command {
+pub enum UiCommand {
     File(FileCommand),
     Palette,
     Preferences,
@@ -62,111 +67,10 @@ pub enum Command {
     Undo,
     Redo,
 }
-impl Command {
-    pub fn model_source(self) -> Option<String> {
-        match self {
-            Self::Model(model) => Some(model.source()),
-            _ => None,
-        }
-    }
-    pub fn available_without_document(self) -> bool {
-        matches!(
-            self,
-            Self::File(FileCommand::New | FileCommand::Open | FileCommand::Quit)
-                | Self::Palette
-                | Self::Preferences
-                | Self::RecoverDocuments
-        )
-    }
-    pub fn definition(self) -> &'static Definition {
-        if let Self::Model(model) = self {
-            return &model.definition().command;
-        }
-        COMMON_COMMANDS
-            .iter()
-            .chain(
-                DocumentType::ALL
-                    .iter()
-                    .flat_map(|kind| kind.commands().iter()),
-            )
-            .find(|definition| definition.command == self)
-            .expect("commande enregistrée")
-    }
-    pub fn label(self) -> String {
-        crate::i18n::text(self.definition().label_key)
-    }
-    pub fn short_label(self) -> String {
-        let definition = self.definition();
-        crate::i18n::text(definition.short_label_key.unwrap_or(definition.label_key))
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Scope {
     Global,
     Editor,
-}
-
-pub struct Definition {
-    pub id: &'static str,
-    pub label_key: &'static str, // Clé Fluent, distincte de l’identifiant de commande.
-    pub command: Command,
-    pub scope: Scope,
-    pub short_label_key: Option<&'static str>,
-    defaults: &'static [KeyboardShortcut],
-    macos: Option<&'static [KeyboardShortcut]>,
-}
-impl Definition {
-    pub fn in_palette(&self) -> bool {
-        self.command != Command::Palette
-    }
-    /// Le groupe et le rang définissent aussi les séparateurs (par dizaines).
-    pub fn menu_position(&self) -> Option<(MenuGroup, u8)> {
-        Some(match self.command {
-            Command::File(FileCommand::New) => (MenuGroup::File, 0),
-            Command::File(FileCommand::Open) => (MenuGroup::File, 1),
-            Command::RecoverDocuments => (MenuGroup::File, 2),
-            Command::File(FileCommand::Save) => (MenuGroup::File, 10),
-            Command::File(FileCommand::SaveAs) => (MenuGroup::File, 11),
-            Command::File(FileCommand::Export) => (MenuGroup::File, 20),
-            Command::File(FileCommand::Close) => (MenuGroup::File, 30),
-            Command::File(FileCommand::Quit) => (MenuGroup::File, 31),
-            Command::Undo => (MenuGroup::Edit, 0),
-            Command::Redo => (MenuGroup::Edit, 1),
-            Command::Clear => (MenuGroup::Edit, 10),
-            Command::Find => (MenuGroup::Edit, 20),
-            Command::FindReplace => (MenuGroup::Edit, 21),
-            Command::FindNext => (MenuGroup::Edit, 22),
-            Command::FindPrevious => (MenuGroup::Edit, 23),
-            Command::Palette => (MenuGroup::Edit, 30),
-            Command::Preferences => (MenuGroup::Edit, 40),
-            Command::ToggleSpelling => (MenuGroup::Edit, 50),
-            Command::NextSpelling => (MenuGroup::Edit, 51),
-            Command::PreviousSpelling => (MenuGroup::Edit, 52),
-            Command::SpellingSuggestions => (MenuGroup::Edit, 53),
-            Command::IgnoreSpelling => (MenuGroup::Edit, 54),
-            Command::LearnSpelling => (MenuGroup::Edit, 55),
-            Command::ResetSpelling => (MenuGroup::Edit, 56),
-            Command::Information => (MenuGroup::View, 0),
-            Command::InsertImage => (MenuGroup::Insert, 0),
-            Command::InsertPostscript => (MenuGroup::Insert, 10),
-            Command::InsertAttachment => (MenuGroup::Insert, 11),
-            Command::ImportModel => (MenuGroup::View, 10),
-            _ => return None,
-        })
-    }
-    pub fn in_model_menu(&self) -> bool {
-        matches!(self.command, Command::Model(_))
-    }
-    pub fn in_heading_menu(&self) -> bool {
-        matches!(
-            self.command,
-            Command::Block(BlockKind::Paragraph | BlockKind::Heading(_))
-        )
-    }
-    pub fn in_list_menu(&self) -> bool {
-        matches!(self.command, Command::Block(kind) if kind.is_list())
-    }
 }
 
 const PRIMARY_SHIFT: Modifiers = Modifiers {
@@ -180,101 +84,79 @@ const fn primary(key: Key) -> KeyboardShortcut {
 const fn primary_shift(key: Key) -> KeyboardShortcut {
     KeyboardShortcut::new(PRIMARY_SHIFT, key)
 }
-pub(crate) const fn define(
-    id: &'static str,
-    label_key: &'static str,
-    command: Command,
-    scope: Scope,
-    defaults: &'static [KeyboardShortcut],
-) -> Definition {
-    Definition {
-        id,
-        label_key,
-        command,
-        scope,
-        defaults,
-        macos: None,
-        short_label_key: None,
-    }
-}
-pub(crate) const fn short(mut definition: Definition, label: &'static str) -> Definition {
-    definition.short_label_key = Some(label);
-    definition
-}
-
 /// Chaque commande, y compris sans raccourci, est définie une seule fois ici.
-pub const COMMON_COMMANDS: &[Definition] = &[
+pub const COMMON_COMMANDS: &[Presentation] = &[
     define(
         "spelling.suggestions",
         "cmd-spelling-suggestions",
-        Command::SpellingSuggestions,
+        UiCommand::SpellingSuggestions,
         Scope::Global,
         &[],
     ),
     define(
         "spelling.toggle",
         "cmd-spelling-toggle",
-        Command::ToggleSpelling,
+        UiCommand::ToggleSpelling,
         Scope::Global,
         &[],
     ),
     define(
         "spelling.next",
         "cmd-spelling-next",
-        Command::NextSpelling,
+        UiCommand::NextSpelling,
         Scope::Global,
         &[],
     ),
     define(
         "spelling.previous",
         "cmd-spelling-previous",
-        Command::PreviousSpelling,
+        UiCommand::PreviousSpelling,
         Scope::Global,
         &[],
     ),
     define(
         "spelling.ignore",
         "cmd-spelling-ignore",
-        Command::IgnoreSpelling,
+        UiCommand::IgnoreSpelling,
         Scope::Global,
         &[],
     ),
     define(
         "spelling.learn",
         "cmd-spelling-learn",
-        Command::LearnSpelling,
+        UiCommand::LearnSpelling,
         Scope::Global,
         &[],
     ),
     define(
         "spelling.reset",
         "cmd-spelling-reset",
-        Command::ResetSpelling,
+        UiCommand::ResetSpelling,
         Scope::Global,
         &[],
     ),
     define(
         "edit.replace_current",
         "cmd-replace-current",
-        Command::ReplaceCurrent,
+        UiCommand::ReplaceCurrent,
         Scope::Global,
         &[],
     ),
     define(
         "edit.replace_all",
         "cmd-replace-all",
-        Command::ReplaceAll,
+        UiCommand::ReplaceAll,
         Scope::Global,
         &[],
     ),
     define(
         "edit.find",
         "cmd-find",
-        Command::Find,
+        UiCommand::Find,
         Scope::Global,
         &[primary(Key::F)],
     ),
-    Definition {
+    Presentation {
         macos: Some(&[KeyboardShortcut::new(
             Modifiers {
                 alt: true,
@@ -285,27 +167,27 @@ pub const COMMON_COMMANDS: &[Definition] = &[
         ..define(
             "edit.find_replace",
             "cmd-find-replace",
-            Command::FindReplace,
+            UiCommand::FindReplace,
             Scope::Global,
             &[primary(Key::H)],
         )
     },
-    Definition {
+    Presentation {
         macos: Some(&[primary(Key::G)]),
         ..define(
             "edit.find_next",
             "cmd-find-next",
-            Command::FindNext,
+            UiCommand::FindNext,
             Scope::Global,
             &[KeyboardShortcut::new(Modifiers::NONE, Key::F3)],
         )
     },
-    Definition {
+    Presentation {
         macos: Some(&[primary_shift(Key::G)]),
         ..define(
             "edit.find_previous",
             "cmd-find-previous",
-            Command::FindPrevious,
+            UiCommand::FindPrevious,
             Scope::Global,
             &[KeyboardShortcut::new(Modifiers::SHIFT, Key::F3)],
         )
@@ -313,56 +195,56 @@ pub const COMMON_COMMANDS: &[Definition] = &[
     define(
         "document.recover",
         "cmd-recover-documents",
-        Command::RecoverDocuments,
+        UiCommand::RecoverDocuments,
         Scope::Global,
         &[],
     ),
     define(
         "document.import_model",
         "cmd-import-model",
-        Command::ImportModel,
+        UiCommand::ImportModel,
         Scope::Global,
         &[],
     ),
     define(
         "insert.image",
         "cmd-insert-image",
-        Command::InsertImage,
+        UiCommand::InsertImage,
         Scope::Global,
         &[],
     ),
     define(
         "application.preferences",
         "cmd-preferences",
-        Command::Preferences,
+        UiCommand::Preferences,
         Scope::Global,
         &[primary(Key::Comma)],
     ),
     define(
         "document.new",
         "cmd-new",
-        Command::File(FileCommand::New),
+        UiCommand::File(FileCommand::New),
         Scope::Global,
         &[primary(Key::N)],
     ),
     define(
         "document.open",
         "cmd-open",
-        Command::File(FileCommand::Open),
+        UiCommand::File(FileCommand::Open),
         Scope::Global,
         &[primary(Key::O)],
     ),
     define(
         "document.save",
         "cmd-save",
-        Command::File(FileCommand::Save),
+        UiCommand::File(FileCommand::Save),
         Scope::Global,
         &[primary(Key::S)],
     ),
     define(
         "document.save_as",
         "cmd-save-as",
-        Command::File(FileCommand::SaveAs),
+        UiCommand::File(FileCommand::SaveAs),
         Scope::Global,
         &[primary_shift(Key::S)],
     ),
@@ -370,7 +252,7 @@ pub const COMMON_COMMANDS: &[Definition] = &[
         define(
             "document.export",
             "cmd-export",
-            Command::File(FileCommand::Export),
+            UiCommand::File(FileCommand::Export),
             Scope::Global,
             &[primary(Key::E)],
         ),
@@ -380,7 +262,7 @@ pub const COMMON_COMMANDS: &[Definition] = &[
         define(
             "document.information",
             "cmd-information",
-            Command::Information,
+            UiCommand::Information,
             Scope::Global,
             &[],
         ),
@@ -389,21 +271,21 @@ pub const COMMON_COMMANDS: &[Definition] = &[
     define(
         "document.close",
         "cmd-close",
-        Command::File(FileCommand::Close),
+        UiCommand::File(FileCommand::Close),
         Scope::Global,
         &[primary(Key::W)],
     ),
     define(
         "application.quit",
         "cmd-quit",
-        Command::File(FileCommand::Quit),
+        UiCommand::File(FileCommand::Quit),
         Scope::Global,
         &[primary(Key::Q)],
     ),
     define(
         "commands.palette",
         "cmd-palette",
-        Command::Palette,
+        UiCommand::Palette,
         Scope::Global,
         &[primary_shift(Key::P)],
     ),
@@ -411,7 +293,7 @@ pub const COMMON_COMMANDS: &[Definition] = &[
         define(
             "text.bold",
             "cmd-bold",
-            Command::Bold,
+            UiCommand::Bold,
             Scope::Editor,
             &[primary(Key::B)],
         ),
@@ -421,7 +303,7 @@ pub const COMMON_COMMANDS: &[Definition] = &[
         define(
             "text.italic",
             "cmd-italic",
-            Command::Italic,
+            UiCommand::Italic,
             Scope::Editor,
             &[primary(Key::I)],
         ),
@@ -431,7 +313,7 @@ pub const COMMON_COMMANDS: &[Definition] = &[
         define(
             "text.link",
             "cmd-link",
-            Command::Link,
+            UiCommand::Link,
             Scope::Editor,
             &[primary(Key::K)],
         ),
@@ -440,49 +322,49 @@ pub const COMMON_COMMANDS: &[Definition] = &[
     define(
         "text.remove_link",
         "cmd-remove-link",
-        Command::RemoveLink,
+        UiCommand::RemoveLink,
         Scope::Editor,
         &[],
     ),
     define(
         "text.clear",
         "cmd-clear",
-        Command::Clear,
+        UiCommand::Clear,
         Scope::Editor,
         &[],
     ),
     define(
         "block.paragraph",
         "cmd-paragraph",
-        Command::Block(BlockKind::Paragraph),
+        UiCommand::Block(BlockKind::Paragraph),
         Scope::Editor,
         &[],
     ),
     define(
         "block.heading_1",
         "cmd-heading-1",
-        Command::Block(BlockKind::Heading(1)),
+        UiCommand::Block(BlockKind::Heading(1)),
         Scope::Editor,
         &[],
     ),
     define(
         "block.heading_2",
         "cmd-heading-2",
-        Command::Block(BlockKind::Heading(2)),
+        UiCommand::Block(BlockKind::Heading(2)),
         Scope::Editor,
         &[],
     ),
     define(
         "block.heading_3",
         "cmd-heading-3",
-        Command::Block(BlockKind::Heading(3)),
+        UiCommand::Block(BlockKind::Heading(3)),
         Scope::Editor,
         &[],
     ),
     define(
         "block.quote",
         "cmd-quote",
-        Command::Block(BlockKind::Quote),
+        UiCommand::Block(BlockKind::Quote),
         Scope::Editor,
         &[],
     ),
@@ -490,7 +372,7 @@ pub const COMMON_COMMANDS: &[Definition] = &[
         define(
             "block.bullet",
             "cmd-bullet",
-            Command::Block(BlockKind::Bullet),
+            UiCommand::Block(BlockKind::Bullet),
             Scope::Editor,
             &[],
         ),
@@ -500,7 +382,7 @@ pub const COMMON_COMMANDS: &[Definition] = &[
         define(
             "block.numbered",
             "cmd-numbered",
-            Command::Block(BlockKind::Numbered),
+            UiCommand::Block(BlockKind::Numbered),
             Scope::Editor,
             &[],
         ),
@@ -510,7 +392,7 @@ pub const COMMON_COMMANDS: &[Definition] = &[
         define(
             "block.description",
             "cmd-description",
-            Command::Block(BlockKind::Description),
+            UiCommand::Block(BlockKind::Description),
             Scope::Editor,
             &[],
         ),
@@ -519,16 +401,16 @@ pub const COMMON_COMMANDS: &[Definition] = &[
     define(
         "edit.undo",
         "cmd-undo",
-        Command::Undo,
+        UiCommand::Undo,
         Scope::Editor,
         &[primary(Key::Z)],
     ),
-    Definition {
+    Presentation {
         macos: Some(&[primary_shift(Key::Z), primary(Key::Y)]),
         ..define(
             "edit.redo",
             "cmd-redo",
-            Command::Redo,
+            UiCommand::Redo,
             Scope::Editor,
             &[primary(Key::Y), primary_shift(Key::Z)],
         )
@@ -542,18 +424,35 @@ pub struct Registry {
 }
 impl Registry {
     pub fn new(kind: DocumentType) -> Self {
-        Self { kind }
+        let registry = Self { kind };
+        let mut ids = std::collections::BTreeSet::new();
+        for presentation in registry.definitions() {
+            let _: crate::engine::CommandId = presentation
+                .id
+                .to_owned()
+                .try_into()
+                .expect("valid UI command ID");
+            assert!(ids.insert(presentation.id), "duplicate UI command ID");
+            if let Some(command) = presentation.command.document_command() {
+                assert_eq!(
+                    presentation.id,
+                    command.id(),
+                    "canonical command ID mismatch"
+                );
+            }
+        }
+        registry
     }
     pub fn document_type(self) -> DocumentType {
         self.kind
     }
-    pub fn definitions(self) -> impl Iterator<Item = &'static Definition> + Clone {
+    pub fn definitions(self) -> impl Iterator<Item = &'static Presentation> + Clone {
         COMMON_COMMANDS
             .iter()
             .chain(self.kind.commands().iter())
             .chain(self.kind.models().map(|model| &model.command))
     }
-    pub fn contains(self, command: Command) -> bool {
+    pub fn contains(self, command: UiCommand) -> bool {
         self.definitions()
             .any(|definition| definition.command == command)
     }
@@ -597,7 +496,7 @@ impl Binding {
 }
 
 struct ActiveCommand {
-    definition: &'static Definition,
+    definition: &'static Presentation,
     shortcuts: Vec<KeyboardShortcut>,
 }
 pub struct Keymap {
@@ -694,19 +593,19 @@ impl Keymap {
         keymap.overrides = self.overrides.clone();
         Ok(keymap)
     }
-    pub fn shortcuts(&self, command: Command) -> &[KeyboardShortcut] {
+    pub fn shortcuts(&self, command: UiCommand) -> &[KeyboardShortcut] {
         self.commands
             .iter()
             .find(|entry| entry.definition.command == command)
             .map_or(&[], |entry| entry.shortcuts.as_slice())
     }
-    pub fn shortcut_text(&self, ctx: &egui::Context, command: Command) -> String {
+    pub fn shortcut_text(&self, ctx: &egui::Context, command: UiCommand) -> String {
         self.shortcuts(command)
             .first()
             .map(|shortcut| ctx.format_shortcut(shortcut))
             .unwrap_or_default()
     }
-    pub fn hint(&self, ctx: &egui::Context, command: Command) -> String {
+    pub fn hint(&self, ctx: &egui::Context, command: UiCommand) -> String {
         let shortcut = self.shortcut_text(ctx, command);
         if shortcut.is_empty() {
             command.label()
@@ -723,7 +622,7 @@ impl Keymap {
         input: &mut egui::InputState,
         editor_focused: bool,
         native_shortcuts: &[KeyboardShortcut],
-    ) -> Vec<Command> {
+    ) -> Vec<UiCommand> {
         let mut commands = Vec::new();
         input.events.retain(|event| {
             if let egui::Event::Key {
@@ -786,7 +685,7 @@ mod tests {
         key: Key,
         modifiers: Modifiers,
         editor: bool,
-    ) -> (Vec<Command>, bool) {
+    ) -> (Vec<UiCommand>, bool) {
         let ctx = egui::Context::default();
         let mut commands = Vec::new();
         let mut retained = false;
@@ -848,7 +747,7 @@ mod tests {
             },
         );
         // Cmd+E appartient au menu ; Cmd+Y reste l’alias egui de Rétablir.
-        assert_eq!(commands, vec![Command::Redo]);
+        assert_eq!(commands, vec![UiCommand::Redo]);
     }
 
     #[test]
@@ -863,12 +762,12 @@ mod tests {
         assert!(
             COMMON_COMMANDS
                 .iter()
-                .all(|d| !matches!(d.command, Command::Model(_)))
+                .all(|d| !matches!(d.command, UiCommand::Model(_)))
         );
         assert!(
             crate::document_types::models::ALL
                 .iter()
-                .all(|d| matches!(d.command.command, Command::Model(_)))
+                .all(|d| matches!(d.command.command, UiCommand::Model(_)))
         );
         assert!(
             Keymap::new(
@@ -914,11 +813,11 @@ mod tests {
         };
         assert_eq!(
             dispatch(&pc, Key::E, control, false),
-            (vec![Command::File(FileCommand::Export)], false)
+            (vec![UiCommand::File(FileCommand::Export)], false)
         );
         assert_eq!(
             dispatch(&mac, Key::E, command, false),
-            (vec![Command::File(FileCommand::Export)], false)
+            (vec![UiCommand::File(FileCommand::Export)], false)
         );
         assert_eq!(
             dispatch(&mac, Key::E, Modifiers::CTRL, false),
@@ -941,7 +840,7 @@ mod tests {
     #[test]
     fn courrier_shortcuts_share_the_common_conflict_checks_and_dispatch() {
         let registry = Registry::new(DocumentType::Courrier);
-        let action = Command::Model(Model::Personal);
+        let action = UiCommand::Model(Model::Personal);
         assert!(registry.contains(action));
         let config = overrides(r#"{"courrier.model.personal":[{"key":"F7"}]}"#);
         let keymap = Keymap::new(registry, false, &config).unwrap();
@@ -978,11 +877,11 @@ mod tests {
         );
         assert_eq!(
             dispatch(&map, Key::B, Modifiers::COMMAND, true),
-            (vec![Command::Bold], false)
+            (vec![UiCommand::Bold], false)
         );
         assert_eq!(
             dispatch(&map, Key::S, PRIMARY_SHIFT, true),
-            (vec![Command::File(FileCommand::SaveAs)], false)
+            (vec![UiCommand::File(FileCommand::SaveAs)], false)
         );
         assert_eq!(dispatch(&map, Key::E, PRIMARY_SHIFT, true), (vec![], true));
         assert_eq!(
@@ -1004,7 +903,7 @@ mod tests {
         );
         assert_eq!(
             dispatch(&map, Key::E, PRIMARY_SHIFT, true),
-            (vec![Command::File(FileCommand::Export)], false)
+            (vec![UiCommand::File(FileCommand::Export)], false)
         );
         assert_eq!(
             dispatch(&map, Key::B, Modifiers::COMMAND, true),
@@ -1012,7 +911,7 @@ mod tests {
         );
         assert_eq!(
             dispatch(&map, Key::F6, Modifiers::NONE, true),
-            (vec![Command::Italic], false)
+            (vec![UiCommand::Italic], false)
         );
         assert_eq!(
             dispatch(&map, Key::I, Modifiers::COMMAND, true),
@@ -1031,11 +930,11 @@ mod tests {
         let mac = Keymap::new(Registry::new(DocumentType::Courrier), true, &config).unwrap();
         assert_eq!(
             dispatch(&mac, Key::E, Modifiers::CTRL, true),
-            (vec![Command::Bold], false)
+            (vec![UiCommand::Bold], false)
         );
         assert_eq!(
             dispatch(&mac, Key::E, Modifiers::COMMAND, true),
-            (vec![Command::File(FileCommand::Export)], false)
+            (vec![UiCommand::File(FileCommand::Export)], false)
         );
         for config in [
             r#"{"document.export":[{"key":"S","primary":true}]}"#,

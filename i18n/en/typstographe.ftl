@@ -376,3 +376,5 @@ edit-protected-boundary = This edit crosses a block or text zone boundary. Selec
 edit-invalid-text = This text contains a separator that is not supported in this zone.
 edit-stale-draft = The document has changed since this edit began. Please try again.
 edit-invalid-draft = This edit cannot be applied to the document.
+engine-invalid-params = This command has invalid parameters.
+engine-unavailable = This command is not available in the current context.

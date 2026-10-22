@@ -20,13 +20,13 @@ impl App {
         self.document.force_selection = true;
         self.preview.editor_scroll_pending = true;
         self.preview.forward_pending = true;
-        self.document.session.typing_group = false;
+        self.document.engine.typing_group = false;
     }
     pub(super) fn leave_annotation(&mut self, annotation: &OptionalAnnotation) {
         let before = self.snapshot();
         let at = self
             .document
-            .session
+            .engine
             .document
             .view
             .leave_annotation(annotation);
@@ -37,7 +37,7 @@ impl App {
         let range = self.range();
         let Some(annotation) = self
             .document
-            .session
+            .engine
             .document
             .view
             .annotation_at(range.clone())
@@ -106,12 +106,12 @@ impl App {
     }
     fn shortcut_input(&self, ctx: &egui::Context) -> ShortcutInput {
         let range = self.range();
-        let line = self.document.session.document.view.line_at(range.start);
-        let lines = self.document.session.document.view.line_ranges();
+        let line = self.document.engine.document.view.line_at(range.start);
+        let lines = self.document.engine.document.view.line_ranges();
         let start = lines[line].start;
         let prefix: String = self
             .document
-            .session
+            .engine
             .document
             .view
             .text
@@ -144,7 +144,7 @@ impl App {
         let range = input.range.clone();
         let line = input.line;
         let start = input.start;
-        if let BlockKind::Image(id) = self.document.session.document.view.blocks[line] {
+        if let BlockKind::Image(id) = self.document.engine.document.view.blocks[line] {
             let object_selected = range == (start..start + 1);
             let deleting = ctx
                 .input(|i| i.key_pressed(egui::Key::Backspace) || i.key_pressed(egui::Key::Delete));
@@ -196,12 +196,12 @@ impl App {
                 before.document.sync_source();
                 before.selection = editor::cursor(range.start + 1..range.start + 1).into();
                 self.document
-                    .session
+                    .engine
                     .document
                     .view
                     .delete_char_range(start..range.start);
                 self.document
-                    .session
+                    .engine
                     .document
                     .view
                     .set_block(start..start, kind);
@@ -222,13 +222,13 @@ impl App {
         let line = input.line;
         let lines = &input.lines;
         let start = input.start;
-        if self.document.session.document.view.blocks[line].is_letter_note() {
+        if self.document.engine.document.view.blocks[line].is_letter_note() {
             if range.is_empty()
                 && lines[line].is_empty()
                 && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
             {
                 let before = self.snapshot();
-                self.document.session.document.view.blocks[line] = BlockKind::Paragraph;
+                self.document.engine.document.view.blocks[line] = BlockKind::Paragraph;
                 self.remember(before, false);
                 self.focus_annotation_target(start..start);
                 return true;
@@ -237,7 +237,7 @@ impl App {
                 let before = self.snapshot();
                 let (_, group) = self
                     .document
-                    .session
+                    .engine
                     .document
                     .view
                     .letter_note_groups()
@@ -245,9 +245,9 @@ impl App {
                     .find(|(_, lines)| lines.contains(&line))
                     .expect("bloc de courrier");
                 let at = lines[group.end - 1].end;
-                self.document.session.document.view.insert_text("\n", at);
-                let next = self.document.session.document.view.line_at(at + 1);
-                self.document.session.document.view.blocks[next] = BlockKind::Paragraph;
+                self.document.engine.document.view.insert_text("\n", at);
+                let next = self.document.engine.document.view.line_at(at + 1);
+                self.document.engine.document.view.blocks[next] = BlockKind::Paragraph;
                 self.remember(before, false);
                 self.focus_annotation_target(at + 1..at + 1);
                 return true;
@@ -260,14 +260,14 @@ impl App {
         let line = input.line;
         let lines = &input.lines;
         let start = input.start;
-        if self.document.session.document.view.blocks[line] == BlockKind::Quote
+        if self.document.engine.document.view.blocks[line] == BlockKind::Quote
             && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
         {
             let before = self.snapshot();
             if lines[line].is_empty() && range.is_empty() {
                 let group = self
                     .document
-                    .session
+                    .engine
                     .document
                     .view
                     .quote_groups()
@@ -278,11 +278,11 @@ impl App {
                 // Retirer sa ligne vide, puis utiliser la sortie d’annotation commune.
                 let at = if group.body.len() > 1 {
                     self.document
-                        .session
+                        .engine
                         .document
                         .view
                         .delete_char_range(start - 1..start);
-                    self.document.session.document.view.blocks
+                    self.document.engine.document.view.blocks
                         [group.attribution.expect("attribution éditable") - 1] =
                         BlockKind::QuoteAttribution;
                     start - 1
@@ -291,14 +291,14 @@ impl App {
                 };
                 let annotation = self
                     .document
-                    .session
+                    .engine
                     .document
                     .view
                     .annotation_at(at..at)
                     .expect("annotation de citation");
                 let at = self
                     .document
-                    .session
+                    .engine
                     .document
                     .view
                     .leave_annotation(&annotation);
@@ -306,12 +306,12 @@ impl App {
                 self.focus_annotation_target(at..at);
             } else {
                 self.document
-                    .session
+                    .engine
                     .document
                     .view
                     .delete_char_range(range.clone());
                 self.document
-                    .session
+                    .engine
                     .document
                     .view
                     .insert_text("\n", range.start);
@@ -330,16 +330,16 @@ impl App {
         let start = input.start;
         let prefix = &input.prefix;
         let typed = &input.typed;
-        if self.document.session.document.view.blocks[line] == BlockKind::Description {
-            let text = &self.document.session.document.view.text[self
+        if self.document.engine.document.view.blocks[line] == BlockKind::Description {
+            let text = &self.document.engine.document.view.text[self
                 .document
-                .session
+                .engine
                 .document
                 .view
                 .byte_index(lines[line].start)
                 ..self
                     .document
-                    .session
+                    .engine
                     .document
                     .view
                     .byte_index(lines[line].end)];
@@ -367,7 +367,7 @@ impl App {
                 } else {
                     let before = self.snapshot();
                     self.document
-                        .session
+                        .engine
                         .document
                         .view
                         .insert_text("\t", range.start);
@@ -386,13 +386,13 @@ impl App {
                 before.document.sync_source();
                 before.selection = editor::cursor(range.start + 1..range.start + 1).into();
                 self.document
-                    .session
+                    .engine
                     .document
                     .view
                     .delete_char_range(range.start - 1..range.start);
                 if separator.is_none() {
                     self.document
-                        .session
+                        .engine
                         .document
                         .view
                         .insert_text("\t", range.start - 1);
@@ -410,12 +410,12 @@ impl App {
                 let before = self.snapshot();
                 if text.trim().is_empty() && range.is_empty() {
                     self.document
-                        .session
+                        .engine
                         .document
                         .view
                         .delete_char_range(lines[line].clone());
                     self.document
-                        .session
+                        .engine
                         .document
                         .view
                         .set_block(start..start, BlockKind::Paragraph);
@@ -423,12 +423,12 @@ impl App {
                 } else {
                     let in_text = separator.is_some_and(|at| range.start > at);
                     self.document
-                        .session
+                        .engine
                         .document
                         .view
                         .delete_char_range(range.clone());
                     self.document
-                        .session
+                        .engine
                         .document
                         .view
                         .insert_text(if in_text { "\n\t" } else { "\n" }, range.start);
@@ -461,7 +461,7 @@ impl App {
                 before.document.sync_source();
                 before.selection = editor::cursor(range.start + 1..range.start + 1).into();
                 self.document
-                    .session
+                    .engine
                     .document
                     .view
                     .delete_char_range(start + position..start + position + 1);
@@ -473,19 +473,19 @@ impl App {
                 let selected = start + position..range.start - 1;
                 if !self
                     .document
-                    .session
+                    .engine
                     .document
                     .view
                     .mark_state(selected.clone(), mark)
                     .0
                 {
                     self.document
-                        .session
+                        .engine
                         .document
                         .view
                         .toggle_mark(selected, mark);
                 }
-                self.document.session.document.view.typing_style = InlineStyle::default();
+                self.document.engine.document.view.typing_style = InlineStyle::default();
                 self.document.selection = editor::cursor(range.start - 1..range.start - 1);
                 self.document.force_selection = true;
                 self.remember(before, false);
@@ -501,7 +501,7 @@ impl App {
         let lines = &input.lines;
         if lines[line].is_empty()
             && matches!(
-                self.document.session.document.view.blocks[line],
+                self.document.engine.document.view.blocks[line],
                 BlockKind::Bullet | BlockKind::Numbered | BlockKind::Description
             )
             && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))

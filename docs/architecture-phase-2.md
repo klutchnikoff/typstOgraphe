@@ -5,7 +5,8 @@ V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers 
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
-Le moteur de commandes et son catalogue ne sont pas encore implémentés.
+Le registre typé et le premier moteur sont implémentés : 20 commandes, six
+requêtes et leur catalogue généré. La migration des familles n’est pas terminée.
 
 ## Blocs et zones en mémoire
 
@@ -146,9 +147,65 @@ leur licence, avec l’option `--font-path fonts` indiquée pour le CLI Typst.
 Le format `.typsto` reste inchangé. Le choix ultérieur de polices système est
 consigné dans le chantier E ; aucune découverte de polices système n’est ajoutée ici.
 
+## Registre typé et premier moteur
+
+`src/engine/` sépare les commandes avec paramètres, les requêtes en lecture seule,
+les descriptions et les schémas JSON, les règles de disponibilité, et les erreurs
+structurées. `schemars` 1.2.3 produit les schémas depuis les paramètres Rust et
+leurs attributs Serde ; `thiserror` fournit l’erreur standard. Le moteur n’importe
+ni egui ni Fluent et ne produit aucune phrase d’interface.
+
+Une déclaration commune produit chaque enum, son identifiant, sa conversion
+`from_call`/`to_call` et sa spécification. Les identifiants sont validés et uniques
+au démarrage. Ils acceptent les espaces de noms hiérarchiques pour préserver
+`courrier.model.personal`. Seuls les deux renommages D2 sont appliqués :
+`letter.insert_postscript` et `letter.insert_attachment`.
+
+Les paramètres refusent les champs inconnus, les types incorrects et les variantes
+inconnues. Une cible est `current`, `all`, ou une sélection explicite comprenant
+sa garde et ses positions logiques. Les identités sont des nombres opaques pendant
+la session, sans signification de rôle ni persistance dans les archives. Les
+offsets sont des valeurs scalaires Unicode. Aucun indice graphique global ne
+devient un paramètre du protocole. Les cibles périmées ou étrangères sont refusées.
+
+`Engine` possède la session et sa sélection publiée. `run` et `run_call` appliquent
+les mutations via la publication commune de `Session`. `query(&self, ...)` et
+`query_call` lisent sans changer la sélection, l’historique ou le contexte de frappe.
+`Outcome` fournit la garde courante, la sélection, l’état modifié, les effets de
+rendu et une valeur éventuelle. La disponibilité est évaluée par le moteur pour
+les commandes migrées ; les autres états de menus restent dans l’application.
+
+Sont raccordés : gras/italique avec `toggle/on/off`, effacement des styles, liens,
+paragraphes, trois niveaux de titres, listes, descriptions, citations, insertion
+de P.-S./P.J., annuler et rétablir. Les appels `text.insert`, `text.delete` et
+`text.select` sont disponibles avec paramètres explicites. Les requêtes couvrent
+l’inspection, le texte, les blocs/zones, les métadonnées, le catalogue et la recherche
+littérale. Le catalogue décrit uniquement les opérations implémentées, sans
+annoncer les familles encore absentes.
+
+L’ancien enum graphique s’appelle `UiCommand` ; `Definition` devient
+`Presentation` et garde les clés Fluent, raccourcis, menus et icônes. Les gestes
+migrés préparent les paramètres et appellent le moteur par la voie JSON commune.
+Le dialogue de lien capture sa cible à l’ouverture et refuse une validation après
+changement de révision. La préédition reste un brouillon graphique ; sa validation
+et la saisie native passent par `Engine::commit_projection`, puis `Session`.
+La parité est vérifiée avec `text.insert` appelé par identifiant et JSON.
+
+La migration conserve un accès transitoire à la session via `Deref/DerefMut` pour
+les préparations historiques non migrées. Le curseur egui reste un cache converti
+avant les commandes et à la fin de la frame ; les requêtes lisent la sélection du
+moteur. Ce passage ne constitue pas la suppression de toutes les écritures depuis
+`App`, ni l’achèvement des tâches 2.1 bis et 2.4.
+
+[commands.md](commands.md) et [commands.json](commands.json) sont générés depuis
+le registre et comparés aux données courantes par les tests, donc dans la CI.
+`--commands-catalogue` et `--commands-catalogue-json` sont des diagnostics de
+développement ; la CLI séparée et MCP restent dans leurs phases respectives.
+Les identifiants et signatures ne sont pas encore gelés.
+
 ## Vérifications
 
-- 198 tests de l’application réussis, dont 55 tests ajoutés depuis le début de
+- 212 tests de l’application réussis, dont 69 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -162,7 +219,12 @@ consigné dans le chantier E ; aucune découverte de polices système n’est aj
   et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
   petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 105 tests partagés réussissent aussi.
+  avertissement ; ses 115 tests partagés réussissent aussi.
+- Dix tests du moteur couvrent les schémas, conversions, données invalides,
+  cibles périmées/étrangères, refus atomiques, styles explicites, historique,
+  lectures seules, portée Courrier et fichiers de catalogue générés. Quatre essais
+  d’intégration comparent les gestes graphiques aux appels JSON, la sélection
+  publiée pendant l’IME et la validation différée du dialogue de lien.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
 - Huit captures strictement identiques après les premiers lots, dans
   `output/baseline/run-ioma5t0l/` et `output/baseline/run-uvqd1xwk/`, puis après la
@@ -174,6 +236,8 @@ consigné dans le chantier E ; aucune découverte de polices système n’est aj
   `output/baseline/run-wuwd1114/`. La capture supplémentaire
   `output/font-diagnostics/cjk-4jxcam3g/cjk.png` a été vérifiée visuellement :
   hiragana, kanji et chinois sont lisibles dans les deux panneaux, en normal et gras.
+- Après le raccordement du registre et du moteur, les huit captures restent
+  strictement identiques dans `output/baseline/run-uwa0olfg/`.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -195,12 +259,14 @@ déclarée terminée par les tests de conversion des positions. Les raccourcis d
 transformation textuelle restent préparés par l’interface, puis validés par la
 voie commune ; leur déplacement dans le cœur reste à faire (V4).
 
-L’isolation de la préédition entre frames et sa publication unique sont vérifiées
-par les événements egui. L’essai d’une vraie méthode IME du système reste dans le
-chantier I : ces tests ne vérifient pas le clavier ni la fenêtre de candidats du
-système. D17 et la tâche 2.1 bis restent ouverts pour la suite de la migration.
+L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
+Les essais complets de composition, choix des candidats, annulation et historique
+avec les méthodes système restent à poursuivre dans le chantier I. D17 et la tâche
+2.1 bis restent ouverts pour la suite de la migration.
 
-Viennent ensuite le registre typé, les erreurs et schémas, `Engine`, puis la
-migration des familles de commandes et le catalogue généré. La séparation des
-réglages globaux (V5) et les formats d’export séparés (V6) restent à implémenter
-et à tester.
+Restent les annotations et leurs raccourcis, les images et signatures, les actions
+de recherche/remplacement, l’orthographe documentaire, l’écriture des métadonnées
+et options, les modèles et les fichiers. Les lots atomiques (D16), la suppression
+de l’accès transitoire à la session et le gel du catalogue restent à faire. La
+séparation des réglages globaux (V5) et les formats d’export séparés (V6) restent à
+implémenter et à tester. Aucun transport CLI/MCP n’est ajouté par ce lot.

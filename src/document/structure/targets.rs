@@ -3,20 +3,28 @@
 use super::*;
 use std::ops::Range;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TextPosition {
     pub zone_id: ZoneId,
     pub offset: usize,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(
+    tag = "kind",
+    content = "position",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub enum Position {
     Text(TextPosition),
     Before(BlockId),
     After(BlockId),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct LogicalSelection {
     pub anchor: Position,
     pub head: Position,

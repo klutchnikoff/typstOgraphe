@@ -80,18 +80,18 @@ macro_rules! field {
         }
     };
 }
-pub const COMMANDS: &[crate::commands::Definition] = &[
+pub const COMMANDS: &[crate::commands::Presentation] = &[
     crate::commands::define(
-        "letter.insert-postscript",
+        "letter.insert_postscript",
         "cmd-insert-postscript",
-        crate::commands::Command::InsertPostscript,
+        crate::commands::UiCommand::InsertPostscript,
         crate::commands::Scope::Editor,
         &[],
     ),
     crate::commands::define(
-        "letter.insert-attachment",
+        "letter.insert_attachment",
         "cmd-insert-attachment",
-        crate::commands::Command::InsertAttachment,
+        crate::commands::UiCommand::InsertAttachment,
         crate::commands::Scope::Editor,
         &[],
     ),

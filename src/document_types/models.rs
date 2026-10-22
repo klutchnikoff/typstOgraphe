@@ -9,7 +9,7 @@ pub enum Model {
 pub struct Definition {
     pub model: Model,
     pub kind: DocumentType,
-    pub command: commands::Definition,
+    pub command: commands::Presentation,
     pub source: &'static str,
     pub page: Option<(PaperFormat, bool)>,
 }
@@ -20,7 +20,7 @@ pub const ALL: &[Definition] = &[Definition {
         commands::define(
             "courrier.model.personal",
             "cmd-personal-letter",
-            commands::Command::Model(Model::Personal),
+            commands::UiCommand::Model(Model::Personal),
             commands::Scope::Global,
             &[],
         ),
@@ -68,7 +68,7 @@ mod tests {
                 assert!(
                     commands
                         .iter()
-                        .any(|command| command.command == commands::Command::Model(entry.model))
+                        .any(|command| command.command == commands::UiCommand::Model(entry.model))
                 );
                 assert_eq!(entry.model.definition().kind, kind);
             }

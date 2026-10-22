@@ -131,7 +131,7 @@ impl App {
             }
             if apply {
                 let before = self.snapshot();
-                if let Some(image) = self.document.session.document.view.images.get_mut(&id) {
+                if let Some(image) = self.document.engine.document.view.images.get_mut(&id) {
                     image.alt.clone_from(&self.dialogs.image_alt);
                     self.remember(before, false);
                 }
@@ -141,7 +141,7 @@ impl App {
             }
             if !open {
                 self.dialogs.image_info = None;
-                if let Some(range) = self.document.session.document.view.image_range(id) {
+                if let Some(range) = self.document.engine.document.view.image_range(id) {
                     self.focus_annotation_target(range.start + 1..range.start + 1);
                 }
             }
@@ -162,7 +162,7 @@ impl App {
                         "link-selected-text",
                         text = self
                             .document
-                            .session
+                            .engine
                             .document
                             .view
                             .text
@@ -189,31 +189,25 @@ impl App {
                     });
                 });
             self.dialogs.link_open &= open;
-            if remove {
-                if self.range() != self.dialogs.link_range {
-                    self.document.selection = editor::cursor(self.dialogs.link_range.clone());
-                }
-                self.apply(Command::RemoveLink);
-                self.dialogs.link_open = false;
-                self.document.force_selection = true;
-            } else if apply {
-                let url = self.dialogs.link_url.trim();
-                if (url.starts_with("https://")
-                    || url.starts_with("http://")
-                    || url.starts_with("mailto:"))
-                    && !url.chars().any(char::is_whitespace)
-                {
-                    let before = self.snapshot();
-                    self.document
-                        .session
-                        .document
-                        .view
-                        .set_link(self.dialogs.link_range.clone(), Some(url.into()));
-                    self.remember(before, false);
-                    self.dialogs.link_open = false;
-                    self.document.force_selection = true;
+            if remove || apply {
+                if let Some(target) = self.dialogs.link_target {
+                    let command = if remove {
+                        crate::engine::Command::RemoveLink(crate::engine::TargetParams {
+                            target: target.into(),
+                        })
+                    } else {
+                        crate::engine::Command::SetLink(crate::engine::LinkParams {
+                            target: target.into(),
+                            url: self.dialogs.link_url.clone(),
+                        })
+                    };
+                    if self.run_document_command(command) {
+                        self.dialogs.link_open = false;
+                    } else {
+                        self.dialogs.link_error.clone_from(&self.dialogs.message);
+                    }
                 } else {
-                    self.dialogs.link_error = Some(crate::tr!("link-invalid-url"));
+                    self.dialogs.link_error = Some(crate::tr!("edit-stale-draft"));
                 }
             }
         }
@@ -315,7 +309,7 @@ impl App {
                 });
             self.file.export_open &= open;
             if export {
-                if !self.document.session.metadata.ready_for_export() {
+                if !self.document.engine.metadata.ready_for_export() {
                     self.dialogs.message = Some(crate::tr!("export-required-fields"));
                 } else {
                     match self

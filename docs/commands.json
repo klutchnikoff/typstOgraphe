@@ -1,0 +1,3373 @@
+{
+  "entries": [
+    {
+      "availability": "document",
+      "description": "Insert literal text or replace a selection.",
+      "family": "edit",
+      "id": "text.insert",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "InsertTextParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Delete text within validated structural boundaries.",
+      "family": "edit",
+      "id": "text.delete",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Set a continuous, oriented text selection.",
+      "family": "selection",
+      "id": "text.select",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Set or toggle bold text or the typing style.",
+      "family": "edit",
+      "id": "text.bold",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "StyleValue": {
+            "enum": [
+              "toggle",
+              "on",
+              "off"
+            ],
+            "type": "string"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          },
+          "value": {
+            "$ref": "#/$defs/StyleValue",
+            "default": "toggle"
+          }
+        },
+        "title": "StyleParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Set or toggle italic text or the typing style.",
+      "family": "edit",
+      "id": "text.italic",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "StyleValue": {
+            "enum": [
+              "toggle",
+              "on",
+              "off"
+            ],
+            "type": "string"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          },
+          "value": {
+            "$ref": "#/$defs/StyleValue",
+            "default": "toggle"
+          }
+        },
+        "title": "StyleParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Remove inline formatting from text or the typing style.",
+      "family": "edit",
+      "id": "text.clear",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "link_selection",
+      "description": "Apply an explicit URL to a text selection.",
+      "family": "edit",
+      "id": "text.link",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "LinkParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "link_selection",
+      "description": "Remove links from a text selection.",
+      "family": "edit",
+      "id": "text.remove_link",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Convert selected paragraphs to ordinary text.",
+      "family": "edit",
+      "id": "block.paragraph",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Set level-one headings.",
+      "family": "edit",
+      "id": "block.heading_1",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Set level-two headings.",
+      "family": "edit",
+      "id": "block.heading_2",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Set level-three headings.",
+      "family": "edit",
+      "id": "block.heading_3",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Set an unordered list using the document marker policy.",
+      "family": "edit",
+      "id": "block.bullet",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Set an ordered list.",
+      "family": "edit",
+      "id": "block.numbered",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Set description items with term and definition zones.",
+      "family": "edit",
+      "id": "block.description",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Set a block quotation with an optional attribution.",
+      "family": "edit",
+      "id": "block.quote",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "letter",
+      "description": "Create or select the letter postscript.",
+      "family": "letter",
+      "id": "letter.insert_postscript",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "letter",
+      "description": "Insert an attachment mention into a letter.",
+      "family": "letter",
+      "id": "letter.insert_attachment",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "undo",
+      "description": "Undo the previous document transaction.",
+      "family": "history",
+      "id": "edit.undo",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "redo",
+      "description": "Redo the next document transaction.",
+      "family": "history",
+      "id": "edit.redo",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "description": "Read the current revision, selection and history availability.",
+      "family": "query",
+      "id": "document.inspect",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "description": "Read editable text without Typst markup.",
+      "family": "query",
+      "id": "document.text",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "all"
+            }
+          }
+        },
+        "title": "TextQueryParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "description": "Read blocks, text zones, roles and their opaque identities.",
+      "family": "query",
+      "id": "document.structure",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "description": "Read the document metadata.",
+      "family": "query",
+      "id": "metadata.get",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "description": "Read the implemented command and query catalogue with JSON schemas.",
+      "family": "query",
+      "id": "commands.list",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "description": "Find literal Unicode text without modifying the selection.",
+      "family": "query",
+      "id": "search.find",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "case_sensitive": {
+            "default": false,
+            "type": "boolean"
+          },
+          "query": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "SearchParams",
+        "type": "object"
+      }
+    }
+  ]
+}

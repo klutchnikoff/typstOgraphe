@@ -19,6 +19,8 @@ mod document;
 mod document_types;
 #[path = "../../src/editor.rs"]
 mod editor;
+#[path = "../../src/engine/mod.rs"]
+mod engine;
 #[path = "../../src/fonts.rs"]
 mod fonts;
 #[path = "../../src/i18n.rs"]

@@ -591,6 +591,9 @@ impl Projection {
     }
     pub fn toggle_mark(&mut self, range: Range<usize>, mark: Mark) {
         let value = !self.mark_state(range.clone(), mark).0;
+        self.set_mark(range, mark, value);
+    }
+    pub fn set_mark(&mut self, range: Range<usize>, mark: Mark, value: bool) {
         let apply = |s: &mut InlineStyle| match mark {
             Mark::Bold => s.bold = value,
             Mark::Italic => s.italic = value,

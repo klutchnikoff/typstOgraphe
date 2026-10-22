@@ -27,7 +27,7 @@ impl App {
             for result in recovery.poll() {
                 self.recovery.error = result.err();
             }
-            let session = &self.document.session;
+            let session = &self.document.engine;
             let suggested = &self.recovery.recovered_name;
             if let Err(error) = recovery.checkpoint(session.revision, dirty, || {
                 let name = session
@@ -63,7 +63,7 @@ impl App {
         {
             Ok(()) => {
                 let entry = self.recovery.entries.remove(index);
-                self.document.session.recovered = true;
+                self.document.engine.recovered = true;
                 self.recovery.recovered_name = Some(name);
                 if let Some(recovery) = &mut self.recovery.worker
                     && let Err(error) = recovery.adopt(entry)

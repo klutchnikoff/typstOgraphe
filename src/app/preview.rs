@@ -3,13 +3,13 @@ use super::*;
 impl App {
     pub(super) fn request(&self, export_dir: Option<PathBuf>) -> RenderRequest {
         RenderRequest {
-            revision: self.document.session.revision,
-            source: self.document.session.document.source().to_owned(),
-            source_map: self.document.session.document.source_map.clone(),
-            metadata: self.document.session.metadata.clone(),
-            template: self.document.session.template.clone(),
-            assets: self.document.session.document.assets.clone(),
-            dependencies: self.document.session.dependencies.clone(),
+            revision: self.document.engine.revision,
+            source: self.document.engine.document.source().to_owned(),
+            source_map: self.document.engine.document.source_map.clone(),
+            metadata: self.document.engine.metadata.clone(),
+            template: self.document.engine.template.clone(),
+            assets: self.document.engine.document.assets.clone(),
+            dependencies: self.document.engine.dependencies.clone(),
             export_dir,
         }
     }
@@ -30,7 +30,7 @@ impl App {
                                 .map_or(String::new(), |p| p.display().to_string())
                         ));
                     }
-                    if response.revision == self.document.session.revision {
+                    if response.revision == self.document.engine.revision {
                         self.preview.pages = rendered
                             .pages
                             .into_iter()
@@ -54,22 +54,22 @@ impl App {
                     }
                 }
                 Err(error) => {
-                    if response.revision == self.document.session.revision || response.is_export {
+                    if response.revision == self.document.engine.revision || response.is_export {
                         self.preview.error = Some(error);
                         self.preview.revision = Some(response.revision);
                     }
                 }
             }
         }
-        if self.preview.submitted != self.document.session.revision
-            && self.document.session.changed_at.elapsed() > Duration::from_millis(220)
+        if self.preview.submitted != self.document.engine.revision
+            && self.document.engine.changed_at.elapsed() > Duration::from_millis(220)
         {
             match self.preview.worker.sender.send(self.request(None)) {
-                Ok(()) => self.preview.submitted = self.document.session.revision,
+                Ok(()) => self.preview.submitted = self.document.engine.revision,
                 Err(_) => self.preview.error = Some(crate::tr!("renderer-stopped")),
             }
         }
-        if self.preview.revision != Some(self.document.session.revision) {
+        if self.preview.revision != Some(self.document.engine.revision) {
             ctx.request_repaint_after(Duration::from_millis(50));
         }
     }
@@ -185,7 +185,7 @@ impl App {
         ui.horizontal(|ui| {
             ui.label(RichText::new(crate::tr!("preview-title")).strong())
                 .on_hover_text(crate::tr!("preview-hint"));
-            if self.preview.revision != Some(self.document.session.revision) {
+            if self.preview.revision != Some(self.document.engine.revision) {
                 ui.spinner();
                 ui.weak(crate::tr!("preview-updating"));
             } else if let Some(time) = self.preview.elapsed {
@@ -215,7 +215,7 @@ impl App {
                 .preview
                 .sync
                 .as_ref()
-                .is_some_and(|sync| sync.revision == self.document.session.revision)
+                .is_some_and(|sync| sync.revision == self.document.engine.revision)
     }
     pub(super) fn navigate_backward(&mut self, location: PagePoint, ctx: &egui::Context) {
         if !self.sync_is_current() {
@@ -229,17 +229,17 @@ impl App {
         {
             self.cancel_ime();
             self.document.selection = CCursorRange::one(CCursor::new(
-                character.min(self.document.session.document.view.len()),
+                character.min(self.document.engine.document.view.len()),
             ));
-            self.document.session.document.view.typing_style = if character > 0 {
-                self.document.session.document.view.style_at(character - 1)
+            self.document.engine.document.view.typing_style = if character > 0 {
+                self.document.engine.document.view.style_at(character - 1)
             } else {
                 InlineStyle::default()
             };
             self.document.force_selection = true;
             self.preview.editor_scroll_pending = true;
             self.preview.forward_pending = false;
-            self.document.session.typing_group = false;
+            self.document.engine.typing_group = false;
             ctx.request_repaint();
         }
     }

@@ -401,41 +401,50 @@ et les limites de ces premiers lots. Aucune commande de tableau n’est ajoutée
 
 Dans `src/engine/` (futur crate `core`) :
 
-- [ ] `CommandId` (chaîne validée au démarrage : unicité, forme `domaine.action` avec
+- [x] `CommandId` (chaîne validée au démarrage : unicité, forme `domaine.action` avec
   tirets bas ; D2). Renommer `letter.insert-postscript` et `letter.insert-attachment`
   en `letter.insert_postscript` et `letter.insert_attachment`.
 - [ ] `Command` : énumération avec données (`Block { kind }`, `SetLink { url }`,
   `InsertImage { path, alt }`, `SelectText { range | occurrence }`, `InsertText { text }`,
   `SetMetadata { field, value }`, `SetOption { option, value }`, `ReplaceAll { with }`…).
   Les variantes actuelles sans paramètres restent telles quelles.
+  **En cours :** 20 commandes typées implémentées ; les familles restantes ne sont
+  pas annoncées dans le catalogue. Les espaces de noms hiérarchiques existants
+  (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
 - [ ] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
   `search.find`, `metadata.get`, `commands.list`, `models.list`).
-- [ ] `UiCommand` : palette, préférences, ouverture des dialogues, focus. Reste dans l'application.
-- [ ] `CommandSpec` (cœur, sans egui) : identifiant, description **en anglais** (pour les
+  **En cours :** six requêtes implémentées ; orthographe et modèles restent à migrer.
+- [x] `UiCommand` : palette, préférences, ouverture des dialogues, focus. Reste dans l'application.
+- [x] `CommandSpec` (cœur, sans egui) : identifiant, description **en anglais** (pour les
   agents), famille, schéma des paramètres (`schemars`), règle de disponibilité.
-- [ ] `Presentation` (application) : clé de libellé Fluent, raccourcis, position de menu
+- [x] `Presentation` (application) : clé de libellé Fluent, raccourcis, position de menu
   (`menu_position`), icône. Séparer ce qui est actuellement dans `Definition`.
-- [ ] `Command::from_call(id, json) -> Result<Command, CommandError>` et
+- [x] `Command::from_call(id, json) -> Result<Command, CommandError>` et
   `Command::to_call()` ; test d'aller-retour pour chaque variante.
-- [ ] `CommandError { code, params }` avec des codes stables en snake_case
+- [x] `CommandError { code, params }` avec des codes stables en snake_case
   (`unavailable`, `invalid_params`, `not_found`, `io`, `document`, `template`) ; le texte
   affiché vient du crate `typstographe-i18n` (D6, D7).
+  Les types et leur adaptation Fluent dans l’application sont en place ; le
+  déplacement du convertisseur dans le crate i18n reste en phase 3.
 
 ### 2.3 Moteur (taille L)
 
-- [ ] `Engine` autour de `Session` : `run(&mut self, Command) -> Result<Outcome, CommandError>`
+- [x] `Engine` autour de `Session` : `run(&mut self, Command) -> Result<Outcome, CommandError>`
   et `query(&self, Query) -> Result<Value, CommandError>`.
-- [ ] `Outcome` : `changed`, sélection résultante, message éventuel, valeur de retour
+- [x] `Outcome` : `changed`, garde et sélection résultantes, valeur de retour
   éventuelle, effets à déclencher (rendu à relancer).
 - [ ] **Une mutation documentaire validée = une transaction d’historique** (D15).
   Sélection, navigation, recherche, ouverture et enregistrement ne créent pas d’entrée
   d’annulation. Préserver le regroupement de la frappe et l’annulation d’un lot en une étape.
-- [ ] La sélection (`Caret`, `Selection`, déjà indépendantes d'egui dans `session.rs`)
+  Les commandes migrées et les groupes de frappe sont vérifiés ; les lots D16
+  restent à implémenter.
+- [x] La sélection (`Caret`, `Selection`, déjà indépendantes d'egui dans `session.rs`)
   appartient au moteur : les agents et la CLI en ont besoin pour `text.insert`
   et `text.select`.
 - [ ] `available(&Engine) -> Availability { Enabled, Disabled(reason) }` remplace la
   logique de `menu_statuses` (`app/commands.rs`).
-- [ ] La saisie native d’egui peut préparer une édition via son `TextBuffer` (D17).
+  En place pour les commandes migrées ; les états des autres menus restent dans App.
+- [x] La saisie native d’egui peut préparer une édition via son `TextBuffer` (D17).
   Son commit passe par la même validation, normalisation, mise à jour de révision et
   transaction du cœur que les commandes ; aucune publication partielle en cas d’erreur.
   Documenter cet adaptateur et tester sa parité avec `text.insert`.
@@ -446,9 +455,11 @@ Pour chaque famille : déplacer la logique d'`App::apply` vers le moteur, faire 
 le moteur par l'interface, **ajouter un test qui exécute la commande par identifiant et
 JSON** et compare avec le chemin d'interface.
 
-- [ ] 2.4.1 Mise en forme : `Bold`, `Italic`, `Clear`, `Block`, `Link`, `RemoveLink`.
+- [x] 2.4.1 Mise en forme : `Bold`, `Italic`, `Clear`, `Block`, `Link`, `RemoveLink`.
 - [ ] 2.4.2 Structure : `InsertPostscript`, `InsertAttachment`, annotations (entrée, sortie,
   navigation), listes et descriptions.
+  P.-S./P.J., listes, descriptions et conversion en citation sont raccordés ; la
+  navigation et les raccourcis de transformation restent dans l’adaptateur.
 - [ ] 2.4.3 Images : insérer, remplacer, supprimer, texte alternatif, légende ;
   signature de document.
 - [ ] 2.4.4 Recherche : requête, suivant, précédent, remplacer, tout remplacer.
@@ -463,20 +474,23 @@ JSON** et compare avec le chemin d'interface.
   (V6 : dossier neuf/vide, export complet avec PNG par défaut).
   Les dialogues de choix de fichier restent dans l'application, qui appelle le moteur
   avec le chemin choisi.
-- [ ] 2.4.9 Historique : `edit.undo`, `edit.redo`.
+- [x] 2.4.9 Historique : `edit.undo`, `edit.redo`.
 
 ### 2.5 Tests du registre
 
 Dans le style du test existant sur les fichiers Fluent :
 
-- [ ] chaque variante de `Command` a une `CommandSpec` ; identifiants uniques et valides ;
-- [ ] chaque commande exposée a une description anglaise non vide et un schéma ;
-- [ ] chaque clé de libellé de `Presentation` existe en français et en anglais ;
-- [ ] aller-retour `Command → appel → Command` ;
+- [x] chaque variante de `Command` a une `CommandSpec` ; identifiants uniques et valides ;
+- [x] chaque commande exposée a une description anglaise non vide et un schéma ;
+- [x] chaque clé de libellé de `Presentation` existe en français et en anglais ;
+- [x] aller-retour `Command → appel → Command` ;
 - [ ] **test d'aiguillage** : chaque déclencheur d'interface (menu, palette, barre d'outils,
   raccourci) passe par `Engine::run` ou `UiCommand` ;
-- [ ] **catalogue figé** : `docs/commands.md` est généré depuis le registre et comparé
+- [x] **catalogue contrôlé** : `docs/commands.md` et `docs/commands.json` sont générés depuis le registre et comparés
   dans la CI (échec si le fichier est périmé).
+  Le catalogue courant ne couvre que les familles implémentées ; son gel reste
+  un critère de sortie de phase 2. Le suivi détaillé est dans
+  [docs/architecture-phase-2.md](docs/architecture-phase-2.md).
 
 ### 2.6 Critères de sortie
 
