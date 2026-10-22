@@ -15,6 +15,7 @@ impl App {
         self.document.open && self.document.session.is_dirty()
     }
     pub(super) fn save_path(&mut self, path: PathBuf) -> bool {
+        self.cancel_ime();
         let letter = self.stored_document();
         match storage::save(&path, &letter) {
             Ok(()) => {
@@ -116,6 +117,7 @@ impl App {
         path: Option<PathBuf>,
     ) -> Result<(), String> {
         let keymap = self.keymap.for_document(letter.metadata.document_type())?;
+        self.cancel_ime();
         self.clear_recovery();
         self.recovery.recovered_name = None;
         self.search.engine = Default::default();

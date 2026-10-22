@@ -227,6 +227,7 @@ impl App {
             .as_ref()
             .and_then(|sync| sync.backward(location))
         {
+            self.cancel_ime();
             self.document.selection = CCursorRange::one(CCursor::new(
                 character.min(self.document.session.document.view.len()),
             ));

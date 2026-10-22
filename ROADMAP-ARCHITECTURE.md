@@ -343,7 +343,8 @@ exécutable **sans egui** par un `Engine`. C'est la phase qui rend la CLI et MCP
 registre, les actions hors registre, les cibles et les tests existants.
 La forme exacte des identifiants, les signatures et les jonctions entre types de
 paragraphes seront précisées et testées pendant la migration, avant le gel.
-La publication unique après composition IME reste à vérifier.
+L’isolation IME entre frames et sa publication unique sont testées via les
+événements egui ; une vraie méthode IME du système reste à essayer au chantier I.
 V5 confirme que les réglages globaux restent des actions d’application, hors du
 premier périmètre CLI/MCP. V6 valide la création avec valeurs initiales explicites,
 les dates fixes et les formats d’export séparés, avec conservation de l’export
@@ -388,9 +389,11 @@ les sélections logiques. Les frontières de rôles sont protégées ; les édit
 refusées ne publient aucune mutation partielle. La saisie native travaille sur un
 brouillon et rejoint la validation/normalisation/publication commune de `Session`,
 comme les commandes et remplacements. Les préparations encore faites dans `App`
-utilisent un adaptateur transitoire vers cette voie. Le tampon reste plat ; la
-préédition IME à conserver entre frames, les raccourcis de transformation, la
-recherche et l’aperçu restent à migrer.
+utilisent un adaptateur transitoire vers cette voie. La préédition IME reste dans
+un brouillon entre frames et sa validation publie une seule étape d’historique ;
+les annulations et événements tardifs ne changent pas la session publiée.
+Le tampon reste plat ; les raccourcis de transformation, la recherche et l’aperçu
+restent à migrer.
 Voir [le suivi de phase 2](docs/architecture-phase-2.md) pour les vérifications
 et les limites de ces premiers lots. Aucune commande de tableau n’est ajoutée.
 

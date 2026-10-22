@@ -76,6 +76,9 @@ impl App {
         false
     }
     pub(super) fn text_shortcuts(&mut self, ctx: &egui::Context) {
+        if self.composing_input(ctx) {
+            return;
+        }
         if self.annotation_shortcuts(ctx) {
             return;
         }

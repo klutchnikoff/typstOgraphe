@@ -79,6 +79,7 @@ pub(super) struct DocumentState {
     pub(super) session: Session,
     pub(super) selection: CCursorRange,
     pub(super) force_selection: bool,
+    pub(super) ime: super::ime::Ime,
     pub(super) statistics: crate::statistics::Counter,
     pub(super) history_field: Option<egui::Id>,
     pub(super) presentation: ModelPresentation,

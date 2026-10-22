@@ -11,6 +11,7 @@ mod commands;
 mod edit_validation;
 mod files;
 mod images;
+mod ime;
 mod information;
 mod preview;
 mod profile;

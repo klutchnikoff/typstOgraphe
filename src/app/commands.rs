@@ -52,6 +52,7 @@ impl App {
         {
             return;
         }
+        self.cancel_ime();
         match command {
             Command::ToggleSpelling
             | Command::SpellingSuggestions
@@ -239,6 +240,7 @@ impl App {
         }
     }
     pub(super) fn edit(&mut self, edit: impl FnOnce(&mut Projection, Range<usize>)) {
+        self.cancel_ime();
         let previous = self.document.selection.into();
         let result = self.document.session.edit(previous, edit);
         self.accept_edit(result, previous);

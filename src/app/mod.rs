@@ -9,6 +9,7 @@ mod dialogs;
 mod editor_view;
 mod files;
 mod images;
+mod ime;
 mod information;
 mod links;
 mod models;
@@ -97,6 +98,7 @@ impl App {
             // Le pointeur réel ne doit pas modifier les survols des captures de référence.
             ctx.input_mut(|input| input.pointer = Default::default());
         }
+        self.guard_ime(ctx);
         if ctx.input(|input| input.viewport().close_requested())
             && !self.file.allow_close
             && self.is_dirty()
@@ -132,6 +134,7 @@ impl App {
                 self.dispatch_action(command, ctx);
             }
         }
+        self.prepare_ime(ctx);
         let modal = self.modal_open();
         let dirty = self.is_dirty();
         self.update_window_title(ctx, dirty);

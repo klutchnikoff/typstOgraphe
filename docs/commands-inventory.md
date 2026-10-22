@@ -4,7 +4,8 @@
 Relevé du 22 octobre 2026 sur `b3e1e986c250a80f70f65899f35d010145d63d26`.
 L’implémentation a commencé par les blocs, leurs zones, leurs identités et les
 cibles de sélection, puis la protection des frontières et la voie commune de
-publication des éditions ; voir [le suivi de phase 2](architecture-phase-2.md).
+publication des éditions, puis l’isolation IME entre frames ; voir
+[le suivi de phase 2](architecture-phase-2.md).
 Le moteur, les appels de commandes et leurs schémas JSON ne sont pas encore ajoutés.
 Les règles déjà validées sont dans [la feuille de route technique](../ROADMAP-ARCHITECTURE.md),
 D1–D20. Les propositions qui les précisent ou les font évoluer sont signalées.
@@ -50,7 +51,8 @@ ne deviennent pas des commandes publiques dans cette phase.
 Tous les paramètres ci-dessous restent des descriptions de contrat, pas des signatures Rust figées.
 V1–V6 sont validés dans leur orientation ; la forme exacte des identifiants,
 les schémas Rust/JSON et les jonctions entre types de paragraphes restent à préciser.
-La publication unique après composition IME reste à vérifier lors de l’implémentation.
+La publication unique après composition IME est vérifiée par les événements egui
+dans l’adaptateur actuel ; l’essai d’une méthode IME réelle reste au chantier I.
 Le classement détaillé sert de référence de migration ; les signatures exactes seront
 précisées et testées progressivement avant le gel du catalogue.
 
@@ -59,7 +61,7 @@ précisées et testées progressivement avant le gel du catalogue.
 | **V1 — Cibles et identités — validé le 22 octobre 2026** | Positions par zone de texte + indice Unicode ; références de blocs distinctes. Identifiants opaques stables pendant une session, restaurés par annuler/rétablir et jamais réaffectés à un autre objet. Réouverture = nouvelle session et nouveaux identifiants. | Ne pas modifier l’archive pour stocker ces identifiants maintenant. Toutes les cibles externes sont liées à une session et une révision ; aucun repositionnement silencieux d’une cible périmée. |
 | **V2 — Sélections entre structures — validé le 22 octobre 2026** | Garder une sélection continue orientée ; mise en forme sur les zones textuelles admissibles. Suppression/remplacement libre dans une zone et entre paragraphes d’un même corps. Refuser les remplacements partiels ambigus entre rôles ; supprimer un objet explicitement ciblé ou entièrement couvert par la sélection. | Préciser les jonctions entre types de paragraphes avant migration. C’est une restriction volontaire pour les nouveaux passages ambigus, pas une promesse de reproduire toute suppression accidentelle du tampon plat. |
 | **V3 — Appels explicites et déclencheurs graphiques — validé le 22 octobre 2026** | Une action métier a une commande canonique paramétrée. Les menus et raccourcis recueillent au besoin les paramètres par un `UiCommand`, puis appellent cette même commande. Hors interface : paramètres explicites ou sélection détenue par le moteur. | Pas de dépendance au focus, à un index de menu ou à des pixels dans le cœur. Les identifiants existants sont conservés, sauf les deux corrections D2 déjà décidées. |
-| **V4 — Saisie et préédition — validé le 22 octobre 2026** | Une insertion est littérale par défaut. Le mode de frappe interactif peut demander les règles textuelles existantes, à traiter dans le cœur. La préédition IME reste un brouillon de l’adaptateur, puis sa validation devient une transaction. | Ne pas interpréter du Typst collé/importé comme du code. Même validation/normalisation/commit pour saisie et commandes (D17). Le passage de la préédition à une publication unique est à vérifier, pas déjà démontré par le diagnostic de phase 1. |
+| **V4 — Saisie et préédition — validé le 22 octobre 2026** | Une insertion est littérale par défaut. Le mode de frappe interactif peut demander les règles textuelles existantes, à traiter dans le cœur. La préédition IME reste un brouillon de l’adaptateur, puis sa validation devient une transaction. | Ne pas interpréter du Typst collé/importé comme du code. Même validation/normalisation/commit pour saisie et commandes (D17). Le brouillon entre frames et sa publication unique sont maintenant testés dans l’adaptateur ; le diagnostic de phase 1 seul ne les démontrait pas. La migration des règles de frappe dans le cœur reste à faire. |
 | **V5 — Profil et réglages globaux — validé le 22 octobre 2026** | Registre commun, mais préférences, profil et dictionnaire personnel restent des actions d’application non exposées sans interface dans ce premier moteur. Le moteur reçoit leurs valeurs nécessaires comme configuration ou données explicites. | Précision validée de D5 et de 2.4.5 : `spelling.learn` reste accessible dans l’application, sans mutation des préférences par `Engine`. Une future API de services globaux est distincte ; aucune action globale dans un lot documentaire (D16). |
 | **V6 — Création, dates et export — validé le 22 octobre 2026** | Création sans interface vide, sauf valeurs initiales fournies ; l’UI transmet une copie du profil. « Aujourd’hui » est résolu en date ISO avant mutation. Export vers un dossier neuf/vide, avec `format: pdf / typst / both`. | L’export actuel produit PDF + sources + PNG : proposer `both` et `page_images: true` par défaut pour préserver cet export, avec une option explicite pour omettre les PNG de diagnostic. Les formats séparés sont un changement volontaire validé, à implémenter. Aucun export dans un lot d’édition. |
 
@@ -248,7 +250,7 @@ dans V3 ; il n’est pas nécessaire de renommer les identifiants pour séparer 
 | Couper | TextEdit egui (`Event::Cut`) | Q texte + copie UI réussie, puis `text.delete` avec garde | UI + C-doc | Non | Suppression : oui | Pas de test direct Cut/clipboard ; T07 indirect |
 | Coller | TextEdit egui (`Event::Paste`) | Texte du presse-papiers → `text.insert` littéral ; pas d’import HTML nouveau | UI + C-doc | Non | Insertion : oui | T07 indirect ; collage dédié à ajouter |
 | Retour simple / nouveau paragraphe | TextEdit, normalisation `Projection::insert_text` | `text.insert` avec retour(s), selon règles du rôle | C-doc | Non | Oui | T57 |
-| Préédition/validation/annulation IME | TextEdit egui et son `TextBuffer` | Brouillon local, transaction finale `text.insert` ; pas de commande publique par touche d’IME | UI + C-doc à validation | Non | Commit de texte : oui | Diagnostic IME ; parité future du commit à ajouter |
+| Préédition/validation/annulation IME | `app/ime`, `TextInput`, `Session::commit_projection` ; TextEdit egui pour l’affichage | Brouillon persistant de l’adaptateur, transaction finale `text.insert` après migration ; pas de commande publique par touche d’IME | UI + C-doc à validation | Non | Commit de texte : oui | T60–T63 ; 14 scénarios dans `app::tests::ime` ; méthode IME système à essayer |
 | Préfixes `=`, `==`, `===`, `-`, `+`, `1.`, `/`, `>` suivis d’espace | `app/text_input::block_shortcut` | Mode `typing` ; intention de bloc typée ; historique conserve le littéral | C-doc dans l’insertion interactive | Non | Oui, mode explicite | T08 |
 | Fermeture `*…*` / `_…_` | `app/text_input::inline_shortcut` | Même mode `typing`, style sur plage textuelle ; jamais exécution de code | C-doc dans l’insertion interactive | Non | Oui, mode explicite | T08 |
 | Modifier les styles des frappes suivantes | `Projection::typing_style`, `editor_feedback`, `toggle_mark` | Curseur vide + style ; contexte de frappe distingué du texte déjà présent | C-sel/contexte ; C-doc seulement si contenu modifié | Non | Oui | T06 indirect ; contexte seul à préciser |
@@ -553,6 +555,10 @@ pas devenir une voie contournant les validations du cœur.
 | T57 | [text_input.rs](../src/app/tests/text_input.rs) | `native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopening` |
 | T58 | [courrier.rs](../src/document_types/courrier.rs) | `courrier_field_definitions_drive_header_and_required_export_fields` |
 | T59 | [dates.rs](../src/dates.rs) | `aliases_resolve_to_fixed_dates_and_explicit_dates_are_validated` |
+| T60 | [ime.rs](../src/app/tests/ime.rs) | `preedit_survives_frames_and_is_visible_without_publishing_any_session_state` |
+| T61 | [ime.rs](../src/app/tests/ime.rs) | `ime_commit_and_explicit_replacement_have_the_same_literal_source_styles_and_selection` |
+| T62 | [ime.rs](../src/app/tests/ime.rs) | `saving_and_recovery_only_contain_committed_text` |
+| T63 | [ime.rs](../src/app/tests/ime.rs) | `commands_and_new_documents_cancel_composition_and_ignore_its_late_commit` |
 | T60 | [tests.rs](../src/tests.rs) | `document_options_control_real_page_dimensions_and_text_language` |
 | T61 | [courrier.rs](../src/document_types/courrier.rs) | `personal_window_letter_compiles_in_app_and_keeps_addresses_on_first_page` |
 | T62 | [profile.rs](../src/profile.rs) | `profile_resources_are_managed_and_documents_survive_original_and_global_image_removal` |

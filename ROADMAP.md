@@ -587,8 +587,10 @@ et zones de texte en mémoire.
 Premiers lots réalisés : blocs et zones avec identités, aller-retour vers le
 sérialiseur, positions logiques et gardes de révision, restauration des sélections
 par l’historique. Frontières de zones protégées et voie commune de validation,
-normalisation et publication des éditions en place ; isolation IME entre frames
-encore à faire. Le moteur et la migration des commandes restent à réaliser
+normalisation et publication des éditions en place. La préédition IME reste
+isolée entre frames, avec une publication unique à validation, vérifiée par les
+événements egui ; l’essai d’une méthode IME du système reste au chantier I.
+Le moteur et la migration des commandes restent à réaliser
 ([suivi de phase 2](docs/architecture-phase-2.md)).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une

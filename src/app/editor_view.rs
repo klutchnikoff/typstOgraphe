@@ -52,8 +52,6 @@ impl App {
         }
     }
     fn editor_frame(&mut self, ctx: &egui::Context) -> EditorFrame {
-        let before = self.snapshot();
-        let old_range = self.document.selection;
         if self.document.force_selection {
             let search_focus = self.search_focus(ctx);
             editor::restore_cursor(ctx, self.document.selection);
@@ -62,6 +60,11 @@ impl App {
             }
             self.document.force_selection = false;
         }
+        // Une sélection imposée peut avoir focalisé l’éditeur depuis le début
+        // de la frame. Revérifier la destination des événements restants.
+        self.prepare_ime(ctx);
+        let before = self.snapshot();
+        let old_range = self.document.selection;
         for image in self.document.session.document.view.images.values() {
             if !self.image_textures.contains_key(&image.path)
                 && let Some(data) = self.document.session.document.assets.get(&image.path)
@@ -74,14 +77,17 @@ impl App {
                 );
             }
         }
-        let view = self.document.session.document.view.clone();
+        let view = self.document.ime.draft.as_ref().map_or_else(
+            || self.document.session.document.view.clone(),
+            |draft| draft.input.view.clone(),
+        );
         let lock_tab = view.annotation_at(self.range()).is_some()
             || (view.blocks[view.line_at(self.document.selection.primary.index)]
                 == BlockKind::Description
                 || view.blocks[view.line_at(self.document.selection.primary.index)]
                     .is_letter_note());
         let editor_style = self.preferences.editor;
-        let matches = if self.search.open {
+        let matches = if self.search.open && self.document.ime.draft.is_none() {
             self.search.engine.matches.clone()
         } else {
             vec![]
@@ -152,6 +158,27 @@ impl App {
         let old_range = frame.old_range;
         let clicked_term =
             editor::paint_decorations(ui, &draft.view, &output, editor_style, background);
+        self.scroll_ime(ui, &output);
+        if self.document.ime.draft.is_some() {
+            // La sélection native matérialise la préédition. La sélection
+            // publiée, utilisée par les compteurs et l’aperçu, reste inchangée.
+            let selection = self.document.ime.draft.as_ref().unwrap().selection;
+            if !output.response.has_focus() {
+                self.cancel_ime();
+            }
+            editor::paint_images(
+                ui,
+                &draft.view,
+                &output,
+                &self.image_textures,
+                selection.as_sorted_char_range(),
+                editor_style,
+            );
+            let mut state = output.state;
+            state.clear_undoer();
+            state.store(ui.ctx(), output.response.id);
+            return None;
+        }
         if let Some(range) = output.cursor_range {
             self.document.selection = range;
         }

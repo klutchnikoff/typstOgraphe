@@ -4,6 +4,7 @@
 V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers lots
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
+La préédition IME est maintenant isolée entre frames, avec une publication à validation.
 Le moteur de commandes et son catalogue ne sont pas encore implémentés.
 
 ## Blocs et zones en mémoire
@@ -100,12 +101,47 @@ appel explicite. Remplacer tout le texte d’un titre conserve son niveau ; effa
 la sélection totale du document laisse un paragraphe vide. Les compteurs et le
 rendu continuent de lire le document publié.
 
+## Préédition IME entre frames
+
+L’adaptateur `app/ime.rs` conserve l’instantané d’origine, sa garde de session et
+révision, le tampon `TextInput` et la sélection temporaire. Chaque prédiction
+remplace la sélection d’origine dans ce brouillon ; les prédictions successives
+ne réaffectent pas les ancres du document. Le texte marqué reste visible dans
+l’éditeur, avec le curseur et le défilement egui, sans publier sa sélection.
+
+Un `Commit` non vide passe une seule fois par `Session::commit_projection`, en
+groupe discret. Une composition validée forme donc une étape d’annulation,
+distincte des frappes précédentes et suivantes. Le remplacement reste littéral,
+reprend le style de départ et subit les mêmes contrôles de frontières et de
+contenu que les appels explicites. Une erreur du brouillon reste bloquante
+jusqu’à son abandon ou sa validation refusée.
+
+`Preedit("")` reste transitoire. Une validation vide, `Disabled`, Échap, une perte
+de focus, un clic, un changement de cible ou de document, et une commande
+abandonnent la composition. Le document publié ne nécessite aucun retour arrière.
+Les événements terminaux d’un flux abandonné sont écartés pour éviter leur
+insertion dans une nouvelle cible. Un nouveau `Enabled` ou la reprise d’une
+saisie directe autorise un nouveau flux ; un `Commit` sans préédition est pris
+en charge, notamment pour les touches mortes. `Enabled` seul ne met pas la
+saisie ordinaire en attente.
+
+Les événements de l’éditeur sont adaptés avant le `TextEdit` ; aucun champ privé
+d’egui n’est utilisé. Les recherches, champs de métadonnées et dialogues gardent
+leur traitement IME natif. Pendant la composition, le Typst, les cartes de source,
+les identités, les ressources, les compteurs, le rendu, la sauvegarde et la
+récupération continuent de lire uniquement la session publiée.
+
 ## Vérifications
 
-- 181 tests de l’application réussis, dont 38 tests ajoutés depuis le début de
+- 195 tests de l’application réussis, dont 52 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
+- Les 14 nouveaux scénarios IME couvrent les prédictions sur plusieurs frames,
+  leur affichage, les validations sans préédition et dans une même frame,
+  l’annulation, les événements tardifs, les frontières, les styles et identités,
+  l’historique, les pertes de focus et les changements de document. La parité avec
+  un remplacement explicite et les archives de sauvegarde/récupération sont testées.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
   avertissement ; ses 104 tests partagés réussissent aussi.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
@@ -113,6 +149,8 @@ rendu continuent de lire le document publié.
   `output/baseline/run-ioma5t0l/` et `output/baseline/run-uvqd1xwk/`, puis après la
   voie commune dans `output/baseline/run-rot7603t/`. La comparaison finale sur le
   code de ce lot est également identique, dans `output/baseline/run-do7d7apa/`.
+  Après l’isolation IME, les huit captures restent strictement identiques dans
+  `output/baseline/run-t2opy5ig/`.
 - Le scénario existant qui essayait une insertion d’image à chaque caractère
   conserve ses contrôles de validité. Il vérifie désormais soit l’insertion aux
   positions autorisées, soit le refus sans mutation dans une zone protégée.
@@ -131,11 +169,10 @@ déclarée terminée par les tests de conversion des positions. Les raccourcis d
 transformation textuelle restent préparés par l’interface, puis validés par la
 voie commune ; leur déplacement dans le cœur reste à faire (V4).
 
-La préédition IME reste à isoler dans un brouillon conservé entre frames, avec
-publication unique à validation. Le tampon de saisie est maintenant distinct du
-document pendant une frame, mais cet ajout n’est pas présenté comme la réalisation
-de cette isolation entre frames. D17 et la tâche 2.1 bis restent donc ouverts sur
-ce point ; l’essai d’une vraie méthode IME du système reste dans le chantier I.
+L’isolation de la préédition entre frames et sa publication unique sont vérifiées
+par les événements egui. L’essai d’une vraie méthode IME du système reste dans le
+chantier I : ces tests ne vérifient pas le clavier ni la fenêtre de candidats du
+système. D17 et la tâche 2.1 bis restent ouverts pour la suite de la migration.
 
 Viennent ensuite le registre typé, les erreurs et schémas, `Engine`, puis la
 migration des familles de commandes et le catalogue généré. La séparation des

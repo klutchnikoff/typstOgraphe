@@ -89,6 +89,7 @@ impl App {
                 session: Session::new(saved, document, None, 1),
                 selection: CCursorRange::one(CCursor::new(0)),
                 force_selection: false,
+                ime: Default::default(),
                 statistics: Default::default(),
                 history_field: None,
                 presentation: ModelPresentation::default(),
