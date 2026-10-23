@@ -17,6 +17,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "session/batches.rs"]
+mod batches;
 #[path = "session/edits.rs"]
 mod edits;
 #[cfg(test)]
