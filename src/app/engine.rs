@@ -38,11 +38,25 @@ impl App {
                 CoreCommand::SetSignature(_)
                     | CoreCommand::SetMetadata(_)
                     | CoreCommand::SetOption(_)
+                    | CoreCommand::SaveDocument(_)
+                    | CoreCommand::SaveAs(_)
+                    | CoreCommand::Export(_)
+                    | CoreCommand::DeleteRecovery(_)
             );
         self.document
             .engine
             .set_adapter_selection(self.document.selection.into())?;
         let outcome = self.document.engine.run_call(command.to_call())?;
+        if outcome
+            .effects
+            .contains(&crate::engine::Effect::DocumentReplaced)
+        {
+            self.after_document_replaced();
+        }
+        if outcome.effects.contains(&crate::engine::Effect::Saved) {
+            self.recovery.recovered_name = None;
+            self.clear_recovery();
+        }
         self.document.selection = self.document.engine.selection().into();
         if model {
             self.document.presentation = serde_json::from_value(
@@ -60,7 +74,9 @@ impl App {
         if !preserve_focus {
             self.document.force_selection = true;
         }
-        self.preview.forward_pending = true;
+        if !outcome.effects.contains(&crate::engine::Effect::Saved) {
+            self.preview.forward_pending = true;
+        }
         if self.search.open {
             self.refresh_search();
         }
@@ -93,6 +109,18 @@ impl App {
         }
         if matches!(
             error.reason(),
+            "file_open"
+                | "file_save"
+                | "file_document"
+                | "file_export"
+                | "export_compile"
+                | "recovery_load"
+                | "recovery_delete"
+        ) {
+            return error.params["detail"].as_str().unwrap_or("").into();
+        }
+        if matches!(
+            error.reason(),
             "model_io" | "model_utf8" | "model_dependencies"
         ) {
             return error.params["detail"].as_str().unwrap_or("").into();
@@ -108,6 +136,11 @@ impl App {
         }
         crate::i18n::text(match error.reason() {
             "image_too_large" => "image-too-large",
+            "file_exists" => "file-already-exists",
+            "unsaved_changes" => "unsaved-message",
+            "creation_model" => "type-no-model",
+            "export_required_fields" => "export-required-fields",
+            "save_path_required" => "save-dialog",
             "model_too_large" => "model-too-large",
             "image_format" => "image-format-unsupported",
             "image_svg" => "image-invalid-svg",

@@ -8,6 +8,7 @@ impl App {
         self.install_document(stored, document, None)
             .expect("registre valide");
     }
+    #[cfg(test)]
     pub(super) fn stored_document(&self) -> StoredDocument {
         self.document.engine.stored_document()
     }
@@ -15,26 +16,26 @@ impl App {
         self.document.open && self.document.engine.is_dirty()
     }
     pub(super) fn save_path(&mut self, path: PathBuf) -> bool {
-        self.cancel_ime();
-        let letter = self.stored_document();
-        match storage::save(&path, &letter) {
-            Ok(()) => {
-                self.dialogs.message = Some(crate::tr!(
-                    "letter-saved",
-                    path = path.display().to_string()
-                ));
-                self.document.engine.file_path = Some(path);
-                // Le fichier est nettoyé par storage::save ; ce repère en mémoire
-                // garde les mêmes ressources que l’historique pour is_dirty.
-                self.document.engine.saved = letter;
-                self.document.engine.recovered = false;
-                self.recovery.recovered_name = None;
-                self.clear_recovery();
+        let command = crate::engine::Command::SaveDocument(crate::engine::SaveDocumentParams {
+            guard: self.document.engine.target_guard(),
+            path: Some(path),
+        });
+        self.save_file_command(command)
+    }
+    fn save_file_command(&mut self, command: crate::engine::Command) -> bool {
+        match self.execute_document_command(command) {
+            Ok(outcome) => {
+                let path = outcome
+                    .value
+                    .as_ref()
+                    .and_then(|v| v["path"].as_str())
+                    .unwrap_or_default();
+                self.dialogs.message = Some(crate::tr!("letter-saved", path = path));
                 self.file.error = None;
                 true
             }
             Err(error) => {
-                self.file.error = Some(error);
+                self.file.error = Some(Self::command_error_text(&error));
                 false
             }
         }
@@ -87,25 +88,32 @@ impl App {
                     return false;
                 }
             }
-            self.save_path(path)
+            self.save_file_command(crate::engine::Command::SaveAs(
+                crate::engine::SaveAsParams {
+                    guard: self.document.engine.target_guard(),
+                    path,
+                    overwrite: true,
+                },
+            ))
         } else {
             false
         }
     }
     pub(super) fn open_path(&mut self, path: PathBuf) -> bool {
-        match storage::read(&path).and_then(|letter| {
-            Document::from_source(&letter.source).map(|document| (letter, document))
-        }) {
-            Ok((letter, document)) => {
-                if let Err(error) = self.install_document(letter, document, Some(path)) {
-                    self.file.error = Some(error);
-                    return false;
-                }
+        // Le parcours UI a déjà traité le brouillon dans request_action/file_dialogs.
+        match self.execute_document_command(crate::engine::Command::OpenDocument(
+            crate::engine::OpenDocumentParams {
+                guard: self.document.engine.target_guard(),
+                path,
+                discard_changes: true,
+            },
+        )) {
+            Ok(_) => {
                 self.dialogs.message = Some(crate::tr!("letter-opened"));
                 true
             }
             Err(error) => {
-                self.file.error = Some(error);
+                self.file.error = Some(Self::command_error_text(&error));
                 false
             }
         }
@@ -113,10 +121,22 @@ impl App {
     pub(super) fn install_document(
         &mut self,
         letter: StoredDocument,
-        document: Document,
+        _document: Document,
         path: Option<PathBuf>,
     ) -> Result<(), String> {
-        let keymap = self.keymap.for_document(letter.metadata.document_type())?;
+        self.keymap.for_document(letter.metadata.document_type())?;
+        self.document
+            .engine
+            .install_stored(letter, path, false)
+            .map_err(|e| Self::command_error_text(&e))?;
+        self.after_document_replaced();
+        Ok(())
+    }
+    pub(super) fn after_document_replaced(&mut self) {
+        let keymap = self
+            .keymap
+            .for_document(self.document.engine.metadata.document_type())
+            .expect("registre intégré valide");
         self.cancel_ime();
         self.clear_recovery();
         self.recovery.recovered_name = None;
@@ -127,10 +147,11 @@ impl App {
         self.spelling.menu_position = None;
         self.keymap = keymap;
         self.document.history_field = None;
-        self.document.engine =
-            Session::new(letter, document, path, self.document.engine.revision + 1).into();
-        self.document.open = true;
+        self.document.open = self.document.engine.is_open();
         self.image_textures.clear();
+        self.dialogs.information_open = false;
+        self.dialogs.link_open = false;
+        self.file.export_open = false;
         self.dialogs.image_info = None;
         self.dialogs.image_target = None;
         self.dialogs.link_target = None;
@@ -147,7 +168,6 @@ impl App {
         self.preview.elapsed = None;
         self.file.error = None;
         self.dialogs.message = None;
-        Ok(())
     }
     pub(super) fn request_action(&mut self, action: PendingAction, ctx: &egui::Context) {
         if self.is_dirty() {
@@ -157,18 +177,14 @@ impl App {
         }
     }
     pub(super) fn close_document(&mut self) {
-        let kind = self.dialogs.new_document_type;
-        let letter = StoredDocument::blank(kind);
-        let document = Document::from_source("").expect("document vide valide");
-        // install_document réinitialise aussi l'historique, les dialogues liés
-        // au document et les résultats de rendu. Les préférences restent globales.
-        self.install_document(letter, document, None)
-            .expect("registre valide");
-        self.document.open = false;
-        self.dialogs.information_open = false;
-        self.dialogs.link_open = false;
-        self.file.export_open = false;
-        self.document.history_field = None;
+        if let Err(error) = self.execute_document_command(crate::engine::Command::CloseDocument(
+            crate::engine::CloseDocumentParams {
+                guard: self.document.engine.target_guard(),
+                discard_changes: true,
+            },
+        )) {
+            self.file.error = Some(Self::command_error_text(&error));
+        }
     }
     pub(super) fn perform_action(&mut self, action: PendingAction, ctx: &egui::Context) {
         match action {
@@ -227,7 +243,7 @@ impl App {
             self.file.error = Some(crate::tr!("type-no-model"));
             return;
         };
-        let mut letter = match self
+        let letter = match self
             .preferences
             .profile
             .document(kind, self.profile_signature.as_ref())
@@ -238,18 +254,40 @@ impl App {
                 return;
             }
         };
-        letter.template = model.source();
-        let document = Document::from_source(&letter.source).expect("document vide valide");
-        if let Err(error) = self.install_document(letter, document, None) {
-            self.file.error = Some(error);
-        } else {
-            self.dialogs.new_document_open = false;
-            self.file.export_path = std::env::current_dir()
-                .unwrap_or_default()
-                .join("output")
-                .join(kind.file_stem())
-                .display()
-                .to_string();
+        let signature = letter
+            .metadata
+            .signature_path()
+            .and(self.profile_signature.as_ref())
+            .map(crate::engine::ImageInput::from);
+        let initial_values = letter
+            .metadata
+            .field_values()
+            .into_iter()
+            .filter(|f| !f.value.is_empty())
+            .map(|f| crate::engine::InitialValue {
+                field: f.field,
+                value: f.value,
+            })
+            .collect();
+        let command = crate::engine::Command::NewDocument(crate::engine::NewDocumentParams {
+            guard: self.document.engine.target_guard(),
+            document_type: kind,
+            model: model.definition().command.id.into(),
+            initial_values,
+            signature,
+            discard_changes: true,
+        });
+        match self.execute_document_command(command) {
+            Err(error) => self.file.error = Some(Self::command_error_text(&error)),
+            Ok(_) => {
+                self.dialogs.new_document_open = false;
+                self.file.export_path = std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("output")
+                    .join(kind.file_stem())
+                    .display()
+                    .to_string();
+            }
         }
     }
     pub(super) fn handle_file_command(&mut self, command: FileCommand, ctx: &egui::Context) {
@@ -264,7 +302,10 @@ impl App {
             FileCommand::SaveAs => {
                 self.save_document(true);
             }
-            FileCommand::Export => self.file.export_open = self.document.open,
+            FileCommand::Export => {
+                self.file.export_open = self.document.open && self.file.export_task.is_none();
+                self.file.export_guard = Some(self.document.engine.target_guard());
+            }
         }
         ctx.request_repaint();
     }

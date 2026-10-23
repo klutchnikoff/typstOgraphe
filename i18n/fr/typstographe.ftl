@@ -102,7 +102,7 @@ link-invalid-url = Utilisez une adresse https://, http:// ou mailto:.
 command-search = Rechercher une commande…
 export-title = Exporter le document
 export-folder = Dossier de destination
-export-help = PDF, pages PNG et fichiers Typst séparés. Pour conserver un document modifiable dans un fichier unique, utilisez Enregistrer.
+export-help = Choisissez un dossier neuf ou vide. Pour conserver un document modifiable dans un fichier unique, utilisez Enregistrer.
 export-button = Exporter
 export-required-fields = Renseignez les champs obligatoires avant l’export.
 export-pending = Export en cours…
@@ -383,3 +383,11 @@ engine-invalid-params = Les paramètres de cette commande sont invalides.
 engine-unavailable = Cette commande n’est pas disponible dans le contexte actuel.
 
 engine-image-error = Impossible de traiter cette image : { $error }
+
+export-format = Format
+export-pdf = PDF
+export-typst = Typst
+export-both = PDF + Typst
+export-page-images = Inclure les pages PNG (diagnostic)
+
+file-already-exists = Le fichier existe déjà. Confirmez son remplacement dans Enregistrer sous.

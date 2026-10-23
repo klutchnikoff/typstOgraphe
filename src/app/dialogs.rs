@@ -327,27 +327,38 @@ impl App {
                         egui::TextEdit::singleline(&mut self.file.export_path)
                             .desired_width(f32::INFINITY),
                     );
+                    ui.horizontal(|ui| {
+                        ui.label(crate::tr!("export-format"));
+                        for (format, key) in [
+                            (crate::engine::ExportFormat::Pdf, "export-pdf"),
+                            (crate::engine::ExportFormat::Typst, "export-typst"),
+                            (crate::engine::ExportFormat::Both, "export-both"),
+                        ] {
+                            ui.selectable_value(
+                                &mut self.file.export_format,
+                                format,
+                                crate::i18n::text(key),
+                            );
+                        }
+                    });
+                    ui.checkbox(
+                        &mut self.file.export_page_images,
+                        crate::tr!("export-page-images"),
+                    );
                     ui.weak(crate::tr!("export-help"));
                     export = ui.button(crate::tr!("export-button")).clicked();
                 });
             self.file.export_open &= open;
-            if export {
-                if !self.document.engine.metadata.ready_for_export() {
-                    self.dialogs.message = Some(crate::tr!("export-required-fields"));
-                } else {
-                    match self
-                        .preview
-                        .worker
-                        .sender
-                        .send(self.request(Some(PathBuf::from(&self.file.export_path))))
-                    {
-                        Ok(()) => {
-                            self.file.export_open = false;
-                            self.dialogs.message = Some(crate::tr!("export-pending"));
-                        }
-                        Err(_) => self.dialogs.message = Some(crate::tr!("renderer-stopped")),
-                    }
-                }
+            if export && let Some(guard) = self.file.export_guard {
+                self.export_document(
+                    crate::engine::ExportParams {
+                        guard,
+                        directory: PathBuf::from(&self.file.export_path),
+                        format: self.file.export_format,
+                        page_images: self.file.export_page_images,
+                    },
+                    ctx,
+                );
             }
         }
     }

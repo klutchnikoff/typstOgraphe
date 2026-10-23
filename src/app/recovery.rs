@@ -6,7 +6,8 @@ impl App {
             Ok((recovery, entries)) => {
                 self.recovery.worker = Some(recovery);
                 self.recovery.open = !entries.is_empty();
-                self.recovery.entries = entries;
+                self.document.engine.configure_recovery(entries);
+                self.refresh_recovery_list();
             }
             Err(error) => self.recovery.error = Some(error),
         }
@@ -51,29 +52,48 @@ impl App {
             format!("{stem}-{}.typsto", crate::tr!("recovery-filename-suffix"))
         })
     }
+    pub(super) fn refresh_recovery_list(&mut self) {
+        let value = self
+            .document
+            .engine
+            .query_call(crate::engine::Query::RecoveryList(crate::engine::Empty {}).to_call())
+            .expect("recovery listing");
+        self.recovery.entries =
+            serde_json::from_value(value["entries"].clone()).expect("typed recovery entries");
+    }
     pub(super) fn recover_document(&mut self, index: usize) {
         let Some(entry) = self.recovery.entries.get(index) else {
             return;
         };
-        let name = entry.name();
-        let restored = entry.load().and_then(|stored| {
-            Document::from_source(&stored.source).map(|document| (stored, document))
-        });
-        match restored.and_then(|(stored, document)| self.install_document(stored, document, None))
-        {
-            Ok(()) => {
-                let entry = self.recovery.entries.remove(index);
-                self.document.engine.recovered = true;
+        let name = entry
+            .name
+            .clone()
+            .unwrap_or_else(|| crate::tr!("untitled-letter"));
+        let command =
+            crate::engine::Command::RestoreRecovery(crate::engine::RestoreRecoveryParams {
+                guard: self.document.engine.target_guard(),
+                reference: entry.reference,
+                discard_changes: true,
+            });
+        match self.execute_document_command(command) {
+            Ok(_) => {
                 self.recovery.recovered_name = Some(name);
-                if let Some(recovery) = &mut self.recovery.worker
+                if let Some(entry) = self.document.engine.take_recovered_entry()
+                    && let Some(recovery) = &mut self.recovery.worker
                     && let Err(error) = recovery.adopt(entry)
                 {
                     self.recovery.error = Some(error);
                 }
+                self.refresh_recovery_list();
                 self.recovery.open = false;
                 self.dialogs.message = Some(crate::tr!("recovery-restored"));
             }
-            Err(error) => self.file.error = Some(crate::tr!("recovery-load-failed", error = error)),
+            Err(error) => {
+                self.file.error = Some(crate::tr!(
+                    "recovery-load-failed",
+                    error = Self::command_error_text(&error)
+                ))
+            }
         }
     }
     pub(super) fn recovery_dialog(&mut self, ctx: &egui::Context) {
@@ -97,22 +117,31 @@ impl App {
                     .show(ui, |ui| {
                         for (index, entry) in self.recovery.entries.iter().enumerate() {
                             ui.separator();
-                            ui.strong(entry.name());
-                            match &entry.info {
-                                Ok(info) => {
-                                    ui.weak(crate::tr!("recovery-date", date = info.date()));
-                                }
-                                Err(error) => {
-                                    ui.colored_label(
-                                        Color32::LIGHT_RED,
-                                        crate::tr!("recovery-load-failed", error = error.as_str()),
-                                    );
-                                }
+                            ui.strong(
+                                entry
+                                    .name
+                                    .clone()
+                                    .unwrap_or_else(|| crate::tr!("untitled-letter")),
+                            );
+                            if let Some(error) = &entry.error {
+                                ui.colored_label(
+                                    Color32::LIGHT_RED,
+                                    crate::tr!("recovery-load-failed", error = error.as_str()),
+                                );
+                            } else if let Some(date) = entry.saved_at {
+                                let date = time::OffsetDateTime::from_unix_timestamp(date)
+                                    .ok()
+                                    .and_then(|d| {
+                                        d.format(&time::format_description::well_known::Rfc3339)
+                                            .ok()
+                                    })
+                                    .unwrap_or_default();
+                                ui.weak(crate::tr!("recovery-date", date = date));
                             }
                             ui.horizontal(|ui| {
                                 if ui
                                     .add_enabled(
-                                        entry.info.is_ok(),
+                                        entry.error.is_none(),
                                         egui::Button::new(crate::tr!("recovery-restore")),
                                     )
                                     .clicked()
@@ -133,12 +162,19 @@ impl App {
             if restore {
                 self.request_action(PendingAction::Recover(index), ctx);
             } else {
-                match self.recovery.entries[index].delete() {
-                    Ok(()) => {
-                        self.recovery.entries.remove(index);
-                    }
+                let reference = self.recovery.entries[index].reference;
+                match self.document.engine.run_call(
+                    crate::engine::Command::DeleteRecovery(crate::engine::DeleteRecoveryParams {
+                        reference,
+                    })
+                    .to_call(),
+                ) {
+                    Ok(_) => self.refresh_recovery_list(),
                     Err(error) => {
-                        self.file.error = Some(crate::tr!("recovery-delete-failed", error = error))
+                        self.file.error = Some(crate::tr!(
+                            "recovery-delete-failed",
+                            error = Self::command_error_text(&error)
+                        ))
                     }
                 }
                 self.recovery.open &= !self.recovery.entries.is_empty();

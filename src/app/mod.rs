@@ -8,6 +8,7 @@ mod commands;
 mod dialogs;
 mod editor_view;
 mod engine;
+mod export;
 mod files;
 mod images;
 mod ime;
@@ -30,7 +31,7 @@ use crate::{
     navigation::{PagePoint, RenderSync},
     preferences::{Appearance, EditorFont, Preferences},
     rendering::{RenderRequest, RenderWorker},
-    session::{EditGroup, Session, Snapshot},
+    session::{EditGroup, Snapshot},
     storage::{self, StoredDocument},
 };
 use eframe::egui::{
@@ -110,6 +111,7 @@ impl App {
             self.dialogs.information_open = false;
             self.file.pending_action = Some(PendingAction::Close);
         }
+        self.poll_export();
         self.rendering(ctx);
         self.refresh_spelling(ctx);
         if self.document.open && !self.modal_open() {

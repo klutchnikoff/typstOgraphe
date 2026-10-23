@@ -160,6 +160,7 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     app.apply(Command::ToggleSpelling);
     let mut another = StoredDocument::blank(DocumentType::CompteRendu);
     another.source = stored.source.clone();
+    another.template = "#let compte-rendu(..args) = []".into();
     let document = Document::from_source(&another.source).unwrap();
     app.install_document(another, document, None).unwrap();
     app.refresh_spelling(&ctx);

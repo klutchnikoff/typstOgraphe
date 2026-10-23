@@ -8,7 +8,7 @@ pub(super) struct CaptureState {
 
 pub(super) struct RecoveryState {
     pub(super) worker: Option<crate::recovery::Recovery>,
-    pub(super) entries: Vec<crate::recovery::Entry>,
+    pub(super) entries: Vec<crate::engine::RecoveryItem>,
     pub(super) open: bool,
     pub(super) error: Option<String>,
     pub(super) recovered_name: Option<String>,
@@ -52,6 +52,11 @@ pub(super) struct FileState {
     pub(super) window_title: String,
     pub(super) export_open: bool,
     pub(super) export_path: String,
+    pub(super) export_format: crate::engine::ExportFormat,
+    pub(super) export_page_images: bool,
+    pub(super) export_guard: Option<crate::session::TargetGuard>,
+    pub(super) export_task:
+        Option<std::sync::mpsc::Receiver<Result<serde_json::Value, crate::engine::CommandError>>>,
 }
 
 pub(super) struct DialogState {

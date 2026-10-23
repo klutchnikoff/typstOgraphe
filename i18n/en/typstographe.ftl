@@ -40,7 +40,7 @@ link-invalid-url = Use an https://, http:// or mailto: address.
 command-search = Search for a command…
 export-title = Export document
 export-folder = Destination folder
-export-help = PDF, PNG pages and separate Typst files. Use Save to keep an editable document in a single file.
+export-help = Choose a new or empty folder. Use Save to keep an editable document in a single file.
 export-button = Export
 export-required-fields = Fill in the recipient and subject before exporting.
 export-pending = Exporting…
@@ -380,3 +380,11 @@ engine-invalid-params = This command has invalid parameters.
 engine-unavailable = This command is not available in the current context.
 
 engine-image-error = Unable to process this image: { $error }
+
+export-format = Format
+export-pdf = PDF
+export-typst = Typst
+export-both = PDF + Typst
+export-page-images = Include PNG pages (diagnostic)
+
+file-already-exists = The file already exists. Confirm its replacement in Save As.

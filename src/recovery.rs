@@ -33,6 +33,7 @@ impl Info {
                 .as_secs() as i64,
         }
     }
+    #[cfg(test)]
     pub fn date(&self) -> String {
         time::OffsetDateTime::from_unix_timestamp(self.saved_at)
             .ok()
@@ -149,13 +150,6 @@ impl Entry {
             storage::decode_archive(open_snapshot(&self.slot.path())?, Some(INFO))?;
         decode_info(&info.ok_or_else(|| crate::tr!("storage-unsupported"))?)?;
         Ok(document)
-    }
-    pub fn name(&self) -> String {
-        self.info
-            .as_ref()
-            .ok()
-            .and_then(|info| info.original_name.clone())
-            .unwrap_or_else(|| crate::tr!("untitled-letter"))
     }
     pub fn delete(&self) -> Result<(), String> {
         self.slot.clear()

@@ -4,7 +4,7 @@
 )]
 
 use super::*;
-use crate::document::Mark;
+use crate::{document::Mark, session::Session};
 use support::*;
 
 mod annotations;
@@ -14,6 +14,7 @@ mod commands;
 mod edit_validation;
 mod engine;
 mod files;
+mod files_engine;
 mod images;
 mod images_engine;
 mod ime;

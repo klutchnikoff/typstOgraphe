@@ -81,12 +81,10 @@ impl App {
         let spelling_ctx = ctx.clone();
         let spelling = crate::spelling::Checker::new(move || spelling_ctx.request_repaint());
         let worker = RenderWorker::spawn(ctx);
-        let document =
-            Document::from_source(&saved.source).expect("document de démonstration valide");
         Self {
             document: DocumentState {
                 open: false,
-                engine: Session::new(saved, document, None, 1).into(),
+                engine: crate::engine::Engine::empty(),
                 selection: CCursorRange::one(CCursor::new(0)),
                 force_selection: false,
                 ime: Default::default(),
@@ -124,6 +122,10 @@ impl App {
                 allow_close: false,
                 window_title: String::new(),
                 export_open: false,
+                export_format: Default::default(),
+                export_page_images: true,
+                export_guard: None,
+                export_task: None,
                 export_path: std::env::current_dir()
                     .unwrap_or_default()
                     .join("output")
