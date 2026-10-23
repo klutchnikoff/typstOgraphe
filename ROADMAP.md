@@ -624,8 +624,9 @@ copies de récupération passent également par le moteur. La création reçoit 
 copie explicite du profil ; l’export PDF/Typst/complet respecte V6 et reste asynchrone
 dans l’interface. Les [lots atomiques](docs/atomic-batches.md) sont en place :
 préparation sur une session isolée, une seule annulation et une sauvegarde finale
-facultative. La suppression de l’accès transitoire à la session, la consolidation
-des requêtes et le gel du catalogue restent à traiter
+facultative. L’accès transitoire à la session est supprimé : accesseurs immuables
+pour l’affichage, brouillons natifs opaques et publications contrôlées par le moteur.
+La consolidation des requêtes, l’aiguillage final et le gel du catalogue restent à traiter
 ([suivi de phase 2](docs/architecture-phase-2.md)).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une

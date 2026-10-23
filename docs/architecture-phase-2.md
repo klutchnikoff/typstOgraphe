@@ -86,10 +86,10 @@ La saisie native prépare désormais une copie, au lieu de modifier le document
 publié pendant `TextEdit`. Les éditions de mise en forme, les remplacements
 simples/multiples et les corrections orthographiques rejoignent la même voie de
 `Session` : vérifier la session/révision et le brouillon, normaliser une copie,
-puis publier contenu, sélection, révision et historique ensemble. Les commandes
-qui préparent encore directement leurs champs dans `App` passent par un adaptateur
-transitoire : il rétablit l’instantané avant de valider leur candidat. Ce passage
-ne constitue pas le moteur typé ni la fin de leur migration.
+puis publier contenu, sélection, révision et historique ensemble. Les préparations
+par mutation de champs suivie de restauration ne sont plus compilées en production.
+Leur usage est limité aux fixtures de tests historiques ; la saisie et les commandes
+réelles préparent leur candidat sans modifier la session publiée.
 
 Un brouillon invalide restaure aussi les métadonnées, le modèle, les dépendances
 et les ressources ; un brouillon périmé ne remplace pas un commit intervenu entre
@@ -188,14 +188,14 @@ L’ancien enum graphique s’appelle `UiCommand` ; `Definition` devient
 migrés préparent les paramètres et appellent le moteur par la voie JSON commune.
 Le dialogue de lien capture sa cible à l’ouverture et refuse une validation après
 changement de révision. La préédition reste un brouillon graphique ; sa validation
-et la saisie native passent par `Engine::commit_projection`, puis `Session`.
+et la saisie native passent par `Engine::commit_native_edit`, puis la voie commune de `Session`.
 La parité est vérifiée avec `text.insert` appelé par identifiant et JSON.
 
-La migration conserve un accès transitoire à la session via `Deref/DerefMut` pour
-les préparations historiques non migrées. Le curseur egui reste un cache converti
-avant les commandes et à la fin de la frame ; les requêtes lisent la sélection du
-moteur. Ce passage ne constitue pas la suppression de toutes les écritures depuis
-`App`, ni l’achèvement des tâches 2.1 bis et 2.4.
+L’accès transitoire à la session par `Deref/DerefMut` est supprimé. Le curseur egui
+reste un cache converti avant les commandes et à la fin de la frame ; les requêtes
+lisent la sélection possédée par le moteur. Les déplacements natifs lui transmettent
+aussi immédiatement le contexte de frappe, sans écriture directe par `App`.
+La consolidation des autres tâches de phase 2 reste distincte de cette encapsulation.
 
 [commands.md](commands.md) et [commands.json](commands.json) sont générés depuis
 le registre et comparés aux données courantes par les tests, donc dans la CI.
@@ -630,9 +630,49 @@ Les erreurs conservent leur cause structurée et l’index de l’étape ; l’i
 traduit le message avec une numérotation à partir de un. Aucun transport CLI/MCP ni
 nouvelle action de menu n’est ajouté dans ce lot.
 
+## Session encapsulée et saisie native opaque
+
+`Engine` ne se convertit plus en `Session` par `Deref` ou `DerefMut` et ne fournit
+aucun getter de cette session. `engine/state.rs` définit des lectures explicites :
+document, métadonnées, modèle, dépendances, chemin, révision, horodatage, état
+récupéré/modifié et disponibilité de l’historique. Les références rendues sont
+immuables ; les compteurs ou gardes sont copiés. Ces lectures permettent de peindre
+l’interface sans sérialiser des données JSON à chaque frame. Les requêtes du registre
+restent la voie d’accès sans interface ; les requêtes d’aperçu/compteurs sont encore
+à consolider.
+
+`begin_native_edit` prépare un `NativeEdit` opaque. L’adaptateur ne peut lire que
+sa projection initiale, sa sélection et sa garde ; il ne peut modifier l’instantané
+conservé dans le handle. `commit_native_edit` reçoit la nouvelle projection et la
+sélection, puis applique la garde et la validation commune. La frappe conserve ses
+groupes naturels ; une composition validée constitue une transaction discrète.
+Un handle périmé, étranger ou utilisé sans document ouvert est refusé sans publication.
+L’IME garde son brouillon entre frames et restaure chaque prédiction depuis la
+projection du handle, sans l’inscrire dans le document.
+
+Les déplacements du curseur par egui ou par retour depuis l’aperçu appellent
+`update_adapter_cursor`. Le moteur contrôle les bornes, met à jour sélection et
+style de frappe et clôt le groupe de frappe, sans modifier le document, sa révision
+ou l’historique. La simple synchronisation du cache de curseur ne réinitialise pas
+un gras/italique activé au point d’insertion.
+
+Les scénarios natifs de capture utilisent également les commandes de métadonnées
+et la publication contrôlée de projection. `App` ne reçoit plus de `Snapshot` de
+session et n’appelle plus `record/remember`. `Engine::commit_projection` est privé
+au moteur. Les anciens helpers de mutation/restauration de `Session` ne sont compilés
+que sous `cfg(test)` pour arranger des scénarios historiques.
+
+Les assertions internes du moteur examinent ses champs privés depuis son module
+de tests. Les tests de l’application utilisent les lectures explicites et un helper
+de fixture à portée fermée dans `engine/test_support.rs`, lui aussi exclusivement
+sous `cfg(test)`, lorsqu’ils doivent construire un état volontairement invalide ou
+manipuler une révision pour vérifier les refus. Aucun retour de session mutable ni
+proxy de compatibilité n’est ajouté à l’API de production. Aucun identifiant du
+catalogue, format d’archive, dépendance Cargo ou fonctionnalité produit n’est changé.
+
 ## Vérifications
 
-- 318 tests de l’application réussis, dont 175 tests ajoutés depuis le début de
+- 321 tests de l’application réussis, dont 178 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -646,7 +686,7 @@ nouvelle action de menu n’est ajouté dans ce lot.
   et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
   petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 191 tests partagés réussissent aussi.
+  avertissement ; ses 194 tests partagés réussissent aussi.
 - Dix tests du moteur couvrent les schémas, conversions, données invalides,
   cibles périmées/étrangères, refus atomiques, styles explicites, historique,
   lectures seules, portée Courrier et fichiers de catalogue générés. Quatre essais
@@ -667,6 +707,11 @@ nouvelle action de menu n’est ajouté dans ce lot.
   alternatif, suppression et copie de signature aux appels JSON ; ils vérifient
   aussi le refus d’un dialogue périmé, l’archivage et l’indépendance du profil.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
+- Trois nouveaux tests du contrat natif vérifient l’isolation du handle, la publication
+  et l’historique communs, les refus après changement de révision ou de document et
+  sans document ouvert, puis les déplacements de curseur, le style de frappe et la
+  conservation du rétablissement. Les tests de saisie/IME, des blocs et des lots
+  continuent de passer après adaptation des fixtures aux accès explicites.
 - Deux tests de session et douze tests du moteur couvrent les lots : isolation,
   publication unique, limites, erreurs tardives, gardes périmées/étrangères, étapes
   interdites, imports et autonomie, échec de sauvegarde, conservation du rétablissement,
@@ -741,6 +786,8 @@ nouvelle action de menu n’est ajouté dans ce lot.
   `output/baseline/run-elkplziq/`, sans modifier les références.
 - Les lots atomiques conservent les huit captures strictement identiques dans
   `output/baseline/run-oni7qo73/`, sans modifier les références.
+- La suppression des accès transitoires conserve les huit captures strictement
+  identiques dans `output/baseline/run-kndfgtd7/`, sans modifier les références.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -764,12 +811,12 @@ documentaire, les champs, les options et le changement/import des modèles sont 
 
 L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
 Les essais complets de composition, choix des candidats, annulation et historique
-avec les méthodes système restent à poursuivre dans le chantier I. D17 et la tâche
-2.1 bis restent ouverts pour la suite de la migration.
+avec les méthodes système restent à poursuivre dans le chantier I. Le contrat natif
+D17 est implémenté ; les autres critères de 2.1 bis restent à relire avant clôture.
 
 Les familles documentaires prévues en 2.4 sont migrées, y compris les fichiers et
-la récupération et les lots atomiques D16. Restent la suppression de l’accès
-transitoire à la session, l’aiguillage final des déclencheurs, les requêtes de
+la récupération et les lots atomiques D16. L’accès transitoire à la session est
+supprimé. Restent l’aiguillage final des déclencheurs, les requêtes de
 rendu/compteurs encore dans les adaptateurs et le gel du catalogue. V5 conserve
 les réglages globaux dans l’application ; les formats d’export séparés et la création
 sans interface de V6 sont implémentés et testés. Aucun transport CLI/MCP n’est ajouté

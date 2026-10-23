@@ -388,8 +388,10 @@ locales Unicode et les gardes session/révision sont testées ; l’historique c
 les sélections logiques. Les frontières de rôles sont protégées ; les éditions
 refusées ne publient aucune mutation partielle. La saisie native travaille sur un
 brouillon et rejoint la validation/normalisation/publication commune de `Session`,
-comme les commandes et remplacements. Les préparations encore faites dans `App`
-utilisent un adaptateur transitoire vers cette voie. La préédition IME reste dans
+comme les commandes et remplacements. L’UI conserve seulement une projection et
+un handle natif opaque ; le moteur possède l’instantané d’origine et valide sa
+publication. `Deref/DerefMut` et les écritures directes dans la session sont supprimés.
+La préédition IME reste dans
 un brouillon entre frames et sa validation publie une seule étape d’historique ;
 les annulations et événements tardifs ne changent pas la session publiée.
 Le tampon graphique reste plat ; l’aperçu utilise encore ses cartes de source.
@@ -449,6 +451,11 @@ Dans `src/engine/` (futur crate `core`) :
   Un échec, y compris de sauvegarde, conserve la session publiée. Limites : 256 étapes,
   4 Mio de paramètres JSON, 64 Mio de ressources supplémentaires. Le contrat des
   gardes, les résultats et les exemples sont dans [docs/atomic-batches.md](docs/atomic-batches.md).
+- [x] **Session encapsulée** : suppression de `Deref/DerefMut`. Les lectures d’affichage
+  utilisent des accesseurs immuables ; le moteur ne fournit aucun `&Session` ou
+  `&mut Session`. La saisie native reçoit un `NativeEdit` opaque et rejoint la voie
+  commune de commit. Les préparations par mutation/restauration sont limitées aux
+  fixtures compilées sous `cfg(test)` ; les captures passent par les voies validées.
 - [x] La sélection (`Caret`, `Selection`, déjà indépendantes d'egui dans `session.rs`)
   appartient au moteur : les agents et la CLI en ont besoin pour `text.insert`
   et `text.select`.
