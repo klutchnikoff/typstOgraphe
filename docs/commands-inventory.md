@@ -447,6 +447,13 @@ Les références comprennent l’identité de document, sa révision et l’iden
 rendu ; les réponses tardives du worker sont gardées également. Le contrat et les
 conventions de comptage sont détaillés dans [les lectures documentaires](read-queries.md).
 
+**Disponibilité et aiguillage unifiés le 24 octobre 2026.** Les surfaces et le
+dispatch consultent une même décision, avec commandes complètes ou intentions
+avant dialogue vérifiées par le moteur. `UiCommand::route` impose une voie
+explicite pour chaque variante ; les registres et les quatre déclencheurs sont
+contrôlés par des tests. Le [contrat d’aiguillage](command-routing.md) décrit les
+conditions graphiques restantes et les règles de validation à la confirmation.
+
 ## 6. Requêtes proposées pour lire et préparer les actions
 
 Les noms de cette section sont proposés et restent à valider ; `spelling.suggestions`
