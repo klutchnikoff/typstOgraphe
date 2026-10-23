@@ -392,9 +392,9 @@ comme les commandes et remplacements. Les préparations encore faites dans `App`
 utilisent un adaptateur transitoire vers cette voie. La préédition IME reste dans
 un brouillon entre frames et sa validation publie une seule étape d’historique ;
 les annulations et événements tardifs ne changent pas la session publiée.
-Le tampon reste plat ; les préfixes de transformation, les règles des descriptions,
-listes et notes, la recherche et l’aperçu restent à migrer. Les légendes/attributions
-et leurs raccourcis sont désormais exécutés par le moteur.
+Le tampon reste plat ; la recherche, l’aperçu et les gestes propres aux images
+restent à migrer. Les règles des descriptions, listes, notes, légendes/attributions
+et les transformations de frappe sont exécutées par le moteur.
 Voir [le suivi de phase 2](docs/architecture-phase-2.md) pour les vérifications
 et les limites de ces premiers lots. Aucune commande de tableau n’est ajoutée.
 
@@ -457,12 +457,13 @@ le moteur par l'interface, **ajouter un test qui exécute la commande par identi
 JSON** et compare avec le chemin d'interface.
 
 - [x] 2.4.1 Mise en forme : `Bold`, `Italic`, `Clear`, `Block`, `Link`, `RemoveLink`.
-- [ ] 2.4.2 Structure : `InsertPostscript`, `InsertAttachment`, annotations (entrée, sortie,
+- [x] 2.4.2 Structure : `InsertPostscript`, `InsertAttachment`, annotations (entrée, sortie,
   navigation), listes et descriptions.
   P.-S./P.J., listes, descriptions et conversion en citation sont raccordés ; la
   navigation légende/attribution et Entrée dans ces structures sont migrées.
-  Les règles des descriptions, listes et notes, ainsi que les préfixes et délimiteurs
-  de transformation textuelle restent dans l’adaptateur.
+  Termes/définitions, scissions et sorties de listes/notes, ainsi que préfixes et
+  délimiteurs de frappe sont migrés. `text.insert` distingue explicitement les modes
+  littéral (défaut) et `typing` ; l’IME reste littérale.
 - [ ] 2.4.3 Images : insérer, remplacer, supprimer, texte alternatif, légende ;
   signature de document.
 - [ ] 2.4.4 Recherche : requête, suivant, précédent, remplacer, tout remplacer.

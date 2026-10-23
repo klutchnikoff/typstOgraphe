@@ -10,10 +10,14 @@ Le premier moteur, 22 commandes documentaires et six requêtes sont maintenant
 implémentés avec leurs schémas JSON ; voir le [catalogue généré](commands.md).
 Le lot du 23 octobre migre Tab/Maj+Tab vers `text.select { part }`, puis Entrée
 vers `block.split` et sa sortie commune `block.exit` pour légendes et attributions.
-Ces commandes de bloc sont limitées à ces structures dans ce lot ; descriptions,
-listes et notes restent à migrer. Tests de parité :
+Le lot suivant ajoute les descriptions (`term`/`definition`), listes et notes à
+ces règles, puis migre les transformations de frappe via
+`text.insert { input_rules: "typing" }` (défaut littéral). Tests de parité :
 [annotations_engine.rs](../src/app/tests/annotations_engine.rs) ; refus atomiques,
 cibles et historique : [annotations.rs](../src/engine/tests/annotations.rs).
+Les tests complémentaires de ce lot sont dans
+[blocks_engine.rs](../src/app/tests/blocks_engine.rs) et
+[blocks.rs](../src/engine/tests/blocks.rs).
 Les tableaux ci-dessous restent l’inventaire de migration de toutes les actions,
 pas la liste des opérations déjà disponibles sans interface.
 Les règles déjà validées sont dans [la feuille de route technique](../ROADMAP-ARCHITECTURE.md),

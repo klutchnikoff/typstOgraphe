@@ -3,6 +3,18 @@ use super::*;
 use crate::engine::{Availability, Command as CoreCommand, CommandError};
 
 impl App {
+    pub(super) fn select_description_term(&mut self, at: usize) {
+        if let Ok(target) = self
+            .document
+            .engine
+            .selection_target(editor::cursor(at..at).into())
+        {
+            self.run_document_command(CoreCommand::SelectText(crate::engine::SelectTextParams {
+                target: target.into(),
+                part: Some(crate::engine::SelectionPart::Term),
+            }));
+        }
+    }
     pub(super) fn sync_published_selection(&mut self) {
         // Le curseur egui reste un cache graphique ; les lectures et appels
         // explicites utilisent la sélection publiée détenue par le moteur.

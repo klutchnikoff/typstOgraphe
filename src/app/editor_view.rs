@@ -197,8 +197,7 @@ impl App {
             self.document.force_selection = true;
         }
         if let Some(at) = clicked_term {
-            self.document.selection = editor::cursor(at..at);
-            self.document.force_selection = true;
+            self.select_description_term(at);
         }
         self.editor_spelling(ui, &output, &frame.view);
         if self.preview.editor_scroll_pending {

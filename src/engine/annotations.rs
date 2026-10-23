@@ -21,12 +21,13 @@ impl Engine {
     pub(super) fn annotation_destination(
         &self,
         target: TextTarget,
-        part: AnnotationPart,
+        part: SelectionPart,
     ) -> Result<Selection, CommandError> {
         let (_, annotation) = self.resolve_annotation(target)?;
         let range = match part {
-            AnnotationPart::Body => annotation.main_target(),
-            AnnotationPart::Annotation => annotation.content.start..annotation.content.start,
+            SelectionPart::Body => annotation.main_target(),
+            SelectionPart::Annotation => annotation.content.start..annotation.content.start,
+            _ => unreachable!("annotation part"),
         };
         Ok(Selection {
             secondary: Caret {
@@ -68,7 +69,7 @@ impl Engine {
         let (selection, annotation) = self.resolve_annotation(target)?;
         let mut view = self.session.document.view.clone();
         let at = view.leave_annotation(&annotation);
-        self.publish_annotation(selection, view, at, true)
+        self.publish_block_edit(selection, view, at, true)
     }
 
     pub(super) fn split_annotation(&mut self, target: TextTarget) -> Result<(), CommandError> {
@@ -105,10 +106,10 @@ impl Engine {
             view.insert_text("\n", range.start);
             range.start + 1
         };
-        self.publish_annotation(selection, view, at, empty_line)
+        self.publish_block_edit(selection, view, at, empty_line)
     }
 
-    fn publish_annotation(
+    pub(super) fn publish_block_edit(
         &mut self,
         before_selection: Selection,
         view: Projection,

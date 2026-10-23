@@ -2,11 +2,18 @@
   "entries": [
     {
       "availability": "document",
-      "description": "Insert literal text or replace a selection.",
+      "description": "Insert text or replace a selection, with literal input by default and optional typing rules.",
       "family": "edit",
       "id": "text.insert",
       "params_schema": {
         "$defs": {
+          "InputRules": {
+            "enum": [
+              "literal",
+              "typing"
+            ],
+            "type": "string"
+          },
           "LogicalSelection": {
             "additionalProperties": false,
             "properties": {
@@ -178,6 +185,10 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "input_rules": {
+            "$ref": "#/$defs/InputRules",
+            "default": "literal"
+          },
           "target": {
             "$ref": "#/$defs/TextTarget",
             "default": {
@@ -386,18 +397,11 @@
     },
     {
       "availability": "document",
-      "description": "Set a continuous selection or move to the body or optional annotation of its structure.",
+      "description": "Select text or move to a body, annotation, description term or definition.",
       "family": "selection",
       "id": "text.select",
       "params_schema": {
         "$defs": {
-          "AnnotationPart": {
-            "enum": [
-              "body",
-              "annotation"
-            ],
-            "type": "string"
-          },
           "LogicalSelection": {
             "additionalProperties": false,
             "properties": {
@@ -472,6 +476,15 @@
                 "type": "object"
               }
             ]
+          },
+          "SelectionPart": {
+            "enum": [
+              "body",
+              "annotation",
+              "term",
+              "definition"
+            ],
+            "type": "string"
           },
           "TargetGuard": {
             "additionalProperties": false,
@@ -573,7 +586,7 @@
           "part": {
             "anyOf": [
               {
-                "$ref": "#/$defs/AnnotationPart"
+                "$ref": "#/$defs/SelectionPart"
               },
               {
                 "type": "null"
@@ -3080,8 +3093,8 @@
       }
     },
     {
-      "availability": "annotation",
-      "description": "Split a quotation body or leave its empty line, attribution or image caption.",
+      "availability": "structured_block",
+      "description": "Split a quote, list item or letter note, or exit an empty item or optional annotation.",
       "family": "edit",
       "id": "block.split",
       "params_schema": {
@@ -3269,8 +3282,8 @@
       }
     },
     {
-      "availability": "annotation",
-      "description": "Create a paragraph after an annotated structure without replacing its content.",
+      "availability": "structured_block",
+      "description": "Create a paragraph after an annotated structure or letter note without replacing its content.",
       "family": "edit",
       "id": "block.exit",
       "params_schema": {

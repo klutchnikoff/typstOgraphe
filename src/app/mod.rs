@@ -24,8 +24,7 @@ mod text_input;
 use crate::{
     commands::{FileCommand, Keymap, Registry, ShortcutOverrides, UiCommand as Command},
     document::{
-        BlockKind, Document, DocumentLanguage, ImageBlock, InlineStyle, Mark, PaperFormat,
-        Projection,
+        BlockKind, Document, DocumentLanguage, ImageBlock, InlineStyle, PaperFormat, Projection,
     },
     document_types::{DocumentType, ModelPresentation, models::Model},
     editor, menus,

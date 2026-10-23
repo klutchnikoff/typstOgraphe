@@ -45,9 +45,11 @@ pub struct TargetParams {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum AnnotationPart {
+pub enum SelectionPart {
     Body,
     Annotation,
+    Term,
+    Definition,
 }
 
 /// Une partie relative est résolue par le moteur dans la structure ciblée.
@@ -57,7 +59,15 @@ pub struct SelectTextParams {
     #[serde(default)]
     pub target: TextTarget,
     #[serde(default)]
-    pub part: Option<AnnotationPart>,
+    pub part: Option<SelectionPart>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum InputRules {
+    #[default]
+    Literal,
+    Typing,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -66,6 +76,8 @@ pub struct InsertTextParams {
     #[serde(default)]
     pub target: TextTarget,
     pub text: String,
+    #[serde(default)]
+    pub input_rules: InputRules,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -114,9 +126,9 @@ pub struct SearchParams {
 
 define_calls! {
     Command, command_specs;
-    InsertText(InsertTextParams) => "text.insert", "Insert literal text or replace a selection.", Edit, Document;
+    InsertText(InsertTextParams) => "text.insert", "Insert text or replace a selection, with literal input by default and optional typing rules.", Edit, Document;
     DeleteText(TargetParams) => "text.delete", "Delete text within validated structural boundaries.", Edit, Document;
-    SelectText(SelectTextParams) => "text.select", "Set a continuous selection or move to the body or optional annotation of its structure.", Selection, Document;
+    SelectText(SelectTextParams) => "text.select", "Select text or move to a body, annotation, description term or definition.", Selection, Document;
     Bold(StyleParams) => "text.bold", "Set or toggle bold text or the typing style.", Edit, Document;
     Italic(StyleParams) => "text.italic", "Set or toggle italic text or the typing style.", Edit, Document;
     Clear(TargetParams) => "text.clear", "Remove inline formatting from text or the typing style.", Edit, Document;
@@ -130,8 +142,8 @@ define_calls! {
     Numbered(TargetParams) => "block.numbered", "Set an ordered list.", Edit, Document;
     Description(TargetParams) => "block.description", "Set description items with term and definition zones.", Edit, Document;
     Quote(TargetParams) => "block.quote", "Set a block quotation with an optional attribution.", Edit, Document;
-    SplitBlock(TargetParams) => "block.split", "Split a quotation body or leave its empty line, attribution or image caption.", Edit, Annotation;
-    ExitBlock(TargetParams) => "block.exit", "Create a paragraph after an annotated structure without replacing its content.", Edit, Annotation;
+    SplitBlock(TargetParams) => "block.split", "Split a quote, list item or letter note, or exit an empty item or optional annotation.", Edit, StructuredBlock;
+    ExitBlock(TargetParams) => "block.exit", "Create a paragraph after an annotated structure or letter note without replacing its content.", Edit, StructuredBlock;
     Postscript(Empty) => "letter.insert_postscript", "Create or select the letter postscript.", Letter, Letter;
     Attachment(Empty) => "letter.insert_attachment", "Insert an attachment mention into a letter.", Letter, Letter;
     Undo(Empty) => "edit.undo", "Undo the previous document transaction.", History, Undo;

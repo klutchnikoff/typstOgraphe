@@ -222,17 +222,16 @@ les mêmes commandes :
 - `block.exit` demande explicitement un paragraphe après la structure annotée.
   Le traitement de sortie est partagé avec `block.split`.
 
-Ces deux commandes de bloc ne prennent en charge que les structures à annotation
-facultative dans ce lot. Leur extension aux descriptions, listes et notes sera
-faite avec la migration de leurs règles. La portée dépend de la structure ciblée,
-sans type Courrier imposé.
+Le premier lot limitait ces deux commandes aux structures à annotation facultative.
+Le lot suivant étend leur portée aux descriptions, listes et notes (voir ci-dessous).
+La portée dépend de la structure ciblée, sans type Courrier imposé.
 
 Les cibles acceptent les gardes de session/révision habituelles. Une sélection
 qui traverse partiellement la frontière corps/attribution ne peut pas être
 remplacée par une scission ; une citation sélectionnée en entier reste
 remplaçable sans attribution orpheline. La sortie explicite conserve les deux zones.
-Navigation et refus ne modifient ni contenu, révision, ressources ni piles d’historique. Une sortie ou
-une scission est une transaction discrète, avec sélection restaurée à annulation
+Navigation et refus ne modifient ni contenu, révision, ressources ni piles
+d’historique. Une sortie ou une scission est une transaction discrète, avec sélection restaurée à annulation
 et rétablissement ; l’identité de l’attribution est conservée.
 
 `RevealSelection` signale la cible à rendre visible : l’interface conserve les
@@ -245,9 +244,41 @@ sérialiseur peut compacter des lignes vides supplémentaires hors de la légend
 Le premier lot registre/moteur a été confirmé par la CI et par les essais
 utilisateur le 23 octobre. Le présent lot est vérifié séparément ci-dessous.
 
+## Descriptions, listes, notes et règles de saisie
+
+`src/engine/blocks.rs` étend `text.select { part }` avec `term` et `definition`.
+Tab, Maj+Tab et le clic sur un terme vide rejoignent ces commandes. Les zones
+existent déjà à la publication : leur navigation n’insère pas de séparateur et
+ne crée aucune transaction. Une sélection qui traverse plusieurs éléments ne
+peut pas servir à une navigation relative ambiguë.
+
+`block.split` traite désormais les listes à puces/numérotées, les descriptions,
+les P.-S. et les mentions de P.J. : nouvelle ligne ou nouvel élément ; Entrée
+sur un élément vide revient au paragraphe ordinaire. Dans une description,
+Entrée depuis la définition prépare un nouvel élément avec ses deux zones.
+Les espaces seuls restent de la saisie dans une liste ou une note ; une
+description sans terme ni définition peut être quittée même avec des espaces.
+`block.exit` permet aussi de sortir après le groupe de P.-S./P.J. sans remplacer
+le texte sélectionné. Les gardes et protections des frontières restent communes.
+
+`src/engine/typing.rs` porte les règles de frappe existantes : préfixes de titres,
+listes, description et citation suivis d’espace ; fermetures `*…*` / `_…_` ;
+« : espace » qui termine le terme d’une description. `text.insert` reste littéral
+par défaut. Le paramètre explicite `input_rules: "typing"` active ces règles sur
+une frappe déclenchante ; il ne parse pas un texte collé comme un script. Une
+sélection non vide ou une saisie sans règle suit le remplacement littéral.
+L’instantané d’annulation contient la saisie littérale complète, y compris le
+caractère déclencheur, et sa sélection. Une erreur ne publie pas ce brouillon.
+
+L’adaptateur egui ne reconnaît plus les préfixes ou délimiteurs : il demande au
+moteur si la frappe doit être interceptée. Les autres frappes gardent le tampon
+natif et son regroupement. La préédition IME reste isolée et sa validation
+littérale n’active aucune transformation. Les gestes d’images et leur adaptateur
+de focus restent à migrer dans la famille images.
+
 ## Vérifications
 
-- 221 tests de l’application réussis, dont 78 tests ajoutés depuis le début de
+- 231 tests de l’application réussis, dont 88 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -261,7 +292,7 @@ utilisateur le 23 octobre. Le présent lot est vérifié séparément ci-dessous
   et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
   petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 121 tests partagés réussissent aussi.
+  avertissement ; ses 127 tests partagés réussissent aussi.
 - Dix tests du moteur couvrent les schémas, conversions, données invalides,
   cibles périmées/étrangères, refus atomiques, styles explicites, historique,
   lectures seules, portée Courrier et fichiers de catalogue générés. Quatre essais
@@ -271,6 +302,10 @@ utilisateur le 23 octobre. Le présent lot est vérifié séparément ci-dessous
   annotations vides ou remplies, Unicode et styles, ressources, refus atomiques,
   identité de l’attribution et sélection/historique. Trois essais d’intégration
   comparent Tab, Maj+Tab et Entrée aux appels JSON, avec annulation/rétablissement.
+- Six tests du lot descriptions/listes/notes contrôlent navigation sans historique,
+  scissions/sorties, lignes vides ou composées d’espaces, saisie littérale/interactive,
+  annulation du littéral, cibles périmées et frontières. Quatre tests d’interface
+  comparent les gestes aux appels JSON et vérifient une validation IME littérale.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
 - Huit captures strictement identiques après les premiers lots, dans
   `output/baseline/run-ioma5t0l/` et `output/baseline/run-uvqd1xwk/`, puis après la
@@ -285,6 +320,8 @@ utilisateur le 23 octobre. Le présent lot est vérifié séparément ci-dessous
 - Après le raccordement du registre et du moteur, les huit captures restent
   strictement identiques dans `output/baseline/run-uwa0olfg/`. Le lot des
   annotations conserve aussi les huit références dans `output/baseline/run-ip5gvm0m/`.
+  Les règles de saisie et de blocs conservent les huit captures dans
+  `output/baseline/run-s0447__w/`.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -302,17 +339,16 @@ vérifient l’unicité concurrente et le refus de boucler au dépassement de ca
 
 Les indices de recherche et la synchronisation d’aperçu fonctionnent encore via
 le tampon graphique et les cartes de source existants. Leur migration n’est pas
-déclarée terminée par les tests de conversion des positions. Les préfixes de
-transformation, le gras/italique saisis avec délimiteurs et les règles des
-descriptions/listes/notes restent préparés par l’interface, puis validés par la
-voie commune ; leur déplacement dans le cœur reste à faire (V4).
+déclarée terminée par les tests de conversion des positions. Les règles des blocs
+et de transformation de frappe sont migrées ; les gestes propres aux images
+restent à raccorder avec leur famille.
 
 L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
 Les essais complets de composition, choix des candidats, annulation et historique
 avec les méthodes système restent à poursuivre dans le chantier I. D17 et la tâche
 2.1 bis restent ouverts pour la suite de la migration.
 
-Restent les règles de descriptions/listes/notes, les images et signatures, les actions
+Restent les images et signatures, les actions
 de recherche/remplacement, l’orthographe documentaire, l’écriture des métadonnées
 et options, les modèles et les fichiers. Les lots atomiques (D16), la suppression
 de l’accès transitoire à la session et le gel du catalogue restent à faire. La

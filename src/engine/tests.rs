@@ -9,6 +9,8 @@ use serde_json::json;
 
 #[path = "tests/annotations.rs"]
 mod annotations;
+#[path = "tests/blocks.rs"]
+mod blocks;
 
 fn engine(source: &str) -> Engine {
     let mut stored = StoredDocument::blank(DocumentType::Courrier);
@@ -95,7 +97,7 @@ fn calls_reject_unknown_ids_fields_missing_arguments_and_invalid_parameter_types
     for (id, params) in [
         ("text.insert", json!({})),
         ("text.insert", json!({"text":1})),
-        ("text.insert", json!({"text":"x", "input_rules":"typing"})),
+        ("text.insert", json!({"text":"x", "input_rules":"execute"})),
         ("text.bold", json!({"value":true})),
         ("text.bold", json!({"target":{"kind":"current","offset":3}})),
         ("edit.undo", json!({"text":"x"})),

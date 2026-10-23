@@ -1,11 +1,13 @@
 //! Moteur documentaire sans egui, dialogues ni Fluent. Les familles migrées
 //! passent par run ; les préparations historiques restent temporairement dans App.
 mod annotations;
+mod blocks;
 mod error;
 mod queries;
 pub mod registry;
 mod run;
 mod types;
+mod typing;
 use crate::{
     document::{Projection, edits::EditError},
     session::{EditGroup, Selection, SelectionTarget, Session, Snapshot, TargetGuard},

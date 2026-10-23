@@ -250,7 +250,12 @@ fn annotation_commands_reject_stale_foreign_missing_and_cross_boundary_targets_a
                 e.available(&command),
                 Availability::Disabled { .. }
             ));
-            assert_eq!(call(&mut e, id, params).unwrap_err().reason(), reason);
+            let expected = if reason == "annotation_required" && id != "text.select" {
+                "structured_block_required"
+            } else {
+                reason
+            };
+            assert_eq!(call(&mut e, id, params).unwrap_err().reason(), expected);
             assert!(e.stored_document() == before);
             assert_eq!(e.selection(), selection);
             assert_eq!(

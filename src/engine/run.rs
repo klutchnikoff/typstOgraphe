@@ -72,15 +72,15 @@ impl Engine {
         }
         let reason = match command {
             Command::SelectText(params) if params.part.is_some() => {
-                self.resolve_annotation(params.target)?;
+                self.relative_destination(params.target, params.part.unwrap())?;
                 return Ok(());
             }
             Command::SplitBlock(params) => {
-                self.check_annotation_split(params.target)?;
+                self.check_block_split(params.target)?;
                 return Ok(());
             }
             Command::ExitBlock(params) => {
-                self.resolve_annotation(params.target)?;
+                self.check_block_exit(params.target)?;
                 return Ok(());
             }
             Command::SetLink(params) => {
@@ -109,10 +109,12 @@ impl Engine {
     pub fn run(&mut self, command: Command) -> Result<Outcome, CommandError> {
         self.check(&command)?;
         let reveal = match &command {
-            Command::SplitBlock(params) => self.annotation_split_exits(params.target)?,
-            Command::ExitBlock(_) | Command::SelectText(SelectTextParams { part: Some(_), .. }) => {
-                true
-            }
+            Command::SplitBlock(params) => self.block_split_reveals(params.target)?,
+            Command::ExitBlock(_) => true,
+            Command::SelectText(SelectTextParams {
+                part: Some(SelectionPart::Body | SelectionPart::Annotation),
+                ..
+            }) => true,
             _ => false,
         };
         let revision = self.session.revision;
@@ -137,7 +139,7 @@ impl Engine {
         match command {
             Command::SelectText(params) => {
                 self.selection = if let Some(part) = params.part {
-                    self.annotation_destination(params.target, part)?
+                    self.relative_destination(params.target, part)?
                 } else {
                     self.resolve(params.target)?
                 };
@@ -151,9 +153,12 @@ impl Engine {
                     });
                 self.session.typing_group = false;
             }
-            Command::SplitBlock(params) => self.split_annotation(params.target)?,
-            Command::ExitBlock(params) => self.exit_annotation(params.target)?,
+            Command::SplitBlock(params) => self.split_block(params.target)?,
+            Command::ExitBlock(params) => self.exit_block(params.target)?,
             Command::InsertText(params) => {
+                if params.input_rules == InputRules::Typing && self.transform_input(&params)? {
+                    return Ok(());
+                }
                 let selection = self.resolve(params.target)?;
                 let target = self.session.selection_target(selection)?;
                 self.selection = self.session.replace_text(target, &params.text)?;
@@ -161,6 +166,7 @@ impl Engine {
             Command::DeleteText(params) => self.execute(Command::InsertText(InsertTextParams {
                 target: params.target,
                 text: String::new(),
+                input_rules: InputRules::Literal,
             }))?,
             Command::Bold(params) => self.mark(params, Mark::Bold)?,
             Command::Italic(params) => self.mark(params, Mark::Italic)?,

@@ -2,7 +2,7 @@ use super::*;
 use crate::engine::{Command as Core, Empty, Engine};
 use serde_json::{Value, json};
 
-fn pair(source: &str, range: Range<usize>) -> (egui::Context, App, Engine) {
+pub(super) fn pair(source: &str, range: Range<usize>) -> (egui::Context, App, Engine) {
     let (ctx, mut app) = demo_app();
     app.document.engine.document = Document::from_source(source).unwrap();
     app.document.selection = editor::cursor(range);
@@ -21,7 +21,7 @@ fn pair(source: &str, range: Range<usize>) -> (egui::Context, App, Engine) {
     (ctx, app, engine)
 }
 
-fn equivalent(app: &App, engine: &Engine) {
+pub(super) fn equivalent(app: &App, engine: &Engine) {
     assert!(app.stored_document() == engine.stored_document());
     assert_eq!(app.document.engine.document.view, engine.document.view);
     assert_eq!(
@@ -33,7 +33,7 @@ fn equivalent(app: &App, engine: &Engine) {
     assert_eq!(app.document.engine.redo.len(), engine.redo.len());
 }
 
-fn gesture(
+pub(super) fn gesture(
     ctx: &egui::Context,
     app: &mut App,
     engine: &mut Engine,
