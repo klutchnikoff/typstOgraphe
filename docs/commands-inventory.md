@@ -6,8 +6,10 @@ L’implémentation a commencé par les blocs, leurs zones, leurs identités et 
 cibles de sélection, puis la protection des frontières et la voie commune de
 publication des éditions, puis l’isolation IME entre frames ; voir
 [le suivi de phase 2](architecture-phase-2.md).
-Le premier moteur, 40 commandes documentaires et dix requêtes sont maintenant
-implémentés avec leurs schémas JSON ; voir le [catalogue généré](commands.md).
+Le moteur comprend maintenant **49 commandes documentaires et 14 requêtes**,
+avec leurs schémas JSON ; voir le [catalogue généré](commands.md).
+**Relecture finale du 24 octobre :** [bilan des voies, lectures et critères de sortie](architecture-phase-2-review.md).
+Le gel et le périmètre des lectures complémentaires restent à valider ensemble.
 Le lot du 23 octobre migre Tab/Maj+Tab vers `text.select { part }`, puis Entrée
 vers `block.split` et sa sortie commune `block.exit` pour légendes et attributions.
 Le lot suivant ajoute les descriptions (`term`/`definition`), listes et notes à
@@ -90,9 +92,11 @@ ne deviennent pas des commandes publiques dans cette phase.
 
 Tous les paramètres ci-dessous restent des descriptions de contrat, pas des signatures Rust figées.
 V1–V6 sont validés dans leur orientation ; la forme exacte des identifiants,
-les schémas Rust/JSON et les jonctions entre types de paragraphes restent à préciser.
+les schémas Rust/JSON et les jonctions entre types de paragraphes sont maintenant
+implémentés ; leur relecture et les limites sont consignées dans le bilan de sortie.
 La publication unique après composition IME est vérifiée par les événements egui
-dans l’adaptateur actuel ; l’essai d’une méthode IME réelle reste au chantier I.
+dans l’adaptateur actuel ; la saisie japonaise a été confirmée par l’utilisateur.
+La matrice système complète (candidats, annulation, plusieurs OS) reste au chantier I.
 Le classement détaillé sert de référence de migration ; les signatures exactes seront
 précisées et testées progressivement avant le gel du catalogue.
 
@@ -101,9 +105,9 @@ précisées et testées progressivement avant le gel du catalogue.
 | **V1 — Cibles et identités — validé le 22 octobre 2026** | Positions par zone de texte + indice Unicode ; références de blocs distinctes. Identifiants opaques stables pendant une session, restaurés par annuler/rétablir et jamais réaffectés à un autre objet. Réouverture = nouvelle session et nouveaux identifiants. | Ne pas modifier l’archive pour stocker ces identifiants maintenant. Toutes les cibles externes sont liées à une session et une révision ; aucun repositionnement silencieux d’une cible périmée. |
 | **V2 — Sélections entre structures — validé le 22 octobre 2026** | Garder une sélection continue orientée ; mise en forme sur les zones textuelles admissibles. Suppression/remplacement libre dans une zone et entre paragraphes d’un même corps. Refuser les remplacements partiels ambigus entre rôles ; supprimer un objet explicitement ciblé ou entièrement couvert par la sélection. | Préciser les jonctions entre types de paragraphes avant migration. C’est une restriction volontaire pour les nouveaux passages ambigus, pas une promesse de reproduire toute suppression accidentelle du tampon plat. |
 | **V3 — Appels explicites et déclencheurs graphiques — validé le 22 octobre 2026** | Une action métier a une commande canonique paramétrée. Les menus et raccourcis recueillent au besoin les paramètres par un `UiCommand`, puis appellent cette même commande. Hors interface : paramètres explicites ou sélection détenue par le moteur. | Pas de dépendance au focus, à un index de menu ou à des pixels dans le cœur. Les identifiants existants sont conservés, sauf les deux corrections D2 déjà décidées. |
-| **V4 — Saisie et préédition — validé le 22 octobre 2026** | Une insertion est littérale par défaut. Le mode de frappe interactif peut demander les règles textuelles existantes, à traiter dans le cœur. La préédition IME reste un brouillon de l’adaptateur, puis sa validation devient une transaction. | Ne pas interpréter du Typst collé/importé comme du code. Même validation/normalisation/commit pour saisie et commandes (D17). Le brouillon entre frames et sa publication unique sont maintenant testés dans l’adaptateur ; le diagnostic de phase 1 seul ne les démontrait pas. La migration des règles de frappe dans le cœur reste à faire. |
+| **V4 — Saisie et préédition — validé le 22 octobre 2026** | Une insertion est littérale par défaut. Le mode de frappe interactif peut demander les règles textuelles existantes, à traiter dans le cœur. La préédition IME reste un brouillon de l’adaptateur, puis sa validation devient une transaction. | Ne pas interpréter du Typst collé/importé comme du code. Même validation/normalisation/commit pour saisie et commandes (D17). Le brouillon entre frames et sa publication unique sont maintenant testés dans l’adaptateur ; le diagnostic de phase 1 seul ne les démontrait pas. Les règles de frappe sont maintenant dans le cœur ; voir `engine/typing.rs` et les tests de parité `blocks_engine.rs`. |
 | **V5 — Profil et réglages globaux — validé le 22 octobre 2026** | Registre commun, mais préférences, profil et dictionnaire personnel restent des actions d’application non exposées sans interface dans ce premier moteur. Le moteur reçoit leurs valeurs nécessaires comme configuration ou données explicites. | Précision validée de D5 et de 2.4.5 : `spelling.learn` reste accessible dans l’application, sans mutation des préférences par `Engine`. Une future API de services globaux est distincte ; aucune action globale dans un lot documentaire (D16). |
-| **V6 — Création, dates et export — validé le 22 octobre 2026** | Création sans interface vide, sauf valeurs initiales fournies ; l’UI transmet une copie du profil. « Aujourd’hui » est résolu en date ISO avant mutation. Export vers un dossier neuf/vide, avec `format: pdf / typst / both`. | L’export actuel produit PDF + sources + PNG : proposer `both` et `page_images: true` par défaut pour préserver cet export, avec une option explicite pour omettre les PNG de diagnostic. Les formats séparés sont un changement volontaire validé, à implémenter. Aucun export dans un lot d’édition. |
+| **V6 — Création, dates et export — validé le 22 octobre 2026** | Création sans interface vide, sauf valeurs initiales fournies ; l’UI transmet une copie du profil. « Aujourd’hui » est résolu en date ISO avant mutation. Export vers un dossier neuf/vide, avec `format: pdf / typst / both`. | L’export actuel produit PDF + sources + PNG : proposer `both` et `page_images: true` par défaut pour préserver cet export, avec une option explicite pour omettre les PNG de diagnostic. Les formats séparés sont un changement volontaire validé, maintenant implémenté et testé. Aucun export dans un lot d’édition. |
 
 D2–D6 restent les bases : identifiants, enum typée, commandes/requêtes séparées,
 UI distincte et erreurs structurées. V5 précise une frontière encore ambiguë :
@@ -141,8 +145,9 @@ Les lectures renvoient `document_id` et `revision`. Un appel réutilisant une ci
 obtenue par lecture doit préciser cette paire. L’UI les fournit automatiquement
 pour sa session courante. Le cœur refuse les identités absentes, révisions périmées,
 offsets hors limites et cibles de mauvais type ; il ne tronque pas silencieusement
-un indice externe. L’absence de garde reste possible pour une opération qui ne
-réutilise aucun relevé antérieur, par exemple créer un document.
+un indice externe. La création et les opérations de fichiers demandent aussi une garde, obtenue
+par `document.inspect` même depuis un moteur sans document ouvert. Les cibles
+symboliques `current` / `all` restent résolues au moment de l’appel.
 
 Annuler restaure les identités du contenu restauré, mais fait avancer la révision.
 Une cible lue avant annulation doit donc être relue même si son bloc existe à nouveau.
@@ -184,17 +189,20 @@ par ce choix : le contrat les traite comme opaques.
   externes discrètes font une étape ; la frappe conserve ses groupes naturels.
   Le détail de regroupement par champ ne doit plus utiliser un `egui::Id` dans le cœur.
 
-Exemple indicatif, non schéma JSON validé :
+Exemple conforme au schéma actuel (les identités numériques sont illustratives ;
+les réutiliser uniquement après les avoir obtenues d’une lecture de la session) :
 
 ```json
 {
-  "document_id": "session-A",
-  "expected_revision": 12,
   "id": "text.bold",
   "params": {
     "target": {
-      "anchor": {"zone_id": "paragraph-7-body", "offset": 3},
-      "head": {"zone_id": "paragraph-7-body", "offset": 8}
+      "kind": "selection",
+      "guard": {"document_id": 1, "revision": 12},
+      "selection": {
+        "anchor": {"kind": "text", "position": {"zone_id": 7, "offset": 3}},
+        "head": {"kind": "text", "position": {"zone_id": 7, "offset": 8}}
+      }
     },
     "value": "on"
   }
@@ -232,7 +240,7 @@ comme commande sans interface.
 | `document.import_model` | `app/models::import_model`, `install_model` | `path` ; fichier Typst, contrat du type et dépendances validés | Préparation UI → C-doc avec lecture IO | Oui | Oui | T24, T25, T41 |
 | `text.bold` | `app/commands::apply`, `edit`; `document::Projection::toggle_mark` | `target: selection/plage`, `value: toggle/on/off` | C-doc / contexte au curseur vide | Non | Oui | T06, T10 |
 | `text.italic` | mêmes chemins, `Mark::Italic` | mêmes cibles et valeurs | C-doc / contexte au curseur vide | Non | Oui | T06, T07, T10 |
-| `text.clear` | `app/commands::apply`, `Projection::clear_marks` | `target` ; styles en ligne, pas transformation du bloc | C-doc | Non | Oui | T10 indirect ; test dédié à ajouter |
+| `text.clear` | `app/commands::apply`, `Projection::clear_marks` | `target` ; styles en ligne, pas transformation du bloc | C-doc | Non | Oui | T10 ; `app/tests/routing.rs` (menu Effacer + annulation) |
 | `text.link` | `app/links::open_link`, `app/dialogs::link_dialog` | `target`, `url` explicite, schémas admis `https/http/mailto` | Préparation UI → C-doc | Oui | Oui | T09, T50 |
 | `text.remove_link` | `app/commands::apply`, `Projection::set_link` | `target` non vide ; conserver gras/italique et sélection | C-doc | Non | Oui | T09 |
 | `block.paragraph` | `app/commands::apply`, `Projection::set_block` | `target` ; paragraphes sélectionnés | C-doc | Non | Oui | T10, T51 |
@@ -274,8 +282,8 @@ Les ouvertures `edit.find/find_replace` restent des actions UI. La navigation
 sans interface : elle calcule sa cible sur un relevé valide puis modifie seulement
 la sélection. L’UI fournit sa requête et décide d’afficher la barre ou le menu.
 La requête `spelling.suggestions` conserve son identifiant, sans déplacer la sélection
-ni ouvrir de menu lors d’un appel sans interface. Ces répartitions restent à valider
-dans V3 ; il n’est pas nécessaire de renommer les identifiants pour séparer C/Q/UI.
+ni ouvrir de menu lors d’un appel sans interface. Ces répartitions sont implémentées et relues
+dans le bilan de sortie ; il n’est pas nécessaire de renommer les identifiants pour séparer C/Q/UI.
 
 ## 5. Actions actuellement hors registre
 
@@ -286,11 +294,11 @@ dans V3 ; il n’est pas nécessaire de renommer les identifiants pour séparer 
 | Insérer / remplacer une sélection → `text.insert` | `editor::TextBuffer for Projection`, `app/editor_view::editor_text`, `editor_feedback` | `target`, `text`, `input_rules: literal/typing` (V4) | C-doc | Non | Oui | T07, T08, T40 |
 | Supprimer un texte → `text.delete` | `Projection::delete_char_range`, TextEdit natif | `target` validé ; pas d’offset sentinelle public | C-doc | Non | Oui | T07, T40, T56 |
 | Curseur/sélection, clic/glisser, flèches, Home/End, sélection totale → `text.select` | `editor_feedback`, état natif egui | `Selection` ou sélecteur `all` ; pixels et navigation visuelle résolus par l’adaptateur | C-sel | Non | Oui | T07, T29, T38 |
-| Copier | TextEdit egui, sortie presse-papiers | `document.text` sur sélection → texte au presse-papiers système | UI + Q | Non | Presse-papiers : non ; lecture : oui | Pas de test direct du presse-papiers système |
-| Couper | TextEdit egui (`Event::Cut`) | Q texte + copie UI réussie, puis `text.delete` avec garde | UI + C-doc | Non | Suppression : oui | Pas de test direct Cut/clipboard ; T07 indirect |
-| Coller | TextEdit egui (`Event::Paste`) | Texte du presse-papiers → `text.insert` littéral ; pas d’import HTML nouveau | UI + C-doc | Non | Insertion : oui | T07 indirect ; collage dédié à ajouter |
+| Copier | TextEdit egui, sortie presse-papiers | Texte visible de la sélection vers le presse-papiers par egui ; lecture sans UI via `document.text` | UI + Q | Non | Presse-papiers : non ; lecture : oui | Événement Copy positif : `app/tests/clipboard.rs` ; pont OS au chantier I |
+| Couper | TextEdit egui (`Event::Cut`) | egui prépare copie et suppression ; publication validée D17, parité avec `text.delete` gardé ; pas d’acquittement de réussite du presse-papiers OS | UI + C-doc | Non | Suppression : oui | Événement Cut positif : `app/tests/clipboard.rs` ; refus de frontières : `edit_validation.rs` |
+| Coller | TextEdit egui (`Event::Paste`) | Texte du presse-papiers → brouillon natif validé D17, parité avec `text.insert` littéral ; pas d’import HTML nouveau | UI + C-doc | Non | Insertion : oui | T07 ; collage littéral Unicode et parité : `app/tests/clipboard.rs` |
 | Retour simple / nouveau paragraphe | TextEdit, normalisation `Projection::insert_text` | `text.insert` avec retour(s), selon règles du rôle | C-doc | Non | Oui | T57 |
-| Préédition/validation/annulation IME | `app/ime`, `TextInput`, `Session::commit_projection` ; TextEdit egui pour l’affichage | Brouillon persistant de l’adaptateur, transaction finale `text.insert` après migration ; pas de commande publique par touche d’IME | UI + C-doc à validation | Non | Commit de texte : oui | T60–T63 ; 14 scénarios dans `app::tests::ime` ; méthode IME système à essayer |
+| Préédition/validation/annulation IME | `app/ime`, `TextInput`, `Session::commit_projection` ; TextEdit egui pour l’affichage | Brouillon persistant de l’adaptateur, transaction finale `text.insert` après migration ; pas de commande publique par touche d’IME | UI + C-doc à validation | Non | Commit de texte : oui | T66–T69 ; scénarios dans `app::tests::ime` ; matrice native complète au chantier I |
 | Préfixes `=`, `==`, `===`, `-`, `+`, `1.`, `/`, `>` suivis d’espace | `app/text_input::block_shortcut` | Mode `typing` ; intention de bloc typée ; historique conserve le littéral | C-doc dans l’insertion interactive | Non | Oui, mode explicite | T08 |
 | Fermeture `*…*` / `_…_` | `app/text_input::inline_shortcut` | Même mode `typing`, style sur plage textuelle ; jamais exécution de code | C-doc dans l’insertion interactive | Non | Oui, mode explicite | T08 |
 | Modifier les styles des frappes suivantes | `Projection::typing_style`, `editor_feedback`, `toggle_mark` | Curseur vide + style ; contexte de frappe distingué du texte déjà présent | C-sel/contexte ; C-doc seulement si contenu modifié | Non | Oui | T06 indirect ; contexte seul à préciser |
@@ -311,9 +319,9 @@ dans V3 ; il n’est pas nécessaire de renommer les identifiants pour séparer 
 | Sélectionner l’image entière | `ImageAction::Select`, `image_shortcut` | `text.select` avec frontières du bloc ; pas U+FFFC dans l’API | C-sel | Non | Oui | T15, T16 |
 | Insérer un fichier image déposé | `app/mod::ui_frame` | Même `insert.image`, cible et chemins traités dans l’ordre, une invocation par fichier | UI → C-doc avec lecture IO | Non | Oui via l’opération métier | T14 indirect ; dépôt natif à ajouter |
 
-Le Tab de description insère parfois un séparateur technique aujourd’hui. Dans
-le modèle structuré proposé, ses deux zones existent logiquement dès la création ;
-le déplacement ne doit pas créer une étape d’annulation pour ce seul séparateur.
+Le relevé initial signalait que Tab pouvait insérer un séparateur technique.
+Les deux zones existent maintenant logiquement dès la création : leur navigation
+ne crée pas d’étape d’annulation pour un séparateur.
 Les règles de sortie qui créent un paragraphe restent des mutations distinctes.
 P.-S. et P.J. sont ordonnés par la règle du courrier et composés après signature,
 pas insérés à une position arbitraire de la page. La commande P.J. ne lit aucun fichier.
@@ -324,14 +332,14 @@ pas insérés à une position arbitraire de la page. La commande P.J. ne lit auc
 | --- | --- | --- | --- | --- | --- | --- |
 | Modifier un champ → `metadata.set` | `document_types::fields_ui`, `app/information::information_ui`, `Session::record` | `field`, valeur typée ; champ du catalogue du type actif | C-doc | Panneau | Oui | T21, T43, T58 |
 | Date « Aujourd’hui » | `document_types::fields_ui`, `dates::today/is_today/normalize` | UI résout la date locale puis `metadata.set` avec ISO fixe | UI → C-doc | Non | Oui avec date explicite | T22, T59 |
-| Papier → `document.set_option` | `general_information_ui` | `key: paper`, valeur parmi `a3/a4/a5/us-letter/us-legal` ; charte du modèle appliquée | C-doc | Non | Oui si autorisé | T21, T60 |
-| Orientation → même commande | même chemin | `key: landscape`, booléen ; refus si page verrouillée par le modèle | C-doc | Non | Oui si autorisé | T21, T60 |
-| Langue du document → même commande | même chemin | `key: language`, `fr/en/de/es/it/pt/nl` ; indépendant de l’interface ; dictionnaires seulement fr/en actuellement | C-doc | Non | Oui | T21, T60 |
-| Puce automatique/choisie/personnalisée → même commande | `bullet_marker_ui`, `ModelPresentation` | `key: bullet_marker`, `auto` ou un caractère autorisé ; pas de contournement du modèle | C-doc | Non | Oui si autorisé | T23, T52 |
+| Papier → `document.set_option` | `general_information_ui` | `option: { key: paper, value }`, valeur parmi `a3/a4/a5/us-letter/us-legal` ; charte du modèle appliquée | C-doc | Non | Oui si autorisé | T21, T60 |
+| Orientation → même commande | même chemin | `option: { key: landscape, value }`, booléen ; refus si page verrouillée par le modèle | C-doc | Non | Oui si autorisé | T21, T60 |
+| Langue du document → même commande | même chemin | `option: { key: language, value }`, `fr/en/de/es/it/pt/nl` ; indépendant de l’interface ; dictionnaires seulement fr/en actuellement | C-doc | Non | Oui | T21, T60 |
+| Puce automatique/choisie/personnalisée → même commande | `bullet_marker_ui`, `ModelPresentation` | `option: { key: bullet_marker, value }`, `null` pour automatique ou un caractère autorisé ; pas de contournement du modèle | C-doc | Non | Oui si autorisé | T23, T52 |
 | Lire la politique d’un modèle | `template_selector`, `rendering::model_presentation` | Requête `models.presentation` | Q | Non | Oui | T23, T41 |
 | Sélection du modèle fourni | `template_selector`, `apply(Model)` | Invocation du préréglage enregistré ; ne pas réinventer une commande par clic | C-doc existante | Non | Oui | T23, T25 |
 | Installer une implémentation Typst déjà lue → `document.set_model` | `app/models::install_model` | Source Typst et dépendances contrôlées ; commande partagée par l’import et les préréglages | C-doc | Non | Oui | T24, T25, T41 |
-| Choisir/remplacer/enlever la signature → `document.set_signature` | `choose_signature(false)`, `set_document_signature` | `image` ou `none` ; Courrier ; conserver l’espace de signature manuscrite du modèle | C-doc avec lecture IO si image | Choix d’image | Oui | T26, T61 indirect ; réserve manuscrite à tester |
+| Choisir/remplacer/enlever la signature → `document.set_signature` | `choose_signature(false)`, `set_document_signature` | `image` ou `none` ; Courrier ; conserver l’espace de signature manuscrite du modèle | C-doc avec lecture IO si image | Choix d’image | Oui | T26, T61 indirect ; réserve manuscrite conservée par le modèle |
 | Revenir à la signature du profil | `use_profile_signature` | UI lit la signature du profil puis appelle `document.set_signature` avec une copie | UI-global lecture → C-doc | Non | Oui avec image explicite ; lecture implicite du profil : non | T26 |
 
 La commande générique proposée `document.set_model` ne remplace pas l’identifiant
@@ -342,9 +350,9 @@ ni modification du type d’un document ouvert n’est ajoutée.
 
 #### Catalogue de champs à reprendre dans l’inventaire typé
 
-Les clés publiques proposées ci-dessous sont anglaises et mappées aux descripteurs
+Les clés publiques typées ci-dessous sont anglaises et mappées aux descripteurs
 existants. Cela ne renomme pas les champs des archives, du Rust ou des modèles
-Typst à ce stade. V3 inclut la validation de ces clés avant implémentation.
+Typst à ce stade. Les clés sont implémentées dans `document_types/fields.rs` et testées par type actif.
 
 | Type | Clé proposée → paramètre actuel | Valeur / contrainte actuelle |
 | --- | --- | --- |
@@ -456,8 +464,11 @@ conditions graphiques restantes et les règles de validation à la confirmation.
 
 ## 6. Requêtes proposées pour lire et préparer les actions
 
-Les noms de cette section sont proposés et restent à valider ; `spelling.suggestions`
-reprend un identifiant existant. Réponses structurées, erreurs et descriptions de catalogue suivront D6/D7 ; les schémas ne sont pas écrits ici.
+**Statut relu :** les 14 requêtes du catalogue sont implémentées. Cette table
+conserve aussi les propositions initiales, dont huit noms n’ont pas d’entrée
+dédiée. Leur couverture, leurs limites et leur éventuel report sont explicités
+dans le [bilan de sortie, §3](architecture-phase-2-review.md).
+Ce tableau ne promet pas des signatures supplémentaires déjà disponibles.
 
 | Requête | Données / cible | Source actuelle | Test / vérification à reprendre |
 | --- | --- | --- | --- |
@@ -503,9 +514,11 @@ sans inventer de format de transport dans cette préparation.
 Chaque commande est contrôlée par le moteur, même si son bouton était activé.
 Pas de document ouvert, capacité non offerte par le type, mauvais type d’objet,
 champ inconnu, modèle qui verrouille une option, garde périmée et chemin manquant
-sont des erreurs structurées. Proposition de codes supplémentaires à valider en
-plus de D6 : `stale_revision`, `invalid_target`, `invalid_selection`, `unsaved_changes`,
-`readonly_option`, `service_unavailable`, `empty_history`. Une opération sans effet
+sont des erreurs structurées. Les codes implémentés sont `unavailable`,
+`invalid_params`, `not_found`, `io`, `document`, `template`. Les précisions
+`stale_revision`, `foreign_document`, `invalid_selection`, `unsaved_changes`,
+`model_fixed_page`, `undo_empty`, etc. sont dans `params.reason`, pas des codes
+supplémentaires. Le détail textuel de diagnostic n’est pas un libellé stable. Une opération sans effet
 réel réussit avec `changed: false` sans historique ; une cible introuvable n’est
 pas une réussite silencieuse. Le catalogue ne remplace pas cette validation.
 Distinguer dans le résultat changement documentaire, changement de sélection ou
@@ -550,22 +563,27 @@ restent des outils de diagnostic, pas des fonctions du catalogue métier CLI/MCP
 Leurs appels internes pourront réutiliser les opérations normales ; ils ne doivent
 pas devenir une voie contournant les validations du cœur.
 
-### 7.4 Couverture à compléter avant le gel
+### 7.4 Couverture relue avant le gel
 
-- Aller-retour des paramètres et aiguillage par identifiant pour chaque C/Q ;
-  présentation et préparation des paramètres pour chaque action UI.
-- Cibles persistantes pendant une session, restauration d’identités par historique,
-  rejet d’anciennes sessions/révisions et limites Unicode ; limites sans octets ni sentinelles.
-- Parité de saisie native, collage, entrée interactive, préédition/annulation/commit
-  IME et commandes explicites ; styles, sélection et groupe d’historique restitués.
-- Sélection entre paragraphes et entre rôles ; erreurs sans mutation partielle.
-- Même contrôle du type et de la politique du modèle depuis interface et sans interface.
-- Image, signature et modèle : préparation, budget, ressources autonomes, échec sans
-  publication, puis annuler/rétablir. Export PDF seul / Typst seul / ensemble selon V6.
-- Préférences/dictionnaire global exclus du moteur et des lots selon V5 ; modification
-  documentaire des exceptions bien distincte de l’apprentissage global.
-- Presse-papiers et méthodes de saisie du système à vérifier lors des essais natifs,
-  en complément de leurs séquences d’événements egui automatisées.
+- [x] Aller-retour des paramètres et aiguillage par identifiant pour chaque C/Q ;
+  routes des 44 présentations Courrier, menus, palette, barre et raccourcis vérifiés.
+- [x] Identités de session, restauration par historique, rejet des anciennes gardes
+  et limites Unicode : `structure/*tests.rs`, `session/targets_tests.rs`, `engine/tests.rs`.
+- [x] Parité de saisie native et commandes, transformations de frappe, brouillons
+  IME et historique : `app/tests/{edit_validation,blocks_engine,ime}.rs`.
+- [x] Événements egui Copy/Cut/Paste positifs et refus de frontières :
+  `app/tests/clipboard.rs` et `edit_validation.rs`. L’affinité visuelle de ligne
+  peut différer ; les positions logiques et le contenu correspondent.
+- [x] Sélections entre paragraphes/rôles, types et politique du modèle, ressources,
+  rollback, lots atomiques et export PDF/Typst/ensemble : tests moteur et UI recensés
+  dans le [bilan de sortie](architecture-phase-2-review.md).
+- [x] V5 : préférences et dictionnaire personnel hors moteur et hors lots,
+  configuration de lecture explicite ; exceptions documentaires distinctes.
+- [ ] Essais natifs complets du presse-papiers, du dépôt et des IME système :
+  chantier I, distinct des séquences egui automatisées ; saisie japonaise déjà
+  confirmée par l’utilisateur. Ne pas les annoncer comme entièrement réalisés.
+- [ ] Valider ensemble le périmètre des requêtes complémentaires et le gel proposé
+  dans le [bilan de sortie](architecture-phase-2-review.md).
 
 ## 8. Références des tests existants
 
@@ -628,13 +646,13 @@ pas devenir une voie contournant les validations du cœur.
 | T57 | [text_input.rs](../src/app/tests/text_input.rs) | `native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopening` |
 | T58 | [courrier.rs](../src/document_types/courrier.rs) | `courrier_field_definitions_drive_header_and_required_export_fields` |
 | T59 | [dates.rs](../src/dates.rs) | `aliases_resolve_to_fixed_dates_and_explicit_dates_are_validated` |
-| T60 | [ime.rs](../src/app/tests/ime.rs) | `preedit_survives_frames_and_is_visible_without_publishing_any_session_state` |
-| T61 | [ime.rs](../src/app/tests/ime.rs) | `ime_commit_and_explicit_replacement_have_the_same_literal_source_styles_and_selection` |
-| T62 | [ime.rs](../src/app/tests/ime.rs) | `saving_and_recovery_only_contain_committed_text` |
-| T63 | [ime.rs](../src/app/tests/ime.rs) | `commands_and_new_documents_cancel_composition_and_ignore_its_late_commit` |
 | T60 | [tests.rs](../src/tests.rs) | `document_options_control_real_page_dimensions_and_text_language` |
 | T61 | [courrier.rs](../src/document_types/courrier.rs) | `personal_window_letter_compiles_in_app_and_keeps_addresses_on_first_page` |
 | T62 | [profile.rs](../src/profile.rs) | `profile_resources_are_managed_and_documents_survive_original_and_global_image_removal` |
 | T63 | [commands.rs](../src/commands.rs) | `registry_ids_are_unique_and_defaults_have_no_conflicts_on_either_platform` |
 | T64 | [tests.rs](../src/tests.rs) | `bidirectional_navigation_handles_unicode_styles_links_and_repeated_passages` |
 | T65 | [tests.rs](../src/tests.rs) | `selection_highlights_follow_visible_unicode_text_across_styles_and_links` |
+| T66 | [ime.rs](../src/app/tests/ime.rs) | `preedit_survives_frames_and_is_visible_without_publishing_any_session_state` |
+| T67 | [ime.rs](../src/app/tests/ime.rs) | `ime_commit_and_explicit_replacement_have_the_same_literal_source_styles_and_selection` |
+| T68 | [ime.rs](../src/app/tests/ime.rs) | `saving_and_recovery_only_contain_committed_text` |
+| T69 | [ime.rs](../src/app/tests/ime.rs) | `commands_and_new_documents_cancel_composition_and_ignore_its_late_commit` |

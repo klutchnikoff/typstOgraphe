@@ -1,12 +1,13 @@
 # Phase 2 — Mise en place du modèle structuré et du moteur
 
-**État au 24 octobre 2026 : phase commencée, pas terminée.** Les orientations
+**État au 24 octobre 2026 : relecture finale effectuée, clôture et gel en attente de validation.** Les orientations
 V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers lots
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
 Le registre typé et le premier moteur sont implémentés : 49 commandes, quatorze
-requêtes et leur catalogue généré. La consolidation de la phase n’est pas terminée.
+requêtes et leur catalogue généré. Le [bilan de sortie](architecture-phase-2-review.md)
+recense les éléments couverts, les limites et le périmètre proposé pour le gel.
 
 ## Blocs et zones en mémoire
 
@@ -887,6 +888,20 @@ isolé passent ; Clippy sur toutes les cibles avec `editor-model-spike` passe av
 Le catalogue reste à 49 commandes et quatorze requêtes ; aucun format de fichier,
 aucune dépendance Cargo et aucun transport CLI/MCP ne sont ajoutés.
 
+## Relecture finale avant gel
+
+Le [bilan de sortie du 24 octobre](architecture-phase-2-review.md) confronte les
+63 entrées effectives aux 44 présentations Courrier, aux gestes et services de
+l’inventaire et aux critères 2.6. Les huit noms de lectures envisagés mais absents,
+les vues déjà couvertes par d’autres réponses et les limites des lectures existantes
+sont explicites ; aucun ajout ou report de périmètre n’est réputé validé tacitement.
+
+Deux tests positifs Copy/Cut/Paste complètent la couverture : copie de texte visible
+sans Typst, coupe comparée à `text.delete`, collage Unicode littéral comparé à
+`text.insert`, conservation des positions logiques et annulation en une étape.
+Le pont réel du presse-papiers et la matrice IME système restent au chantier I.
+Aucun code de production ni schéma de catalogue n’est modifié par cette relecture.
+
 ## Suite de la phase
 
 Les lectures de synchronisation et de comptage sont migrées vers le moteur. Les
@@ -898,14 +913,16 @@ l’orthographe documentaire, les champs, les options et les modèles sont migr�
 L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
 Les essais complets de composition, choix des candidats, annulation et historique
 avec les méthodes système restent à poursuivre dans le chantier I. Le contrat natif
-D17 est implémenté ; les autres critères de 2.1 bis restent à relire avant clôture.
+D17 est implémenté ; les autres critères de 2.1 bis ont été relus dans le bilan
+de sortie, sans présenter les essais système restants comme réalisés.
 
 Les familles documentaires prévues en 2.4 sont migrées, y compris les fichiers,
 la récupération et les lots atomiques D16. L’accès transitoire à la session est
 supprimé. La disponibilité commune et l’aiguillage des déclencheurs sont en place.
-Restent la relecture exhaustive de l’inventaire, des critères de sortie et le gel
-du catalogue, à valider ensemble.
+L’inventaire et les critères de sortie ont été relus. Restent l’accord explicite
+sur le périmètre proposé en D21 et le gel du catalogue ; la clôture n’est pas
+encore prononcée.
 V5 conserve les réglages globaux dans l’application ; les formats d’export séparés
 et la création sans interface de V6 sont implémentés et testés. Le lot de lectures
-ne livre pas de `render.compile` public ; son service et les éventuelles lectures
-complémentaires seront examinés lors de la relecture de l’inventaire.
+ne livre pas de `render.compile` public ; son service et les lectures complémentaires
+figurent dans les points de périmètre du bilan, encore à valider ensemble.

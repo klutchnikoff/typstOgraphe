@@ -207,6 +207,24 @@ conserve texte, métadonnées, modèle et ressources.
   accès aux caractères utiles lorsque la saisie ordinaire ne suffit pas.
 - **P3 :** correction grammaticale et suggestions de rédaction, avec acceptation
   explicite ; le texte de l’utilisateur ne doit pas être réécrit silencieusement.
+  **Orientation technique retenue le 24 octobre 2026 :** LanguageTool local,
+  exécuté dans un processus Java persistant piloté par Rust, avec son serveur
+  HTTP officiel limité à la boucle locale. Le runtime Java et les JAR seront
+  livrés dans le paquet d’application ; aucune installation Java ni compte
+  utilisateur requis. Pas d’extraction de l’ensemble depuis `include_bytes!`.
+  Le processus démarrera à la demande, restera en arrière-plan pendant l’usage
+  et sera supervisé (délais, arrêt propre, reprise après incident).
+  Commencer par un essai français : qualité des règles locales, démarrage froid,
+  latence à chaud, mémoire réelle et poids de distribution. Réduire ensuite le
+  runtime avec `jlink` et les dépendances de langues sélectionnées ; aucun budget
+  de taille/mémoire n’est encore promis. Spellbook reste chargé de l’orthographe
+  immédiate ; éviter les diagnostics en double. La langue suit le document.
+  Transmettre le texte rédigé et des cibles gardées ; convertir explicitement les
+  offsets UTF-16 de Java en positions Unicode du moteur, ignorer les réponses
+  périmées et appliquer une correction acceptée via une transaction annulable.
+  Versionner Java, LanguageTool et leurs dépendances dans l’inventaire des
+  composants. L’essai ne suppose ni règles d’IA cloud ni réécriture automatique.
+  Cette orientation ne lance aucune implémentation dans la phase 2 du chantier J.
 - **P3, piste mise de côté après essais :** reformulation d’une sélection avec
   un petit modèle local, chantier distinct de l’orthographe. Les
   [essais du 21 octobre 2026](experiments/reformulation/report.html) comparent
@@ -632,8 +650,9 @@ gardée et comptage Unicode sur le document publié. La disponibilité est unifi
 et les routes des déclencheurs sont explicites et testées ; les règles
 documentaires viennent du moteur, les états de fenêtres/préférences restent
 dans l’interface ([contrat d’aiguillage](docs/command-routing.md)). La relecture
-de l’inventaire et le gel du catalogue restent à traiter
-([suivi de phase 2](docs/architecture-phase-2.md)).
+finale est consignée dans le [bilan de sortie](docs/architecture-phase-2-review.md).
+Le périmètre proposé (49 commandes et 14 requêtes, ajouts futurs possibles) et le gel
+restent à valider ensemble ; la phase n’est pas encore déclarée terminée.
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une
 commande à identifiant stable, pilotable par une ligne de commande et par MCP.

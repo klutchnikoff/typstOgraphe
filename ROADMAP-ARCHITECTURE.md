@@ -133,6 +133,7 @@ Fuites à traiter avant tout découpage en crates :
 | D18 | Modèle d’édition | **Validée après relecture.** Prototype borné de tableaux et vérification de la composition IME après le rangement initial, avant le gel des paramètres publics du moteur en phase 2. **Choix validé le 22 octobre 2026 après le prototype : blocs et cellules explicites en mémoire**, avec des zones de texte réutilisant la projection actuelle et la saisie egui. Cette représentation est reconstruite depuis le Typst et sérialisée en Typst, qui reste la référence documentaire | 1, 2 |
 | D19 | Captures comparables | **Validée après relecture.** Figer en mode capture la langue, le thème, le curseur, les animations et le temps de rendu affiché. Fixtures et dates fixes, attente des résultats asynchrones. Les empreintes PNG ne servent de contrôle qu’après répétition réussie sur le même environnement | 0 |
 | D20 | Granularité des changements | **Validée après relecture.** Un déplacement par commit, plusieurs commits cohérents possibles par PR. Les limites portent sur le code de production ; le découpage de `document.rs` et d’`editor.rs` est planifié avant leur application globale | 1, 3, 7 |
+| D21 | Périmètre de clôture et gel du catalogue | **Proposition du 24 octobre 2026, à valider ensemble.** Stabiliser les 49 commandes et 14 requêtes actuelles, leurs IDs et contrats d’entrée, en autorisant les ajouts compatibles. Les lectures non livrées, les réponses encore non schématisées et les critères de sortie sont explicités dans [le bilan de sortie](docs/architecture-phase-2-review.md). Ne pas clore la phase avant cet accord | 2, 3, 4 |
 
 
 ## 4. Vue d'ensemble
@@ -373,16 +374,16 @@ Après validation de l’inventaire et de ses cibles, avant le gel des signature
 
 - [x] Définir les blocs, leurs zones de texte et leurs identifiants ; réutiliser la
   projection actuelle pour l’édition du texte dans chaque zone.
-- [ ] Migrer les structures déjà prises en charge, avec aller-retour Typst et
+- [x] Migrer les structures déjà prises en charge, avec aller-retour Typst et
   ressources identiques ; aucune structure nouvelle livrée à l’utilisateur ici.
-- [ ] Adapter les positions, la sélection continue, les cartes de source, la recherche
+- [x] Adapter les positions, la sélection continue, les cartes de source, la recherche
   et la synchronisation de l’aperçu ; préciser les règles entre zones avant de coder.
-- [ ] Faire porter par les transactions du cœur les changements de structure, de
+- [x] Faire porter par les transactions du cœur les changements de structure, de
   contenu et de sélection, y compris l’adaptateur de saisie native (D15, D17).
-- [ ] Tester frontières, normalisation locale, IME, historique et Unicode. Préparer
+- [x] Tester frontières, normalisation locale, IME, historique et Unicode. Préparer
   le modèle pour les cellules sans avancer la livraison des tableaux prévue à l’étape 5.
 
-**En cours :** tous les blocs existants sont représentés et alimentent le
+**Implémentation relue le 24 octobre :** tous les blocs existants sont représentés et alimentent le
 sérialiseur via un adaptateur vers la projection. Les identités, les positions
 locales Unicode et les gardes session/révision sont testées ; l’historique conserve
 les sélections logiques. Les frontières de rôles sont protégées ; les éditions
@@ -411,19 +412,20 @@ Dans `src/engine/` (futur crate `core`) :
 - [x] `CommandId` (chaîne validée au démarrage : unicité, forme `domaine.action` avec
   tirets bas ; D2). Renommer `letter.insert-postscript` et `letter.insert-attachment`
   en `letter.insert_postscript` et `letter.insert_attachment`.
-- [ ] `Command` : énumération avec données (`Block { kind }`, `SetLink { url }`,
+- [x] `Command` : énumération avec données (`Block { kind }`, `SetLink { url }`,
   `InsertImage { path, alt }`, `SelectText { range | occurrence }`, `InsertText { text }`,
   `SetMetadata { field, value }`, `SetOption { option, value }`, `ReplaceAll { with }`…).
   Les variantes actuelles sans paramètres restent telles quelles.
-  **En cours :** 49 commandes typées implémentées, dont les lots atomiques ;
-  la relecture finale et le gel du catalogue restent à faire. Les espaces de noms
+  **Relu :** 49 commandes typées implémentées, dont les lots atomiques ;
+  le gel et son périmètre restent à valider ensemble. Les espaces de noms
   hiérarchiques existants (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
-- [ ] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
+- [x] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
   `search.find`, `metadata.get`, `commands.list`, `models.list`).
-  **En cours :** quatorze requêtes implémentées, dont `render.locate`,
+  **Relu :** quatorze requêtes implémentées, dont `render.locate`,
   `render.selection_boxes` et `document.statistics`. Les lectures orthographiques,
   champs actifs, modèles et récupération sont également disponibles. La couverture
-  de l’inventaire et les signatures restent à relire avant le gel du catalogue.
+  de l’inventaire et les limites des autres propositions sont recensées dans le
+  [bilan de sortie](docs/architecture-phase-2-review.md) ; aucun ajout ni gel implicite.
   Voir [le contrat des lectures de rendu et compteurs](docs/read-queries.md).
 - [x] `UiCommand` : palette, préférences, ouverture des dialogues, focus. Reste dans l'application.
 - [x] `CommandSpec` (cœur, sans egui) : identifiant, description **en anglais** (pour les
@@ -551,13 +553,22 @@ Dans le style du test existant sur les fichiers Fluent :
 
 ### 2.6 Critères de sortie
 
-- `App::apply` ne contient plus que des `UiCommand` et des appels à `Engine::run`.
-- Aucune publication directe de `self.session.*` par l’interface ; la saisie native
-  utilise la voie commune de commit décrite en D17.
-- Représentation structurée migrée et cibles de sélection validées (2.1 bis).
-- Inventaire entièrement coché ; catalogue de commandes généré et relu.
-- **Gel des identifiants** : après cette phase, un identifiant publié ne change plus
-  sans décision explicite (la phase préliminaire ne l'exigeait pas ; la CLI et MCP, si).
+**Relecture effectuée le 24 octobre ; clôture et gel non prononcés.**
+Le [bilan de sortie](docs/architecture-phase-2-review.md) confronte l’inventaire,
+les signatures et les preuves ; il propose le périmètre à valider ensemble (D21).
+
+- [x] `App::apply` ne contient plus que des `UiCommand` et des appels au moteur.
+- [x] Aucune publication directe de session par l’interface ; la saisie native
+  utilise la voie commune de commit D17. Le chargement interne des démonstrations
+  reste hors catalogue et sous validation du moteur.
+- [x] Représentation structurée migrée et cibles validées pour les blocs existants.
+  Les zones préparent de futures cellules ; aucune commande de tableau livrée ici.
+- [ ] Inventaire classé et catalogue généré relu : relecture faite, mais périmètre
+  des lectures complémentaires à valider. Les propositions absentes ne sont pas
+  comptées comme implémentées.
+- [ ] **Gel des identifiants et contrats d’entrée existants** : proposition D21,
+  aucune clôture automatique. Après accord, pas de changement incompatible sans
+  décision explicite ; les ajouts compatibles resteront possibles.
 
 ---
 
