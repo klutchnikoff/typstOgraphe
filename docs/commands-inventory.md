@@ -218,12 +218,12 @@ comme commande sans interface.
 
 | Entrée actuelle → cible proposée | Chemin actuel | Paramètres métier proposés | Famille cible | Dialogue actuel | Sans UI | Tests actuels |
 | --- | --- | --- | --- | --- | --- | --- |
-| `document.new` | `app/files::create_document`, `perform_action` | `type`, `model`, `initial_values?`, `signature?` ; refus si travail courant non enregistré sans décision explicite | Préparation UI → C-IO | Oui | Oui | T01, T04, T26 |
-| `document.open` | `app/files::open_path`, `install_document` | `path`, traitement explicite du travail courant | Préparation UI → C-IO | Oui | Oui | T02, T04 |
-| `document.save` | `app/files::save_document`, `save_path` | `path?` ; chemin connu requis s’il est omis | Préparation UI → C-IO | Cond. | Oui | T03, T17 |
-| `document.save_as` | `app/files::save_document`, `save_path` | `path`, `overwrite: false` par défaut hors UI | Préparation UI → C-IO | Oui | Oui | T03, T47 |
-| `document.export` | `app/dialogs::export_dialog`, `rendering::render` | `directory`, `format`, `page_images?` ; valeurs obligatoires du type vérifiées | Préparation UI → C-IO | Oui | Oui | T05, T14, T48 |
-| `document.close` | `app/files::handle_file_command`, `close_document` | `discard_changes: false` ; sinon erreur `unsaved_changes` | C-IO | Cond. | Oui | T01, T04 |
+| `document.new` | `app/files::create_document`, `perform_action` | `guard`, `type`, `model`, `initial_values?: [{ field, value }]`, `signature?`, `discard_changes: false` ; refus si travail courant non enregistré sans décision explicite | Préparation UI → C-IO | Oui | Oui | T01, T04, T26 |
+| `document.open` | `app/files::open_path`, `install_document` | `guard`, `path`, `discard_changes: false` | Préparation UI → C-IO | Oui | Oui | T02, T04 |
+| `document.save` | `app/files::save_document`, `save_path` | `guard`, `path?` ; chemin connu requis s’il est omis ; autre cible existante refusée | Préparation UI → C-IO | Cond. | Oui | T03, T17 |
+| `document.save_as` | `app/files::save_document`, `save_path` | `guard`, `path`, `overwrite: false` par défaut hors UI | Préparation UI → C-IO | Oui | Oui | T03, T47 |
+| `document.export` | `app/dialogs::export_dialog`, `engine::prepare_export`, `ExportTask::execute` | `guard`, `directory`, `format`, `page_images?` ; valeurs obligatoires du type vérifiées | Préparation UI → C-IO | Oui | Oui | T05, T14, T48 |
+| `document.close` | `app/files::handle_file_command`, `close_document` | `guard`, `discard_changes: false` ; sinon erreur `unsaved_changes` | C-IO | Cond. | Oui | T01, T04 |
 | `application.quit` | `app/files::request_action`, `perform_action`, `app/mod::ui_frame` | Fenêtre/application courante, décision enregistrer/abandonner/annuler | UI | Cond. | Non | T04, T05 |
 | `commands.palette` | `app/commands::apply`, `app/dialogs::palette_dialog` | Ouvrir/fermer ; requête et item actif locaux | UI | Palette | Non | T39, T49 |
 | `application.preferences` | `app/preferences::preferences_ui`, `app/commands::apply` | Ouvrir/fermer, rubrique | UI | Oui | Non | T27, T28 |
@@ -422,6 +422,15 @@ au repli anglais prévu en D7 relève de la phase 3, pas de cet inventaire.
 | Double-clic dans l’aperçu | `preview_ui`, `navigate_backward`, `RenderSync::backward` | Q `render.locate` avec page/point d’un rendu puis C-sel | Q + C-sel + focus UI | Non | Conversion : oui ; clic : non | T38, T64 |
 | Surlignage de sélection | `RenderSync::selection_highlights`, `preview_ui` | Q `render.selection_boxes`, sélection et référence de rendu | Q + peinture UI | Non | Géométrie : oui | T38, T65 |
 | Lire les compteurs document/sélection | `chrome::status_ui`, `statistics::Counter` | Q `document.statistics`, cible optionnelle | Q + affichage UI | Non | Oui | T36 |
+
+**Lot 2.4.8 réalisé le 23 octobre 2026.** Ces opérations sont dans le catalogue
+typé. `recovery.list` lit les entrées détenues par le service configuré et renvoie
+`reference`, nom facultatif, horodatage et erreur éventuelle. Restaurer prend
+`guard`, `reference`, `discard_changes: false` ; supprimer prend seulement
+`reference`. Les références sont opaques et propres au service ; l’UI ne transmet
+pas d’indice ni de chemin arbitraire. La copie restaurée n’a pas de chemin et reste
+à enregistrer. Les tests sont dans `engine/tests/files.rs` et
+`app/tests/files_engine.rs`, en complément des scénarios T01–T05 et T33–T34.
 
 Une récupération et un enregistrement ne deviennent pas des étapes d’annulation.
 Une suppression de copie et un export sont des effets externes : exclus des lots

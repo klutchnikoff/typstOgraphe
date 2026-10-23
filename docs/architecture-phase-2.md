@@ -5,8 +5,8 @@ V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers 
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
-Le registre typé et le premier moteur sont implémentés : 40 commandes, dix
-requêtes et leur catalogue généré. La migration des familles n’est pas terminée.
+Le registre typé et le premier moteur sont implémentés : 48 commandes, onze
+requêtes et leur catalogue généré. La consolidation de la phase n’est pas terminée.
 
 ## Blocs et zones en mémoire
 
@@ -541,13 +541,68 @@ budget. La validation fournit le contrat attendu et le détail du compilateur ;
 leur présentation reste dans App. Le validateur Typst existant est réutilisé, avec
 ses diagnostics ; sa séparation complète des adaptations i18n relève de la phase 3.
 
-Le lot est découpé en commits locaux (moteur, adaptateur graphique, bilan), avec
-une seule poussée après les vérifications finales. Les opérations de création,
-ouverture, sauvegarde, récupération et export de documents restent à migrer.
+## Fichiers, création et récupération — lot 2.4.8
+
+Les commandes `document.new`, `document.open`, `document.close`, `document.save`,
+`document.save_as` et `document.export` sont typées et annoncées dans le catalogue.
+Les parcours des menus, raccourcis et dialogues appellent ces opérations. Le moteur
+possède l’état ouvert/fermé ; l’application en conserve un cache pour l’affichage.
+`document.inspect` expose cet état, le chemin et l’origine récupérée.
+
+Toutes ces opérations portent une garde documentaire. Créer, ouvrir, fermer ou
+restaurer un autre document refuse un brouillon non enregistré, sauf décision
+explicite `discard_changes: true`. L’UI conserve son dialogue enregistrer/abandonner/
+annuler. Une ouverture réussie installe une nouvelle identité de document et une
+sélection initiale, sans historique ; les erreurs de fichier conservent la session
+publiée. Les caches et dialogues documentaires sont réinitialisés seulement après
+réussite. L’ancien chemin reste sans effet sur les cibles gardées du nouveau document.
+
+`document.new` reçoit le type, l’identifiant du modèle fourni et, facultativement,
+`initial_values: [{ field, value }]` et une signature `ImageInput`. Le corps est vide.
+Les champs sont validés par la même voie que `metadata.set` ; champs hors type,
+doublons, contrôles et date dynamique `today` sont refusés. Le moteur ne lit ni le
+profil global ni l’horloge. L’application fournit une copie des valeurs du profil
+et de l’image déjà chargée. Les préférences restent indépendantes du document.
+
+La sauvegarde réutilise `storage::save` et `atomic-write-file`. Elle ne change ni
+révision, ni sélection, ni historique ; son repère en mémoire conserve les ressources
+nécessaires pour annuler, tandis que le fichier filtre les images inutilisées.
+`document.save` peut omettre le chemin si la session en possède un. Une première
+sauvegarde vers un autre chemin refuse de remplacer un fichier existant.
+`document.save_as` exige un chemin et refuse l’écrasement par défaut ; l’UI transmet
+`overwrite: true` après le choix et la confirmation du dialogue natif. La publication
+sans remplacement utilise un fichier temporaire voisin et `persist_noclobber`, après
+l’écriture atomique commune, pour protéger aussi une cible apparue pendant l’écriture.
+Une erreur ne modifie pas le chemin, le repère enregistré ou l’état récupéré.
+
+L’export reçoit `format: pdf | typst | both`, un dossier neuf/vide et `page_images`.
+Les défauts restent `both` et `true`. Le dialogue expose ces choix. Le cœur vérifie
+la garde, les champs obligatoires et les dépendances, puis capture un instantané
+immuable. L’appel synchrone et l’export en arrière-plan de l’interface consomment la même
+`ExportTask`, le même compilateur hors ligne et le même writer (`exporting.rs`).
+Le dossier est revérifié avant écriture et les fichiers sont créés sans remplacement.
+Le format Typst contient sources, métadonnées, modèle et ressources autonomes,
+dont les polices CJK utilisées ; PDF seul ne copie pas ces sources. Les PNG sont
+indépendants du format. L’export ne rend pas le document enregistré et n’ajoute pas
+d’historique. L’export multi-fichiers ne prétend pas à l’atomicité de `.typsto` (D16).
+
+`recovery.list`, `recovery.restore` et `recovery.delete` utilisent les entrées du
+service explicitement configuré ; leurs références opaques ne sont pas des chemins,
+ni des indices de liste. Elles ne se réutilisent pas entre services. La restauration
+prépare et valide la copie avant publication, sans chemin d’enregistrement et avec
+l’obligation d’enregistrer. Le verrou reste détenu jusqu’au transfert au worker de
+récupération existant. L’UI garde l’échéancier des copies, le dialogue et les messages ;
+les entrées qu’elle affiche sont un cache du résultat de `recovery.list`. La suppression
+explicite n’ajoute aucune transaction. Aucune préférence globale ou racine implicite
+n’est introduite dans le protocole documentaire.
+
+Le lot est réparti en commits locaux, avec une seule poussée finale. Aucun format
+d’archive ni aucune dépendance Cargo n’est changé. Les diagnostics des services
+historiques de stockage/rendu seront séparés des libellés Fluent en phase 3.
 
 ## Vérifications
 
-- 285 tests de l’application réussis, dont 142 tests ajoutés depuis le début de
+- 300 tests de l’application réussis, dont 157 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -561,7 +616,7 @@ ouverture, sauvegarde, récupération et export de documents restent à migrer.
   et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
   petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 166 tests partagés réussissent aussi.
+  avertissement ; ses 177 tests partagés réussissent aussi.
 - Dix tests du moteur couvrent les schémas, conversions, données invalides,
   cibles périmées/étrangères, refus atomiques, styles explicites, historique,
   lectures seules, portée Courrier et fichiers de catalogue générés. Quatre essais
@@ -582,6 +637,12 @@ ouverture, sauvegarde, récupération et export de documents restent à migrer.
   alternatif, suppression et copie de signature aux appels JSON ; ils vérifient
   aussi le refus d’un dialogue périmé, l’archivage et l’indépendance du profil.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
+- Onze tests du moteur vérifient création et valeurs initiales, signatures, catalogues,
+  gardes, décisions sur le brouillon, erreurs atomiques, historique, sauvegarde sans
+  écrasement, archives corrompues, récupération par références, formats d’export et
+  instantané asynchrone. Quatre essais d’interface comparent la copie du profil,
+  sauvegarde/ouverture et récupération aux appels typés/JSON, conservent sélection,
+  focus, caches et préférences, puis vérifient un export pendant une nouvelle édition.
 - Huit tests du moteur couvrent catalogue et portée des types, contrat et compilation,
   limites et erreurs de fichiers, gardes, idempotence, réglages du préréglage, refus
   atomiques, budget et autonomie après suppression du fichier importé. Trois essais
@@ -640,6 +701,8 @@ ouverture, sauvegarde, récupération et export de documents restent à migrer.
   (`output/baseline/run-bsfjew61/`) ne différait que par le curseur de saisie du
   scénario orthographe : 233 pixels dans un rectangle de 4 × 59 pixels.
   La relance utilise le même binaire et ne modifie pas les références.
+- Le lot fichiers conserve les huit captures strictement identiques dans
+  `output/baseline/run-elkplziq/`, sans modifier les références.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -666,7 +729,10 @@ Les essais complets de composition, choix des candidats, annulation et historiqu
 avec les méthodes système restent à poursuivre dans le chantier I. D17 et la tâche
 2.1 bis restent ouverts pour la suite de la migration.
 
-Restent les opérations de fichiers. Les lots atomiques (D16), la suppression
-de l’accès transitoire à la session et le gel du catalogue restent à faire. La
-séparation des réglages globaux (V5) et les formats d’export séparés (V6) restent à
-implémenter et à tester. Aucun transport CLI/MCP n’est ajouté par ce lot.
+Les familles documentaires prévues en 2.4 sont migrées, y compris les fichiers et
+la récupération. Restent les lots atomiques (D16), la suppression de l’accès
+transitoire à la session, l’aiguillage final des déclencheurs, les requêtes de
+rendu/compteurs encore dans les adaptateurs et le gel du catalogue. V5 conserve
+les réglages globaux dans l’application ; les formats d’export séparés et la création
+sans interface de V6 sont implémentés et testés. Aucun transport CLI/MCP n’est ajouté
+par ce lot.

@@ -410,13 +410,13 @@ Dans `src/engine/` (futur crate `core`) :
   `InsertImage { path, alt }`, `SelectText { range | occurrence }`, `InsertText { text }`,
   `SetMetadata { field, value }`, `SetOption { option, value }`, `ReplaceAll { with }`…).
   Les variantes actuelles sans paramètres restent telles quelles.
-  **En cours :** 40 commandes typées implémentées ; les familles restantes ne sont
+  **En cours :** 48 commandes typées implémentées ; les familles restantes ne sont
   pas annoncées dans le catalogue. Les espaces de noms hiérarchiques existants
   (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
 - [ ] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
   `search.find`, `metadata.get`, `commands.list`, `models.list`).
-  **En cours :** dix requêtes implémentées ; les lectures orthographiques, les
-  champs actifs, `models.presentation` et `models.list` sont disponibles. Les lectures
+  **En cours :** onze requêtes implémentées ; les lectures orthographiques, les
+  champs actifs, `models.presentation`, `models.list` et `recovery.list` sont disponibles. Les lectures
   liées aux autres familles restent à migrer.
 - [x] `UiCommand` : palette, préférences, ouverture des dialogues, focus. Reste dans l'application.
 - [x] `CommandSpec` (cœur, sans egui) : identifiant, description **en anglais** (pour les
@@ -495,12 +495,18 @@ JSON** et compare avec le chemin d'interface.
   compilation du contrat et du document, budget des ressources puis publication
   atomique. `models.list` suit le catalogue du type. Dialogues, libellés et focus
   restent dans App ; annuler/rétablir restaure aussi la présentation du modèle.
-- [ ] 2.4.8 Fichiers, en gardant les identifiants existants : `document.new { type, model }`,
+- [x] 2.4.8 Fichiers, en gardant les identifiants existants : `document.new { type, model }`,
   `document.open { path }`, `document.save { path? }`, `document.save_as { path }`,
   `document.export { format: "pdf" | "typst" | "both", directory, page_images? }`
   (V6 : dossier neuf/vide, export complet avec PNG par défaut).
   Les dialogues de choix de fichier restent dans l'application, qui appelle le moteur
-  avec le chemin choisi.
+  avec le chemin choisi. Création sans valeurs implicites du profil ni de l’horloge,
+  gardes et décision explicite pour remplacer un brouillon ; enregistrement atomique
+  sans transaction d’historique. `document.close`, `recovery.list/restore/delete` sont
+  aussi raccordés ; la récupération utilise des références opaques du service configuré.
+  `save_as` refuse l’écrasement par défaut (`overwrite: true` après confirmation UI) ;
+  une première sauvegarde sur un autre chemin ne remplace pas non plus une cible existante.
+  L’export graphique exécute en arrière-plan le même instantané validé que le moteur.
 - [x] 2.4.9 Historique : `edit.undo`, `edit.redo`.
 
 ### 2.5 Tests du registre
