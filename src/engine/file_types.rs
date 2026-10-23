@@ -52,6 +52,8 @@ pub struct SaveDocumentParams {
 pub struct SaveAsParams {
     pub guard: TargetGuard,
     pub path: PathBuf,
+    #[serde(default)]
+    pub overwrite: bool,
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]

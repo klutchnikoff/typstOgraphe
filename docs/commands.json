@@ -417,6 +417,10 @@
           "guard": {
             "$ref": "#/$defs/TargetGuard"
           },
+          "overwrite": {
+            "default": false,
+            "type": "boolean"
+          },
           "path": {
             "type": "string"
           }

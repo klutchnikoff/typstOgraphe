@@ -178,6 +178,7 @@ fn saves_are_atomic_preserve_history_and_save_as_leaves_the_old_file_intact() {
     assert!(
         e.run(Command::SaveAs(SaveAsParams {
             guard,
+            overwrite: false,
             path: directory.path().join("absent/file.typsto")
         }))
         .is_err()
@@ -188,6 +189,7 @@ fn saves_are_atomic_preserve_history_and_save_as_leaves_the_old_file_intact() {
     e.run_call(
         Command::SaveAs(SaveAsParams {
             guard,
+            overwrite: false,
             path: second.clone(),
         })
         .to_call(),
@@ -453,4 +455,99 @@ fn deleting_one_recovery_copy_preserves_document_history_and_invalid_refs_fail()
         )
         .is_err()
     );
+}
+
+#[test]
+fn save_as_refuses_existing_targets_unless_replacement_is_explicit_and_publication_cannot_clobber()
+{
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("existing.typsto");
+    let original = StoredDocument::demo(DocumentType::Courrier);
+    crate::storage::save(&path, &original).unwrap();
+    let original_bytes = std::fs::read(&path).unwrap();
+    let mut e = engine("Autre document");
+    changed(&mut e);
+    let before = e.stored_document();
+    let guard = e.target_guard();
+    let undo = e.undo.len();
+    let params = SaveAsParams {
+        guard,
+        path: path.clone(),
+        overwrite: false,
+    };
+    assert_eq!(
+        e.run(Command::SaveAs(params.clone())).unwrap_err().reason(),
+        "file_exists"
+    );
+    assert_eq!(
+        e.run(Command::SaveDocument(SaveDocumentParams {
+            guard,
+            path: Some(path.clone())
+        }))
+        .unwrap_err()
+        .reason(),
+        "file_exists"
+    );
+    assert!(e.stored_document() == before);
+    assert_eq!(e.target_guard(), guard);
+    assert_eq!(e.undo.len(), undo);
+    assert!(e.file_path.is_none() && e.is_dirty());
+    // La primitive de publication refuse aussi une cible apparue après un contrôle préalable.
+    assert!(crate::storage::save_new(&path, &before).is_err());
+    assert_eq!(std::fs::read(&path).unwrap(), original_bytes);
+    e.run(Command::SaveAs(SaveAsParams {
+        overwrite: true,
+        ..params
+    }))
+    .unwrap();
+    assert!(crate::storage::read(&path).unwrap() == before);
+    assert!(!e.is_dirty());
+    assert_eq!(e.undo.len(), undo);
+}
+#[test]
+fn corrupt_recovery_refuses_publication_and_stale_export_refuses_filesystem_effects() {
+    let dir = tempfile::tempdir().unwrap();
+    let stored = StoredDocument::demo(DocumentType::Courrier);
+    seed(dir.path(), &stored);
+    let (_service, entries) =
+        crate::recovery::Recovery::start(dir.path(), Default::default()).unwrap();
+    let mut e = engine("À conserver");
+    e.configure_recovery(entries);
+    let reference = e.recovery_items()[0].reference;
+    let snapshot = std::fs::read_dir(dir.path())
+        .unwrap()
+        .filter_map(Result::ok)
+        .map(|entry| entry.path().join("document.recovery"))
+        .find(|p| p.exists())
+        .unwrap();
+    std::fs::write(snapshot, "broken").unwrap();
+    let before = e.stored_document();
+    let guard = e.target_guard();
+    assert_eq!(
+        e.run(Command::RestoreRecovery(RestoreRecoveryParams {
+            guard,
+            reference,
+            discard_changes: true
+        }))
+        .unwrap_err()
+        .reason(),
+        "recovery_load"
+    );
+    assert!(e.stored_document() == before);
+    assert_eq!(e.target_guard(), guard);
+    assert_eq!(e.recovery_items().len(), 1);
+    changed(&mut e);
+    let path = dir.path().join("must-not-exist");
+    assert_eq!(
+        e.run(Command::Export(ExportParams {
+            guard,
+            directory: path.clone(),
+            format: ExportFormat::Both,
+            page_images: true
+        }))
+        .unwrap_err()
+        .reason(),
+        "stale_revision"
+    );
+    assert!(!path.exists());
 }

@@ -203,14 +203,7 @@ impl Engine {
             Command::OpenDocument(p) => return self.open_document(p).map(Some),
             Command::CloseDocument(p) => return self.close_document(p).map(Some),
             Command::SaveDocument(p) => return self.save_document(p).map(Some),
-            Command::SaveAs(p) => {
-                return self
-                    .save_document(SaveDocumentParams {
-                        guard: p.guard,
-                        path: Some(p.path),
-                    })
-                    .map(Some);
-            }
+            Command::SaveAs(p) => return self.save_as(p).map(Some),
             Command::Export(p) => return self.prepare_export(p)?.execute().map(Some),
             Command::SetModel(p) => return self.set_model(p).map(Some),
             Command::PersonalModel(p) => return self.personal_model(p).map(Some),

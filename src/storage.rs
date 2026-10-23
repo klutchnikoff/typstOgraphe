@@ -235,6 +235,24 @@ pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
     save_archive(path, &letter, None)
 }
 
+/// Publication d’un nouveau fichier sans écrasement, y compris si une autre
+/// application crée la cible pendant la préparation de l’archive.
+/// L’archive passe par la même écriture atomique avant sa publication sans remplacement.
+pub fn save_new(path: &Path, letter: &StoredDocument) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let temporary = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|e| e.to_string())?
+        .into_temp_path();
+    save(&temporary, letter)?;
+    temporary
+        .persist_noclobber(path)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Une seule voie d’écriture atomique pour les documents et leur récupération.
 /// Les copies de récupération conservent les ressources sans lancer de rendu.
 pub(crate) fn save_archive(

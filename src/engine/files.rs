@@ -131,9 +131,27 @@ impl Engine {
             .or_else(|| self.session.file_path.clone())
             .filter(|path| !path.as_os_str().is_empty())
             .ok_or_else(|| CommandError::new(ErrorCode::InvalidParams, "save_path_required"))?;
+        let overwrite = self.session.file_path.as_ref() == Some(&path);
+        self.write_document(path, overwrite)
+    }
+    pub(super) fn save_as(&mut self, p: SaveAsParams) -> Result<Value, CommandError> {
+        self.write_document(p.path, p.overwrite)
+    }
+    fn write_document(&mut self, path: PathBuf, overwrite: bool) -> Result<Value, CommandError> {
+        if !overwrite
+            && path
+                .try_exists()
+                .map_err(|e| CommandError::detail(ErrorCode::Io, "file_save", e))?
+        {
+            return Err(CommandError::new(ErrorCode::Io, "file_exists"));
+        }
         let stored = self.session.stored_document();
-        crate::storage::save(&path, &stored)
-            .map_err(|e| CommandError::detail(ErrorCode::Io, "file_save", e))?;
+        let result = if overwrite {
+            crate::storage::save(&path, &stored)
+        } else {
+            crate::storage::save_new(&path, &stored)
+        };
+        result.map_err(|e| CommandError::detail(ErrorCode::Io, "file_save", e))?;
         // Le disque est nettoyé, mais ce repère conserve les ressources de l’historique.
         self.session.saved = stored;
         self.session.file_path = Some(path.clone());
