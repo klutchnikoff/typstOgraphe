@@ -512,6 +512,14 @@ export multi-fichiers ne bénéficie pas implicitement de l’atomicité de `.ty
 Les fichiers de travail actifs ne sont remplacés qu’après validation complète ;
 les erreurs de chargement conservent la session en place.
 
+**Implémentation D16 — 24 octobre 2026.** `document.batch { guard, steps, save? }`
+prépare une session privée, publie une seule transaction et, si demandé, enregistre
+une seule fois après validation. L’admissibilité d’une étape est déclarée dans le
+registre (`batch_step`). Le lot conserve les gardes ordinaires, sans les réécrire ;
+les cibles symboliques désignent le brouillon courant. Le [contrat des lots](atomic-batches.md)
+précise sauvegarde finale, limites, erreurs et exemple JSON. Ni transport CLI/MCP,
+ni lot multi-documents, ni nouvel écran de script n’est introduit.
+
 ### 7.3 Ce qui reste dans l’application, sans action publique par frame
 
 Rafraîchissement des textures, temporisation orthographique, réveils du rendu,

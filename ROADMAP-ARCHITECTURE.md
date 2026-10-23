@@ -410,9 +410,9 @@ Dans `src/engine/` (futur crate `core`) :
   `InsertImage { path, alt }`, `SelectText { range | occurrence }`, `InsertText { text }`,
   `SetMetadata { field, value }`, `SetOption { option, value }`, `ReplaceAll { with }`…).
   Les variantes actuelles sans paramètres restent telles quelles.
-  **En cours :** 48 commandes typées implémentées ; les familles restantes ne sont
-  pas annoncées dans le catalogue. Les espaces de noms hiérarchiques existants
-  (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
+  **En cours :** 49 commandes typées implémentées, dont les lots atomiques ;
+  la relecture finale et le gel du catalogue restent à faire. Les espaces de noms
+  hiérarchiques existants (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
 - [ ] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
   `search.find`, `metadata.get`, `commands.list`, `models.list`).
   **En cours :** onze requêtes implémentées ; les lectures orthographiques, les
@@ -420,7 +420,8 @@ Dans `src/engine/` (futur crate `core`) :
   liées aux autres familles restent à migrer.
 - [x] `UiCommand` : palette, préférences, ouverture des dialogues, focus. Reste dans l'application.
 - [x] `CommandSpec` (cœur, sans egui) : identifiant, description **en anglais** (pour les
-  agents), famille, schéma des paramètres (`schemars`), règle de disponibilité.
+  agents), famille, schéma des paramètres (`schemars`), règle de disponibilité
+  et admissibilité explicite comme étape de lot (`batch_step`).
 - [x] `Presentation` (application) : clé de libellé Fluent, raccourcis, position de menu
   (`menu_position`), icône. Séparer ce qui est actuellement dans `Definition`.
 - [x] `Command::from_call(id, json) -> Result<Command, CommandError>` et
@@ -437,11 +438,17 @@ Dans `src/engine/` (futur crate `core`) :
   et `query(&self, Query) -> Result<Value, CommandError>`.
 - [x] `Outcome` : `changed`, garde et sélection résultantes, valeur de retour
   éventuelle, effets à déclencher (rendu à relancer, sélection à rendre visible).
-- [ ] **Une mutation documentaire validée = une transaction d’historique** (D15).
+- [x] **Une mutation documentaire validée = une transaction d’historique** (D15).
   Sélection, navigation, recherche, ouverture et enregistrement ne créent pas d’entrée
   d’annulation. Préserver le regroupement de la frappe et l’annulation d’un lot en une étape.
-  Les commandes migrées et les groupes de frappe sont vérifiés ; les lots D16
-  restent à implémenter.
+  Les commandes migrées et les groupes de frappe sont vérifiés. `document.batch`
+  prépare ses étapes sur une session isolée et publie une seule transaction ; un lot
+  sans changement conserve le rétablissement.
+- [x] **Lots atomiques d’un document** (D16) : commandes admises déclarées au registre,
+  aucune écriture dans les étapes, sauvegarde finale facultative et explicite.
+  Un échec, y compris de sauvegarde, conserve la session publiée. Limites : 256 étapes,
+  4 Mio de paramètres JSON, 64 Mio de ressources supplémentaires. Le contrat des
+  gardes, les résultats et les exemples sont dans [docs/atomic-batches.md](docs/atomic-batches.md).
 - [x] La sélection (`Caret`, `Selection`, déjà indépendantes d'egui dans `session.rs`)
   appartient au moteur : les agents et la CLI en ont besoin pour `text.insert`
   et `text.select`.

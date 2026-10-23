@@ -1,11 +1,11 @@
 # Phase 2 — Mise en place du modèle structuré et du moteur
 
-**État au 23 octobre 2026 : phase commencée, pas terminée.** Les orientations
+**État au 24 octobre 2026 : phase commencée, pas terminée.** Les orientations
 V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers lots
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
-Le registre typé et le premier moteur sont implémentés : 48 commandes, onze
+Le registre typé et le premier moteur sont implémentés : 49 commandes, onze
 requêtes et leur catalogue généré. La consolidation de la phase n’est pas terminée.
 
 ## Blocs et zones en mémoire
@@ -600,9 +600,39 @@ Le lot est réparti en commits locaux, avec une seule poussée finale. Aucun for
 d’archive ni aucune dépendance Cargo n’est changé. Les diagnostics des services
 historiques de stockage/rendu seront séparés des libellés Fluent en phase 3.
 
+## Lots atomiques — D15/D16
+
+`document.batch` exécute des appels du registre sur une session privée avec la même
+identité et la même révision initiales. Toutes les étapes sont décodées et leur
+admissibilité (`CommandSpec.batch_step`) est vérifiée avant exécution ou lecture
+d’imports. Ouverture/fermeture/création, sauvegarde/export, récupération, historique,
+requêtes et imbrication sont exclus. Les gardes explicites suivent strictement les
+révisions du brouillon, sans réancrage ; les cibles symboliques se résolvent à chaque
+étape. Le contrat détaillé est dans [atomic-batches.md](atomic-batches.md).
+
+Les éditions utilisent les commandes et validations communes. L’historique provisoire
+est libéré entre étapes, et les imports sont bornés par rapport aux ressources de
+départ. La configuration orthographique personnelle est copiée en lecture ; les
+services globaux et la récupération ne sont pas transférés au brouillon. Limites :
+1–256 étapes, 4 Mio de JSON sérialisé, 64 Mio de ressources supplémentaires.
+
+Le candidat final passe par `Session::commit_snapshot` sur une seconde session
+préparée, avec une unique transaction discrète. Une sauvegarde finale explicite
+réutilise les opérations de fichiers validées, avant toute publication de la session.
+Après sa réussite, `Session::adopt_batch` transfère l’état sans IO ni validation
+faillible et raccorde l’historique antérieur. Un refus, même de sauvegarde, ne publie
+ni contenu, ni ressources, ni sélection, ni repère enregistré. Sans changement de
+contenu, aucune révision ou transaction n’est ajoutée et le rétablissement reste intact.
+
+L’adaptateur graphique applique uniquement les effets finaux : politique du modèle,
+sélection, synchronisation et nettoyage de récupération après sauvegarde réussie.
+Les erreurs conservent leur cause structurée et l’index de l’étape ; l’interface
+traduit le message avec une numérotation à partir de un. Aucun transport CLI/MCP ni
+nouvelle action de menu n’est ajouté dans ce lot.
+
 ## Vérifications
 
-- 300 tests de l’application réussis, dont 157 tests ajoutés depuis le début de
+- 318 tests de l’application réussis, dont 175 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -616,7 +646,7 @@ historiques de stockage/rendu seront séparés des libellés Fluent en phase 3.
   et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
   petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 177 tests partagés réussissent aussi.
+  avertissement ; ses 191 tests partagés réussissent aussi.
 - Dix tests du moteur couvrent les schémas, conversions, données invalides,
   cibles périmées/étrangères, refus atomiques, styles explicites, historique,
   lectures seules, portée Courrier et fichiers de catalogue générés. Quatre essais
@@ -637,6 +667,12 @@ historiques de stockage/rendu seront séparés des libellés Fluent en phase 3.
   alternatif, suppression et copie de signature aux appels JSON ; ils vérifient
   aussi le refus d’un dialogue périmé, l’archivage et l’indépendance du profil.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
+- Deux tests de session et douze tests du moteur couvrent les lots : isolation,
+  publication unique, limites, erreurs tardives, gardes périmées/étrangères, étapes
+  interdites, imports et autonomie, échec de sauvegarde, conservation du rétablissement,
+  lots sans changement et configuration orthographique de lecture. Quatre essais
+  d’interface vérifient la parité JSON, l’annulation globale, la politique du modèle,
+  le focus, la synchronisation et le nettoyage de récupération après réussite seulement.
 - Onze tests du moteur vérifient création et valeurs initiales, signatures, catalogues,
   gardes, décisions sur le brouillon, erreurs atomiques, historique, sauvegarde sans
   écrasement, archives corrompues, récupération par références, formats d’export et
@@ -703,6 +739,8 @@ historiques de stockage/rendu seront séparés des libellés Fluent en phase 3.
   La relance utilise le même binaire et ne modifie pas les références.
 - Le lot fichiers conserve les huit captures strictement identiques dans
   `output/baseline/run-elkplziq/`, sans modifier les références.
+- Les lots atomiques conservent les huit captures strictement identiques dans
+  `output/baseline/run-oni7qo73/`, sans modifier les références.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -730,7 +768,7 @@ avec les méthodes système restent à poursuivre dans le chantier I. D17 et la 
 2.1 bis restent ouverts pour la suite de la migration.
 
 Les familles documentaires prévues en 2.4 sont migrées, y compris les fichiers et
-la récupération. Restent les lots atomiques (D16), la suppression de l’accès
+la récupération et les lots atomiques D16. Restent la suppression de l’accès
 transitoire à la session, l’aiguillage final des déclencheurs, les requêtes de
 rendu/compteurs encore dans les adaptateurs et le gel du catalogue. V5 conserve
 les réglages globaux dans l’application ; les formats d’export séparés et la création
