@@ -5,42 +5,13 @@ impl App {
         &mut self,
         image: Option<&crate::assets::ImageData>,
     ) -> Result<(), String> {
-        if !matches!(
-            self.document.engine.metadata,
-            crate::document_types::Metadata::Courrier(_)
-        ) {
-            return Ok(());
-        }
-        let current = self.document.engine.metadata.signature_path();
-        if match (image, current) {
-            (None, None) => true,
-            (Some(image), Some(path)) => self
-                .document
-                .engine
-                .document
-                .assets
-                .get(path)
-                .is_some_and(|data| data == &image.data),
-            _ => false,
-        } {
-            return Ok(());
-        }
-        let before = self.snapshot();
-        let path =
-            image.map(|image| image.insert(&mut self.document.engine.document.assets, "signature"));
-        if let crate::document_types::Metadata::Courrier(meta) = &mut self.document.engine.metadata
-        {
-            meta.signature = path;
-        }
-        if image.is_some()
-            && let Err(error) = self.check_asset_budget()
-        {
-            self.document.engine.document = before.document;
-            self.document.engine.metadata = before.metadata;
-            return Err(error);
-        }
-        self.remember(before, false);
-        Ok(())
+        let command = crate::engine::Command::SetSignature(crate::engine::SignatureParams {
+            guard: self.document.engine.target_guard(),
+            image: image.map(crate::engine::ImageInput::from),
+        });
+        self.execute_document_command(command)
+            .map(|_| ())
+            .map_err(|error| Self::command_error_text(&error))
     }
     pub(super) fn use_profile_signature(&mut self) -> Result<(), String> {
         let image = self
@@ -51,6 +22,7 @@ impl App {
         self.set_document_signature(Some(&image))
     }
     pub(super) fn choose_signature(&mut self, profile: bool) {
+        let guard = self.document.engine.target_guard();
         let Some(path) = rfd::FileDialog::new()
             .set_title(crate::tr!("signature-choose"))
             .add_filter(crate::tr!("image-files"), &["png", "jpg", "jpeg", "svg"])
@@ -76,8 +48,14 @@ impl App {
                 }
             }
         } else {
-            let result = crate::assets::ImageData::read(&path)
-                .and_then(|image| self.set_document_signature(Some(&image)));
+            let result = self
+                .execute_document_command(crate::engine::Command::SetSignature(
+                    crate::engine::SignatureParams {
+                        guard,
+                        image: Some(crate::engine::ImageInput::Path { path }),
+                    },
+                ))
+                .map_err(|error| Self::command_error_text(&error));
             if let Err(error) = result {
                 self.file.error = Some(error);
             }

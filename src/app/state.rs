@@ -64,6 +64,7 @@ pub(super) struct DialogState {
     pub(super) palette_index: usize,
     pub(super) image_info: Option<u64>,
     pub(super) image_alt: String,
+    pub(super) image_target: Option<crate::engine::BlockTarget>,
     pub(super) link_open: bool,
     pub(super) link_url: String,
     pub(super) link_error: Option<String>,

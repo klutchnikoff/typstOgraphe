@@ -378,3 +378,5 @@ edit-stale-draft = The document has changed since this edit began. Please try ag
 edit-invalid-draft = This edit cannot be applied to the document.
 engine-invalid-params = This command has invalid parameters.
 engine-unavailable = This command is not available in the current context.
+
+engine-image-error = Unable to process this image: { $error }

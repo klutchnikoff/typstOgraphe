@@ -1,4 +1,7 @@
 use super::{CommandError, registry::define_calls};
+use super::{
+    ImageAltParams, ImageTargetParams, InsertImageParams, ReplaceImageParams, SignatureParams,
+};
 use crate::{
     document::structure::LogicalSelection,
     session::{SelectionTarget, TargetGuard},
@@ -142,6 +145,11 @@ define_calls! {
     Numbered(TargetParams) => "block.numbered", "Set an ordered list.", Edit, Document;
     Description(TargetParams) => "block.description", "Set description items with term and definition zones.", Edit, Document;
     Quote(TargetParams) => "block.quote", "Set a block quotation with an optional attribution.", Edit, Document;
+    InsertImage(InsertImageParams) => "insert.image", "Insert a validated image with optional literal caption and alternative text.", Image, ImageInsertion;
+    ReplaceImage(ReplaceImageParams) => "image.replace", "Replace an image resource while preserving its caption and alternative text.", Image, Image;
+    RemoveImage(ImageTargetParams) => "image.remove", "Remove an image block and its caption in one transaction.", Image, Image;
+    SetImageAlt(ImageAltParams) => "image.set_alt", "Set alternative text on a revision-guarded image block.", Image, Image;
+    SetSignature(SignatureParams) => "document.set_signature", "Set or remove the letter signature using explicit image data or a file.", Letter, Letter;
     SplitBlock(TargetParams) => "block.split", "Split a quote, list item or letter note, or exit an empty item or optional annotation.", Edit, StructuredBlock;
     ExitBlock(TargetParams) => "block.exit", "Create a paragraph after an annotated structure or letter note without replacing its content.", Edit, StructuredBlock;
     Postscript(Empty) => "letter.insert_postscript", "Create or select the letter postscript.", Letter, Letter;
@@ -164,6 +172,7 @@ impl Command {
     pub(super) fn target(&self) -> Option<TextTarget> {
         Some(match self {
             Self::InsertText(p) => p.target,
+            Self::InsertImage(p) => p.target,
             Self::Bold(p) | Self::Italic(p) => p.target,
             Self::SetLink(p) => p.target,
             Self::SelectText(p) => p.target,

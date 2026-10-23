@@ -5289,6 +5289,7 @@ name = "typstographe"
 version = "0.1.0"
 dependencies = [
  "atomic-write-file",
+ "base64 0.22.1",
  "chrono",
  "comemo",
  "eframe",

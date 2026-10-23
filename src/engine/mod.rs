@@ -3,6 +3,8 @@
 mod annotations;
 mod blocks;
 mod error;
+mod image_types;
+mod images;
 mod queries;
 pub mod registry;
 mod run;
@@ -13,6 +15,7 @@ use crate::{
     session::{EditGroup, Selection, SelectionTarget, Session, Snapshot, TargetGuard},
 };
 pub use error::{CommandError, ErrorCode};
+pub use image_types::*;
 pub use registry::{AvailabilityRule, Call, CommandId, CommandSpec, Family, catalogue};
 use serde::Serialize;
 use serde_json::Value;

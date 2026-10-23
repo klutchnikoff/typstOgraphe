@@ -392,8 +392,7 @@ comme les commandes et remplacements. Les préparations encore faites dans `App`
 utilisent un adaptateur transitoire vers cette voie. La préédition IME reste dans
 un brouillon entre frames et sa validation publie une seule étape d’historique ;
 les annulations et événements tardifs ne changent pas la session publiée.
-Le tampon reste plat ; la recherche, l’aperçu et les gestes propres aux images
-restent à migrer. Les règles des descriptions, listes, notes, légendes/attributions
+Le tampon reste plat ; la recherche et l’aperçu restent à migrer. Les règles des descriptions, listes, notes, légendes/attributions
 et les transformations de frappe sont exécutées par le moteur.
 Voir [le suivi de phase 2](docs/architecture-phase-2.md) pour les vérifications
 et les limites de ces premiers lots. Aucune commande de tableau n’est ajoutée.
@@ -409,7 +408,7 @@ Dans `src/engine/` (futur crate `core`) :
   `InsertImage { path, alt }`, `SelectText { range | occurrence }`, `InsertText { text }`,
   `SetMetadata { field, value }`, `SetOption { option, value }`, `ReplaceAll { with }`…).
   Les variantes actuelles sans paramètres restent telles quelles.
-  **En cours :** 22 commandes typées implémentées ; les familles restantes ne sont
+  **En cours :** 27 commandes typées implémentées ; les familles restantes ne sont
   pas annoncées dans le catalogue. Les espaces de noms hiérarchiques existants
   (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
 - [ ] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
@@ -464,8 +463,10 @@ JSON** et compare avec le chemin d'interface.
   Termes/définitions, scissions et sorties de listes/notes, ainsi que préfixes et
   délimiteurs de frappe sont migrés. `text.insert` distingue explicitement les modes
   littéral (défaut) et `typing` ; l’IME reste littérale.
-- [ ] 2.4.3 Images : insérer, remplacer, supprimer, texte alternatif, légende ;
-  signature de document.
+- [x] 2.4.3 Images : insérer, remplacer, supprimer, texte alternatif, légende ;
+  signature de document. Cibles de bloc gardées, imports préparés avant publication,
+  budget et historique communs ; copie du profil explicite. L’initialisation des
+  valeurs à la création reste dans 2.4.8, conformément à V6.
 - [ ] 2.4.4 Recherche : requête, suivant, précédent, remplacer, tout remplacer.
 - [ ] 2.4.5 Orthographe : corriger un mot, ignorer, réinitialiser les exceptions
   documentaires ; apprendre/oublier un mot et activer la correction restent des
@@ -664,7 +665,7 @@ liens résolus avant contrôle, enregistrement explicite). À notre manière :
 - [ ] La session MCP travaille sur une copie en mémoire ; rien n'est écrit sans
   `save_document` ou `export`. Les étapes d’un `batch` excluent ces deux opérations
   et les effets globaux ; un échec conserve la session publiée (D16).
-- [ ] Limites réutilisées : budget d'images (`check_asset_budget`), taille de document,
+- [ ] Limites réutilisées : budget d’images (`engine/images.rs::check_budget`), taille de document,
   taille de script.
 - [ ] Aucune commande réseau, aucun processus lancé.
 - [ ] Documenter les limites connues (par exemple : `text.insert` peut modifier le document

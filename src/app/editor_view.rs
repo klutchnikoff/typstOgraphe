@@ -35,18 +35,11 @@ impl App {
             });
         if let Some((id, action)) = image_action {
             match action {
-                editor::ImageAction::Select(at) => {
-                    self.document.selection = editor::cursor(at..at + 1);
-                    self.document.force_selection = true;
-                    self.preview.forward_pending = true;
+                editor::ImageAction::Select => {
+                    self.select_image_part(id, crate::engine::SelectionPart::Body)
                 }
                 editor::ImageAction::Replace => self.choose_image(Some(id)),
-                editor::ImageAction::Information => {
-                    self.dialogs
-                        .image_alt
-                        .clone_from(&self.document.engine.document.view.images[&id].alt);
-                    self.dialogs.image_info = Some(id);
-                }
+                editor::ImageAction::Information => self.open_image_info(id),
                 editor::ImageAction::Remove => self.remove_image(id),
             }
         }

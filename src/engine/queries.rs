@@ -100,7 +100,11 @@ impl Engine {
                         ("image", vec![zone(caption, "caption")])
                     }
                 };
-                json!({"id": block.id, "kind": kind, "zones": zones})
+                let mut value = json!({"id": block.id, "kind": kind, "zones": zones});
+                if let BlockContent::Image { image, .. } = &block.content {
+                    value["image"] = json!({"path": image.path, "alt": image.alt});
+                }
+                value
             })
             .collect();
         json!({"guard": self.session.target_guard(), "blocks": blocks})

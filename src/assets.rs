@@ -15,6 +15,30 @@ pub type Assets = BTreeMap<String, Arc<[u8]>>;
 pub const MAX_IMAGE_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_DOCUMENT_BYTES: u64 = 64 * 1024 * 1024;
 
+#[derive(Debug, thiserror::Error)]
+pub enum ImageError {
+    #[error("image exceeds the size limit")]
+    TooLarge,
+    #[error("unsupported image format")]
+    Unsupported,
+    #[error("invalid SVG image")]
+    InvalidSvg,
+    #[error("{0}")]
+    Decode(String),
+    #[error("{0}")]
+    Io(String),
+}
+impl ImageError {
+    pub fn localized(&self) -> String {
+        match self {
+            Self::TooLarge => crate::tr!("image-too-large"),
+            Self::Unsupported => crate::tr!("image-format-unsupported"),
+            Self::InvalidSvg => crate::tr!("image-invalid-svg"),
+            Self::Decode(message) | Self::Io(message) => message.clone(),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ImageData {
     pub extension: String,
@@ -22,6 +46,9 @@ pub struct ImageData {
 }
 impl ImageData {
     pub fn read(path: &std::path::Path) -> Result<Self, String> {
+        Self::read_checked(path).map_err(|error| error.localized())
+    }
+    pub fn read_checked(path: &std::path::Path) -> Result<Self, ImageError> {
         use std::io::Read;
         let extension = path
             .extension()
@@ -35,11 +62,11 @@ impl ImageData {
         };
         let mut data = Vec::new();
         std::fs::File::open(path)
-            .map_err(|e| e.to_string())?
+            .map_err(|e| ImageError::Io(e.to_string()))?
             .take(MAX_IMAGE_BYTES as u64 + 1)
             .read_to_end(&mut data)
-            .map_err(|e| e.to_string())?;
-        decode(&data, &extension)?;
+            .map_err(|e| ImageError::Io(e.to_string()))?;
+        decode_checked(&data, &extension)?;
         Ok(Self {
             extension,
             data: data.into(),
@@ -75,17 +102,21 @@ pub fn valid_path(path: &str) -> bool {
 }
 
 pub fn decode(data: &[u8], extension: &str) -> Result<Image, String> {
+    decode_checked(data, extension).map_err(|error| error.localized())
+}
+
+pub fn decode_checked(data: &[u8], extension: &str) -> Result<Image, ImageError> {
     if data.len() > MAX_IMAGE_BYTES {
-        return Err(crate::tr!("image-too-large"));
+        return Err(ImageError::TooLarge);
     }
     let bytes = Bytes::new(data.to_vec());
     match extension {
         "png" => RasterImage::plain(bytes, ExchangeFormat::Png)
             .map(Image::plain)
-            .map_err(|e| e.to_string()),
+            .map_err(|e| ImageError::Decode(e.to_string())),
         "jpg" | "jpeg" => RasterImage::plain(bytes, ExchangeFormat::Jpg)
             .map(Image::plain)
-            .map_err(|e| e.to_string()),
+            .map_err(|e| ImageError::Decode(e.to_string())),
         "svg" => {
             static FONTS: OnceLock<crate::rendering::TypstWorld> = OnceLock::new();
             let world = FONTS.get_or_init(crate::rendering::TypstWorld::default);
@@ -96,9 +127,9 @@ pub fn decode(data: &[u8], extension: &str) -> Result<Image, String> {
                 None,
             )
             .map(Image::plain)
-            .map_err(|_| crate::tr!("image-invalid-svg"))
+            .map_err(|_| ImageError::InvalidSvg)
         }
-        _ => Err(crate::tr!("image-format-unsupported")),
+        _ => Err(ImageError::Unsupported),
     }
 }
 

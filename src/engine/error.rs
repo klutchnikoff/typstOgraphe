@@ -22,6 +22,12 @@ pub struct CommandError {
     pub params: Value,
 }
 impl CommandError {
+    pub fn detail(code: ErrorCode, reason: &str, detail: impl std::fmt::Display) -> Self {
+        Self {
+            code,
+            params: json!({"reason": reason, "detail": detail.to_string()}),
+        }
+    }
     pub fn new(code: ErrorCode, reason: &str) -> Self {
         Self {
             code,
@@ -36,6 +42,19 @@ impl CommandError {
     }
     pub fn reason(&self) -> &str {
         self.params["reason"].as_str().unwrap_or("unknown")
+    }
+}
+impl From<crate::assets::ImageError> for CommandError {
+    fn from(error: crate::assets::ImageError) -> Self {
+        use crate::assets::ImageError;
+        let (code, reason) = match &error {
+            ImageError::TooLarge => (ErrorCode::Document, "image_too_large"),
+            ImageError::Unsupported => (ErrorCode::InvalidParams, "image_format"),
+            ImageError::InvalidSvg => (ErrorCode::InvalidParams, "image_svg"),
+            ImageError::Decode(_) => (ErrorCode::InvalidParams, "image_decode"),
+            ImageError::Io(_) => (ErrorCode::Io, "image_io"),
+        };
+        Self::detail(code, reason, error)
     }
 }
 impl From<TargetError> for CommandError {

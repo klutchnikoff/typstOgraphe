@@ -1,13 +1,41 @@
 use super::*;
+use crate::engine::{
+    Command as Core, ImageInput, ImageTargetParams, InsertImageParams, ReplaceImageParams,
+    SelectTextParams, SelectionPart,
+};
 
 impl App {
     pub(super) fn choose_image(&mut self, replace: Option<u64>) {
+        // Capturer la cible avant le dialogue natif, comme pour un appel différé.
+        let target = replace.and_then(|id| self.document.engine.image_target(id));
+        let insertion = self
+            .document
+            .engine
+            .selection_target(self.document.selection.into())
+            .ok();
         if let Some(path) = rfd::FileDialog::new()
             .add_filter(crate::tr!("image-files"), &["png", "jpg", "jpeg", "svg"])
             .pick_file()
-            && let Err(error) = self.import_image(&path, replace)
         {
-            self.file.error = Some(error);
+            let image = ImageInput::Path { path };
+            let command = if let Some(target) = target {
+                Core::ReplaceImage(ReplaceImageParams { target, image })
+            } else if replace.is_none() {
+                let Some(target) = insertion else {
+                    return;
+                };
+                Core::InsertImage(InsertImageParams {
+                    target: target.into(),
+                    image,
+                    alt: String::new(),
+                    caption: String::new(),
+                })
+            } else {
+                return;
+            };
+            if let Err(error) = self.execute_document_command(command) {
+                self.file.error = Some(Self::command_error_text(&error));
+            }
         }
     }
     pub(super) fn import_image(
@@ -15,102 +43,47 @@ impl App {
         path: &std::path::Path,
         replace: Option<u64>,
     ) -> Result<(), String> {
-        if replace.is_none() {
-            self.document
-                .engine
+        let image = ImageInput::Path { path: path.into() };
+        let command = if let Some(id) = replace {
+            let target = self
                 .document
-                .view
-                .validate_object_insertion(&self.range())
-                .map_err(Self::edit_error_text)?;
-        }
-        let image = crate::assets::ImageData::read(path)?;
-        let before = self.snapshot();
-        let asset_path = image.insert(&mut self.document.engine.document.assets, "image");
-        let at = if let Some(id) = replace {
-            let Some(image) = self.document.engine.document.view.images.get_mut(&id) else {
-                self.document.engine.document = before.document;
-                return Ok(());
-            };
-            image.path = asset_path;
-            self.document
                 .engine
-                .document
-                .view
-                .image_range(id)
-                .unwrap()
-                .start
+                .image_target(id)
+                .ok_or_else(|| crate::tr!("engine-unavailable"))?;
+            Core::ReplaceImage(ReplaceImageParams { target, image })
         } else {
-            let range = self.range();
-            self.document
-                .engine
-                .document
-                .view
-                .delete_char_range(range.clone());
-            self.document.engine.document.view.insert_image(
-                range.start,
-                ImageBlock {
-                    path: asset_path,
-                    alt: String::new(),
-                },
-            )
+            Core::InsertImage(InsertImageParams {
+                target: Default::default(),
+                image,
+                alt: String::new(),
+                caption: String::new(),
+            })
         };
-        if let Err(error) = self.check_asset_budget() {
-            self.document.engine.document = before.document;
-            return Err(error);
-        }
-        self.focus_annotation_target(at + 1..at + 1);
-        self.remember(before, false);
-        Ok(())
-    }
-    pub(super) fn check_asset_budget(&self) -> Result<(), String> {
-        let dependency_bytes = self
-            .document
-            .engine
-            .dependencies
-            .values()
-            .map(|v| v.len())
-            .sum::<usize>();
-        if self
-            .document
-            .engine
-            .document
-            .assets
-            .values()
-            .map(|v| v.len())
-            .sum::<usize>()
-            + dependency_bytes
-            <= crate::assets::MAX_DOCUMENT_BYTES as usize
-        {
-            return Ok(());
-        }
-        let mut document = self.document.engine.document.clone();
-        document.sync_source();
-        let retained = crate::rendering::retained_assets(
-            document.source(),
-            &self.document.engine.metadata,
-            &self.document.engine.template,
-            &document.assets,
-            &self.document.engine.dependencies,
-        )?;
-        if retained.values().map(|v| v.len()).sum::<usize>() + dependency_bytes
-            > crate::assets::MAX_DOCUMENT_BYTES as usize
-        {
-            return Err(crate::tr!("storage-letter-too-large"));
-        }
-        Ok(())
+        self.execute_document_command(command)
+            .map(|_| ())
+            .map_err(|error| Self::command_error_text(&error))
     }
     pub(super) fn remove_image(&mut self, id: u64) {
-        if let Some(range) = self.document.engine.document.view.image_range(id) {
-            let before = self.snapshot();
-            let end = (range.end + 1).min(self.document.engine.document.view.len());
-            self.document
-                .engine
-                .document
-                .view
-                .delete_char_range(range.start..end);
-            self.document.selection = editor::cursor(range.start..range.start);
-            self.document.force_selection = true;
-            self.remember(before, false);
+        if let Some(target) = self.document.engine.image_target(id) {
+            self.run_document_command(Core::RemoveImage(ImageTargetParams { target }));
+        }
+    }
+    pub(super) fn select_image_part(&mut self, id: u64, part: SelectionPart) {
+        if let Some(target) = self.document.engine.image_target(id) {
+            let target = self.document.engine.image_selection_target(target);
+            self.run_document_command(Core::SelectText(SelectTextParams {
+                target,
+                part: Some(part),
+            }));
+        }
+    }
+    pub(super) fn open_image_info(&mut self, id: u64) {
+        self.dialogs.image_target = self.document.engine.image_target(id);
+        if self.dialogs.image_target.is_some() {
+            self.dialogs
+                .image_alt
+                .clone_from(&self.document.engine.document.view.images[&id].alt);
+            self.dialogs.image_info = Some(id);
         }
     }
 }

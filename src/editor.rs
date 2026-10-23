@@ -454,7 +454,7 @@ fn image_frame(galley: &Galley, range: Range<usize>) -> egui::Rect {
 
 #[derive(Clone, Copy)]
 pub enum ImageAction {
-    Select(usize),
+    Select,
     Replace,
     Information,
     Remove,
@@ -541,7 +541,7 @@ pub fn paint_images(
             )
         });
         if response.clicked() {
-            action = Some((id, ImageAction::Select(range.start)));
+            action = Some((id, ImageAction::Select));
         }
         if selected {
             let mut x = rect.left() + 7.0;

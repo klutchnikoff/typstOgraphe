@@ -23,29 +23,35 @@ impl App {
             .engine
             .set_adapter_selection(self.document.selection.into());
     }
-    pub(super) fn run_document_command(&mut self, command: CoreCommand) -> bool {
+    pub(super) fn execute_document_command(
+        &mut self,
+        command: CoreCommand,
+    ) -> Result<crate::engine::Outcome, CommandError> {
         self.cancel_ime();
-        let result = self
-            .document
+        let signature = matches!(command, CoreCommand::SetSignature(_));
+        self.document
             .engine
-            .set_adapter_selection(self.document.selection.into())
-            .and_then(|()| self.document.engine.run_call(command.to_call()));
-        match result {
-            Ok(outcome) => {
-                self.document.selection = self.document.engine.selection().into();
-                if outcome
-                    .effects
-                    .contains(&crate::engine::Effect::RevealSelection)
-                {
-                    self.preview.editor_scroll_pending = true;
-                }
-                self.document.force_selection = true;
-                self.preview.forward_pending = true;
-                if self.search.open {
-                    self.refresh_search();
-                }
-                true
-            }
+            .set_adapter_selection(self.document.selection.into())?;
+        let outcome = self.document.engine.run_call(command.to_call())?;
+        self.document.selection = self.document.engine.selection().into();
+        if outcome
+            .effects
+            .contains(&crate::engine::Effect::RevealSelection)
+        {
+            self.preview.editor_scroll_pending = true;
+        }
+        if !signature {
+            self.document.force_selection = true;
+        }
+        self.preview.forward_pending = true;
+        if self.search.open {
+            self.refresh_search();
+        }
+        Ok(outcome)
+    }
+    pub(super) fn run_document_command(&mut self, command: CoreCommand) -> bool {
+        match self.execute_document_command(command) {
+            Ok(_) => true,
             Err(error) => {
                 self.document.force_selection = true;
                 self.dialogs.message = Some(Self::command_error_text(&error));
@@ -54,7 +60,20 @@ impl App {
         }
     }
     pub(super) fn command_error_text(error: &CommandError) -> String {
+        if matches!(
+            error.reason(),
+            "image_decode" | "image_io" | "image_base64" | "asset_validation"
+        ) {
+            return crate::tr!(
+                "engine-image-error",
+                error = error.params["detail"].as_str().unwrap_or("")
+            );
+        }
         crate::i18n::text(match error.reason() {
+            "image_too_large" => "image-too-large",
+            "image_format" => "image-format-unsupported",
+            "image_svg" => "image-invalid-svg",
+            "document_too_large" => "storage-letter-too-large",
             "protected_boundary" => "edit-protected-boundary",
             "invalid_text" => "edit-invalid-text",
             "foreign_document" | "stale_revision" | "unknown_zone" | "unknown_block" => {

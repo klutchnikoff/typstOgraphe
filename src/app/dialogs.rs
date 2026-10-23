@@ -101,7 +101,7 @@ impl App {
         }
     }
     fn image_dialog(&mut self, ctx: &egui::Context) {
-        if let Some(id) = self.dialogs.image_info {
+        if self.dialogs.image_info.is_some() {
             let mut open = true;
             let mut apply = false;
             let mut cancel = false;
@@ -130,19 +130,42 @@ impl App {
                 open = false;
             }
             if apply {
-                let before = self.snapshot();
-                if let Some(image) = self.document.engine.document.view.images.get_mut(&id) {
-                    image.alt.clone_from(&self.dialogs.image_alt);
-                    self.remember(before, false);
+                if let Some(target) = self.dialogs.image_target {
+                    let result = self.execute_document_command(
+                        crate::engine::Command::SetImageAlt(crate::engine::ImageAltParams {
+                            target,
+                            alt: self.dialogs.image_alt.clone(),
+                        }),
+                    );
+                    match result {
+                        Ok(outcome) => {
+                            self.dialogs.image_target = Some(crate::engine::BlockTarget {
+                                guard: outcome.guard,
+                                ..target
+                            });
+                            open = false;
+                        }
+                        Err(error) => self.dialogs.message = Some(Self::command_error_text(&error)),
+                    }
+                } else {
+                    self.dialogs.message = Some(crate::tr!("edit-stale-draft"));
                 }
-                open = false;
-                self.document.force_selection = true;
-                self.preview.editor_scroll_pending = true;
             }
             if !open {
                 self.dialogs.image_info = None;
-                if let Some(range) = self.document.engine.document.view.image_range(id) {
-                    self.focus_annotation_target(range.start + 1..range.start + 1);
+                // Une cible périmée ne doit pas sélectionner un autre bloc après fermeture.
+                if let Some(target) = self.dialogs.image_target.take() {
+                    let command =
+                        crate::engine::Command::SelectText(crate::engine::SelectTextParams {
+                            target: self.document.engine.image_selection_target(target),
+                            part: Some(crate::engine::SelectionPart::Annotation),
+                        });
+                    if matches!(
+                        self.document.engine.available(&command),
+                        crate::engine::Availability::Enabled
+                    ) {
+                        self.run_document_command(command);
+                    }
                 }
             }
         }

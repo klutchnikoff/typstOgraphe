@@ -15,6 +15,7 @@ mod edit_validation;
 mod engine;
 mod files;
 mod images;
+mod images_engine;
 mod ime;
 mod information;
 mod preview;

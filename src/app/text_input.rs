@@ -1,7 +1,7 @@
 use super::*;
 
 impl App {
-    /// Adaptateur transitoire des cibles préparées par les familles non migrées.
+    /// Adaptateur restant de la navigation orthographique (famille suivante).
     pub(super) fn focus_annotation_target(&mut self, range: Range<usize>) {
         self.document.selection = editor::cursor(range);
         if self.document.selection.is_empty() {
@@ -143,8 +143,7 @@ impl App {
                 && range.start == start + 1
                 && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Backspace))
             {
-                self.document.selection = editor::cursor(start..start + 1);
-                self.document.force_selection = true;
+                self.select_image_part(id, crate::engine::SelectionPart::Body);
                 return true;
             }
         }

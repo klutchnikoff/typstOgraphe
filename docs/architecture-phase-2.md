@@ -5,7 +5,7 @@ V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers 
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
-Le registre typé et le premier moteur sont implémentés : 22 commandes, six
+Le registre typé et le premier moteur sont implémentés : 27 commandes, six
 requêtes et leur catalogue généré. La migration des familles n’est pas terminée.
 
 ## Blocs et zones en mémoire
@@ -273,12 +273,60 @@ caractère déclencheur, et sa sélection. Une erreur ne publie pas ce brouillon
 L’adaptateur egui ne reconnaît plus les préfixes ou délimiteurs : il demande au
 moteur si la frappe doit être interceptée. Les autres frappes gardent le tampon
 natif et son regroupement. La préédition IME reste isolée et sa validation
-littérale n’active aucune transformation. Les gestes d’images et leur adaptateur
-de focus restent à migrer dans la famille images.
+littérale n’active aucune transformation. Les gestes d’images sont migrés dans le
+lot suivant ; le dernier adaptateur de focus restant concerne l’orthographe.
+
+## Images et signatures
+
+`src/engine/images.rs` porte désormais `insert.image`, `image.replace`,
+`image.remove`, `image.set_alt` et `document.set_signature`. L’identifiant
+`insert.image` est conservé. Le registre compte 27 commandes et six requêtes.
+
+Une image est ciblée par un `BlockTarget { guard, block_id }`. Les identifiants
+numériques des ressources du peintre ne sont pas des paramètres publics ; un
+adaptateur les convertit en identité de bloc. Les cibles périmées, étrangères,
+inconnues ou désignant un bloc textuel sont refusées avant la lecture d’un fichier.
+`document.structure` expose aussi le chemin interne et le texte alternatif.
+Les légendes continuent d’être éditées par les commandes textuelles communes.
+L’insertion accepte en plus une légende initiale littérale sur une ligne et un
+texte alternatif. Le remplacement préserve ces deux annotations et leur identité.
+
+`ImageInput` accepte un chemin local explicite (`kind: "path"`) ou une copie
+(`kind: "embedded"`, extension et données en base64 standard). La copie sert
+notamment à la signature du profil ; `base64` 0.22, déjà présent transitivement,
+devient une dépendance directe. Les deux voies utilisent le même décodeur typé,
+normalisent JPEG en `jpg` et conservent les formats PNG/JPEG/SVG et la limite de
+16 Mio. Les erreurs portent codes et données ; leur adaptation Fluent reste dans
+l’application. Les fonctions historiques de vignettes et de profil gardent leur
+adaptateur de messages, à séparer avec le chantier i18n de phase 3.
+
+Les données sont lues et validées dans un candidat complet. Son budget de
+ressources et dépendances est vérifié avant `Session::commit_snapshot`, nouvelle
+entrée de la publication commune. Aucune erreur ne publie les nouveaux octets,
+les métadonnées ou une sélection partielle. La limite de 64 Mio conserve sa
+politique : les anciennes images inutilisées ne doivent pas empêcher un import ;
+le modèle et ses ressources restent pris en compte. En mémoire, les anciennes
+données restent disponibles pour annuler. L’archivage et l’export continuent de
+n’écrire que les ressources utilisées par le document ou le modèle.
+
+Les boutons, le dépôt d’un fichier et les raccourcis d’image appellent le moteur
+par identifiant/JSON. Le dialogue de texte alternatif capture sa cible à
+l’ouverture ; une validation périmée reste refusée. Après une édition réussie,
+seule la garde renvoyée par ce résultat sert au retour interne vers la légende.
+Fermer un dialogue périmé ne sélectionne pas une autre image. Les dialogues
+natifs capturent leur cible avant le choix du fichier.
+
+La signature reste limitée au type Courrier. Le moteur reçoit une image explicite
+ou `null` pour la retirer ; il ne lit et ne modifie jamais le profil global.
+« Signature du profil » transmet une copie des octets conservés par l’application.
+Une image déjà identique n’ajoute ni ressource, révision ni transaction. Le retrait
+reste annulable et conserve la réserve manuscrite du modèle. L’interface préserve
+le focus du panneau des informations. L’initialisation du profil à la création
+reste avec la famille `document.new`, encore à migrer.
 
 ## Vérifications
 
-- 231 tests de l’application réussis, dont 88 tests ajoutés depuis le début de
+- 240 tests de l’application réussis, dont 97 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -292,7 +340,7 @@ de focus restent à migrer dans la famille images.
   et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
   petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 127 tests partagés réussissent aussi.
+  avertissement ; ses 133 tests partagés réussissent aussi.
 - Dix tests du moteur couvrent les schémas, conversions, données invalides,
   cibles périmées/étrangères, refus atomiques, styles explicites, historique,
   lectures seules, portée Courrier et fichiers de catalogue générés. Quatre essais
@@ -306,6 +354,12 @@ de focus restent à migrer dans la famille images.
   scissions/sorties, lignes vides ou composées d’espaces, saisie littérale/interactive,
   annulation du littéral, cibles périmées et frontières. Quatre tests d’interface
   comparent les gestes aux appels JSON et vérifient une validation IME littérale.
+- Six tests du moteur couvrent les imports PNG/JPEG/SVG, les annotations et leurs
+  identités, la disparition du fichier original, les cibles invalides/périmées,
+  les données invalides, les budgets, la signature et la publication d’un candidat
+  complet. Trois essais d’interface comparent dépôt/import, remplacement, texte
+  alternatif, suppression et copie de signature aux appels JSON ; ils vérifient
+  aussi le refus d’un dialogue périmé, l’archivage et l’indépendance du profil.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
 - Huit captures strictement identiques après les premiers lots, dans
   `output/baseline/run-ioma5t0l/` et `output/baseline/run-uvqd1xwk/`, puis après la
@@ -322,6 +376,9 @@ de focus restent à migrer dans la famille images.
   annotations conserve aussi les huit références dans `output/baseline/run-ip5gvm0m/`.
   Les règles de saisie et de blocs conservent les huit captures dans
   `output/baseline/run-s0447__w/`.
+- Les huit captures du lot images/signatures sont strictement identiques dans
+  `output/baseline/run-oor20pp6/`. Un premier passage avait produit un PNG de profil
+  vide ; la relance complète conserve les références sans les modifier.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -340,16 +397,14 @@ vérifient l’unicité concurrente et le refus de boucler au dépassement de ca
 Les indices de recherche et la synchronisation d’aperçu fonctionnent encore via
 le tampon graphique et les cartes de source existants. Leur migration n’est pas
 déclarée terminée par les tests de conversion des positions. Les règles des blocs
-et de transformation de frappe sont migrées ; les gestes propres aux images
-restent à raccorder avec leur famille.
+et de transformation de frappe, les images et les signatures sont migrées.
 
 L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
 Les essais complets de composition, choix des candidats, annulation et historique
 avec les méthodes système restent à poursuivre dans le chantier I. D17 et la tâche
 2.1 bis restent ouverts pour la suite de la migration.
 
-Restent les images et signatures, les actions
-de recherche/remplacement, l’orthographe documentaire, l’écriture des métadonnées
+Restent les actions de recherche/remplacement, l’orthographe documentaire, l’écriture des métadonnées
 et options, les modèles et les fichiers. Les lots atomiques (D16), la suppression
 de l’accès transitoire à la session et le gel du catalogue restent à faire. La
 séparation des réglages globaux (V5) et les formats d’export séparés (V6) restent à

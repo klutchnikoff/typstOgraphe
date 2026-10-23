@@ -381,3 +381,5 @@ edit-stale-draft = Le document a changé depuis le début de cette modification.
 edit-invalid-draft = Cette modification ne peut pas être appliquée au document.
 engine-invalid-params = Les paramètres de cette commande sont invalides.
 engine-unavailable = Cette commande n’est pas disponible dans le contexte actuel.
+
+engine-image-error = Impossible de traiter cette image : { $error }

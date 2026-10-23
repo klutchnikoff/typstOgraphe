@@ -3093,6 +3093,584 @@
       }
     },
     {
+      "availability": "image_insertion",
+      "description": "Insert a validated image with optional literal caption and alternative text.",
+      "family": "image",
+      "id": "insert.image",
+      "params_schema": {
+        "$defs": {
+          "ImageInput": {
+            "description": "A local image file or an embedded copy encoded as standard base64.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "path",
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "description": "Standard base64 without a data URL prefix.",
+                    "type": "string"
+                  },
+                  "extension": {
+                    "description": "PNG, JPG, JPEG or SVG; normalized to lowercase on import.",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "embedded",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "extension",
+                  "data"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "alt": {
+            "default": "",
+            "type": "string"
+          },
+          "caption": {
+            "default": "",
+            "type": "string"
+          },
+          "image": {
+            "$ref": "#/$defs/ImageInput"
+          },
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "InsertImageParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "image",
+      "description": "Replace an image resource while preserving its caption and alternative text.",
+      "family": "image",
+      "id": "image.replace",
+      "params_schema": {
+        "$defs": {
+          "BlockTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "block_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "guard": {
+                "$ref": "#/$defs/TargetGuard"
+              }
+            },
+            "required": [
+              "guard",
+              "block_id"
+            ],
+            "type": "object"
+          },
+          "ImageInput": {
+            "description": "A local image file or an embedded copy encoded as standard base64.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "path",
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "description": "Standard base64 without a data URL prefix.",
+                    "type": "string"
+                  },
+                  "extension": {
+                    "description": "PNG, JPG, JPEG or SVG; normalized to lowercase on import.",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "embedded",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "extension",
+                  "data"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "image": {
+            "$ref": "#/$defs/ImageInput"
+          },
+          "target": {
+            "$ref": "#/$defs/BlockTarget"
+          }
+        },
+        "required": [
+          "target",
+          "image"
+        ],
+        "title": "ReplaceImageParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "image",
+      "description": "Remove an image block and its caption in one transaction.",
+      "family": "image",
+      "id": "image.remove",
+      "params_schema": {
+        "$defs": {
+          "BlockTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "block_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "guard": {
+                "$ref": "#/$defs/TargetGuard"
+              }
+            },
+            "required": [
+              "guard",
+              "block_id"
+            ],
+            "type": "object"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/BlockTarget"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "ImageTargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "image",
+      "description": "Set alternative text on a revision-guarded image block.",
+      "family": "image",
+      "id": "image.set_alt",
+      "params_schema": {
+        "$defs": {
+          "BlockTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "block_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "guard": {
+                "$ref": "#/$defs/TargetGuard"
+              }
+            },
+            "required": [
+              "guard",
+              "block_id"
+            ],
+            "type": "object"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "alt": {
+            "type": "string"
+          },
+          "target": {
+            "$ref": "#/$defs/BlockTarget"
+          }
+        },
+        "required": [
+          "target",
+          "alt"
+        ],
+        "title": "ImageAltParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "letter",
+      "description": "Set or remove the letter signature using explicit image data or a file.",
+      "family": "letter",
+      "id": "document.set_signature",
+      "params_schema": {
+        "$defs": {
+          "ImageInput": {
+            "description": "A local image file or an embedded copy encoded as standard base64.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "path",
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "description": "Standard base64 without a data URL prefix.",
+                    "type": "string"
+                  },
+                  "extension": {
+                    "description": "PNG, JPG, JPEG or SVG; normalized to lowercase on import.",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "embedded",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "extension",
+                  "data"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ImageInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "guard"
+        ],
+        "title": "SignatureParams",
+        "type": "object"
+      }
+    },
+    {
       "availability": "structured_block",
       "description": "Split a quote, list item or letter note, or exit an empty item or optional annotation.",
       "family": "edit",

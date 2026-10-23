@@ -134,6 +134,7 @@ impl App {
         self.document.open = true;
         self.image_textures.clear();
         self.dialogs.image_info = None;
+        self.dialogs.image_target = None;
         self.dialogs.link_target = None;
         self.dialogs.information_group = InformationGroup::General;
         self.document.presentation = ModelPresentation::default();

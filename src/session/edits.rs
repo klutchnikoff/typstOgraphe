@@ -44,11 +44,23 @@ impl Session {
         selection: Selection,
         group: EditGroup,
     ) -> Result<Selection, EditError> {
-        if guard != self.target_guard() || before.guard != guard {
-            return Err(EditError::StaleDraft);
-        }
         let mut candidate = before.clone();
         candidate.document.view = view;
+        self.commit_snapshot(guard, before, candidate, selection, group)
+    }
+
+    /// Publication d’un candidat complet préparé sans modifier la session.
+    pub fn commit_snapshot(
+        &mut self,
+        guard: TargetGuard,
+        before: Snapshot,
+        candidate: Snapshot,
+        selection: Selection,
+        group: EditGroup,
+    ) -> Result<Selection, EditError> {
+        if guard != self.target_guard() || before.guard != guard || candidate.guard != guard {
+            return Err(EditError::StaleDraft);
+        }
         self.publish(before, candidate, selection, group)
     }
 

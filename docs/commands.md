@@ -23,6 +23,11 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 | `block.numbered` | edit | Set an ordered list. |
 | `block.description` | edit | Set description items with term and definition zones. |
 | `block.quote` | edit | Set a block quotation with an optional attribution. |
+| `insert.image` | image | Insert a validated image with optional literal caption and alternative text. |
+| `image.replace` | image | Replace an image resource while preserving its caption and alternative text. |
+| `image.remove` | image | Remove an image block and its caption in one transaction. |
+| `image.set_alt` | image | Set alternative text on a revision-guarded image block. |
+| `document.set_signature` | letter | Set or remove the letter signature using explicit image data or a file. |
 | `block.split` | edit | Split a quote, list item or letter note, or exit an empty item or optional annotation. |
 | `block.exit` | edit | Create a paragraph after an annotated structure or letter note without replacing its content. |
 | `letter.insert_postscript` | letter | Create or select the letter postscript. |

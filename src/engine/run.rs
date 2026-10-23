@@ -71,6 +71,29 @@ impl Engine {
             ));
         }
         let reason = match command {
+            Command::InsertImage(params) => {
+                self.session
+                    .document
+                    .view
+                    .validate_object_insertion(&self.resolve(params.target)?.range())?;
+                if params
+                    .caption
+                    .contains(['\n', '\r', '\t', crate::document::IMAGE_OBJECT])
+                {
+                    return Err(CommandError::new(ErrorCode::InvalidParams, "invalid_text"));
+                }
+                return Ok(());
+            }
+            Command::ReplaceImage(ReplaceImageParams { target, .. })
+            | Command::RemoveImage(ImageTargetParams { target })
+            | Command::SetImageAlt(ImageAltParams { target, .. }) => {
+                self.resolve_image(*target)?;
+                return Ok(());
+            }
+            Command::SetSignature(params) => {
+                self.check_signature(params)?;
+                return Ok(());
+            }
             Command::SelectText(params) if params.part.is_some() => {
                 self.relative_destination(params.target, params.part.unwrap())?;
                 return Ok(());
@@ -109,6 +132,7 @@ impl Engine {
     pub fn run(&mut self, command: Command) -> Result<Outcome, CommandError> {
         self.check(&command)?;
         let reveal = match &command {
+            Command::InsertImage(_) | Command::ReplaceImage(_) => true,
             Command::SplitBlock(params) => self.block_split_reveals(params.target)?,
             Command::ExitBlock(_) => true,
             Command::SelectText(SelectTextParams {
@@ -137,6 +161,11 @@ impl Engine {
 
     fn execute(&mut self, command: Command) -> Result<(), CommandError> {
         match command {
+            Command::InsertImage(params) => self.insert_image(params)?,
+            Command::ReplaceImage(params) => self.replace_image(params)?,
+            Command::RemoveImage(params) => self.remove_image(params)?,
+            Command::SetImageAlt(params) => self.set_image_alt(params)?,
+            Command::SetSignature(params) => self.set_signature(params)?,
             Command::SelectText(params) => {
                 self.selection = if let Some(part) = params.part {
                     self.relative_destination(params.target, part)?

@@ -106,6 +106,7 @@ impl App {
                 palette_query: String::new(),
                 palette_index: 0,
                 image_info: None,
+                image_target: None,
                 image_alt: String::new(),
                 link_open: false,
                 link_url: String::new(),
