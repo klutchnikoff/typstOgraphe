@@ -81,7 +81,7 @@ fn generated_catalogues_match_the_registry() {
     let value = e.query(Query::Commands(Empty {})).unwrap();
     assert_eq!(
         registry::catalogue_markdown(&value),
-        include_str!("../../docs/commands.md")
+        include_str!("../../docs/commands.md").replace("\r\n", "\n")
     );
     let checked: Value = serde_json::from_str(include_str!("../../docs/commands.json")).unwrap();
     assert_eq!(value, checked);

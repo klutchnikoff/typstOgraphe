@@ -199,6 +199,8 @@ moteur. Ce passage ne constitue pas la suppression de toutes les écritures depu
 
 [commands.md](commands.md) et [commands.json](commands.json) sont générés depuis
 le registre et comparés aux données courantes par les tests, donc dans la CI.
+La comparaison Markdown neutralise uniquement les fins de ligne CRLF des
+checkouts Windows ; l’ensemble du contenu reste comparé.
 `--commands-catalogue` et `--commands-catalogue-json` sont des diagnostics de
 développement ; la CLI séparée et MCP restent dans leurs phases respectives.
 Les identifiants et signatures ne sont pas encore gelés.
