@@ -32,7 +32,7 @@ impl App {
             let suggested = &self.recovery.recovered_name;
             if let Err(error) = recovery.checkpoint(session.revision(), dirty, || {
                 let name = session
-                    .file_path
+                    .file_path()
                     .as_ref()
                     .and_then(|path| path.file_name())
                     .map(|name| name.to_string_lossy().into_owned())

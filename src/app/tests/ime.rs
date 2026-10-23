@@ -3,11 +3,21 @@ use egui::{Event, ImeEvent};
 
 fn editing(source: &str, range: Range<usize>) -> (egui::Context, App) {
     let (ctx, mut app) = demo_app();
-    app.document.engine.document = Document::from_source(source).unwrap();
-    app.document.engine.saved = app.stored_document();
-    app.document.engine.undo.clear();
-    app.document.engine.redo.clear();
-    app.document.engine.typing_group = false;
+    fixture(&mut app.document.engine, |session| {
+        session.document = Document::from_source(source).unwrap();
+    });
+    fixture(&mut app.document.engine, |session| {
+        session.saved = session.stored_document();
+    });
+    fixture(&mut app.document.engine, |session| {
+        session.undo.clear();
+    });
+    fixture(&mut app.document.engine, |session| {
+        session.redo.clear();
+    });
+    fixture(&mut app.document.engine, |session| {
+        session.typing_group = false;
+    });
     app.document.selection = editor::cursor(range);
     app.document.force_selection = true;
     frame(&mut app, &ctx, vec![]);
@@ -37,16 +47,16 @@ fn key(key: egui::Key) -> Event {
 fn preedit_survives_frames_and_is_visible_without_publishing_any_session_state() {
     let (ctx, mut app) = editing("Un *été* ici.", 3..6);
     let stored = app.stored_document();
-    let view = app.document.engine.document.view.clone();
+    let view = app.document.engine.document().view.clone();
     let selection = app.document.selection;
     let target = app
         .document
         .engine
         .selection_target(selection.into())
         .unwrap();
-    let revision = app.document.engine.revision;
-    let changed_at = app.document.engine.changed_at;
-    let source_map = app.document.engine.document.source_map.clone();
+    let revision = app.document.engine.revision();
+    let changed_at = app.document.engine.changed_at();
+    let source_map = app.document.engine.document().source_map.clone();
     start(&mut app, &ctx);
     for text in ["にほん", "日本語", "", "日本"] {
         let output = search_draw(
@@ -66,14 +76,14 @@ fn preedit_survives_frames_and_is_visible_without_publishing_any_session_state()
             app.document.ime.draft.as_ref().unwrap().input.view.text,
             expected
         );
-        assert_eq!(app.document.engine.document.view, view);
-        assert_eq!(app.document.engine.document.source_map, source_map);
+        assert_eq!(app.document.engine.document().view, view);
+        assert_eq!(app.document.engine.document().source_map, source_map);
         assert!(app.stored_document() == stored);
         assert_eq!(app.document.selection, selection);
-        assert_eq!(app.document.engine.revision, revision);
-        assert_eq!(app.document.engine.changed_at, changed_at);
+        assert_eq!(app.document.engine.revision(), revision);
+        assert_eq!(app.document.engine.changed_at(), changed_at);
         assert_eq!(app.document.engine.resolve_target(target).unwrap(), (3, 6));
-        assert!(app.document.engine.undo.is_empty() && app.document.engine.redo.is_empty());
+        assert!(app.document.engine.undo().is_empty() && app.document.engine.redo().is_empty());
         assert!(!app.is_dirty());
         let counts = app.document.statistics.counts(revision, &view, 3..6);
         assert_eq!(
@@ -87,19 +97,19 @@ fn preedit_survives_frames_and_is_visible_without_publishing_any_session_state()
     }
     ime(&mut app, &ctx, vec![ImeEvent::Commit("日本".into())]);
     assert_eq!(
-        app.document.engine.document.source(),
+        app.document.engine.document().source(),
         "Un #strong[日本] ici."
     );
     assert_eq!(app.document.selection.as_sorted_char_range(), 5..5);
-    assert_eq!(app.document.engine.revision, revision + 1);
-    assert_eq!(app.document.engine.undo.len(), 1);
+    assert_eq!(app.document.engine.revision(), revision + 1);
+    assert_eq!(app.document.engine.undo().len(), 1);
     assert!(app.document.ime.draft.is_none());
     app.apply(Command::Undo);
     assert!(app.stored_document() == stored);
     assert_eq!(app.document.selection, selection);
     app.apply(Command::Redo);
     assert_eq!(
-        app.document.engine.document.source(),
+        app.document.engine.document().source(),
         "Un #strong[日本] ici."
     );
 }
@@ -123,16 +133,16 @@ fn commit_without_preedit_and_same_frame_composition_support_dead_keys_and_unico
         let (ctx, mut app) = editing("Avant après", 6..6);
         ime(&mut app, &ctx, events);
         assert_eq!(
-            app.document.engine.document.view.text,
+            app.document.engine.document().view.text,
             "Avant ê, é, Noëlaprès"
         );
-        assert_eq!(app.document.engine.undo.len(), 1);
+        assert_eq!(app.document.engine.undo().len(), 1);
         assert!(app.document.ime.draft.is_none());
     }
     let (ctx, mut app) = editing("", 0..0);
     ime(&mut app, &ctx, vec![ImeEvent::Enabled]);
     frame(&mut app, &ctx, vec![Event::Text("Saisie directe".into())]);
-    assert_eq!(app.document.engine.document.view.text, "Saisie directe");
+    assert_eq!(app.document.engine.document().view.text, "Saisie directe");
 }
 
 #[test]
@@ -142,10 +152,10 @@ fn composition_is_one_history_step_separate_from_surrounding_typing() {
     start(&mut app, &ctx);
     ime(&mut app, &ctx, vec![ImeEvent::Commit("日本".into())]);
     frame(&mut app, &ctx, vec![Event::Text("B".into())]);
-    assert_eq!(app.document.engine.undo.len(), 3);
+    assert_eq!(app.document.engine.undo().len(), 3);
     for expected in ["A日本", "A", ""] {
         app.apply(Command::Undo);
-        assert_eq!(app.document.engine.document.view.text, expected);
+        assert_eq!(app.document.engine.document().view.text, expected);
     }
 }
 
@@ -161,18 +171,18 @@ fn cancellation_restores_selected_text_and_keeps_redo_and_following_typing() {
         app.apply(Command::Undo);
         frame(&mut app, &ctx, vec![]);
         let stored = app.stored_document();
-        let revision = app.document.engine.revision;
+        let revision = app.document.engine.revision();
         start(&mut app, &ctx);
         frame(&mut app, &ctx, vec![terminal]);
         assert!(app.stored_document() == stored);
         assert_eq!(app.document.selection.as_sorted_char_range(), 0..5);
-        assert_eq!(app.document.engine.revision, revision);
-        assert!(app.document.engine.undo.is_empty());
-        assert_eq!(app.document.engine.redo.len(), 1);
+        assert_eq!(app.document.engine.revision(), revision);
+        assert!(app.document.engine.undo().is_empty());
+        assert_eq!(app.document.engine.redo().len(), 1);
         assert!(app.document.ime.draft.is_none());
         frame(&mut app, &ctx, vec![Event::Text("Été".into())]);
         ime(&mut app, &ctx, vec![ImeEvent::Commit("ê".into())]);
-        assert_eq!(app.document.engine.document.view.text, "Étéê après");
+        assert_eq!(app.document.engine.document().view.text, "Étéê après");
     }
 }
 
@@ -199,7 +209,7 @@ fn composition_keeps_zone_identity_and_uses_shared_boundary_validation() {
             .unwrap();
         start(&mut app, &ctx);
         ime(&mut app, &ctx, vec![ImeEvent::Commit("日本".into())]);
-        assert_eq!(app.document.engine.document.source(), expected);
+        assert_eq!(app.document.engine.document().source(), expected);
         let after = app
             .document
             .engine
@@ -231,7 +241,7 @@ fn invalid_preedit_or_cross_zone_selection_cannot_publish_a_partial_replacement(
     ] {
         let (ctx, mut app) = editing(source, range.clone());
         let stored = app.stored_document();
-        let revision = app.document.engine.revision;
+        let revision = app.document.engine.revision();
         ime(
             &mut app,
             &ctx,
@@ -239,9 +249,9 @@ fn invalid_preedit_or_cross_zone_selection_cannot_publish_a_partial_replacement(
         );
         ime(&mut app, &ctx, vec![ImeEvent::Commit("Correct".into())]);
         assert!(app.stored_document() == stored);
-        assert_eq!(app.document.engine.revision, revision);
+        assert_eq!(app.document.engine.revision(), revision);
         assert_eq!(app.document.selection.as_sorted_char_range(), range);
-        assert!(app.document.engine.undo.is_empty());
+        assert!(app.document.engine.undo().is_empty());
         assert!(app.dialogs.message.is_some());
     }
 }
@@ -254,7 +264,7 @@ fn commands_and_new_documents_cancel_composition_and_ignore_its_late_commit() {
     frame(&mut app, &ctx, vec![]);
     frame(&mut app, &ctx, vec![]);
     ime(&mut app, &ctx, vec![ImeEvent::Commit("Ancien".into())]);
-    assert_eq!(app.document.engine.document.source(), "Texte");
+    assert_eq!(app.document.engine.document().source(), "Texte");
     assert!(app.document.ime.draft.is_none());
     assert!(app.search.engine.query.is_empty());
     app.close_search();
@@ -265,7 +275,7 @@ fn commands_and_new_documents_cancel_composition_and_ignore_its_late_commit() {
     let stored = app.stored_document();
     ime(&mut app, &ctx, vec![ImeEvent::Commit("Ancien".into())]);
     assert!(app.stored_document() == stored);
-    assert!(app.document.engine.undo.is_empty());
+    assert!(app.document.engine.undo().is_empty());
 }
 
 #[test]
@@ -277,18 +287,28 @@ fn focus_loss_and_stale_drafts_never_restore_over_a_newer_commit() {
     assert!(app.document.ime.draft.is_none());
     editor::restore_cursor(&ctx, app.document.selection);
     ime(&mut app, &ctx, vec![ImeEvent::Commit("Ancien".into())]);
-    assert_eq!(app.document.engine.document.source(), "Texte");
+    assert_eq!(app.document.engine.document().source(), "Texte");
     start(&mut app, &ctx);
     let target = app
         .document
         .engine
         .selection_target(app.document.selection.into())
         .unwrap();
-    let selection = app.document.engine.replace_text(target, "Récent").unwrap();
+    app.document
+        .engine
+        .run(crate::engine::Command::InsertText(
+            crate::engine::InsertTextParams {
+                target: target.into(),
+                text: "Récent".into(),
+                input_rules: crate::engine::InputRules::Literal,
+            },
+        ))
+        .unwrap();
+    let selection = app.document.engine.selection();
     app.document.selection = selection.into();
     ime(&mut app, &ctx, vec![ImeEvent::Commit("Ancien".into())]);
-    assert_eq!(app.document.engine.document.source(), "Récent");
-    assert_eq!(app.document.engine.undo.len(), 1);
+    assert_eq!(app.document.engine.document().source(), "Récent");
+    assert_eq!(app.document.engine.undo().len(), 1);
     assert_eq!(app.document.selection.as_sorted_char_range(), 6..6);
 }
 
@@ -304,11 +324,14 @@ fn preedit_enter_tab_and_literal_shortcuts_do_not_escape_into_document_edits() {
     ] {
         frame(&mut app, &ctx, vec![event]);
         assert!(app.stored_document() == stored);
-        assert!(app.document.engine.undo.is_empty());
+        assert!(app.document.engine.undo().is_empty());
         assert!(app.document.ime.draft.is_some());
     }
     ime(&mut app, &ctx, vec![ImeEvent::Commit("日本".into())]);
-    assert_eq!(app.document.engine.document.source(), "/ 日本: Définition");
+    assert_eq!(
+        app.document.engine.document().source(),
+        "/ 日本: Définition"
+    );
 }
 
 #[test]
@@ -341,7 +364,7 @@ fn saving_and_recovery_only_contain_committed_text() {
     assert!(app.save_path(path.clone()));
     ime(&mut app, &ctx, vec![ImeEvent::Commit("Ancien".into())]);
     assert_eq!(storage::read(&path).unwrap().source, "Texte");
-    assert_eq!(app.document.engine.document.source(), "Texte");
+    assert_eq!(app.document.engine.document().source(), "Texte");
     assert!(!app.is_dirty());
 }
 
@@ -358,7 +381,7 @@ fn ime_in_search_stays_native_and_does_not_edit_the_document() {
     ime(&mut app, &ctx, vec![ImeEvent::Commit("日本".into())]);
     assert_eq!(app.search.engine.query, "日本");
     assert!(app.stored_document() == stored);
-    assert!(app.document.engine.undo.is_empty());
+    assert!(app.document.engine.undo().is_empty());
 }
 
 #[test]
@@ -381,8 +404,8 @@ fn losing_window_focus_or_clicking_cancels_preedit_without_retargeting_its_commi
         let _ = ctx.run(raw, |ctx| app.ui_frame(ctx));
         assert!(app.document.ime.draft.is_none());
         ime(&mut app, &ctx, vec![ImeEvent::Commit("Ancien".into())]);
-        assert_eq!(app.document.engine.document.source(), "Texte");
-        assert!(app.document.engine.undo.is_empty());
+        assert_eq!(app.document.engine.document().source(), "Texte");
+        assert!(app.document.engine.undo().is_empty());
     }
 }
 
@@ -400,8 +423,8 @@ fn two_compositions_in_one_frame_keep_distinct_commits_and_escape_can_cancel_the
             ImeEvent::Preedit("ほん".into()),
         ],
     );
-    assert_eq!(app.document.engine.document.source(), "日");
-    assert_eq!(app.document.engine.undo.len(), 1);
+    assert_eq!(app.document.engine.document().source(), "日");
+    assert_eq!(app.document.engine.undo().len(), 1);
     assert_eq!(
         app.document.ime.draft.as_ref().unwrap().input.view.text,
         "日ほん"
@@ -411,8 +434,8 @@ fn two_compositions_in_one_frame_keep_distinct_commits_and_escape_can_cancel_the
         &ctx,
         vec![ImeEvent::Commit("本".into()), ImeEvent::Disabled],
     );
-    assert_eq!(app.document.engine.document.source(), "日本");
-    assert_eq!(app.document.engine.undo.len(), 2);
+    assert_eq!(app.document.engine.document().source(), "日本");
+    assert_eq!(app.document.engine.undo().len(), 2);
     frame(
         &mut app,
         &ctx,
@@ -422,8 +445,8 @@ fn two_compositions_in_one_frame_keep_distinct_commits_and_escape_can_cancel_the
         ],
     );
     assert!(app.document.ime.draft.is_none());
-    assert_eq!(app.document.engine.document.source(), "日本");
-    assert_eq!(app.document.engine.undo.len(), 2);
+    assert_eq!(app.document.engine.document().source(), "日本");
+    assert_eq!(app.document.engine.undo().len(), 2);
 }
 
 #[test]
@@ -442,9 +465,9 @@ fn ime_commit_and_explicit_replacement_have_the_same_literal_source_styles_and_s
         let stored = app.stored_document();
         let mut explicit: crate::engine::Engine = Session::new(
             stored,
-            app.document.engine.document.clone(),
+            app.document.engine.document().clone(),
             None,
-            app.document.engine.revision,
+            app.document.engine.revision(),
         )
         .into();
         let mut selection = editor::cursor(range);
@@ -465,15 +488,18 @@ fn ime_commit_and_explicit_replacement_have_the_same_literal_source_styles_and_s
         start(&mut app, &ctx);
         ime(&mut app, &ctx, vec![ImeEvent::Commit(text.into())]);
         assert_eq!(
-            app.document.engine.document.source(),
-            explicit.document.source()
+            app.document.engine.document().source(),
+            explicit.document().source()
         );
-        assert_eq!(app.document.engine.document.view, explicit.document.view);
+        assert_eq!(
+            app.document.engine.document().view,
+            explicit.document().view
+        );
         assert_eq!(
             app.document.selection,
             CCursorRange::from(expected_selection)
         );
-        assert_eq!(app.document.engine.undo.len(), 1);
+        assert_eq!(app.document.engine.undo().len(), 1);
         app.apply(Command::Undo);
         assert_eq!(app.document.selection, selection);
     }
@@ -484,19 +510,25 @@ fn japanese_ime_commit_keeps_unicode_and_displays_real_glyphs_in_each_editor_fon
     let (ctx, mut app) = editing("Test : ", 7..7);
     start(&mut app, &ctx);
     ime(&mut app, &ctx, vec![ImeEvent::Commit("にほん 日本".into())]);
-    assert_eq!(app.document.engine.document.view.text, "Test : にほん 日本");
     assert_eq!(
-        app.document.engine.document.source(),
+        app.document.engine.document().view.text,
+        "Test : にほん 日本"
+    );
+    assert_eq!(
+        app.document.engine.document().source(),
         "Test \\: にほん 日本"
     );
-    assert_eq!(app.document.engine.undo.len(), 1);
+    assert_eq!(app.document.engine.undo().len(), 1);
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("japonais.typsto");
     assert!(app.save_path(path.clone()));
     app.close_document();
     assert!(app.open_path(path));
     frame(&mut app, &ctx, vec![]);
-    assert_eq!(app.document.engine.document.view.text, "Test : にほん 日本");
+    assert_eq!(
+        app.document.engine.document().view.text,
+        "Test : にほん 日本"
+    );
     for font in EditorFont::ALL {
         for variant in 0..4 {
             assert!(

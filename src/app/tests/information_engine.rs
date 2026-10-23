@@ -25,7 +25,7 @@ fn native_metadata_typing_matches_json_grouping_and_keeps_field_focus_body_and_p
     app.dialogs.information_group = InformationGroup::Fields("information");
     let preferences = app.preferences.clone();
     let selection = app.document.selection;
-    let subject = app.document.engine.metadata.courrier().objet.clone();
+    let subject = app.document.engine.metadata().courrier().objet.clone();
     recovery_click(&mut app, &ctx, &subject);
     for (events, value) in [
         (
@@ -52,7 +52,7 @@ fn native_metadata_typing_matches_json_grouping_and_keeps_field_focus_body_and_p
         assert!(ctx.memory(|m| m.has_focus(id)));
         assert_ne!(id, egui::Id::new(editor::EDITOR_ID));
     }
-    assert_eq!(engine.undo.len(), 1);
+    assert_eq!(engine.undo().len(), 1);
     assert_eq!(app.document.selection, selection);
     assert_eq!(app.preferences, preferences);
     for (ui, id) in [(Command::Undo, "edit.undo"), (Command::Redo, "edit.redo")] {
@@ -70,7 +70,7 @@ fn today_button_publishes_the_same_explicit_fixed_date_as_json_without_changing_
     app.dialogs.information_open = true;
     app.dialogs.information_group = InformationGroup::Fields("information");
     recovery_click(&mut app, &ctx, &crate::tr!("date-today"));
-    let fixed = app.document.engine.metadata.courrier().date.clone();
+    let fixed = app.document.engine.metadata().courrier().date.clone();
     let guard = engine.target_guard();
     run(
         &mut engine,
@@ -78,7 +78,7 @@ fn today_button_publishes_the_same_explicit_fixed_date_as_json_without_changing_
         json!({"guard":guard,"field":"letter.date","value":fixed}),
     );
     equivalent(&app, &engine);
-    assert_eq!(engine.document.source(), "Bonjour.");
+    assert_eq!(engine.document().source(), "Bonjour.");
     for (ui, id) in [(Command::Undo, "edit.undo"), (Command::Redo, "edit.redo")] {
         app.apply(ui);
         run(&mut engine, id, json!({}));
@@ -91,16 +91,20 @@ fn custom_marker_drafts_remain_local_until_valid_then_match_guarded_json_and_und
     let (ctx, mut app, _) = pair("- Bonjour.", 0..0);
     let template = format!(
         "{}\n#let editor-options = (custom-bullet-marker: true,)",
-        app.document.engine.template
+        app.document.engine.template()
     );
     app.install_model(template).unwrap();
-    app.document.engine.undo.clear();
-    app.document.engine.redo.clear();
+    fixture(&mut app.document.engine, |session| {
+        session.undo.clear();
+    });
+    fixture(&mut app.document.engine, |session| {
+        session.redo.clear();
+    });
     let mut engine: Engine = Session::new(
         app.stored_document(),
-        app.document.engine.document.clone(),
+        app.document.engine.document().clone(),
         None,
-        app.document.engine.revision,
+        app.document.engine.revision(),
     )
     .into();
     engine

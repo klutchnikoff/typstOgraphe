@@ -21,7 +21,7 @@ fn spelling_queries_are_pure_guarded_and_share_the_worker_analysis() {
         "Été 🌳 *courrrier* _réservvation_ https://courrrier.example nom\\@courrrier.example 2026",
     );
     let before = e.stored_document();
-    let when = e.changed_at;
+    let when = e.session.changed_at;
     let selected = e.selection();
     let result = issues(&e);
     assert!(result.available);
@@ -29,8 +29,8 @@ fn spelling_queries_are_pure_guarded_and_share_the_worker_analysis() {
     assert_eq!(result.issues.len(), 2);
     let mut checker = crate::spelling::Checker::new(|| {});
     checker.synchronize(
-        e.revision,
-        &e.document.view.text,
+        e.session.revision,
+        &e.session.document.view.text,
         DocumentLanguage::French,
         Default::default(),
         true,
@@ -69,9 +69,9 @@ fn spelling_queries_are_pure_guarded_and_share_the_worker_analysis() {
     assert_eq!(suggestions, explicit);
     assert!(e.stored_document() == before);
     assert_eq!(e.selection(), selected);
-    assert_eq!(e.changed_at, when);
-    assert_eq!(e.revision, 0);
-    assert!(e.undo.is_empty() && e.redo.is_empty() && !e.is_dirty());
+    assert_eq!(e.session.changed_at, when);
+    assert_eq!(e.session.revision, 0);
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty() && !e.is_dirty());
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn spelling_navigation_wraps_both_directions_and_preserves_history() {
         assert!(!outcome.changed);
         assert_eq!(outcome.effects, [Effect::RevealSelection]);
     }
-    assert!(e.document.view.typing_style.bold);
+    assert!(e.session.document.view.typing_style.bold);
     let target = explicit(&e, 0..0);
     call(&mut e, "spelling.previous", json!({"target":target})).unwrap();
     assert_eq!(
@@ -104,8 +104,8 @@ fn spelling_navigation_wraps_both_directions_and_preserves_history() {
         e.resolve(found.issues[1].target.into()).unwrap().range()
     );
     assert!(e.stored_document() == before);
-    assert!(e.undo.is_empty() && e.redo.is_empty());
-    assert_eq!(e.revision, 0);
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty());
+    assert_eq!(e.session.revision, 0);
 }
 
 #[test]
@@ -135,10 +135,10 @@ fn correction_is_literal_preserves_styles_and_all_six_zone_roles_with_undo() {
         )
         .unwrap();
         assert!(outcome.changed);
-        assert_eq!(e.undo.len(), 1);
+        assert_eq!(e.session.undo.len(), 1);
         assert_eq!(e.selection().range(), (range.start + 8)..(range.start + 8));
         assert!(
-            e.document.view.styles[range.start..range.start + 8]
+            e.session.document.view.styles[range.start..range.start + 8]
                 .iter()
                 .all(|s| s.bold)
         );
@@ -158,42 +158,43 @@ fn correction_is_literal_preserves_styles_and_all_six_zone_roles_with_undo() {
         json!({"issue":issue,"replacement":"_été_"}),
     )
     .unwrap();
-    assert_eq!(e.document.view.text, "_été_");
-    assert!(e.document.view.styles.iter().all(|s| !s.italic));
+    assert_eq!(e.session.document.view.text, "_été_");
+    assert!(e.session.document.view.styles.iter().all(|s| !s.italic));
 }
 
 #[test]
 fn ignore_is_normalized_document_scoped_and_reset_clears_all_languages_in_one_undo() {
     let mut e = engine("Courrrier courrrier re\u{301}servvation réservvation");
-    let main = e.metadata.main_source();
+    let main = e.session.metadata.main_source();
     let before = e.stored_document();
     let issue = issues(&e).issues.remove(0);
     ignore(&mut e, &issue);
     assert_eq!(issues(&e).issues.len(), 2);
-    assert_eq!(e.metadata.main_source(), main);
+    assert_eq!(e.session.metadata.main_source(), main);
     let issue = issues(&e).issues.remove(0);
     ignore(&mut e, &issue);
     assert!(issues(&e).issues.is_empty());
-    assert!(e.metadata.options().spelling_ignored["fr"].contains("réservvation"));
+    assert!(e.session.metadata.options().spelling_ignored["fr"].contains("réservvation"));
     // Préparer une autre langue comme le fera la famille métadonnées.
-    let before_en = e.snapshot(e.selection());
-    e.metadata
+    let before_en = e.session.snapshot(e.selection());
+    e.session
+        .metadata
         .options_mut()
         .spelling_ignored
         .insert("en".into(), ["helllo".into()].into());
     let selection = e.selection();
-    e.remember(before_en, selection, false).unwrap();
+    e.session.remember(before_en, selection, false).unwrap();
     let with_exceptions = e.stored_document();
-    let len = e.undo.len();
+    let len = e.session.undo.len();
     reset(&mut e);
-    assert_eq!(e.undo.len(), len + 1);
-    assert!(e.metadata.options().spelling_ignored.is_empty());
+    assert_eq!(e.session.undo.len(), len + 1);
+    assert!(e.session.metadata.options().spelling_ignored.is_empty());
     call(&mut e, "edit.undo", json!({})).unwrap();
     assert!(e.stored_document() == with_exceptions);
     call(&mut e, "edit.redo", json!({})).unwrap();
-    let len = e.undo.len();
+    let len = e.session.undo.len();
     assert!(!reset(&mut e).changed);
-    assert_eq!(e.undo.len(), len);
+    assert_eq!(e.session.undo.len(), len);
     assert!(before.metadata.options().spelling_ignored.is_empty());
     let another = engine("courrrier réservvation");
     assert_eq!(issues(&another).issues.len(), 2);
@@ -214,8 +215,8 @@ fn personal_words_are_explicit_read_configuration_and_invalidate_cached_issues()
         "spelling_mismatch"
     );
     assert!(e.stored_document() == before);
-    assert_eq!(e.revision, 0);
-    assert!(e.undo.is_empty() && !e.is_dirty());
+    assert_eq!(e.session.revision, 0);
+    assert!(e.session.undo.is_empty() && !e.is_dirty());
     e.configure_spelling(&WordLists::new());
     assert_eq!(issues(&e).issues.len(), 2);
     assert!(personal["fr"].contains("COURRRIER"));
@@ -253,7 +254,7 @@ fn stale_foreign_and_text_mismatched_issues_never_change_document_or_selection()
     call(&mut e, "edit.undo", json!({})).unwrap();
     let before = e.stored_document();
     let selected = e.selection();
-    let revision = e.revision;
+    let revision = e.session.revision;
     for (id, params) in [
         ("spelling.correct", params),
         ("spelling.ignore", json!({"issue":issue})),
@@ -274,9 +275,9 @@ fn stale_foreign_and_text_mismatched_issues_never_change_document_or_selection()
     );
     assert!(e.stored_document() == before);
     assert_eq!(e.selection(), selected);
-    assert_eq!(e.revision, revision);
-    assert!(e.undo.is_empty());
-    assert_eq!(e.redo.len(), 1);
+    assert_eq!(e.session.revision, revision);
+    assert!(e.session.undo.is_empty());
+    assert_eq!(e.session.redo.len(), 1);
 }
 
 #[test]
@@ -337,8 +338,8 @@ fn invalid_corrections_payloads_and_partial_words_are_refused_before_publication
     }
     assert!(e.stored_document() == before);
     assert_eq!(e.selection(), Selection::default());
-    assert_eq!(e.revision, 0);
-    assert!(e.undo.is_empty());
+    assert_eq!(e.session.revision, 0);
+    assert!(e.session.undo.is_empty());
 }
 
 #[test]
@@ -351,7 +352,7 @@ fn unsupported_languages_are_reported_and_empty_navigation_is_unavailable() {
             .reason(),
         "spelling_no_issues"
     );
-    e.metadata.options_mut().language = DocumentLanguage::German;
+    e.session.metadata.options_mut().language = DocumentLanguage::German;
     let result = issues(&e);
     assert!(!result.available && result.issues.is_empty());
     assert_eq!(
@@ -371,5 +372,5 @@ fn unsupported_languages_are_reported_and_empty_navigation_is_unavailable() {
         .reason(),
         "spelling_no_dictionary"
     );
-    assert!(e.undo.is_empty());
+    assert!(e.session.undo.is_empty());
 }

@@ -21,8 +21,8 @@ impl Session {
         )
     }
 
-    /// Adaptateur transitoire des commandes qui préparent encore leurs champs
-    /// dans App. Rétablir l'état publié avant toute validation du candidat.
+    /// Fixtures historiques de test : rétablir l’état publié avant de valider
+    /// un candidat préparé par mutation volontaire, hors de l’API de production.
     #[cfg(test)]
     pub fn record(
         &mut self,

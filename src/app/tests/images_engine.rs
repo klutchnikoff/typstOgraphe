@@ -82,7 +82,7 @@ fn image_import_replace_alt_and_remove_match_json_with_shared_history_and_archiv
         1,
         "seule l’image utilisée est archivée"
     );
-    assert_eq!(stored.source, engine.document.source());
+    assert_eq!(stored.source, engine.document().source());
 }
 
 #[test]
@@ -151,13 +151,13 @@ fn stale_image_dialog_refuses_its_edit_without_retargeting_the_current_image() {
             .to_call(),
         )
         .unwrap();
-    let revision = app.document.engine.revision;
-    let history = app.document.engine.undo.len();
+    let revision = app.document.engine.revision();
+    let history = app.document.engine.undo().len();
     recovery_click(&mut app, &ctx, &crate::tr!("image-apply"));
-    assert_eq!(app.document.engine.revision, revision);
-    assert_eq!(app.document.engine.undo.len(), history);
+    assert_eq!(app.document.engine.revision(), revision);
+    assert_eq!(app.document.engine.undo().len(), history);
     assert_eq!(
-        app.document.engine.document.view.images[&1].alt,
+        app.document.engine.document().view.images[&1].alt,
         "Modification plus récente"
     );
     assert!(app.dialogs.image_info.is_some());

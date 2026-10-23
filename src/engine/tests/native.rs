@@ -60,6 +60,19 @@ fn stale_and_foreign_native_handles_never_publish_their_projection_or_selection(
         assert_eq!(e.target_guard(), guard);
         assert_eq!(e.selection(), selection);
     }
+    let mut closed = Engine::empty();
+    let guard = closed.target_guard();
+    let edit = closed.begin_native_edit(Selection::default());
+    let mut view = edit.view().clone();
+    view.insert_text("À refuser", 0);
+    assert_eq!(
+        closed
+            .commit_native_edit(edit, view, Selection::default(), NativeInput::Typing)
+            .unwrap_err(),
+        crate::document::edits::EditError::StaleDraft
+    );
+    assert_eq!(closed.target_guard(), guard);
+    assert!(!closed.is_open() && !closed.can_undo());
 }
 #[test]
 fn native_cursor_moves_change_only_selection_and_typing_context_without_destroying_redo() {

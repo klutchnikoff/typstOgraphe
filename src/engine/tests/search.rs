@@ -45,10 +45,10 @@ fn navigation_wraps_with_unicode_case_and_preserves_document_and_history() {
         assert_eq!(outcome.value.unwrap(), json!({"index":index,"count":3}));
         assert!(!outcome.changed);
     }
-    assert!(e.document.view.typing_style.bold);
+    assert!(e.session.document.view.typing_style.bold);
     assert!(e.stored_document() == original);
-    assert_eq!(e.revision, 0);
-    assert!(e.undo.is_empty() && e.redo.is_empty());
+    assert_eq!(e.session.revision, 0);
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty());
     let target = explicit(&e, 10..10);
     call(
         &mut e,
@@ -73,8 +73,8 @@ fn replace_current_uses_expected_text_and_advances_in_one_undoable_transaction()
     .unwrap();
     assert_eq!(outcome.value.unwrap(), json!({"count":1}));
     assert_eq!(outcome.effects, [Effect::Render, Effect::RevealSelection]);
-    assert_eq!(e.document.view.text, "Un Noël et un ÉTÉ, été.");
-    assert!(e.document.view.styles[3..7].iter().all(|s| s.bold));
+    assert_eq!(e.session.document.view.text, "Un Noël et un ÉTÉ, été.");
+    assert!(e.session.document.view.styles[3..7].iter().all(|s| s.bold));
     assert_eq!(
         e.selection().range(),
         e.resolve(results(&e, "été").matches[0].target.into())
@@ -82,7 +82,7 @@ fn replace_current_uses_expected_text_and_advances_in_one_undoable_transaction()
             .range()
     );
     let after_selection = e.selection();
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.undo.len(), 1);
     call(&mut e, "edit.undo", json!({})).unwrap();
     assert!(e.stored_document() == original);
     assert_eq!(e.selection(), first);
@@ -98,16 +98,24 @@ fn replace_all_covers_six_editable_zones_preserves_private_fields_and_styles() {
     let before = e.stored_document();
     let outcome = all(&mut e, "mot", "Noël").unwrap();
     assert_eq!(outcome.value.unwrap(), json!({"count":6}));
-    assert_eq!(e.revision, 1);
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.revision, 1);
+    assert_eq!(e.session.undo.len(), 1);
     assert_eq!(results(&e, "Noël").matches.len(), 6);
-    assert!(e.document.source().contains("alt: \"Mot\""));
-    assert!(e.document.source().contains("images/mot.svg"));
+    assert!(e.session.document.source().contains("alt: \"Mot\""));
+    assert!(e.session.document.source().contains("images/mot.svg"));
     let matches = results(&e, "Noël").matches;
     let heading = e.resolve(matches[0].target.into()).unwrap().range();
     let definition = e.resolve(matches[2].target.into()).unwrap().range();
-    assert!(e.document.view.styles[heading].iter().all(|s| s.bold));
-    assert!(e.document.view.styles[definition].iter().all(|s| s.italic));
+    assert!(
+        e.session.document.view.styles[heading]
+            .iter()
+            .all(|s| s.bold)
+    );
+    assert!(
+        e.session.document.view.styles[definition]
+            .iter()
+            .all(|s| s.italic)
+    );
     call(&mut e, "edit.undo", json!({})).unwrap();
     assert!(e.stored_document() == before);
     call(&mut e, "edit.redo", json!({})).unwrap();
@@ -118,12 +126,12 @@ fn replace_all_covers_six_editable_zones_preserves_private_fields_and_styles() {
 fn new_matches_are_not_replaced_recursively_and_deletion_is_undoable() {
     let mut e = engine("été été");
     all(&mut e, "été", "été été").unwrap();
-    assert_eq!(e.document.view.text, "été été été été");
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.document.view.text, "été été été été");
+    assert_eq!(e.session.undo.len(), 1);
     all(&mut e, "été", "").unwrap();
     assert!(results(&e, "été").matches.is_empty());
     call(&mut e, "edit.undo", json!({})).unwrap();
-    assert_eq!(e.document.view.text, "été été été été");
+    assert_eq!(e.session.document.view.text, "été été été été");
 }
 
 #[test]
@@ -146,8 +154,8 @@ fn stale_and_foreign_occurrences_and_all_guards_are_refused_even_after_undo() {
     call(&mut e, "edit.undo", json!({})).unwrap();
     let before = e.stored_document();
     let selection = e.selection();
-    let revision = e.revision;
-    let when = e.changed_at;
+    let revision = e.session.revision;
+    let when = e.session.changed_at;
     for (id, params) in [("edit.replace_current", current), ("edit.replace_all", all)] {
         let command = Command::from_call(id, params).unwrap();
         assert!(matches!(
@@ -158,10 +166,10 @@ fn stale_and_foreign_occurrences_and_all_guards_are_refused_even_after_undo() {
     }
     assert!(e.stored_document() == before);
     assert_eq!(e.selection(), selection);
-    assert_eq!(e.revision, revision);
-    assert_eq!(e.changed_at, when);
-    assert!(e.undo.is_empty());
-    assert_eq!(e.redo.len(), 1);
+    assert_eq!(e.session.revision, revision);
+    assert_eq!(e.session.changed_at, when);
+    assert!(e.session.undo.is_empty());
+    assert_eq!(e.session.redo.len(), 1);
 }
 
 #[test]
@@ -194,8 +202,8 @@ fn mismatched_text_query_or_partial_occurrence_never_changes_published_state() {
     }
     assert!(e.stored_document() == original);
     assert_eq!(e.selection(), Selection::default());
-    assert_eq!(e.revision, 0);
-    assert!(e.undo.is_empty() && e.redo.is_empty());
+    assert_eq!(e.session.revision, 0);
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty());
 }
 
 #[test]
@@ -211,9 +219,9 @@ fn identical_replacement_navigates_without_dirtying_or_recording_history() {
     assert!(!outcome.changed);
     assert_eq!(e.selection().range(), 4..7);
     assert!(!e.is_dirty());
-    assert!(e.undo.is_empty());
+    assert!(e.session.undo.is_empty());
     assert!(!all(&mut e, "été", "été").unwrap().changed);
-    assert!(e.undo.is_empty());
+    assert!(e.session.undo.is_empty());
 }
 
 #[test]
@@ -250,8 +258,8 @@ fn invalid_replacement_absent_results_and_strict_payloads_are_refused_atomically
     }
     assert!(e.stored_document() == before);
     assert_eq!(e.selection(), Selection::default());
-    assert_eq!(e.revision, 0);
-    assert!(e.undo.is_empty() && e.redo.is_empty());
+    assert_eq!(e.session.revision, 0);
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty());
 }
 
 #[test]
@@ -275,6 +283,6 @@ fn oversized_literal_query_is_an_explicit_error_in_read_and_write_paths() {
         "search_too_large"
     );
     assert!(e.stored_document() == before);
-    assert_eq!(e.revision, 0);
-    assert!(e.undo.is_empty());
+    assert_eq!(e.session.revision, 0);
+    assert!(e.session.undo.is_empty());
 }

@@ -34,8 +34,8 @@ fn model_catalogue_is_type_driven_pure_and_keeps_the_existing_preset_identity() 
         json!({"paper":"a4","landscape":false})
     );
     assert!(e.stored_document() == before);
-    assert!(e.undo.is_empty() && e.redo.is_empty() && !e.is_dirty());
-    e.metadata = Metadata::blank(DocumentType::CompteRendu);
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty() && !e.is_dirty());
+    e.session.metadata = Metadata::blank(DocumentType::CompteRendu);
     assert!(
         e.query(Query::Models(Empty {})).unwrap()["models"]
             .as_array()
@@ -59,12 +59,12 @@ fn model_changes_preserve_content_metadata_selection_assets_and_have_one_step_hi
         outcome.value.unwrap()["presentation"]["custom_bullet_marker"],
         true
     );
-    assert_eq!(e.metadata, before.metadata);
-    assert_eq!(e.document.source(), before.source);
-    assert_eq!(e.document.assets, before.assets);
+    assert_eq!(e.session.metadata, before.metadata);
+    assert_eq!(e.session.document.source(), before.source);
+    assert_eq!(e.session.document.assets, before.assets);
     assert_eq!(e.selection(), selection);
-    assert!(e.dependencies.is_empty());
-    assert_eq!(e.undo.len(), 1);
+    assert!(e.session.dependencies.is_empty());
+    assert_eq!(e.session.undo.len(), 1);
     assert_eq!(
         e.query(Query::ModelPresentation(Empty {})).unwrap()["custom_bullet_marker"],
         true
@@ -100,24 +100,32 @@ fn preset_and_generic_source_share_page_defaults_and_reset_only_the_marker_on_ch
         )
         .unwrap();
     }
-    alias.metadata.courrier_mut().objet = "Objet conservé".into();
+    alias.session.metadata.courrier_mut().objet = "Objet conservé".into();
     let before = alias.stored_document();
-    let mut generic: Engine =
-        Session::new(before.clone(), alias.document.clone(), None, alias.revision).into();
-    let history = alias.undo.len();
+    let mut generic: Engine = Session::new(
+        before.clone(),
+        alias.session.document.clone(),
+        None,
+        alias.session.revision,
+    )
+    .into();
+    let history = alias.session.undo.len();
     preset(&mut alias).unwrap();
     install(&mut generic, &Model::Personal.source()).unwrap();
     assert!(alias.stored_document() == generic.stored_document());
-    assert_eq!(alias.metadata.options().paper, PaperFormat::A4);
-    assert!(!alias.metadata.options().landscape);
-    assert!(alias.metadata.options().bullet_marker.is_none());
-    assert_eq!(alias.metadata.options().language, DocumentLanguage::English);
-    assert_eq!(alias.metadata.courrier().objet, "Objet conservé");
-    assert_eq!(alias.undo.len(), history + 1);
-    let revision = alias.revision;
+    assert_eq!(alias.session.metadata.options().paper, PaperFormat::A4);
+    assert!(!alias.session.metadata.options().landscape);
+    assert!(alias.session.metadata.options().bullet_marker.is_none());
+    assert_eq!(
+        alias.session.metadata.options().language,
+        DocumentLanguage::English
+    );
+    assert_eq!(alias.session.metadata.courrier().objet, "Objet conservé");
+    assert_eq!(alias.session.undo.len(), history + 1);
+    let revision = alias.session.revision;
     assert!(!preset(&mut alias).unwrap().changed);
-    assert_eq!(alias.revision, revision);
-    assert_eq!(alias.undo.len(), history + 1);
+    assert_eq!(alias.session.revision, revision);
+    assert_eq!(alias.session.undo.len(), history + 1);
     call(&mut alias, "edit.undo", json!({})).unwrap();
     assert!(alias.stored_document() == before);
 }
@@ -134,13 +142,13 @@ fn reinstalling_identical_source_preserves_marker_and_does_not_add_history() {
     )
     .unwrap();
     let before = e.stored_document();
-    let history = e.undo.len();
-    let revision = e.revision;
+    let history = e.session.undo.len();
+    let revision = e.session.revision;
     let outcome = install(&mut e, CUSTOM).unwrap();
     assert!(!outcome.changed && outcome.effects.is_empty());
     assert!(e.stored_document() == before);
-    assert_eq!(e.undo.len(), history);
-    assert_eq!(e.revision, revision);
+    assert_eq!(e.session.undo.len(), history);
+    assert_eq!(e.session.revision, revision);
 }
 
 #[test]
@@ -155,7 +163,12 @@ fn incompatible_or_broken_models_never_publish_source_dependencies_options_or_hi
     ] {
         let before = e.stored_document();
         let selection = e.selection();
-        let state = (e.revision, e.undo.len(), e.redo.len(), e.changed_at);
+        let state = (
+            e.session.revision,
+            e.session.undo.len(),
+            e.session.redo.len(),
+            e.session.changed_at,
+        );
         let error = install(&mut e, source).unwrap_err();
         assert_eq!(error.code, ErrorCode::Template);
         assert_eq!(error.reason(), "model_validation");
@@ -168,13 +181,21 @@ fn incompatible_or_broken_models_never_publish_source_dependencies_options_or_hi
         assert!(e.stored_document() == before);
         assert_eq!(e.selection(), selection);
         assert_eq!(
-            (e.revision, e.undo.len(), e.redo.len(), e.changed_at),
+            (
+                e.session.revision,
+                e.session.undo.len(),
+                e.session.redo.len(),
+                e.session.changed_at
+            ),
             state
         );
     }
-    e.metadata = Metadata::blank(DocumentType::CompteRendu);
+    e.session.metadata = Metadata::blank(DocumentType::CompteRendu);
     install(&mut e, "#let compte-rendu(..args) = args.pos().last()").unwrap();
-    assert_eq!(e.metadata.document_type(), DocumentType::CompteRendu);
+    assert_eq!(
+        e.session.metadata.document_type(),
+        DocumentType::CompteRendu
+    );
 }
 
 #[test]
@@ -259,14 +280,14 @@ fn guards_strict_payloads_file_errors_and_limits_are_checked_before_publication(
         );
     }
     assert!(e.stored_document() == before);
-    assert!(e.undo.is_empty());
-    assert_eq!(e.redo.len(), 1);
+    assert!(e.session.undo.is_empty());
+    assert_eq!(e.session.redo.len(), 1);
 }
 
 #[test]
 fn imported_model_keeps_controlled_document_dependencies_and_survives_original_file_removal() {
     let mut e = engine("Bonjour");
-    std::sync::Arc::make_mut(&mut e.dependencies).insert(
+    std::sync::Arc::make_mut(&mut e.session.dependencies).insert(
         "packages/PROVENANCE.md".into(),
         b"Exemplaire du document".as_slice().into(),
     );
@@ -282,7 +303,7 @@ fn imported_model_keeps_controlled_document_dependencies_and_survives_original_f
     )
     .unwrap();
     assert_eq!(
-        &*e.dependencies["packages/PROVENANCE.md"],
+        &*e.session.dependencies["packages/PROVENANCE.md"],
         b"Exemplaire du document"
     );
     std::fs::remove_file(&model).unwrap();
@@ -304,6 +325,7 @@ fn resource_budget_failure_never_publishes_a_prepared_model() {
     let mut e = engine("Bonjour");
     let inflated: std::sync::Arc<[u8]> = vec![b'x'; crate::assets::MAX_IMAGE_BYTES].into();
     let names: Vec<_> = e
+        .session
         .dependencies
         .keys()
         .filter(|s| {
@@ -313,10 +335,15 @@ fn resource_budget_failure_never_publishes_a_prepared_model() {
         .collect();
     assert!(names.len() >= 5);
     for name in names {
-        std::sync::Arc::make_mut(&mut e.dependencies).insert(name, inflated.clone());
+        std::sync::Arc::make_mut(&mut e.session.dependencies).insert(name, inflated.clone());
     }
     let before = e.stored_document();
-    let state = (e.revision, e.undo.len(), e.redo.len(), e.selection());
+    let state = (
+        e.session.revision,
+        e.session.undo.len(),
+        e.session.redo.len(),
+        e.selection(),
+    );
     let template = format!("{}\n// Modèle dérivé", Model::Personal.source());
     assert_eq!(
         install(&mut e, &template).unwrap_err().reason(),
@@ -324,7 +351,12 @@ fn resource_budget_failure_never_publishes_a_prepared_model() {
     );
     assert!(e.stored_document() == before);
     assert_eq!(
-        (e.revision, e.undo.len(), e.redo.len(), e.selection()),
+        (
+            e.session.revision,
+            e.session.undo.len(),
+            e.session.redo.len(),
+            e.selection()
+        ),
         state
     );
 }

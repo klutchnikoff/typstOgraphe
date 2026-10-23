@@ -47,13 +47,13 @@ fn empty_creation_uses_explicit_values_and_model_catalog_without_global_defaults
     assert!(out.effects.contains(&Effect::DocumentReplaced));
     assert_ne!(old.document_id, e.target_guard().document_id);
     assert!(e.is_open() && !e.is_dirty());
-    assert!(e.document.source().is_empty());
-    assert_eq!(e.metadata.courrier().expediteur, "Zoé #nom");
-    assert_eq!(e.metadata.courrier().date, "2026-10-23");
-    assert!(e.metadata.courrier().destinataire.is_empty());
-    assert!(e.metadata.signature_path().is_some());
-    assert!(e.undo.is_empty() && e.redo.is_empty());
-    assert_eq!(e.template, DocumentType::Courrier.default_model());
+    assert!(e.session.document.source().is_empty());
+    assert_eq!(e.session.metadata.courrier().expediteur, "Zoé #nom");
+    assert_eq!(e.session.metadata.courrier().date, "2026-10-23");
+    assert!(e.session.metadata.courrier().destinataire.is_empty());
+    assert!(e.session.metadata.signature_path().is_some());
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty());
+    assert_eq!(e.session.template, DocumentType::Courrier.default_model());
 }
 #[test]
 fn replacement_requires_a_current_guard_and_explicit_discard_before_reading_paths() {
@@ -92,7 +92,7 @@ fn replacement_requires_a_current_guard_and_explicit_discard_before_reading_path
         }))
         .unwrap();
     assert!(outcome.changed && !e.is_open());
-    assert!(e.undo.is_empty() && e.redo.is_empty());
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty());
     assert_eq!(
         e.run(Command::SaveDocument(SaveDocumentParams {
             guard: e.target_guard(),
@@ -151,7 +151,7 @@ fn saves_are_atomic_preserve_history_and_save_as_leaves_the_old_file_intact() {
     changed(&mut e);
     let guard = e.target_guard();
     let selection = e.selection();
-    let undo = e.undo.len();
+    let undo = e.session.undo.len();
     assert_eq!(
         e.run(Command::SaveDocument(SaveDocumentParams {
             guard,
@@ -169,7 +169,7 @@ fn saves_are_atomic_preserve_history_and_save_as_leaves_the_old_file_intact() {
         .unwrap();
     assert!(!out.changed && out.effects.contains(&Effect::Saved));
     assert!(!e.is_dirty());
-    assert_eq!(e.undo.len(), undo);
+    assert_eq!(e.session.undo.len(), undo);
     assert_eq!(e.selection(), selection);
     let saved = crate::storage::read(&first).unwrap();
     changed(&mut e);
@@ -185,7 +185,7 @@ fn saves_are_atomic_preserve_history_and_save_as_leaves_the_old_file_intact() {
     );
     assert!(e.stored_document() == dirty);
     assert!(e.is_dirty());
-    assert_eq!(e.file_path, Some(first.clone()));
+    assert_eq!(e.session.file_path, Some(first.clone()));
     e.run_call(
         Command::SaveAs(SaveAsParams {
             guard,
@@ -197,7 +197,7 @@ fn saves_are_atomic_preserve_history_and_save_as_leaves_the_old_file_intact() {
     .unwrap();
     assert!(crate::storage::read(&first).unwrap() == saved);
     assert!(crate::storage::read(&second).unwrap() == dirty);
-    assert_eq!(e.file_path, Some(second));
+    assert_eq!(e.session.file_path, Some(second));
     assert!(!e.is_dirty());
     e.run(Command::Undo(Empty {})).unwrap();
     assert!(e.is_dirty());
@@ -220,9 +220,9 @@ fn open_replaces_identity_and_history_but_corrupt_archives_leave_the_session_unt
     }))
     .unwrap();
     assert!(e.stored_document() == stored);
-    assert_eq!(e.file_path, Some(path));
+    assert_eq!(e.session.file_path, Some(path));
     assert!(!e.is_dirty());
-    assert!(e.undo.is_empty() && e.redo.is_empty());
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty());
     assert_eq!(e.selection(), Selection::default());
     assert_ne!(e.target_guard().document_id, old.document_id);
     let guard = e.target_guard();
@@ -303,7 +303,7 @@ fn export_formats_defaults_and_immutable_background_snapshot_share_the_same_writ
         std::fs::read_to_string(path.join("contenu.typ")).unwrap(),
         before.source
     );
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.undo.len(), 1);
     assert!(e.is_dirty());
 }
 #[test]
@@ -323,8 +323,8 @@ fn export_refuses_required_fields_stale_guards_and_invalid_models_without_writin
         "export_required_fields"
     );
     assert!(!path.exists());
-    e.metadata = Metadata::demo(DocumentType::Courrier);
-    e.template = "#let broken = unknown".into();
+    e.session.metadata = Metadata::demo(DocumentType::Courrier);
+    e.session.template = "#let broken = unknown".into();
     assert!(
         e.run(Command::Export(ExportParams {
             guard: e.target_guard(),
@@ -404,9 +404,9 @@ fn recovery_references_are_service_scoped_and_restoration_is_a_dirty_copy() {
         .unwrap();
     assert!(out.effects.contains(&Effect::DocumentReplaced));
     assert!(e.stored_document() == stored);
-    assert!(e.recovered && e.is_dirty());
-    assert!(e.file_path.is_none());
-    assert!(e.undo.is_empty() && e.redo.is_empty());
+    assert!(e.session.recovered && e.is_dirty());
+    assert!(e.session.file_path.is_none());
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty());
     assert!(e.recovery_items().is_empty());
     assert_ne!(e.target_guard().document_id, guard.document_id);
     service.adopt(e.take_recovered_entry().unwrap()).unwrap();
@@ -433,14 +433,14 @@ fn deleting_one_recovery_copy_preserves_document_history_and_invalid_refs_fail()
     changed(&mut e);
     let before = e.stored_document();
     let guard = e.target_guard();
-    let undo = e.undo.len();
+    let undo = e.session.undo.len();
     e.configure_recovery(entries);
     let reference = e.recovery_items()[0].reference;
     e.run_call(Command::DeleteRecovery(DeleteRecoveryParams { reference }).to_call())
         .unwrap();
     assert!(e.stored_document() == before);
     assert_eq!(e.target_guard(), guard);
-    assert_eq!(e.undo.len(), undo);
+    assert_eq!(e.session.undo.len(), undo);
     assert!(e.recovery_items().is_empty());
     assert_eq!(
         e.run(Command::DeleteRecovery(DeleteRecoveryParams { reference }))
@@ -469,7 +469,7 @@ fn save_as_refuses_existing_targets_unless_replacement_is_explicit_and_publicati
     changed(&mut e);
     let before = e.stored_document();
     let guard = e.target_guard();
-    let undo = e.undo.len();
+    let undo = e.session.undo.len();
     let params = SaveAsParams {
         guard,
         path: path.clone(),
@@ -490,8 +490,8 @@ fn save_as_refuses_existing_targets_unless_replacement_is_explicit_and_publicati
     );
     assert!(e.stored_document() == before);
     assert_eq!(e.target_guard(), guard);
-    assert_eq!(e.undo.len(), undo);
-    assert!(e.file_path.is_none() && e.is_dirty());
+    assert_eq!(e.session.undo.len(), undo);
+    assert!(e.session.file_path.is_none() && e.is_dirty());
     // La primitive de publication refuse aussi une cible apparue après un contrôle préalable.
     assert!(crate::storage::save_new(&path, &before).is_err());
     assert_eq!(std::fs::read(&path).unwrap(), original_bytes);
@@ -502,7 +502,7 @@ fn save_as_refuses_existing_targets_unless_replacement_is_explicit_and_publicati
     .unwrap();
     assert!(crate::storage::read(&path).unwrap() == before);
     assert!(!e.is_dirty());
-    assert_eq!(e.undo.len(), undo);
+    assert_eq!(e.session.undo.len(), undo);
 }
 #[test]
 fn corrupt_recovery_refuses_publication_and_stale_export_refuses_filesystem_effects() {

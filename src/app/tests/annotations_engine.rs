@@ -4,15 +4,17 @@ use serde_json::{Value, json};
 
 pub(super) fn pair(source: &str, range: Range<usize>) -> (egui::Context, App, Engine) {
     let (ctx, mut app) = demo_app();
-    app.document.engine.document = Document::from_source(source).unwrap();
+    fixture(&mut app.document.engine, |session| {
+        session.document = Document::from_source(source).unwrap();
+    });
     app.document.selection = editor::cursor(range);
     app.document.force_selection = true;
     frame(&mut app, &ctx, vec![]);
     let mut engine: Engine = Session::new(
         app.stored_document(),
-        app.document.engine.document.clone(),
+        app.document.engine.document().clone(),
         None,
-        app.document.engine.revision,
+        app.document.engine.revision(),
     )
     .into();
     engine
@@ -23,14 +25,14 @@ pub(super) fn pair(source: &str, range: Range<usize>) -> (egui::Context, App, En
 
 pub(super) fn equivalent(app: &App, engine: &Engine) {
     assert!(app.stored_document() == engine.stored_document());
-    assert_eq!(app.document.engine.document.view, engine.document.view);
+    assert_eq!(app.document.engine.document().view, engine.document().view);
     assert_eq!(
         app.document.selection,
         CCursorRange::from(engine.selection())
     );
-    assert_eq!(app.document.engine.revision, engine.revision);
-    assert_eq!(app.document.engine.undo.len(), engine.undo.len());
-    assert_eq!(app.document.engine.redo.len(), engine.redo.len());
+    assert_eq!(app.document.engine.revision(), engine.revision());
+    assert_eq!(app.document.engine.undo().len(), engine.undo().len());
+    assert_eq!(app.document.engine.redo().len(), engine.redo().len());
 }
 
 pub(super) fn gesture(
@@ -89,7 +91,7 @@ fn tab_shift_tab_and_enter_match_json_commands_for_both_optional_annotations() {
                 json!({"part":part}),
             );
         }
-        assert!(engine.undo.is_empty());
+        assert!(engine.undo().is_empty());
         gesture(
             &ctx,
             &mut app,
@@ -99,7 +101,7 @@ fn tab_shift_tab_and_enter_match_json_commands_for_both_optional_annotations() {
             "block.split",
             json!({}),
         );
-        assert_eq!(engine.undo.len(), 1);
+        assert_eq!(engine.undo().len(), 1);
         app.apply(Command::Undo);
         engine.run(Core::Undo(Empty {})).unwrap();
         equivalent(&app, &engine);
@@ -113,7 +115,7 @@ fn tab_shift_tab_and_enter_match_json_commands_for_both_optional_annotations() {
 fn quote_enter_and_empty_line_exit_match_json_and_preserve_native_history() {
     let source = "#quote(block: true, attribution: [Élodie *日本*])[Une pensée.]";
     let (ctx, mut app, mut engine) = pair(source, 11..11);
-    let original = engine.document.clone();
+    let original = engine.document().clone();
     for _ in 0..2 {
         gesture(
             &ctx,
@@ -125,13 +127,13 @@ fn quote_enter_and_empty_line_exit_match_json_and_preserve_native_history() {
             json!({}),
         );
     }
-    assert_eq!(engine.undo.len(), 2);
+    assert_eq!(engine.undo().len(), 2);
     for _ in 0..2 {
         app.apply(Command::Undo);
         engine.run(Core::Undo(Empty {})).unwrap();
         equivalent(&app, &engine);
     }
-    assert_eq!(engine.document, original);
+    assert_eq!(engine.document(), &original);
 }
 
 #[test]
@@ -150,6 +152,6 @@ fn enter_on_a_whole_quote_selection_matches_json_without_leaving_an_orphan_annot
         "block.split",
         json!({}),
     );
-    assert!(engine.document.view.annotations().is_empty());
-    assert_eq!(engine.undo.len(), 1);
+    assert!(engine.document().view.annotations().is_empty());
+    assert_eq!(engine.undo().len(), 1);
 }

@@ -26,7 +26,7 @@ fn list_description_and_note_enter_match_json_with_undo_and_redo() {
             );
         }
         assert_eq!(
-            *engine.document.view.blocks.last().unwrap(),
+            *engine.document().view.blocks.last().unwrap(),
             BlockKind::Paragraph
         );
         for undo in [true, true, false, false] {
@@ -61,7 +61,7 @@ fn description_tab_shift_tab_and_note_tab_match_json_navigation_and_exit() {
             json!({"part":part}),
         );
     }
-    assert!(engine.undo.is_empty());
+    assert!(engine.undo().is_empty());
     for source in [
         "#postscript[Merci *encore*]",
         "#attachment[Rapport]\n#attachment[Formulaire]",
@@ -76,7 +76,7 @@ fn description_tab_shift_tab_and_note_tab_match_json_navigation_and_exit() {
             "block.exit",
             json!({}),
         );
-        assert_eq!(engine.undo.len(), 1);
+        assert_eq!(engine.undo().len(), 1);
     }
 }
 
@@ -110,7 +110,7 @@ fn native_text_shortcuts_and_typing_mode_json_keep_the_same_complete_literal_und
             .unwrap();
         frame(&mut app, &ctx, vec![egui::Event::Text(text.into())]);
         equivalent(&app, &engine);
-        assert_eq!(engine.undo.len(), 1);
+        assert_eq!(engine.undo().len(), 1);
         app.apply(Command::Undo);
         engine.run(Core::Undo(Empty {})).unwrap();
         equivalent(&app, &engine);
@@ -131,16 +131,16 @@ fn ime_commit_keeps_literal_text_even_when_it_looks_like_a_typing_shortcut() {
             egui::Event::Ime(egui::ImeEvent::Preedit("= ".into())),
         ],
     );
-    assert!(app.document.engine.document.view.text.is_empty());
+    assert!(app.document.engine.document().view.text.is_empty());
     frame(
         &mut app,
         &ctx,
         vec![egui::Event::Ime(egui::ImeEvent::Commit("= ".into()))],
     );
-    assert_eq!(app.document.engine.document.view.text, "= ");
+    assert_eq!(app.document.engine.document().view.text, "= ");
     assert_eq!(
-        app.document.engine.document.view.blocks,
+        app.document.engine.document().view.blocks,
         [BlockKind::Paragraph]
     );
-    assert_eq!(app.document.engine.undo.len(), 1);
+    assert_eq!(app.document.engine.undo().len(), 1);
 }

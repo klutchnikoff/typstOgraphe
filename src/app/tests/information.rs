@@ -7,33 +7,37 @@ fn today_button_keeps_a_fixed_date_through_history_and_reopening() {
     app.create_document(DocumentType::Courrier);
     app.dialogs.information_open = true;
     app.dialogs.information_group = InformationGroup::Fields("information");
-    let source = app.document.engine.document.source().to_owned();
+    let source = app.document.engine.document().source().to_owned();
     recovery_click(&mut app, &ctx, &crate::tr!("date-today"));
-    let fixed = app.document.engine.metadata.courrier().date.clone();
+    let fixed = app.document.engine.metadata().courrier().date.clone();
     assert_eq!(fixed, crate::dates::today());
     app.apply(Command::Undo);
-    assert!(app.document.engine.metadata.courrier().date.is_empty());
+    assert!(app.document.engine.metadata().courrier().date.is_empty());
     app.apply(Command::Redo);
-    assert_eq!(app.document.engine.metadata.courrier().date, fixed);
-    assert_eq!(app.document.engine.document.source(), source);
+    assert_eq!(app.document.engine.metadata().courrier().date, fixed);
+    assert_eq!(app.document.engine.document().source(), source);
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("date-fixe.typsto");
     assert!(app.save_path(path.clone()));
     app.close_document();
     assert!(app.open_path(path));
-    assert_eq!(app.document.engine.metadata.courrier().date, fixed);
+    assert_eq!(app.document.engine.metadata().courrier().date, fixed);
     assert!(!app.is_dirty());
 }
 
 #[test]
 fn general_settings_and_template_selection_preserve_letter_content() {
     let (ctx, mut app) = demo_app();
-    app.document.engine.template = "#let courrier(..args, options: (:), body) = { set page(paper: options.paper, flipped: options.landscape); body }".into();
-    app.document.engine.saved.template = app.document.engine.template.clone();
+    fixture(&mut app.document.engine, |session| {
+        session.template = "#let courrier(..args, options: (:), body) = { set page(paper: options.paper, flipped: options.landscape); body }".into();
+    });
+    fixture(&mut app.document.engine, |session| {
+        session.saved.template = session.template.clone();
+    });
     app.dialogs.information_open = true;
     ctx.style_mut(|s| s.animation_time = 0.0);
-    let source = app.document.engine.document.source().to_owned();
-    let revision = app.document.engine.revision;
+    let source = app.document.engine.document().source().to_owned();
+    let revision = app.document.engine.revision();
     let mut time = 0.0;
     let mut draw = |app: &mut App, events| {
         time += 0.1;
@@ -104,18 +108,18 @@ fn general_settings_and_template_selection_preserve_letter_content() {
         "Courrier personnel",
     );
     assert_eq!(
-        app.document.engine.metadata.options_mut().paper,
+        app.document.engine.metadata().options().paper,
         PaperFormat::A4
     );
-    assert!(!app.document.engine.metadata.options_mut().landscape);
+    assert!(!app.document.engine.metadata().options().landscape);
     assert_eq!(
-        app.document.engine.metadata.options_mut().language,
+        app.document.engine.metadata().options().language,
         DocumentLanguage::English
     );
-    assert_eq!(app.document.engine.template, Model::Personal.source());
+    assert_eq!(app.document.engine.template(), Model::Personal.source());
     assert!(app.is_dirty());
-    assert_eq!(app.document.engine.revision, revision + 4);
-    assert_eq!(app.document.engine.document.source(), source);
+    assert_eq!(app.document.engine.revision(), revision + 4);
+    assert_eq!(app.document.engine.document().source(), source);
 
     assert!(!app.file.window_title.contains("typstOgraphe"));
 }
@@ -161,9 +165,9 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     ctx.style_mut(|style| style.animation_time = 0.0);
     app.document.selection = editor::cursor(10..20);
     app.document.force_selection = true;
-    let source = app.document.engine.document.source().to_owned();
+    let source = app.document.engine.document().source().to_owned();
     let selection = app.document.selection;
-    let revision = app.document.engine.revision;
+    let revision = app.document.engine.revision();
     let mut time = 0.0;
     let mut draw = |app: &mut App, events| {
         time += 0.1;
@@ -201,14 +205,14 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     assert!(app.dialogs.information_open);
     assert!(!app.modal_open());
     assert!(!app.is_dirty());
-    assert_eq!(app.document.engine.revision, revision);
+    assert_eq!(app.document.engine.revision(), revision);
     assert_eq!(text_rect(&opened, "Aperçu Typst"), preview);
     assert!(has_text(&opened, "Format du papier"));
     assert!(!has_text(&opened, "Adresse"));
     assert!(!has_text(&opened, "Nom complet"));
     // Même à la taille minimale de la fenêtre, le formulaire reste dans la
     // colonne de gauche et laisse une zone de rédaction utilisable.
-    let body = text_rect(&opened, &app.document.engine.document.view.text);
+    let body = text_rect(&opened, &app.document.engine.document().view.text);
     assert!(body.height() > 150.0, "zone de rédaction : {body:?}");
     click(
         &mut app,
@@ -226,7 +230,7 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     assert!(!app.dialogs.information_open);
     assert!(!has_text(&collapsed, "Nom complet"));
     assert!(
-        text_rect(&collapsed, &app.document.engine.document.view.text).height() >= body.height()
+        text_rect(&collapsed, &app.document.engine.document().view.text).height() >= body.height()
     );
     app.apply(Command::Information);
     let reopened = draw(&mut app, vec![]);
@@ -236,9 +240,9 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
         InformationGroup::Fields("sender")
     );
     assert!(has_text(&reopened, "Nom complet"));
-    assert_eq!(app.document.engine.revision, revision);
+    assert_eq!(app.document.engine.revision(), revision);
     assert!(!app.is_dirty());
-    assert_eq!(app.document.engine.document.source(), source);
+    assert_eq!(app.document.engine.document().source(), source);
     assert_eq!(app.document.selection, selection);
     click(
         &mut app,
@@ -247,10 +251,10 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     );
     draw(&mut app, vec![]);
     let correspondence = draw(&mut app, vec![]);
-    let original_subject = app.document.engine.metadata.courrier_mut().objet.clone();
+    let original_subject = app.document.engine.metadata().courrier().objet.clone();
     let subject = text_rect(
         &correspondence,
-        &app.document.engine.metadata.courrier_mut().objet,
+        &app.document.engine.metadata().courrier().objet,
     );
     assert!(subject.is_positive());
     assert!(subject.right() < preview.left());
@@ -269,12 +273,12 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
         ],
     );
     assert_eq!(
-        app.document.engine.metadata.courrier_mut().objet,
+        app.document.engine.metadata().courrier().objet,
         "Objet modifié"
     );
-    assert_eq!(app.document.engine.document.source(), source);
+    assert_eq!(app.document.engine.document().source(), source);
     assert_eq!(app.document.selection, selection);
-    assert_eq!(app.document.engine.revision, revision + 1);
+    assert_eq!(app.document.engine.revision(), revision + 1);
     assert!(app.is_dirty());
     assert!(app.dialogs.information_open);
     app.apply(Command::Palette);
@@ -293,17 +297,17 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     assert!(!app.dialogs.palette_open);
     draw(&mut app, vec![]);
     assert_eq!(
-        app.document.engine.metadata.courrier_mut().objet,
+        app.document.engine.metadata().courrier().objet,
         original_subject
     );
-    assert_eq!(app.document.engine.document.source(), source);
+    assert_eq!(app.document.engine.document().source(), source);
     app.dispatch_action(Command::Redo, &ctx);
     draw(&mut app, vec![]);
     assert_eq!(
-        app.document.engine.metadata.courrier_mut().objet,
+        app.document.engine.metadata().courrier().objet,
         "Objet modifié"
     );
-    assert_eq!(app.document.engine.revision, revision + 3);
+    assert_eq!(app.document.engine.revision(), revision + 3);
     let current = draw(&mut app, vec![]);
     click(
         &mut app,
@@ -313,10 +317,10 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     draw(&mut app, vec![]);
     assert!(!app.dialogs.information_open);
     assert_eq!(
-        app.document.engine.metadata.courrier_mut().objet,
+        app.document.engine.metadata().courrier().objet,
         "Objet modifié"
     );
-    assert_eq!(app.document.engine.revision, revision + 3);
+    assert_eq!(app.document.engine.revision(), revision + 3);
 }
 
 #[test]
@@ -349,10 +353,11 @@ fn document_information_offers_only_the_markers_allowed_by_the_template() {
     assert!(point(&output, "▪").is_none());
     assert!(point(&output, "Caractère personnalisé…").is_none());
     let before = app.snapshot();
-    app.document
-        .engine
-        .template
-        .push_str("\n#let editor-options = (bullet-markers: (\"▪\",),)");
+    fixture(&mut app.document.engine, |session| {
+        session
+            .template
+            .push_str("\n#let editor-options = (bullet-markers: (\"▪\",),)");
+    });
     app.remember(before, false);
     app.document.presentation = world
         .model_presentation("#let editor-options = (bullet-markers: (\"▪\",),)")
@@ -379,7 +384,7 @@ fn document_information_offers_only_the_markers_allowed_by_the_template() {
     assert_eq!(
         app.document
             .engine
-            .metadata
+            .metadata()
             .options()
             .bullet_marker
             .as_deref(),

@@ -91,16 +91,18 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
         ),
     ] {
         let (ctx, mut app) = demo_app();
-        app.document.engine.document = Document::from_source(source).unwrap();
+        fixture(&mut app.document.engine, |session| {
+            session.document = Document::from_source(source).unwrap();
+        });
         app.document.selection = editor::cursor(range);
         app.document.force_selection = true;
         frame(&mut app, &ctx, vec![]);
         let before = app.stored_document();
         let mut engine: Engine = Session::new(
             before.clone(),
-            app.document.engine.document.clone(),
+            app.document.engine.document().clone(),
             None,
-            app.document.engine.revision,
+            app.document.engine.revision(),
         )
         .into();
         engine
@@ -111,13 +113,14 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
             .unwrap();
         app.apply(trigger);
         assert_eq!(
-            app.document.engine.document.source(),
-            engine.document.source(),
+            app.document.engine.document().source(),
+            engine.document().source(),
             "{id}"
         );
         assert!(app.stored_document() == engine.stored_document(), "{id}");
         assert_eq!(
-            app.document.engine.document.view, engine.document.view,
+            app.document.engine.document().view,
+            engine.document().view,
             "{id}"
         );
         assert_eq!(
@@ -125,7 +128,11 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
             CCursorRange::from(engine.selection()),
             "{id}"
         );
-        assert_eq!(app.document.engine.undo.len(), engine.undo.len(), "{id}");
+        assert_eq!(
+            app.document.engine.undo().len(),
+            engine.undo().len(),
+            "{id}"
+        );
         app.apply(Command::Undo);
         engine.run(crate::engine::Command::Undo(Empty {})).unwrap();
         assert!(
@@ -146,7 +153,9 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
 #[test]
 fn native_typing_selection_and_preedit_keep_engine_queries_in_sync_with_the_published_document() {
     let (ctx, mut app) = demo_app();
-    app.document.engine.document = Document::from_source("Texte").unwrap();
+    fixture(&mut app.document.engine, |session| {
+        session.document = Document::from_source("Texte").unwrap();
+    });
     app.document.selection = editor::cursor(0..5);
     app.document.force_selection = true;
     frame(&mut app, &ctx, vec![]);
@@ -202,13 +211,17 @@ fn native_typing_selection_and_preedit_keep_engine_queries_in_sync_with_the_publ
 fn link_dialog_uses_the_captured_selection_and_refuses_a_stale_revision() {
     for stale in [false, true] {
         let (ctx, mut app) = demo_app();
-        app.document.engine.document = Document::from_source("Avant après").unwrap();
+        fixture(&mut app.document.engine, |session| {
+            session.document = Document::from_source("Avant après").unwrap();
+        });
         app.document.selection = editor::cursor(0..5);
         app.apply(Command::Link);
         app.dialogs.link_url = "https://example.org".into();
         app.document.selection = editor::cursor(6..11);
         if stale {
-            app.document.engine.metadata.courrier_mut().objet = "Autre objet".into();
+            fixture(&mut app.document.engine, |session| {
+                session.metadata.courrier_mut().objet = "Autre objet".into();
+            });
             app.changed();
         }
         recovery_click(&mut app, &ctx, &crate::tr!("apply"));
@@ -221,7 +234,7 @@ fn link_dialog_uses_the_captured_selection_and_refuses_a_stale_revision() {
             assert!(
                 app.document
                     .engine
-                    .document
+                    .document()
                     .view
                     .styles
                     .iter()
@@ -230,12 +243,12 @@ fn link_dialog_uses_the_captured_selection_and_refuses_a_stale_revision() {
         } else {
             assert!(!app.dialogs.link_open);
             assert!(
-                app.document.engine.document.view.styles[..5]
+                app.document.engine.document().view.styles[..5]
                     .iter()
                     .all(|style| style.link.as_deref() == Some("https://example.org"))
             );
             assert!(
-                app.document.engine.document.view.styles[6..]
+                app.document.engine.document().view.styles[6..]
                     .iter()
                     .all(|style| style.link.is_none())
             );

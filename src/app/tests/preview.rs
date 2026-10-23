@@ -92,14 +92,16 @@ fn column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_ca
 #[test]
 fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
     let (ctx, mut app) = demo_app();
-    app.document.engine.document =
-        Document::from_source(&"Un paragraphe à retrouver.\n\n".repeat(100)).unwrap();
+    fixture(&mut app.document.engine, |session| {
+        session.document =
+            Document::from_source(&"Un paragraphe à retrouver.\n\n".repeat(100)).unwrap();
+    });
     let mut world = crate::rendering::TypstWorld::default();
     let rendered = world
         .compile_with_template(
-            app.document.engine.document.source(),
-            &app.document.engine.metadata,
-            &app.document.engine.template,
+            app.document.engine.document().source(),
+            app.document.engine.metadata(),
+            app.document.engine.template(),
         )
         .unwrap();
     for page in 0..rendered.pages().len() {
@@ -110,12 +112,12 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
         ));
     }
     app.preview.sync = Some(RenderSync::new(
-        app.document.engine.revision,
+        app.document.engine.revision(),
         world,
         rendered,
-        app.document.engine.document.source_map.clone(),
+        app.document.engine.document().source_map.clone(),
     ));
-    let end = app.document.engine.document.view.len() - 12;
+    let end = app.document.engine.document().view.len() - 12;
     app.document.selection = editor::cursor(end..end);
     let location = app.preview.sync.as_ref().unwrap().forward(end).unwrap();
 
@@ -155,10 +157,14 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
     assert!(offset > 1000.0, "preview offset {offset}");
 
     app.document.selection = editor::cursor(0..0);
-    app.document.engine.revision += 1;
+    fixture(&mut app.document.engine, |session| {
+        session.revision += 1;
+    });
     app.navigate_backward(location, &ctx);
     assert_eq!(app.document.selection.primary.index, 0);
-    app.document.engine.revision -= 1;
+    fixture(&mut app.document.engine, |session| {
+        session.revision -= 1;
+    });
     app.preview.error = Some("essai".into());
     app.navigate_backward(location, &ctx);
     assert_eq!(app.document.selection.primary.index, 0);
@@ -199,9 +205,9 @@ fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
     let mut world = crate::rendering::TypstWorld::default();
     let rendered = world
         .compile_with_template(
-            app.document.engine.document.source(),
-            &app.document.engine.metadata,
-            &app.document.engine.template,
+            app.document.engine.document().source(),
+            app.document.engine.metadata(),
+            app.document.engine.template(),
         )
         .unwrap();
     let texture = ctx.load_texture(
@@ -212,22 +218,22 @@ fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
     let texture_id = texture.id();
     app.preview.pages = vec![texture];
     app.preview.sync = Some(RenderSync::new(
-        app.document.engine.revision,
+        app.document.engine.revision(),
         world,
         rendered,
-        app.document.engine.document.source_map.clone(),
+        app.document.engine.document().source_map.clone(),
     ));
-    app.preview.submitted = app.document.engine.revision;
-    app.preview.revision = Some(app.document.engine.revision);
+    app.preview.submitted = app.document.engine.revision();
+    app.preview.revision = Some(app.document.engine.revision());
     let index = app
         .document
         .engine
-        .document
+        .document()
         .view
         .text
         .find("Notre")
         .map(|byte| {
-            app.document.engine.document.view.text[..byte]
+            app.document.engine.document().view.text[..byte]
                 .chars()
                 .count()
         })
@@ -294,13 +300,13 @@ fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
     assert_eq!(app.document.selection.primary.index, index);
     assert!(app.document.selection.is_empty());
     assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
-    let mut expected = app.document.engine.document.view.text.clone();
+    let mut expected = app.document.engine.document().view.text.clone();
     expected.insert_str(
-        app.document.engine.document.view.byte_index(index),
+        app.document.engine.document().view.byte_index(index),
         "Ajout ",
     );
     draw(&mut app, 0.5, vec![egui::Event::Text("Ajout ".into())]);
-    assert_eq!(app.document.engine.document.view.text, expected);
+    assert_eq!(app.document.engine.document().view.text, expected);
 }
 
 #[test]
@@ -309,9 +315,9 @@ fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
     let mut world = crate::rendering::TypstWorld::default();
     let rendered = world
         .compile_with_template(
-            app.document.engine.document.source(),
-            &app.document.engine.metadata,
-            &app.document.engine.template,
+            app.document.engine.document().source(),
+            app.document.engine.metadata(),
+            app.document.engine.template(),
         )
         .unwrap();
     app.preview.pages = vec![ctx.load_texture(
@@ -320,22 +326,22 @@ fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
         egui::TextureOptions::LINEAR,
     )];
     app.preview.sync = Some(RenderSync::new(
-        app.document.engine.revision,
+        app.document.engine.revision(),
         world,
         rendered,
-        app.document.engine.document.source_map.clone(),
+        app.document.engine.document().source_map.clone(),
     ));
-    app.preview.submitted = app.document.engine.revision;
-    app.preview.revision = Some(app.document.engine.revision);
+    app.preview.submitted = app.document.engine.revision();
+    app.preview.revision = Some(app.document.engine.revision());
     let byte = app
         .document
         .engine
-        .document
+        .document()
         .view
         .text
         .find("jeudi")
         .unwrap();
-    let index = app.document.engine.document.view.text[..byte]
+    let index = app.document.engine.document().view.text[..byte]
         .chars()
         .count();
     app.document.selection = editor::cursor(index..index + 5);
@@ -378,9 +384,13 @@ fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
     app.document.selection = editor::cursor(index..index);
     assert!(draw(&mut app, 400.0).is_empty());
     app.document.selection = editor::cursor(index..index + 5);
-    app.document.engine.revision += 1;
+    fixture(&mut app.document.engine, |session| {
+        session.revision += 1;
+    });
     assert!(draw(&mut app, 400.0).is_empty());
-    app.document.engine.revision -= 1;
+    fixture(&mut app.document.engine, |session| {
+        session.revision -= 1;
+    });
     app.preview.error = Some("essai".into());
     assert!(draw(&mut app, 400.0).is_empty());
     app.preview.error = None;

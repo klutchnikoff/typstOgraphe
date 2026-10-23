@@ -1,5 +1,5 @@
-//! Moteur documentaire sans egui, dialogues ni Fluent. Les familles migrées
-//! passent par run ; les préparations historiques restent temporairement dans App.
+//! Moteur documentaire propriétaire de sa session : commandes et lectures explicites,
+//! sans exposition de Session ni publication directe par l’interface.
 mod annotations;
 mod batch;
 mod batch_types;
@@ -100,7 +100,7 @@ impl Engine {
     pub fn selection(&self) -> Selection {
         self.selection
     }
-    /// Adaptateur transitoire du curseur graphique, jamais un indice JSON public.
+    /// Cache validé du curseur graphique, jamais un indice JSON public.
     pub(crate) fn set_adapter_selection(
         &mut self,
         selection: Selection,
@@ -117,7 +117,7 @@ impl Engine {
     pub fn query_call(&self, call: Call) -> Result<Value, CommandError> {
         self.query(Query::from_call(call.id.as_str(), call.params)?)
     }
-    pub(super) fn commit_projection(
+    fn commit_projection(
         &mut self,
         guard: TargetGuard,
         before: Snapshot,
@@ -130,21 +130,6 @@ impl Engine {
             .commit_projection(guard, before, view, selection, group)?;
         self.selection = selection;
         Ok(selection)
-    }
-}
-
-// Compatibilité limitée à la migration famille par famille. Les anciens gestes
-// préparent encore leurs champs dans App, puis Session::record les valide.
-// Ce passage ne constitue pas l'API publique du moteur ni la fin de la phase 2.
-impl std::ops::Deref for Engine {
-    type Target = Session;
-    fn deref(&self) -> &Session {
-        &self.session
-    }
-}
-impl std::ops::DerefMut for Engine {
-    fn deref_mut(&mut self) -> &mut Session {
-        &mut self.session
     }
 }
 

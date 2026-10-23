@@ -209,7 +209,7 @@ impl App {
         let previous = history.then(|| {
             (
                 self.document.engine.document().clone(),
-                self.document.engine.template().clone(),
+                self.document.engine.template().to_owned(),
                 self.document.engine.dependencies().clone(),
             )
         });
@@ -218,7 +218,7 @@ impl App {
         }
         if let Some((old_document, old_template, old_dependencies)) = previous {
             self.image_textures.clear();
-            if self.document.engine.template() != &old_template
+            if self.document.engine.template() != old_template
                 || self.document.engine.dependencies() != &old_dependencies
             {
                 self.refresh_model_presentation();

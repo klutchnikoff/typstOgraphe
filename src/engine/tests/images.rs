@@ -40,8 +40,8 @@ fn image_json_lifecycle_preserves_annotations_identities_resources_and_history()
         .unwrap();
     let identity = (block["id"].clone(), block["zones"][0]["id"].clone());
     assert_eq!(block["image"]["alt"], "Des arbres");
-    assert!(e.document.view.text.contains("Été *日本*"));
-    assert_eq!(e.undo.len(), 1);
+    assert!(e.session.document.view.text.contains("Été *日本*"));
+    assert_eq!(e.session.undo.len(), 1);
     let t = target(&e);
     call(
         &mut e,
@@ -68,23 +68,23 @@ fn image_json_lifecycle_preserves_annotations_identities_resources_and_history()
         identity
     );
     assert_eq!(block["image"]["alt"], "Une allée");
-    assert_eq!(e.document.assets.len(), 2);
-    let before_remove = e.document.clone();
+    assert_eq!(e.session.document.assets.len(), 2);
+    let before_remove = e.session.document.clone();
     let selection = e.selection();
     let t = target(&e);
     call(&mut e, "image.remove", json!({"target":t})).unwrap();
-    assert!(e.document.view.images.is_empty());
-    assert!(!e.document.view.text.contains("Été"));
+    assert!(e.session.document.view.images.is_empty());
+    assert!(!e.session.document.view.text.contains("Été"));
     assert_eq!(
-        e.document.assets.len(),
+        e.session.document.assets.len(),
         2,
         "l’historique conserve les données"
     );
     call(&mut e, "edit.undo", json!({})).unwrap();
-    assert_eq!(e.document, before_remove);
+    assert_eq!(e.session.document, before_remove);
     assert_eq!(e.selection(), selection);
     call(&mut e, "edit.redo", json!({})).unwrap();
-    assert!(e.document.view.images.is_empty());
+    assert!(e.session.document.view.images.is_empty());
 }
 
 #[test]
@@ -114,11 +114,13 @@ fn image_import_accepts_png_jpeg_and_svg_and_remains_autonomous_after_original_r
         )
         .unwrap();
         std::fs::remove_file(&file).unwrap();
-        let image = e.document.view.images.values().next().unwrap();
-        assert_eq!(e.document.assets[&image.path].as_ref(), bytes);
+        let image = e.session.document.view.images.values().next().unwrap();
+        assert_eq!(e.session.document.assets[&image.path].as_ref(), bytes);
         assert_eq!(
-            Document::from_source(e.document.source()).unwrap().view,
-            e.document.view
+            Document::from_source(e.session.document.source())
+                .unwrap()
+                .view,
+            e.session.document.view
         );
         assert_eq!(e.selection().range(), 1..1);
     }
@@ -127,7 +129,7 @@ fn image_import_accepts_png_jpeg_and_svg_and_remains_autonomous_after_original_r
 #[test]
 fn image_targets_and_invalid_inputs_are_rejected_before_any_state_is_published() {
     let mut e = engine("#figure(image(\"images/parc.svg\"),caption:[Été])\n\nSuite.");
-    e.document.assets.insert(
+    e.session.document.assets.insert(
         "images/parc.svg".into(),
         include_bytes!("../../../tests/fixtures/parc.svg")
             .as_slice()
@@ -197,13 +199,23 @@ fn image_targets_and_invalid_inputs_are_rejected_before_any_state_is_published()
     ] {
         let before = e.stored_document();
         let selection = e.selection();
-        let state = (e.revision, e.undo.len(), e.redo.len(), e.changed_at);
+        let state = (
+            e.session.revision,
+            e.session.undo.len(),
+            e.session.redo.len(),
+            e.session.changed_at,
+        );
         let error = call(&mut e, id, params).unwrap_err();
         assert_eq!((error.reason(), error.code), (reason, code));
         assert!(e.stored_document() == before);
         assert_eq!(e.selection(), selection);
         assert_eq!(
-            (e.revision, e.undo.len(), e.redo.len(), e.changed_at),
+            (
+                e.session.revision,
+                e.session.undo.len(),
+                e.session.redo.len(),
+                e.session.changed_at
+            ),
             state
         );
     }
@@ -217,7 +229,10 @@ fn image_targets_and_invalid_inputs_are_rejected_before_any_state_is_published()
             .id(),
             "insert.image"
         );
-        let selection = explicit(&e, e.document.view.len()..e.document.view.len());
+        let selection = explicit(
+            &e,
+            e.session.document.view.len()..e.session.document.view.len(),
+        );
         let before = e.stored_document();
         assert_eq!(
             call(
@@ -249,7 +264,12 @@ fn resource_budget_failure_does_not_publish_assets_metadata_selection_or_history
         };
         let before = e.stored_document();
         let selection = e.selection();
-        let state = (e.revision, e.undo.len(), e.redo.len(), e.changed_at);
+        let state = (
+            e.session.revision,
+            e.session.undo.len(),
+            e.session.redo.len(),
+            e.session.changed_at,
+        );
         assert_eq!(
             call(&mut e, id, params).unwrap_err().reason(),
             "document_too_large"
@@ -257,7 +277,12 @@ fn resource_budget_failure_does_not_publish_assets_metadata_selection_or_history
         assert!(e.stored_document() == before);
         assert_eq!(e.selection(), selection);
         assert_eq!(
-            (e.revision, e.undo.len(), e.redo.len(), e.changed_at),
+            (
+                e.session.revision,
+                e.session.undo.len(),
+                e.session.redo.len(),
+                e.session.changed_at
+            ),
             state
         );
     }
@@ -283,8 +308,8 @@ fn signature_is_type_scoped_guarded_idempotent_and_fully_undoable() {
     )
     .unwrap();
     assert!(!outcome.changed && outcome.effects.is_empty());
-    assert_eq!(e.document.assets.len(), 1);
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.document.assets.len(), 1);
+    assert_eq!(e.session.undo.len(), 1);
     assert_eq!(
         call(
             &mut e,
@@ -301,9 +326,9 @@ fn signature_is_type_scoped_guarded_idempotent_and_fully_undoable() {
         json!({"guard":guard,"image":null}),
     )
     .unwrap();
-    assert!(e.metadata.signature_path().is_none());
+    assert!(e.session.metadata.signature_path().is_none());
     assert_eq!(
-        e.template, original.template,
+        e.session.template, original.template,
         "la réserve manuscrite appartient au modèle"
     );
     call(&mut e, "edit.undo", json!({})).unwrap();

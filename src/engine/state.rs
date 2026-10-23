@@ -10,7 +10,7 @@ impl Engine {
     pub fn metadata(&self) -> &Metadata {
         &self.session.metadata
     }
-    pub fn template(&self) -> &String {
+    pub fn template(&self) -> &str {
         &self.session.template
     }
     pub fn dependencies(&self) -> &crate::packages::Dependencies {

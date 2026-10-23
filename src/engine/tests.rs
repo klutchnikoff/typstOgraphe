@@ -225,17 +225,18 @@ fn json_commands_keep_literal_unicode_styles_selections_and_one_step_history() {
     let mut e = engine("Avant après");
     let target = explicit(&e, 0..5);
     call(&mut e, "text.select", json!({"target":target})).unwrap();
-    assert!(e.undo.is_empty());
+    assert!(e.session.undo.is_empty());
     call(&mut e, "text.bold", json!({"value":"on"})).unwrap();
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.undo.len(), 1);
     let unchanged = call(&mut e, "text.bold", json!({"value":"on"})).unwrap();
     assert!(!unchanged.changed && unchanged.effects.is_empty());
     let outcome = call(&mut e, "text.insert", json!({"text":"にほん _été_"})).unwrap();
     assert!(outcome.changed);
     assert_eq!(outcome.effects, [Effect::Render]);
-    assert_eq!(e.document.view.text, "にほん _été_ après");
+    assert_eq!(e.session.document.view.text, "にほん _été_ après");
     assert!(
-        e.document
+        e.session
+            .document
             .view
             .styles
             .iter()
@@ -244,10 +245,10 @@ fn json_commands_keep_literal_unicode_styles_selections_and_one_step_history() {
     );
     assert!(e.selection().range().is_empty());
     call(&mut e, "edit.undo", json!({})).unwrap();
-    assert_eq!(e.document.view.text, "Avant après");
+    assert_eq!(e.session.document.view.text, "Avant après");
     assert_eq!(e.selection().range(), 0..5);
     call(&mut e, "edit.redo", json!({})).unwrap();
-    assert_eq!(e.document.view.text, "にほん _été_ après");
+    assert_eq!(e.session.document.view.text, "にほん _été_ après");
 }
 
 #[test]
@@ -255,11 +256,11 @@ fn typing_context_changes_do_not_dirty_the_document_or_advance_history() {
     let mut e = engine("");
     let outcome = call(&mut e, "text.bold", json!({})).unwrap();
     assert!(!outcome.changed);
-    assert_eq!(e.revision, 0);
-    assert!(e.undo.is_empty() && !e.is_dirty());
+    assert_eq!(e.session.revision, 0);
+    assert!(e.session.undo.is_empty() && !e.is_dirty());
     call(&mut e, "text.insert", json!({"text":"Été"})).unwrap();
     assert_eq!(
-        e.document.view.styles,
+        e.session.document.view.styles,
         vec![
             InlineStyle {
                 bold: true,
@@ -268,7 +269,7 @@ fn typing_context_changes_do_not_dirty_the_document_or_advance_history() {
             3
         ]
     );
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.undo.len(), 1);
 }
 
 #[test]
@@ -276,12 +277,26 @@ fn on_and_off_are_idempotent_even_on_mixed_styles() {
     let mut e = engine("Un *été*");
     call(&mut e, "text.select", json!({"target":{"kind":"all"}})).unwrap();
     call(&mut e, "text.bold", json!({"value":"off"})).unwrap();
-    assert!(e.document.view.styles.iter().all(|style| !style.bold));
-    let revision = e.revision;
+    assert!(
+        e.session
+            .document
+            .view
+            .styles
+            .iter()
+            .all(|style| !style.bold)
+    );
+    let revision = e.session.revision;
     call(&mut e, "text.bold", json!({"value":"off"})).unwrap();
-    assert_eq!(e.revision, revision);
+    assert_eq!(e.session.revision, revision);
     call(&mut e, "text.italic", json!({"value":"on"})).unwrap();
-    assert!(e.document.view.styles.iter().all(|style| style.italic));
+    assert!(
+        e.session
+            .document
+            .view
+            .styles
+            .iter()
+            .all(|style| style.italic)
+    );
 }
 
 #[test]
@@ -291,12 +306,12 @@ fn stale_and_foreign_targets_never_reanchor_after_edits_or_undo() {
     call(&mut e, "text.insert", json!({"text":"Un "})).unwrap();
     let state = e.stored_document();
     let selection = e.selection();
-    let revision = e.revision;
+    let revision = e.session.revision;
     let error = call(&mut e, "text.bold", json!({"target":target})).unwrap_err();
     assert_eq!(error.reason(), "stale_revision");
     assert!(e.stored_document() == state);
     assert_eq!(e.selection(), selection);
-    assert_eq!(e.revision, revision);
+    assert_eq!(e.session.revision, revision);
     call(&mut e, "edit.undo", json!({})).unwrap();
     assert_eq!(
         call(&mut e, "text.delete", json!({"target":target}))
@@ -318,7 +333,7 @@ fn protected_boundaries_invalid_urls_and_out_of_bounds_positions_leave_everythin
     let mut e = engine("/ Mot: Définition");
     let target = explicit(&e, 2..6);
     let before = e.stored_document();
-    let when = e.changed_at;
+    let when = e.session.changed_at;
     assert_eq!(
         call(&mut e, "text.insert", json!({"target":target,"text":"X"}))
             .unwrap_err()
@@ -345,9 +360,9 @@ fn protected_boundaries_invalid_urls_and_out_of_bounds_positions_leave_everythin
         "invalid_selection"
     );
     assert!(e.stored_document() == before);
-    assert_eq!(e.revision, 0);
-    assert_eq!(e.changed_at, when);
-    assert!(e.undo.is_empty() && e.redo.is_empty());
+    assert_eq!(e.session.revision, 0);
+    assert_eq!(e.session.changed_at, when);
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty());
 }
 
 #[test]
@@ -375,28 +390,28 @@ fn queries_return_revision_guarded_data_without_mutating_text_selection_or_histo
     }
     assert!(e.stored_document() == before);
     assert_eq!(e.selection(), selection);
-    assert_eq!(e.revision, 0);
-    assert!(e.undo.is_empty() && e.redo.is_empty());
+    assert_eq!(e.session.revision, 0);
+    assert!(e.session.undo.is_empty() && e.session.redo.is_empty());
     assert!(matches!(
         e.available(&Command::Undo(Empty {})),
         Availability::Disabled { .. }
     ));
     // Une requête ne doit pas casser le regroupement d'une frappe native.
-    e.typing_group = true;
+    e.session.typing_group = true;
     e.query(Query::Inspect(Empty {})).unwrap();
-    assert!(e.typing_group);
+    assert!(e.session.typing_group);
 }
 
 #[test]
 fn letter_commands_enforce_document_type_and_postscript_reuse_does_not_add_history() {
     let mut e = engine("Bonjour");
     call(&mut e, "letter.insert_postscript", json!({})).unwrap();
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.undo.len(), 1);
     let target = e.selection();
     call(&mut e, "letter.insert_postscript", json!({})).unwrap();
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.undo.len(), 1);
     assert_eq!(e.selection(), target);
-    e.metadata = Metadata::blank(DocumentType::CompteRendu);
+    e.session.metadata = Metadata::blank(DocumentType::CompteRendu);
     assert_eq!(
         call(&mut e, "letter.insert_attachment", json!({}))
             .unwrap_err()

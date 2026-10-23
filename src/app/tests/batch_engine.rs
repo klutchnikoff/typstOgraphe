@@ -27,7 +27,7 @@ fn batch_adapter_matches_json_execution_and_restores_the_whole_transaction_with_
         stored.clone(),
         Document::from_source(&stored.source).unwrap(),
         None,
-        app.document.engine.revision,
+        app.document.engine.revision(),
     )
     .into();
     core.set_adapter_selection(selection.into()).unwrap();
@@ -55,7 +55,7 @@ fn batch_adapter_matches_json_execution_and_restores_the_whole_transaction_with_
     assert!(app.stored_document() == core.stored_document());
     assert_eq!(app_outcome.changed, core_outcome.changed);
     assert_eq!(app_outcome.value, core_outcome.value);
-    assert_eq!(app.document.engine.undo.len(), 1);
+    assert_eq!(app.document.engine.undo().len(), 1);
     let core_selection: CCursorRange = core.selection().into();
     assert_eq!(app.document.selection, core_selection);
     let final_state = app.stored_document();
@@ -71,7 +71,9 @@ fn saved_batch_clears_recovery_only_on_success_and_keeps_preview_synchronization
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("recovery");
     app.start_recovery(root.clone(), ctx);
-    app.document.engine.recovered = true;
+    fixture(&mut app.document.engine, |session| {
+        session.recovered = true;
+    });
     app.recovery.worker.as_mut().unwrap().make_due();
     app.checkpoint_recovery();
     app.recovery.worker.as_mut().unwrap().wait();
@@ -87,7 +89,7 @@ fn saved_batch_clears_recovery_only_on_success_and_keeps_preview_synchronization
     assert!(app.execute_document_command(Core::Batch(p)).is_err());
     assert!(app.stored_document() == before);
     assert_eq!(app.document.engine.target_guard(), guard);
-    assert!(app.document.engine.recovered);
+    assert!(app.document.engine.is_recovered());
     assert!(
         std::fs::read_dir(&root)
             .unwrap()
@@ -105,11 +107,11 @@ fn saved_batch_clears_recovery_only_on_success_and_keeps_preview_synchronization
     let outcome = app.execute_document_command(Core::Batch(p)).unwrap();
     app.recovery.worker.as_mut().unwrap().wait();
     assert!(outcome.effects.contains(&engine::Effect::Saved));
-    assert!(!app.document.engine.recovered && !app.is_dirty());
+    assert!(!app.document.engine.is_recovered() && !app.is_dirty());
     assert!(app.preview.forward_pending && app.document.force_selection);
     assert_eq!(app.preferences, prefs);
     assert!(storage::read(&output).unwrap() == app.stored_document());
-    assert_eq!(app.document.engine.undo.len(), 1);
+    assert_eq!(app.document.engine.undo().len(), 1);
     drop(app);
     assert_eq!(std::fs::read_dir(root).unwrap().count(), 0);
 }
@@ -148,7 +150,7 @@ fn model_batch_refreshes_editor_policy_immediately_and_metadata_only_batches_kee
     assert!(!app.document.force_selection);
     assert_eq!(app.document.selection, selected);
     assert_eq!(
-        app.document.engine.metadata.courrier().objet,
+        app.document.engine.metadata().courrier().objet,
         "Objet modifié"
     );
 }
@@ -171,7 +173,7 @@ fn batch_errors_are_localized_and_do_not_change_editor_content_selection_or_focu
     assert_eq!(app.document.selection, selection);
     assert_eq!(app.document.engine.target_guard(), guard);
     assert!(!app.document.force_selection);
-    assert!(app.document.engine.undo.is_empty());
+    assert!(app.document.engine.undo().is_empty());
     assert!(
         app.dialogs
             .message

@@ -7,7 +7,7 @@ impl App {
             source: self.document.engine.document().source().to_owned(),
             source_map: self.document.engine.document().source_map.clone(),
             metadata: self.document.engine.metadata().clone(),
-            template: self.document.engine.template().clone(),
+            template: self.document.engine.template().to_owned(),
             assets: self.document.engine.document().assets.clone(),
             dependencies: self.document.engine.dependencies().clone(),
             export_dir,

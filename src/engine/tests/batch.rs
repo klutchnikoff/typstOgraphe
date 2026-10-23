@@ -38,7 +38,7 @@ fn typed_and_json_steps_publish_one_revision_and_one_complete_undo() {
     let before = e.stored_document();
     let selection = e.selection();
     let guard = e.target_guard();
-    let old_undo = e.undo.len();
+    let old_undo = e.session.undo.len();
     let mut next = guard;
     next.revision += 1;
     let out = batch(
@@ -59,11 +59,11 @@ fn typed_and_json_steps_publish_one_revision_and_one_complete_undo() {
     assert!(out.changed);
     assert_eq!(out.guard.revision, guard.revision + 1);
     assert_eq!(out.guard.document_id, guard.document_id);
-    assert_eq!(e.undo.len(), old_undo + 1);
-    assert!(e.redo.is_empty());
-    assert_eq!(e.metadata.courrier().objet, "Réunion");
-    assert!(e.document.view.styles.iter().all(|s| s.bold));
-    assert!(e.document.view.text.contains("Été, Noël et 💡."));
+    assert_eq!(e.session.undo.len(), old_undo + 1);
+    assert!(e.session.redo.is_empty());
+    assert_eq!(e.session.metadata.courrier().objet, "Réunion");
+    assert!(e.session.document.view.styles.iter().all(|s| s.bold));
+    assert!(e.session.document.view.text.contains("Été, Noël et 💡."));
     assert_eq!(out.value.as_ref().unwrap()["steps"], 4);
     assert!(out.value.as_ref().unwrap()["saved"].is_null());
     assert!(out.effects.contains(&Effect::Render));
@@ -93,10 +93,10 @@ fn a_late_failure_keeps_body_resources_selection_history_saved_state_and_disk_un
     let stored = e.stored_document();
     let selection = e.selection();
     let guard = e.target_guard();
-    let saved = e.saved.clone();
-    let changed_at = e.changed_at;
+    let saved = e.session.saved.clone();
+    let changed_at = e.session.changed_at;
     let disk = std::fs::read(&path).unwrap();
-    let (undo, redo) = (e.undo.len(), e.redo.len());
+    let (undo, redo) = (e.session.undo.len(), e.session.redo.len());
     let mut p = params(
         &e,
         vec![
@@ -122,9 +122,9 @@ fn a_late_failure_keeps_body_resources_selection_history_saved_state_and_disk_un
     assert!(e.stored_document() == stored);
     assert_eq!(e.selection(), selection);
     assert_eq!(e.target_guard(), guard);
-    assert!(e.saved == saved);
-    assert_eq!(e.changed_at, changed_at);
-    assert_eq!((e.undo.len(), e.redo.len()), (undo, redo));
+    assert!(e.session.saved == saved);
+    assert_eq!(e.session.changed_at, changed_at);
+    assert_eq!((e.session.undo.len(), e.session.redo.len()), (undo, redo));
     assert_eq!(std::fs::read(path).unwrap(), disk);
 }
 #[test]
@@ -270,8 +270,8 @@ fn explicit_targets_are_not_reanchored_after_a_step_changes_the_document() {
             step("text.italic", json!({"target":{"kind":"all"},"value":"on"})),
         ],
     );
-    assert!(e.document.view.styles.iter().all(|s| s.italic));
-    assert_eq!(e.undo.len(), 1);
+    assert!(e.session.document.view.styles.iter().all(|s| s.italic));
+    assert_eq!(e.session.undo.len(), 1);
 }
 #[test]
 fn net_noop_selection_and_typing_style_batches_preserve_redo_and_do_not_mark_dirty() {
@@ -296,8 +296,8 @@ fn net_noop_selection_and_typing_style_batches_preserve_redo_and_do_not_mark_dir
     assert!(!e.is_dirty());
     assert!(e.stored_document() == before);
     assert_eq!(e.selection().range(), 0..5);
-    assert_eq!(e.redo.len(), 1);
-    assert!(e.undo.is_empty());
+    assert_eq!(e.session.redo.len(), 1);
+    assert!(e.session.undo.is_empty());
     assert!(out.effects.is_empty());
     batch(
         &mut e,
@@ -307,11 +307,11 @@ fn net_noop_selection_and_typing_style_batches_preserve_redo_and_do_not_mark_dir
         ],
     );
     e.run(Command::Redo(Empty {})).unwrap();
-    assert!(e.document.view.text.starts_with("À annuler"));
+    assert!(e.session.document.view.text.starts_with("À annuler"));
     let mut empty = engine("");
     let out = batch(&mut empty, vec![step("text.bold", json!({"value":"on"}))]);
-    assert!(!out.changed && empty.document.view.typing_style.bold);
-    assert!(empty.undo.is_empty());
+    assert!(!out.changed && empty.session.document.view.typing_style.bold);
+    assert!(empty.session.undo.is_empty());
 }
 #[test]
 fn a_single_final_atomic_save_updates_the_clean_marker_and_undo_redo_remains_one_step() {
@@ -335,8 +335,8 @@ fn a_single_final_atomic_save_updates_the_clean_marker_and_undo_redo_remains_one
     p.save = Some(BatchSave::Current {});
     let out = e.run(Command::Batch(p)).unwrap();
     assert!(out.changed && out.effects.contains(&Effect::Saved));
-    assert_eq!(e.revision, guard.revision + 1);
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.revision, guard.revision + 1);
+    assert_eq!(e.session.undo.len(), 1);
     assert!(!e.is_dirty());
     assert_eq!(out.value.as_ref().unwrap()["saved"], path.to_str().unwrap());
     let final_state = e.stored_document();
@@ -382,8 +382,8 @@ fn final_save_failures_do_not_publish_even_selection_and_leave_existing_files_in
         assert!(e.stored_document() == before);
         assert_eq!(e.target_guard(), guard);
         assert_eq!(e.selection(), selection);
-        assert!(e.undo.is_empty());
-        assert!(e.file_path.is_none());
+        assert!(e.session.undo.is_empty());
+        assert!(e.session.file_path.is_none());
         assert_eq!(std::fs::read(&existing).unwrap(), disk);
     }
 }
@@ -403,7 +403,7 @@ fn imports_metadata_signature_and_model_form_one_autonomous_undoable_candidate()
     second.revision += 1;
     let mut third = guard;
     third.revision += 2;
-    let template = e.template.clone() + "\n// Batch model\n";
+    let template = e.session.template.clone() + "\n// Batch model\n";
     let mut p = params(
         &e,
         vec![
@@ -428,8 +428,8 @@ fn imports_metadata_signature_and_model_form_one_autonomous_undoable_candidate()
     });
     let out = e.run_call(Command::Batch(p).to_call()).unwrap();
     assert!(out.value.as_ref().unwrap()["presentation"].is_object());
-    assert_eq!(e.revision, guard.revision + 1);
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.revision, guard.revision + 1);
+    assert_eq!(e.session.undo.len(), 1);
     let final_state = e.stored_document();
     assert_eq!(final_state.assets.len(), 2);
     std::fs::remove_file(external).unwrap();
@@ -484,7 +484,7 @@ fn batch_copies_personal_spelling_configuration_without_modifying_it_or_global_s
         )],
     );
     e.run(Command::Batch(p)).unwrap();
-    assert_eq!(e.metadata.courrier().objet, "Courrier relu");
+    assert_eq!(e.session.metadata.courrier().objet, "Courrier relu");
     assert!(
         e.query(Query::SpellingIssues(Empty {})).unwrap()["issues"]
             .as_array()
@@ -520,13 +520,13 @@ fn a_noop_batch_can_save_once_without_destroying_redo_or_adding_history() {
     assert!(!out.changed);
     assert_eq!(out.guard, guard);
     assert_eq!(out.effects, vec![Effect::Saved]);
-    assert!(e.undo.is_empty());
-    assert_eq!(e.redo.len(), 1);
+    assert!(e.session.undo.is_empty());
+    assert_eq!(e.session.redo.len(), 1);
     assert!(!e.is_dirty());
     assert!(crate::storage::read(&path).unwrap() == e.stored_document());
     e.run(Command::Redo(Empty {})).unwrap();
     assert!(e.is_dirty());
-    assert!(e.document.view.text.starts_with("À annuler"));
+    assert!(e.session.document.view.text.starts_with("À annuler"));
     let mut boundary = engine("Avant");
     let guard = boundary.target_guard();
     let out = batch(
@@ -535,7 +535,7 @@ fn a_noop_batch_can_save_once_without_destroying_redo_or_adding_history() {
     );
     assert!(!out.changed);
     assert_eq!(out.guard, guard);
-    assert!(boundary.undo.is_empty());
+    assert!(boundary.session.undo.is_empty());
 }
 
 #[test]
@@ -545,20 +545,23 @@ fn resource_limits_count_new_imports_even_when_the_document_already_has_a_large_
     // Partager les octets limite la mémoire du test ; le budget reste celui des ressources.
     for index in 0..5 {
         original
+            .session
             .document
             .assets
             .insert(format!("images/old-{index}.svg"), bytes.clone());
     }
-    let mut draft: Engine = original.fork_for_batch().into();
+    let mut draft: Engine = original.session.fork_for_batch().into();
     original.check_batch_resources(&draft).unwrap();
     for index in 0..4 {
         draft
+            .session
             .document
             .assets
             .insert(format!("images/new-{index}.svg"), bytes.clone());
     }
     original.check_batch_resources(&draft).unwrap();
     draft
+        .session
         .document
         .assets
         .insert("images/one-too-many.svg".into(), bytes);

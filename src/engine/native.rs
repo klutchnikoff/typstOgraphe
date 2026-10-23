@@ -22,18 +22,21 @@ pub(crate) enum NativeInput {
     Composition,
 }
 impl Engine {
-    pub(crate) fn begin_native_edit(&self, selection: Selection) -> NativeEdit {
+    pub(crate) fn begin_native_edit(&self, selection: Selection) -> super::NativeEdit {
         NativeEdit {
             before: self.session.snapshot(selection),
         }
     }
     pub(crate) fn commit_native_edit(
         &mut self,
-        edit: NativeEdit,
+        edit: super::NativeEdit,
         view: Projection,
         selection: Selection,
-        input: NativeInput,
+        input: super::NativeInput,
     ) -> Result<Selection, EditError> {
+        if !self.open {
+            return Err(EditError::StaleDraft);
+        }
         self.commit_projection(
             edit.guard(),
             edit.before,

@@ -3,16 +3,19 @@ use super::*;
 #[test]
 fn discarded_images_in_memory_do_not_exhaust_the_document_size_limit() {
     let mut app = App::with_demo_context(egui::Context::default(), None);
-    app.document.engine.document = Document::from_source("").unwrap();
+    fixture(&mut app.document.engine, |session| {
+        session.document = Document::from_source("").unwrap();
+    });
     // Simuler plus de 64 Mio d’anciennes ressources partagées en mémoire.
     // Elles ne sont plus référencées par le document ni par son modèle.
     let unused: std::sync::Arc<[u8]> = vec![0; 1024 * 1024].into();
     for index in 0..65 {
-        app.document
-            .engine
-            .document
-            .assets
-            .insert(format!("images/old-{index}.png"), unused.clone());
+        fixture(&mut app.document.engine, |session| {
+            session
+                .document
+                .assets
+                .insert(format!("images/old-{index}.png"), unused.clone());
+        });
     }
     let dir = tempfile::tempdir().unwrap();
     let image = dir.path().join("parc.svg");
@@ -28,7 +31,9 @@ fn discarded_images_in_memory_do_not_exhaust_the_document_size_limit() {
 fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
     let ctx = egui::Context::default();
     let mut app = App::with_demo_context(ctx, None);
-    app.document.engine.document = Document::from_source("").unwrap();
+    fixture(&mut app.document.engine, |session| {
+        session.document = Document::from_source("").unwrap();
+    });
     let dir = tempfile::tempdir().unwrap();
     let original = dir.path().join("original.svg");
     std::fs::write(
@@ -37,11 +42,11 @@ fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
     )
     .unwrap();
     app.import_image(&original, None).unwrap();
-    let first = app.document.engine.document.view.images[&1].path.clone();
+    let first = app.document.engine.document().view.images[&1].path.clone();
     let path = dir.path().join("Courrier.typsto");
     assert!(app.save_path(path.clone()));
     app.import_image(&original, Some(1)).unwrap();
-    let replacement = app.document.engine.document.view.images[&1].path.clone();
+    let replacement = app.document.engine.document().view.images[&1].path.clone();
     std::fs::remove_file(&original).unwrap();
     assert!(app.save_path(path.clone()));
     assert!(!app.is_dirty());
@@ -54,9 +59,9 @@ fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
             .collect::<Vec<_>>(),
         vec![replacement.clone()]
     );
-    assert!(app.document.engine.document.assets.contains_key(&first));
+    assert!(app.document.engine.document().assets.contains_key(&first));
     app.apply(Command::Undo);
-    assert_eq!(app.document.engine.document.view.images[&1].path, first);
+    assert_eq!(app.document.engine.document().view.images[&1].path, first);
     assert!(app.is_dirty());
     assert!(app.save_path(path.clone()));
     assert!(!app.is_dirty());
@@ -71,7 +76,7 @@ fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
     );
     app.apply(Command::Redo);
     assert_eq!(
-        app.document.engine.document.view.images[&1].path,
+        app.document.engine.document().view.images[&1].path,
         replacement
     );
     app.remove_image(1);
@@ -87,21 +92,21 @@ fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
     assert!(!export.join("images").exists());
     app.apply(Command::Undo);
     assert_eq!(
-        app.document.engine.document.view.images[&1].path,
+        app.document.engine.document().view.images[&1].path,
         replacement
     );
     assert!(app.is_dirty());
     assert!(
         app.document
             .engine
-            .document
+            .document()
             .assets
             .contains_key(&replacement)
     );
     assert!(app.save_path(path.clone()));
     assert_eq!(storage::read(&path).unwrap().assets.len(), 1);
     app.apply(Command::Redo);
-    assert!(app.document.engine.document.view.images.is_empty());
+    assert!(app.document.engine.document().view.images.is_empty());
     assert!(app.save_path(path.clone()));
     assert!(storage::read(&path).unwrap().assets.is_empty());
     assert!(!app.is_dirty());
@@ -111,21 +116,25 @@ fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
 fn image_remove_button_deletes_the_selected_block_and_caption_with_undo() {
     for caption in ["", ", caption: [Le parc.]"] {
         let (ctx, mut app) = demo_app();
-        app.document.engine.document = Document::from_source(&format!(
-            "Avant.\n\n#figure(image(\"images/parc.svg\"){caption})\n\nAprès."
-        ))
-        .unwrap();
-        app.document.engine.document.assets.insert(
-            "images/parc.svg".into(),
-            include_bytes!("../../../tests/fixtures/parc.svg")
-                .as_slice()
-                .into(),
-        );
-        let original = app.document.engine.document.clone();
+        fixture(&mut app.document.engine, |session| {
+            session.document = Document::from_source(&format!(
+                "Avant.\n\n#figure(image(\"images/parc.svg\"){caption})\n\nAprès."
+            ))
+            .unwrap();
+        });
+        fixture(&mut app.document.engine, |session| {
+            session.document.assets.insert(
+                "images/parc.svg".into(),
+                include_bytes!("../../../tests/fixtures/parc.svg")
+                    .as_slice()
+                    .into(),
+            );
+        });
+        let original = app.document.engine.document().clone();
         let at = app
             .document
             .engine
-            .document
+            .document()
             .view
             .image_range(1)
             .unwrap()
@@ -176,21 +185,30 @@ fn image_remove_button_deletes_the_selected_block_and_caption_with_undo() {
             }
         }
         assert!(
-            app.document.engine.document.view.images.is_empty(),
+            app.document.engine.document().view.images.is_empty(),
             "le clic doit supprimer l’image entière"
         );
-        assert!(!app.document.engine.document.view.text.contains("Le parc."));
-        assert!(app.document.engine.document.view.text.contains("Avant."));
-        assert!(app.document.engine.document.view.text.contains("Après."));
+        assert!(
+            !app.document
+                .engine
+                .document()
+                .view
+                .text
+                .contains("Le parc.")
+        );
+        assert!(app.document.engine.document().view.text.contains("Avant."));
+        assert!(app.document.engine.document().view.text.contains("Après."));
         app.apply(Command::Undo);
-        assert_eq!(app.document.engine.document, original);
+        assert_eq!(app.document.engine.document(), &original);
     }
 }
 
 #[test]
 fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
     let (ctx, mut app) = demo_app();
-    app.document.engine.document = Document::from_source("Avant.\n\nAprès.").unwrap();
+    fixture(&mut app.document.engine, |session| {
+        session.document = Document::from_source("Avant.\n\nAprès.").unwrap();
+    });
     app.document.selection = editor::cursor(6..6);
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("parc.svg");
@@ -251,7 +269,7 @@ fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
     assert!(
         app.document
             .engine
-            .document
+            .document()
             .source()
             .contains("Des arbres et un chemin")
     );
@@ -259,18 +277,18 @@ fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
     assert!(
         app.document
             .engine
-            .document
+            .document()
             .source()
             .contains("caption: [Le parc.]"),
         "{} / {:?}",
-        app.document.engine.document.source(),
+        app.document.engine.document().source(),
         app.range()
     );
-    let before = app.document.engine.document.source().to_owned();
+    let before = app.document.engine.document().source().to_owned();
     let at = app
         .document
         .engine
-        .document
+        .document()
         .view
         .image_range(1)
         .unwrap()
@@ -289,16 +307,25 @@ fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
     frame(&mut app, &ctx, vec![backspace()]);
     assert_eq!(app.range(), at - 1..at);
     frame(&mut app, &ctx, vec![backspace()]);
-    assert!(app.document.engine.document.view.images.is_empty());
-    assert!(!app.document.engine.document.view.text.contains("Le parc."));
+    assert!(app.document.engine.document().view.images.is_empty());
+    assert!(
+        !app.document
+            .engine
+            .document()
+            .view
+            .text
+            .contains("Le parc.")
+    );
     app.apply(Command::Undo);
-    assert_eq!(app.document.engine.document.source(), before);
+    assert_eq!(app.document.engine.document().source(), before);
 }
 
 #[test]
 fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
     let (ctx, mut app) = demo_app();
-    app.document.engine.document = Document::from_source("Avant.\n\nAprès.").unwrap();
+    fixture(&mut app.document.engine, |session| {
+        session.document = Document::from_source("Avant.\n\nAprès.").unwrap();
+    });
     app.document.selection = editor::cursor(6..6);
     let dir = tempfile::tempdir().unwrap();
     let original = dir.path().join("Parc.svg");
@@ -308,11 +335,11 @@ fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
     )
     .unwrap();
     app.import_image(&original, None).unwrap();
-    assert_eq!(app.document.engine.document.view.images.len(), 1);
+    assert_eq!(app.document.engine.document().view.images.len(), 1);
     let id = *app
         .document
         .engine
-        .document
+        .document()
         .view
         .images
         .keys()
@@ -321,7 +348,7 @@ fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
     let object = app
         .document
         .engine
-        .document
+        .document()
         .view
         .image_range(id)
         .unwrap()
@@ -336,11 +363,11 @@ fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
     assert!(
         app.document
             .engine
-            .document
+            .document()
             .source()
             .contains("caption: [Le parc municipal.]"),
         "{}",
-        app.document.engine.document.source()
+        app.document.engine.document().source()
     );
     let key = |key| egui::Event::Key {
         key,
@@ -352,62 +379,62 @@ fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
     frame(&mut app, &ctx, vec![key(egui::Key::Tab)]);
     assert_eq!(app.range(), object + 1..object + 1);
     let before_alt = app.snapshot();
-    app.document
-        .engine
-        .document
-        .view
-        .images
-        .get_mut(&id)
-        .unwrap()
-        .alt = "Trois arbres autour d’un chemin".into();
+    fixture(&mut app.document.engine, |session| {
+        session.document.view.images.get_mut(&id).unwrap().alt =
+            "Trois arbres autour d’un chemin".into();
+    });
     app.remember(before_alt, false);
     app.import_image(&original, Some(id)).unwrap();
     assert_eq!(
-        app.document.engine.document.view.images[&id].alt,
+        app.document.engine.document().view.images[&id].alt,
         "Trois arbres autour d’un chemin"
     );
     assert!(
         app.document
             .engine
-            .document
+            .document()
             .source()
             .contains("Le parc municipal.")
     );
     app.apply(Command::Undo);
     assert_eq!(
-        app.document.engine.document.view.images[&id].path,
+        app.document.engine.document().view.images[&id].path,
         "images/image-1.svg"
     );
     app.apply(Command::Redo);
     assert_eq!(
-        app.document.engine.document.view.images[&id].path,
+        app.document.engine.document().view.images[&id].path,
         "images/image-2.svg"
     );
     let archive = dir.path().join("Courrier.typsto");
     assert!(app.save_path(archive.clone()));
     std::fs::remove_file(&original).unwrap();
-    let saved_source = app.document.engine.document.source().to_owned();
+    let saved_source = app.document.engine.document().source().to_owned();
     app.remove_image(id);
-    assert!(app.document.engine.document.view.images.is_empty());
+    assert!(app.document.engine.document().view.images.is_empty());
     app.apply(Command::Undo);
-    assert_eq!(app.document.engine.document.source(), saved_source);
+    assert_eq!(app.document.engine.document().source(), saved_source);
     assert!(app.open_path(archive));
     assert!(!app.is_dirty());
-    assert_eq!(app.document.engine.document.source(), saved_source);
-    assert_eq!(app.document.engine.document.assets.len(), 1);
+    assert_eq!(app.document.engine.document().source(), saved_source);
+    assert_eq!(app.document.engine.document().assets.len(), 1);
     app.document.selection = editor::cursor(object + 1..object + 1);
     app.document.force_selection = true;
     frame(&mut app, &ctx, vec![]);
     frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
     assert_eq!(
-        app.document.engine.document.view.blocks
-            [app.document.engine.document.view.line_at(app.range().start)],
+        app.document.engine.document().view.blocks[app
+            .document
+            .engine
+            .document()
+            .view
+            .line_at(app.range().start)],
         BlockKind::Paragraph
     );
     assert!(
         app.document
             .engine
-            .document
+            .document()
             .source()
             .contains("Le parc municipal.")
     );
@@ -419,7 +446,7 @@ fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
     assert!(
         app.document
             .engine
-            .document
+            .document()
             .source()
             .contains("Suite du courrier.")
     );

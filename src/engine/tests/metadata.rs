@@ -28,7 +28,7 @@ fn option(e: &mut Engine, option: DocumentOption) -> Result<Outcome, CommandErro
 fn field_catalogues_drive_typed_updates_for_every_type_without_touching_the_body_or_resources() {
     for kind in DocumentType::ALL {
         let mut e = engine("Un *été* à _Noël_.");
-        e.metadata = Metadata::blank(kind);
+        e.session.metadata = Metadata::blank(kind);
         let before = e.stored_document();
         let selection = e.selection();
         let read = e.query_call(Query::Metadata(Empty {}).to_call()).unwrap();
@@ -40,9 +40,9 @@ fn field_catalogues_drive_typed_updates_for_every_type_without_touching_the_body
                 6
             }
         );
-        assert_eq!(e.revision, 0);
-        assert!(e.undo.is_empty());
-        for field in e.metadata.field_values() {
+        assert_eq!(e.session.revision, 0);
+        assert!(e.session.undo.is_empty());
+        for field in e.session.metadata.field_values() {
             let value = if field.multiline {
                 "Zoé\nÉlodie"
             } else {
@@ -51,16 +51,16 @@ fn field_catalogues_drive_typed_updates_for_every_type_without_touching_the_body
             let result = set(&mut e, field.field, value, MetadataInput::Discrete).unwrap();
             assert!(result.changed);
             assert_eq!(result.effects, [Effect::Render]);
-            assert_eq!(*e.metadata.field_mut(field.field).unwrap(), value);
+            assert_eq!(*e.session.metadata.field_mut(field.field).unwrap(), value);
             assert_eq!(e.selection(), selection);
-            assert_eq!(e.metadata.document_type(), kind);
+            assert_eq!(e.session.metadata.document_type(), kind);
         }
-        assert_eq!(e.document.source(), before.source);
-        assert_eq!(e.document.assets, before.assets);
-        assert_eq!(e.dependencies, before.dependencies);
-        assert_eq!(e.template, before.template);
-        assert!(e.metadata.ready_for_export());
-        let len = e.undo.len();
+        assert_eq!(e.session.document.source(), before.source);
+        assert_eq!(e.session.document.assets, before.assets);
+        assert_eq!(e.session.dependencies, before.dependencies);
+        assert_eq!(e.session.template, before.template);
+        assert!(e.session.metadata.ready_for_export());
+        let len = e.session.undo.len();
         for _ in 0..len {
             call(&mut e, "edit.undo", json!({})).unwrap();
         }
@@ -80,7 +80,7 @@ fn field_typing_groups_by_identity_and_explicit_discrete_boundaries() {
         )
         .unwrap();
     }
-    assert_eq!(e.undo.len(), 1);
+    assert_eq!(e.session.undo.len(), 1);
     set(
         &mut e,
         MetadataField::LetterReference,
@@ -88,7 +88,7 @@ fn field_typing_groups_by_identity_and_explicit_discrete_boundaries() {
         MetadataInput::Typing,
     )
     .unwrap();
-    assert_eq!(e.undo.len(), 2);
+    assert_eq!(e.session.undo.len(), 2);
     set(
         &mut e,
         MetadataField::LetterSubject,
@@ -96,7 +96,7 @@ fn field_typing_groups_by_identity_and_explicit_discrete_boundaries() {
         MetadataInput::Discrete,
     )
     .unwrap();
-    assert_eq!(e.undo.len(), 3);
+    assert_eq!(e.session.undo.len(), 3);
     set(
         &mut e,
         MetadataField::LetterSubject,
@@ -104,7 +104,7 @@ fn field_typing_groups_by_identity_and_explicit_discrete_boundaries() {
         MetadataInput::Typing,
     )
     .unwrap();
-    assert_eq!(e.undo.len(), 4);
+    assert_eq!(e.session.undo.len(), 4);
     set(
         &mut e,
         MetadataField::LetterSubject,
@@ -112,8 +112,8 @@ fn field_typing_groups_by_identity_and_explicit_discrete_boundaries() {
         MetadataInput::Discrete,
     )
     .unwrap();
-    assert_eq!(e.undo.len(), 5);
-    let revision = e.revision;
+    assert_eq!(e.session.undo.len(), 5);
+    let revision = e.session.revision;
     assert!(
         !set(
             &mut e,
@@ -124,12 +124,12 @@ fn field_typing_groups_by_identity_and_explicit_discrete_boundaries() {
         .unwrap()
         .changed
     );
-    assert_eq!(e.revision, revision);
-    assert_eq!(e.undo.len(), 5);
+    assert_eq!(e.session.revision, revision);
+    assert_eq!(e.session.undo.len(), 5);
     call(&mut e, "edit.undo", json!({})).unwrap();
-    assert_eq!(e.metadata.courrier().objet, "ABCD");
+    assert_eq!(e.session.metadata.courrier().objet, "ABCD");
     call(&mut e, "edit.redo", json!({})).unwrap();
-    assert_eq!(e.metadata.courrier().objet, "ABCDE");
+    assert_eq!(e.session.metadata.courrier().objet, "ABCDE");
 }
 
 #[test]
@@ -146,7 +146,7 @@ fn fixed_dates_are_normalized_without_an_implicit_clock_and_partial_or_free_labe
         ("", MetadataInput::Discrete, ""),
     ] {
         set(&mut e, MetadataField::LetterDate, value, input).unwrap();
-        assert_eq!(e.metadata.courrier().date, expected);
+        assert_eq!(e.session.metadata.courrier().date, expected);
     }
     for value in ["today", " TODAY ", "aujourd'hui", "aujourd’hui"] {
         let before = e.stored_document();
@@ -163,7 +163,7 @@ fn fixed_dates_are_normalized_without_an_implicit_clock_and_partial_or_free_labe
         );
         assert!(e.stored_document() == before);
     }
-    assert_eq!(e.document.source(), "Bonjour");
+    assert_eq!(e.session.document.source(), "Bonjour");
 }
 
 #[test]
@@ -230,7 +230,7 @@ fn invalid_fields_text_values_and_stale_or_foreign_guards_are_rejected_atomicall
         );
     }
     assert!(e.stored_document() == before);
-    assert!(e.undo.is_empty());
+    assert!(e.session.undo.is_empty());
     let guard = e.target_guard();
     let params = json!({"guard":guard,"field":"letter.subject","value":"X"});
     let mut other = engine("Bonjour");
@@ -248,8 +248,8 @@ fn invalid_fields_text_values_and_stale_or_foreign_guards_are_rejected_atomicall
     )
     .unwrap();
     call(&mut e, "edit.undo", json!({})).unwrap();
-    let revision = e.revision;
-    let when = e.changed_at;
+    let revision = e.session.revision;
+    let when = e.session.changed_at;
     assert_eq!(
         call(&mut e, "metadata.set", params).unwrap_err().reason(),
         "stale_revision"
@@ -265,11 +265,11 @@ fn invalid_fields_text_values_and_stale_or_foreign_guards_are_rejected_atomicall
         "stale_revision"
     );
     assert!(e.stored_document() == before);
-    assert_eq!(e.revision, revision);
-    assert_eq!(e.changed_at, when);
+    assert_eq!(e.session.revision, revision);
+    assert_eq!(e.session.changed_at, when);
     assert_eq!(e.selection(), Selection::default());
-    assert!(e.undo.is_empty());
-    assert_eq!(e.redo.len(), 1);
+    assert!(e.session.undo.is_empty());
+    assert_eq!(e.session.redo.len(), 1);
 }
 
 #[test]
@@ -292,14 +292,17 @@ fn page_constraints_are_enforced_without_ui_while_language_remains_independent()
             .changed
     );
     option(&mut e, DocumentOption::Language(DocumentLanguage::English)).unwrap();
-    assert_eq!(e.metadata.options().language, DocumentLanguage::English);
-    assert_eq!(e.undo.len(), 1);
-    e.template = "#let courrier(..args) = []".into();
+    assert_eq!(
+        e.session.metadata.options().language,
+        DocumentLanguage::English
+    );
+    assert_eq!(e.session.undo.len(), 1);
+    e.session.template = "#let courrier(..args) = []".into();
     option(&mut e, DocumentOption::Paper(PaperFormat::A3)).unwrap();
     option(&mut e, DocumentOption::Landscape(true)).unwrap();
-    assert_eq!(e.metadata.options().paper, PaperFormat::A3);
-    assert!(e.metadata.options().landscape);
-    assert_eq!(e.document.source(), before.source);
+    assert_eq!(e.session.metadata.options().paper, PaperFormat::A3);
+    assert!(e.session.metadata.options().landscape);
+    assert_eq!(e.session.document.source(), before.source);
 }
 
 #[test]
@@ -311,11 +314,12 @@ fn bullet_choices_are_validated_against_the_actual_typst_model_not_ui_state() {
             .reason(),
         "bullet_marker_policy"
     );
-    let before = e.snapshot(e.selection());
-    e.template
+    let before = e.session.snapshot(e.selection());
+    e.session
+        .template
         .push_str("\n#let editor-options = (bullet-markers: (\"▪\",),)");
     let selection = e.selection();
-    e.remember(before, selection, false).unwrap();
+    e.session.remember(before, selection, false).unwrap();
     let read = e
         .query_call(Query::ModelPresentation(Empty {}).to_call())
         .unwrap();
@@ -339,17 +343,24 @@ fn bullet_choices_are_validated_against_the_actual_typst_model_not_ui_state() {
     );
     assert!(e.stored_document() == before);
     option(&mut e, DocumentOption::BulletMarker(None)).unwrap();
-    let before = e.snapshot(e.selection());
-    e.template
+    let before = e.session.snapshot(e.selection());
+    e.session
+        .template
         .push_str("\n#let editor-options = (custom-bullet-marker: true,)");
     let selection = e.selection();
-    e.remember(before, selection, false).unwrap();
+    e.session.remember(before, selection, false).unwrap();
     option(&mut e, DocumentOption::BulletMarker(Some("◆".into()))).unwrap();
-    assert_eq!(e.metadata.options().bullet_marker.as_deref(), Some("◆"));
+    assert_eq!(
+        e.session.metadata.options().bullet_marker.as_deref(),
+        Some("◆")
+    );
     call(&mut e, "edit.undo", json!({})).unwrap();
-    assert!(e.metadata.options().bullet_marker.is_none());
+    assert!(e.session.metadata.options().bullet_marker.is_none());
     call(&mut e, "edit.redo", json!({})).unwrap();
-    assert_eq!(e.metadata.options().bullet_marker.as_deref(), Some("◆"));
+    assert_eq!(
+        e.session.metadata.options().bullet_marker.as_deref(),
+        Some("◆")
+    );
 }
 
 #[test]
@@ -359,12 +370,12 @@ fn presentation_query_uses_document_dependencies_and_bad_policies_do_not_publish
     let read = e.query(Query::ModelPresentation(Empty {})).unwrap();
     assert_eq!(read["fixed_page"], json!({"paper":"a4","landscape":false}));
     assert!(e.stored_document() == before);
-    assert_eq!(e.revision, 0);
-    assert!(e.undo.is_empty());
-    e.template = "#let editor-options = (bullet-markers: (42,),)".into();
+    assert_eq!(e.session.revision, 0);
+    assert!(e.session.undo.is_empty());
+    e.session.template = "#let editor-options = (bullet-markers: (42,),)".into();
     let before = e.stored_document();
     // Nouvelle session : les mutations de modèles seront commandées au lot 2.4.7.
-    let mut e: Engine = Session::new(before.clone(), e.document.clone(), None, 0).into();
+    let mut e: Engine = Session::new(before.clone(), e.session.document.clone(), None, 0).into();
     assert_eq!(
         e.query(Query::ModelPresentation(Empty {}))
             .unwrap_err()
@@ -378,7 +389,7 @@ fn presentation_query_uses_document_dependencies_and_bad_policies_do_not_publish
         "model_presentation"
     );
     assert!(e.stored_document() == before);
-    assert!(e.undo.is_empty());
+    assert!(e.session.undo.is_empty());
     // Le retour à la charte reste possible même si les choix du modèle sont invalides.
     assert!(
         !option(&mut e, DocumentOption::BulletMarker(None))
@@ -420,10 +431,10 @@ fn metadata_options_and_normalized_multiline_fields_remain_autonomous_and_persis
     .unwrap();
     option(&mut e, DocumentOption::Language(DocumentLanguage::English)).unwrap();
     assert_eq!(
-        e.metadata.courrier().adresse_expediteur,
+        e.session.metadata.courrier().adresse_expediteur,
         "Ligne 1\nLigne 2\nLigne 3"
     );
-    assert_eq!(e.metadata.courrier().date, "2026-10-21");
+    assert_eq!(e.session.metadata.courrier().date, "2026-10-21");
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("metadata.typsto");
     let stored = e.stored_document();

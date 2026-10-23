@@ -62,7 +62,7 @@ fn source_install_preset_and_undo_redo_match_json_and_refresh_model_policy() {
         equivalent(&app, &engine);
         assert_eq!(app.document.presentation, presentation(&engine));
     }
-    let history = engine.undo.len();
+    let history = engine.undo().len();
     app.apply(Command::Model(Model::Personal));
     let guard = engine.target_guard();
     run(
@@ -71,7 +71,7 @@ fn source_install_preset_and_undo_redo_match_json_and_refresh_model_policy() {
         json!({"guard":guard}),
     );
     equivalent(&app, &engine);
-    assert_eq!(engine.undo.len(), history);
+    assert_eq!(engine.undo().len(), history);
 }
 
 #[test]

@@ -17,7 +17,7 @@ fn description_navigation_does_not_write_a_separator_or_add_history() {
         assert!(outcome.effects.is_empty());
         assert!(e.stored_document() == before);
         assert_eq!(e.query(Query::Structure(Empty {})).unwrap(), zones);
-        assert!(e.undo.is_empty());
+        assert!(e.session.undo.is_empty());
     }
 }
 
@@ -31,24 +31,24 @@ fn structured_enter_splits_and_exits_empty_items_with_exact_history() {
         "#attachment[Rapport]",
     ] {
         let mut e = engine(source);
-        let end = e.document.view.len();
+        let end = e.session.document.view.len();
         e.set_adapter_selection(e.resolve(explicit(&e, end..end)).unwrap())
             .unwrap();
-        let before = e.document.clone();
+        let before = e.session.document.clone();
         let selection = e.selection();
         call(&mut e, "block.split", json!({})).unwrap();
-        let after_split = e.document.clone();
-        assert_eq!(e.undo.len(), 1);
+        let after_split = e.session.document.clone();
+        assert_eq!(e.session.undo.len(), 1);
         call(&mut e, "block.split", json!({})).unwrap();
         assert_eq!(
-            *e.document.view.blocks.last().unwrap(),
+            *e.session.document.view.blocks.last().unwrap(),
             BlockKind::Paragraph
         );
-        assert_eq!(e.undo.len(), 2);
+        assert_eq!(e.session.undo.len(), 2);
         call(&mut e, "edit.undo", json!({})).unwrap();
-        assert_eq!(e.document, after_split);
+        assert_eq!(e.session.document, after_split);
         call(&mut e, "edit.undo", json!({})).unwrap();
-        assert_eq!(e.document, before);
+        assert_eq!(e.session.document, before);
         assert_eq!(e.selection(), selection);
     }
 }
@@ -58,9 +58,9 @@ fn whitespace_only_list_and_note_rows_keep_their_kind_when_split() {
     for source in ["-", "+", "#postscript[]", "#attachment[]"] {
         let mut e = engine(source);
         call(&mut e, "text.insert", json!({"text":" "})).unwrap();
-        let kind = e.document.view.blocks[0];
+        let kind = e.session.document.view.blocks[0];
         call(&mut e, "block.split", json!({})).unwrap();
-        assert_eq!(e.document.view.blocks, vec![kind, kind]);
+        assert_eq!(e.session.document.view.blocks, vec![kind, kind]);
     }
 }
 
@@ -71,18 +71,18 @@ fn leaving_letter_notes_preserves_selected_text_and_styles() {
         "#attachment[Rapport]\n#attachment[Formulaire *signé*]",
     ] {
         let mut e = engine(source);
-        let before = e.document.clone();
+        let before = e.session.document.clone();
         let target = explicit(&e, 1..4);
         let outcome = call(&mut e, "block.exit", json!({"target":target})).unwrap();
         assert_eq!(outcome.effects, [Effect::Render, Effect::RevealSelection]);
         assert_eq!(e.selection().primary.index, before.view.len() + 1);
-        assert!(e.document.view.text.starts_with(&before.view.text));
+        assert!(e.session.document.view.text.starts_with(&before.view.text));
         assert_eq!(
-            e.document.view.styles[..before.view.len()],
+            e.session.document.view.styles[..before.view.len()],
             before.view.styles
         );
         call(&mut e, "edit.undo", json!({})).unwrap();
-        assert_eq!(e.document, before);
+        assert_eq!(e.session.document, before);
         assert_eq!(e.selection().range(), 1..4);
     }
 }
@@ -111,7 +111,7 @@ fn typing_rules_are_explicit_and_undo_restores_complete_literal_input() {
         let at = if source.starts_with("/ Échéance") {
             9
         } else {
-            e.document.view.len()
+            e.session.document.view.len()
         };
         let target = explicit(&e, at..at);
         let mut plain = engine(source);
@@ -122,7 +122,7 @@ fn typing_rules_are_explicit_and_undo_restores_complete_literal_input() {
             json!({"target":plain_target,"text":text}),
         )
         .unwrap();
-        assert_eq!(plain.document.view.text, literal);
+        assert_eq!(plain.session.document.view.text, literal);
         call(
             &mut e,
             "text.insert",
@@ -130,17 +130,17 @@ fn typing_rules_are_explicit_and_undo_restores_complete_literal_input() {
         )
         .unwrap();
         if source.starts_with("/ Échéance") {
-            assert_eq!(e.document.view.text, "Échéance\tVendredi");
+            assert_eq!(e.session.document.view.text, "Échéance\tVendredi");
             assert_eq!(e.selection().range(), 9..9);
         }
         if let Some(kind) = kind {
-            assert_eq!(e.document.view.blocks[0], kind);
+            assert_eq!(e.session.document.view.blocks[0], kind);
         } else {
-            assert!(!e.document.view.text.starts_with(['*', '_']));
+            assert!(!e.session.document.view.text.starts_with(['*', '_']));
         }
-        assert_eq!(e.undo.len(), 1);
+        assert_eq!(e.session.undo.len(), 1);
         call(&mut e, "edit.undo", json!({})).unwrap();
-        assert_eq!(e.document.view.text, literal);
+        assert_eq!(e.session.document.view.text, literal);
         assert_eq!(e.selection().range(), at + 1..at + 1);
     }
 }
@@ -152,7 +152,10 @@ fn typed_structure_rules_validate_guards_and_boundaries_before_any_change() {
     let target = explicit(&e, 0..3);
     call(&mut e, "text.bold", json!({"target":target})).unwrap();
     let boundary = explicit(&e, 2..10);
-    let outside = explicit(&e, e.document.view.len()..e.document.view.len());
+    let outside = explicit(
+        &e,
+        e.session.document.view.len()..e.session.document.view.len(),
+    );
     for (id, params, reason) in [
         (
             "text.select",
@@ -177,12 +180,22 @@ fn typed_structure_rules_validate_guards_and_boundaries_before_any_change() {
     ] {
         let before = e.stored_document();
         let selection = e.selection();
-        let state = (e.revision, e.undo.len(), e.redo.len(), e.changed_at);
+        let state = (
+            e.session.revision,
+            e.session.undo.len(),
+            e.session.redo.len(),
+            e.session.changed_at,
+        );
         assert_eq!(call(&mut e, id, params).unwrap_err().reason(), reason);
         assert!(e.stored_document() == before);
         assert_eq!(e.selection(), selection);
         assert_eq!(
-            (e.revision, e.undo.len(), e.redo.len(), e.changed_at),
+            (
+                e.session.revision,
+                e.session.undo.len(),
+                e.session.redo.len(),
+                e.session.changed_at
+            ),
             state
         );
     }
