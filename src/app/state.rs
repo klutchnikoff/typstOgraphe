@@ -55,6 +55,7 @@ pub(super) struct FileState {
 }
 
 pub(super) struct DialogState {
+    pub(super) marker_draft: Option<(crate::session::TargetGuard, String)>,
     pub(super) preferences_page: PreferencesPage,
     pub(super) preferences_open: bool,
     pub(super) new_document_open: bool,

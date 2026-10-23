@@ -121,6 +121,7 @@ impl App {
         self.clear_recovery();
         self.recovery.recovered_name = None;
         self.search = SearchState::default();
+        self.dialogs.marker_draft = None;
         self.spelling.target = None;
         self.spelling.menu_pending = false;
         self.spelling.menu_position = None;

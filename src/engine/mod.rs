@@ -5,6 +5,8 @@ mod blocks;
 mod error;
 mod image_types;
 mod images;
+mod metadata;
+mod metadata_types;
 mod queries;
 pub mod registry;
 mod run;
@@ -20,6 +22,7 @@ use crate::{
 };
 pub use error::{CommandError, ErrorCode};
 pub use image_types::*;
+pub use metadata_types::*;
 pub use registry::{AvailabilityRule, Call, CommandId, CommandSpec, Family, catalogue};
 pub use search_types::*;
 use serde::Serialize;
@@ -31,6 +34,7 @@ pub struct Engine {
     session: Session,
     selection: Selection,
     spelling: spelling::SpellingState,
+    presentation_cache: metadata::PresentationCache,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -63,6 +67,7 @@ impl From<Session> for Engine {
             session,
             selection: Selection::default(),
             spelling: Default::default(),
+            presentation_cache: Default::default(),
         }
     }
 }

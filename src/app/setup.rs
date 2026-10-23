@@ -95,6 +95,7 @@ impl App {
                 presentation: ModelPresentation::default(),
             },
             dialogs: DialogState {
+                marker_draft: None,
                 preferences_page: PreferencesPage::default(),
                 preferences_open: false,
                 new_document_open: false,

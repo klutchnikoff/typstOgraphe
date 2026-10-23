@@ -1,5 +1,5 @@
 //! Le type Courrier : données, contrat du modèle et commandes propres au type.
-use super::{FieldGroup, FieldKind, ModelContract, TextField};
+use super::{FieldGroup, FieldKind, MetadataField, ModelContract, TextField};
 use crate::document::DocumentOptions;
 use serde::{Deserialize, Serialize};
 
@@ -66,8 +66,9 @@ impl Metadata {
 }
 
 macro_rules! field {
-    ($name:ident, $editor:literal, $label:literal, $group:literal, $multiline:literal, $required:literal) => {
+    ($name:ident, $field:ident, $editor:literal, $label:literal, $group:literal, $multiline:literal, $required:literal) => {
         TextField {
+            field: MetadataField::$field,
             parameter: stringify!($name),
             editor_id: $editor,
             label_key: $label,
@@ -100,17 +101,43 @@ pub const COMMANDS: &[crate::commands::Presentation] = &[
 pub const FIELDS: &[TextField<Metadata>] = &[
     field!(
         expediteur,
+        SenderName,
         "sender",
         "field-full-name",
         "sender",
         false,
         false
     ),
-    field!(fonction, "role", "field-role", "sender", false, false),
-    field!(service, "service", "field-service", "sender", false, false),
-    field!(email, "email", "field-email", "sender", false, false),
+    field!(
+        fonction,
+        SenderRole,
+        "role",
+        "field-role",
+        "sender",
+        false,
+        false
+    ),
+    field!(
+        service,
+        SenderDepartment,
+        "service",
+        "field-service",
+        "sender",
+        false,
+        false
+    ),
+    field!(
+        email,
+        SenderEmail,
+        "email",
+        "field-email",
+        "sender",
+        false,
+        false
+    ),
     field!(
         organisme,
+        SenderOrganisation,
         "organisation",
         "field-organisation",
         "sender",
@@ -119,6 +146,7 @@ pub const FIELDS: &[TextField<Metadata>] = &[
     ),
     field!(
         adresse_expediteur,
+        SenderAddress,
         "sender-address",
         "field-sender-address",
         "sender",
@@ -127,6 +155,7 @@ pub const FIELDS: &[TextField<Metadata>] = &[
     ),
     field!(
         telephone,
+        SenderPhone,
         "sender-phone",
         "field-phone",
         "sender",
@@ -135,6 +164,7 @@ pub const FIELDS: &[TextField<Metadata>] = &[
     ),
     field!(
         destinataire,
+        RecipientName,
         "recipient",
         "field-recipient",
         "recipient",
@@ -143,6 +173,7 @@ pub const FIELDS: &[TextField<Metadata>] = &[
     ),
     field!(
         adresse,
+        RecipientAddress,
         "address",
         "field-address",
         "recipient",
@@ -151,6 +182,7 @@ pub const FIELDS: &[TextField<Metadata>] = &[
     ),
     field!(
         objet,
+        LetterSubject,
         "subject",
         "field-subject",
         "information",
@@ -159,16 +191,33 @@ pub const FIELDS: &[TextField<Metadata>] = &[
     ),
     field!(
         reference,
+        LetterReference,
         "reference",
         "field-reference",
         "information",
         false,
         false
     ),
-    field!(lieu, "place", "field-place", "information", false, false),
+    field!(
+        lieu,
+        LetterPlace,
+        "place",
+        "field-place",
+        "information",
+        false,
+        false
+    ),
     TextField {
         kind: FieldKind::Date,
-        ..field!(date, "date", "field-date", "information", false, false)
+        ..field!(
+            date,
+            LetterDate,
+            "date",
+            "field-date",
+            "information",
+            false,
+            false
+        )
     },
 ];
 pub const GROUPS: &[FieldGroup] = &[

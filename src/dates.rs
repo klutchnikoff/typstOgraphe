@@ -14,7 +14,14 @@ pub fn normalize(value: &mut String) {
     let trimmed = value.trim();
     if is_today(trimmed) {
         *value = today();
-    } else if let Some(date) = ["%Y-%m-%d", "%d/%m/%Y"]
+    } else {
+        normalize_explicit(value);
+    }
+}
+/// Ne consulte jamais l’horloge : utilisable par le moteur documentaire.
+pub fn normalize_explicit(value: &mut String) {
+    let trimmed = value.trim();
+    if let Some(date) = ["%Y-%m-%d", "%d/%m/%Y"]
         .into_iter()
         .find_map(|format| NaiveDate::parse_from_str(trimmed, format).ok())
     {

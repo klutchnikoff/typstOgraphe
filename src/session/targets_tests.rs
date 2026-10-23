@@ -81,7 +81,11 @@ fn selection_reads_do_not_invalidate_guards_but_metadata_edits_do() {
     let before = session.snapshot(selection());
     session.metadata.courrier_mut().objet = "Nouvel objet".into();
     session
-        .record(before, selection(), EditGroup::Metadata(1))
+        .record(
+            before,
+            selection(),
+            EditGroup::Metadata(crate::document_types::MetadataField::LetterSubject),
+        )
         .unwrap();
     assert_eq!(
         session.resolve_target(target),

@@ -410,13 +410,14 @@ Dans `src/engine/` (futur crate `core`) :
   `InsertImage { path, alt }`, `SelectText { range | occurrence }`, `InsertText { text }`,
   `SetMetadata { field, value }`, `SetOption { option, value }`, `ReplaceAll { with }`…).
   Les variantes actuelles sans paramètres restent telles quelles.
-  **En cours :** 36 commandes typées implémentées ; les familles restantes ne sont
+  **En cours :** 38 commandes typées implémentées ; les familles restantes ne sont
   pas annoncées dans le catalogue. Les espaces de noms hiérarchiques existants
   (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
 - [ ] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
   `search.find`, `metadata.get`, `commands.list`, `models.list`).
-  **En cours :** huit requêtes implémentées ; les lectures orthographiques sont
-  disponibles. Les requêtes de modèles restent à migrer.
+  **En cours :** neuf requêtes implémentées ; les lectures orthographiques, les
+  champs actifs et `models.presentation` sont disponibles. Le catalogue des modèles
+  reste à migrer.
 - [x] `UiCommand` : palette, préférences, ouverture des dialogues, focus. Reste dans l'application.
 - [x] `CommandSpec` (cœur, sans egui) : identifiant, description **en anglais** (pour les
   agents), famille, schéma des paramètres (`schemars`), règle de disponibilité.
@@ -483,7 +484,11 @@ JSON** et compare avec le chemin d'interface.
   validation du mot attendu et de sa langue. Le worker et le moteur réutilisent
   l’analyse et les suggestions locales ; le dictionnaire personnel est transmis
   comme configuration de lecture, jamais modifié par une commande documentaire.
-- [ ] 2.4.6 Métadonnées et options : champs, papier, orientation, langue, marqueur de puce.
+- [x] 2.4.6 Métadonnées et options : champs, papier, orientation, langue, marqueur de puce.
+  `metadata.set` et `document.set_option` valident les gardes, champs du type actif
+  et contraintes du modèle. `metadata.get` décrit les champs anglais validés ;
+  `models.presentation` expose les règles de page/puces. La saisie groupe par champ
+  typé, sans identifiant egui ; les dates restent fixes et l’horloge reste dans l’UI.
 - [ ] 2.4.7 Modèles : changer, importer.
 - [ ] 2.4.8 Fichiers, en gardant les identifiants existants : `document.new { type, model }`,
   `document.open { path }`, `document.save { path? }`, `document.save_as { path }`,

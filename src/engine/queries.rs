@@ -32,8 +32,10 @@ impl Engine {
             }
             Query::Structure(_) => self.structure_json(),
             Query::Metadata(_) => {
-                json!({"guard": self.session.target_guard(), "metadata": self.session.metadata})
+                json!({"guard": self.session.target_guard(), "metadata": self.session.metadata,
+                    "fields":self.session.metadata.field_values()})
             }
+            Query::ModelPresentation(_) => self.presentation_query()?,
             Query::Commands(_) => json!({"entries": catalogue()}),
             Query::Find(params) => serde_json::to_value(self.search_results(params)?)
                 .expect("serializable search results"),

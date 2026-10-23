@@ -2,8 +2,6 @@ use super::*;
 
 impl App {
     pub(super) fn information_ui(&mut self, ui: &mut egui::Ui) {
-        let before = self.snapshot();
-        let old_revision = self.document.engine.revision;
         let groups: Vec<_> =
             std::iter::once((InformationGroup::General, crate::tr!("group-general")))
                 .chain(
@@ -91,31 +89,18 @@ impl App {
                 .show(ui, |ui| match self.dialogs.information_group {
                     InformationGroup::General => self.general_information_ui(ui),
                     InformationGroup::Fields(group) => {
-                        self.document.engine.metadata.editor_group_ui(ui, group);
+                        self.information_fields_ui(ui, group);
                         if group == "sender" {
                             self.document_signature_ui(ui);
                         }
                     }
                 });
         }
-        if self.document.engine.revision == old_revision {
-            let focused = ui.ctx().memory(|memory| memory.focused());
-            let group = focused
-                .filter(|id| egui::TextEdit::load_state(ui.ctx(), *id).is_some())
-                .map_or(EditGroup::Discrete, |id| EditGroup::Metadata(id.value()));
-            let previous = before.selection;
-            let result = self
-                .document
-                .engine
-                .record(before, self.document.selection.into(), group);
-            self.accept_edit(result, previous);
-        }
     }
     fn general_information_ui(&mut self, ui: &mut egui::Ui) {
-        let fixed_page = crate::document_types::models::ALL
-            .iter()
-            .find(|model| model.source == self.document.engine.template)
-            .and_then(|model| model.page);
+        let fixed_page = self.document.engine.fixed_page();
+        let mut options = self.document.engine.metadata.options().clone();
+        let mut previous = options.clone();
         egui::Grid::new("general-fields")
             .num_columns(2)
             .show(ui, |ui| {
@@ -124,6 +109,8 @@ impl App {
                 ui.end_row();
                 ui.label(crate::tr!("field-template"));
                 self.template_selector(ui);
+                options = self.document.engine.metadata.options().clone();
+                previous = options.clone();
                 ui.end_row();
                 ui.label(crate::tr!("field-paper"));
                 if let Some((paper, _)) = fixed_page {
@@ -131,14 +118,10 @@ impl App {
                         .on_hover_text(crate::tr!("model-fixed-page"));
                 } else {
                     egui::ComboBox::from_id_salt("document-paper")
-                        .selected_text(self.document.engine.metadata.options().paper.label())
+                        .selected_text(options.paper.label())
                         .show_ui(ui, |ui| {
                             for paper in PaperFormat::ALL {
-                                ui.selectable_value(
-                                    &mut self.document.engine.metadata.options_mut().paper,
-                                    paper,
-                                    paper.label(),
-                                );
+                                ui.selectable_value(&mut options.paper, paper, paper.label());
                             }
                         });
                 }
@@ -153,19 +136,19 @@ impl App {
                     .on_hover_text(crate::tr!("model-fixed-page"));
                 } else {
                     egui::ComboBox::from_id_salt("document-orientation")
-                        .selected_text(if self.document.engine.metadata.options().landscape {
+                        .selected_text(if options.landscape {
                             crate::tr!("orientation-landscape")
                         } else {
                             crate::tr!("orientation-portrait")
                         })
                         .show_ui(ui, |ui| {
                             ui.selectable_value(
-                                &mut self.document.engine.metadata.options_mut().landscape,
+                                &mut options.landscape,
                                 false,
                                 crate::tr!("orientation-portrait"),
                             );
                             ui.selectable_value(
-                                &mut self.document.engine.metadata.options_mut().landscape,
+                                &mut options.landscape,
                                 true,
                                 crate::tr!("orientation-landscape"),
                             );
@@ -174,14 +157,10 @@ impl App {
                 ui.end_row();
                 ui.label(crate::tr!("field-document-language"));
                 egui::ComboBox::from_id_salt("document-language")
-                    .selected_text(self.document.engine.metadata.options().language.label())
+                    .selected_text(options.language.label())
                     .show_ui(ui, |ui| {
                         for language in DocumentLanguage::ALL {
-                            ui.selectable_value(
-                                &mut self.document.engine.metadata.options_mut().language,
-                                language,
-                                language.label(),
-                            );
+                            ui.selectable_value(&mut options.language, language, language.label());
                         }
                     });
                 ui.end_row();
@@ -189,23 +168,45 @@ impl App {
                 self.bullet_marker_ui(ui);
                 ui.end_row();
             });
+        use crate::engine::DocumentOption;
+        for option in [
+            (options.paper != previous.paper).then_some(DocumentOption::Paper(options.paper)),
+            (options.landscape != previous.landscape)
+                .then_some(DocumentOption::Landscape(options.landscape)),
+            (options.language != previous.language)
+                .then_some(DocumentOption::Language(options.language)),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            self.set_document_option(option);
+        }
+    }
+    pub(super) fn set_document_option(&mut self, option: crate::engine::DocumentOption) -> bool {
+        self.run_document_command(crate::engine::Command::SetOption(
+            crate::engine::SetOptionParams {
+                guard: self.document.engine.target_guard(),
+                option,
+            },
+        ))
     }
     pub(super) fn bullet_marker_ui(&mut self, ui: &mut egui::Ui) {
-        let policy = &self.document.presentation;
+        let policy = self.document.presentation.clone();
+        let previous = self
+            .document
+            .engine
+            .metadata
+            .options()
+            .bullet_marker
+            .clone();
         if policy.bullet_markers.is_empty() && !policy.custom_bullet_marker {
-            if self
-                .document
-                .engine
-                .metadata
-                .options()
-                .bullet_marker
-                .is_some()
-            {
+            if previous.is_some() {
                 if ui
                     .button(crate::tr!("bullet-marker-restore-automatic"))
                     .clicked()
                 {
-                    self.document.engine.metadata.options_mut().bullet_marker = None;
+                    self.set_document_option(crate::engine::DocumentOption::BulletMarker(None));
+                    self.dialogs.marker_draft = None;
                 }
             } else {
                 ui.weak(crate::tr!("bullet-marker-automatic"))
@@ -213,7 +214,9 @@ impl App {
             }
             return;
         }
-        let marker = &mut self.document.engine.metadata.options_mut().bullet_marker;
+        let guard = self.document.engine.target_guard();
+        let mut marker = previous.clone();
+        let mut draft = None;
         ui.vertical(|ui| {
             egui::ComboBox::from_id_salt("document-bullet-marker")
                 .selected_text(
@@ -222,35 +225,48 @@ impl App {
                         .map_or_else(|| crate::tr!("bullet-marker-automatic"), str::to_owned),
                 )
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(marker, None, crate::tr!("bullet-marker-automatic"));
+                    ui.selectable_value(&mut marker, None, crate::tr!("bullet-marker-automatic"));
                     for choice in &policy.bullet_markers {
-                        ui.selectable_value(marker, Some(choice.clone()), choice);
+                        ui.selectable_value(&mut marker, Some(choice.clone()), choice);
                     }
                     if policy.custom_bullet_marker
                         && ui
                             .selectable_label(marker.is_some(), crate::tr!("bullet-marker-custom"))
                             .clicked()
                     {
-                        *marker = Some("◆".into());
+                        marker = Some("◆".into());
                     }
                 });
             if policy.custom_bullet_marker
-                && let Some(value) = marker
+                && let Some(value) = &mut marker
             {
+                let mut input = self
+                    .dialogs
+                    .marker_draft
+                    .as_ref()
+                    .filter(|(g, _)| *g == guard && previous.as_deref() == Some(value.as_str()))
+                    .map_or_else(|| value.clone(), |(_, s)| s.clone());
                 ui.add(
-                    egui::TextEdit::singleline(value)
+                    egui::TextEdit::singleline(&mut input)
                         .id_salt("custom-bullet-marker")
                         .desired_width(55.0),
                 );
-                if !crate::document::valid_bullet_marker(value) {
+                if crate::document::valid_bullet_marker(&input) {
+                    *value = input.clone();
+                } else {
                     ui.colored_label(
                         Color32::from_rgb(183, 69, 57),
                         crate::tr!("bullet-marker-invalid"),
                     );
                 }
+                draft = Some(input);
             }
         })
         .response
         .on_hover_text(crate::tr!("bullet-marker-model-choices"));
+        if marker != previous {
+            self.set_document_option(crate::engine::DocumentOption::BulletMarker(marker));
+        }
+        self.dialogs.marker_draft = draft.map(|s| (self.document.engine.target_guard(), s));
     }
 }

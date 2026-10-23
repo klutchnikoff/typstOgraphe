@@ -5,7 +5,7 @@ V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers 
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
-Le registre typé et le premier moteur sont implémentés : 36 commandes, huit
+Le registre typé et le premier moteur sont implémentés : 38 commandes, neuf
 requêtes et leur catalogue généré. La migration des familles n’est pas terminée.
 
 ## Blocs et zones en mémoire
@@ -426,9 +426,76 @@ contraire la faute de la sélection actuelle, même après fermeture d’un anci
 Les fenêtres, le focus, le défilement, les messages Fluent et les rectangles de
 soulignement restent dans l’adaptateur graphique.
 
+## Métadonnées et options
+
+Le lot 2.4.6 ajoute `metadata.set`, `document.set_option` et la lecture
+`models.presentation`. Le catalogue compte 38 commandes et neuf requêtes.
+Les champs egui sont déplacés de `document_types` vers `app/information_fields` :
+ils préparent des valeurs locales, puis appellent le moteur par identifiant/JSON.
+`information_ui` ne modifie plus les métadonnées publiées et n’appelle plus
+l’adaptateur transitoire `Session::record`.
+
+Les descripteurs des types portent une identité `MetadataField` en anglais :
+`sender.*`, `recipient.*`, `letter.*` et `meeting.*`, selon les clés de l’inventaire.
+Les paramètres des fonctions Typst et les noms des champs d’archives restent
+inchangés. `metadata.get {}` complète les données existantes avec `fields` :
+identité, valeur, groupe, nature texte/date, caractère multiligne et obligation
+pour l’export. Les libellés Fluent et identifiants graphiques ne sont pas sérialisés.
+
+`metadata.set { guard, field, value, input: "discrete" }` est une mutation gardée.
+Un champ connu mais absent du type actif est indisponible ; les noms inconnus,
+changements de type ou accès indirects à la signature/options ne sont pas des
+champs acceptés. Les textes sont littéraux, avec validation des séparateurs selon
+le caractère multiligne et normalisation CRLF/CR en LF. Un champ obligatoire peut
+rester vide pendant la rédaction ; sa contrainte reste vérifiée à l’export.
+
+Le mode explicite `input: "typing"` conserve les groupes de frappe de 650 ms,
+identifiés par le champ typé. Changer de champ ou effectuer une action discrète
+sépare les transactions. `EditGroup::Metadata` ne contient plus d’identifiant egui.
+Un appel sans changement ne crée ni révision ni étape. Corps, styles, ressources,
+sélection de rédaction et préférences globales sont conservés. L’interface garde le
+focus du champ, y compris à l’annulation/rétablissement des métadonnées.
+
+Pour une date, le moteur normalise une date explicite valide en ISO, à validation
+discrète ou à dix caractères pendant la frappe. Une saisie partielle ou un libellé
+libre reste possible. `normalize_explicit` ne consulte jamais l’horloge : les alias
+`today`/`aujourd’hui` sont refusés dans l’API (`metadata_fixed_date`). Le bouton
+« Aujourd’hui » et l’alias saisi dans l’interface résolvent la date locale avant
+`metadata.set`, puis cette valeur fixe est conservée. Datify et la présentation
+finale restent du côté du modèle Typst.
+
+`document.set_option { guard, option: { key, value } }` a quatre variantes strictes :
+`paper` (format pris dans le catalogue), `landscape` (booléen), `language` (code
+défini par l’application), `bullet_marker` (un caractère ou `null` pour automatique).
+La signature, les exceptions orthographiques et le type ne passent pas par cette
+commande. Les contraintes de page du modèle fourni sont vérifiées dans le moteur,
+même sans UI ; un choix identique reste idempotent. La langue du document reste
+indépendante de celle de l’interface.
+
+Les marqueurs non automatiques sont validés contre `editor-options` évalué dans
+le vrai modèle Typst, avec les ressources et dépendances du document, jamais contre
+une permission fournie par l’appelant ou le cache graphique. Les choix libres ne
+sont possibles que si le modèle les autorise. `models.presentation {}` retourne
+`guard`, `fixed_page`, `bullet_markers` et `custom_bullet_marker`. Un cache interne
+lié à la garde évite une seconde évaluation du même état ; la lecture ne modifie
+pas le document. La publication d’une option n’exige pas de compiler tout le
+document : les autres contraintes internes du Typst restent du ressort du rendu.
+
+Une valeur personnalisée invalide reste dans un brouillon graphique gardé et
+affiche le message existant ; elle n’entre ni dans les options, ni dans l’archive,
+ni dans l’historique. Les erreurs métier sont codées (`metadata_field`,
+`metadata_fixed_date`, `model_fixed_page`, `bullet_marker_invalid`,
+`bullet_marker_policy`, `model_presentation`) et adaptées en messages dans App.
+Champs et options préparent un instantané candidat puis utilisent
+`Session::commit_snapshot`, avec refus sans publication partielle.
+
+Les préparations de métadonnées liées au changement de modèle et à la création
+restent respectivement dans les lots 2.4.7 et 2.4.8. Elles ne sont pas annoncées
+comme migrées par ce lot.
+
 ## Vérifications
 
-- 263 tests de l’application réussis, dont 120 tests ajoutés depuis le début de
+- 274 tests de l’application réussis, dont 131 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -442,7 +509,7 @@ soulignement restent dans l’adaptateur graphique.
   et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
   petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 150 tests partagés réussissent aussi.
+  avertissement ; ses 158 tests partagés réussissent aussi.
 - Dix tests du moteur couvrent les schémas, conversions, données invalides,
   cibles périmées/étrangères, refus atomiques, styles explicites, historique,
   lectures seules, portée Courrier et fichiers de catalogue générés. Quatre essais
@@ -463,6 +530,13 @@ soulignement restent dans l’adaptateur graphique.
   alternatif, suppression et copie de signature aux appels JSON ; ils vérifient
   aussi le refus d’un dialogue périmé, l’archivage et l’indépendance du profil.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
+- Huit tests du moteur couvrent les champs des deux types, dates sans horloge,
+  caractères et types invalides, gardes périmées/étrangères, regroupement par champ,
+  absence de mutation du corps/ressources, page fixe, charte des puces évaluée en
+  Typst, lectures pures, annulation/rétablissement et persistance autonome.
+  Trois essais egui comparent la frappe réelle, le bouton « Aujourd’hui » et
+  l’édition d’un marqueur aux appels JSON, avec focus, sélection, brouillon invalide
+  et historique. Les tests existants du panneau et des choix de modèles restent verts.
 - Huit nouveaux tests du moteur vérifient lectures pures, parité avec le worker,
   suggestions, navigation dans les deux sens, six rôles de zones, styles, historique,
   normalisation des exceptions, configuration personnelle, refus atomiques et
@@ -501,6 +575,8 @@ soulignement restent dans l’adaptateur graphique.
   dans `output/baseline/run-qaqb4mgo/`.
 - Le lot orthographique conserve également les huit captures strictement identiques
   dans `output/baseline/run-z0q4zynu/`.
+- Le lot métadonnées/options conserve les huit captures strictement identiques
+  dans `output/baseline/run-zekzbxe_/`.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -519,16 +595,15 @@ vérifient l’unicité concurrente et le refus de boucler au dépassement de ca
 La synchronisation d’aperçu fonctionne encore via les cartes de source existantes.
 La recherche utilise maintenant des cibles logiques gardées ; sa peinture reste un
 adaptateur du tampon graphique. Les règles des blocs et de transformation de
-frappe, les images, signatures, actions de recherche/remplacement et l’orthographe
-documentaire sont migrées.
+frappe, les images, signatures, actions de recherche/remplacement, l’orthographe
+documentaire, les champs et les options sont migrés.
 
 L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
 Les essais complets de composition, choix des candidats, annulation et historique
 avec les méthodes système restent à poursuivre dans le chantier I. D17 et la tâche
 2.1 bis restent ouverts pour la suite de la migration.
 
-Restent l’écriture des métadonnées
-et options, les modèles et les fichiers. Les lots atomiques (D16), la suppression
+Restent les modèles et les fichiers. Les lots atomiques (D16), la suppression
 de l’accès transitoire à la session et le gel du catalogue restent à faire. La
 séparation des réglages globaux (V5) et les formats d’export séparés (V6) restent à
 implémenter et à tester. Aucun transport CLI/MCP n’est ajouté par ce lot.

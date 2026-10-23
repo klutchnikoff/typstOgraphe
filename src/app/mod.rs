@@ -12,6 +12,7 @@ mod files;
 mod images;
 mod ime;
 mod information;
+mod information_fields;
 mod links;
 mod models;
 mod preferences;

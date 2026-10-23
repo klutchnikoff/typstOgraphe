@@ -2,6 +2,234 @@
   "entries": [
     {
       "availability": "document",
+      "description": "Set an active document-type field, with a guarded value and optional typing history grouping.",
+      "family": "edit",
+      "id": "metadata.set",
+      "params_schema": {
+        "$defs": {
+          "MetadataField": {
+            "enum": [
+              "sender.name",
+              "sender.role",
+              "sender.department",
+              "sender.email",
+              "sender.organisation",
+              "sender.address",
+              "sender.phone",
+              "recipient.name",
+              "recipient.address",
+              "letter.subject",
+              "letter.reference",
+              "letter.place",
+              "letter.date",
+              "meeting.title",
+              "meeting.date",
+              "meeting.place",
+              "meeting.author",
+              "meeting.attendees",
+              "meeting.apologies"
+            ],
+            "type": "string"
+          },
+          "MetadataInput": {
+            "enum": [
+              "discrete",
+              "typing"
+            ],
+            "type": "string"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "$ref": "#/$defs/MetadataField"
+          },
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          },
+          "input": {
+            "$ref": "#/$defs/MetadataInput",
+            "default": "discrete"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "guard",
+          "field",
+          "value"
+        ],
+        "title": "SetMetadataParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Set a typed document option while enforcing the model page and marker policy.",
+      "family": "edit",
+      "id": "document.set_option",
+      "params_schema": {
+        "$defs": {
+          "DocumentLanguage": {
+            "enum": [
+              "fr",
+              "en",
+              "de",
+              "es",
+              "it",
+              "pt",
+              "nl"
+            ],
+            "type": "string"
+          },
+          "DocumentOption": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "const": "paper",
+                    "type": "string"
+                  },
+                  "value": {
+                    "$ref": "#/$defs/PaperFormat"
+                  }
+                },
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "const": "landscape",
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "const": "language",
+                    "type": "string"
+                  },
+                  "value": {
+                    "$ref": "#/$defs/DocumentLanguage"
+                  }
+                },
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "const": "bullet_marker",
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "key",
+                  "value"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "PaperFormat": {
+            "enum": [
+              "a3",
+              "a4",
+              "a5",
+              "us-letter",
+              "us-legal"
+            ],
+            "type": "string"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          },
+          "option": {
+            "$ref": "#/$defs/DocumentOption"
+          }
+        },
+        "required": [
+          "guard",
+          "option"
+        ],
+        "title": "SetOptionParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
       "description": "Select the next spelling issue in the current document, wrapping around.",
       "family": "selection",
       "id": "spelling.next",
@@ -5516,6 +5744,18 @@
       "description": "Redo the next document transaction.",
       "family": "history",
       "id": "edit.redo",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "description": "Read the current model page constraints and permitted bullet markers.",
+      "family": "query",
+      "id": "models.presentation",
       "params_schema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,

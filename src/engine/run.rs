@@ -61,6 +61,7 @@ impl Engine {
         }
         self.check_search(command)?;
         self.check_spelling(command)?;
+        self.check_metadata(command)?;
         let rule = Command::command_specs()
             .iter()
             .find(|spec| spec.id.as_str() == command.id())
@@ -180,6 +181,8 @@ impl Engine {
 
     fn execute(&mut self, command: Command) -> Result<Option<Value>, CommandError> {
         match command {
+            Command::SetMetadata(p) => self.set_metadata(p)?,
+            Command::SetOption(p) => self.set_option(p)?,
             Command::NextSpelling(p) => self.navigate_spelling(p, false)?,
             Command::PreviousSpelling(p) => self.navigate_spelling(p, true)?,
             Command::CorrectSpelling(p) => self.correct_spelling(p)?,

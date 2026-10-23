@@ -28,7 +28,10 @@ impl App {
         command: CoreCommand,
     ) -> Result<crate::engine::Outcome, CommandError> {
         self.cancel_ime();
-        let signature = matches!(command, CoreCommand::SetSignature(_));
+        let preserve_focus = matches!(
+            command,
+            CoreCommand::SetSignature(_) | CoreCommand::SetMetadata(_) | CoreCommand::SetOption(_)
+        );
         self.document
             .engine
             .set_adapter_selection(self.document.selection.into())?;
@@ -40,7 +43,7 @@ impl App {
         {
             self.preview.editor_scroll_pending = true;
         }
-        if !signature {
+        if !preserve_focus {
             self.document.force_selection = true;
         }
         self.preview.forward_pending = true;
@@ -50,10 +53,14 @@ impl App {
         Ok(outcome)
     }
     pub(super) fn run_document_command(&mut self, command: CoreCommand) -> bool {
+        let preserve_focus = matches!(
+            command,
+            CoreCommand::SetMetadata(_) | CoreCommand::SetOption(_)
+        );
         match self.execute_document_command(command) {
             Ok(_) => true,
             Err(error) => {
-                self.document.force_selection = true;
+                self.document.force_selection |= !preserve_focus;
                 self.dialogs.message = Some(Self::command_error_text(&error));
                 false
             }
@@ -89,6 +96,9 @@ impl App {
             "select_link_remove" => "select-link-remove",
             "link_one_paragraph" => "link-one-paragraph",
             "invalid_url" => "link-invalid-url",
+            "bullet_marker_invalid" => "bullet-marker-invalid",
+            "bullet_marker_policy" => "model-bullet-marker-not-allowed",
+            "model_fixed_page" => "model-fixed-page",
             _ => match error.code {
                 crate::engine::ErrorCode::InvalidParams => "engine-invalid-params",
                 _ => "engine-unavailable",

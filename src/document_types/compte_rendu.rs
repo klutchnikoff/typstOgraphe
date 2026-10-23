@@ -1,5 +1,5 @@
 //! Compte-rendu de réunion : contrat intégré, présentation en pur Typst.
-use super::{FieldGroup, FieldKind, ModelContract, TextField};
+use super::{FieldGroup, FieldKind, MetadataField, ModelContract, TextField};
 use crate::document::DocumentOptions;
 use serde::{Deserialize, Serialize};
 
@@ -27,8 +27,9 @@ impl Metadata {
     }
 }
 macro_rules! field {
-    ($name:ident, $label:literal, $group:literal, $multiline:literal, $required:literal) => {
+    ($name:ident, $field:ident, $label:literal, $group:literal, $multiline:literal, $required:literal) => {
         TextField {
+            field: MetadataField::$field,
             parameter: stringify!($name),
             editor_id: concat!("minutes-", stringify!($name)),
             label_key: $label,
@@ -42,15 +43,50 @@ macro_rules! field {
     };
 }
 pub const FIELDS: &[TextField<Metadata>] = &[
-    field!(titre, "field-meeting-title", "meeting", false, true),
+    field!(
+        titre,
+        MeetingTitle,
+        "field-meeting-title",
+        "meeting",
+        false,
+        true
+    ),
     TextField {
         kind: FieldKind::Date,
-        ..field!(date, "field-date", "meeting", false, false)
+        ..field!(date, MeetingDate, "field-date", "meeting", false, false)
     },
-    field!(lieu, "field-meeting-place", "meeting", false, false),
-    field!(redacteur, "field-minutes-author", "meeting", false, false),
-    field!(participants, "field-attendees", "attendees", true, false),
-    field!(excuses, "field-apologies", "attendees", true, false),
+    field!(
+        lieu,
+        MeetingPlace,
+        "field-meeting-place",
+        "meeting",
+        false,
+        false
+    ),
+    field!(
+        redacteur,
+        MeetingAuthor,
+        "field-minutes-author",
+        "meeting",
+        false,
+        false
+    ),
+    field!(
+        participants,
+        MeetingAttendees,
+        "field-attendees",
+        "attendees",
+        true,
+        false
+    ),
+    field!(
+        excuses,
+        MeetingApologies,
+        "field-apologies",
+        "attendees",
+        true,
+        false
+    ),
 ];
 pub const GROUPS: &[FieldGroup] = &[
     FieldGroup {

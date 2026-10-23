@@ -1,10 +1,11 @@
 //! Types intégrés à l’application. Leurs modèles sont des implémentations Typst.
 pub mod compte_rendu;
 pub mod courrier;
+mod fields;
 pub mod models;
+pub use fields::{FieldValue, MetadataField};
 
 use crate::document::{DocumentOptions, typst_string};
-use eframe::egui;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -121,10 +122,16 @@ impl Metadata {
             Self::CompteRendu(_) => compte_rendu::GROUPS,
         }
     }
-    pub fn editor_group_ui(&mut self, ui: &mut egui::Ui, group: &str) {
+    pub fn field_values(&self) -> Vec<FieldValue> {
         match self {
-            Self::Courrier(meta) => fields_ui(ui, meta, courrier::FIELDS, group),
-            Self::CompteRendu(meta) => fields_ui(ui, meta, compte_rendu::FIELDS, group),
+            Self::Courrier(meta) => fields::values(meta, courrier::FIELDS),
+            Self::CompteRendu(meta) => fields::values(meta, compte_rendu::FIELDS),
+        }
+    }
+    pub fn field_mut(&mut self, field: MetadataField) -> Option<&mut String> {
+        match self {
+            Self::Courrier(meta) => fields::value_mut(meta, courrier::FIELDS, field),
+            Self::CompteRendu(meta) => fields::value_mut(meta, compte_rendu::FIELDS, field),
         }
     }
     pub fn ready_for_export(&self) -> bool {
@@ -159,12 +166,14 @@ pub struct FieldGroup {
     pub id: &'static str,
     pub label_key: &'static str,
 }
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum FieldKind {
     Text,
     Date,
 }
 pub struct TextField<T: 'static> {
+    pub field: MetadataField,
     pub parameter: &'static str,
     pub editor_id: &'static str,
     pub label_key: &'static str,
@@ -233,64 +242,6 @@ impl<T> ModelContract<T> {
         ));
         source
     }
-}
-
-fn fields_ui<T>(ui: &mut egui::Ui, metadata: &mut T, fields: &[TextField<T>], group: &str) {
-    let width = (ui.available_width() - 120.0).max(80.0);
-    egui::Grid::new(format!("{group}-fields"))
-        .num_columns(2)
-        .show(ui, |ui| {
-            for field in fields.iter().filter(|f| f.group == group) {
-                let label = ui.label(crate::i18n::text(field.label_key));
-                let value = (field.get_mut)(metadata);
-                let is_date = field.kind == FieldKind::Date;
-                let edit = |ui: &mut egui::Ui, value: &mut String, width| {
-                    let widget = if field.multiline {
-                        egui::TextEdit::multiline(value).desired_rows(3)
-                    } else {
-                        egui::TextEdit::singleline(value)
-                    };
-                    let widget = widget.id_salt(field.editor_id).desired_width(width);
-                    if is_date {
-                        widget.hint_text(crate::tr!("date-input-hint"))
-                    } else {
-                        widget
-                    }
-                    .show(ui)
-                };
-                let output = if is_date {
-                    ui.horizontal_wrapped(|ui| {
-                        let mut output = edit(ui, value, (width - 100.0).max(80.0));
-                        let entered = value.clone();
-                        let today = ui
-                            .button(crate::tr!("date-today"))
-                            .on_hover_text(crate::tr!("date-today-help"))
-                            .clicked();
-                        if today || crate::dates::is_today(value) {
-                            *value = crate::dates::today();
-                        } else if output.response.lost_focus() || value.trim().len() == 10 {
-                            crate::dates::normalize(value);
-                        }
-                        if *value != entered {
-                            output.state.cursor.set_char_range(Some(
-                                egui::text::CCursorRange::one(egui::text::CCursor::new(
-                                    value.chars().count(),
-                                )),
-                            ));
-                        }
-                        output
-                    })
-                    .inner
-                } else {
-                    edit(ui, value, width)
-                };
-                let response = output.response.labelled_by(label.id);
-                let mut state = output.state;
-                state.clear_undoer();
-                state.store(ui.ctx(), response.id);
-                ui.end_row();
-            }
-        });
 }
 
 #[cfg(test)]

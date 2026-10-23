@@ -1,3 +1,4 @@
+use super::metadata_types::*;
 use super::search_types::*;
 use super::spelling_types::*;
 use super::{CommandError, registry::define_calls};
@@ -131,6 +132,8 @@ pub struct SearchParams {
 
 define_calls! {
     Command, command_specs;
+    SetMetadata(SetMetadataParams) => "metadata.set", "Set an active document-type field, with a guarded value and optional typing history grouping.", Edit, Document;
+    SetOption(SetOptionParams) => "document.set_option", "Set a typed document option while enforcing the model page and marker policy.", Edit, Document;
     NextSpelling(TargetParams) => "spelling.next", "Select the next spelling issue in the current document, wrapping around.", Selection, Document;
     PreviousSpelling(TargetParams) => "spelling.previous", "Select the previous spelling issue in the current document, wrapping around.", Selection, Document;
     CorrectSpelling(SpellingCorrectionParams) => "spelling.correct", "Correct a revision-guarded spelling issue while preserving inline styles.", Edit, Document;
@@ -171,6 +174,7 @@ define_calls! {
 
 define_calls! {
     Query, query_specs;
+    ModelPresentation(Empty) => "models.presentation", "Read the current model page constraints and permitted bullet markers.", Query, Read;
     SpellingIssues(Empty) => "spelling.issues", "Read revision-guarded spelling issues and dictionary availability using the configured personal words.", Query, Read;
     SpellingSuggestions(SpellingSuggestionsParams) => "spelling.suggestions", "Suggest corrections for an explicit word and language or a validated spelling issue, without changing selection.", Query, Read;
     Inspect(Empty) => "document.inspect", "Read the current revision, selection and history availability.", Query, Read;

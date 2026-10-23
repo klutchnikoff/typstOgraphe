@@ -348,6 +348,12 @@ fn document_information_offers_only_the_markers_allowed_by_the_template() {
     assert!(point(&output, "Automatique (modèle)").is_some());
     assert!(point(&output, "▪").is_none());
     assert!(point(&output, "Caractère personnalisé…").is_none());
+    let before = app.snapshot();
+    app.document
+        .engine
+        .template
+        .push_str("\n#let editor-options = (bullet-markers: (\"▪\",),)");
+    app.remember(before, false);
     app.document.presentation = world
         .model_presentation("#let editor-options = (bullet-markers: (\"▪\",),)")
         .unwrap();

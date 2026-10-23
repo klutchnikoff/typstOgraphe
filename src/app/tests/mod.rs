@@ -18,6 +18,7 @@ mod images;
 mod images_engine;
 mod ime;
 mod information;
+mod information_engine;
 mod preview;
 mod profile;
 mod recovery;

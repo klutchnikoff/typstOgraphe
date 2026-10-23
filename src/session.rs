@@ -73,7 +73,7 @@ pub struct Snapshot {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum EditGroup {
     Body,
-    Metadata(u64),
+    Metadata(crate::document_types::MetadataField),
     Discrete,
 }
 pub struct Session {
@@ -303,7 +303,11 @@ mod tests {
         let before = session.snapshot(selection);
         session.metadata.courrier_mut().objet = "Nouvel objet".into();
         session
-            .record(before, selection, EditGroup::Metadata(1))
+            .record(
+                before,
+                selection,
+                EditGroup::Metadata(crate::document_types::MetadataField::LetterSubject),
+            )
             .unwrap();
         assert_eq!(session.document.source(), letter.source);
         let before = session.snapshot(selection);
@@ -340,9 +344,14 @@ mod tests {
             .record(session.snapshot(selection), selection, EditGroup::Discrete)
             .unwrap();
         assert!(session.undo.is_empty());
-        for (field, value) in [(1, "A"), (1, "AB"), (2, "ABC")] {
+        use crate::document_types::MetadataField::{LetterReference, LetterSubject};
+        for (field, value) in [
+            (LetterSubject, "A"),
+            (LetterSubject, "AB"),
+            (LetterReference, "ABC"),
+        ] {
             let before = session.snapshot(selection);
-            session.metadata.courrier_mut().objet = value.into();
+            *session.metadata.field_mut(field).unwrap() = value.into();
             session
                 .record(before, selection, EditGroup::Metadata(field))
                 .unwrap();
