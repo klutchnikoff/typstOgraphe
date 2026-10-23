@@ -394,7 +394,10 @@ publication. `Deref/DerefMut` et les écritures directes dans la session sont su
 La préédition IME reste dans
 un brouillon entre frames et sa validation publie une seule étape d’historique ;
 les annulations et événements tardifs ne changent pas la session publiée.
-Le tampon graphique reste plat ; l’aperçu utilise encore ses cartes de source.
+Le tampon graphique reste plat. Les cartes de source Typst alimentent désormais
+les requêtes gardées `render.locate` et `render.selection_boxes` du moteur ;
+l’interface garde le zoom, la peinture, le focus et les défilements. Les compteurs
+Unicode sont lus via `document.statistics`, avec un cache détenu par le moteur.
 La recherche utilise des cibles logiques gardées, converties en indices seulement
 pour sa peinture. Les règles des descriptions, listes, notes, légendes/attributions
 et les transformations de frappe sont exécutées par le moteur.
@@ -417,9 +420,11 @@ Dans `src/engine/` (futur crate `core`) :
   hiérarchiques existants (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
 - [ ] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
   `search.find`, `metadata.get`, `commands.list`, `models.list`).
-  **En cours :** onze requêtes implémentées ; les lectures orthographiques, les
-  champs actifs, `models.presentation`, `models.list` et `recovery.list` sont disponibles. Les lectures
-  liées aux autres familles restent à migrer.
+  **En cours :** quatorze requêtes implémentées, dont `render.locate`,
+  `render.selection_boxes` et `document.statistics`. Les lectures orthographiques,
+  champs actifs, modèles et récupération sont également disponibles. La couverture
+  de l’inventaire et les signatures restent à relire avant le gel du catalogue.
+  Voir [le contrat des lectures de rendu et compteurs](docs/read-queries.md).
 - [x] `UiCommand` : palette, préférences, ouverture des dialogues, focus. Reste dans l'application.
 - [x] `CommandSpec` (cœur, sans egui) : identifiant, description **en anglais** (pour les
   agents), famille, schéma des paramètres (`schemars`), règle de disponibilité

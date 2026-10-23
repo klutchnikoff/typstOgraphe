@@ -5,7 +5,7 @@ V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers 
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
-Le registre typé et le premier moteur sont implémentés : 49 commandes, onze
+Le registre typé et le premier moteur sont implémentés : 49 commandes, quatorze
 requêtes et leur catalogue généré. La consolidation de la phase n’est pas terminée.
 
 ## Blocs et zones en mémoire
@@ -788,6 +788,8 @@ catalogue, format d’archive, dépendance Cargo ou fonctionnalité produit n’
   `output/baseline/run-oni7qo73/`, sans modifier les références.
 - La suppression des accès transitoires conserve les huit captures strictement
   identiques dans `output/baseline/run-kndfgtd7/`, sans modifier les références.
+- Le lot de lectures de rendu et compteurs conserve les huit captures strictement
+  identiques dans `output/baseline/run-87yhkaa6/`, sans modifier les références.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -801,23 +803,65 @@ allocateurs utilisent désormais `identity::next`, fondé sur
 `compare_exchange_weak`, sans changer le minimum Rust déclaré. Deux tests
 vérifient l’unicité concurrente et le refus de boucler au dépassement de capacité.
 
+## Lectures de rendu et compteurs
+
+Le lot du 24 octobre 2026 ajoute trois requêtes au registre : `render.locate`,
+`render.selection_boxes` et `document.statistics`. Le catalogue généré compte
+49 commandes et quatorze requêtes. Le [contrat détaillé](read-queries.md) précise
+les cibles, les réponses, les unités et les erreurs.
+
+Le moteur possède les correspondances immuables `RenderSync`. Il résout les cibles
+logiques vers la carte de source Typst pour la navigation avant et le surlignage ;
+la navigation inverse renvoie une cible logique gardée, puis l’interface appelle
+`text.select`. Le focus et le défilement restent graphiques. Les algorithmes de
+cartographie, transformations du modèle et quadrilatères sont conservés.
+
+Chaque rendu accepté reçoit une référence opaque avec identité de document,
+révision et identité propre du rendu. `document.inspect` expose cette référence
+et les dimensions des pages, ou `render: null` sans rendu courant. Un nouveau
+rendu remplace la référence précédente, même à révision identique. Le worker
+conserve la garde complète dans son enveloppe et dans sa réponse ; un résultat
+tardif d’un autre document ne peut pas remplacer l’aperçu, même si les révisions
+coïncident. Le remplacement et la fermeture de session libèrent le rendu du moteur.
+
+Le compteur Unicode existant et ses conventions sont conservés. Son cache est
+désormais dans le moteur, indexé par document/révision et plage de sélection. Les
+métadonnées, textes alternatifs, signatures et textes du modèle ne sont pas comptés.
+Le brouillon IME reste exclu jusqu’à sa validation. Ces lectures ne publient aucune
+transaction et ne modifient pas le contexte de frappe, la sélection ou l’historique.
+
+Sept nouveaux tests couvrent les compteurs document/cible, Unicode, les gardes,
+le cache lors d’un remplacement à révision identique, les correspondances des
+zones (dont légendes, attributions, descriptions et notes), les quadrilatères
+sur plusieurs pages, les points invalides ou sans contenu éditable, le remplacement
+des références et les réponses tardives du worker. Les scénarios graphiques existants
+restent utilisés pour le défilement, le focus, le clic sur les résultats de recherche,
+le comptage pendant l’IME et la reprise de saisie après double-clic dans l’aperçu.
+
+Validation : 328 tests de l’application et 200 du diagnostic isolé passent avec
+`cargo test --locked --all-targets --features editor-model-spike`. Clippy sur les
+mêmes cibles passe avec `-D warnings` ; formatage, différences et seuil de taille
+des modules `app` et `engine` sont vérifiés. Aucun format documentaire, dépendance
+Cargo ou transport CLI/MCP n’est ajouté.
+
 ## Suite de la phase
 
-La synchronisation d’aperçu fonctionne encore via les cartes de source existantes.
-La recherche utilise maintenant des cibles logiques gardées ; sa peinture reste un
-adaptateur du tampon graphique. Les règles des blocs et de transformation de
-frappe, les images, signatures, actions de recherche/remplacement, l’orthographe
-documentaire, les champs, les options et le changement/import des modèles sont migrés.
+Les lectures de synchronisation et de comptage sont migrées vers le moteur. Les
+cartes de source Typst sont conservées derrière les requêtes ; la peinture de la
+recherche reste également un adaptateur du tampon graphique. Les règles des blocs
+et de transformation de frappe, les images, signatures, actions de recherche/remplacement,
+l’orthographe documentaire, les champs, les options et les modèles sont migrés.
 
 L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
 Les essais complets de composition, choix des candidats, annulation et historique
 avec les méthodes système restent à poursuivre dans le chantier I. Le contrat natif
 D17 est implémenté ; les autres critères de 2.1 bis restent à relire avant clôture.
 
-Les familles documentaires prévues en 2.4 sont migrées, y compris les fichiers et
+Les familles documentaires prévues en 2.4 sont migrées, y compris les fichiers,
 la récupération et les lots atomiques D16. L’accès transitoire à la session est
-supprimé. Restent l’aiguillage final des déclencheurs, les requêtes de
-rendu/compteurs encore dans les adaptateurs et le gel du catalogue. V5 conserve
-les réglages globaux dans l’application ; les formats d’export séparés et la création
-sans interface de V6 sont implémentés et testés. Aucun transport CLI/MCP n’est ajouté
-par ce lot.
+supprimé. Restent l’unification de la disponibilité, l’aiguillage final des
+déclencheurs, la relecture exhaustive de l’inventaire et le gel du catalogue.
+V5 conserve les réglages globaux dans l’application ; les formats d’export séparés
+et la création sans interface de V6 sont implémentés et testés. Le lot de lectures
+ne livre pas de `render.compile` public ; son service et les éventuelles lectures
+complémentaires seront examinés lors de la relecture de l’inventaire.

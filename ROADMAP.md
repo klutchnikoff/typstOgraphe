@@ -604,7 +604,7 @@ normalisation et publication des éditions en place. La préédition IME reste
 isolée entre frames, avec une publication unique à validation, vérifiée par les
 événements egui ; l’essai d’une méthode IME du système reste au chantier I.
 Le registre typé, ses schémas et un premier moteur possédant la session et sa
-sélection sont en place : 49 commandes et onze requêtes, décrites par un
+sélection sont en place : 49 commandes et quatorze requêtes, décrites par un
 [catalogue généré](docs/commands.md). Mise en forme, blocs, P.-S./P.J. et historique
 sont raccordés à l’interface. Les légendes/attributions et leurs raccourcis
 Tab, Maj+Tab et Entrée passent également par le moteur, comme les descriptions,
@@ -626,7 +626,10 @@ dans l’interface. Les [lots atomiques](docs/atomic-batches.md) sont en place :
 préparation sur une session isolée, une seule annulation et une sauvegarde finale
 facultative. L’accès transitoire à la session est supprimé : accesseurs immuables
 pour l’affichage, brouillons natifs opaques et publications contrôlées par le moteur.
-La consolidation des requêtes, l’aiguillage final et le gel du catalogue restent à traiter
+Les [lectures de rendu et compteurs](docs/read-queries.md) passent aussi par le
+moteur : positions logiques, quadrilatères en points Typst, référence de rendu
+gardée et comptage Unicode sur le document publié. L’aiguillage final, la relecture
+de l’inventaire et le gel du catalogue restent à traiter
 ([suivi de phase 2](docs/architecture-phase-2.md)).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une
