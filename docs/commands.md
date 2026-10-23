@@ -6,7 +6,7 @@ Les actions d’interface et les familles non migrées n’y figurent pas.
 Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 
 | Identifiant | Famille | Étape de lot | Description |
-| --- | --- | --- | --- | --- |
+| --- | --- | --- | --- |
 | `document.batch` | batch | non | Apply bounded editing steps on a private session as one undoable transaction, with an optional single final atomic save. |
 | `recovery.restore` | file | non | Restore a configured recovery reference as an unsaved copy, protecting current work. |
 | `recovery.delete` | file | non | Explicitly delete one configured recovery copy without modifying document history. |

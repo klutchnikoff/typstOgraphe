@@ -143,7 +143,7 @@ macro_rules! define_calls {
 /// qu'une fois toutes les familles de phase 2 migrées et relues.
 pub fn catalogue_markdown(value: &Value) -> String {
     let mut text = String::from(
-        "# Catalogue documentaire implémenté\n\nFichier généré par `cargo run --locked -- --commands-catalogue`.\nCe catalogue de phase 2 est partiel et ses signatures restent en cours de validation.\nLes actions d’interface et les familles non migrées n’y figurent pas.\nLes schémas JSON sont disponibles avec `--commands-catalogue-json`.\n\n| Identifiant | Famille | Étape de lot | Description |\n| --- | --- | --- | --- | --- |\n",
+        "# Catalogue documentaire implémenté\n\nFichier généré par `cargo run --locked -- --commands-catalogue`.\nCe catalogue de phase 2 est partiel et ses signatures restent en cours de validation.\nLes actions d’interface et les familles non migrées n’y figurent pas.\nLes schémas JSON sont disponibles avec `--commands-catalogue-json`.\n\n| Identifiant | Famille | Étape de lot | Description |\n| --- | --- | --- | --- |\n",
     );
     for spec in value["entries"].as_array().expect("catalogue entries") {
         text.push_str(&format!(

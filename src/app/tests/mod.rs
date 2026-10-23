@@ -9,6 +9,7 @@ use support::*;
 
 mod annotations;
 mod annotations_engine;
+mod batch_engine;
 mod blocks_engine;
 mod commands;
 mod edit_validation;

@@ -134,6 +134,16 @@ fn catalogue_has_valid_unique_ids_and_strict_schemas_and_all_calls_round_trip() 
             }
             _ => json!({}),
         };
+        if matches!(
+            spec.family,
+            Family::File | Family::History | Family::Query | Family::Batch
+        ) {
+            assert!(
+                !spec.batch_step,
+                "{} must be excluded from editing steps",
+                spec.id.as_str()
+            );
+        }
         if spec.family == Family::Query {
             let query = Query::from_call(spec.id.as_str(), params).unwrap();
             let call = query.to_call();
@@ -143,6 +153,7 @@ fn catalogue_has_valid_unique_ids_and_strict_schemas_and_all_calls_round_trip() 
             );
         } else {
             let command = Command::from_call(spec.id.as_str(), params).unwrap();
+            assert_eq!(command.batch_step_allowed(), spec.batch_step);
             let call = command.to_call();
             assert_eq!(
                 Command::from_call(call.id.as_str(), call.params).unwrap(),

@@ -5,6 +5,7 @@ use std::io::{self, Write};
 
 pub const MAX_BATCH_STEPS: usize = 256;
 pub const MAX_BATCH_BYTES: usize = 4 * 1024 * 1024;
+pub const MAX_BATCH_RESOURCE_BYTES: usize = crate::assets::MAX_DOCUMENT_BYTES as usize;
 
 /// Compter sans allouer une deuxième copie du JSON (notamment des images base64).
 struct ByteLimit(usize);
@@ -67,6 +68,28 @@ impl Engine {
             })
             .collect()
     }
+    /// Borner aussi les imports supprimés plus tard dans le lot : leurs octets
+    /// ne sont pas couverts par la taille du script, et aucun undo interne ne les exige.
+    pub(super) fn check_batch_resources(&self, draft: &Engine) -> Result<(), CommandError> {
+        let added = |current: &crate::assets::Assets, original: &crate::assets::Assets| {
+            current
+                .iter()
+                .filter(|(path, data)| original.get(*path) != Some(*data))
+                .map(|(_, data)| data.len())
+                .sum::<usize>()
+        };
+        let growth = added(
+            &draft.session.document.assets,
+            &self.session.document.assets,
+        ) + added(&draft.session.dependencies, &self.session.dependencies);
+        if growth > MAX_BATCH_RESOURCE_BYTES {
+            return Err(CommandError::new(
+                ErrorCode::Document,
+                "batch_resource_limit",
+            ));
+        }
+        Ok(())
+    }
     pub(super) fn run_batch(&mut self, p: BatchParams) -> Result<Outcome, CommandError> {
         let commands = self.check_batch(&p)?;
         let mut draft: Engine = self.session.fork_for_batch().into();
@@ -76,6 +99,8 @@ impl Engine {
         for (index, command) in commands.into_iter().enumerate() {
             let id = command.id();
             let outcome = draft.run(command).map_err(|e| step_error(index, id, e))?;
+            self.check_batch_resources(&draft)
+                .map_err(|e| step_error(index, id, e))?;
             reveal |= outcome.effects.contains(&Effect::RevealSelection);
             // L’historique provisoire ne sert pas à annuler les étapes individuellement.
             // Ne pas garder 256 copies du document ; seul l’instantané publié sera retenu.

@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-/// Aucun fichier n’est écrit quand save est absent. Current exige un chemin connu.
+/// No file is written when save is absent. Current requires an existing session path.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum BatchSave {
@@ -19,6 +19,7 @@ pub enum BatchSave {
 #[serde(deny_unknown_fields)]
 pub struct BatchParams {
     pub guard: TargetGuard,
+    #[schemars(length(min = 1, max = super::batch::MAX_BATCH_STEPS))]
     pub steps: Vec<Call>,
     #[serde(default)]
     pub save: Option<BatchSave>,

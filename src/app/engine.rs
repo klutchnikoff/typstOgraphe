@@ -32,7 +32,13 @@ impl App {
             command,
             CoreCommand::SetModel(_) | CoreCommand::PersonalModel(_)
         );
-        let preserve_focus = model
+        let batch = matches!(command, CoreCommand::Batch(_)).then(|| {
+            (
+                self.document.engine.document.source().to_owned(),
+                self.document.selection,
+            )
+        });
+        let mut preserve_focus = model
             || matches!(
                 command,
                 CoreCommand::SetSignature(_)
@@ -58,12 +64,19 @@ impl App {
             self.clear_recovery();
         }
         self.document.selection = self.document.engine.selection().into();
-        if model {
-            self.document.presentation = serde_json::from_value(
-                outcome.value.as_ref().expect("model result")["presentation"].clone(),
-            )
-            .expect("typed model presentation");
+        if let Some(presentation) = outcome
+            .value
+            .as_ref()
+            .and_then(|value| value.get("presentation"))
+            .filter(|value| !value.is_null())
+        {
+            self.document.presentation =
+                serde_json::from_value(presentation.clone()).expect("typed model presentation");
             self.dialogs.marker_draft = None;
+        }
+        if let Some((source, selection)) = batch {
+            preserve_focus = source == self.document.engine.document.source()
+                && selection == self.document.selection;
         }
         if outcome
             .effects
@@ -74,7 +87,7 @@ impl App {
         if !preserve_focus {
             self.document.force_selection = true;
         }
-        if !outcome.effects.contains(&crate::engine::Effect::Saved) {
+        if outcome.changed || !outcome.effects.contains(&crate::engine::Effect::Saved) {
             self.preview.forward_pending = true;
         }
         if self.search.open {
@@ -89,6 +102,7 @@ impl App {
                 | CoreCommand::SetOption(_)
                 | CoreCommand::SetModel(_)
                 | CoreCommand::PersonalModel(_)
+                | CoreCommand::Batch(_)
         );
         match self.execute_document_command(command) {
             Ok(_) => true,
@@ -100,6 +114,15 @@ impl App {
         }
     }
     pub(super) fn command_error_text(error: &CommandError) -> String {
+        if error.reason() == "batch_step"
+            && let Ok(cause) = serde_json::from_value::<CommandError>(error.params["error"].clone())
+        {
+            return crate::tr!(
+                "engine-batch-step-error",
+                step = (error.params["step"].as_u64().unwrap_or(0) + 1).to_string(),
+                error = Self::command_error_text(&cause)
+            );
+        }
         if error.reason() == "model_validation" {
             return format!(
                 "{}\n{}",
@@ -136,6 +159,10 @@ impl App {
         }
         crate::i18n::text(match error.reason() {
             "image_too_large" => "image-too-large",
+            "batch_step_limit" => "engine-batch-step-limit",
+            "batch_resource_limit" => "engine-batch-resource-limit",
+            "batch_size_limit" => "engine-batch-size-limit",
+            "batch_step_forbidden" => "engine-batch-step-forbidden",
             "file_exists" => "file-already-exists",
             "unsaved_changes" => "unsaved-message",
             "creation_model" => "type-no-model",

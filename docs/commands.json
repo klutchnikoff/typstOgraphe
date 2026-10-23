@@ -9,7 +9,7 @@
       "params_schema": {
         "$defs": {
           "BatchSave": {
-            "description": "Aucun fichier n’est écrit quand save est absent. Current exige un chemin connu.",
+            "description": "No file is written when save is absent. Current requires an existing session path.",
             "oneOf": [
               {
                 "additionalProperties": false,
@@ -106,6 +106,8 @@
             "items": {
               "$ref": "#/$defs/Call"
             },
+            "maxItems": 256,
+            "minItems": 1,
             "type": "array"
           }
         },

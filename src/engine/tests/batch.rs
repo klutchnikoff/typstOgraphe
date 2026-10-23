@@ -496,3 +496,74 @@ fn batch_copies_personal_spelling_configuration_without_modifying_it_or_global_s
         false
     );
 }
+
+#[test]
+fn a_noop_batch_can_save_once_without_destroying_redo_or_adding_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("noop.typsto");
+    let mut e = engine("Avant");
+    batch(
+        &mut e,
+        vec![step("text.insert", json!({"text":"À annuler "}))],
+    );
+    e.run(Command::Undo(Empty {})).unwrap();
+    let guard = e.target_guard();
+    let mut p = params(
+        &e,
+        vec![step("text.select", json!({"target":{"kind":"all"}}))],
+    );
+    p.save = Some(BatchSave::As {
+        path: path.clone(),
+        overwrite: false,
+    });
+    let out = e.run(Command::Batch(p)).unwrap();
+    assert!(!out.changed);
+    assert_eq!(out.guard, guard);
+    assert_eq!(out.effects, vec![Effect::Saved]);
+    assert!(e.undo.is_empty());
+    assert_eq!(e.redo.len(), 1);
+    assert!(!e.is_dirty());
+    assert!(crate::storage::read(&path).unwrap() == e.stored_document());
+    e.run(Command::Redo(Empty {})).unwrap();
+    assert!(e.is_dirty());
+    assert!(e.document.view.text.starts_with("À annuler"));
+    let mut boundary = engine("Avant");
+    let guard = boundary.target_guard();
+    let out = batch(
+        &mut boundary,
+        vec![step("text.clear", json!({})); super::super::batch::MAX_BATCH_STEPS],
+    );
+    assert!(!out.changed);
+    assert_eq!(out.guard, guard);
+    assert!(boundary.undo.is_empty());
+}
+
+#[test]
+fn resource_limits_count_new_imports_even_when_the_document_already_has_a_large_undo_pool() {
+    let mut original = engine("Avant");
+    let bytes: std::sync::Arc<[u8]> = vec![0; crate::assets::MAX_IMAGE_BYTES].into();
+    // Partager les octets limite la mémoire du test ; le budget reste celui des ressources.
+    for index in 0..5 {
+        original
+            .document
+            .assets
+            .insert(format!("images/old-{index}.svg"), bytes.clone());
+    }
+    let mut draft: Engine = original.fork_for_batch().into();
+    original.check_batch_resources(&draft).unwrap();
+    for index in 0..4 {
+        draft
+            .document
+            .assets
+            .insert(format!("images/new-{index}.svg"), bytes.clone());
+    }
+    original.check_batch_resources(&draft).unwrap();
+    draft
+        .document
+        .assets
+        .insert("images/one-too-many.svg".into(), bytes);
+    assert_eq!(
+        original.check_batch_resources(&draft).unwrap_err().reason(),
+        "batch_resource_limit"
+    );
+}
