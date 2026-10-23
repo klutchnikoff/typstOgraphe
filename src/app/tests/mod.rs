@@ -23,6 +23,7 @@ mod profile;
 mod recovery;
 mod search;
 mod spelling;
+mod spelling_engine;
 mod support;
 mod text_input;
 mod toolbar;

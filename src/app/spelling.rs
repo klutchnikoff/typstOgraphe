@@ -1,4 +1,8 @@
 use super::*;
+use crate::engine::{
+    Availability, Command as Core, SelectTextParams, SpellingCorrectionParams, SpellingIssue,
+    SpellingIssueParams,
+};
 
 impl App {
     pub fn capture_spelling(&mut self, ctx: &egui::Context) {
@@ -22,6 +26,9 @@ impl App {
         if !self.document.open {
             return;
         }
+        self.document
+            .engine
+            .configure_spelling(&self.preferences.spelling.personal);
         let options = self.document.engine.metadata.options();
         self.spelling.checker.synchronize(
             self.document.engine.revision,
@@ -59,59 +66,94 @@ impl App {
             })
             .cloned()
     }
-    fn valid_spelling_target(&self, revision: u64, issue: &crate::spelling::Issue) -> bool {
-        revision == self.document.engine.revision
-            && self.preferences.spelling.enabled
-            && self.spelling.checker.is_current(revision)
-            && self.spelling.checker.issues.contains(issue)
-            && self
-                .document
-                .engine
-                .document
-                .view
-                .text
-                .chars()
-                .skip(issue.range.start)
-                .take(issue.range.len())
-                .collect::<String>()
-                == issue.word
-    }
-    pub(super) fn correct_spelling(
-        &mut self,
-        revision: u64,
+    pub(super) fn spelling_reference(
+        &self,
         issue: &crate::spelling::Issue,
-        replacement: &str,
-    ) {
-        if !self.valid_spelling_target(revision, issue) {
-            return;
+    ) -> Option<SpellingIssue> {
+        if !self.preferences.spelling.enabled
+            || !self
+                .spelling
+                .checker
+                .is_current(self.document.engine.revision)
+        {
+            return None;
         }
-        self.document.history_field = None;
-        let previous = self.document.selection.into();
         let target = self
             .document
             .engine
-            .selection_target(editor::cursor(issue.range.clone()).into());
-        let result = target
-            .map_err(crate::document::edits::EditError::Target)
-            .and_then(|target| self.document.engine.replace_text(target, replacement));
-        if !self.accept_edit(result, previous) {
-            return;
+            .selection_target(editor::cursor(issue.range.clone()).into())
+            .ok()?;
+        let reference = SpellingIssue {
+            target,
+            language: self.document.engine.metadata.options().language,
+            word: issue.word.clone(),
+        };
+        self.valid_spelling_target(&reference).then_some(reference)
+    }
+    pub(super) fn valid_spelling_target(&self, issue: &SpellingIssue) -> bool {
+        self.preferences.spelling.enabled
+            && self
+                .spelling
+                .checker
+                .is_current(issue.target.guard.revision)
+            && matches!(
+                self.document
+                    .engine
+                    .available(&Core::IgnoreSpelling(SpellingIssueParams {
+                        issue: issue.clone()
+                    })),
+                Availability::Enabled
+            )
+    }
+    pub(super) fn correct_spelling(&mut self, issue: &SpellingIssue, replacement: &str) {
+        self.document.history_field = None;
+        if self.run_document_command(Core::CorrectSpelling(SpellingCorrectionParams {
+            issue: issue.clone(),
+            replacement: replacement.into(),
+        })) {
+            self.spelling.target = None;
         }
-        self.document.force_selection = true;
-        self.preview.forward_pending = true;
-        self.spelling.target = None;
+    }
+    /// Le menu capture une cible ; le raccourci utilise la faute sélectionnée.
+    pub(super) fn apply_spelling_issue(&mut self, command: Command, issue: SpellingIssue) {
+        match command {
+            Command::IgnoreSpelling => {
+                if self.run_document_command(Core::IgnoreSpelling(SpellingIssueParams { issue })) {
+                    self.spelling.target = None;
+                }
+            }
+            Command::LearnSpelling if self.valid_spelling_target(&issue) => {
+                self.preferences
+                    .spelling
+                    .personal
+                    .entry(issue.language.code().into())
+                    .or_default()
+                    .insert(crate::spelling::word_key(&issue.word));
+                self.document
+                    .engine
+                    .configure_spelling(&self.preferences.spelling.personal);
+            }
+            Command::LearnSpelling => {}
+            _ => unreachable!("spelling issue action"),
+        }
     }
     pub(super) fn open_spelling_target(&mut self, issue: crate::spelling::Issue) {
-        self.spelling.checker.request_suggestions(
-            self.document.engine.metadata.options().language,
-            &issue.word,
-        );
-        self.document.selection = editor::cursor(issue.range.clone());
-        self.document.force_selection = true;
-        self.preview.forward_pending = true;
+        let Some(reference) = self.spelling_reference(&issue) else {
+            return;
+        };
+        if !self.run_document_command(Core::SelectText(SelectTextParams {
+            target: reference.target.into(),
+            part: None,
+        })) {
+            return;
+        }
+        // Le worker partage le calcul pur de spelling.suggestions ; il évite
+        // de bloquer la frame egui. La cible capturée sera revalidée au clic.
+        self.spelling
+            .checker
+            .request_suggestions(reference.language, &reference.word);
         self.document.history_field = None;
-        self.document.engine.typing_group = false;
-        self.spelling.target = Some((self.document.engine.revision, issue));
+        self.spelling.target = Some(reference);
     }
     pub(super) fn spelling_context_menu(&mut self, output: &egui::text_edit::TextEditOutput) {
         if output.response.secondary_clicked() {
@@ -146,12 +188,15 @@ impl App {
         let mut popup = egui::Popup::context_menu(&output.response);
         if self.spelling.menu_pending {
             self.spelling.menu_pending = false;
-            if let Some((_, issue)) = &self.spelling.target {
+            if let Some(issue) = &self.spelling.target {
+                let Ok((start, _)) = self.document.engine.resolve_target(issue.target) else {
+                    return;
+                };
                 self.spelling.menu_position = Some(
                     output.galley_pos
                         + output
                             .galley
-                            .pos_from_cursor(CCursor::new(issue.range.start))
+                            .pos_from_cursor(CCursor::new(start))
                             .left_bottom()
                             .to_vec2(),
                 );
@@ -162,11 +207,11 @@ impl App {
             popup = popup.at_position(position);
         }
         popup.show(|ui| {
-            let Some((revision, issue)) = self
+            let Some(issue) = self
                 .spelling
                 .target
                 .clone()
-                .filter(|(revision, issue)| self.valid_spelling_target(*revision, issue))
+                .filter(|issue| self.valid_spelling_target(issue))
             else {
                 ui.weak(crate::tr!("spelling-no-issue-here"));
                 return;
@@ -179,7 +224,7 @@ impl App {
                 }
                 for suggestion in suggestions {
                     if ui.button(&suggestion).clicked() {
-                        self.correct_spelling(revision, &issue, &suggestion);
+                        self.correct_spelling(&issue, &suggestion);
                         ui.close();
                     }
                 }
@@ -189,7 +234,7 @@ impl App {
             ui.separator();
             for command in [Command::IgnoreSpelling, Command::LearnSpelling] {
                 if ui.button(command.label()).clicked() {
-                    self.apply(command);
+                    self.apply_spelling_issue(command, issue.clone());
                     self.spelling.target = None;
                     self.document.force_selection = true;
                     ui.close();

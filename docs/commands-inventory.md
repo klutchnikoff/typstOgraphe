@@ -6,7 +6,7 @@ L’implémentation a commencé par les blocs, leurs zones, leurs identités et 
 cibles de sélection, puis la protection des frontières et la voie commune de
 publication des éditions, puis l’isolation IME entre frames ; voir
 [le suivi de phase 2](architecture-phase-2.md).
-Le premier moteur, 31 commandes documentaires et six requêtes sont maintenant
+Le premier moteur, 36 commandes documentaires et huit requêtes sont maintenant
 implémentés avec leurs schémas JSON ; voir le [catalogue généré](commands.md).
 Le lot du 23 octobre migre Tab/Maj+Tab vers `text.select { part }`, puis Entrée
 vers `block.split` et sa sortie commune `block.exit` pour légendes et attributions.
@@ -30,6 +30,12 @@ pour le clic sur une occurrence. Les paramètres actuels et les gardes sont déc
 dans [le suivi de phase 2](architecture-phase-2.md#recherche-et-remplacement).
 Les chemins des tableaux ci-dessous restent le relevé historique à migrer ; les
 signatures réellement implémentées sont celles du [catalogue généré](commands.json).
+Le lot orthographique migre `spelling.next/previous/correct/ignore/reset`, avec les
+lectures `spelling.issues/suggestions`. Une faute porte une cible logique gardée,
+son mot exact et sa langue. L’activation et l’apprentissage restent des actions
+globales ; les mots personnels sont une configuration de lecture explicite du moteur.
+Les essais sont dans [spelling_engine.rs](../src/app/tests/spelling_engine.rs) et
+[spelling.rs](../src/engine/tests/spelling.rs).
 Les tableaux ci-dessous restent l’inventaire de migration de toutes les actions,
 pas la liste des opérations déjà disponibles sans interface.
 Les règles déjà validées sont dans [la feuille de route technique](../ROADMAP-ARCHITECTURE.md),

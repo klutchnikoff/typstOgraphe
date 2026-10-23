@@ -115,76 +115,49 @@ impl App {
         }
     }
     fn apply_spelling_command(&mut self, command: Command) {
+        use crate::engine::{Command as Core, GuardParams, TargetParams};
+        self.document
+            .engine
+            .configure_spelling(&self.preferences.spelling.personal);
         match command {
             Command::ToggleSpelling => {
-                self.preferences.spelling.enabled = !self.preferences.spelling.enabled
+                self.preferences.spelling.enabled = !self.preferences.spelling.enabled;
             }
             Command::SpellingSuggestions => {
                 if let Some(issue) = self.selected_spelling_issue() {
                     self.open_spelling_target(issue);
-                    self.spelling.menu_pending = true;
+                    self.spelling.menu_pending = self.spelling.target.is_some();
                 }
             }
             Command::NextSpelling | Command::PreviousSpelling => {
-                let range = self.range();
-                let issues = &self.spelling.checker.issues;
-                let target = if command == Command::PreviousSpelling {
-                    issues
-                        .iter()
-                        .rfind(|issue| issue.range.start < range.start)
-                        .or_else(|| issues.last())
+                if !self.preferences.spelling.enabled
+                    || !self
+                        .spelling
+                        .checker
+                        .is_current(self.document.engine.revision)
+                    || self.spelling.checker.issues.is_empty()
+                {
+                    return;
+                }
+                self.document.history_field = None;
+                self.run_document_command(if command == Command::PreviousSpelling {
+                    Core::PreviousSpelling(TargetParams::default())
                 } else {
-                    issues
-                        .iter()
-                        .find(|issue| issue.range.start >= range.end)
-                        .or_else(|| issues.first())
-                }
-                .cloned();
-                if let Some(issue) = target {
-                    self.focus_annotation_target(issue.range);
-                }
+                    Core::NextSpelling(TargetParams::default())
+                });
             }
             Command::IgnoreSpelling | Command::LearnSpelling => {
-                if let Some(issue) = self.selected_spelling_issue() {
-                    let language = self
-                        .document
-                        .engine
-                        .metadata
-                        .options()
-                        .language
-                        .code()
-                        .to_owned();
-                    let word = crate::spelling::word_key(&issue.word);
-                    if command == Command::LearnSpelling {
-                        self.preferences
-                            .spelling
-                            .personal
-                            .entry(language)
-                            .or_default()
-                            .insert(word);
-                    } else {
-                        let before = self.snapshot();
-                        self.document
-                            .engine
-                            .metadata
-                            .options_mut()
-                            .spelling_ignored
-                            .entry(language)
-                            .or_default()
-                            .insert(word);
-                        self.remember(before, false);
-                    }
+                if let Some(issue) = self
+                    .selected_spelling_issue()
+                    .and_then(|issue| self.spelling_reference(&issue))
+                {
+                    self.apply_spelling_issue(command, issue);
                 }
             }
             Command::ResetSpelling => {
-                let before = self.snapshot();
-                self.document
-                    .engine
-                    .metadata
-                    .options_mut()
-                    .spelling_ignored
-                    .clear();
-                self.remember(before, false);
+                self.run_document_command(Core::ResetSpelling(GuardParams {
+                    guard: self.document.engine.target_guard(),
+                }));
             }
             _ => unreachable!("spelling command"),
         }

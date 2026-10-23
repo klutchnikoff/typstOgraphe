@@ -1,4 +1,5 @@
 use super::search_types::*;
+use super::spelling_types::*;
 use super::{CommandError, registry::define_calls};
 use super::{
     ImageAltParams, ImageTargetParams, InsertImageParams, ReplaceImageParams, SignatureParams,
@@ -130,6 +131,11 @@ pub struct SearchParams {
 
 define_calls! {
     Command, command_specs;
+    NextSpelling(TargetParams) => "spelling.next", "Select the next spelling issue in the current document, wrapping around.", Selection, Document;
+    PreviousSpelling(TargetParams) => "spelling.previous", "Select the previous spelling issue in the current document, wrapping around.", Selection, Document;
+    CorrectSpelling(SpellingCorrectionParams) => "spelling.correct", "Correct a revision-guarded spelling issue while preserving inline styles.", Edit, Document;
+    IgnoreSpelling(SpellingIssueParams) => "spelling.ignore", "Accept a validated word for the document language in this document only.", Edit, Document;
+    ResetSpelling(GuardParams) => "spelling.reset", "Clear spelling exceptions for all languages of the guarded document.", Edit, Document;
     FindNext(FindParams) => "edit.find_next", "Select the next literal match, wrapping around the editable document.", Selection, Document;
     FindPrevious(FindParams) => "edit.find_previous", "Select the previous literal match, wrapping around the editable document.", Selection, Document;
     ReplaceCurrent(ReplaceCurrentParams) => "edit.replace_current", "Replace a revision-guarded occurrence with expected text, then select the next match.", Edit, Document;
@@ -165,6 +171,8 @@ define_calls! {
 
 define_calls! {
     Query, query_specs;
+    SpellingIssues(Empty) => "spelling.issues", "Read revision-guarded spelling issues and dictionary availability using the configured personal words.", Query, Read;
+    SpellingSuggestions(SpellingSuggestionsParams) => "spelling.suggestions", "Suggest corrections for an explicit word and language or a validated spelling issue, without changing selection.", Query, Read;
     Inspect(Empty) => "document.inspect", "Read the current revision, selection and history availability.", Query, Read;
     Text(TextQueryParams) => "document.text", "Read editable text without Typst markup.", Query, Read;
     Structure(Empty) => "document.structure", "Read blocks, text zones, roles and their opaque identities.", Query, Read;
@@ -182,6 +190,7 @@ impl Command {
             Self::SetLink(p) => p.target,
             Self::SelectText(p) => p.target,
             Self::FindNext(p) | Self::FindPrevious(p) => p.target,
+            Self::NextSpelling(p) | Self::PreviousSpelling(p) => p.target,
             Self::DeleteText(p)
             | Self::SplitBlock(p)
             | Self::ExitBlock(p)

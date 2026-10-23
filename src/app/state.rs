@@ -16,7 +16,7 @@ pub(super) struct RecoveryState {
 
 pub(super) struct SpellingState {
     pub(super) checker: crate::spelling::Checker,
-    pub(super) target: Option<(u64, crate::spelling::Issue)>,
+    pub(super) target: Option<crate::engine::SpellingIssue>,
     pub(super) menu_pending: bool,
     pub(super) menu_position: Option<egui::Pos2>,
     pub(super) capture_active: bool,

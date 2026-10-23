@@ -1396,7 +1396,9 @@ impl PaperFormat {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq, schemars::JsonSchema,
+)]
 pub enum DocumentLanguage {
     #[default]
     #[serde(rename = "fr")]

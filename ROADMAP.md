@@ -604,7 +604,7 @@ normalisation et publication des éditions en place. La préédition IME reste
 isolée entre frames, avec une publication unique à validation, vérifiée par les
 événements egui ; l’essai d’une méthode IME du système reste au chantier I.
 Le registre typé, ses schémas et un premier moteur possédant la session et sa
-sélection sont en place : 31 commandes et six requêtes, décrites par un
+sélection sont en place : 36 commandes et huit requêtes, décrites par un
 [catalogue généré](docs/commands.md). Mise en forme, blocs, P.-S./P.J. et historique
 sont raccordés à l’interface. Les légendes/attributions et leurs raccourcis
 Tab, Maj+Tab et Entrée passent également par le moteur, comme les descriptions,
@@ -612,8 +612,11 @@ listes, notes et transformations de frappe. Les images et signatures utilisent
 aussi les commandes typées et la publication atomique des ressources. Recherche,
 navigation entre occurrences, clic sur un résultat et remplacements sont également
 raccordés au moteur, avec cibles gardées et remplacement global en une transaction.
-L’orthographe documentaire est la prochaine famille à migrer ; les autres
-familles et les lots restent à traiter
+L’orthographe documentaire passe aussi par le moteur : navigation, correction,
+exceptions du document, réinitialisation et lectures des fautes/suggestions.
+L’apprentissage d’un mot reste global, avec configuration de lecture explicite
+pour le moteur. Les métadonnées et options sont la prochaine famille à migrer ;
+les autres familles et les lots restent à traiter
 ([suivi de phase 2](docs/architecture-phase-2.md)).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une

@@ -7,6 +7,11 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 
 | Identifiant | Famille | Description |
 | --- | --- | --- |
+| `spelling.next` | selection | Select the next spelling issue in the current document, wrapping around. |
+| `spelling.previous` | selection | Select the previous spelling issue in the current document, wrapping around. |
+| `spelling.correct` | edit | Correct a revision-guarded spelling issue while preserving inline styles. |
+| `spelling.ignore` | edit | Accept a validated word for the document language in this document only. |
+| `spelling.reset` | edit | Clear spelling exceptions for all languages of the guarded document. |
 | `edit.find_next` | selection | Select the next literal match, wrapping around the editable document. |
 | `edit.find_previous` | selection | Select the previous literal match, wrapping around the editable document. |
 | `edit.replace_current` | edit | Replace a revision-guarded occurrence with expected text, then select the next match. |
@@ -38,6 +43,8 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 | `letter.insert_attachment` | letter | Insert an attachment mention into a letter. |
 | `edit.undo` | history | Undo the previous document transaction. |
 | `edit.redo` | history | Redo the next document transaction. |
+| `spelling.issues` | query | Read revision-guarded spelling issues and dictionary availability using the configured personal words. |
+| `spelling.suggestions` | query | Suggest corrections for an explicit word and language or a validated spelling issue, without changing selection. |
 | `document.inspect` | query | Read the current revision, selection and history availability. |
 | `document.text` | query | Read editable text without Typst markup. |
 | `document.structure` | query | Read blocks, text zones, roles and their opaque identities. |

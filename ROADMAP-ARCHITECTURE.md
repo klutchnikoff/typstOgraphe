@@ -410,12 +410,13 @@ Dans `src/engine/` (futur crate `core`) :
   `InsertImage { path, alt }`, `SelectText { range | occurrence }`, `InsertText { text }`,
   `SetMetadata { field, value }`, `SetOption { option, value }`, `ReplaceAll { with }`…).
   Les variantes actuelles sans paramètres restent telles quelles.
-  **En cours :** 31 commandes typées implémentées ; les familles restantes ne sont
+  **En cours :** 36 commandes typées implémentées ; les familles restantes ne sont
   pas annoncées dans le catalogue. Les espaces de noms hiérarchiques existants
   (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
 - [ ] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
   `search.find`, `metadata.get`, `commands.list`, `models.list`).
-  **En cours :** six requêtes implémentées ; orthographe et modèles restent à migrer.
+  **En cours :** huit requêtes implémentées ; les lectures orthographiques sont
+  disponibles. Les requêtes de modèles restent à migrer.
 - [x] `UiCommand` : palette, préférences, ouverture des dialogues, focus. Reste dans l'application.
 - [x] `CommandSpec` (cœur, sans egui) : identifiant, description **en anglais** (pour les
   agents), famille, schéma des paramètres (`schemars`), règle de disponibilité.
@@ -474,9 +475,14 @@ JSON** et compare avec le chemin d'interface.
   les clics utilisent `text.select`. Navigation et remplacements passent par les
   appels typés/JSON, avec parité egui testée. Tout remplacer reste une transaction.
   Seuls les rectangles de surbrillance utilisent encore le tampon graphique.
-- [ ] 2.4.5 Orthographe : corriger un mot, ignorer, réinitialiser les exceptions
+- [x] 2.4.5 Orthographe : corriger un mot, ignorer, réinitialiser les exceptions
   documentaires ; apprendre/oublier un mot et activer la correction restent des
   actions globales de l’application (V5), hors du premier périmètre CLI/MCP.
+  `spelling.next/previous/correct/ignore/reset` et les lectures
+  `spelling.issues/suggestions` sont dans le moteur, avec cibles gardées et
+  validation du mot attendu et de sa langue. Le worker et le moteur réutilisent
+  l’analyse et les suggestions locales ; le dictionnaire personnel est transmis
+  comme configuration de lecture, jamais modifié par une commande documentaire.
 - [ ] 2.4.6 Métadonnées et options : champs, papier, orientation, langue, marqueur de puce.
 - [ ] 2.4.7 Modèles : changer, importer.
 - [ ] 2.4.8 Fichiers, en gardant les identifiants existants : `document.new { type, model }`,

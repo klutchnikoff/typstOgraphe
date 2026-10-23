@@ -5,7 +5,7 @@ V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers 
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
-Le registre typé et le premier moteur sont implémentés : 31 commandes, six
+Le registre typé et le premier moteur sont implémentés : 36 commandes, huit
 requêtes et leur catalogue généré. La migration des familles n’est pas terminée.
 
 ## Blocs et zones en mémoire
@@ -368,9 +368,67 @@ sans résultat est indisponible (`search_no_results`), et une occurrence incorre
 est refusée (`search_mismatch`). Les champs, messages Fluent, focus et défilement
 restent gérés par egui ; Entrée/Maj+Entrée conservent le focus de recherche.
 
+## Orthographe documentaire
+
+Le lot 2.4.5 ajoute cinq commandes (`spelling.next`, `spelling.previous`,
+`spelling.correct`, `spelling.ignore`, `spelling.reset`) et deux lectures
+(`spelling.issues`, `spelling.suggestions`). Le catalogue compte 36 commandes
+et huit requêtes. Les boutons, menus et raccourcis documentaires passent par les
+mêmes appels typés/JSON ; le dernier adaptateur `focus_annotation_target` est supprimé.
+
+`spelling.issues {}` retourne `guard`, `language`, `available` et `issues`.
+Chaque `SpellingIssue` contient une cible logique gardée, le `word` exact et sa
+langue. L’analyse couvre le contenu éditable, y compris les annotations et les
+descriptions, sans analyser le source Typst, les propriétés privées ou le modèle.
+Les adresses, URL et nombres gardent leurs exclusions existantes. Les dictionnaires
+embarqués français et anglais restent les seuls disponibles. Une autre langue
+produit `available: false` et une liste vide, sans modifier le document.
+
+La navigation accepte une `target` (courante par défaut ou sélection explicite),
+boucle et renvoie `RevealSelection`. Elle conserve révision, contenu et historique.
+La correction accepte `issue` et `replacement` : le moteur résout la garde,
+vérifie la langue et que le texte attendu est encore une faute complète de
+l’analyse courante. Un fragment, une ancienne révision, une autre session ou un
+mot désormais accepté sont refusés. Le remplacement est littéral, sans séparateur
+structurel ; il conserve les styles et rejoint `Session::replace_text`.
+
+Ignorer accepte `issue` et ajoute sa clé normalisée aux exceptions de la langue
+du document. Réinitialiser accepte `guard` et efface les exceptions de toutes ses
+langues, sans toucher au dictionnaire personnel. Les deux actions préparent un
+instantané candidat avant la publication commune. Elles sont annulables ; une
+réinitialisation déjà vide n’ajoute aucune étape. Les métadonnées `.typsto` et
+la présentation Typst conservent leur fonctionnement existant.
+
+`spelling.suggestions` accepte une `target` de forme `word { language, word }`
+ou `issue { issue }`, avec le discriminant `kind`. La seconde forme valide la
+faute avant de proposer des corrections ; la première permet une requête explicite
+indépendante de la sélection. Le résultat donne langue, mot et suggestions, sans
+déplacer le curseur. Les erreurs sont typées : `spelling_mismatch`,
+`spelling_language`, `spelling_word`, `spelling_no_dictionary`,
+`spelling_no_issues` ou `spelling_dictionary`, en plus des erreurs communes de cibles.
+
+L’algorithme de tokenisation, les exclusions, le cache par ligne et le calcul
+Spellbook sont partagés avec le worker existant. L’interface garde l’analyse
+différée de 400 ms et les suggestions en arrière-plan. Le moteur conserve un cache
+d’analyse lié à la session/révision, à la langue et à l’ensemble des mots acceptés ;
+ses lectures ne changent que ce cache, jamais l’état documentaire ni ses groupes
+de frappe. Les appels sans interface fonctionnent sans worker egui.
+
+Conformément à V5, `configure_spelling` reçoit une copie en lecture des mots
+personnels. Une modification de cette configuration invalide les résultats concernés
+sans changer révision ou historique. L’activation, l’apprentissage, la persistance
+et l’édition du dictionnaire personnel restent dans l’application, hors du catalogue
+documentaire. Le moteur ne lit aucun fichier de préférences globales.
+
+Le menu contextuel conserve la référence capturée ; une suggestion tardive ne peut
+jamais viser un autre mot ou un autre document. Les actions clavier utilisent au
+contraire la faute de la sélection actuelle, même après fermeture d’un ancien menu.
+Les fenêtres, le focus, le défilement, les messages Fluent et les rectangles de
+soulignement restent dans l’adaptateur graphique.
+
 ## Vérifications
 
-- 251 tests de l’application réussis, dont 108 tests ajoutés depuis le début de
+- 263 tests de l’application réussis, dont 120 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -384,7 +442,7 @@ restent gérés par egui ; Entrée/Maj+Entrée conservent le focus de recherche.
   et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
   petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 142 tests partagés réussissent aussi.
+  avertissement ; ses 150 tests partagés réussissent aussi.
 - Dix tests du moteur couvrent les schémas, conversions, données invalides,
   cibles périmées/étrangères, refus atomiques, styles explicites, historique,
   lectures seules, portée Courrier et fichiers de catalogue générés. Quatre essais
@@ -405,6 +463,14 @@ restent gérés par egui ; Entrée/Maj+Entrée conservent le focus de recherche.
   alternatif, suppression et copie de signature aux appels JSON ; ils vérifient
   aussi le refus d’un dialogue périmé, l’archivage et l’indépendance du profil.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
+- Huit nouveaux tests du moteur vérifient lectures pures, parité avec le worker,
+  suggestions, navigation dans les deux sens, six rôles de zones, styles, historique,
+  normalisation des exceptions, configuration personnelle, refus atomiques et
+  dictionnaires indisponibles. Quatre essais d’interface comparent les commandes aux
+  appels JSON, contrôlent les suggestions communes, les cibles de menus périmées,
+  la sélection après fermeture d’un menu et la séparation des préférences globales.
+  Les deux scénarios existants conservent aussi le clic réel dans un menu de
+  suggestions et la persistance des exceptions dans les archives.
 - Neuf nouveaux tests du moteur couvrent navigation, casse Unicode, cibles
   explicites, six zones éditables, styles, textes privés exclus, historique,
   gardes périmées/étrangères, texte attendu, remplacements identiques ou vides,
@@ -433,6 +499,8 @@ restent gérés par egui ; Entrée/Maj+Entrée conservent le focus de recherche.
   vide ; la relance complète conserve les références sans les modifier.
 - Le lot recherche/remplacement conserve les huit captures strictement identiques
   dans `output/baseline/run-qaqb4mgo/`.
+- Le lot orthographique conserve également les huit captures strictement identiques
+  dans `output/baseline/run-z0q4zynu/`.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -451,14 +519,15 @@ vérifient l’unicité concurrente et le refus de boucler au dépassement de ca
 La synchronisation d’aperçu fonctionne encore via les cartes de source existantes.
 La recherche utilise maintenant des cibles logiques gardées ; sa peinture reste un
 adaptateur du tampon graphique. Les règles des blocs et de transformation de
-frappe, les images, signatures et actions de recherche/remplacement sont migrées.
+frappe, les images, signatures, actions de recherche/remplacement et l’orthographe
+documentaire sont migrées.
 
 L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
 Les essais complets de composition, choix des candidats, annulation et historique
 avec les méthodes système restent à poursuivre dans le chantier I. D17 et la tâche
 2.1 bis restent ouverts pour la suite de la migration.
 
-Restent l’orthographe documentaire, l’écriture des métadonnées
+Restent l’écriture des métadonnées
 et options, les modèles et les fichiers. Les lots atomiques (D16), la suppression
 de l’accès transitoire à la session et le gel du catalogue restent à faire. La
 séparation des réglages globaux (V5) et les formats d’export séparés (V6) restent à

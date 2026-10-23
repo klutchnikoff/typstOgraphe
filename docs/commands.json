@@ -2,6 +2,800 @@
   "entries": [
     {
       "availability": "document",
+      "description": "Select the next spelling issue in the current document, wrapping around.",
+      "family": "selection",
+      "id": "spelling.next",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Select the previous spelling issue in the current document, wrapping around.",
+      "family": "selection",
+      "id": "spelling.previous",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "title": "TargetParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Correct a revision-guarded spelling issue while preserving inline styles.",
+      "family": "edit",
+      "id": "spelling.correct",
+      "params_schema": {
+        "$defs": {
+          "DocumentLanguage": {
+            "enum": [
+              "fr",
+              "en",
+              "de",
+              "es",
+              "it",
+              "pt",
+              "nl"
+            ],
+            "type": "string"
+          },
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "SelectionTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "guard": {
+                "$ref": "#/$defs/TargetGuard"
+              },
+              "selection": {
+                "$ref": "#/$defs/LogicalSelection"
+              }
+            },
+            "required": [
+              "guard",
+              "selection"
+            ],
+            "type": "object"
+          },
+          "SpellingIssue": {
+            "additionalProperties": false,
+            "properties": {
+              "language": {
+                "$ref": "#/$defs/DocumentLanguage"
+              },
+              "target": {
+                "$ref": "#/$defs/SelectionTarget"
+              },
+              "word": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "target",
+              "language",
+              "word"
+            ],
+            "type": "object"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "issue": {
+            "$ref": "#/$defs/SpellingIssue"
+          },
+          "replacement": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "issue",
+          "replacement"
+        ],
+        "title": "SpellingCorrectionParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Accept a validated word for the document language in this document only.",
+      "family": "edit",
+      "id": "spelling.ignore",
+      "params_schema": {
+        "$defs": {
+          "DocumentLanguage": {
+            "enum": [
+              "fr",
+              "en",
+              "de",
+              "es",
+              "it",
+              "pt",
+              "nl"
+            ],
+            "type": "string"
+          },
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "SelectionTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "guard": {
+                "$ref": "#/$defs/TargetGuard"
+              },
+              "selection": {
+                "$ref": "#/$defs/LogicalSelection"
+              }
+            },
+            "required": [
+              "guard",
+              "selection"
+            ],
+            "type": "object"
+          },
+          "SpellingIssue": {
+            "additionalProperties": false,
+            "properties": {
+              "language": {
+                "$ref": "#/$defs/DocumentLanguage"
+              },
+              "target": {
+                "$ref": "#/$defs/SelectionTarget"
+              },
+              "word": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "target",
+              "language",
+              "word"
+            ],
+            "type": "object"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "issue": {
+            "$ref": "#/$defs/SpellingIssue"
+          }
+        },
+        "required": [
+          "issue"
+        ],
+        "title": "SpellingIssueParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Clear spelling exceptions for all languages of the guarded document.",
+      "family": "edit",
+      "id": "spelling.reset",
+      "params_schema": {
+        "$defs": {
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          }
+        },
+        "required": [
+          "guard"
+        ],
+        "title": "GuardParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
       "description": "Select the next literal match, wrapping around the editable document.",
       "family": "selection",
       "id": "edit.find_next",
@@ -4726,6 +5520,245 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "description": "Read revision-guarded spelling issues and dictionary availability using the configured personal words.",
+      "family": "query",
+      "id": "spelling.issues",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "description": "Suggest corrections for an explicit word and language or a validated spelling issue, without changing selection.",
+      "family": "query",
+      "id": "spelling.suggestions",
+      "params_schema": {
+        "$defs": {
+          "DocumentLanguage": {
+            "enum": [
+              "fr",
+              "en",
+              "de",
+              "es",
+              "it",
+              "pt",
+              "nl"
+            ],
+            "type": "string"
+          },
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "SelectionTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "guard": {
+                "$ref": "#/$defs/TargetGuard"
+              },
+              "selection": {
+                "$ref": "#/$defs/LogicalSelection"
+              }
+            },
+            "required": [
+              "guard",
+              "selection"
+            ],
+            "type": "object"
+          },
+          "SpellingIssue": {
+            "additionalProperties": false,
+            "properties": {
+              "language": {
+                "$ref": "#/$defs/DocumentLanguage"
+              },
+              "target": {
+                "$ref": "#/$defs/SelectionTarget"
+              },
+              "word": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "target",
+              "language",
+              "word"
+            ],
+            "type": "object"
+          },
+          "SuggestionTarget": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "word",
+                    "type": "string"
+                  },
+                  "language": {
+                    "$ref": "#/$defs/DocumentLanguage"
+                  },
+                  "word": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "language",
+                  "word"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "issue": {
+                    "$ref": "#/$defs/SpellingIssue"
+                  },
+                  "kind": {
+                    "const": "issue",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "issue"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "$ref": "#/$defs/SuggestionTarget"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "title": "SpellingSuggestionsParams",
         "type": "object"
       }
     },

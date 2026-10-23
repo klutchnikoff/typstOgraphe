@@ -1,18 +1,6 @@
 use super::*;
 
 impl App {
-    /// Adaptateur restant de la navigation orthographique (famille suivante).
-    pub(super) fn focus_annotation_target(&mut self, range: Range<usize>) {
-        self.document.selection = editor::cursor(range);
-        if self.document.selection.is_empty() {
-            self.document.selection.primary.prefer_next_row = true;
-            self.document.selection.secondary.prefer_next_row = true;
-        }
-        self.document.force_selection = true;
-        self.preview.editor_scroll_pending = true;
-        self.preview.forward_pending = true;
-        self.document.engine.typing_group = false;
-    }
     fn structured_shortcuts(&mut self, ctx: &egui::Context) -> bool {
         use crate::engine::{Command as Core, SelectTextParams, SelectionPart, TargetParams};
         if !ctx.input(|i| i.key_pressed(egui::Key::Tab) || i.key_pressed(egui::Key::Enter)) {

@@ -135,11 +135,27 @@ fn dictionary_word(word: &str) -> String {
 /// Cache limité aux lignes du document courant ; une modification locale ne
 /// relance pas les recherches Hunspell sur les passages inchangés.
 #[derive(Default)]
-struct Analysis {
+pub(crate) struct Analysis {
     language: Option<DocumentLanguage>,
     lines: HashMap<String, Vec<Issue>>,
 }
 impl Analysis {
+    pub(crate) fn analyze(
+        &mut self,
+        text: &str,
+        language: DocumentLanguage,
+        accepted: &BTreeSet<String>,
+    ) -> Result<Vec<Issue>, String> {
+        self.check(
+            &Request {
+                ticket: 0,
+                text: text.into(),
+                language,
+                accepted: accepted.clone(),
+            },
+            &AtomicU64::new(0),
+        )
+    }
     fn check(&mut self, request: &Request, generation: &AtomicU64) -> Result<Vec<Issue>, String> {
         let dictionary = dictionary(request.language)?;
         if self.language != Some(request.language) {
@@ -173,7 +189,7 @@ impl Analysis {
     }
 }
 
-fn suggestions(language: DocumentLanguage, word: &str) -> Result<Vec<String>, String> {
+pub(crate) fn suggestions(language: DocumentLanguage, word: &str) -> Result<Vec<String>, String> {
     let mut suggestions = Vec::new();
     dictionary(language)?.suggest(&dictionary_word(word), &mut suggestions);
     if word.contains('’') {
@@ -184,6 +200,14 @@ fn suggestions(language: DocumentLanguage, word: &str) -> Result<Vec<String>, St
     suggestions.dedup();
     suggestions.truncate(8);
     Ok(suggestions)
+}
+
+pub(crate) fn is_word(word: &str) -> bool {
+    expressions()
+        .0
+        .find(word)
+        .is_some_and(|found| found.range() == (0..word.len()))
+        && !word.chars().any(char::is_numeric)
 }
 
 #[derive(Clone, PartialEq, Eq)]

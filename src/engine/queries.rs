@@ -5,6 +5,10 @@ use serde_json::json;
 impl Engine {
     pub fn query(&self, query: Query) -> Result<Value, CommandError> {
         Ok(match query {
+            Query::SpellingIssues(_) => {
+                serde_json::to_value(self.spelling_issues()?).expect("serializable spelling issues")
+            }
+            Query::SpellingSuggestions(p) => self.spelling_suggestions(p)?,
             Query::Inspect(_) => json!({
                 "guard": self.session.target_guard(),
                 "selection": self.session.selection_target(self.selection).ok(),

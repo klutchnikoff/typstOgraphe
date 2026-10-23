@@ -10,6 +10,8 @@ pub mod registry;
 mod run;
 mod search;
 mod search_types;
+mod spelling;
+mod spelling_types;
 mod types;
 mod typing;
 use crate::{
@@ -22,11 +24,13 @@ pub use registry::{AvailabilityRule, Call, CommandId, CommandSpec, Family, catal
 pub use search_types::*;
 use serde::Serialize;
 use serde_json::Value;
+pub use spelling_types::*;
 pub use types::*;
 
 pub struct Engine {
     session: Session,
     selection: Selection,
+    spelling: spelling::SpellingState,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -58,6 +62,7 @@ impl From<Session> for Engine {
         Self {
             session,
             selection: Selection::default(),
+            spelling: Default::default(),
         }
     }
 }

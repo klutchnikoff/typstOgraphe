@@ -60,6 +60,7 @@ impl Engine {
             self.resolve(target)?;
         }
         self.check_search(command)?;
+        self.check_spelling(command)?;
         let rule = Command::command_specs()
             .iter()
             .find(|spec| spec.id.as_str() == command.id())
@@ -148,6 +149,8 @@ impl Engine {
             | Command::ReplaceImage(_)
             | Command::FindNext(_)
             | Command::FindPrevious(_)
+            | Command::NextSpelling(_)
+            | Command::PreviousSpelling(_)
             | Command::ReplaceCurrent(_) => true,
             Command::SplitBlock(params) => self.block_split_reveals(params.target)?,
             Command::ExitBlock(_) => true,
@@ -177,6 +180,11 @@ impl Engine {
 
     fn execute(&mut self, command: Command) -> Result<Option<Value>, CommandError> {
         match command {
+            Command::NextSpelling(p) => self.navigate_spelling(p, false)?,
+            Command::PreviousSpelling(p) => self.navigate_spelling(p, true)?,
+            Command::CorrectSpelling(p) => self.correct_spelling(p)?,
+            Command::IgnoreSpelling(p) => self.ignore_spelling(p)?,
+            Command::ResetSpelling(_) => self.reset_spelling()?,
             Command::FindNext(params) => return self.navigate_search(params, false).map(Some),
             Command::FindPrevious(params) => return self.navigate_search(params, true).map(Some),
             Command::ReplaceCurrent(params) => {

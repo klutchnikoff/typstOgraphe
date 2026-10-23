@@ -79,6 +79,8 @@ impl App {
             "search_too_large" => "search-too-large",
             "search_one_line" => "search-one-line",
             "search_mismatch" => "edit-stale-draft",
+            "spelling_mismatch" | "spelling_language" => "edit-stale-draft",
+            "spelling_dictionary" => "spelling-error",
             "foreign_document" | "stale_revision" | "unknown_zone" | "unknown_block" => {
                 "edit-stale-draft"
             }

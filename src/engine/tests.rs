@@ -15,6 +15,8 @@ mod blocks;
 mod images;
 #[path = "tests/search.rs"]
 mod search;
+#[path = "tests/spelling.rs"]
+mod spelling;
 
 fn engine(source: &str) -> Engine {
     let mut stored = StoredDocument::blank(DocumentType::Courrier);
@@ -45,7 +47,7 @@ fn explicit(engine: &Engine, range: std::ops::Range<usize>) -> TextTarget {
 
 #[test]
 fn catalogue_has_valid_unique_ids_and_strict_schemas_and_all_calls_round_trip() {
-    assert_eq!(catalogue().len(), 37);
+    assert_eq!(catalogue().len(), 44);
     for spec in catalogue() {
         assert!(!spec.description.trim().is_empty());
         assert_eq!(spec.params_schema["type"], "object");
@@ -66,6 +68,19 @@ fn catalogue_has_valid_unique_ids_and_strict_schemas_and_all_calls_round_trip() 
                 json!({"guard":{"document_id":1,"revision":0},"image":null})
             }
             "text.link" => json!({"url":"https://example.org"}),
+            "spelling.ignore" | "spelling.correct" => {
+                let e = engine("courrrier");
+                let issue = e.query(Query::SpellingIssues(Empty {})).unwrap()["issues"][0].clone();
+                if spec.id.as_str() == "spelling.correct" {
+                    json!({"issue":issue,"replacement":"courrier"})
+                } else {
+                    json!({"issue":issue})
+                }
+            }
+            "spelling.reset" => json!({"guard":{"document_id":1,"revision":0}}),
+            "spelling.suggestions" => {
+                json!({"target":{"kind":"word","language":"fr","word":"courrrier"}})
+            }
             "search.find" | "edit.find_next" | "edit.find_previous" => json!({"query":"été"}),
             "edit.replace_current" => {
                 let e = engine("Été");

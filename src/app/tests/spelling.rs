@@ -14,7 +14,7 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
     app.spelling.checker.wait();
     assert_eq!(app.spelling.checker.issues.len(), 2);
     let issue = app.spelling.checker.issues[0].clone();
-    let revision = app.document.engine.revision;
+    let target = app.spelling_reference(&issue).unwrap();
     let output = search_draw(&mut app, &ctx, vec![]);
     let point = output
         .shapes
@@ -45,7 +45,7 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
             ],
         );
     }
-    assert_eq!(app.spelling.target, Some((revision, issue.clone())));
+    assert_eq!(app.spelling.target, Some(target.clone()));
     assert_eq!(app.range(), issue.range);
     app.spelling.checker.wait();
     recovery_click(&mut app, &ctx, "courrier");
@@ -62,7 +62,7 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
     app.apply(Command::Undo);
     assert_eq!(app.stored_document(), original);
     // Même mot et mêmes positions après annulation : le ticket ancien reste invalide.
-    app.correct_spelling(revision, &issue, "courrier");
+    app.correct_spelling(&target, "courrier");
     assert_eq!(app.stored_document(), original);
     app.refresh_spelling(&ctx);
     app.spelling.checker.wait();
