@@ -22,8 +22,11 @@ pub(super) struct SpellingState {
     pub(super) capture_active: bool,
 }
 
+#[derive(Default)]
 pub(super) struct SearchState {
     pub(super) engine: crate::search::Search,
+    pub(super) guard: Option<crate::session::TargetGuard>,
+    pub(super) occurrences: Vec<crate::engine::SearchOccurrence>,
     pub(super) open: bool,
     pub(super) replace_open: bool,
     pub(super) focus_pending: bool,

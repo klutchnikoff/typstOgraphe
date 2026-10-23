@@ -141,12 +141,7 @@ impl App {
                 forward_pending: true,
                 editor_scroll_pending: false,
             },
-            search: SearchState {
-                engine: Default::default(),
-                open: false,
-                replace_open: false,
-                focus_pending: false,
-            },
+            search: SearchState::default(),
             spelling: SpellingState {
                 checker: spelling,
                 target: None,

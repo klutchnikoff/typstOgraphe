@@ -120,10 +120,7 @@ impl App {
         self.cancel_ime();
         self.clear_recovery();
         self.recovery.recovered_name = None;
-        self.search.engine = Default::default();
-        self.search.open = false;
-        self.search.replace_open = false;
-        self.search.focus_pending = false;
+        self.search = SearchState::default();
         self.spelling.target = None;
         self.spelling.menu_pending = false;
         self.spelling.menu_position = None;

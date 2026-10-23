@@ -186,8 +186,7 @@ impl App {
                             .contains(pointer)
                     })
         {
-            self.document.selection = editor::cursor(matches[*index].clone());
-            self.document.force_selection = true;
+            self.select_search_result(*index);
         }
         if let Some(at) = clicked_term {
             self.select_description_term(at);

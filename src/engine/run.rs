@@ -6,6 +6,17 @@ use crate::{
 };
 
 impl Engine {
+    pub(super) fn check_guard(&self, guard: TargetGuard) -> Result<(), CommandError> {
+        let current = self.session.target_guard();
+        if guard.document_id != current.document_id {
+            return Err(CommandError::new(ErrorCode::Document, "foreign_document"));
+        }
+        if guard.revision != current.revision {
+            return Err(CommandError::new(ErrorCode::Document, "stale_revision"));
+        }
+        Ok(())
+    }
+
     pub(super) fn resolve(&self, target: TextTarget) -> Result<Selection, CommandError> {
         let selection = match target {
             TextTarget::Current {} => self.selection,
@@ -48,6 +59,7 @@ impl Engine {
         if let Some(target) = command.target() {
             self.resolve(target)?;
         }
+        self.check_search(command)?;
         let rule = Command::command_specs()
             .iter()
             .find(|spec| spec.id.as_str() == command.id())
@@ -132,7 +144,11 @@ impl Engine {
     pub fn run(&mut self, command: Command) -> Result<Outcome, CommandError> {
         self.check(&command)?;
         let reveal = match &command {
-            Command::InsertImage(_) | Command::ReplaceImage(_) => true,
+            Command::InsertImage(_)
+            | Command::ReplaceImage(_)
+            | Command::FindNext(_)
+            | Command::FindPrevious(_)
+            | Command::ReplaceCurrent(_) => true,
             Command::SplitBlock(params) => self.block_split_reveals(params.target)?,
             Command::ExitBlock(_) => true,
             Command::SelectText(SelectTextParams {
@@ -142,7 +158,7 @@ impl Engine {
             _ => false,
         };
         let revision = self.session.revision;
-        self.execute(command)?;
+        let value = self.execute(command)?;
         let changed = revision != self.session.revision;
         Ok(Outcome {
             changed,
@@ -155,48 +171,48 @@ impl Engine {
             .into_iter()
             .flatten()
             .collect(),
-            value: None,
+            value,
         })
     }
 
-    fn execute(&mut self, command: Command) -> Result<(), CommandError> {
+    fn execute(&mut self, command: Command) -> Result<Option<Value>, CommandError> {
         match command {
+            Command::FindNext(params) => return self.navigate_search(params, false).map(Some),
+            Command::FindPrevious(params) => return self.navigate_search(params, true).map(Some),
+            Command::ReplaceCurrent(params) => {
+                return self.replace_search_current(params).map(Some);
+            }
+            Command::ReplaceAll(params) => return self.replace_search_all(params).map(Some),
             Command::InsertImage(params) => self.insert_image(params)?,
             Command::ReplaceImage(params) => self.replace_image(params)?,
             Command::RemoveImage(params) => self.remove_image(params)?,
             Command::SetImageAlt(params) => self.set_image_alt(params)?,
             Command::SetSignature(params) => self.set_signature(params)?,
             Command::SelectText(params) => {
-                self.selection = if let Some(part) = params.part {
+                let selection = if let Some(part) = params.part {
                     self.relative_destination(params.target, part)?
                 } else {
                     self.resolve(params.target)?
                 };
-                let range = self.selection.range();
-                let pos = self.selection.primary.index;
-                self.session.document.view.typing_style =
-                    self.session.document.view.style_at(if range.is_empty() {
-                        pos.saturating_sub(1)
-                    } else {
-                        range.start
-                    });
-                self.session.typing_group = false;
+                self.select_resolved(selection);
             }
             Command::SplitBlock(params) => self.split_block(params.target)?,
             Command::ExitBlock(params) => self.exit_block(params.target)?,
             Command::InsertText(params) => {
                 if params.input_rules == InputRules::Typing && self.transform_input(&params)? {
-                    return Ok(());
+                    return Ok(None);
                 }
                 let selection = self.resolve(params.target)?;
                 let target = self.session.selection_target(selection)?;
                 self.selection = self.session.replace_text(target, &params.text)?;
             }
-            Command::DeleteText(params) => self.execute(Command::InsertText(InsertTextParams {
-                target: params.target,
-                text: String::new(),
-                input_rules: InputRules::Literal,
-            }))?,
+            Command::DeleteText(params) => {
+                self.execute(Command::InsertText(InsertTextParams {
+                    target: params.target,
+                    text: String::new(),
+                    input_rules: InputRules::Literal,
+                }))?;
+            }
             Command::Bold(params) => self.mark(params, Mark::Bold)?,
             Command::Italic(params) => self.mark(params, Mark::Italic)?,
             Command::Clear(params) => {
@@ -255,7 +271,18 @@ impl Engine {
                 self.edit_target(params.target, |view, range| view.set_block(range, kind))?;
             }
         }
-        Ok(())
+        Ok(None)
+    }
+    pub(super) fn select_resolved(&mut self, selection: Selection) {
+        self.selection = selection;
+        let range = selection.range();
+        self.session.document.view.typing_style =
+            self.session.document.view.style_at(if range.is_empty() {
+                selection.primary.index.saturating_sub(1)
+            } else {
+                range.start
+            });
+        self.session.typing_group = false;
     }
     fn mark(&mut self, params: StyleParams, mark: Mark) -> Result<(), CommandError> {
         self.edit_target(params.target, |view, range| match params.value {

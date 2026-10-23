@@ -392,7 +392,9 @@ comme les commandes et remplacements. Les préparations encore faites dans `App`
 utilisent un adaptateur transitoire vers cette voie. La préédition IME reste dans
 un brouillon entre frames et sa validation publie une seule étape d’historique ;
 les annulations et événements tardifs ne changent pas la session publiée.
-Le tampon reste plat ; la recherche et l’aperçu restent à migrer. Les règles des descriptions, listes, notes, légendes/attributions
+Le tampon graphique reste plat ; l’aperçu utilise encore ses cartes de source.
+La recherche utilise des cibles logiques gardées, converties en indices seulement
+pour sa peinture. Les règles des descriptions, listes, notes, légendes/attributions
 et les transformations de frappe sont exécutées par le moteur.
 Voir [le suivi de phase 2](docs/architecture-phase-2.md) pour les vérifications
 et les limites de ces premiers lots. Aucune commande de tableau n’est ajoutée.
@@ -408,7 +410,7 @@ Dans `src/engine/` (futur crate `core`) :
   `InsertImage { path, alt }`, `SelectText { range | occurrence }`, `InsertText { text }`,
   `SetMetadata { field, value }`, `SetOption { option, value }`, `ReplaceAll { with }`…).
   Les variantes actuelles sans paramètres restent telles quelles.
-  **En cours :** 27 commandes typées implémentées ; les familles restantes ne sont
+  **En cours :** 31 commandes typées implémentées ; les familles restantes ne sont
   pas annoncées dans le catalogue. Les espaces de noms hiérarchiques existants
   (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
 - [ ] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
@@ -467,7 +469,11 @@ JSON** et compare avec le chemin d'interface.
   signature de document. Cibles de bloc gardées, imports préparés avant publication,
   budget et historique communs ; copie du profil explicite. L’initialisation des
   valeurs à la création reste dans 2.4.8, conformément à V6.
-- [ ] 2.4.4 Recherche : requête, suivant, précédent, remplacer, tout remplacer.
+- [x] 2.4.4 Recherche : requête, suivant, précédent, remplacer, tout remplacer.
+  `search.find` fournit des occurrences logiques gardées et leur texte attendu ;
+  les clics utilisent `text.select`. Navigation et remplacements passent par les
+  appels typés/JSON, avec parité egui testée. Tout remplacer reste une transaction.
+  Seuls les rectangles de surbrillance utilisent encore le tampon graphique.
 - [ ] 2.4.5 Orthographe : corriger un mot, ignorer, réinitialiser les exceptions
   documentaires ; apprendre/oublier un mot et activer la correction restent des
   actions globales de l’application (V5), hors du premier périmètre CLI/MCP.

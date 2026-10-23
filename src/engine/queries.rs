@@ -31,36 +31,8 @@ impl Engine {
                 json!({"guard": self.session.target_guard(), "metadata": self.session.metadata})
             }
             Query::Commands(_) => json!({"entries": catalogue()}),
-            Query::Find(params) => {
-                let mut search = crate::search::Search::default();
-                search.query = params.query;
-                search.case_sensitive = params.case_sensitive;
-                search.refresh(self.session.revision, &self.session.document.view);
-                let mut matches = Vec::new();
-                for range in search.matches {
-                    let target = self.session.selection_target(crate::session::Selection {
-                        secondary: crate::session::Caret {
-                            index: range.start,
-                            ..Default::default()
-                        },
-                        primary: crate::session::Caret {
-                            index: range.end,
-                            ..Default::default()
-                        },
-                    })?;
-                    let text: String = self
-                        .session
-                        .document
-                        .view
-                        .text
-                        .chars()
-                        .skip(range.start)
-                        .take(range.len())
-                        .collect();
-                    matches.push(json!({"target": target, "text": text}));
-                }
-                json!({"guard": self.session.target_guard(), "matches": matches})
-            }
+            Query::Find(params) => serde_json::to_value(self.search_results(params)?)
+                .expect("serializable search results"),
         })
     }
     fn structure_json(&self) -> Value {

@@ -7,6 +7,10 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 
 | Identifiant | Famille | Description |
 | --- | --- | --- |
+| `edit.find_next` | selection | Select the next literal match, wrapping around the editable document. |
+| `edit.find_previous` | selection | Select the previous literal match, wrapping around the editable document. |
+| `edit.replace_current` | edit | Replace a revision-guarded occurrence with expected text, then select the next match. |
+| `edit.replace_all` | edit | Replace all literal matches from one guarded document revision in one transaction. |
 | `text.insert` | edit | Insert text or replace a selection, with literal input by default and optional typing rules. |
 | `text.delete` | edit | Delete text within validated structural boundaries. |
 | `text.select` | selection | Select text or move to a body, annotation, description term or definition. |

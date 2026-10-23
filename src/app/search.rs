@@ -1,12 +1,45 @@
 use super::*;
+use crate::engine::{
+    Command as CoreCommand, FindParams, ReplaceAllParams, ReplaceCurrentParams, SearchParams,
+    SearchResults, SelectTextParams,
+};
 
 impl App {
     pub(super) fn refresh_search(&mut self) {
-        self.search.engine.refresh(
-            self.document.engine.revision,
-            &self.document.engine.document.view,
-        );
+        let guard = self.document.engine.target_guard();
+        if self.search.guard == Some(guard) && self.search.engine.is_current(guard.revision) {
+            return;
+        }
+        let query = crate::engine::Query::Find(SearchParams {
+            query: self.search.engine.query.clone(),
+            case_sensitive: self.search.engine.case_sensitive,
+        });
+        let results = self.document.engine.query_call(query.to_call());
+        self.search.guard = Some(guard);
+        self.search.occurrences.clear();
+        let mut ranges = Vec::new();
+        let failed = match results {
+            Ok(value) => {
+                let results: SearchResults =
+                    serde_json::from_value(value).expect("typed search results");
+                for occurrence in results.matches {
+                    let (start, end) = self
+                        .document
+                        .engine
+                        .resolve_target(occurrence.target)
+                        .expect("current search target");
+                    ranges.push(start.min(end)..start.max(end));
+                    self.search.occurrences.push(occurrence);
+                }
+                false
+            }
+            Err(_) => true,
+        };
+        self.search
+            .engine
+            .cache_results(guard.revision, ranges, failed);
     }
+
     /// Diagnostic de présentation utilisant les mêmes commandes que l’interface.
     pub fn capture_search(&mut self, query: String) {
         self.load_demo();
@@ -28,52 +61,72 @@ impl App {
         })
     }
     pub(super) fn select_search_result(&mut self, index: usize) {
-        if let Some(range) = self.search.engine.matches.get(index) {
-            // Une seule sélection native. Les autres résultats ne sont que des fonds colorés.
-            self.document.selection = editor::cursor(range.clone());
-            self.document.engine.document.view.typing_style =
-                self.document.engine.document.view.style_at(range.start);
-            self.document.force_selection = true;
+        if let Some(occurrence) = self.search.occurrences.get(index).cloned()
+            && self.run_document_command(CoreCommand::SelectText(SelectTextParams {
+                target: occurrence.target.into(),
+                part: None,
+            }))
+        {
             self.preview.editor_scroll_pending = true;
-            self.preview.forward_pending = true;
-            self.document.engine.typing_group = false;
         }
+    }
+    pub(super) fn navigate_search(&mut self, backward: bool) {
+        self.search.open = true;
+        self.refresh_search();
+        if self.search.engine.matches.is_empty() {
+            return;
+        }
+        let params = FindParams {
+            query: self.search.engine.query.clone(),
+            case_sensitive: self.search.engine.case_sensitive,
+            target: Default::default(),
+        };
+        self.run_document_command(if backward {
+            CoreCommand::FindPrevious(params)
+        } else {
+            CoreCommand::FindNext(params)
+        });
     }
     pub(super) fn replace_search(&mut self, all: bool) {
         self.search.open = true;
         self.search.replace_open = true;
         self.refresh_search();
-        if !self.search.engine.replacement_valid() {
+        if !self.search.engine.replacement_valid() || self.search.engine.matches.is_empty() {
             return;
         }
-        let ranges = if all {
-            self.search.engine.matches.clone()
+        let query = self.search.engine.query.clone();
+        let case_sensitive = self.search.engine.case_sensitive;
+        let replacement = self.search.engine.replacement.clone();
+        let command = if all {
+            CoreCommand::ReplaceAll(ReplaceAllParams {
+                guard: self.search.guard.expect("refreshed search"),
+                query,
+                case_sensitive,
+                replacement,
+            })
         } else {
-            self.search
-                .engine
-                .selected(&self.range())
-                .map(|index| vec![self.search.engine.matches[index].clone()])
-                .unwrap_or_default()
+            let Some(index) = self.search.engine.selected(&self.range()) else {
+                return;
+            };
+            CoreCommand::ReplaceCurrent(ReplaceCurrentParams {
+                query,
+                case_sensitive,
+                replacement,
+                occurrence: self.search.occurrences[index].clone(),
+            })
         };
-        if ranges.is_empty() {
-            return;
+        match self.execute_document_command(command) {
+            Ok(outcome) => {
+                let count = outcome.value.expect("replacement result")["count"]
+                    .as_u64()
+                    .unwrap();
+                self.dialogs.message = Some(crate::tr!("search-replaced", count = count));
+            }
+            Err(error) => {
+                self.document.force_selection = true;
+                self.dialogs.message = Some(Self::command_error_text(&error));
+            }
         }
-        let previous = self.document.selection.into();
-        let result = self.document.engine.replace_ranges(
-            self.document.selection.into(),
-            &ranges,
-            &self.search.engine.replacement,
-        );
-        if !self.accept_edit(result, previous) {
-            return;
-        }
-        self.document.force_selection = true;
-        self.preview.forward_pending = true;
-        self.refresh_search();
-        if !all && let Some(index) = self.search.engine.next(self.range(), false) {
-            self.select_search_result(index);
-        }
-        self.dialogs.message = Some(crate::tr!("search-replaced", count = ranges.len()));
     }
     pub(super) fn search_ui(&mut self, ui: &mut egui::Ui) {
         if !self.search.open {

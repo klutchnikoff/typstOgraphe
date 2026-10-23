@@ -12,14 +12,19 @@ pub struct Search {
     cached: Option<(u64, String, bool)>,
 }
 impl Search {
+    pub fn is_current(&self, revision: u64) -> bool {
+        self.cached.as_ref().is_some_and(|(old, query, case)| {
+            *old == revision && *query == self.query && *case == self.case_sensitive
+        })
+    }
+    /// Cache graphique des résultats calculés par le moteur documentaire.
+    pub fn cache_results(&mut self, revision: u64, matches: Vec<Range<usize>>, failed: bool) {
+        self.cached = Some((revision, self.query.clone(), self.case_sensitive));
+        self.matches = matches;
+        self.failed = failed;
+    }
     pub fn refresh(&mut self, revision: u64, view: &Projection) {
-        if self
-            .cached
-            .as_ref()
-            .is_some_and(|(old_revision, query, case)| {
-                *old_revision == revision && *query == self.query && *case == self.case_sensitive
-            })
-        {
+        if self.is_current(revision) {
             return;
         }
         self.cached = Some((revision, self.query.clone(), self.case_sensitive));

@@ -1,3 +1,4 @@
+use super::search_types::*;
 use super::{CommandError, registry::define_calls};
 use super::{
     ImageAltParams, ImageTargetParams, InsertImageParams, ReplaceImageParams, SignatureParams,
@@ -129,6 +130,10 @@ pub struct SearchParams {
 
 define_calls! {
     Command, command_specs;
+    FindNext(FindParams) => "edit.find_next", "Select the next literal match, wrapping around the editable document.", Selection, Document;
+    FindPrevious(FindParams) => "edit.find_previous", "Select the previous literal match, wrapping around the editable document.", Selection, Document;
+    ReplaceCurrent(ReplaceCurrentParams) => "edit.replace_current", "Replace a revision-guarded occurrence with expected text, then select the next match.", Edit, Document;
+    ReplaceAll(ReplaceAllParams) => "edit.replace_all", "Replace all literal matches from one guarded document revision in one transaction.", Edit, Document;
     InsertText(InsertTextParams) => "text.insert", "Insert text or replace a selection, with literal input by default and optional typing rules.", Edit, Document;
     DeleteText(TargetParams) => "text.delete", "Delete text within validated structural boundaries.", Edit, Document;
     SelectText(SelectTextParams) => "text.select", "Select text or move to a body, annotation, description term or definition.", Selection, Document;
@@ -176,6 +181,7 @@ impl Command {
             Self::Bold(p) | Self::Italic(p) => p.target,
             Self::SetLink(p) => p.target,
             Self::SelectText(p) => p.target,
+            Self::FindNext(p) | Self::FindPrevious(p) => p.target,
             Self::DeleteText(p)
             | Self::SplitBlock(p)
             | Self::ExitBlock(p)

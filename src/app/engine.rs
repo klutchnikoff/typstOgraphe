@@ -76,6 +76,9 @@ impl App {
             "document_too_large" => "storage-letter-too-large",
             "protected_boundary" => "edit-protected-boundary",
             "invalid_text" => "edit-invalid-text",
+            "search_too_large" => "search-too-large",
+            "search_one_line" => "search-one-line",
+            "search_mismatch" => "edit-stale-draft",
             "foreign_document" | "stale_revision" | "unknown_zone" | "unknown_block" => {
                 "edit-stale-draft"
             }

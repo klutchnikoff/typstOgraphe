@@ -71,15 +71,7 @@ impl App {
                 self.search.focus_pending = true;
             }
             Command::FindNext | Command::FindPrevious => {
-                self.search.open = true;
-                self.refresh_search();
-                if let Some(index) = self
-                    .search
-                    .engine
-                    .next(self.range(), command == Command::FindPrevious)
-                {
-                    self.select_search_result(index);
-                }
+                self.navigate_search(command == Command::FindPrevious);
             }
             Command::ReplaceCurrent | Command::ReplaceAll => {
                 self.replace_search(command == Command::ReplaceAll)

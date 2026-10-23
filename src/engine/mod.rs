@@ -8,6 +8,8 @@ mod images;
 mod queries;
 pub mod registry;
 mod run;
+mod search;
+mod search_types;
 mod types;
 mod typing;
 use crate::{
@@ -17,6 +19,7 @@ use crate::{
 pub use error::{CommandError, ErrorCode};
 pub use image_types::*;
 pub use registry::{AvailabilityRule, Call, CommandId, CommandSpec, Family, catalogue};
+pub use search_types::*;
 use serde::Serialize;
 use serde_json::Value;
 pub use types::*;

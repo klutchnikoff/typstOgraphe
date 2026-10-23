@@ -98,14 +98,7 @@ impl Engine {
     }
 
     pub(super) fn check_signature(&self, params: &SignatureParams) -> Result<(), CommandError> {
-        let guard = self.session.target_guard();
-        if params.guard.document_id != guard.document_id {
-            return Err(CommandError::new(ErrorCode::Document, "foreign_document"));
-        }
-        if params.guard.revision != guard.revision {
-            return Err(CommandError::new(ErrorCode::Document, "stale_revision"));
-        }
-        Ok(())
+        self.check_guard(params.guard)
     }
 
     pub(super) fn insert_image(&mut self, params: InsertImageParams) -> Result<(), CommandError> {

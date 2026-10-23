@@ -5,7 +5,7 @@ V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers 
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
-Le registre typé et le premier moteur sont implémentés : 27 commandes, six
+Le registre typé et le premier moteur sont implémentés : 31 commandes, six
 requêtes et leur catalogue généré. La migration des familles n’est pas terminée.
 
 ## Blocs et zones en mémoire
@@ -324,9 +324,53 @@ reste annulable et conserve la réserve manuscrite du modèle. L’interface pr�
 le focus du panneau des informations. L’initialisation du profil à la création
 reste avec la famille `document.new`, encore à migrer.
 
+## Recherche et remplacement
+
+Le lot 2.4.4 conserve `search.find` et ajoute `edit.find_next`,
+`edit.find_previous`, `edit.replace_current` et `edit.replace_all` au registre.
+Le catalogue compte désormais 31 commandes et six requêtes. La recherche reste
+exacte et littérale, Unicode, insensible à la casse par défaut ; accents distincts,
+sans regex ni correspondance entre zones. Le périmètre actuel est tout le contenu
+éditable, y compris termes, définitions, attributions et légendes ; ni propriétés
+privées, ni métadonnées, ni modèle. Les séparateurs structurels sont exclus.
+
+`search.find { query, case_sensitive: false }` est une lecture pure. Elle retourne
+`SearchResults { guard, matches }`, chaque occurrence ayant une cible logique
+gardée et son texte exact. Un motif dépassant les limites de compilation produit
+`search_too_large`, repris par le message existant de l’interface. Une requête vide
+ou contenant un séparateur retourne zéro résultat. Le cache graphique est lié à
+la session, à la révision, au texte recherché et à la casse ; seuls les rectangles
+de surbrillance conservent des indices dans le tampon egui. L’interface ne calcule
+plus elle-même les correspondances ou la destination de navigation.
+
+La navigation accepte `query`, `case_sensitive` et `target` (sélection courante
+par défaut, ou cible logique explicite). Elle boucle en début/fin, remplace la
+sélection précédente et met à jour le contexte de frappe sans modifier le document
+ni son historique. Le résultat indique `index` (à partir de zéro) et `count`, avec
+l’effet `RevealSelection`. Le clic sur une occurrence appelle `text.select` avec
+sa garde, puis l’adaptateur affiche cette sélection unique dans l’éditeur et l’aperçu.
+
+Remplacer une occurrence demande `query`, `case_sensitive`, `occurrence` et
+`replacement`. Le moteur vérifie la session/révision, le texte attendu et que la
+cible est une correspondance complète de cette recherche. Aucune référence
+externe n’est actualisée implicitement, même après annulation. Le remplacement
+et le choix du résultat suivant appartiennent à la même commande. Une substitution
+identique peut déplacer la sélection sans créer de transaction.
+
+Tout remplacer reçoit `guard`, `query`, `case_sensitive` et `replacement`.
+Les correspondances proviennent toutes du même état et sont remplacées en ordre
+inverse dans un candidat validé par la voie commune de publication. Une erreur
+ne publie rien ; les nouvelles occurrences créées ne sont pas remplacées en boucle.
+Les styles et ressources sont préservés, l’ensemble se défait en une étape. Les deux
+commandes renvoient le nombre remplacé dans `Outcome.value.count`. Un remplacement
+avec séparateur est refusé (`search_one_line`) ; une navigation ou un remplacement
+sans résultat est indisponible (`search_no_results`), et une occurrence incorrecte
+est refusée (`search_mismatch`). Les champs, messages Fluent, focus et défilement
+restent gérés par egui ; Entrée/Maj+Entrée conservent le focus de recherche.
+
 ## Vérifications
 
-- 240 tests de l’application réussis, dont 97 tests ajoutés depuis le début de
+- 251 tests de l’application réussis, dont 108 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -340,7 +384,7 @@ reste avec la famille `document.new`, encore à migrer.
   et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
   petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 133 tests partagés réussissent aussi.
+  avertissement ; ses 142 tests partagés réussissent aussi.
 - Dix tests du moteur couvrent les schémas, conversions, données invalides,
   cibles périmées/étrangères, refus atomiques, styles explicites, historique,
   lectures seules, portée Courrier et fichiers de catalogue générés. Quatre essais
@@ -361,6 +405,14 @@ reste avec la famille `document.new`, encore à migrer.
   alternatif, suppression et copie de signature aux appels JSON ; ils vérifient
   aussi le refus d’un dialogue périmé, l’archivage et l’indépendance du profil.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
+- Neuf nouveaux tests du moteur couvrent navigation, casse Unicode, cibles
+  explicites, six zones éditables, styles, textes privés exclus, historique,
+  gardes périmées/étrangères, texte attendu, remplacements identiques ou vides,
+  nouvelles occurrences non récursives, paramètres invalides et motif trop grand.
+  Deux essais egui ajoutent la parité JSON pour Entrée/Maj+Entrée, remplacer et
+  tout remplacer, annuler/rétablir, maintien du focus, invalidation du cache entre
+  documents et refus d’un clic périmé. Les essais existants de clic réel et de
+  surlignage dans l’aperçu continuent de réussir.
 - Huit captures strictement identiques après les premiers lots, dans
   `output/baseline/run-ioma5t0l/` et `output/baseline/run-uvqd1xwk/`, puis après la
   voie commune dans `output/baseline/run-rot7603t/`. La comparaison finale sur le
@@ -379,6 +431,8 @@ reste avec la famille `document.new`, encore à migrer.
 - Les huit captures du lot images/signatures sont strictement identiques dans
   `output/baseline/run-oor20pp6/`. Un premier passage avait produit un PNG de profil
   vide ; la relance complète conserve les références sans les modifier.
+- Le lot recherche/remplacement conserve les huit captures strictement identiques
+  dans `output/baseline/run-qaqb4mgo/`.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -394,17 +448,17 @@ vérifient l’unicité concurrente et le refus de boucler au dépassement de ca
 
 ## Suite de la phase
 
-Les indices de recherche et la synchronisation d’aperçu fonctionnent encore via
-le tampon graphique et les cartes de source existants. Leur migration n’est pas
-déclarée terminée par les tests de conversion des positions. Les règles des blocs
-et de transformation de frappe, les images et les signatures sont migrées.
+La synchronisation d’aperçu fonctionne encore via les cartes de source existantes.
+La recherche utilise maintenant des cibles logiques gardées ; sa peinture reste un
+adaptateur du tampon graphique. Les règles des blocs et de transformation de
+frappe, les images, signatures et actions de recherche/remplacement sont migrées.
 
 L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
 Les essais complets de composition, choix des candidats, annulation et historique
 avec les méthodes système restent à poursuivre dans le chantier I. D17 et la tâche
 2.1 bis restent ouverts pour la suite de la migration.
 
-Restent les actions de recherche/remplacement, l’orthographe documentaire, l’écriture des métadonnées
+Restent l’orthographe documentaire, l’écriture des métadonnées
 et options, les modèles et les fichiers. Les lots atomiques (D16), la suppression
 de l’accès transitoire à la session et le gel du catalogue restent à faire. La
 séparation des réglages globaux (V5) et les formats d’export séparés (V6) restent à

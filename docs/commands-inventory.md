@@ -6,7 +6,7 @@ L’implémentation a commencé par les blocs, leurs zones, leurs identités et 
 cibles de sélection, puis la protection des frontières et la voie commune de
 publication des éditions, puis l’isolation IME entre frames ; voir
 [le suivi de phase 2](architecture-phase-2.md).
-Le premier moteur, 27 commandes documentaires et six requêtes sont maintenant
+Le premier moteur, 31 commandes documentaires et six requêtes sont maintenant
 implémentés avec leurs schémas JSON ; voir le [catalogue généré](commands.md).
 Le lot du 23 octobre migre Tab/Maj+Tab vers `text.select { part }`, puis Entrée
 vers `block.split` et sa sortie commune `block.exit` pour légendes et attributions.
@@ -24,6 +24,12 @@ avant publication, import local ou copie base64 explicite. Les dialogues et le
 profil global restent dans l’application. Voir les essais
 [images_engine.rs](../src/app/tests/images_engine.rs) et
 [images.rs](../src/engine/tests/images.rs).
+La recherche passe aussi par le moteur : `search.find`, `edit.find_next`,
+`edit.find_previous`, `edit.replace_current`, `edit.replace_all` et `text.select`
+pour le clic sur une occurrence. Les paramètres actuels et les gardes sont décrits
+dans [le suivi de phase 2](architecture-phase-2.md#recherche-et-remplacement).
+Les chemins des tableaux ci-dessous restent le relevé historique à migrer ; les
+signatures réellement implémentées sont celles du [catalogue généré](commands.json).
 Les tableaux ci-dessous restent l’inventaire de migration de toutes les actions,
 pas la liste des opérations déjà disponibles sans interface.
 Les règles déjà validées sont dans [la feuille de route technique](../ROADMAP-ARCHITECTURE.md),

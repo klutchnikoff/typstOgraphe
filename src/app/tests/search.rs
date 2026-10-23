@@ -1,6 +1,142 @@
 use super::*;
 
 #[test]
+fn search_bar_enter_shift_enter_and_replacement_match_json_with_focus_preserved() {
+    use crate::engine::{Command as Core, Query, SearchParams};
+    use serde_json::json;
+    let (ctx, mut app, mut engine) =
+        super::annotations_engine::pair("Un *été* et un _ÉTÉ_, été.", 0..0);
+    app.apply(Command::FindReplace);
+    app.search.engine.query = "été".into();
+    app.search.engine.replacement = "Noël".into();
+    let _ = search_draw(&mut app, &ctx, vec![]);
+    for (id, modifiers) in [
+        ("edit.find_next", egui::Modifiers::NONE),
+        ("edit.find_next", egui::Modifiers::NONE),
+        ("edit.find_previous", egui::Modifiers::SHIFT),
+    ] {
+        engine
+            .run_call(
+                Core::from_call(id, json!({"query":"été"}))
+                    .unwrap()
+                    .to_call(),
+            )
+            .unwrap();
+        let _ = search_draw(
+            &mut app,
+            &ctx,
+            vec![egui::Event::Key {
+                key: egui::Key::Enter,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers,
+            }],
+        );
+        super::annotations_engine::equivalent(&app, &engine);
+        assert_eq!(app.search_focus(&ctx), Some(egui::Id::new(SEARCH_ID)));
+    }
+    let found = engine
+        .query_call(
+            Query::Find(SearchParams {
+                query: "été".into(),
+                case_sensitive: false,
+            })
+            .to_call(),
+        )
+        .unwrap();
+    let occurrence = found["matches"][0].clone();
+    engine
+        .run_call(
+            Core::from_call(
+                "edit.replace_current",
+                json!({"query":"été","occurrence":occurrence,"replacement":"Noël"}),
+            )
+            .unwrap()
+            .to_call(),
+        )
+        .unwrap();
+    ctx.memory_mut(|m| m.request_focus(egui::Id::new(REPLACE_ID)));
+    let _ = search_draw(
+        &mut app,
+        &ctx,
+        vec![egui::Event::Key {
+            key: egui::Key::Enter,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        }],
+    );
+    super::annotations_engine::equivalent(&app, &engine);
+    assert_eq!(app.search_focus(&ctx), Some(egui::Id::new(REPLACE_ID)));
+    engine
+        .run_call(
+            Core::from_call(
+                "edit.replace_all",
+                json!({"guard":engine.target_guard(),"query":"été","replacement":"Noël"}),
+            )
+            .unwrap()
+            .to_call(),
+        )
+        .unwrap();
+    app.apply(Command::ReplaceAll);
+    super::annotations_engine::equivalent(&app, &engine);
+    for (ui, id) in [(Command::Undo, "edit.undo"), (Command::Redo, "edit.redo")] {
+        app.apply(ui);
+        engine
+            .run_call(Core::from_call(id, json!({})).unwrap().to_call())
+            .unwrap();
+        super::annotations_engine::equivalent(&app, &engine);
+    }
+}
+
+#[test]
+fn search_cache_is_revision_and_session_bound_and_stale_clicks_are_refused() {
+    let (_ctx, mut app) = demo_app();
+    app.apply(Command::Find);
+    app.search.engine.query = "Madame".into();
+    app.refresh_search();
+    assert!(!app.search.occurrences.is_empty());
+    let old_guard = app.search.guard.unwrap();
+    app.document
+        .engine
+        .run(crate::engine::Command::InsertText(
+            crate::engine::InsertTextParams {
+                target: Default::default(),
+                text: "X".into(),
+                input_rules: Default::default(),
+            },
+        ))
+        .unwrap();
+    let before = app.stored_document();
+    let selection = app.document.selection;
+    app.select_search_result(0);
+    assert!(app.stored_document() == before);
+    assert_eq!(app.document.selection, selection);
+    assert_eq!(
+        app.dialogs.message.as_deref(),
+        Some(crate::tr!("edit-stale-draft").as_str())
+    );
+    app.refresh_search();
+    assert_ne!(app.search.guard.unwrap(), old_guard);
+    let mut stored = StoredDocument::blank(DocumentType::Courrier);
+    stored.source = "Madame, bonjour Madame.".into();
+    app.install_document(
+        stored.clone(),
+        Document::from_source(&stored.source).unwrap(),
+        None,
+    )
+    .unwrap();
+    app.search.engine.query = "Madame".into();
+    app.refresh_search();
+    assert_eq!(app.search.occurrences.len(), 2);
+    assert_ne!(app.search.guard.unwrap().document_id, old_guard.document_id);
+    app.select_search_result(1);
+    assert_eq!(app.range(), 16..22);
+}
+
+#[test]
 fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_preview_highlights() {
     let (ctx, mut app) = demo_app();
     let mut letter = StoredDocument::blank(DocumentType::Courrier);
