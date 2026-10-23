@@ -464,9 +464,12 @@ Dans `src/engine/` (futur crate `core`) :
 - [x] La sélection (`Caret`, `Selection`, déjà indépendantes d'egui dans `session.rs`)
   appartient au moteur : les agents et la CLI en ont besoin pour `text.insert`
   et `text.select`.
-- [ ] `available(&Engine) -> Availability { Enabled, Disabled(reason) }` remplace la
-  logique de `menu_statuses` (`app/commands.rs`).
-  En place pour les commandes migrées ; les états des autres menus restent dans App.
+- [x] `available(&Engine) -> Availability { Enabled, Disabled(reason) }` remplace la
+  logique documentaire de `menu_statuses` (`app/commands.rs`). Les intentions
+  avant dialogue partagent les contrôles des commandes complètes. Menus, barre,
+  palette, boutons de recherche et dispatch utilisent `App::command_enabled` ;
+  seuls les états de fenêtres/préférences restent graphiques.
+  Voir [le contrat d’aiguillage](docs/command-routing.md).
 - [x] La saisie native d’egui peut préparer une édition via son `TextBuffer` (D17).
   Son commit passe par la même validation, normalisation, mise à jour de révision et
   transaction du cœur que les commandes ; aucune publication partielle en cas d’erreur.
@@ -536,8 +539,10 @@ Dans le style du test existant sur les fichiers Fluent :
 - [x] chaque commande exposée a une description anglaise non vide et un schéma ;
 - [x] chaque clé de libellé de `Presentation` existe en français et en anglais ;
 - [x] aller-retour `Command → appel → Command` ;
-- [ ] **test d'aiguillage** : chaque déclencheur d'interface (menu, palette, barre d'outils,
-  raccourci) passe par `Engine::run` ou `UiCommand` ;
+- [x] **test d'aiguillage** : chaque déclencheur d'interface (menu, palette, barre d'outils,
+  raccourci) passe par `Engine::run` ou `UiCommand`. Parcours exhaustif des registres,
+  correspondance des routes au catalogue, clics/Entrée/raccourci personnalisé,
+  garde de sélection et transaction annulable, refus des actions indisponibles ;
 - [x] **catalogue contrôlé** : `docs/commands.md` et `docs/commands.json` sont générés depuis le registre et comparés
   dans la CI (échec si le fichier est périmé).
   Le catalogue courant ne couvre que les familles implémentées ; son gel reste

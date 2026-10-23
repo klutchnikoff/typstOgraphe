@@ -628,7 +628,10 @@ facultative. L’accès transitoire à la session est supprimé : accesseurs imm
 pour l’affichage, brouillons natifs opaques et publications contrôlées par le moteur.
 Les [lectures de rendu et compteurs](docs/read-queries.md) passent aussi par le
 moteur : positions logiques, quadrilatères en points Typst, référence de rendu
-gardée et comptage Unicode sur le document publié. L’aiguillage final, la relecture
+gardée et comptage Unicode sur le document publié. La disponibilité est unifiée
+et les routes des déclencheurs sont explicites et testées ; les règles
+documentaires viennent du moteur, les états de fenêtres/préférences restent
+dans l’interface ([contrat d’aiguillage](docs/command-routing.md)). La relecture
 de l’inventaire et le gel du catalogue restent à traiter
 ([suivi de phase 2](docs/architecture-phase-2.md)).
 

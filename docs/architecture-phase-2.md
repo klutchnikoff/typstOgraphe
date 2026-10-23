@@ -173,7 +173,8 @@ les mutations via la publication commune de `Session`. `query(&self, ...)` et
 `query_call` lisent sans changer la sélection, l’historique ou le contexte de frappe.
 `Outcome` fournit la garde courante, la sélection, l’état modifié, les effets de
 rendu et une valeur éventuelle. La disponibilité est évaluée par le moteur pour
-les commandes migrées ; les autres états de menus restent dans l’application.
+les commandes et les intentions avant dialogue ; les états de fenêtres et
+préférences restent dans l’application.
 
 Sont raccordés : gras/italique avec `toggle/on/off`, effacement des styles, liens,
 paragraphes, trois niveaux de titres, listes, descriptions, citations, insertion
@@ -790,6 +791,15 @@ catalogue, format d’archive, dépendance Cargo ou fonctionnalité produit n’
   identiques dans `output/baseline/run-kndfgtd7/`, sans modifier les références.
 - Le lot de lectures de rendu et compteurs conserve les huit captures strictement
   identiques dans `output/baseline/run-87yhkaa6/`, sans modifier les références.
+- Le lot de disponibilité/aiguillage conserve six captures identiques dès le
+  premier passage (`output/baseline/run-e3if604_/`). Les deux autres diffèrent
+  uniquement par l’icône de lien désormais désactivée sans sélection : 389 pixels
+  dans le rectangle `(537, 31)–(571, 65)` pour `editor` et `profile-letter`.
+  Après inspection visuelle et comparaison des pixels, seules ces deux images
+  et leurs empreintes ont été actualisées ; les anciennes références sont
+  conservées dans `output/baseline/reference-before-command-availability/`.
+  Un nouveau passage complet correspond aux huit références dans
+  `output/baseline/run-wfbf4qxl/`.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -844,6 +854,39 @@ mêmes cibles passe avec `-D warnings` ; formatage, différences et seuil de tai
 des modules `app` et `engine` sont vérifiés. Aucun format documentaire, dépendance
 Cargo ou transport CLI/MCP n’est ajouté.
 
+## Disponibilité commune et aiguillage des déclencheurs
+
+Le lot du 24 octobre 2026 remplace les décisions documentaires dispersées dans
+les menus, la palette, la barre d’outils et la recherche par `App::command_enabled`.
+`App::apply` vérifie aussi cette décision, y compris après un raccourci ou une
+sélection de palette. Les cibles textuelles sont explicites et gardées ; une
+lecture de disponibilité ne doit pas déplacer le curseur du moteur.
+
+Le moteur traite les commandes complètes avec `available` et les intentions
+avant dialogue avec `available_intent`. Ces intentions ne produisent aucun accès
+fichier et partagent les règles de document ouvert, cible de lien, insertion
+d’image et champs d’export avec les commandes complètes. Les chemins, fichiers,
+URL et décisions d’abandon sont validés à nouveau lors de la confirmation.
+
+`UiCommand::route` couvre exhaustivement l’enum. Un parcours des registres des
+types contrôle les identifiants et les voies documentaires ; les gestes purement
+graphiques restent explicites. Les paramètres de recherche/remplacement sont
+préparés au même endroit pour la disponibilité et l’exécution. Le moteur conserve
+un cache de recherche par garde, requête et casse, indépendant du cache graphique.
+Les fautes utilisées par les menus et raccourcis proviennent du moteur, même
+avant l’affichage des soulignements du worker. Le [contrat d’aiguillage](command-routing.md)
+détaille ces règles et les conditions qui restent graphiques.
+
+Neuf nouveaux tests couvrent les intentions, l’absence de mutation et d’IO,
+les registres complets, les menus, la barre, la palette, les raccourcis personnalisés,
+les actions désactivées, les frontières d’images, les occurrences périmées et les
+caches de recherche/orthographe. Ils vérifient la sélection, une seule transaction
+et l’annulation. Validation : 337 tests de l’application et 203 du diagnostic
+isolé passent ; Clippy sur toutes les cibles avec `editor-model-spike` passe avec
+`-D warnings`, ainsi que le formatage et les seuils de taille `app`/`engine`.
+Le catalogue reste à 49 commandes et quatorze requêtes ; aucun format de fichier,
+aucune dépendance Cargo et aucun transport CLI/MCP ne sont ajoutés.
+
 ## Suite de la phase
 
 Les lectures de synchronisation et de comptage sont migrées vers le moteur. Les
@@ -859,8 +902,9 @@ D17 est implémenté ; les autres critères de 2.1 bis restent à relire avant c
 
 Les familles documentaires prévues en 2.4 sont migrées, y compris les fichiers,
 la récupération et les lots atomiques D16. L’accès transitoire à la session est
-supprimé. Restent l’unification de la disponibilité, l’aiguillage final des
-déclencheurs, la relecture exhaustive de l’inventaire et le gel du catalogue.
+supprimé. La disponibilité commune et l’aiguillage des déclencheurs sont en place.
+Restent la relecture exhaustive de l’inventaire, des critères de sortie et le gel
+du catalogue, à valider ensemble.
 V5 conserve les réglages globaux dans l’application ; les formats d’export séparés
 et la création sans interface de V6 sont implémentés et testés. Le lot de lectures
 ne livre pas de `render.compile` public ; son service et les éventuelles lectures
