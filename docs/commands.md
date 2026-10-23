@@ -7,6 +7,8 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 
 | Identifiant | Famille | Description |
 | --- | --- | --- |
+| `document.set_model` | edit | Validate and install Typst model source or a UTF-8 file with controlled dependencies in one guarded transaction. |
+| `courrier.model.personal` | letter | Apply the supplied personal-letter model using the shared guarded model operation. |
 | `metadata.set` | edit | Set an active document-type field, with a guarded value and optional typing history grouping. |
 | `document.set_option` | edit | Set a typed document option while enforcing the model page and marker policy. |
 | `spelling.next` | selection | Select the next spelling issue in the current document, wrapping around. |
@@ -45,6 +47,7 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 | `letter.insert_attachment` | letter | Insert an attachment mention into a letter. |
 | `edit.undo` | history | Undo the previous document transaction. |
 | `edit.redo` | history | Redo the next document transaction. |
+| `models.list` | query | List supplied models for the active document type without changing the document. |
 | `models.presentation` | query | Read the current model page constraints and permitted bullet markers. |
 | `spelling.issues` | query | Read revision-guarded spelling issues and dictionary availability using the configured personal words. |
 | `spelling.suggestions` | query | Suggest corrections for an explicit word and language or a validated spelling issue, without changing selection. |

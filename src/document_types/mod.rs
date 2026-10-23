@@ -196,7 +196,7 @@ pub struct ModelContract<T: 'static> {
 
 /// Libertés explicitement accordées par le créateur du modèle, en pur Typst.
 /// Par défaut la charte reste entièrement automatique.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelPresentation {
     pub bullet_markers: Vec<String>,
     pub custom_bullet_marker: bool,

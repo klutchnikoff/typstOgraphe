@@ -1,4 +1,5 @@
 use super::metadata_types::*;
+use super::model_types::*;
 use super::search_types::*;
 use super::spelling_types::*;
 use super::{CommandError, registry::define_calls};
@@ -132,6 +133,8 @@ pub struct SearchParams {
 
 define_calls! {
     Command, command_specs;
+    SetModel(SetModelParams) => "document.set_model", "Validate and install Typst model source or a UTF-8 file with controlled dependencies in one guarded transaction.", Edit, Document;
+    PersonalModel(GuardParams) => "courrier.model.personal", "Apply the supplied personal-letter model using the shared guarded model operation.", Letter, Letter;
     SetMetadata(SetMetadataParams) => "metadata.set", "Set an active document-type field, with a guarded value and optional typing history grouping.", Edit, Document;
     SetOption(SetOptionParams) => "document.set_option", "Set a typed document option while enforcing the model page and marker policy.", Edit, Document;
     NextSpelling(TargetParams) => "spelling.next", "Select the next spelling issue in the current document, wrapping around.", Selection, Document;
@@ -174,6 +177,7 @@ define_calls! {
 
 define_calls! {
     Query, query_specs;
+    Models(Empty) => "models.list", "List supplied models for the active document type without changing the document.", Query, Read;
     ModelPresentation(Empty) => "models.presentation", "Read the current model page constraints and permitted bullet markers.", Query, Read;
     SpellingIssues(Empty) => "spelling.issues", "Read revision-guarded spelling issues and dictionary availability using the configured personal words.", Query, Read;
     SpellingSuggestions(SpellingSuggestionsParams) => "spelling.suggestions", "Suggest corrections for an explicit word and language or a validated spelling issue, without changing selection.", Query, Read;

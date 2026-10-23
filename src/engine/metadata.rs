@@ -65,6 +65,9 @@ impl Engine {
         *cached = Some((guard, policy.clone()));
         Ok(policy)
     }
+    pub(super) fn cache_presentation(&self, policy: ModelPresentation) {
+        *self.presentation_cache.0.borrow_mut() = Some((self.session.target_guard(), policy));
+    }
     pub(super) fn presentation_query(&self) -> Result<Value, CommandError> {
         let policy = self.option_policy()?;
         let page = self

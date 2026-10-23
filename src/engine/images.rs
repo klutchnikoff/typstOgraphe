@@ -1,7 +1,7 @@
 //! Préparation des ressources puis publication atomique, sans dialogue ni profil global.
 use super::*;
 use crate::{
-    assets::{ImageData, MAX_DOCUMENT_BYTES, MAX_IMAGE_BYTES},
+    assets::{ImageData, MAX_IMAGE_BYTES},
     document::{
         ImageBlock,
         structure::{BlockContent, LogicalSelection, targets::Position},
@@ -180,7 +180,7 @@ impl Engine {
         budget: bool,
     ) -> Result<(), CommandError> {
         if budget {
-            check_budget(&candidate)?;
+            super::resources::check_budget(&candidate)?;
         }
         self.selection = self.session.commit_snapshot(
             self.session.target_guard(),
@@ -202,39 +202,4 @@ fn collapsed(index: usize, prefer_next_row: bool) -> Selection {
         primary: caret,
         secondary: caret,
     }
-}
-
-fn check_budget(candidate: &Snapshot) -> Result<(), CommandError> {
-    let dependencies = candidate
-        .dependencies
-        .values()
-        .map(|data| data.len())
-        .sum::<usize>();
-    if candidate
-        .document
-        .assets
-        .values()
-        .map(|data| data.len())
-        .sum::<usize>()
-        + dependencies
-        <= MAX_DOCUMENT_BYTES as usize
-    {
-        return Ok(());
-    }
-    let mut document = candidate.document.clone();
-    document.sync_source();
-    let retained = crate::rendering::retained_assets(
-        document.source(),
-        &candidate.metadata,
-        &candidate.template,
-        &document.assets,
-        &candidate.dependencies,
-    )
-    .map_err(|error| CommandError::detail(ErrorCode::Document, "asset_validation", error))?;
-    if retained.values().map(|data| data.len()).sum::<usize>() + dependencies
-        > MAX_DOCUMENT_BYTES as usize
-    {
-        return Err(CommandError::new(ErrorCode::Document, "document_too_large"));
-    }
-    Ok(())
 }

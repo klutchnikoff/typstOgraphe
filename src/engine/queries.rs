@@ -5,6 +5,7 @@ use serde_json::json;
 impl Engine {
     pub fn query(&self, query: Query) -> Result<Value, CommandError> {
         Ok(match query {
+            Query::Models(_) => self.models_query(),
             Query::SpellingIssues(_) => {
                 serde_json::to_value(self.spelling_issues()?).expect("serializable spelling issues")
             }
