@@ -12,6 +12,7 @@ mod annotations;
 mod annotations_engine;
 mod batch_engine;
 mod blocks_engine;
+mod clipboard;
 mod commands;
 mod edit_validation;
 mod engine;
