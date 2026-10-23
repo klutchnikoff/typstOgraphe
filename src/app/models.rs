@@ -1,30 +1,44 @@
 use super::*;
 
 impl App {
+    #[cfg(test)]
     pub(super) fn install_model(&mut self, template: String) -> Result<(), String> {
-        if template.len() > 1024 * 1024 {
-            return Err(crate::tr!("model-too-large"));
-        }
-        let mut metadata = self.document.engine.metadata.clone();
-        metadata.options_mut().bullet_marker = None;
-        let mut world = crate::rendering::TypstWorld::default();
-        let dependencies =
-            crate::packages::with_existing(&template, &self.document.engine.dependencies);
-        world.set_dependencies(&dependencies);
-        world.set_assets(&self.document.engine.document.assets);
-        let presentation = world
-            .validate_model(self.document.engine.document.source(), &metadata, &template)
-            .map_err(|error| format!("{}\n{}", metadata.model_signature(), error))?;
-        let before = self.snapshot();
-        self.document.engine.dependencies = dependencies;
-        self.document.engine.template = template;
-        self.document.engine.metadata = metadata;
-        self.document.presentation = presentation;
-        self.remember(before, false);
-        Ok(())
+        self.install_model_input(
+            self.document.engine.target_guard(),
+            crate::engine::ModelInput::Source { source: template },
+        )
+    }
+    pub(super) fn install_model_input(
+        &mut self,
+        guard: crate::session::TargetGuard,
+        model: crate::engine::ModelInput,
+    ) -> Result<(), String> {
+        self.execute_document_command(crate::engine::Command::SetModel(
+            crate::engine::SetModelParams { guard, model },
+        ))
+        .map(|_| ())
+        .map_err(|e| Self::command_error_text(&e))
+    }
+    pub(super) fn select_model(&mut self, model: Model) {
+        let command = crate::engine::Command::from_call(
+            model.definition().command.id,
+            serde_json::json!({"guard":self.document.engine.target_guard()}),
+        )
+        .expect("preset registered in the typed catalogue");
+        self.run_document_command(command);
+    }
+    pub(super) fn refresh_model_presentation(&mut self) {
+        self.document.presentation = self
+            .document
+            .engine
+            .query_call(crate::engine::Query::ModelPresentation(crate::engine::Empty {}).to_call())
+            .ok()
+            .and_then(|value| serde_json::from_value(value).ok())
+            .unwrap_or_default();
+        self.dialogs.marker_draft = None;
     }
     pub(super) fn import_model(&mut self) {
-        use std::io::Read;
+        let guard = self.document.engine.target_guard();
         let Some(path) = rfd::FileDialog::new()
             .set_title(Command::ImportModel.label())
             .add_filter(crate::tr!("model-file-filter"), &["typ"])
@@ -32,16 +46,9 @@ impl App {
         else {
             return;
         };
-        let result = std::fs::File::open(path)
-            .map_err(|error| error.to_string())
-            .and_then(|file| {
-                let mut source = String::new();
-                file.take(1024 * 1024 + 1)
-                    .read_to_string(&mut source)
-                    .map_err(|error| error.to_string())?;
-                self.install_model(source)
-            });
-        if let Err(error) = result {
+        if let Err(error) =
+            self.install_model_input(guard, crate::engine::ModelInput::Path { path })
+        {
             self.file.error = Some(crate::tr!("model-import-error", error = error));
         }
     }

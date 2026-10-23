@@ -93,23 +93,7 @@ impl App {
                     self.document.force_selection = true;
                 }
             }
-            command @ Command::Model(_) => {
-                let template = command.model_source().expect("commande de modèle");
-                if self.document.engine.template != template {
-                    let before = self.snapshot();
-                    self.document.engine.dependencies = crate::packages::for_template(&template);
-                    self.document.engine.template = template;
-                    self.document.presentation = ModelPresentation::default();
-                    self.document.engine.metadata.options_mut().bullet_marker = None;
-                    if let Command::Model(model) = command
-                        && let Some((paper, landscape)) = model.definition().page
-                    {
-                        self.document.engine.metadata.options_mut().paper = paper;
-                        self.document.engine.metadata.options_mut().landscape = landscape;
-                    }
-                    self.remember(before, false);
-                }
-            }
+            Command::Model(model) => self.select_model(model),
             Command::Link => self.open_link(),
             _ => unreachable!("document command dispatched through Engine"),
         }

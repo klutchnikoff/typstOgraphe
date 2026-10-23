@@ -28,15 +28,29 @@ impl App {
         command: CoreCommand,
     ) -> Result<crate::engine::Outcome, CommandError> {
         self.cancel_ime();
-        let preserve_focus = matches!(
+        let model = matches!(
             command,
-            CoreCommand::SetSignature(_) | CoreCommand::SetMetadata(_) | CoreCommand::SetOption(_)
+            CoreCommand::SetModel(_) | CoreCommand::PersonalModel(_)
         );
+        let preserve_focus = model
+            || matches!(
+                command,
+                CoreCommand::SetSignature(_)
+                    | CoreCommand::SetMetadata(_)
+                    | CoreCommand::SetOption(_)
+            );
         self.document
             .engine
             .set_adapter_selection(self.document.selection.into())?;
         let outcome = self.document.engine.run_call(command.to_call())?;
         self.document.selection = self.document.engine.selection().into();
+        if model {
+            self.document.presentation = serde_json::from_value(
+                outcome.value.as_ref().expect("model result")["presentation"].clone(),
+            )
+            .expect("typed model presentation");
+            self.dialogs.marker_draft = None;
+        }
         if outcome
             .effects
             .contains(&crate::engine::Effect::RevealSelection)
@@ -55,7 +69,10 @@ impl App {
     pub(super) fn run_document_command(&mut self, command: CoreCommand) -> bool {
         let preserve_focus = matches!(
             command,
-            CoreCommand::SetMetadata(_) | CoreCommand::SetOption(_)
+            CoreCommand::SetMetadata(_)
+                | CoreCommand::SetOption(_)
+                | CoreCommand::SetModel(_)
+                | CoreCommand::PersonalModel(_)
         );
         match self.execute_document_command(command) {
             Ok(_) => true,
@@ -67,6 +84,19 @@ impl App {
         }
     }
     pub(super) fn command_error_text(error: &CommandError) -> String {
+        if error.reason() == "model_validation" {
+            return format!(
+                "{}\n{}",
+                error.params["signature"].as_str().unwrap_or(""),
+                error.params["detail"].as_str().unwrap_or("")
+            );
+        }
+        if matches!(
+            error.reason(),
+            "model_io" | "model_utf8" | "model_dependencies"
+        ) {
+            return error.params["detail"].as_str().unwrap_or("").into();
+        }
         if matches!(
             error.reason(),
             "image_decode" | "image_io" | "image_base64" | "asset_validation"
@@ -78,6 +108,7 @@ impl App {
         }
         crate::i18n::text(match error.reason() {
             "image_too_large" => "image-too-large",
+            "model_too_large" => "model-too-large",
             "image_format" => "image-format-unsupported",
             "image_svg" => "image-invalid-svg",
             "document_too_large" => "storage-letter-too-large",
@@ -119,15 +150,18 @@ impl App {
             (
                 self.document.engine.document.clone(),
                 self.document.engine.template.clone(),
+                self.document.engine.dependencies.clone(),
             )
         });
         if !self.run_document_command(command) {
             return;
         }
-        if let Some((old_document, old_template)) = previous {
+        if let Some((old_document, old_template, old_dependencies)) = previous {
             self.image_textures.clear();
-            if self.document.engine.template != old_template {
-                self.document.presentation = ModelPresentation::default();
+            if self.document.engine.template != old_template
+                || self.document.engine.dependencies != old_dependencies
+            {
+                self.refresh_model_presentation();
             }
             self.document.force_selection = self.document.history_field.is_none()
                 || self.document.engine.document != old_document;
