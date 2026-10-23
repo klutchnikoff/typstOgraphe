@@ -5,7 +5,7 @@ V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers 
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
-Le registre typé et le premier moteur sont implémentés : 38 commandes, neuf
+Le registre typé et le premier moteur sont implémentés : 40 commandes, dix
 requêtes et leur catalogue généré. La migration des familles n’est pas terminée.
 
 ## Blocs et zones en mémoire
@@ -489,13 +489,65 @@ ni dans l’historique. Les erreurs métier sont codées (`metadata_field`,
 Champs et options préparent un instantané candidat puis utilisent
 `Session::commit_snapshot`, avec refus sans publication partielle.
 
-Les préparations de métadonnées liées au changement de modèle et à la création
-restent respectivement dans les lots 2.4.7 et 2.4.8. Elles ne sont pas annoncées
-comme migrées par ce lot.
+Le lot suivant migre les préparations de métadonnées liées au changement de modèle.
+Celles de la création restent dans le lot 2.4.8.
+
+## Choix et import des modèles
+
+Le lot 2.4.7 ajoute `document.set_model`, le préréglage historique
+`courrier.model.personal` et la lecture `models.list` : 40 commandes et dix requêtes.
+Le moteur utilise le même catalogue de modèles intégrés que l’application.
+`models.list {}` expose les identifiants des modèles du type actif, leur état
+actif et leurs contraintes de page. Un compte-rendu conserve une liste vide tant
+qu’aucun modèle n’est fourni ; aucun modèle factice ou changement de type n’est ajouté.
+
+`document.set_model { guard, model }` accepte deux formes strictes :
+`{ kind: "source", source }` ou `{ kind: "path", path }`. La garde est contrôlée
+avant la lecture d’un fichier. La lecture UTF-8 est limitée à 1 Mio ; la limite
+s’applique aussi aux sources explicites. Le dialogue natif reste dans App, capture
+sa garde avant de s’ouvrir et transmet le chemin choisi. `document.import_model`
+reste donc une action graphique, avec une opération documentaire distincte.
+
+Le préréglage `courrier.model.personal { guard }` conserve son identifiant et
+appelle la même préparation que l’installation de sa source. Le moteur résout les
+dépendances par le catalogue de capacités/paquets et les valide. Pour un modèle
+fourni reconnu exactement, il utilise les exemplaires embarqués ; pour un modèle
+dérivé, il conserve les exemplaires déjà présents dans le document aux chemins
+nécessaires. L’import ne parcourt pas le dossier du fichier et ne télécharge rien.
+
+Le candidat complet contient le modèle, les dépendances et les options préparées.
+Si la source ou les dépendances changent, la puce revient au mode automatique ;
+les réglages de page d’un modèle fourni sont appliqués (A4 portrait pour le courrier
+personnel). Les autres métadonnées, dont langue et signature, restent identiques.
+Réinstaller la même source avec les mêmes dépendances conserve les options choisies.
+
+Le moteur vérifie la fonction publique attendue par le type, puis compile le corps
+avec les métadonnées et les ressources du candidat, et lit sa politique d’éditeur.
+Un modèle incompatible, mal formé ou impossible à composer est refusé avant toute
+publication. Le budget de ressources est partagé avec les opérations d’images et
+signatures dans `engine/resources.rs`. Les anciennes ressources inutilisées restent
+en mémoire pour annuler ; sauvegarde et export gardent leur filtrage existant.
+
+Après validation, `Session::commit_snapshot` publie tout en une transaction
+discrète. Corps, styles et sélection sont conservés. Une installation identique
+est validée sans ajouter de révision ou de transaction. `Outcome.value.presentation`
+renvoie la politique déjà évaluée ; le cache du moteur et l’interface l’utilisent
+immédiatement. Annuler/rétablir restaure modèle, dépendances et options ; l’interface
+relit aussi la présentation quand la source ou les dépendances changent.
+
+Les erreurs sont codées (`model_io`, `model_utf8`, `model_too_large`,
+`model_dependencies`, `model_validation`) avec les erreurs communes de garde et de
+budget. La validation fournit le contrat attendu et le détail du compilateur ;
+leur présentation reste dans App. Le validateur Typst existant est réutilisé, avec
+ses diagnostics ; sa séparation complète des adaptations i18n relève de la phase 3.
+
+Le lot est découpé en commits locaux (moteur, adaptateur graphique, bilan), avec
+une seule poussée après les vérifications finales. Les opérations de création,
+ouverture, sauvegarde, récupération et export de documents restent à migrer.
 
 ## Vérifications
 
-- 274 tests de l’application réussis, dont 131 tests ajoutés depuis le début de
+- 285 tests de l’application réussis, dont 142 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -509,7 +561,7 @@ comme migrées par ce lot.
   et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
   petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 158 tests partagés réussissent aussi.
+  avertissement ; ses 166 tests partagés réussissent aussi.
 - Dix tests du moteur couvrent les schémas, conversions, données invalides,
   cibles périmées/étrangères, refus atomiques, styles explicites, historique,
   lectures seules, portée Courrier et fichiers de catalogue générés. Quatre essais
@@ -530,6 +582,12 @@ comme migrées par ce lot.
   alternatif, suppression et copie de signature aux appels JSON ; ils vérifient
   aussi le refus d’un dialogue périmé, l’archivage et l’indépendance du profil.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
+- Huit tests du moteur couvrent catalogue et portée des types, contrat et compilation,
+  limites et erreurs de fichiers, gardes, idempotence, réglages du préréglage, refus
+  atomiques, budget et autonomie après suppression du fichier importé. Trois essais
+  d’interface comparent import de source/fichier et choix du modèle aux appels JSON,
+  puis contrôlent erreurs, cibles périmées, sélection, préférences et restauration
+  des options et de la politique d’éditeur avec l’historique.
 - Huit tests du moteur couvrent les champs des deux types, dates sans horloge,
   caractères et types invalides, gardes périmées/étrangères, regroupement par champ,
   absence de mutation du corps/ressources, page fixe, charte des puces évaluée en
@@ -577,6 +635,11 @@ comme migrées par ce lot.
   dans `output/baseline/run-z0q4zynu/`.
 - Le lot métadonnées/options conserve les huit captures strictement identiques
   dans `output/baseline/run-zekzbxe_/`.
+- Le lot modèles conserve les huit captures strictement identiques dans
+  `output/baseline/run-zs_6e669/`. Un premier passage
+  (`output/baseline/run-bsfjew61/`) ne différait que par le curseur de saisie du
+  scénario orthographe : 233 pixels dans un rectangle de 4 × 59 pixels.
+  La relance utilise le même binaire et ne modifie pas les références.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -596,14 +659,14 @@ La synchronisation d’aperçu fonctionne encore via les cartes de source exista
 La recherche utilise maintenant des cibles logiques gardées ; sa peinture reste un
 adaptateur du tampon graphique. Les règles des blocs et de transformation de
 frappe, les images, signatures, actions de recherche/remplacement, l’orthographe
-documentaire, les champs et les options sont migrés.
+documentaire, les champs, les options et le changement/import des modèles sont migrés.
 
 L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
 Les essais complets de composition, choix des candidats, annulation et historique
 avec les méthodes système restent à poursuivre dans le chantier I. D17 et la tâche
 2.1 bis restent ouverts pour la suite de la migration.
 
-Restent les modèles et les fichiers. Les lots atomiques (D16), la suppression
+Restent les opérations de fichiers. Les lots atomiques (D16), la suppression
 de l’accès transitoire à la session et le gel du catalogue restent à faire. La
 séparation des réglages globaux (V5) et les formats d’export séparés (V6) restent à
 implémenter et à tester. Aucun transport CLI/MCP n’est ajouté par ce lot.

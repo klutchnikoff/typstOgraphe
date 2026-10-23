@@ -410,14 +410,14 @@ Dans `src/engine/` (futur crate `core`) :
   `InsertImage { path, alt }`, `SelectText { range | occurrence }`, `InsertText { text }`,
   `SetMetadata { field, value }`, `SetOption { option, value }`, `ReplaceAll { with }`…).
   Les variantes actuelles sans paramètres restent telles quelles.
-  **En cours :** 38 commandes typées implémentées ; les familles restantes ne sont
+  **En cours :** 40 commandes typées implémentées ; les familles restantes ne sont
   pas annoncées dans le catalogue. Les espaces de noms hiérarchiques existants
   (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
 - [ ] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
   `search.find`, `metadata.get`, `commands.list`, `models.list`).
-  **En cours :** neuf requêtes implémentées ; les lectures orthographiques, les
-  champs actifs et `models.presentation` sont disponibles. Le catalogue des modèles
-  reste à migrer.
+  **En cours :** dix requêtes implémentées ; les lectures orthographiques, les
+  champs actifs, `models.presentation` et `models.list` sont disponibles. Les lectures
+  liées aux autres familles restent à migrer.
 - [x] `UiCommand` : palette, préférences, ouverture des dialogues, focus. Reste dans l'application.
 - [x] `CommandSpec` (cœur, sans egui) : identifiant, description **en anglais** (pour les
   agents), famille, schéma des paramètres (`schemars`), règle de disponibilité.
@@ -489,7 +489,12 @@ JSON** et compare avec le chemin d'interface.
   et contraintes du modèle. `metadata.get` décrit les champs anglais validés ;
   `models.presentation` expose les règles de page/puces. La saisie groupe par champ
   typé, sans identifiant egui ; les dates restent fixes et l’horloge reste dans l’UI.
-- [ ] 2.4.7 Modèles : changer, importer.
+- [x] 2.4.7 Modèles : changer, importer.
+  `document.set_model` accepte une source ou un fichier UTF-8 gardé ; le préréglage
+  `courrier.model.personal` appelle la même opération. Dépendances contrôlées,
+  compilation du contrat et du document, budget des ressources puis publication
+  atomique. `models.list` suit le catalogue du type. Dialogues, libellés et focus
+  restent dans App ; annuler/rétablir restaure aussi la présentation du modèle.
 - [ ] 2.4.8 Fichiers, en gardant les identifiants existants : `document.new { type, model }`,
   `document.open { path }`, `document.save { path? }`, `document.save_as { path }`,
   `document.export { format: "pdf" | "typst" | "both", directory, page_images? }`

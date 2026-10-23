@@ -6,7 +6,7 @@ L’implémentation a commencé par les blocs, leurs zones, leurs identités et 
 cibles de sélection, puis la protection des frontières et la voie commune de
 publication des éditions, puis l’isolation IME entre frames ; voir
 [le suivi de phase 2](architecture-phase-2.md).
-Le premier moteur, 38 commandes documentaires et neuf requêtes sont maintenant
+Le premier moteur, 40 commandes documentaires et dix requêtes sont maintenant
 implémentés avec leurs schémas JSON ; voir le [catalogue généré](commands.md).
 Le lot du 23 octobre migre Tab/Maj+Tab vers `text.select { part }`, puis Entrée
 vers `block.split` et sa sortie commune `block.exit` pour légendes et attributions.
@@ -40,6 +40,11 @@ Le lot suivant implémente `metadata.set`, `document.set_option`, les champs ang
 du type actif dans `metadata.get` et `models.presentation`. Dates explicites,
 regroupement par champ et contraintes de page/puces sont détaillés dans le
 [suivi de phase 2](architecture-phase-2.md#métadonnées-et-options).
+Le lot modèles ajoute `document.set_model`, le préréglage conservé
+`courrier.model.personal` et `models.list`. L’import graphique conserve son
+identifiant `document.import_model` pour le dialogue, puis transmet un chemin
+explicite au moteur. Voir les essais [models_engine.rs](../src/app/tests/models_engine.rs)
+et [models.rs](../src/engine/tests/models.rs).
 Les tableaux ci-dessous restent l’inventaire de migration de toutes les actions,
 pas la liste des opérations déjà disponibles sans interface.
 Les règles déjà validées sont dans [la feuille de route technique](../ROADMAP-ARCHITECTURE.md),
