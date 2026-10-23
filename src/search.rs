@@ -90,7 +90,10 @@ impl Search {
         }
     }
     pub fn replacement_valid(&self) -> bool {
-        !self.replacement.chars().any(structural_character)
+        Self::valid_replacement(&self.replacement)
+    }
+    pub(crate) fn valid_replacement(replacement: &str) -> bool {
+        !replacement.chars().any(structural_character)
     }
 }
 fn structural_character(character: char) -> bool {

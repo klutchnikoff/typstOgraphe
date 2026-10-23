@@ -286,3 +286,32 @@ fn oversized_literal_query_is_an_explicit_error_in_read_and_write_paths() {
     assert_eq!(e.session.revision, 0);
     assert!(e.session.undo.is_empty());
 }
+
+#[test]
+fn availability_search_cache_tracks_query_case_revision_and_document_identity() {
+    let mut e = engine("Été été.");
+    let enabled = |e: &Engine, query: &str, case_sensitive: bool| {
+        matches!(
+            e.available(&Command::FindNext(FindParams {
+                query: query.into(),
+                case_sensitive,
+                target: Default::default()
+            })),
+            Availability::Enabled
+        )
+    };
+    assert!(enabled(&e, "ÉTÉ", false));
+    assert!(!enabled(&e, "ÉTÉ", true));
+    assert!(enabled(&e, "Été", true));
+    assert!(enabled(&e, "été", true));
+    assert!(!enabled(&e, "Noël", false));
+    let all = explicit(&e, 0..e.document().view.len());
+    call(&mut e, "text.insert", json!({"target":all,"text":"Noël"})).unwrap();
+    assert!(enabled(&e, "Noël", false));
+    let revision = e.revision();
+    let mut replacement = engine("Autre document.");
+    replacement.session.revision = revision;
+    e.session = replacement.session;
+    assert!(!enabled(&e, "Noël", false));
+    assert!(enabled(&e, "document", false));
+}

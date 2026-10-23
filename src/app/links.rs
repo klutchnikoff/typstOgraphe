@@ -3,18 +3,15 @@ use super::*;
 impl App {
     pub(super) fn open_link(&mut self) {
         let range = self.range();
-        if range.is_empty() {
-            self.dialogs.message = Some(crate::tr!("select-link"));
+        let Some(target) = self.ui_text_target() else {
             return;
-        }
-        if !self
+        };
+        if let crate::engine::Availability::Disabled { reason } = self
             .document
             .engine
-            .document()
-            .view
-            .is_single_paragraph(range.clone())
+            .available_intent(crate::engine::CommandIntent::Link, target)
         {
-            self.dialogs.message = Some(crate::tr!("link-one-paragraph"));
+            self.dialogs.message = Some(Self::command_error_text(&reason));
             return;
         }
         self.dialogs.link_url = self

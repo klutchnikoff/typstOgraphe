@@ -262,9 +262,7 @@ impl App {
                         .registry()
                         .definitions()
                         .filter(|definition| {
-                            definition.in_palette()
-                                && (self.document.open
-                                    || definition.command.available_without_document())
+                            definition.in_palette() && self.command_enabled(definition.command)
                         })
                         .map(|definition| definition.command);
                     let query = self.dialogs.palette_query.to_lowercase();

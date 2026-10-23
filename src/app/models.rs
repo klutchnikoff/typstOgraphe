@@ -20,11 +20,9 @@ impl App {
         .map_err(|e| Self::command_error_text(&e))
     }
     pub(super) fn select_model(&mut self, model: Model) {
-        let command = crate::engine::Command::from_call(
-            model.definition().command.id,
-            serde_json::json!({"guard":self.document.engine.target_guard()}),
-        )
-        .expect("preset registered in the typed catalogue");
+        let Some(command) = self.context_document_command(Command::Model(model)) else {
+            return;
+        };
         self.run_document_command(command);
     }
     pub(super) fn refresh_model_presentation(&mut self) {

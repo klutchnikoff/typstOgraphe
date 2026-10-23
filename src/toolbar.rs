@@ -30,13 +30,22 @@ fn button(ui: &egui::Ui, icon: Icon, active: bool, menu: bool) -> egui::Button<'
         .selected(active)
 }
 
-fn menu_item(ui: &mut egui::Ui, kind: BlockKind, active: bool, label: String) -> Response {
+fn menu_item(
+    ui: &mut egui::Ui,
+    kind: BlockKind,
+    active: bool,
+    enabled: bool,
+    label: String,
+) -> Response {
     neutral_selection(ui);
     let image = Command::Block(kind)
         .icon()
         .expect("block icon")
         .image(ui.ctx(), ICON_SIZE);
-    ui.add(egui::Button::selectable(active, (image, label)).image_tint_follows_text_color(true))
+    ui.add_enabled(
+        enabled,
+        egui::Button::selectable(active, (image, label)).image_tint_follows_text_color(true),
+    )
 }
 
 fn describe(
@@ -46,7 +55,9 @@ fn describe(
     active: bool,
     mixed: bool,
 ) -> Response {
-    response.widget_info(|| WidgetInfo::selected(WidgetType::Button, true, active, &label));
+    response.widget_info(|| {
+        WidgetInfo::selected(WidgetType::Button, response.enabled(), active, &label)
+    });
     if mixed {
         let rect = egui::Rect::from_center_size(
             response.rect.right_top() + egui::vec2(-5.0, 5.0),
@@ -70,6 +81,7 @@ pub fn show(
     view: &Projection,
     range: Range<usize>,
     keymap: &Keymap,
+    enabled: impl Fn(Command) -> bool,
 ) -> Option<Command> {
     let lines = view.selected_lines(range.clone());
     let kind = view.blocks[lines.start].public_kind();
@@ -109,6 +121,7 @@ pub fn show(
                                 ui,
                                 block,
                                 !mixed && command == Command::Block(kind),
+                                enabled(command),
                                 command.short_label(),
                             )
                             .on_hover_text(keymap.hint(ui.ctx(), command))
@@ -130,7 +143,7 @@ pub fn show(
             for (mark, command) in [(Mark::Bold, Command::Bold), (Mark::Italic, Command::Italic)] {
                 let icon = command.definition().icon().expect("format icon");
                 let (active, mixed) = view.mark_state(range.clone(), mark);
-                let response = ui.add(button(ui, icon, active, false));
+                let response = ui.add_enabled(enabled(command), button(ui, icon, active, false));
                 if describe(
                     response,
                     command.label(),
@@ -150,12 +163,15 @@ pub fn show(
                     .iter()
                     .all(|style| style.link.is_some())
             };
-            let response = ui.add(button(
-                ui,
-                Command::Link.definition().icon().expect("link icon"),
-                linked,
-                false,
-            ));
+            let response = ui.add_enabled(
+                enabled(Command::Link),
+                button(
+                    ui,
+                    Command::Link.definition().icon().expect("link icon"),
+                    linked,
+                    false,
+                ),
+            );
             if describe(
                 response,
                 Command::Link.label(),
@@ -182,9 +198,19 @@ pub fn show(
                         continue;
                     };
                     let active = !mixed && command == Command::Block(kind);
-                    if menu_item(ui, block, active, command.label())
-                        .on_hover_text(keymap.hint(ui.ctx(), command))
-                        .clicked()
+                    if menu_item(
+                        ui,
+                        block,
+                        active,
+                        enabled(if active {
+                            Command::Block(BlockKind::Paragraph)
+                        } else {
+                            command
+                        }),
+                        command.label(),
+                    )
+                    .on_hover_text(keymap.hint(ui.ctx(), command))
+                    .clicked()
                     {
                         action = Some(if active {
                             Command::Block(BlockKind::Paragraph)
@@ -208,12 +234,19 @@ pub fn show(
             );
             let command = Command::Block(BlockKind::Quote);
             let active = !mixed && kind == BlockKind::Quote;
-            let response = ui.add(button(
-                ui,
-                command.definition().icon().expect("quote icon"),
-                active,
-                false,
-            ));
+            let response = ui.add_enabled(
+                enabled(if active {
+                    Command::Block(BlockKind::Paragraph)
+                } else {
+                    command
+                }),
+                button(
+                    ui,
+                    command.definition().icon().expect("quote icon"),
+                    active,
+                    false,
+                ),
+            );
             if describe(
                 response,
                 command.label(),
@@ -230,12 +263,15 @@ pub fn show(
                 });
             }
             let command = Command::InsertImage;
-            let response = ui.add(button(
-                ui,
-                command.definition().icon().expect("image icon"),
-                false,
-                false,
-            ));
+            let response = ui.add_enabled(
+                enabled(command),
+                button(
+                    ui,
+                    command.definition().icon().expect("image icon"),
+                    false,
+                    false,
+                ),
+            );
             if describe(
                 response,
                 command.label(),
@@ -259,7 +295,8 @@ pub fn show(
                             } else {
                                 BlockKind::Attachment
                             };
-                    let response = ui.add(
+                    let response = ui.add_enabled(
+                        enabled(command),
                         egui::Button::new(label)
                             .min_size(egui::vec2(38.0, 32.0))
                             .selected(active)

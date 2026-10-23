@@ -1,8 +1,5 @@
 use super::*;
-use crate::engine::{
-    Command as CoreCommand, FindParams, ReplaceAllParams, ReplaceCurrentParams, SearchParams,
-    SearchResults, SelectTextParams,
-};
+use crate::engine::{Command as CoreCommand, SearchParams, SearchResults, SelectTextParams};
 
 impl App {
     pub(super) fn refresh_search(&mut self) {
@@ -73,47 +70,24 @@ impl App {
     pub(super) fn navigate_search(&mut self, backward: bool) {
         self.search.open = true;
         self.refresh_search();
-        if self.search.engine.matches.is_empty() {
-            return;
-        }
-        let params = FindParams {
-            query: self.search.engine.query.clone(),
-            case_sensitive: self.search.engine.case_sensitive,
-            target: Default::default(),
-        };
-        self.run_document_command(if backward {
-            CoreCommand::FindPrevious(params)
+        if let Some(command) = self.context_document_command(if backward {
+            Command::FindPrevious
         } else {
-            CoreCommand::FindNext(params)
-        });
+            Command::FindNext
+        }) {
+            self.run_document_command(command);
+        }
     }
     pub(super) fn replace_search(&mut self, all: bool) {
         self.search.open = true;
         self.search.replace_open = true;
         self.refresh_search();
-        if !self.search.engine.replacement_valid() || self.search.engine.matches.is_empty() {
-            return;
-        }
-        let query = self.search.engine.query.clone();
-        let case_sensitive = self.search.engine.case_sensitive;
-        let replacement = self.search.engine.replacement.clone();
-        let command = if all {
-            CoreCommand::ReplaceAll(ReplaceAllParams {
-                guard: self.search.guard.expect("refreshed search"),
-                query,
-                case_sensitive,
-                replacement,
-            })
+        let Some(command) = self.context_document_command(if all {
+            Command::ReplaceAll
         } else {
-            let Some(index) = self.search.engine.selected(&self.range()) else {
-                return;
-            };
-            CoreCommand::ReplaceCurrent(ReplaceCurrentParams {
-                query,
-                case_sensitive,
-                replacement,
-                occurrence: self.search.occurrences[index].clone(),
-            })
+            Command::ReplaceCurrent
+        }) else {
+            return;
         };
         match self.execute_document_command(command) {
             Ok(outcome) => {
@@ -242,18 +216,18 @@ impl App {
             [90.0, ui.spacing().interact_size.y],
             egui::Label::new(counter).truncate(),
         );
-        let has_matches = !self.search.engine.matches.is_empty();
         for (rotation, command) in [
             (std::f32::consts::PI, Command::FindPrevious),
             (0.0, Command::FindNext),
         ] {
+            let enabled = self.command_enabled(command);
             let response = ui
-                .add_enabled(has_matches, search_chevron(ui, rotation))
+                .add_enabled(enabled, search_chevron(ui, rotation))
                 .on_hover_text(self.keymap.hint(ui.ctx(), command));
             response.widget_info(|| {
                 egui::WidgetInfo::labeled(
                     egui::WidgetType::Button,
-                    has_matches && ui.is_enabled(),
+                    enabled && ui.is_enabled(),
                     command.label(),
                 )
             });
@@ -289,16 +263,12 @@ impl App {
                         .hint_text(crate::tr!("search-replacement-placeholder"))
                         .desired_width(width),
                 );
-                let valid = self.search.engine.replacement_valid();
-                for (command, enabled) in [
-                    (
-                        Command::ReplaceCurrent,
-                        self.search.engine.selected(&self.range()).is_some(),
-                    ),
-                    (Command::ReplaceAll, !self.search.engine.matches.is_empty()),
-                ] {
+                for command in [Command::ReplaceCurrent, Command::ReplaceAll] {
                     if ui
-                        .add_enabled(valid && enabled, egui::Button::new(command.label()).small())
+                        .add_enabled(
+                            self.command_enabled(command),
+                            egui::Button::new(command.label()).small(),
+                        )
                         .clicked()
                     {
                         action = Some(command);

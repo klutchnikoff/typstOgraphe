@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 #[path = "commands/presentation.rs"]
 mod presentation;
 pub use presentation::Presentation;
+pub(crate) use presentation::Route;
 pub(crate) use presentation::{define, short};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

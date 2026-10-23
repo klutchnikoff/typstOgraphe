@@ -9,6 +9,8 @@ use serde_json::json;
 
 #[path = "tests/annotations.rs"]
 mod annotations;
+#[path = "tests/availability.rs"]
+mod availability;
 #[path = "tests/batch.rs"]
 mod batch;
 #[path = "tests/blocks.rs"]

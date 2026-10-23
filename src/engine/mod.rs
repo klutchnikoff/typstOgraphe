@@ -1,6 +1,7 @@
 //! Moteur documentaire propriétaire de sa session : commandes et lectures explicites,
 //! sans exposition de Session ni publication directe par l’interface.
 mod annotations;
+mod availability;
 mod batch;
 mod batch_types;
 mod blocks;
@@ -37,6 +38,7 @@ use crate::{
     document::{Projection, edits::EditError},
     session::{EditGroup, Selection, SelectionTarget, Session, Snapshot, TargetGuard},
 };
+pub use availability::CommandIntent;
 pub use batch_types::*;
 pub use error::{CommandError, ErrorCode};
 pub use file_types::*;
@@ -60,6 +62,7 @@ pub struct Engine {
     recovery: recovery::RecoveryState,
     selection: Selection,
     spelling: spelling::SpellingState,
+    search_cache: std::cell::RefCell<search::SearchCache>,
     render: Option<render::RenderState>,
     statistics: std::cell::RefCell<statistics::StatisticsCache>,
     presentation_cache: metadata::PresentationCache,
@@ -99,6 +102,7 @@ impl From<Session> for Engine {
             recovery: Default::default(),
             selection: Selection::default(),
             spelling: Default::default(),
+            search_cache: Default::default(),
             render: None,
             statistics: Default::default(),
             presentation_cache: Default::default(),

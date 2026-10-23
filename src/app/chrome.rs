@@ -7,6 +7,7 @@ impl App {
             &self.document.engine.document().view,
             self.range(),
             &self.keymap,
+            |command| self.command_enabled(command),
         ) {
             self.apply(command);
         }

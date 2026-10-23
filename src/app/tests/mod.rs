@@ -26,6 +26,7 @@ mod models_engine;
 mod preview;
 mod profile;
 mod recovery;
+mod routing;
 mod search;
 mod spelling;
 mod spelling_engine;

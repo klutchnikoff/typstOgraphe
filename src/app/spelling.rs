@@ -45,26 +45,6 @@ impl App {
             ctx.request_repaint_after(delay);
         }
     }
-    pub(super) fn selected_spelling_issue(&self) -> Option<crate::spelling::Issue> {
-        if !self.preferences.spelling.enabled
-            || !self
-                .spelling
-                .checker
-                .is_current(self.document.engine.revision())
-        {
-            return None;
-        }
-        let range = self.range();
-        self.spelling
-            .checker
-            .issues
-            .iter()
-            .find(|issue| {
-                issue.range.contains(&range.start)
-                    || (range.is_empty() && range.start == issue.range.end)
-            })
-            .cloned()
-    }
     pub(super) fn spelling_reference(
         &self,
         issue: &crate::spelling::Issue,
@@ -91,10 +71,6 @@ impl App {
     }
     pub(super) fn valid_spelling_target(&self, issue: &SpellingIssue) -> bool {
         self.preferences.spelling.enabled
-            && self
-                .spelling
-                .checker
-                .is_current(issue.target.guard.revision)
             && matches!(
                 self.document
                     .engine
@@ -140,6 +116,9 @@ impl App {
         let Some(reference) = self.spelling_reference(&issue) else {
             return;
         };
+        self.open_spelling_reference(reference);
+    }
+    pub(super) fn open_spelling_reference(&mut self, reference: SpellingIssue) {
         if !self.run_document_command(Core::SelectText(SelectTextParams {
             target: reference.target.into(),
             part: None,

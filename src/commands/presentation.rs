@@ -1,6 +1,14 @@
 //! Présentation et préparation des commandes graphiques, distinctes du catalogue du moteur.
 use super::*;
 
+pub(crate) enum Route {
+    Document(crate::engine::Command),
+    Prepared(crate::engine::CommandIntent),
+    Contextual,
+    Interface,
+    Unsupported,
+}
+
 impl UiCommand {
     pub fn icon(self) -> Option<crate::icons::Icon> {
         use crate::icons::Icon;
@@ -13,32 +21,81 @@ impl UiCommand {
             _ => return None,
         })
     }
-    /// Paramètres métier des gestes déjà migrés. Les autres variantes ouvrent
-    /// encore leur préparation graphique pendant la migration de phase 2.
     pub fn document_command(self) -> Option<crate::engine::Command> {
-        use crate::engine::{Command as Core, Empty, StyleParams, TargetParams};
-        Some(match self {
-            Self::Bold => Core::Bold(StyleParams::default()),
-            Self::Italic => Core::Italic(StyleParams::default()),
-            Self::Clear => Core::Clear(TargetParams::default()),
-            Self::RemoveLink => Core::RemoveLink(TargetParams::default()),
+        self.document_command_at(crate::engine::TextTarget::default())
+    }
+    pub(crate) fn document_command_at(
+        self,
+        target: crate::engine::TextTarget,
+    ) -> Option<crate::engine::Command> {
+        match self.route(target) {
+            Route::Document(command) => Some(command),
+            _ => None,
+        }
+    }
+    pub(crate) fn route(self, target: crate::engine::TextTarget) -> super::Route {
+        use crate::engine::{
+            Command as Core, CommandIntent as Intent, Empty, StyleParams, TargetParams,
+        };
+        let params = TargetParams { target };
+        let style = StyleParams {
+            target,
+            ..Default::default()
+        };
+        let command = match self {
+            Self::Bold => Core::Bold(style),
+            Self::Italic => Core::Italic(style),
+            Self::Clear => Core::Clear(params),
+            Self::RemoveLink => Core::RemoveLink(params),
             Self::Block(kind) => match kind {
-                BlockKind::Paragraph => Core::Paragraph(TargetParams::default()),
-                BlockKind::Heading(1) => Core::Heading1(TargetParams::default()),
-                BlockKind::Heading(2) => Core::Heading2(TargetParams::default()),
-                BlockKind::Heading(3) => Core::Heading3(TargetParams::default()),
-                BlockKind::Bullet => Core::Bullet(TargetParams::default()),
-                BlockKind::Numbered => Core::Numbered(TargetParams::default()),
-                BlockKind::Description => Core::Description(TargetParams::default()),
-                BlockKind::Quote => Core::Quote(TargetParams::default()),
-                _ => return None,
+                BlockKind::Paragraph => Core::Paragraph(params),
+                BlockKind::Heading(1) => Core::Heading1(params),
+                BlockKind::Heading(2) => Core::Heading2(params),
+                BlockKind::Heading(3) => Core::Heading3(params),
+                BlockKind::Bullet => Core::Bullet(params),
+                BlockKind::Numbered => Core::Numbered(params),
+                BlockKind::Description => Core::Description(params),
+                BlockKind::Quote => Core::Quote(params),
+                _ => return Route::Unsupported,
             },
             Self::InsertPostscript => Core::Postscript(Empty {}),
             Self::InsertAttachment => Core::Attachment(Empty {}),
             Self::Undo => Core::Undo(Empty {}),
             Self::Redo => Core::Redo(Empty {}),
-            _ => return None,
-        })
+            Self::Link => return Route::Prepared(Intent::Link),
+            Self::InsertImage => return Route::Prepared(Intent::InsertImage),
+            Self::ImportModel => return Route::Prepared(Intent::SetModel),
+            Self::File(file) => {
+                return match file {
+                    FileCommand::New => Route::Prepared(Intent::New),
+                    FileCommand::Open => Route::Prepared(Intent::Open),
+                    FileCommand::Save => Route::Prepared(Intent::Save),
+                    FileCommand::SaveAs => Route::Prepared(Intent::SaveAs),
+                    FileCommand::Close => Route::Prepared(Intent::Close),
+                    FileCommand::Export => Route::Prepared(Intent::Export),
+                    FileCommand::Quit => Route::Interface,
+                };
+            }
+            Self::Model(_)
+            | Self::FindNext
+            | Self::FindPrevious
+            | Self::ReplaceCurrent
+            | Self::ReplaceAll
+            | Self::NextSpelling
+            | Self::PreviousSpelling
+            | Self::IgnoreSpelling
+            | Self::ResetSpelling => return Route::Contextual,
+            Self::Palette
+            | Self::Preferences
+            | Self::Information
+            | Self::RecoverDocuments
+            | Self::Find
+            | Self::FindReplace
+            | Self::ToggleSpelling
+            | Self::SpellingSuggestions
+            | Self::LearnSpelling => return Route::Interface,
+        };
+        Route::Document(command)
     }
     pub fn model_source(self) -> Option<String> {
         match self {

@@ -1,5 +1,6 @@
 #![warn(clippy::too_many_lines)]
 
+mod availability;
 mod setup;
 mod state;
 use state::*;

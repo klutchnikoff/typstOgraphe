@@ -40,12 +40,7 @@ impl Engine {
         if !self.open {
             return Err(CommandError::new(ErrorCode::Unavailable, "no_document"));
         }
-        if !self.session.metadata.ready_for_export() {
-            return Err(CommandError::new(
-                ErrorCode::Unavailable,
-                "export_required_fields",
-            ));
-        }
+        self.check_export_fields()?;
         crate::packages::validate(&self.session.template, &self.session.dependencies)
             .map_err(|e| CommandError::detail(ErrorCode::Template, "model_dependencies", e))?;
         crate::exporting::check_directory(&params.directory)

@@ -1,7 +1,6 @@
 use super::*;
 use crate::{
     document::{BlockKind, Mark},
-    document_types::DocumentType,
     session::Caret,
 };
 
@@ -73,32 +72,10 @@ impl Engine {
             .find(|spec| spec.id.as_str() == command.id())
             .expect("registered command")
             .availability;
-        if !self.open && rule != AvailabilityRule::Always {
-            return Err(CommandError::new(ErrorCode::Unavailable, "no_document"));
-        }
-        if rule == AvailabilityRule::Letter
-            && self.session.metadata.document_type() != DocumentType::Courrier
-        {
-            return Err(CommandError::new(ErrorCode::Unavailable, "document_type"));
-        }
-        if (rule == AvailabilityRule::Undo && !self.can_undo())
-            || (rule == AvailabilityRule::Redo && !self.can_redo())
-        {
-            return Err(CommandError::new(
-                ErrorCode::Unavailable,
-                if rule == AvailabilityRule::Undo {
-                    "undo_empty"
-                } else {
-                    "redo_empty"
-                },
-            ));
-        }
+        self.check_rule(rule)?;
         let reason = match command {
             Command::InsertImage(params) => {
-                self.session
-                    .document
-                    .view
-                    .validate_object_insertion(&self.resolve(params.target)?.range())?;
+                self.check_image_insertion(params.target)?;
                 if params
                     .caption
                     .contains(['\n', '\r', '\t', crate::document::IMAGE_OBJECT])
@@ -129,21 +106,8 @@ impl Engine {
                 self.check_block_exit(params.target)?;
                 return Ok(());
             }
-            Command::SetLink(params) => {
-                let selection = self.resolve(params.target)?;
-                if selection.range().is_empty() {
-                    "select_link"
-                } else if !self
-                    .session
-                    .document
-                    .view
-                    .is_single_paragraph(selection.range())
-                {
-                    "link_one_paragraph"
-                } else {
-                    return Ok(());
-                }
-            }
+            Command::SetLink(params) => return self.check_link_target(params.target),
+            Command::Export(_) => return self.check_export_fields(),
             Command::RemoveLink(params) if self.resolve(params.target)?.range().is_empty() => {
                 "select_link_remove"
             }

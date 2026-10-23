@@ -39,13 +39,14 @@ impl App {
         })
     }
     pub(super) fn apply(&mut self, command: Command) {
-        if !self.keymap.registry().contains(command)
-            || (!self.document.open && !command.available_without_document())
-        {
+        if !self.command_enabled(command) {
             return;
         }
         self.cancel_ime();
-        if let Some(core) = command.document_command() {
+        if let Some(core) = self
+            .ui_text_target()
+            .and_then(|target| command.document_command_at(target))
+        {
             self.apply_document_command(command, core);
             return;
         }
@@ -91,7 +92,6 @@ impl App {
         }
     }
     fn apply_spelling_command(&mut self, command: Command) {
-        use crate::engine::{Command as Core, GuardParams, TargetParams};
         self.document
             .engine
             .configure_spelling(&self.preferences.spelling.personal);
@@ -100,40 +100,26 @@ impl App {
                 self.preferences.spelling.enabled = !self.preferences.spelling.enabled;
             }
             Command::SpellingSuggestions => {
-                if let Some(issue) = self.selected_spelling_issue() {
-                    self.open_spelling_target(issue);
+                if let Some(issue) = self.current_spelling_reference() {
+                    self.open_spelling_reference(issue);
                     self.spelling.menu_pending = self.spelling.target.is_some();
                 }
             }
             Command::NextSpelling | Command::PreviousSpelling => {
-                if !self.preferences.spelling.enabled
-                    || !self
-                        .spelling
-                        .checker
-                        .is_current(self.document.engine.revision())
-                    || self.spelling.checker.issues.is_empty()
-                {
-                    return;
-                }
                 self.document.history_field = None;
-                self.run_document_command(if command == Command::PreviousSpelling {
-                    Core::PreviousSpelling(TargetParams::default())
-                } else {
-                    Core::NextSpelling(TargetParams::default())
-                });
+                if let Some(core) = self.context_document_command(command) {
+                    self.run_document_command(core);
+                }
             }
             Command::IgnoreSpelling | Command::LearnSpelling => {
-                if let Some(issue) = self
-                    .selected_spelling_issue()
-                    .and_then(|issue| self.spelling_reference(&issue))
-                {
+                if let Some(issue) = self.current_spelling_reference() {
                     self.apply_spelling_issue(command, issue);
                 }
             }
             Command::ResetSpelling => {
-                self.run_document_command(Core::ResetSpelling(GuardParams {
-                    guard: self.document.engine.target_guard(),
-                }));
+                if let Some(core) = self.context_document_command(command) {
+                    self.run_document_command(core);
+                }
             }
             _ => unreachable!("spelling command"),
         }
@@ -194,35 +180,7 @@ impl App {
             .definitions()
             .filter(|d| d.menu_position().is_some())
             .map(|d| {
-                let enabled = !self.modal_open()
-                    && (self.document.open || d.command.available_without_document())
-                    && d.command.document_command().is_none_or(|command| {
-                        matches!(
-                            self.document.engine.available(&command),
-                            crate::engine::Availability::Enabled
-                        )
-                    })
-                    && match d.command {
-                        Command::Clear => self.document.history_field.is_none(),
-                        Command::RecoverDocuments => !self.recovery.entries.is_empty(),
-                        Command::FindNext | Command::FindPrevious => {
-                            !self.search.engine.matches.is_empty()
-                        }
-                        Command::NextSpelling | Command::PreviousSpelling => {
-                            !self.spelling.checker.issues.is_empty()
-                        }
-                        Command::IgnoreSpelling
-                        | Command::LearnSpelling
-                        | Command::SpellingSuggestions => self.selected_spelling_issue().is_some(),
-                        Command::ResetSpelling => !self
-                            .document
-                            .engine
-                            .metadata()
-                            .options()
-                            .spelling_ignored
-                            .is_empty(),
-                        _ => true,
-                    };
+                let enabled = !self.modal_open() && self.command_enabled(d.command);
                 (
                     d.command,
                     menus::Status {

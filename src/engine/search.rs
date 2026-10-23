@@ -2,20 +2,36 @@
 use super::*;
 use crate::{search::Search, session::Caret};
 use serde_json::json;
+use std::sync::Arc;
+
+#[derive(Default)]
+pub(super) struct SearchCache {
+    guard: Option<TargetGuard>,
+    results: Arc<Search>,
+}
 
 impl Engine {
-    fn find(&self, query: &str, case_sensitive: bool) -> Result<Search, CommandError> {
-        let mut search = Search::default();
-        search.query = query.into();
-        search.case_sensitive = case_sensitive;
-        search.refresh(self.session.revision, &self.session.document.view);
-        if search.failed {
+    fn find(&self, query: &str, case_sensitive: bool) -> Result<Arc<Search>, CommandError> {
+        let guard = self.target_guard();
+        let mut cache = self.search_cache.borrow_mut();
+        if cache.guard != Some(guard)
+            || cache.results.query != query
+            || cache.results.case_sensitive != case_sensitive
+        {
+            let mut search = Search::default();
+            search.query = query.into();
+            search.case_sensitive = case_sensitive;
+            search.refresh(guard.revision, &self.session.document.view);
+            cache.results = Arc::new(search);
+            cache.guard = Some(guard);
+        }
+        if cache.results.failed {
             return Err(CommandError::new(
                 ErrorCode::InvalidParams,
                 "search_too_large",
             ));
         }
-        Ok(search)
+        Ok(cache.results.clone())
     }
 
     pub(super) fn search_results(
@@ -25,11 +41,11 @@ impl Engine {
         let search = self.find(&params.query, params.case_sensitive)?;
         let chars: Vec<_> = self.session.document.view.text.chars().collect();
         let mut matches = Vec::with_capacity(search.matches.len());
-        for range in search.matches {
+        for range in &search.matches {
             let selection = Self::search_selection(range.clone());
             matches.push(SearchOccurrence {
                 target: self.session.selection_target(selection)?,
-                text: chars[range].iter().collect(),
+                text: chars[range.clone()].iter().collect(),
             });
         }
         Ok(SearchResults {
@@ -52,15 +68,14 @@ impl Engine {
             }
             _ => return Ok(()),
         };
-        let mut search = self.find(query, case)?;
-        if let Some(replacement) = replacement {
-            search.replacement = replacement.clone();
-            if !search.replacement_valid() {
-                return Err(CommandError::new(
-                    ErrorCode::InvalidParams,
-                    "search_one_line",
-                ));
-            }
+        let search = self.find(query, case)?;
+        if let Some(replacement) = replacement
+            && !Search::valid_replacement(replacement)
+        {
+            return Err(CommandError::new(
+                ErrorCode::InvalidParams,
+                "search_one_line",
+            ));
         }
         if let Command::ReplaceCurrent(p) = command {
             let range = self.resolve(p.occurrence.target.into())?.range();
@@ -105,13 +120,12 @@ impl Engine {
         params: ReplaceCurrentParams,
     ) -> Result<Value, CommandError> {
         let selection = self.resolve(params.occurrence.target.into())?;
-        let mut search = self.find(&params.query, params.case_sensitive)?;
         self.selection =
             self.session
                 .replace_ranges(selection, &[selection.range()], &params.replacement)?;
         // Même motif déjà compilé avec succès : aucun échec possible à publier
         // après la transaction. Les résultats suivants sont calculés sur la nouvelle révision.
-        search.refresh(self.session.revision, &self.session.document.view);
+        let search = self.find(&params.query, params.case_sensitive)?;
         if let Some(index) = search.next(self.selection.range(), false) {
             self.select_resolved(Self::search_selection(search.matches[index].clone()));
         }

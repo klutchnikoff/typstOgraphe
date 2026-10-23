@@ -118,6 +118,7 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
                         &app.document.engine.document().view,
                         app.range(),
                         &app.keymap,
+                        |command| app.command_enabled(command),
                     );
                 });
             },

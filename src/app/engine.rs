@@ -1,6 +1,6 @@
 //! Adaptation des paramètres et des effets du moteur à l’interface egui.
 use super::*;
-use crate::engine::{Availability, Command as CoreCommand, CommandError};
+use crate::engine::{Command as CoreCommand, CommandError};
 
 impl App {
     pub(super) fn select_description_term(&mut self, at: usize) {
@@ -198,14 +198,6 @@ impl App {
     }
     pub(super) fn apply_document_command(&mut self, trigger: Command, command: CoreCommand) {
         let history = matches!(trigger, Command::Undo | Command::Redo);
-        if history
-            && matches!(
-                self.document.engine.available(&command),
-                Availability::Disabled { .. }
-            )
-        {
-            return;
-        }
         let previous = history.then(|| {
             (
                 self.document.engine.document().clone(),
