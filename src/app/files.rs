@@ -162,7 +162,7 @@ impl App {
         self.preview.editor_scroll_pending = true;
         self.preview.forward_pending = true;
         self.preview.pages.clear();
-        self.preview.sync = None;
+        self.preview.render = None;
         self.preview.error = None;
         self.preview.revision = None;
         self.preview.elapsed = None;

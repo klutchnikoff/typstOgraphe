@@ -23,10 +23,14 @@ mod metadata;
 mod models;
 #[path = "tests/native.rs"]
 mod native;
+#[path = "tests/render.rs"]
+mod render;
 #[path = "tests/search.rs"]
 mod search;
 #[path = "tests/spelling.rs"]
 mod spelling;
+#[path = "tests/statistics.rs"]
+mod statistics;
 
 fn engine(source: &str) -> Engine {
     let mut stored = StoredDocument::blank(DocumentType::Courrier);
@@ -57,12 +61,18 @@ fn explicit(engine: &Engine, range: std::ops::Range<usize>) -> TextTarget {
 
 #[test]
 fn catalogue_has_valid_unique_ids_and_strict_schemas_and_all_calls_round_trip() {
-    assert_eq!(catalogue().len(), 60);
+    assert_eq!(catalogue().len(), 63);
     for spec in catalogue() {
         assert!(!spec.description.trim().is_empty());
         assert_eq!(spec.params_schema["type"], "object");
         assert_eq!(spec.params_schema["additionalProperties"], false);
         let params = match spec.id.as_str() {
+            "render.locate" => {
+                json!({"render":{"guard":{"document_id":1,"revision":0},"id":1},"position":{"direction":"to_preview"}})
+            }
+            "render.selection_boxes" => {
+                json!({"render":{"guard":{"document_id":1,"revision":0},"id":1}})
+            }
             "document.batch" => {
                 json!({"guard":{"document_id":1,"revision":0},"steps":[{"id":"text.bold","params":{}}]})
             }

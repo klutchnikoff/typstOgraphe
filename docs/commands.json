@@ -6542,6 +6542,693 @@
     {
       "availability": "read",
       "batch_step": false,
+      "description": "Locate a logical text target in an identified render or return the guarded text target at a page point, without moving selection.",
+      "family": "query",
+      "id": "render.locate",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "PagePoint": {
+            "additionalProperties": false,
+            "properties": {
+              "page": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "point": {
+                "description": "Coordonnées Typst en points, indépendantes de l'échelle d'affichage.",
+                "items": {
+                  "format": "float",
+                  "type": "number"
+                },
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+              }
+            },
+            "required": [
+              "page",
+              "point"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "RenderPosition": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "direction": {
+                    "const": "to_preview",
+                    "type": "string"
+                  },
+                  "target": {
+                    "$ref": "#/$defs/TextTarget",
+                    "default": {
+                      "kind": "current"
+                    }
+                  }
+                },
+                "required": [
+                  "direction"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "direction": {
+                    "const": "to_source",
+                    "type": "string"
+                  },
+                  "point": {
+                    "$ref": "#/$defs/PagePoint"
+                  }
+                },
+                "required": [
+                  "direction",
+                  "point"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "RenderReference": {
+            "additionalProperties": false,
+            "properties": {
+              "guard": {
+                "$ref": "#/$defs/TargetGuard"
+              },
+              "id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "guard",
+              "id"
+            ],
+            "type": "object"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "$ref": "#/$defs/RenderPosition"
+          },
+          "render": {
+            "$ref": "#/$defs/RenderReference"
+          }
+        },
+        "required": [
+          "render",
+          "position"
+        ],
+        "title": "LocateParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "batch_step": false,
+      "description": "Read page quadrilaterals for a guarded text selection on an identified render, in Typst points.",
+      "family": "query",
+      "id": "render.selection_boxes",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "RenderReference": {
+            "additionalProperties": false,
+            "properties": {
+              "guard": {
+                "$ref": "#/$defs/TargetGuard"
+              },
+              "id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "guard",
+              "id"
+            ],
+            "type": "object"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "render": {
+            "$ref": "#/$defs/RenderReference"
+          },
+          "target": {
+            "$ref": "#/$defs/TextTarget",
+            "default": {
+              "kind": "current"
+            }
+          }
+        },
+        "required": [
+          "render"
+        ],
+        "title": "SelectionBoxesParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "batch_step": false,
+      "description": "Read Unicode word and grapheme counts for the document and an optional text target, excluding structural markers and private fields.",
+      "family": "query",
+      "id": "document.statistics",
+      "params_schema": {
+        "$defs": {
+          "LogicalSelection": {
+            "additionalProperties": false,
+            "properties": {
+              "anchor": {
+                "$ref": "#/$defs/Position"
+              },
+              "head": {
+                "$ref": "#/$defs/Position"
+              }
+            },
+            "required": [
+              "anchor",
+              "head"
+            ],
+            "type": "object"
+          },
+          "Position": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "text",
+                    "type": "string"
+                  },
+                  "position": {
+                    "$ref": "#/$defs/TextPosition"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "before",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "after",
+                    "type": "string"
+                  },
+                  "position": {
+                    "format": "uint64",
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "position"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "TextPosition": {
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "zone_id",
+              "offset"
+            ],
+            "type": "object"
+          },
+          "TextTarget": {
+            "description": "Les cibles symboliques sont résolues à l'appel ; une sélection explicite\nconserve obligatoirement sa garde, même si l'utilisateur déplace le curseur.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "all",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "guard": {
+                    "$ref": "#/$defs/TargetGuard"
+                  },
+                  "kind": {
+                    "const": "selection",
+                    "type": "string"
+                  },
+                  "selection": {
+                    "$ref": "#/$defs/LogicalSelection"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "guard",
+                  "selection"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TextTarget"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Absente : document seul. Current : sélection détenue par le moteur."
+          }
+        },
+        "title": "StatisticsParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "batch_step": false,
       "description": "List opaque references from the configured recovery service without opening documents.",
       "family": "query",
       "id": "recovery.list",

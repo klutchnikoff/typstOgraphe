@@ -284,8 +284,12 @@ pub struct Rendered {
     pub export_dir: Option<PathBuf>,
     pub presentation: ModelPresentation,
 }
+pub struct PreviewRequest {
+    pub guard: crate::session::TargetGuard,
+    pub request: RenderRequest,
+}
 pub struct RenderResponse {
-    pub revision: u64,
+    pub guard: crate::session::TargetGuard,
     pub result: Result<Rendered, String>,
     pub is_export: bool,
 }
@@ -425,12 +429,12 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
 /// Un unique worker conserve les caches Typst. Les demandes d'aperçu devenues
 /// obsolètes sont coalescées. Une demande d'export n'est jamais abandonnée.
 pub struct RenderWorker {
-    pub sender: mpsc::Sender<RenderRequest>,
+    pub sender: mpsc::Sender<PreviewRequest>,
     pub receiver: mpsc::Receiver<RenderResponse>,
 }
 impl RenderWorker {
     pub fn spawn(context: eframe::egui::Context) -> Self {
-        let (sender, requests) = mpsc::channel::<RenderRequest>();
+        let (sender, requests) = mpsc::channel::<PreviewRequest>();
         let (results, receiver) = mpsc::channel();
         thread::Builder::new()
             .name("typst-render".into())
@@ -440,7 +444,7 @@ impl RenderWorker {
                 while let Ok(mut request) = requests.recv() {
                     let mut exports = Vec::new();
                     while let Ok(next) = requests.try_recv() {
-                        if request.export_dir.is_some() {
+                        if request.request.export_dir.is_some() {
                             exports.push(request);
                         }
                         request = next;
@@ -448,9 +452,9 @@ impl RenderWorker {
                     exports.push(request);
                     for request in exports {
                         let response = RenderResponse {
-                            revision: request.revision,
-                            is_export: request.export_dir.is_some(),
-                            result: render(&mut world, &request),
+                            guard: request.guard,
+                            is_export: request.request.export_dir.is_some(),
+                            result: render(&mut world, &request.request),
                         };
                         if results.send(response).is_err() {
                             return;

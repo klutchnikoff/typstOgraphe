@@ -7,7 +7,8 @@ use super::search_types::*;
 use super::spelling_types::*;
 use super::{CommandError, registry::define_calls};
 use super::{
-    ImageAltParams, ImageTargetParams, InsertImageParams, ReplaceImageParams, SignatureParams,
+    ImageAltParams, ImageTargetParams, InsertImageParams, LocateParams, ReplaceImageParams,
+    SelectionBoxesParams, SignatureParams, StatisticsParams,
 };
 use crate::{
     document::structure::LogicalSelection,
@@ -189,6 +190,9 @@ define_calls! {
 
 define_calls! {
     Query, query_specs;
+    Locate(LocateParams) => "render.locate", "Locate a logical text target in an identified render or return the guarded text target at a page point, without moving selection.", Query, Read, false;
+    SelectionBoxes(SelectionBoxesParams) => "render.selection_boxes", "Read page quadrilaterals for a guarded text selection on an identified render, in Typst points.", Query, Read, false;
+    Statistics(StatisticsParams) => "document.statistics", "Read Unicode word and grapheme counts for the document and an optional text target, excluding structural markers and private fields.", Query, Read, false;
     RecoveryList(Empty) => "recovery.list", "List opaque references from the configured recovery service without opening documents.", Query, Read, false;
     Models(Empty) => "models.list", "List supplied models for the active document type without changing the document.", Query, Read, false;
     ModelPresentation(Empty) => "models.presentation", "Read the current model page constraints and permitted bullet markers.", Query, Read, false;

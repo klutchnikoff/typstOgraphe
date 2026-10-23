@@ -12,12 +12,20 @@ impl App {
         }
     }
     pub(super) fn status_ui(&mut self, ui: &mut egui::Ui) {
-        let range = self.range();
-        let (total, selected) = self.document.statistics.counts(
-            self.document.engine.revision(),
-            &self.document.engine.document().view,
-            range,
-        );
+        let target = self
+            .document
+            .engine
+            .selection_target(self.document.selection.into())
+            .expect("published editor selection");
+        let counts = self
+            .document
+            .engine
+            .statistics(crate::engine::StatisticsParams {
+                target: Some(target.into()),
+            })
+            .expect("published document statistics");
+        let total = counts.document;
+        let selected = counts.target;
         ui.horizontal_wrapped(|ui| {
             ui.label(crate::tr!(
                 "document-stats",

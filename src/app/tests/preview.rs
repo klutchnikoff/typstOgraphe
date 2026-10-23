@@ -111,15 +111,23 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
             egui::TextureOptions::LINEAR,
         ));
     }
-    app.preview.sync = Some(RenderSync::new(
-        app.document.engine.revision(),
-        world,
-        rendered,
-        app.document.engine.document().source_map.clone(),
-    ));
+    app.preview.render = Some(
+        app.document
+            .engine
+            .install_render(
+                app.document.engine.target_guard(),
+                crate::navigation::RenderSync::new(
+                    app.document.engine.revision(),
+                    world,
+                    rendered,
+                    app.document.engine.document().source_map.clone(),
+                ),
+            )
+            .unwrap(),
+    );
     let end = app.document.engine.document().view.len() - 12;
     app.document.selection = editor::cursor(end..end);
-    let location = app.preview.sync.as_ref().unwrap().forward(end).unwrap();
+    let location = app.preview_location(end).unwrap();
 
     let mut draw_pane = |preview: bool, time: f64| {
         let mut offset = 0.0;
@@ -217,12 +225,20 @@ fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
     );
     let texture_id = texture.id();
     app.preview.pages = vec![texture];
-    app.preview.sync = Some(RenderSync::new(
-        app.document.engine.revision(),
-        world,
-        rendered,
-        app.document.engine.document().source_map.clone(),
-    ));
+    app.preview.render = Some(
+        app.document
+            .engine
+            .install_render(
+                app.document.engine.target_guard(),
+                crate::navigation::RenderSync::new(
+                    app.document.engine.revision(),
+                    world,
+                    rendered,
+                    app.document.engine.document().source_map.clone(),
+                ),
+            )
+            .unwrap(),
+    );
     app.preview.submitted = app.document.engine.revision();
     app.preview.revision = Some(app.document.engine.revision());
     let index = app
@@ -238,14 +254,8 @@ fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
                 .count()
         })
         .unwrap();
-    let location = app.preview.sync.as_ref().unwrap().forward(index).unwrap();
-    let size = app
-        .preview
-        .sync
-        .as_ref()
-        .unwrap()
-        .page_size(location.page)
-        .unwrap();
+    let location = app.preview_location(index).unwrap();
+    let size = app.preview.render.as_ref().unwrap().pages[location.page];
     let draw = |app: &mut App, time, events| {
         ctx.run(
             egui::RawInput {
@@ -325,12 +335,20 @@ fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
         egui::ColorImage::new([2, 3], vec![Color32::WHITE; 6]),
         egui::TextureOptions::LINEAR,
     )];
-    app.preview.sync = Some(RenderSync::new(
-        app.document.engine.revision(),
-        world,
-        rendered,
-        app.document.engine.document().source_map.clone(),
-    ));
+    app.preview.render = Some(
+        app.document
+            .engine
+            .install_render(
+                app.document.engine.target_guard(),
+                crate::navigation::RenderSync::new(
+                    app.document.engine.revision(),
+                    world,
+                    rendered,
+                    app.document.engine.document().source_map.clone(),
+                ),
+            )
+            .unwrap(),
+    );
     app.preview.submitted = app.document.engine.revision();
     app.preview.revision = Some(app.document.engine.revision());
     let byte = app
@@ -395,4 +413,62 @@ fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
     assert!(draw(&mut app, 400.0).is_empty());
     app.preview.error = None;
     assert!(!draw(&mut app, 400.0).is_empty());
+}
+
+#[test]
+fn render_responses_are_guarded_by_document_identity_even_at_the_same_revision() {
+    let (ctx, mut app) = demo_app();
+    let old_guard = app.document.engine.target_guard();
+    let request = app.document.engine.preview_request().unwrap();
+    let output =
+        crate::rendering::render(&mut crate::rendering::TypstWorld::default(), &request).unwrap();
+    let stored = app.stored_document();
+    app.document.engine = Session::new(
+        stored.clone(),
+        Document::from_source(&stored.source).unwrap(),
+        None,
+        old_guard.revision,
+    )
+    .into();
+    assert_ne!(app.document.engine.target_guard(), old_guard);
+    let (sender, _requests) = std::sync::mpsc::channel();
+    let (responses, receiver) = std::sync::mpsc::channel();
+    app.preview.worker = RenderWorker { sender, receiver };
+    app.preview.submitted = old_guard.revision;
+    responses
+        .send(crate::rendering::RenderResponse {
+            guard: old_guard,
+            result: Ok(output),
+            is_export: false,
+        })
+        .unwrap();
+    responses
+        .send(crate::rendering::RenderResponse {
+            guard: old_guard,
+            result: Err("Old failure".into()),
+            is_export: false,
+        })
+        .unwrap();
+    app.rendering(&ctx);
+    assert!(app.preview.pages.is_empty());
+    assert!(app.preview.render.is_none());
+    assert!(app.preview.error.is_none());
+    assert!(app.preview.revision.is_none());
+    // La même voie accepte la réponse liée à la session courante.
+    let request = app.document.engine.preview_request().unwrap();
+    let output =
+        crate::rendering::render(&mut crate::rendering::TypstWorld::default(), &request).unwrap();
+    responses
+        .send(crate::rendering::RenderResponse {
+            guard: app.document.engine.target_guard(),
+            result: Ok(output),
+            is_export: false,
+        })
+        .unwrap();
+    app.rendering(&ctx);
+    assert!(!app.preview.pages.is_empty());
+    assert_eq!(
+        app.preview.render.as_ref().unwrap().reference.guard,
+        app.document.engine.target_guard()
+    );
 }

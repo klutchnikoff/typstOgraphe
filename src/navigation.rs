@@ -4,6 +4,8 @@ use crate::{
     document::SourceMap,
     rendering::{TypstWorld, file_id},
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use typst::{
     World,
@@ -12,13 +14,15 @@ use typst::{
 };
 use typst_layout::PagedDocument;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PagePoint {
     pub page: usize,
     /// Coordonnées Typst en points, indépendantes de l'échelle d'affichage.
     pub point: [f32; 2],
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct SelectionHighlight {
     pub page: usize,
     /// Coins dans l'ordre haut gauche, haut droit, bas droit, bas gauche,
@@ -62,6 +66,10 @@ impl RenderSync {
             anchors,
             frames,
         }
+    }
+
+    pub fn page_count(&self) -> usize {
+        self.frames.len()
     }
 
     pub fn page_size(&self, page: usize) -> Option<[f32; 2]> {

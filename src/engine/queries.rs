@@ -5,6 +5,14 @@ use serde_json::json;
 impl Engine {
     pub fn query(&self, query: Query) -> Result<Value, CommandError> {
         Ok(match query {
+            Query::Locate(p) => {
+                serde_json::to_value(self.locate(p)?).expect("serializable location")
+            }
+            Query::SelectionBoxes(p) => serde_json::to_value(self.selection_boxes(p)?)
+                .expect("serializable selection geometry"),
+            Query::Statistics(p) => {
+                serde_json::to_value(self.statistics(p)?).expect("serializable statistics")
+            }
             Query::RecoveryList(_) => self.recovery_query(),
             Query::Models(_) => self.models_query(),
             Query::SpellingIssues(_) => {
@@ -15,6 +23,7 @@ impl Engine {
                 "guard": self.session.target_guard(),
                 "selection": self.session.selection_target(self.selection).ok(),
                 "open": self.open,
+                "render": self.render_info(),
                 "path":self.session.file_path,
                 "recovered":self.is_recovered(),
                 "dirty": self.open && self.session.is_dirty(),

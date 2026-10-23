@@ -39,7 +39,7 @@ pub(super) struct PreviewState {
     pub(super) elapsed: Option<Duration>,
     pub(super) error: Option<String>,
     pub(super) revision: Option<u64>,
-    pub(super) sync: Option<RenderSync>,
+    pub(super) render: Option<crate::engine::RenderInfo>,
     pub(super) forward_pending: bool,
     pub(super) editor_scroll_pending: bool,
 }
@@ -91,7 +91,6 @@ pub(super) struct DocumentState {
     pub(super) selection: CCursorRange,
     pub(super) force_selection: bool,
     pub(super) ime: super::ime::Ime,
-    pub(super) statistics: crate::statistics::Counter,
     pub(super) history_field: Option<egui::Id>,
     pub(super) presentation: ModelPresentation,
 }

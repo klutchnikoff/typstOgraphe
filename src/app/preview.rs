@@ -1,18 +1,6 @@
 use super::*;
 
 impl App {
-    pub(super) fn request(&self, export_dir: Option<PathBuf>) -> RenderRequest {
-        RenderRequest {
-            revision: self.document.engine.revision(),
-            source: self.document.engine.document().source().to_owned(),
-            source_map: self.document.engine.document().source_map.clone(),
-            metadata: self.document.engine.metadata().clone(),
-            template: self.document.engine.template().to_owned(),
-            assets: self.document.engine.document().assets.clone(),
-            dependencies: self.document.engine.dependencies().clone(),
-            export_dir,
-        }
-    }
     pub(super) fn rendering(&mut self, ctx: &egui::Context) {
         if !self.document.open {
             while self.preview.worker.receiver.try_recv().is_ok() {}
@@ -30,14 +18,21 @@ impl App {
                                 .map_or(String::new(), |p| p.display().to_string())
                         ));
                     }
-                    if response.revision == self.document.engine.revision() {
+                    if response.guard == self.document.engine.target_guard() {
+                        let Ok(info) = self
+                            .document
+                            .engine
+                            .install_render(response.guard, rendered.sync)
+                        else {
+                            continue;
+                        };
                         self.preview.pages = rendered
                             .pages
                             .into_iter()
                             .enumerate()
                             .map(|(index, page)| {
                                 ctx.load_texture(
-                                    format!("typst-{}-{index}", response.revision),
+                                    format!("typst-{}-{index}", response.guard.revision),
                                     egui::ColorImage::from_rgba_premultiplied(
                                         page.size, &page.rgba,
                                     ),
@@ -48,15 +43,15 @@ impl App {
                         self.preview.elapsed = Some(rendered.elapsed);
                         self.document.presentation = rendered.presentation;
                         self.preview.error = None;
-                        self.preview.revision = Some(response.revision);
-                        self.preview.sync = Some(rendered.sync);
+                        self.preview.revision = Some(response.guard.revision);
+                        self.preview.render = Some(info);
                         self.preview.forward_pending = true;
                     }
                 }
                 Err(error) => {
-                    if response.revision == self.document.engine.revision() || response.is_export {
+                    if response.guard == self.document.engine.target_guard() || response.is_export {
                         self.preview.error = Some(error);
-                        self.preview.revision = Some(response.revision);
+                        self.preview.revision = Some(response.guard.revision);
                     }
                 }
             }
@@ -64,7 +59,15 @@ impl App {
         if self.preview.submitted != self.document.engine.revision()
             && self.document.engine.changed_at().elapsed() > Duration::from_millis(220)
         {
-            match self.preview.worker.sender.send(self.request(None)) {
+            let request = crate::rendering::PreviewRequest {
+                guard: self.document.engine.target_guard(),
+                request: self
+                    .document
+                    .engine
+                    .preview_request()
+                    .expect("open document"),
+            };
+            match self.preview.worker.sender.send(request) {
                 Ok(()) => self.preview.submitted = self.document.engine.revision(),
                 Err(_) => self.preview.error = Some(crate::tr!("renderer-stopped")),
             }
@@ -76,21 +79,33 @@ impl App {
     pub(super) fn preview_ui(&mut self, ui: &mut egui::Ui) {
         self.preview_header(ui);
         let current = self.sync_is_current();
+        let target = self
+            .document
+            .engine
+            .selection_target(self.document.selection.into())
+            .ok();
         let highlights = if current {
             self.preview
-                .sync
+                .render
                 .as_ref()
-                .map(|sync| sync.selection_highlights(self.range()))
+                .zip(target)
+                .and_then(|(render, target)| {
+                    self.document
+                        .engine
+                        .selection_boxes(crate::engine::SelectionBoxesParams {
+                            render: render.reference,
+                            target: target.into(),
+                        })
+                        .ok()
+                })
+                .map(|result| result.boxes)
                 .unwrap_or_default()
         } else {
             Vec::new()
         };
         let target = if self.preview.forward_pending && current {
             self.preview.forward_pending = false;
-            self.preview
-                .sync
-                .as_ref()
-                .and_then(|sync| sync.forward(self.document.selection.primary.index))
+            self.preview_location(self.document.selection.primary.index)
         } else {
             None
         };
@@ -119,9 +134,9 @@ impl App {
                         );
                         if let Some(size) = self
                             .preview
-                            .sync
+                            .render
                             .as_ref()
-                            .and_then(|sync| sync.page_size(index))
+                            .and_then(|render| render.pages.get(index).copied())
                         {
                             let painter = ui
                                 .painter()
@@ -213,31 +228,61 @@ impl App {
         self.preview.error.is_none()
             && self
                 .preview
-                .sync
+                .render
                 .as_ref()
-                .is_some_and(|sync| sync.revision == self.document.engine.revision())
+                .is_some_and(|render| render.reference.guard == self.document.engine.target_guard())
+    }
+    pub(super) fn preview_location(&self, character: usize) -> Option<PagePoint> {
+        let render = self.preview.render.as_ref()?.reference;
+        let caret = crate::session::Caret {
+            index: character,
+            ..Default::default()
+        };
+        let target = self
+            .document
+            .engine
+            .selection_target(crate::session::Selection {
+                primary: caret,
+                secondary: caret,
+            })
+            .ok()?;
+        self.document
+            .engine
+            .locate(crate::engine::LocateParams {
+                render,
+                position: crate::engine::RenderPosition::ToPreview {
+                    target: target.into(),
+                },
+            })
+            .ok()?
+            .point
     }
     pub(super) fn navigate_backward(&mut self, location: PagePoint, ctx: &egui::Context) {
         if !self.sync_is_current() {
             return;
         }
-        if let Some(character) = self
-            .preview
-            .sync
-            .as_ref()
-            .and_then(|sync| sync.backward(location))
-        {
-            self.cancel_ime();
-            self.document.selection = CCursorRange::one(CCursor::new(
-                character.min(self.document.engine.document().view.len()),
-            ));
-            self.document
-                .engine
-                .update_adapter_cursor(self.document.selection.into())
-                .expect("preview cursor in the published projection");
-            self.document.force_selection = true;
-            self.preview.editor_scroll_pending = true;
-            self.preview.forward_pending = false;
+        let Some(render) = self.preview.render.as_ref() else {
+            return;
+        };
+        let target = self
+            .document
+            .engine
+            .locate(crate::engine::LocateParams {
+                render: render.reference,
+                position: crate::engine::RenderPosition::ToSource { point: location },
+            })
+            .ok()
+            .and_then(|result| result.target);
+        if let Some(target) = target {
+            if self.run_document_command(crate::engine::Command::SelectText(
+                crate::engine::SelectTextParams {
+                    target: target.into(),
+                    part: None,
+                },
+            )) {
+                self.preview.editor_scroll_pending = true;
+                self.preview.forward_pending = false;
+            }
             ctx.request_repaint();
         }
     }

@@ -55,6 +55,7 @@ impl Engine {
         self.session = session;
         self.selection = Selection::default();
         self.presentation_cache = Default::default();
+        self.render = None;
         self.open = true;
         Ok(())
     }
@@ -122,6 +123,7 @@ impl Engine {
         );
         self.selection = Selection::default();
         self.presentation_cache = Default::default();
+        self.render = None;
         self.open = false;
         Ok(json!({"open":false}))
     }

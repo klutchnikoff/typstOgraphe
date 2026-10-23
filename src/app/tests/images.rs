@@ -84,11 +84,9 @@ fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
     assert!(!app.is_dirty());
     assert!(storage::read(&path).unwrap().assets.is_empty());
     let export = dir.path().join("export");
-    crate::rendering::render(
-        &mut crate::rendering::TypstWorld::default(),
-        &app.request(Some(export.clone())),
-    )
-    .unwrap();
+    let mut request = app.document.engine.preview_request().unwrap();
+    request.export_dir = Some(export.clone());
+    crate::rendering::render(&mut crate::rendering::TypstWorld::default(), &request).unwrap();
     assert!(!export.join("images").exists());
     app.apply(Command::Undo);
     assert_eq!(

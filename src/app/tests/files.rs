@@ -209,8 +209,11 @@ fn save_reopen_restores_the_letter_and_failed_open_preserves_current_work() {
     assert!(!app.is_dirty());
     assert!(app.document.engine.undo().is_empty() && app.document.engine.redo().is_empty());
     assert_eq!(app.document.selection.primary.index, 0);
-    assert!(app.preview.pages.is_empty() && app.preview.sync.is_none());
-    assert_eq!(app.request(None).template, letter.template);
+    assert!(app.preview.pages.is_empty() && app.preview.render.is_none());
+    assert_eq!(
+        app.document.engine.preview_request().unwrap().template,
+        letter.template
+    );
     fixture(&mut app.document.engine, |session| {
         session.document.view.insert_text("À conserver ", 0);
     });

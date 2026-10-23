@@ -152,12 +152,20 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
             app.document.engine.template(),
         )
         .unwrap();
-    app.preview.sync = Some(RenderSync::new(
-        app.document.engine.revision(),
-        world,
-        compiled,
-        app.document.engine.document().source_map.clone(),
-    ));
+    app.preview.render = Some(
+        app.document
+            .engine
+            .install_render(
+                app.document.engine.target_guard(),
+                crate::navigation::RenderSync::new(
+                    app.document.engine.revision(),
+                    world,
+                    compiled,
+                    app.document.engine.document().source_map.clone(),
+                ),
+            )
+            .unwrap(),
+    );
     app.preview.revision = Some(app.document.engine.revision());
     let _ = search_draw(&mut app, &ctx, vec![]);
     let key = |key, modifiers| egui::Event::Key {
@@ -242,11 +250,19 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
             "l’ancienne occurrence reste un résultat surligné"
         );
         let highlights = app
-            .preview
-            .sync
-            .as_ref()
+            .document
+            .engine
+            .selection_boxes(crate::engine::SelectionBoxesParams {
+                render: app.preview.render.as_ref().unwrap().reference,
+                target: app
+                    .document
+                    .engine
+                    .selection_target(app.document.selection.into())
+                    .unwrap()
+                    .into(),
+            })
             .unwrap()
-            .selection_highlights(app.range());
+            .boxes;
         assert!(!highlights.is_empty());
         let first = highlights[0].corners;
         assert!(previous.is_none_or(|previous| previous != first));

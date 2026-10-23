@@ -85,13 +85,19 @@ fn preedit_survives_frames_and_is_visible_without_publishing_any_session_state()
         assert_eq!(app.document.engine.resolve_target(target).unwrap(), (3, 6));
         assert!(app.document.engine.undo().is_empty() && app.document.engine.redo().is_empty());
         assert!(!app.is_dirty());
-        let counts = app.document.statistics.counts(revision, &view, 3..6);
+        let counts = app
+            .document
+            .engine
+            .statistics(crate::engine::StatisticsParams {
+                target: Some(target.into()),
+            })
+            .unwrap();
         assert_eq!(
-            counts.0,
+            counts.document,
             crate::statistics::TextStatistics::count(&view.text)
         );
         assert_eq!(
-            counts.1,
+            counts.target,
             Some(crate::statistics::TextStatistics::count("été"))
         );
     }

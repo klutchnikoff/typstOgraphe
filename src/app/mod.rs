@@ -28,9 +28,9 @@ use crate::{
     document::{BlockKind, Document, DocumentLanguage, PaperFormat, Projection},
     document_types::{DocumentType, ModelPresentation, models::Model},
     editor, menus,
-    navigation::{PagePoint, RenderSync},
+    navigation::PagePoint,
     preferences::{Appearance, EditorFont, Preferences},
-    rendering::{RenderRequest, RenderWorker},
+    rendering::RenderWorker,
     storage::{self, StoredDocument},
 };
 use eframe::egui::{

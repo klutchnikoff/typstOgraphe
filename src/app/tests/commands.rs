@@ -294,7 +294,14 @@ fn model_dependencies_follow_imports_choices_and_undo_without_changing_the_body(
     app.install_model("#let courrier(..args) = args.pos().last()".into())
         .unwrap();
     assert!(app.document.engine.dependencies().is_empty());
-    assert!(app.request(None).dependencies.is_empty());
+    assert!(
+        app.document
+            .engine
+            .preview_request()
+            .unwrap()
+            .dependencies
+            .is_empty()
+    );
     app.apply(Command::Undo);
     assert!(app.document.engine.dependencies() == &original);
     assert!(app.stored_document().dependencies == original);

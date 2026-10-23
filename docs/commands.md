@@ -56,6 +56,9 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 | `letter.insert_attachment` | letter | oui | Insert an attachment mention into a letter. |
 | `edit.undo` | history | non | Undo the previous document transaction. |
 | `edit.redo` | history | non | Redo the next document transaction. |
+| `render.locate` | query | non | Locate a logical text target in an identified render or return the guarded text target at a page point, without moving selection. |
+| `render.selection_boxes` | query | non | Read page quadrilaterals for a guarded text selection on an identified render, in Typst points. |
+| `document.statistics` | query | non | Read Unicode word and grapheme counts for the document and an optional text target, excluding structural markers and private fields. |
 | `recovery.list` | query | non | List opaque references from the configured recovery service without opening documents. |
 | `models.list` | query | non | List supplied models for the active document type without changing the document. |
 | `models.presentation` | query | non | Read the current model page constraints and permitted bullet markers. |

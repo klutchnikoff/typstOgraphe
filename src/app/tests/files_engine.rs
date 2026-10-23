@@ -24,7 +24,7 @@ fn profile_creation_matches_explicit_json_values_and_never_changes_global_prefer
     assert_eq!(app.preferences, prefs);
     assert!(app.document.open && app.document.engine.is_open());
     assert!(!app.is_dirty() && app.document.engine.undo().is_empty());
-    assert!(app.preview.pages.is_empty() && app.preview.sync.is_none());
+    assert!(app.preview.pages.is_empty() && app.preview.render.is_none());
     assert_eq!(app.document.selection.primary.index, 0);
 }
 

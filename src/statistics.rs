@@ -1,9 +1,11 @@
 //! Comptage du texte éditable, indépendant du modèle et du rendu Typst.
 use crate::document::{IMAGE_OBJECT, Projection};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use unicode_segmentation::UnicodeSegmentation;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct TextStatistics {
     pub words: usize,
     pub signs: usize,

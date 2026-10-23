@@ -19,6 +19,8 @@ mod queries;
 mod recovery;
 mod recovery_types;
 pub mod registry;
+mod render;
+mod render_types;
 mod resources;
 mod run;
 mod search;
@@ -26,6 +28,7 @@ mod search_types;
 mod spelling;
 mod spelling_types;
 mod state;
+mod statistics;
 #[cfg(test)]
 pub(crate) mod test_support;
 mod types;
@@ -43,10 +46,12 @@ pub use model_types::*;
 pub(crate) use native::{NativeEdit, NativeInput};
 pub use recovery_types::*;
 pub use registry::{AvailabilityRule, Call, CommandId, CommandSpec, Family, catalogue};
+pub use render_types::*;
 pub use search_types::*;
 use serde::Serialize;
 use serde_json::Value;
 pub use spelling_types::*;
+pub use statistics::{StatisticsParams, StatisticsResult};
 pub use types::*;
 
 pub struct Engine {
@@ -55,6 +60,8 @@ pub struct Engine {
     recovery: recovery::RecoveryState,
     selection: Selection,
     spelling: spelling::SpellingState,
+    render: Option<render::RenderState>,
+    statistics: std::cell::RefCell<statistics::StatisticsCache>,
     presentation_cache: metadata::PresentationCache,
 }
 
@@ -92,6 +99,8 @@ impl From<Session> for Engine {
             recovery: Default::default(),
             selection: Selection::default(),
             spelling: Default::default(),
+            render: None,
+            statistics: Default::default(),
             presentation_cache: Default::default(),
         }
     }
