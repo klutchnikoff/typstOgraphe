@@ -418,10 +418,10 @@ au repli anglais prévu en D7 relève de la phase 3, pas de cet inventaire.
 | Enregistrer / abandonner / annuler lors d’un remplacement ou d’une fermeture | `app/files::file_dialogs`, `PendingAction` | UI compose sauvegarde puis nouvelle action, ou transmet `discard_changes: true`, ou ne fait rien | UI + C-IO | Oui si nécessaire | Opérations explicites : oui | T04, T34 |
 | Onglet d’informations, préférences, menus Titres/Listes, fermer un dialogue ou une erreur | `information_ui`, `preferences_ui`, `toolbar::show`, `dialogs`, `file_dialogs` | États de présentation, groupes et focus | UI | Selon panneau | Non | T10, T21, T27, T49 |
 | Requête/choix dans la palette, flèches, Entrée, Échap | `palette_dialog`, `dispatch_action` | Filtre local ; puis invocation de la commande choisie | UI | Palette | Commande choisie : selon son catalogue | T39, T49 |
-| Navigation avant vers l’aperçu | `editor_feedback`, `preview_ui`, `RenderSync::forward` | Q `render.locate` avec position logique et référence de rendu valide | Q + défilement UI | Non | Localisation : oui ; défilement : non | T38, T64 |
-| Double-clic dans l’aperçu | `preview_ui`, `navigate_backward`, `RenderSync::backward` | Q `render.locate` avec page/point d’un rendu puis C-sel | Q + C-sel + focus UI | Non | Conversion : oui ; clic : non | T38, T64 |
-| Surlignage de sélection | `RenderSync::selection_highlights`, `preview_ui` | Q `render.selection_boxes`, sélection et référence de rendu | Q + peinture UI | Non | Géométrie : oui | T38, T65 |
-| Lire les compteurs document/sélection | `chrome::status_ui`, `statistics::Counter` | Q `document.statistics`, cible optionnelle | Q + affichage UI | Non | Oui | T36 |
+| Navigation avant vers l’aperçu | `preview_ui`, `Engine::locate` | Q `render.locate` avec position logique et référence de rendu valide | Q + défilement UI | Non | Localisation : oui ; défilement : non | T38, T64 |
+| Double-clic dans l’aperçu | `preview_ui`, `navigate_backward`, `Engine::locate` | Q `render.locate` avec page/point d’un rendu puis C-sel | Q + C-sel + focus UI | Non | Conversion : oui ; clic : non | T38, T64 |
+| Surlignage de sélection | `Engine::selection_boxes`, `preview_ui` | Q `render.selection_boxes`, sélection et référence de rendu | Q + peinture UI | Non | Géométrie : oui | T38, T65 |
+| Lire les compteurs document/sélection | `chrome::status_ui`, `Engine::statistics` | Q `document.statistics`, cible optionnelle | Q + affichage UI | Non | Oui | T36 |
 
 **Lot 2.4.8 réalisé le 23 octobre 2026.** Ces opérations sont dans le catalogue
 typé. `recovery.list` lit les entrées détenues par le service configuré et renvoie
@@ -437,6 +437,15 @@ Une suppression de copie et un export sont des effets externes : exclus des lots
 d’édition comme les sauvegardes et réglages globaux (D16). Les services sans UI
 reçoivent leurs racines/configurations explicitement ; ils ne créent pas une
 nouvelle permission d’accès global, notamment pour le futur MCP (D12).
+
+**Lectures d’aperçu et compteurs réalisées le 24 octobre 2026.** `render.locate`,
+`render.selection_boxes` et `document.statistics` partagent les mêmes implémentations
+entre les requêtes typées/JSON et les adaptateurs graphiques. `document.inspect`
+permet de découvrir la référence et les dimensions du rendu courant. Navigation
+inverse : lecture d’une cible gardée, puis `text.select`, puis focus/défilement UI.
+Les références comprennent l’identité de document, sa révision et l’identité du
+rendu ; les réponses tardives du worker sont gardées également. Le contrat et les
+conventions de comptage sont détaillés dans [les lectures documentaires](read-queries.md).
 
 ## 6. Requêtes proposées pour lire et préparer les actions
 
