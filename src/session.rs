@@ -72,6 +72,11 @@ pub struct Snapshot {
     pub selection: Selection,
     logical_selection: Option<SelectionTarget>,
 }
+impl Snapshot {
+    pub(crate) fn guard(&self) -> TargetGuard {
+        self.guard
+    }
+}
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum EditGroup {
     Body,

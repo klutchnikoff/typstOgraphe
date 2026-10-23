@@ -106,9 +106,9 @@ impl App {
     }
     fn image_shortcut(&mut self, ctx: &egui::Context) -> bool {
         let range = self.range();
-        let line = self.document.engine.document.view.line_at(range.start);
-        let start = self.document.engine.document.view.line_ranges()[line].start;
-        if let BlockKind::Image(id) = self.document.engine.document.view.blocks[line] {
+        let line = self.document.engine.document().view.line_at(range.start);
+        let start = self.document.engine.document().view.line_ranges()[line].start;
+        if let BlockKind::Image(id) = self.document.engine.document().view.blocks[line] {
             let object_selected = range == (start..start + 1);
             let deleting = ctx
                 .input(|i| i.key_pressed(egui::Key::Backspace) || i.key_pressed(egui::Key::Delete));

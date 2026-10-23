@@ -14,8 +14,7 @@ pub(super) struct Ime {
 }
 
 pub(super) struct Composition {
-    guard: crate::session::TargetGuard,
-    before: Snapshot,
+    before: crate::engine::NativeEdit,
     pub(super) input: TextInput,
     pub(super) selection: CCursorRange,
 }
@@ -25,9 +24,9 @@ impl Composition {
         // Chaque prédiction remplace la sélection d’origine. Les ancres et le
         // style ne dépendent donc pas des prédictions intermédiaires.
         let error = self.input.view.edit_error;
-        self.input.view = self.before.document.view.clone();
+        self.input.view = self.before.view().clone();
         self.input.view.edit_error = error;
-        let range = self.before.selection.range();
+        let range = self.before.selection().range();
         self.input.delete_char_range(range.clone());
         let inserted = self.input.insert_text(text, range.start);
         self.selection = editor::cursor(range.start..range.start + inserted);
@@ -50,8 +49,8 @@ impl App {
     /// devenir un raccourci de transformation de texte.
     pub(super) fn guard_ime(&mut self, ctx: &egui::Context) {
         let invalid = self.document.ime.draft.as_ref().is_some_and(|draft| {
-            draft.guard != self.document.engine.target_guard()
-                || draft.before.selection != self.document.selection.into()
+            draft.before.guard() != self.document.engine.target_guard()
+                || draft.before.selection() != self.document.selection.into()
                 || self.document.force_selection
         });
         let interrupted = ctx.input(|input| {
@@ -170,14 +169,13 @@ impl App {
                         .expect("composition préparée");
                     let end = draft.selection.as_sorted_char_range().end;
                     self.document.selection = editor::cursor(end..end);
-                    let result = self.document.engine.commit_projection(
-                        draft.guard,
+                    let result = self.document.engine.commit_native_edit(
                         draft.before.clone(),
                         draft.input.view,
                         self.document.selection.into(),
-                        EditGroup::Discrete,
+                        crate::engine::NativeInput::Composition,
                     );
-                    self.accept_edit(result, draft.before.selection);
+                    self.accept_edit(result, draft.before.selection());
                     self.document.ime.reset_cursor = true;
                     self.preview.forward_pending = true;
                     if self.search.open {
@@ -197,10 +195,9 @@ impl App {
     fn ime_replace(&mut self, text: &str) {
         if self.document.ime.draft.is_none() {
             self.document.ime.draft = Some(Composition {
-                guard: self.document.engine.target_guard(),
                 before: self.snapshot(),
                 input: TextInput {
-                    view: self.document.engine.document.view.clone(),
+                    view: self.document.engine.document().view.clone(),
                 },
                 selection: self.document.selection,
             });

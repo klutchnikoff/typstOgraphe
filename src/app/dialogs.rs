@@ -186,7 +186,7 @@ impl App {
                         text = self
                             .document
                             .engine
-                            .document
+                            .document()
                             .view
                             .text
                             .chars()

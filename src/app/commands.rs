@@ -1,23 +1,15 @@
 use super::*;
 
 impl App {
-    pub(super) fn snapshot(&self) -> Snapshot {
+    pub(super) fn snapshot(&self) -> crate::engine::NativeEdit {
         self.document
             .engine
-            .snapshot(self.document.selection.into())
+            .begin_native_edit(self.document.selection.into())
     }
     pub(super) fn range(&self) -> Range<usize> {
         let range = self.document.selection.as_sorted_char_range();
-        range.start.min(self.document.engine.document.view.len())
-            ..range.end.min(self.document.engine.document.view.len())
-    }
-    pub(super) fn remember(&mut self, before: Snapshot, typing: bool) {
-        let previous = before.selection;
-        let result = self
-            .document
-            .engine
-            .remember(before, self.document.selection.into(), typing);
-        self.accept_edit(result, previous);
+        range.start.min(self.document.engine.document().view.len())
+            ..range.end.min(self.document.engine.document().view.len())
     }
     pub(super) fn accept_edit(
         &mut self,
@@ -118,7 +110,7 @@ impl App {
                     || !self
                         .spelling
                         .checker
-                        .is_current(self.document.engine.revision)
+                        .is_current(self.document.engine.revision())
                     || self.spelling.checker.issues.is_empty()
                 {
                     return;
@@ -225,7 +217,7 @@ impl App {
                         Command::ResetSpelling => !self
                             .document
                             .engine
-                            .metadata
+                            .metadata()
                             .options()
                             .spelling_ignored
                             .is_empty(),

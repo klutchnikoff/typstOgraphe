@@ -7,7 +7,7 @@ impl App {
                 .chain(
                     self.document
                         .engine
-                        .metadata
+                        .metadata()
                         .editor_groups()
                         .iter()
                         .map(|group| {
@@ -18,7 +18,7 @@ impl App {
                         }),
                 )
                 .collect();
-        let full_heading = match self.document.engine.metadata.document_type() {
+        let full_heading = match self.document.engine.metadata().document_type() {
             DocumentType::Courrier => crate::tr!("document-settings-heading"),
             DocumentType::CompteRendu => crate::tr!("minutes-settings-heading"),
         };
@@ -99,7 +99,7 @@ impl App {
     }
     fn general_information_ui(&mut self, ui: &mut egui::Ui) {
         let fixed_page = self.document.engine.fixed_page();
-        let mut options = self.document.engine.metadata.options().clone();
+        let mut options = self.document.engine.metadata().options().clone();
         let mut previous = options.clone();
         egui::Grid::new("general-fields")
             .num_columns(2)
@@ -109,7 +109,7 @@ impl App {
                 ui.end_row();
                 ui.label(crate::tr!("field-template"));
                 self.template_selector(ui);
-                options = self.document.engine.metadata.options().clone();
+                options = self.document.engine.metadata().options().clone();
                 previous = options.clone();
                 ui.end_row();
                 ui.label(crate::tr!("field-paper"));
@@ -195,7 +195,7 @@ impl App {
         let previous = self
             .document
             .engine
-            .metadata
+            .metadata()
             .options()
             .bullet_marker
             .clone();

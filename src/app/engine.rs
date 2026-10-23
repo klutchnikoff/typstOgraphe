@@ -34,7 +34,7 @@ impl App {
         );
         let batch = matches!(command, CoreCommand::Batch(_)).then(|| {
             (
-                self.document.engine.document.source().to_owned(),
+                self.document.engine.document().source().to_owned(),
                 self.document.selection,
             )
         });
@@ -75,7 +75,7 @@ impl App {
             self.dialogs.marker_draft = None;
         }
         if let Some((source, selection)) = batch {
-            preserve_focus = source == self.document.engine.document.source()
+            preserve_focus = source == self.document.engine.document().source()
                 && selection == self.document.selection;
         }
         if outcome
@@ -208,9 +208,9 @@ impl App {
         }
         let previous = history.then(|| {
             (
-                self.document.engine.document.clone(),
-                self.document.engine.template.clone(),
-                self.document.engine.dependencies.clone(),
+                self.document.engine.document().clone(),
+                self.document.engine.template().clone(),
+                self.document.engine.dependencies().clone(),
             )
         });
         if !self.run_document_command(command) {
@@ -218,13 +218,13 @@ impl App {
         }
         if let Some((old_document, old_template, old_dependencies)) = previous {
             self.image_textures.clear();
-            if self.document.engine.template != old_template
-                || self.document.engine.dependencies != old_dependencies
+            if self.document.engine.template() != &old_template
+                || self.document.engine.dependencies() != &old_dependencies
             {
                 self.refresh_model_presentation();
             }
             self.document.force_selection = self.document.history_field.is_none()
-                || self.document.engine.document != old_document;
+                || self.document.engine.document() != &old_document;
             if self.document.force_selection {
                 self.document.history_field = None;
             }

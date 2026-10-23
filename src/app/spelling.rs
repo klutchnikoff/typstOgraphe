@@ -8,15 +8,14 @@ impl App {
     pub fn capture_spelling(&mut self, ctx: &egui::Context) {
         self.load_demo();
         let before = self.snapshot();
-        self.document.engine.metadata.options_mut().language = DocumentLanguage::French;
-        self.document
-            .engine
-            .metadata
-            .options_mut()
-            .spelling_ignored
-            .clear();
-        self.document.engine.document = Document::from_source("Madame, Monsieur,\n\nNous vous adressons ce *courrrier* pour confirmer la _réservvation_ de la salle.\n\nLa réunion aura lieu aujourd’hui à l’école, lors du rendez-vous prévu avec les associations.\n\nNous vous remercions de votre attention.").unwrap();
-        self.remember(before, false);
+        let view = Document::from_source("Madame, Monsieur,\n\nNous vous adressons ce *courrrier* pour confirmer la _réservvation_ de la salle.\n\nLa réunion aura lieu aujourd’hui à l’école, lors du rendez-vous prévu avec les associations.\n\nNous vous remercions de votre attention.").unwrap().view;
+        let result = self.document.engine.commit_native_edit(
+            before.clone(),
+            view,
+            self.document.selection.into(),
+            crate::engine::NativeInput::Composition,
+        );
+        self.accept_edit(result, before.selection());
         self.preferences = Preferences::default();
         self.preferences.appearance = Appearance::Light;
         ctx.set_theme(egui::ThemePreference::Light);
@@ -29,10 +28,10 @@ impl App {
         self.document
             .engine
             .configure_spelling(&self.preferences.spelling.personal);
-        let options = self.document.engine.metadata.options();
+        let options = self.document.engine.metadata().options();
         self.spelling.checker.synchronize(
-            self.document.engine.revision,
-            &self.document.engine.document.view.text,
+            self.document.engine.revision(),
+            &self.document.engine.document().view.text,
             options.language,
             crate::spelling::accepted(
                 options.language,
@@ -51,7 +50,7 @@ impl App {
             || !self
                 .spelling
                 .checker
-                .is_current(self.document.engine.revision)
+                .is_current(self.document.engine.revision())
         {
             return None;
         }
@@ -74,7 +73,7 @@ impl App {
             || !self
                 .spelling
                 .checker
-                .is_current(self.document.engine.revision)
+                .is_current(self.document.engine.revision())
         {
             return None;
         }
@@ -85,7 +84,7 @@ impl App {
             .ok()?;
         let reference = SpellingIssue {
             target,
-            language: self.document.engine.metadata.options().language,
+            language: self.document.engine.metadata().options().language,
             word: issue.word.clone(),
         };
         self.valid_spelling_target(&reference).then_some(reference)
@@ -162,7 +161,7 @@ impl App {
             if self
                 .spelling
                 .checker
-                .is_current(self.document.engine.revision)
+                .is_current(self.document.engine.revision())
                 && let Some(pointer) = output.response.interact_pointer_pos()
             {
                 let ranges: Vec<_> = self

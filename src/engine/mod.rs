@@ -14,6 +14,7 @@ mod metadata;
 mod metadata_types;
 mod model_types;
 mod models;
+mod native;
 mod queries;
 mod recovery;
 mod recovery_types;
@@ -24,6 +25,9 @@ mod search;
 mod search_types;
 mod spelling;
 mod spelling_types;
+mod state;
+#[cfg(test)]
+pub(crate) mod test_support;
 mod types;
 mod typing;
 use crate::{
@@ -36,6 +40,7 @@ pub use file_types::*;
 pub use image_types::*;
 pub use metadata_types::*;
 pub use model_types::*;
+pub(crate) use native::{NativeEdit, NativeInput};
 pub use recovery_types::*;
 pub use registry::{AvailabilityRule, Call, CommandId, CommandSpec, Family, catalogue};
 pub use search_types::*;
@@ -112,7 +117,7 @@ impl Engine {
     pub fn query_call(&self, call: Call) -> Result<Value, CommandError> {
         self.query(Query::from_call(call.id.as_str(), call.params)?)
     }
-    pub fn commit_projection(
+    pub(super) fn commit_projection(
         &mut self,
         guard: TargetGuard,
         before: Snapshot,
@@ -123,16 +128,6 @@ impl Engine {
         let selection = self
             .session
             .commit_projection(guard, before, view, selection, group)?;
-        self.selection = selection;
-        Ok(selection)
-    }
-    pub fn remember(
-        &mut self,
-        before: Snapshot,
-        selection: Selection,
-        typing: bool,
-    ) -> Result<Selection, EditError> {
-        let selection = self.session.remember(before, selection, typing)?;
         self.selection = selection;
         Ok(selection)
     }

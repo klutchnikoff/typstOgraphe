@@ -7,7 +7,7 @@ use crate::{
 
 impl App {
     pub(super) fn information_fields_ui(&mut self, ui: &mut egui::Ui, group: &str) {
-        let fields = self.document.engine.metadata.field_values();
+        let fields = self.document.engine.metadata().field_values();
         let width = (ui.available_width() - 120.0).max(80.0);
         egui::Grid::new(format!("{group}-fields"))
             .num_columns(2)
@@ -72,7 +72,7 @@ impl App {
             let published = self
                 .document
                 .engine
-                .metadata
+                .metadata()
                 .field_values()
                 .into_iter()
                 .find(|f| f.field == field.field)

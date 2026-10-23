@@ -3,6 +3,7 @@
 use super::*;
 
 impl Session {
+    #[cfg(test)]
     pub fn remember(
         &mut self,
         before: Snapshot,
@@ -22,6 +23,7 @@ impl Session {
 
     /// Adaptateur transitoire des commandes qui préparent encore leurs champs
     /// dans App. Rétablir l'état publié avant toute validation du candidat.
+    #[cfg(test)]
     pub fn record(
         &mut self,
         before: Snapshot,

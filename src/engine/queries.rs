@@ -16,7 +16,7 @@ impl Engine {
                 "selection": self.session.selection_target(self.selection).ok(),
                 "open": self.open,
                 "path":self.session.file_path,
-                "recovered":self.session.recovered,
+                "recovered":self.is_recovered(),
                 "dirty": self.open && self.session.is_dirty(),
                 "can_undo": !self.session.undo.is_empty(),
                 "can_redo": !self.session.redo.is_empty(),

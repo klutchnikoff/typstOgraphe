@@ -30,7 +30,7 @@ impl App {
             }
             let session = &self.document.engine;
             let suggested = &self.recovery.recovered_name;
-            if let Err(error) = recovery.checkpoint(session.revision, dirty, || {
+            if let Err(error) = recovery.checkpoint(session.revision(), dirty, || {
                 let name = session
                     .file_path
                     .as_ref()

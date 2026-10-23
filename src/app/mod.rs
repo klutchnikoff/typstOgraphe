@@ -25,13 +25,12 @@ mod spelling;
 mod text_input;
 use crate::{
     commands::{FileCommand, Keymap, Registry, ShortcutOverrides, UiCommand as Command},
-    document::{BlockKind, Document, DocumentLanguage, InlineStyle, PaperFormat, Projection},
+    document::{BlockKind, Document, DocumentLanguage, PaperFormat, Projection},
     document_types::{DocumentType, ModelPresentation, models::Model},
     editor, menus,
     navigation::{PagePoint, RenderSync},
     preferences::{Appearance, EditorFont, Preferences},
     rendering::{RenderRequest, RenderWorker},
-    session::{EditGroup, Snapshot},
     storage::{self, StoredDocument},
 };
 use eframe::egui::{
@@ -201,7 +200,7 @@ impl App {
         let filename = self
             .document
             .engine
-            .file_path
+            .file_path()
             .as_ref()
             .and_then(|path| path.file_name())
             .map(|name| name.to_string_lossy().into_owned())
@@ -250,7 +249,7 @@ impl App {
                 return;
             }
         }
-        if (!self.document.open || self.preview.revision == Some(self.document.engine.revision))
+        if (!self.document.open || self.preview.revision == Some(self.document.engine.revision()))
             && !self.capture.screenshot_requested
             && self.capture.started.elapsed() > Duration::from_secs(1)
         {

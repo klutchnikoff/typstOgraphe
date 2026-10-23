@@ -61,7 +61,7 @@ impl App {
             .map(|d| d.command)
             .collect();
         let current = commands.iter().copied().find(|command| {
-            command.model_source().as_deref() == Some(self.document.engine.template.as_str())
+            command.model_source().as_deref() == Some(self.document.engine.template().as_str())
         });
         let mut selected = current;
         egui::ComboBox::from_id_salt("template")

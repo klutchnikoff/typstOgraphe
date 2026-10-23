@@ -10,7 +10,7 @@ impl App {
         if !self
             .document
             .engine
-            .document
+            .document()
             .view
             .is_single_paragraph(range.clone())
         {
@@ -20,7 +20,7 @@ impl App {
         self.dialogs.link_url = self
             .document
             .engine
-            .document
+            .document()
             .view
             .styles
             .get(range.start)

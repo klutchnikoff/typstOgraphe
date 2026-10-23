@@ -87,8 +87,21 @@ impl App {
         app.load_demo();
         app
     }
+    pub(in crate::app) fn remember(&mut self, before: crate::engine::NativeEdit, typing: bool) {
+        let previous = before.selection();
+        let result = crate::engine::test_support::remember(
+            &mut self.document.engine,
+            before,
+            self.document.selection.into(),
+            typing,
+        );
+        self.accept_edit(result, previous);
+    }
     pub(in crate::app) fn changed(&mut self) {
-        let adjusted = self.document.engine.changed(self.document.selection.into());
+        let adjusted = crate::engine::test_support::changed(
+            &mut self.document.engine,
+            self.document.selection.into(),
+        );
         self.document.force_selection |= adjusted != self.document.selection.into();
         self.document.selection = adjusted.into();
     }

@@ -81,8 +81,8 @@ impl Engine {
         {
             return Err(CommandError::new(ErrorCode::Unavailable, "document_type"));
         }
-        if (rule == AvailabilityRule::Undo && self.session.undo.is_empty())
-            || (rule == AvailabilityRule::Redo && self.session.redo.is_empty())
+        if (rule == AvailabilityRule::Undo && !self.can_undo())
+            || (rule == AvailabilityRule::Redo && !self.can_redo())
         {
             return Err(CommandError::new(
                 ErrorCode::Unavailable,

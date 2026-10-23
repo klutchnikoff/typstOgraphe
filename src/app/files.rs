@@ -44,7 +44,7 @@ impl App {
         if !self.document.open {
             return false;
         }
-        if !save_as && let Some(path) = self.document.engine.file_path.clone() {
+        if !save_as && let Some(path) = self.document.engine.file_path().map(PathBuf::from) {
             return self.save_path(path);
         }
         let mut dialog = rfd::FileDialog::new()
@@ -53,7 +53,7 @@ impl App {
             .set_file_name(
                 self.document
                     .engine
-                    .file_path
+                    .file_path()
                     .as_ref()
                     .and_then(|path| path.file_name())
                     .map(|name| name.to_string_lossy().into_owned())
@@ -65,7 +65,7 @@ impl App {
         if let Some(parent) = self
             .document
             .engine
-            .file_path
+            .file_path()
             .as_ref()
             .and_then(|path| path.parent())
         {
@@ -135,7 +135,7 @@ impl App {
     pub(super) fn after_document_replaced(&mut self) {
         let keymap = self
             .keymap
-            .for_document(self.document.engine.metadata.document_type())
+            .for_document(self.document.engine.metadata().document_type())
             .expect("registre intégré valide");
         self.cancel_ime();
         self.clear_recovery();
@@ -194,7 +194,7 @@ impl App {
                     .find(|kind| {
                         kind.can_create()
                             && self.document.open
-                            && *kind == self.document.engine.metadata.document_type()
+                            && *kind == self.document.engine.metadata().document_type()
                     })
                     .or_else(|| DocumentType::ALL.into_iter().find(|kind| kind.can_create()))
                     .unwrap_or(self.dialogs.new_document_type);
@@ -214,7 +214,7 @@ impl App {
                 if let Some(parent) = self
                     .document
                     .engine
-                    .file_path
+                    .file_path()
                     .as_ref()
                     .and_then(|path| path.parent())
                 {

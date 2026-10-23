@@ -21,6 +21,8 @@ mod images;
 mod metadata;
 #[path = "tests/models.rs"]
 mod models;
+#[path = "tests/native.rs"]
+mod native;
 #[path = "tests/search.rs"]
 mod search;
 #[path = "tests/spelling.rs"]

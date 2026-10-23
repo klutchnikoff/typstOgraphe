@@ -4,7 +4,7 @@ impl App {
     pub(super) fn toolbar(&mut self, ui: &mut egui::Ui) {
         if let Some(command) = crate::toolbar::show(
             ui,
-            &self.document.engine.document.view,
+            &self.document.engine.document().view,
             self.range(),
             &self.keymap,
         ) {
@@ -14,8 +14,8 @@ impl App {
     pub(super) fn status_ui(&mut self, ui: &mut egui::Ui) {
         let range = self.range();
         let (total, selected) = self.document.statistics.counts(
-            self.document.engine.revision,
-            &self.document.engine.document.view,
+            self.document.engine.revision(),
+            &self.document.engine.document().view,
             range,
         );
         ui.horizontal_wrapped(|ui| {
@@ -42,7 +42,7 @@ impl App {
             }
             if self.preferences.spelling.enabled {
                 ui.separator();
-                let language = self.document.engine.metadata.options().language;
+                let language = self.document.engine.metadata().options().language;
                 if !crate::spelling::supported(language) {
                     ui.weak(crate::tr!(
                         "spelling-no-dictionary",

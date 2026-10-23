@@ -214,16 +214,40 @@ impl App {
                 .into(),
         });
         self.create_document(DocumentType::Courrier);
-        let before = self.snapshot();
-        if let crate::document_types::Metadata::Courrier(meta) = &mut self.document.engine.metadata
-        {
-            meta.destinataire = "Secrétariat de la mairie".into();
-            meta.objet = "Confirmation de notre rendez-vous".into();
-            meta.lieu = "Rennes".into();
-            meta.date = "2026-10-21".into();
+        for (field, value) in [
+            (
+                crate::document_types::MetadataField::RecipientName,
+                "Secrétariat de la mairie",
+            ),
+            (
+                crate::document_types::MetadataField::LetterSubject,
+                "Confirmation de notre rendez-vous",
+            ),
+            (crate::document_types::MetadataField::LetterPlace, "Rennes"),
+            (
+                crate::document_types::MetadataField::LetterDate,
+                "2026-10-21",
+            ),
+        ] {
+            self.run_document_command(crate::engine::Command::SetMetadata(
+                crate::engine::SetMetadataParams {
+                    guard: self.document.engine.target_guard(),
+                    field,
+                    value: value.into(),
+                    input: Default::default(),
+                },
+            ));
         }
-        self.document.engine.document.view.insert_text("Madame, Monsieur,\n\nJe vous confirme notre rendez-vous pour préparer la prochaine rencontre de l’association.\n\nJe vous remercie pour votre disponibilité.\n\nBien cordialement,", 0);
-        self.remember(before, false);
+        let before = self.snapshot();
+        let mut view = before.view().clone();
+        view.insert_text("Madame, Monsieur,\n\nJe vous confirme notre rendez-vous pour préparer la prochaine rencontre de l’association.\n\nJe vous remercie pour votre disponibilité.\n\nBien cordialement,",0);
+        let result = self.document.engine.commit_native_edit(
+            before.clone(),
+            view,
+            self.document.selection.into(),
+            crate::engine::NativeInput::Composition,
+        );
+        self.accept_edit(result, before.selection());
         self.dialogs.preferences_page = PreferencesPage::Profile;
         self.dialogs.preferences_open = preferences;
         if !preferences {

@@ -1,8 +1,7 @@
 use super::*;
 
 struct EditorFrame {
-    before: Snapshot,
-    guard: crate::session::TargetGuard,
+    before: crate::engine::NativeEdit,
     old_range: CCursorRange,
     view: Projection,
     lock_tab: bool,
@@ -58,9 +57,9 @@ impl App {
         self.prepare_ime(ctx);
         let before = self.snapshot();
         let old_range = self.document.selection;
-        for image in self.document.engine.document.view.images.values() {
+        for image in self.document.engine.document().view.images.values() {
             if !self.image_textures.contains_key(&image.path)
-                && let Some(data) = self.document.engine.document.assets.get(&image.path)
+                && let Some(data) = self.document.engine.document().assets.get(&image.path)
                 && let Ok(thumbnail) =
                     crate::assets::thumbnail(data, image.path.rsplit('.').next().unwrap())
             {
@@ -71,7 +70,7 @@ impl App {
             }
         }
         let view = self.document.ime.draft.as_ref().map_or_else(
-            || self.document.engine.document.view.clone(),
+            || self.document.engine.document().view.clone(),
             |draft| draft.input.view.clone(),
         );
         let lock_tab = view.annotation_at(self.range()).is_some()
@@ -88,7 +87,6 @@ impl App {
         let active = self.search.engine.selected(&self.range());
         EditorFrame {
             before,
-            guard: self.document.engine.target_guard(),
             old_range,
             view,
             lock_tab,
@@ -221,29 +219,22 @@ impl App {
         state.clear_undoer();
         state.store(ui.ctx(), output.response.id);
         if changed {
-            let result = self.document.engine.commit_projection(
-                frame.guard,
+            let result = self.document.engine.commit_native_edit(
                 before.clone(),
                 draft.view,
                 self.document.selection.into(),
-                EditGroup::Body,
+                crate::engine::NativeInput::Typing,
             );
-            self.accept_edit(result, before.selection);
+            self.accept_edit(result, before.selection());
             if self.search.open {
                 self.refresh_search();
             }
             ui.ctx().request_repaint();
         } else if self.document.selection != old_range {
-            let selected = self.range();
-            let pos = self.document.selection.primary.index;
-            self.document.engine.document.view.typing_style = if !selected.is_empty() {
-                self.document.engine.document.view.style_at(selected.start)
-            } else if pos > 0 {
-                self.document.engine.document.view.style_at(pos - 1)
-            } else {
-                InlineStyle::default()
-            };
-            self.document.engine.typing_group = false;
+            self.document
+                .engine
+                .update_adapter_cursor(self.document.selection.into())
+                .expect("native cursor in the published projection");
         }
         if self.document.selection != old_range {
             self.preview.forward_pending = true;
@@ -260,7 +251,7 @@ impl App {
         if view.text == output.galley.text() {
             let editing = output.response.has_focus()
                 && self.document.selection.is_empty()
-                && self.document.engine.changed_at.elapsed() < Duration::from_millis(700);
+                && self.document.engine.changed_at().elapsed() < Duration::from_millis(700);
             let ranges: Vec<_> = self
                 .spelling
                 .checker
@@ -278,7 +269,7 @@ impl App {
             if editing {
                 ui.ctx().request_repaint_after(
                     Duration::from_millis(700)
-                        .saturating_sub(self.document.engine.changed_at.elapsed()),
+                        .saturating_sub(self.document.engine.changed_at().elapsed()),
                 );
             }
         }

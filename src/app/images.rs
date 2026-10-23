@@ -82,7 +82,7 @@ impl App {
         if self.dialogs.image_target.is_some() {
             self.dialogs
                 .image_alt
-                .clone_from(&self.document.engine.document.view.images[&id].alt);
+                .clone_from(&self.document.engine.document().view.images[&id].alt);
             self.dialogs.image_info = Some(id);
         }
     }

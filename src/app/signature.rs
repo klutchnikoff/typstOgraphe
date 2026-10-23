@@ -90,7 +90,7 @@ impl App {
         let path = self
             .document
             .engine
-            .metadata
+            .metadata()
             .signature_path()
             .map(str::to_owned);
         ui.separator();
@@ -127,10 +127,10 @@ impl App {
         if let Some(path) = self
             .document
             .engine
-            .metadata
+            .metadata()
             .signature_path()
             .map(str::to_owned)
-            && let Some(data) = self.document.engine.document.assets.get(&path).cloned()
+            && let Some(data) = self.document.engine.document().assets.get(&path).cloned()
         {
             let image = crate::assets::ImageData {
                 extension: path.rsplit('.').next().unwrap().into(),
