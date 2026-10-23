@@ -19,6 +19,14 @@ struct Cache {
     issues: Vec<Issue>,
 }
 
+impl SpellingState {
+    pub(super) fn fork(&self) -> Self {
+        Self {
+            personal: self.personal.clone(),
+            cache: Default::default(),
+        }
+    }
+}
 impl Engine {
     /// Configuration de lecture : hors document, historique et commandes globales.
     pub fn configure_spelling(&mut self, personal: &WordLists) {

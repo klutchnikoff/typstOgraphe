@@ -1,7 +1,125 @@
 {
   "entries": [
     {
+      "availability": "document",
+      "batch_step": false,
+      "description": "Apply bounded editing steps on a private session as one undoable transaction, with an optional single final atomic save.",
+      "family": "batch",
+      "id": "document.batch",
+      "params_schema": {
+        "$defs": {
+          "BatchSave": {
+            "description": "Aucun fichier n’est écrit quand save est absent. Current exige un chemin connu.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "current",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "as",
+                    "type": "string"
+                  },
+                  "overwrite": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "Call": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/CommandId"
+              },
+              "params": true
+            },
+            "required": [
+              "id",
+              "params"
+            ],
+            "type": "object"
+          },
+          "CommandId": {
+            "type": "string"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          },
+          "save": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BatchSave"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/$defs/Call"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "guard",
+          "steps"
+        ],
+        "title": "BatchParams",
+        "type": "object"
+      }
+    },
+    {
       "availability": "always",
+      "batch_step": false,
       "description": "Restore a configured recovery reference as an unsaved copy, protecting current work.",
       "family": "file",
       "id": "recovery.restore",
@@ -54,6 +172,7 @@
     },
     {
       "availability": "always",
+      "batch_step": false,
       "description": "Explicitly delete one configured recovery copy without modifying document history.",
       "family": "file",
       "id": "recovery.delete",
@@ -76,6 +195,7 @@
     },
     {
       "availability": "always",
+      "batch_step": false,
       "description": "Create an empty document from a supplied type/model and explicit initial values, protecting unsaved work.",
       "family": "file",
       "id": "document.new",
@@ -240,6 +360,7 @@
     },
     {
       "availability": "always",
+      "batch_step": false,
       "description": "Open an autonomous archive from an explicit path, protecting unsaved work.",
       "family": "file",
       "id": "document.open",
@@ -290,6 +411,7 @@
     },
     {
       "availability": "document",
+      "batch_step": false,
       "description": "Close the current document after an explicit decision about unsaved work.",
       "family": "file",
       "id": "document.close",
@@ -336,6 +458,7 @@
     },
     {
       "availability": "document",
+      "batch_step": false,
       "description": "Atomically save the guarded document to an explicit or current path without changing editing history.",
       "family": "file",
       "id": "document.save",
@@ -385,6 +508,7 @@
     },
     {
       "availability": "document",
+      "batch_step": false,
       "description": "Atomically save the guarded document to a required path, preserving the previous file.",
       "family": "file",
       "id": "document.save_as",
@@ -435,6 +559,7 @@
     },
     {
       "availability": "document",
+      "batch_step": false,
       "description": "Export PDF, autonomous Typst sources or both into a new or empty directory, with optional page PNGs.",
       "family": "file",
       "id": "document.export",
@@ -497,6 +622,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Validate and install Typst model source or a UTF-8 file with controlled dependencies in one guarded transaction.",
       "family": "edit",
       "id": "document.set_model",
@@ -581,6 +707,7 @@
     },
     {
       "availability": "letter",
+      "batch_step": true,
       "description": "Apply the supplied personal-letter model using the shared guarded model operation.",
       "family": "letter",
       "id": "courrier.model.personal",
@@ -623,6 +750,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Set an active document-type field, with a guarded value and optional typing history grouping.",
       "family": "edit",
       "id": "metadata.set",
@@ -708,6 +836,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Set a typed document option while enforcing the model page and marker policy.",
       "family": "edit",
       "id": "document.set_option",
@@ -851,6 +980,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Select the next spelling issue in the current document, wrapping around.",
       "family": "selection",
       "id": "spelling.next",
@@ -1040,6 +1170,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Select the previous spelling issue in the current document, wrapping around.",
       "family": "selection",
       "id": "spelling.previous",
@@ -1229,6 +1360,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Correct a revision-guarded spelling issue while preserving inline styles.",
       "family": "edit",
       "id": "spelling.correct",
@@ -1418,6 +1550,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Accept a validated word for the document language in this document only.",
       "family": "edit",
       "id": "spelling.ignore",
@@ -1603,6 +1736,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Clear spelling exceptions for all languages of the guarded document.",
       "family": "edit",
       "id": "spelling.reset",
@@ -1645,6 +1779,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Select the next literal match, wrapping around the editable document.",
       "family": "selection",
       "id": "edit.find_next",
@@ -1844,6 +1979,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Select the previous literal match, wrapping around the editable document.",
       "family": "selection",
       "id": "edit.find_previous",
@@ -2043,6 +2179,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Replace a revision-guarded occurrence with expected text, then select the next match.",
       "family": "edit",
       "id": "edit.replace_current",
@@ -2224,6 +2361,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Replace all literal matches from one guarded document revision in one transaction.",
       "family": "edit",
       "id": "edit.replace_all",
@@ -2278,6 +2416,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Insert text or replace a selection, with literal input by default and optional typing rules.",
       "family": "edit",
       "id": "text.insert",
@@ -2484,6 +2623,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Delete text within validated structural boundaries.",
       "family": "edit",
       "id": "text.delete",
@@ -2673,6 +2813,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Select text or move to a body, annotation, description term or definition.",
       "family": "selection",
       "id": "text.select",
@@ -2883,6 +3024,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Set or toggle bold text or the typing style.",
       "family": "edit",
       "id": "text.bold",
@@ -3084,6 +3226,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Set or toggle italic text or the typing style.",
       "family": "edit",
       "id": "text.italic",
@@ -3285,6 +3428,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Remove inline formatting from text or the typing style.",
       "family": "edit",
       "id": "text.clear",
@@ -3474,6 +3618,7 @@
     },
     {
       "availability": "link_selection",
+      "batch_step": true,
       "description": "Apply an explicit URL to a text selection.",
       "family": "edit",
       "id": "text.link",
@@ -3669,6 +3814,7 @@
     },
     {
       "availability": "link_selection",
+      "batch_step": true,
       "description": "Remove links from a text selection.",
       "family": "edit",
       "id": "text.remove_link",
@@ -3858,6 +4004,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Convert selected paragraphs to ordinary text.",
       "family": "edit",
       "id": "block.paragraph",
@@ -4047,6 +4194,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Set level-one headings.",
       "family": "edit",
       "id": "block.heading_1",
@@ -4236,6 +4384,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Set level-two headings.",
       "family": "edit",
       "id": "block.heading_2",
@@ -4425,6 +4574,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Set level-three headings.",
       "family": "edit",
       "id": "block.heading_3",
@@ -4614,6 +4764,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Set an unordered list using the document marker policy.",
       "family": "edit",
       "id": "block.bullet",
@@ -4803,6 +4954,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Set an ordered list.",
       "family": "edit",
       "id": "block.numbered",
@@ -4992,6 +5144,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Set description items with term and definition zones.",
       "family": "edit",
       "id": "block.description",
@@ -5181,6 +5334,7 @@
     },
     {
       "availability": "document",
+      "batch_step": true,
       "description": "Set a block quotation with an optional attribution.",
       "family": "edit",
       "id": "block.quote",
@@ -5370,6 +5524,7 @@
     },
     {
       "availability": "image_insertion",
+      "batch_step": true,
       "description": "Insert a validated image with optional literal caption and alternative text.",
       "family": "image",
       "id": "insert.image",
@@ -5618,6 +5773,7 @@
     },
     {
       "availability": "image",
+      "batch_step": true,
       "description": "Replace an image resource while preserving its caption and alternative text.",
       "family": "image",
       "id": "image.replace",
@@ -5727,6 +5883,7 @@
     },
     {
       "availability": "image",
+      "batch_step": true,
       "description": "Remove an image block and its caption in one transaction.",
       "family": "image",
       "id": "image.remove",
@@ -5787,6 +5944,7 @@
     },
     {
       "availability": "image",
+      "batch_step": true,
       "description": "Set alternative text on a revision-guarded image block.",
       "family": "image",
       "id": "image.set_alt",
@@ -5851,6 +6009,7 @@
     },
     {
       "availability": "letter",
+      "batch_step": true,
       "description": "Set or remove the letter signature using explicit image data or a file.",
       "family": "letter",
       "id": "document.set_signature",
@@ -5948,6 +6107,7 @@
     },
     {
       "availability": "structured_block",
+      "batch_step": true,
       "description": "Split a quote, list item or letter note, or exit an empty item or optional annotation.",
       "family": "edit",
       "id": "block.split",
@@ -6137,6 +6297,7 @@
     },
     {
       "availability": "structured_block",
+      "batch_step": true,
       "description": "Create a paragraph after an annotated structure or letter note without replacing its content.",
       "family": "edit",
       "id": "block.exit",
@@ -6326,6 +6487,7 @@
     },
     {
       "availability": "letter",
+      "batch_step": true,
       "description": "Create or select the letter postscript.",
       "family": "letter",
       "id": "letter.insert_postscript",
@@ -6338,6 +6500,7 @@
     },
     {
       "availability": "letter",
+      "batch_step": true,
       "description": "Insert an attachment mention into a letter.",
       "family": "letter",
       "id": "letter.insert_attachment",
@@ -6350,6 +6513,7 @@
     },
     {
       "availability": "undo",
+      "batch_step": false,
       "description": "Undo the previous document transaction.",
       "family": "history",
       "id": "edit.undo",
@@ -6362,6 +6526,7 @@
     },
     {
       "availability": "redo",
+      "batch_step": false,
       "description": "Redo the next document transaction.",
       "family": "history",
       "id": "edit.redo",
@@ -6374,6 +6539,7 @@
     },
     {
       "availability": "read",
+      "batch_step": false,
       "description": "List opaque references from the configured recovery service without opening documents.",
       "family": "query",
       "id": "recovery.list",
@@ -6386,6 +6552,7 @@
     },
     {
       "availability": "read",
+      "batch_step": false,
       "description": "List supplied models for the active document type without changing the document.",
       "family": "query",
       "id": "models.list",
@@ -6398,6 +6565,7 @@
     },
     {
       "availability": "read",
+      "batch_step": false,
       "description": "Read the current model page constraints and permitted bullet markers.",
       "family": "query",
       "id": "models.presentation",
@@ -6410,6 +6578,7 @@
     },
     {
       "availability": "read",
+      "batch_step": false,
       "description": "Read revision-guarded spelling issues and dictionary availability using the configured personal words.",
       "family": "query",
       "id": "spelling.issues",
@@ -6422,6 +6591,7 @@
     },
     {
       "availability": "read",
+      "batch_step": false,
       "description": "Suggest corrections for an explicit word and language or a validated spelling issue, without changing selection.",
       "family": "query",
       "id": "spelling.suggestions",
@@ -6649,6 +6819,7 @@
     },
     {
       "availability": "read",
+      "batch_step": false,
       "description": "Read the current revision, selection and history availability.",
       "family": "query",
       "id": "document.inspect",
@@ -6661,6 +6832,7 @@
     },
     {
       "availability": "read",
+      "batch_step": false,
       "description": "Read editable text without Typst markup.",
       "family": "query",
       "id": "document.text",
@@ -6850,6 +7022,7 @@
     },
     {
       "availability": "read",
+      "batch_step": false,
       "description": "Read blocks, text zones, roles and their opaque identities.",
       "family": "query",
       "id": "document.structure",
@@ -6862,6 +7035,7 @@
     },
     {
       "availability": "read",
+      "batch_step": false,
       "description": "Read the document metadata.",
       "family": "query",
       "id": "metadata.get",
@@ -6874,6 +7048,7 @@
     },
     {
       "availability": "read",
+      "batch_step": false,
       "description": "Read the implemented command and query catalogue with JSON schemas.",
       "family": "query",
       "id": "commands.list",
@@ -6886,6 +7061,7 @@
     },
     {
       "availability": "read",
+      "batch_step": false,
       "description": "Find literal Unicode text without modifying the selection.",
       "family": "query",
       "id": "search.find",

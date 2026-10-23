@@ -48,7 +48,7 @@ impl Engine {
             })
             .and_then(|m| m.page)
     }
-    fn option_policy(&self) -> Result<ModelPresentation, CommandError> {
+    pub(super) fn option_policy(&self) -> Result<ModelPresentation, CommandError> {
         let guard = self.session.target_guard();
         let mut cached = self.presentation_cache.0.borrow_mut();
         if let Some((previous, policy)) = cached.as_ref()

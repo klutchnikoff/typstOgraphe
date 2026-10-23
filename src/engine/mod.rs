@@ -1,6 +1,8 @@
 //! Moteur documentaire sans egui, dialogues ni Fluent. Les familles migrées
 //! passent par run ; les préparations historiques restent temporairement dans App.
 mod annotations;
+mod batch;
+mod batch_types;
 mod blocks;
 mod error;
 mod exports;
@@ -28,6 +30,7 @@ use crate::{
     document::{Projection, edits::EditError},
     session::{EditGroup, Selection, SelectionTarget, Session, Snapshot, TargetGuard},
 };
+pub use batch_types::*;
 pub use error::{CommandError, ErrorCode};
 pub use file_types::*;
 pub use image_types::*;

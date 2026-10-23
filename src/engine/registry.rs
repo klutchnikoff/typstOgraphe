@@ -48,6 +48,7 @@ pub struct Call {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Family {
+    Batch,
     File,
     Image,
     Edit,
@@ -79,6 +80,7 @@ pub struct CommandSpec {
     pub family: Family,
     pub params_schema: Value,
     pub availability: AvailabilityRule,
+    pub batch_step: bool,
 }
 impl CommandSpec {
     pub(super) fn new<P: JsonSchema>(
@@ -86,12 +88,14 @@ impl CommandSpec {
         description: &'static str,
         family: Family,
         availability: AvailabilityRule,
+        batch_step: bool,
     ) -> Self {
         Self {
             id: id.to_owned().try_into().expect("valid built-in command ID"),
             description,
             family,
             availability,
+            batch_step,
             params_schema: serde_json::to_value(schemars::schema_for!(P))
                 .expect("serializable schema"),
         }
@@ -100,7 +104,7 @@ impl CommandSpec {
 
 /// Une déclaration définit à la fois l'enum, son protocole et son catalogue.
 macro_rules! define_calls {
-    ($name:ident, $specs:ident; $( $variant:ident($params:ty) => $id:literal, $description:literal, $family:ident, $availability:ident; )*) => {
+    ($name:ident, $specs:ident; $( $variant:ident($params:ty) => $id:literal, $description:literal, $family:ident, $availability:ident, $batch_step:literal; )*) => {
         #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
         #[serde(tag = "id", content = "params", deny_unknown_fields)]
         pub enum $name {
@@ -128,7 +132,7 @@ macro_rules! define_calls {
             pub fn $specs() -> &'static [super::CommandSpec] {
                 static SPECS: std::sync::OnceLock<Vec<super::CommandSpec>> = std::sync::OnceLock::new();
                 SPECS.get_or_init(|| vec![$(
-                    super::CommandSpec::new::<$params>($id, $description, super::Family::$family, super::AvailabilityRule::$availability),
+                    super::CommandSpec::new::<$params>($id, $description, super::Family::$family, super::AvailabilityRule::$availability, $batch_step),
                 )*])
             }
         }
@@ -139,13 +143,18 @@ macro_rules! define_calls {
 /// qu'une fois toutes les familles de phase 2 migrées et relues.
 pub fn catalogue_markdown(value: &Value) -> String {
     let mut text = String::from(
-        "# Catalogue documentaire implémenté\n\nFichier généré par `cargo run --locked -- --commands-catalogue`.\nCe catalogue de phase 2 est partiel et ses signatures restent en cours de validation.\nLes actions d’interface et les familles non migrées n’y figurent pas.\nLes schémas JSON sont disponibles avec `--commands-catalogue-json`.\n\n| Identifiant | Famille | Description |\n| --- | --- | --- |\n",
+        "# Catalogue documentaire implémenté\n\nFichier généré par `cargo run --locked -- --commands-catalogue`.\nCe catalogue de phase 2 est partiel et ses signatures restent en cours de validation.\nLes actions d’interface et les familles non migrées n’y figurent pas.\nLes schémas JSON sont disponibles avec `--commands-catalogue-json`.\n\n| Identifiant | Famille | Étape de lot | Description |\n| --- | --- | --- | --- | --- |\n",
     );
     for spec in value["entries"].as_array().expect("catalogue entries") {
         text.push_str(&format!(
-            "| `{}` | {} | {} |\n",
+            "| `{}` | {} | {} | {} |\n",
             spec["id"].as_str().unwrap(),
             spec["family"].as_str().unwrap(),
+            if spec["batch_step"].as_bool().unwrap() {
+                "oui"
+            } else {
+                "non"
+            },
             spec["description"].as_str().unwrap()
         ));
     }

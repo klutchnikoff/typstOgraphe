@@ -56,6 +56,9 @@ impl Engine {
         }
     }
     fn check(&self, command: &Command) -> Result<(), CommandError> {
+        if let Command::Batch(p) = command {
+            self.check_batch(p)?;
+        }
         self.check_files(command)?;
         self.check_recovery(command)?;
         if let Some(target) = command.target() {
@@ -150,6 +153,9 @@ impl Engine {
     }
 
     pub fn run(&mut self, command: Command) -> Result<Outcome, CommandError> {
+        if let Command::Batch(p) = command {
+            return self.run_batch(p);
+        }
         self.check(&command)?;
         let reveal = match &command {
             Command::InsertImage(_)
@@ -197,6 +203,7 @@ impl Engine {
 
     fn execute(&mut self, command: Command) -> Result<Option<Value>, CommandError> {
         match command {
+            Command::Batch(_) => unreachable!("batch handled by run"),
             Command::RestoreRecovery(p) => return self.restore_recovery(p).map(Some),
             Command::DeleteRecovery(p) => return self.delete_recovery(p).map(Some),
             Command::NewDocument(p) => return self.new_document(p).map(Some),

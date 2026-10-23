@@ -9,6 +9,8 @@ use serde_json::json;
 
 #[path = "tests/annotations.rs"]
 mod annotations;
+#[path = "tests/batch.rs"]
+mod batch;
 #[path = "tests/blocks.rs"]
 mod blocks;
 #[path = "tests/files.rs"]
@@ -53,12 +55,15 @@ fn explicit(engine: &Engine, range: std::ops::Range<usize>) -> TextTarget {
 
 #[test]
 fn catalogue_has_valid_unique_ids_and_strict_schemas_and_all_calls_round_trip() {
-    assert_eq!(catalogue().len(), 59);
+    assert_eq!(catalogue().len(), 60);
     for spec in catalogue() {
         assert!(!spec.description.trim().is_empty());
         assert_eq!(spec.params_schema["type"], "object");
         assert_eq!(spec.params_schema["additionalProperties"], false);
         let params = match spec.id.as_str() {
+            "document.batch" => {
+                json!({"guard":{"document_id":1,"revision":0},"steps":[{"id":"text.bold","params":{}}]})
+            }
             "recovery.restore" => json!({"guard":{"document_id":1,"revision":0},"reference":1}),
             "recovery.delete" => json!({"reference":1}),
             "document.new" => {
