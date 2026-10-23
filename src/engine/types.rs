@@ -43,6 +43,23 @@ pub struct TargetParams {
     pub target: TextTarget,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AnnotationPart {
+    Body,
+    Annotation,
+}
+
+/// Une partie relative est résolue par le moteur dans la structure ciblée.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SelectTextParams {
+    #[serde(default)]
+    pub target: TextTarget,
+    #[serde(default)]
+    pub part: Option<AnnotationPart>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct InsertTextParams {
@@ -99,7 +116,7 @@ define_calls! {
     Command, command_specs;
     InsertText(InsertTextParams) => "text.insert", "Insert literal text or replace a selection.", Edit, Document;
     DeleteText(TargetParams) => "text.delete", "Delete text within validated structural boundaries.", Edit, Document;
-    SelectText(TargetParams) => "text.select", "Set a continuous, oriented text selection.", Selection, Document;
+    SelectText(SelectTextParams) => "text.select", "Set a continuous selection or move to the body or optional annotation of its structure.", Selection, Document;
     Bold(StyleParams) => "text.bold", "Set or toggle bold text or the typing style.", Edit, Document;
     Italic(StyleParams) => "text.italic", "Set or toggle italic text or the typing style.", Edit, Document;
     Clear(TargetParams) => "text.clear", "Remove inline formatting from text or the typing style.", Edit, Document;
@@ -113,6 +130,8 @@ define_calls! {
     Numbered(TargetParams) => "block.numbered", "Set an ordered list.", Edit, Document;
     Description(TargetParams) => "block.description", "Set description items with term and definition zones.", Edit, Document;
     Quote(TargetParams) => "block.quote", "Set a block quotation with an optional attribution.", Edit, Document;
+    SplitBlock(TargetParams) => "block.split", "Split a quotation body or leave its empty line, attribution or image caption.", Edit, Annotation;
+    ExitBlock(TargetParams) => "block.exit", "Create a paragraph after an annotated structure without replacing its content.", Edit, Annotation;
     Postscript(Empty) => "letter.insert_postscript", "Create or select the letter postscript.", Letter, Letter;
     Attachment(Empty) => "letter.insert_attachment", "Insert an attachment mention into a letter.", Letter, Letter;
     Undo(Empty) => "edit.undo", "Undo the previous document transaction.", History, Undo;
@@ -135,8 +154,10 @@ impl Command {
             Self::InsertText(p) => p.target,
             Self::Bold(p) | Self::Italic(p) => p.target,
             Self::SetLink(p) => p.target,
+            Self::SelectText(p) => p.target,
             Self::DeleteText(p)
-            | Self::SelectText(p)
+            | Self::SplitBlock(p)
+            | Self::ExitBlock(p)
             | Self::Clear(p)
             | Self::RemoveLink(p)
             | Self::Paragraph(p)

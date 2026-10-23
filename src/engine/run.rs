@@ -6,7 +6,7 @@ use crate::{
 };
 
 impl Engine {
-    fn resolve(&self, target: TextTarget) -> Result<Selection, CommandError> {
+    pub(super) fn resolve(&self, target: TextTarget) -> Result<Selection, CommandError> {
         let selection = match target {
             TextTarget::Current {} => self.selection,
             TextTarget::All {} => Selection {
@@ -71,6 +71,18 @@ impl Engine {
             ));
         }
         let reason = match command {
+            Command::SelectText(params) if params.part.is_some() => {
+                self.resolve_annotation(params.target)?;
+                return Ok(());
+            }
+            Command::SplitBlock(params) => {
+                self.check_annotation_split(params.target)?;
+                return Ok(());
+            }
+            Command::ExitBlock(params) => {
+                self.resolve_annotation(params.target)?;
+                return Ok(());
+            }
             Command::SetLink(params) => {
                 let selection = self.resolve(params.target)?;
                 if selection.range().is_empty() {
@@ -96,6 +108,13 @@ impl Engine {
 
     pub fn run(&mut self, command: Command) -> Result<Outcome, CommandError> {
         self.check(&command)?;
+        let reveal = match &command {
+            Command::SplitBlock(params) => self.annotation_split_exits(params.target)?,
+            Command::ExitBlock(_) | Command::SelectText(SelectTextParams { part: Some(_), .. }) => {
+                true
+            }
+            _ => false,
+        };
         let revision = self.session.revision;
         self.execute(command)?;
         let changed = revision != self.session.revision;
@@ -103,11 +122,13 @@ impl Engine {
             changed,
             guard: self.session.target_guard(),
             selection: self.session.selection_target(self.selection).ok(),
-            effects: if changed {
-                vec![Effect::Render]
-            } else {
-                vec![]
-            },
+            effects: [
+                changed.then_some(Effect::Render),
+                reveal.then_some(Effect::RevealSelection),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
             value: None,
         })
     }
@@ -115,7 +136,11 @@ impl Engine {
     fn execute(&mut self, command: Command) -> Result<(), CommandError> {
         match command {
             Command::SelectText(params) => {
-                self.selection = self.resolve(params.target)?;
+                self.selection = if let Some(part) = params.part {
+                    self.annotation_destination(params.target, part)?
+                } else {
+                    self.resolve(params.target)?
+                };
                 let range = self.selection.range();
                 let pos = self.selection.primary.index;
                 self.session.document.view.typing_style =
@@ -126,6 +151,8 @@ impl Engine {
                     });
                 self.session.typing_group = false;
             }
+            Command::SplitBlock(params) => self.split_annotation(params.target)?,
+            Command::ExitBlock(params) => self.exit_annotation(params.target)?,
             Command::InsertText(params) => {
                 let selection = self.resolve(params.target)?;
                 let target = self.session.selection_target(selection)?;

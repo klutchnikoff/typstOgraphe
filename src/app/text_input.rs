@@ -10,7 +10,7 @@ struct ShortcutInput {
 }
 
 impl App {
-    /// Une seule voie pour rendre visible et focaliser une cible d’annotation.
+    /// Adaptateur transitoire des cibles préparées par les familles non migrées.
     pub(super) fn focus_annotation_target(&mut self, range: Range<usize>) {
         self.document.selection = editor::cursor(range);
         if self.document.selection.is_empty() {
@@ -22,28 +22,19 @@ impl App {
         self.preview.forward_pending = true;
         self.document.engine.typing_group = false;
     }
-    pub(super) fn leave_annotation(&mut self, annotation: &OptionalAnnotation) {
-        let before = self.snapshot();
-        let at = self
-            .document
-            .engine
-            .document
-            .view
-            .leave_annotation(annotation);
-        self.remember(before, false);
-        self.focus_annotation_target(at..at);
-    }
     fn annotation_shortcuts(&mut self, ctx: &egui::Context) -> bool {
-        let range = self.range();
-        let Some(annotation) = self
-            .document
-            .engine
-            .document
-            .view
-            .annotation_at(range.clone())
-        else {
+        use crate::engine::{AnnotationPart, Command as Core, SelectTextParams, TargetParams};
+        self.sync_published_selection();
+        let select = Core::SelectText(SelectTextParams {
+            part: Some(AnnotationPart::Annotation),
+            ..Default::default()
+        });
+        if !matches!(
+            self.document.engine.available(&select),
+            crate::engine::Availability::Enabled
+        ) {
             return false;
-        };
+        }
         let shift = ctx.input(|i| i.events.iter().any(|event| matches!(event,
             egui::Event::Key { key: egui::Key::Tab, pressed: true, modifiers, .. } if modifiers.shift
         )));
@@ -59,18 +50,18 @@ impl App {
         });
         if tab {
             ctx.memory_mut(|m| m.move_focus(egui::FocusDirection::None));
-            let target = if shift {
-                annotation.main_target()
-            } else {
-                annotation.content.start..annotation.content.start
-            };
-            self.focus_annotation_target(target);
+            self.run_document_command(Core::SelectText(SelectTextParams {
+                part: Some(if shift {
+                    AnnotationPart::Body
+                } else {
+                    AnnotationPart::Annotation
+                }),
+                ..Default::default()
+            }));
             return true;
         }
-        if annotation.enter_leaves(&range)
-            && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
-        {
-            self.leave_annotation(&annotation);
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
+            self.run_document_command(Core::SplitBlock(TargetParams::default()));
             return true;
         }
         false
@@ -90,9 +81,6 @@ impl App {
             return;
         }
         if self.letter_note_shortcut(ctx, &input) {
-            return;
-        }
-        if self.quote_shortcut(ctx, &input) {
             return;
         }
         if self.description_shortcut(ctx, &input) {
@@ -252,74 +240,6 @@ impl App {
                 self.focus_annotation_target(at + 1..at + 1);
                 return true;
             }
-        }
-        false
-    }
-    fn quote_shortcut(&mut self, ctx: &egui::Context, input: &ShortcutInput) -> bool {
-        let range = input.range.clone();
-        let line = input.line;
-        let lines = &input.lines;
-        let start = input.start;
-        if self.document.engine.document.view.blocks[line] == BlockKind::Quote
-            && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
-        {
-            let before = self.snapshot();
-            if lines[line].is_empty() && range.is_empty() {
-                let group = self
-                    .document
-                    .engine
-                    .document
-                    .view
-                    .quote_groups()
-                    .into_iter()
-                    .find(|group| group.body.contains(&line))
-                    .expect("paragraphe de citation");
-                // La terminaison du corps cité reste une règle propre à la citation.
-                // Retirer sa ligne vide, puis utiliser la sortie d’annotation commune.
-                let at = if group.body.len() > 1 {
-                    self.document
-                        .engine
-                        .document
-                        .view
-                        .delete_char_range(start - 1..start);
-                    self.document.engine.document.view.blocks
-                        [group.attribution.expect("attribution éditable") - 1] =
-                        BlockKind::QuoteAttribution;
-                    start - 1
-                } else {
-                    start
-                };
-                let annotation = self
-                    .document
-                    .engine
-                    .document
-                    .view
-                    .annotation_at(at..at)
-                    .expect("annotation de citation");
-                let at = self
-                    .document
-                    .engine
-                    .document
-                    .view
-                    .leave_annotation(&annotation);
-                self.remember(before, false);
-                self.focus_annotation_target(at..at);
-            } else {
-                self.document
-                    .engine
-                    .document
-                    .view
-                    .delete_char_range(range.clone());
-                self.document
-                    .engine
-                    .document
-                    .view
-                    .insert_text("\n", range.start);
-                self.document.selection = editor::cursor(range.start + 1..range.start + 1);
-                self.remember(before, false);
-                self.document.force_selection = true;
-            }
-            return true;
         }
         false
     }

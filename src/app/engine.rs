@@ -19,8 +19,14 @@ impl App {
             .set_adapter_selection(self.document.selection.into())
             .and_then(|()| self.document.engine.run_call(command.to_call()));
         match result {
-            Ok(_) => {
+            Ok(outcome) => {
                 self.document.selection = self.document.engine.selection().into();
+                if outcome
+                    .effects
+                    .contains(&crate::engine::Effect::RevealSelection)
+                {
+                    self.preview.editor_scroll_pending = true;
+                }
                 self.document.force_selection = true;
                 self.preview.forward_pending = true;
                 if self.search.open {

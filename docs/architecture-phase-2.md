@@ -1,11 +1,11 @@
 # Phase 2 — Mise en place du modèle structuré et du moteur
 
-**État au 22 octobre 2026 : phase commencée, pas terminée.** Les orientations
+**État au 23 octobre 2026 : phase commencée, pas terminée.** Les orientations
 V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers lots
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
-Le registre typé et le premier moteur sont implémentés : 20 commandes, six
+Le registre typé et le premier moteur sont implémentés : 22 commandes, six
 requêtes et leur catalogue généré. La migration des familles n’est pas terminée.
 
 ## Blocs et zones en mémoire
@@ -205,9 +205,49 @@ checkouts Windows ; l’ensemble du contenu reste comparé.
 développement ; la CLI séparée et MCP restent dans leurs phases respectives.
 Les identifiants et signatures ne sont pas encore gelés.
 
+## Annotations, navigation et raccourcis
+
+Le lot du 23 octobre migre les règles des légendes d’images et des attributions
+de citations dans `src/engine/annotations.rs`. Le moteur résout la structure
+ciblée et calcule la sélection ; l’application adapte uniquement les touches,
+le focus et le défilement. Les événements clavier et les appels JSON rejoignent
+les mêmes commandes :
+
+- `text.select { part: "annotation" }` rejoint le début de la légende ou de
+  l’attribution ; `part: "body"` revient au corps cité ou sélectionne l’image.
+  Sans `part`, la sélection continue ordinaire conserve son contrat.
+- `block.split` porte le comportement d’Entrée : nouvelle ligne dans le corps
+  cité ; sortie sur une ligne vide ; sortie depuis la légende, l’image ou
+  l’attribution sans remplacer leur contenu sélectionné.
+- `block.exit` demande explicitement un paragraphe après la structure annotée.
+  Le traitement de sortie est partagé avec `block.split`.
+
+Ces deux commandes de bloc ne prennent en charge que les structures à annotation
+facultative dans ce lot. Leur extension aux descriptions, listes et notes sera
+faite avec la migration de leurs règles. La portée dépend de la structure ciblée,
+sans type Courrier imposé.
+
+Les cibles acceptent les gardes de session/révision habituelles. Une sélection
+qui traverse partiellement la frontière corps/attribution ne peut pas être
+remplacée par une scission ; une citation sélectionnée en entier reste
+remplaçable sans attribution orpheline. La sortie explicite conserve les deux zones.
+Navigation et refus ne modifient ni contenu, révision, ressources ni piles d’historique. Une sortie ou
+une scission est une transaction discrète, avec sélection restaurée à annulation
+et rétablissement ; l’identité de l’attribution est conservée.
+
+`RevealSelection` signale la cible à rendre visible : l’interface conserve les
+affinités de curseur, le focus et le défilement existants. Une simple nouvelle
+ligne du corps cité ne recentre pas le panneau. Le texte indicatif reste virtuel.
+Les raccourcis restent écartés pendant la préédition IME.
+Le comportement existant des séparateurs après une figure est conservé : son
+sérialiseur peut compacter des lignes vides supplémentaires hors de la légende.
+
+Le premier lot registre/moteur a été confirmé par la CI et par les essais
+utilisateur le 23 octobre. Le présent lot est vérifié séparément ci-dessous.
+
 ## Vérifications
 
-- 212 tests de l’application réussis, dont 69 tests ajoutés depuis le début de
+- 221 tests de l’application réussis, dont 78 tests ajoutés depuis le début de
   phase 2 : identités et cibles, refus des frontières, suppressions complètes,
   refus atomiques, brouillons périmés, ressources, contexte de frappe et parité
   des remplacements Unicode entre événements egui et appels explicites.
@@ -221,12 +261,16 @@ Les identifiants et signatures ne sont pas encore gelés.
   et variantes de l’éditeur, les glyphes réellement composés par Typst (dont gras,
   petites capitales et maths), et l’export des faces utilisées avec leur licence.
 - Clippy sur toutes les cibles, avec le diagnostic `editor-model-spike`, sans
-  avertissement ; ses 115 tests partagés réussissent aussi.
+  avertissement ; ses 121 tests partagés réussissent aussi.
 - Dix tests du moteur couvrent les schémas, conversions, données invalides,
   cibles périmées/étrangères, refus atomiques, styles explicites, historique,
   lectures seules, portée Courrier et fichiers de catalogue générés. Quatre essais
   d’intégration comparent les gestes graphiques aux appels JSON, la sélection
   publiée pendant l’IME et la validation différée du dialogue de lien.
+- Six nouveaux tests du moteur vérifient navigation, sorties et scissions,
+  annotations vides ou remplies, Unicode et styles, ressources, refus atomiques,
+  identité de l’attribution et sélection/historique. Trois essais d’intégration
+  comparent Tab, Maj+Tab et Entrée aux appels JSON, avec annulation/rétablissement.
 - Formatage conforme et nouveaux fichiers de production sous 800 lignes.
 - Huit captures strictement identiques après les premiers lots, dans
   `output/baseline/run-ioma5t0l/` et `output/baseline/run-uvqd1xwk/`, puis après la
@@ -239,7 +283,8 @@ Les identifiants et signatures ne sont pas encore gelés.
   `output/font-diagnostics/cjk-4jxcam3g/cjk.png` a été vérifiée visuellement :
   hiragana, kanji et chinois sont lisibles dans les deux panneaux, en normal et gras.
 - Après le raccordement du registre et du moteur, les huit captures restent
-  strictement identiques dans `output/baseline/run-uwa0olfg/`.
+  strictement identiques dans `output/baseline/run-uwa0olfg/`. Le lot des
+  annotations conserve aussi les huit références dans `output/baseline/run-ip5gvm0m/`.
 - La fixture multilingue et les fontes livrées ont été recompilées avec le CLI
   Typst 0.15.1, `--ignore-system-fonts --font-path fonts`, et des répertoires de
   paquets/cache vides. Les tests d’export contrôlent séparément les faces copiées.
@@ -257,8 +302,9 @@ vérifient l’unicité concurrente et le refus de boucler au dépassement de ca
 
 Les indices de recherche et la synchronisation d’aperçu fonctionnent encore via
 le tampon graphique et les cartes de source existants. Leur migration n’est pas
-déclarée terminée par les tests de conversion des positions. Les raccourcis de
-transformation textuelle restent préparés par l’interface, puis validés par la
+déclarée terminée par les tests de conversion des positions. Les préfixes de
+transformation, le gras/italique saisis avec délimiteurs et les règles des
+descriptions/listes/notes restent préparés par l’interface, puis validés par la
 voie commune ; leur déplacement dans le cœur reste à faire (V4).
 
 L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
@@ -266,7 +312,7 @@ Les essais complets de composition, choix des candidats, annulation et historiqu
 avec les méthodes système restent à poursuivre dans le chantier I. D17 et la tâche
 2.1 bis restent ouverts pour la suite de la migration.
 
-Restent les annotations et leurs raccourcis, les images et signatures, les actions
+Restent les règles de descriptions/listes/notes, les images et signatures, les actions
 de recherche/remplacement, l’orthographe documentaire, l’écriture des métadonnées
 et options, les modèles et les fichiers. Les lots atomiques (D16), la suppression
 de l’accès transitoire à la session et le gel du catalogue restent à faire. La

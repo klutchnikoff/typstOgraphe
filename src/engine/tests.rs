@@ -7,6 +7,9 @@ use crate::{
 };
 use serde_json::json;
 
+#[path = "tests/annotations.rs"]
+mod annotations;
+
 fn engine(source: &str) -> Engine {
     let mut stored = StoredDocument::blank(DocumentType::Courrier);
     stored.source = source.into();
@@ -36,7 +39,7 @@ fn explicit(engine: &Engine, range: std::ops::Range<usize>) -> TextTarget {
 
 #[test]
 fn catalogue_has_valid_unique_ids_and_strict_schemas_and_all_calls_round_trip() {
-    assert_eq!(catalogue().len(), 26);
+    assert_eq!(catalogue().len(), 28);
     for spec in catalogue() {
         assert!(!spec.description.trim().is_empty());
         assert_eq!(spec.params_schema["type"], "object");
@@ -97,6 +100,8 @@ fn calls_reject_unknown_ids_fields_missing_arguments_and_invalid_parameter_types
         ("text.bold", json!({"target":{"kind":"current","offset":3}})),
         ("edit.undo", json!({"text":"x"})),
         ("text.select", json!({"target":{"kind":"selection"}})),
+        ("text.select", json!({"part":"caption"})),
+        ("block.exit", json!({"replace":true})),
     ] {
         assert_eq!(
             Command::from_call(id, params).unwrap_err().code,

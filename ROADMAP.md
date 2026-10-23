@@ -604,9 +604,11 @@ normalisation et publication des éditions en place. La préédition IME reste
 isolée entre frames, avec une publication unique à validation, vérifiée par les
 événements egui ; l’essai d’une méthode IME du système reste au chantier I.
 Le registre typé, ses schémas et un premier moteur possédant la session et sa
-sélection sont en place : 20 commandes et six requêtes, décrites par un
+sélection sont en place : 22 commandes et six requêtes, décrites par un
 [catalogue généré](docs/commands.md). Mise en forme, blocs, P.-S./P.J. et historique
-sont raccordés à l’interface. Les autres familles et les lots restent à migrer
+sont raccordés à l’interface. Les légendes/attributions et leurs raccourcis
+Tab, Maj+Tab et Entrée passent également par le moteur. Les règles des
+descriptions/listes/notes, les autres familles et les lots restent à migrer
 ([suivi de phase 2](docs/architecture-phase-2.md)).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une

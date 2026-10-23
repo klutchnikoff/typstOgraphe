@@ -1,5 +1,6 @@
 //! Moteur documentaire sans egui, dialogues ni Fluent. Les familles migrées
 //! passent par run ; les préparations historiques restent temporairement dans App.
+mod annotations;
 mod error;
 mod queries;
 pub mod registry;
@@ -31,6 +32,7 @@ pub enum Availability {
 #[serde(rename_all = "snake_case")]
 pub enum Effect {
     Render,
+    RevealSelection,
 }
 
 #[derive(Clone, Debug, Serialize)]

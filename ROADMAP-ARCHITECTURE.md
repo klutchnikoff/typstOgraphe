@@ -392,8 +392,9 @@ comme les commandes et remplacements. Les préparations encore faites dans `App`
 utilisent un adaptateur transitoire vers cette voie. La préédition IME reste dans
 un brouillon entre frames et sa validation publie une seule étape d’historique ;
 les annulations et événements tardifs ne changent pas la session publiée.
-Le tampon reste plat ; les raccourcis de transformation, la recherche et l’aperçu
-restent à migrer.
+Le tampon reste plat ; les préfixes de transformation, les règles des descriptions,
+listes et notes, la recherche et l’aperçu restent à migrer. Les légendes/attributions
+et leurs raccourcis sont désormais exécutés par le moteur.
 Voir [le suivi de phase 2](docs/architecture-phase-2.md) pour les vérifications
 et les limites de ces premiers lots. Aucune commande de tableau n’est ajoutée.
 
@@ -408,7 +409,7 @@ Dans `src/engine/` (futur crate `core`) :
   `InsertImage { path, alt }`, `SelectText { range | occurrence }`, `InsertText { text }`,
   `SetMetadata { field, value }`, `SetOption { option, value }`, `ReplaceAll { with }`…).
   Les variantes actuelles sans paramètres restent telles quelles.
-  **En cours :** 20 commandes typées implémentées ; les familles restantes ne sont
+  **En cours :** 22 commandes typées implémentées ; les familles restantes ne sont
   pas annoncées dans le catalogue. Les espaces de noms hiérarchiques existants
   (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
 - [ ] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
@@ -432,7 +433,7 @@ Dans `src/engine/` (futur crate `core`) :
 - [x] `Engine` autour de `Session` : `run(&mut self, Command) -> Result<Outcome, CommandError>`
   et `query(&self, Query) -> Result<Value, CommandError>`.
 - [x] `Outcome` : `changed`, garde et sélection résultantes, valeur de retour
-  éventuelle, effets à déclencher (rendu à relancer).
+  éventuelle, effets à déclencher (rendu à relancer, sélection à rendre visible).
 - [ ] **Une mutation documentaire validée = une transaction d’historique** (D15).
   Sélection, navigation, recherche, ouverture et enregistrement ne créent pas d’entrée
   d’annulation. Préserver le regroupement de la frappe et l’annulation d’un lot en une étape.
@@ -459,7 +460,9 @@ JSON** et compare avec le chemin d'interface.
 - [ ] 2.4.2 Structure : `InsertPostscript`, `InsertAttachment`, annotations (entrée, sortie,
   navigation), listes et descriptions.
   P.-S./P.J., listes, descriptions et conversion en citation sont raccordés ; la
-  navigation et les raccourcis de transformation restent dans l’adaptateur.
+  navigation légende/attribution et Entrée dans ces structures sont migrées.
+  Les règles des descriptions, listes et notes, ainsi que les préfixes et délimiteurs
+  de transformation textuelle restent dans l’adaptateur.
 - [ ] 2.4.3 Images : insérer, remplacer, supprimer, texte alternatif, légende ;
   signature de document.
 - [ ] 2.4.4 Recherche : requête, suivant, précédent, remplacer, tout remplacer.

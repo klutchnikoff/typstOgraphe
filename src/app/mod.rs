@@ -22,7 +22,6 @@ mod signature;
 mod spelling;
 mod text_input;
 use crate::{
-    annotations::OptionalAnnotation,
     commands::{FileCommand, Keymap, Registry, ShortcutOverrides, UiCommand as Command},
     document::{
         BlockKind, Document, DocumentLanguage, ImageBlock, InlineStyle, Mark, PaperFormat,

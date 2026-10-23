@@ -63,6 +63,7 @@ pub enum AvailabilityRule {
     Undo,
     Redo,
     LinkSelection,
+    Annotation,
     Read,
 }
 

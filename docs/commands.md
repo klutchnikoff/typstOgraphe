@@ -9,7 +9,7 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 | --- | --- | --- |
 | `text.insert` | edit | Insert literal text or replace a selection. |
 | `text.delete` | edit | Delete text within validated structural boundaries. |
-| `text.select` | selection | Set a continuous, oriented text selection. |
+| `text.select` | selection | Set a continuous selection or move to the body or optional annotation of its structure. |
 | `text.bold` | edit | Set or toggle bold text or the typing style. |
 | `text.italic` | edit | Set or toggle italic text or the typing style. |
 | `text.clear` | edit | Remove inline formatting from text or the typing style. |
@@ -23,6 +23,8 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 | `block.numbered` | edit | Set an ordered list. |
 | `block.description` | edit | Set description items with term and definition zones. |
 | `block.quote` | edit | Set a block quotation with an optional attribution. |
+| `block.split` | edit | Split a quotation body or leave its empty line, attribution or image caption. |
+| `block.exit` | edit | Create a paragraph after an annotated structure without replacing its content. |
 | `letter.insert_postscript` | letter | Create or select the letter postscript. |
 | `letter.insert_attachment` | letter | Insert an attachment mention into a letter. |
 | `edit.undo` | history | Undo the previous document transaction. |

@@ -7,6 +7,7 @@ use super::*;
 use support::*;
 
 mod annotations;
+mod annotations_engine;
 mod commands;
 mod edit_validation;
 mod engine;
