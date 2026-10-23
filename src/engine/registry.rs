@@ -48,6 +48,7 @@ pub struct Call {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Family {
+    File,
     Image,
     Edit,
     Selection,
@@ -59,6 +60,7 @@ pub enum Family {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AvailabilityRule {
+    Always,
     ImageInsertion,
     Image,
     Document,

@@ -11,7 +11,7 @@ use crate::{
 };
 
 impl ImageInput {
-    fn read(&self) -> Result<ImageData, CommandError> {
+    pub(super) fn read(&self) -> Result<ImageData, CommandError> {
         match self {
             Self::Path { path } => Ok(ImageData::read_checked(path)?),
             Self::Embedded { extension, data } => {

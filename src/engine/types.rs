@@ -1,5 +1,7 @@
+use super::file_types::*;
 use super::metadata_types::*;
 use super::model_types::*;
+use super::recovery_types::*;
 use super::search_types::*;
 use super::spelling_types::*;
 use super::{CommandError, registry::define_calls};
@@ -133,6 +135,14 @@ pub struct SearchParams {
 
 define_calls! {
     Command, command_specs;
+    RestoreRecovery(RestoreRecoveryParams) => "recovery.restore", "Restore a configured recovery reference as an unsaved copy, protecting current work.", File, Always;
+    DeleteRecovery(DeleteRecoveryParams) => "recovery.delete", "Explicitly delete one configured recovery copy without modifying document history.", File, Always;
+    NewDocument(NewDocumentParams) => "document.new", "Create an empty document from a supplied type/model and explicit initial values, protecting unsaved work.", File, Always;
+    OpenDocument(OpenDocumentParams) => "document.open", "Open an autonomous archive from an explicit path, protecting unsaved work.", File, Always;
+    CloseDocument(CloseDocumentParams) => "document.close", "Close the current document after an explicit decision about unsaved work.", File, Document;
+    SaveDocument(SaveDocumentParams) => "document.save", "Atomically save the guarded document to an explicit or current path without changing editing history.", File, Document;
+    SaveAs(SaveAsParams) => "document.save_as", "Atomically save the guarded document to a required path, preserving the previous file.", File, Document;
+    Export(ExportParams) => "document.export", "Export PDF, autonomous Typst sources or both into a new or empty directory, with optional page PNGs.", File, Document;
     SetModel(SetModelParams) => "document.set_model", "Validate and install Typst model source or a UTF-8 file with controlled dependencies in one guarded transaction.", Edit, Document;
     PersonalModel(GuardParams) => "courrier.model.personal", "Apply the supplied personal-letter model using the shared guarded model operation.", Letter, Letter;
     SetMetadata(SetMetadataParams) => "metadata.set", "Set an active document-type field, with a guarded value and optional typing history grouping.", Edit, Document;
@@ -177,6 +187,7 @@ define_calls! {
 
 define_calls! {
     Query, query_specs;
+    RecoveryList(Empty) => "recovery.list", "List opaque references from the configured recovery service without opening documents.", Query, Read;
     Models(Empty) => "models.list", "List supplied models for the active document type without changing the document.", Query, Read;
     ModelPresentation(Empty) => "models.presentation", "Read the current model page constraints and permitted bullet markers.", Query, Read;
     SpellingIssues(Empty) => "spelling.issues", "Read revision-guarded spelling issues and dictionary availability using the configured personal words.", Query, Read;

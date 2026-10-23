@@ -7,6 +7,14 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 
 | Identifiant | Famille | Description |
 | --- | --- | --- |
+| `recovery.restore` | file | Restore a configured recovery reference as an unsaved copy, protecting current work. |
+| `recovery.delete` | file | Explicitly delete one configured recovery copy without modifying document history. |
+| `document.new` | file | Create an empty document from a supplied type/model and explicit initial values, protecting unsaved work. |
+| `document.open` | file | Open an autonomous archive from an explicit path, protecting unsaved work. |
+| `document.close` | file | Close the current document after an explicit decision about unsaved work. |
+| `document.save` | file | Atomically save the guarded document to an explicit or current path without changing editing history. |
+| `document.save_as` | file | Atomically save the guarded document to a required path, preserving the previous file. |
+| `document.export` | file | Export PDF, autonomous Typst sources or both into a new or empty directory, with optional page PNGs. |
 | `document.set_model` | edit | Validate and install Typst model source or a UTF-8 file with controlled dependencies in one guarded transaction. |
 | `courrier.model.personal` | letter | Apply the supplied personal-letter model using the shared guarded model operation. |
 | `metadata.set` | edit | Set an active document-type field, with a guarded value and optional typing history grouping. |
@@ -47,6 +55,7 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 | `letter.insert_attachment` | letter | Insert an attachment mention into a letter. |
 | `edit.undo` | history | Undo the previous document transaction. |
 | `edit.redo` | history | Redo the next document transaction. |
+| `recovery.list` | query | List opaque references from the configured recovery service without opening documents. |
 | `models.list` | query | List supplied models for the active document type without changing the document. |
 | `models.presentation` | query | Read the current model page constraints and permitted bullet markers. |
 | `spelling.issues` | query | Read revision-guarded spelling issues and dictionary availability using the configured personal words. |

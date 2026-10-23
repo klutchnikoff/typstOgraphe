@@ -3,6 +3,9 @@
 mod annotations;
 mod blocks;
 mod error;
+mod exports;
+mod file_types;
+mod files;
 mod image_types;
 mod images;
 mod metadata;
@@ -10,6 +13,8 @@ mod metadata_types;
 mod model_types;
 mod models;
 mod queries;
+mod recovery;
+mod recovery_types;
 pub mod registry;
 mod resources;
 mod run;
@@ -24,9 +29,11 @@ use crate::{
     session::{EditGroup, Selection, SelectionTarget, Session, Snapshot, TargetGuard},
 };
 pub use error::{CommandError, ErrorCode};
+pub use file_types::*;
 pub use image_types::*;
 pub use metadata_types::*;
 pub use model_types::*;
+pub use recovery_types::*;
 pub use registry::{AvailabilityRule, Call, CommandId, CommandSpec, Family, catalogue};
 pub use search_types::*;
 use serde::Serialize;
@@ -36,6 +43,8 @@ pub use types::*;
 
 pub struct Engine {
     session: Session,
+    open: bool,
+    recovery: recovery::RecoveryState,
     selection: Selection,
     spelling: spelling::SpellingState,
     presentation_cache: metadata::PresentationCache,
@@ -53,6 +62,8 @@ pub enum Availability {
 pub enum Effect {
     Render,
     RevealSelection,
+    DocumentReplaced,
+    Saved,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -69,6 +80,8 @@ impl From<Session> for Engine {
         let _ = catalogue(); // Vérifier le catalogue dès la création du moteur.
         Self {
             session,
+            open: true,
+            recovery: Default::default(),
             selection: Selection::default(),
             spelling: Default::default(),
             presentation_cache: Default::default(),

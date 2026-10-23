@@ -11,6 +11,8 @@ use serde_json::json;
 mod annotations;
 #[path = "tests/blocks.rs"]
 mod blocks;
+#[path = "tests/files.rs"]
+mod files;
 #[path = "tests/images.rs"]
 mod images;
 #[path = "tests/metadata.rs"]
@@ -51,12 +53,27 @@ fn explicit(engine: &Engine, range: std::ops::Range<usize>) -> TextTarget {
 
 #[test]
 fn catalogue_has_valid_unique_ids_and_strict_schemas_and_all_calls_round_trip() {
-    assert_eq!(catalogue().len(), 50);
+    assert_eq!(catalogue().len(), 59);
     for spec in catalogue() {
         assert!(!spec.description.trim().is_empty());
         assert_eq!(spec.params_schema["type"], "object");
         assert_eq!(spec.params_schema["additionalProperties"], false);
         let params = match spec.id.as_str() {
+            "recovery.restore" => json!({"guard":{"document_id":1,"revision":0},"reference":1}),
+            "recovery.delete" => json!({"reference":1}),
+            "document.new" => {
+                json!({"guard":{"document_id":1,"revision":0},"type":"courrier","model":"courrier.model.personal"})
+            }
+            "document.open" => {
+                json!({"guard":{"document_id":1,"revision":0},"path":"example.typsto"})
+            }
+            "document.close" | "document.save" => json!({"guard":{"document_id":1,"revision":0}}),
+            "document.save_as" => {
+                json!({"guard":{"document_id":1,"revision":0},"path":"example.typsto"})
+            }
+            "document.export" => {
+                json!({"guard":{"document_id":1,"revision":0},"directory":"export"})
+            }
             "text.insert" => json!({"text":"Été"}),
             "insert.image" => json!({"image":{"kind":"path","path":"image.svg"}}),
             "image.replace" => {
@@ -174,7 +191,7 @@ fn calls_reject_unknown_ids_fields_missing_arguments_and_invalid_parameter_types
         );
     }
     assert_eq!(
-        Command::from_call("document.new", json!({}))
+        Command::from_call("document.unknown", json!({}))
             .unwrap_err()
             .code,
         ErrorCode::NotFound

@@ -7,7 +7,7 @@ use crate::{
 use comemo::Track;
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::mpsc,
     thread,
     time::{Duration as StdDuration, Instant},
@@ -392,75 +392,17 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
         world.compile_with_template(&request.source, &request.metadata, &request.template)?;
     let presentation = world.model_presentation(&request.template)?;
     if let Some(path) = &request.export_dir {
-        std::fs::create_dir_all(path).map_err(|e| e.to_string())?;
-        if std::fs::read_dir(path)
-            .map_err(|e| e.to_string())?
-            .next()
-            .is_some()
-        {
-            return Err(crate::tr!("export-nonempty"));
-        }
-        let pdf =
-            typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default()).map_err(|errors| {
-                errors
-                    .iter()
-                    .map(|e| e.message.to_string())
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            })?;
-        write(
+        crate::exporting::write_document(
+            &document,
+            request,
             path,
-            &format!("{}.pdf", request.metadata.document_type().file_stem()),
-            &pdf,
+            crate::engine::ExportFormat::Both,
+            true,
         )?;
-        write(path, "main.typ", request.metadata.main_source().as_bytes())?;
-        write(path, "contenu.typ", request.source.as_bytes())?;
-        let assets = retained_assets(
-            &request.source,
-            &request.metadata,
-            &request.template,
-            &request.assets,
-            &request.dependencies,
-        )?;
-        if !assets.is_empty() {
-            std::fs::create_dir(path.join("images")).map_err(|e| e.to_string())?;
-        }
-        for (name, data) in &assets {
-            if !crate::assets::valid_path(name) {
-                return Err(crate::tr!("storage-unknown-entry"));
-            }
-            write(path, name, data)?;
-        }
-        for (name, data) in request.dependencies.iter() {
-            // Les chemins sont validés avant de créer le répertoire d’export.
-            if let Some(parent) = path.join(name).parent() {
-                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-            write(path, name, data)?;
-        }
-        write(path, "modele.typ", request.template.as_bytes())?;
-        write(
-            path,
-            "metadonnees.json",
-            serde_json::to_string_pretty(&request.metadata)
-                .map_err(|e| e.to_string())?
-                .as_bytes(),
-        )?;
-        crate::fonts::export_used(&document, path).map_err(|error| {
-            crate::tr!(
-                "export-write-failed",
-                name = "fonts",
-                error = error.to_string()
-            )
-        })?;
     }
     let mut pages = vec![];
-    for (index, page) in document.pages().iter().enumerate() {
+    for page in document.pages() {
         let pixmap = typst_render::render(page, &typst_render::RenderOptions::default());
-        if let Some(path) = &request.export_dir {
-            let png = pixmap.encode_png().map_err(|e| e.to_string())?;
-            write(path, &format!("page-{}.png", index + 1), &png)?;
-        }
         pages.push(PageImage {
             size: [pixmap.width() as usize, pixmap.height() as usize],
             rgba: pixmap.data().to_vec(),
@@ -480,11 +422,6 @@ pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendere
         export_dir: request.export_dir.clone(),
     })
 }
-fn write(path: &Path, name: &str, data: &[u8]) -> Result<(), String> {
-    std::fs::write(path.join(name), data)
-        .map_err(|e| crate::tr!("export-write-failed", name = name, error = e.to_string()))
-}
-
 /// Un unique worker conserve les caches Typst. Les demandes d'aperçu devenues
 /// obsolètes sont coalescées. Une demande d'export n'est jamais abandonnée.
 pub struct RenderWorker {

@@ -1,6 +1,497 @@
 {
   "entries": [
     {
+      "availability": "always",
+      "description": "Restore a configured recovery reference as an unsaved copy, protecting current work.",
+      "family": "file",
+      "id": "recovery.restore",
+      "params_schema": {
+        "$defs": {
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "discard_changes": {
+            "default": false,
+            "type": "boolean"
+          },
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          },
+          "reference": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "guard",
+          "reference"
+        ],
+        "title": "RestoreRecoveryParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "always",
+      "description": "Explicitly delete one configured recovery copy without modifying document history.",
+      "family": "file",
+      "id": "recovery.delete",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "reference": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "title": "DeleteRecoveryParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "always",
+      "description": "Create an empty document from a supplied type/model and explicit initial values, protecting unsaved work.",
+      "family": "file",
+      "id": "document.new",
+      "params_schema": {
+        "$defs": {
+          "DocumentType": {
+            "enum": [
+              "courrier",
+              "compte-rendu"
+            ],
+            "type": "string"
+          },
+          "ImageInput": {
+            "description": "A local image file or an embedded copy encoded as standard base64.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "path",
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "data": {
+                    "description": "Standard base64 without a data URL prefix.",
+                    "type": "string"
+                  },
+                  "extension": {
+                    "description": "PNG, JPG, JPEG or SVG; normalized to lowercase on import.",
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "embedded",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "extension",
+                  "data"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "InitialValue": {
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "$ref": "#/$defs/MetadataField"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "field",
+              "value"
+            ],
+            "type": "object"
+          },
+          "MetadataField": {
+            "enum": [
+              "sender.name",
+              "sender.role",
+              "sender.department",
+              "sender.email",
+              "sender.organisation",
+              "sender.address",
+              "sender.phone",
+              "recipient.name",
+              "recipient.address",
+              "letter.subject",
+              "letter.reference",
+              "letter.place",
+              "letter.date",
+              "meeting.title",
+              "meeting.date",
+              "meeting.place",
+              "meeting.author",
+              "meeting.attendees",
+              "meeting.apologies"
+            ],
+            "type": "string"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "discard_changes": {
+            "default": false,
+            "type": "boolean"
+          },
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          },
+          "initial_values": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/InitialValue"
+            },
+            "type": "array"
+          },
+          "model": {
+            "type": "string"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ImageInput"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "type": {
+            "$ref": "#/$defs/DocumentType"
+          }
+        },
+        "required": [
+          "guard",
+          "type",
+          "model"
+        ],
+        "title": "NewDocumentParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "always",
+      "description": "Open an autonomous archive from an explicit path, protecting unsaved work.",
+      "family": "file",
+      "id": "document.open",
+      "params_schema": {
+        "$defs": {
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "discard_changes": {
+            "default": false,
+            "type": "boolean"
+          },
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "guard",
+          "path"
+        ],
+        "title": "OpenDocumentParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Close the current document after an explicit decision about unsaved work.",
+      "family": "file",
+      "id": "document.close",
+      "params_schema": {
+        "$defs": {
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "discard_changes": {
+            "default": false,
+            "type": "boolean"
+          },
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          }
+        },
+        "required": [
+          "guard"
+        ],
+        "title": "CloseDocumentParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Atomically save the guarded document to an explicit or current path without changing editing history.",
+      "family": "file",
+      "id": "document.save",
+      "params_schema": {
+        "$defs": {
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          },
+          "path": {
+            "default": null,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "guard"
+        ],
+        "title": "SaveDocumentParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Atomically save the guarded document to a required path, preserving the previous file.",
+      "family": "file",
+      "id": "document.save_as",
+      "params_schema": {
+        "$defs": {
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "guard",
+          "path"
+        ],
+        "title": "SaveAsParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "document",
+      "description": "Export PDF, autonomous Typst sources or both into a new or empty directory, with optional page PNGs.",
+      "family": "file",
+      "id": "document.export",
+      "params_schema": {
+        "$defs": {
+          "ExportFormat": {
+            "enum": [
+              "pdf",
+              "typst",
+              "both"
+            ],
+            "type": "string"
+          },
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "directory": {
+            "type": "string"
+          },
+          "format": {
+            "$ref": "#/$defs/ExportFormat",
+            "default": "both"
+          },
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          },
+          "page_images": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "guard",
+          "directory"
+        ],
+        "title": "ExportParams",
+        "type": "object"
+      }
+    },
+    {
       "availability": "document",
       "description": "Validate and install Typst model source or a UTF-8 file with controlled dependencies in one guarded transaction.",
       "family": "edit",
@@ -5870,6 +6361,18 @@
       "description": "Redo the next document transaction.",
       "family": "history",
       "id": "edit.redo",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "description": "List opaque references from the configured recovery service without opening documents.",
+      "family": "query",
+      "id": "recovery.list",
       "params_schema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,

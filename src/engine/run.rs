@@ -56,6 +56,8 @@ impl Engine {
         }
     }
     fn check(&self, command: &Command) -> Result<(), CommandError> {
+        self.check_files(command)?;
+        self.check_recovery(command)?;
         if let Some(target) = command.target() {
             self.resolve(target)?;
         }
@@ -68,6 +70,9 @@ impl Engine {
             .find(|spec| spec.id.as_str() == command.id())
             .expect("registered command")
             .availability;
+        if !self.open && rule != AvailabilityRule::Always {
+            return Err(CommandError::new(ErrorCode::Unavailable, "no_document"));
+        }
         if rule == AvailabilityRule::Letter
             && self.session.metadata.document_type() != DocumentType::Courrier
         {
@@ -162,6 +167,14 @@ impl Engine {
             }) => true,
             _ => false,
         };
+        let replaced = matches!(
+            command,
+            Command::NewDocument(_)
+                | Command::OpenDocument(_)
+                | Command::CloseDocument(_)
+                | Command::RestoreRecovery(_)
+        );
+        let saved = matches!(command, Command::SaveDocument(_) | Command::SaveAs(_));
         let revision = self.session.revision;
         let value = self.execute(command)?;
         let changed = revision != self.session.revision;
@@ -172,6 +185,8 @@ impl Engine {
             effects: [
                 changed.then_some(Effect::Render),
                 reveal.then_some(Effect::RevealSelection),
+                replaced.then_some(Effect::DocumentReplaced),
+                saved.then_some(Effect::Saved),
             ]
             .into_iter()
             .flatten()
@@ -182,6 +197,21 @@ impl Engine {
 
     fn execute(&mut self, command: Command) -> Result<Option<Value>, CommandError> {
         match command {
+            Command::RestoreRecovery(p) => return self.restore_recovery(p).map(Some),
+            Command::DeleteRecovery(p) => return self.delete_recovery(p).map(Some),
+            Command::NewDocument(p) => return self.new_document(p).map(Some),
+            Command::OpenDocument(p) => return self.open_document(p).map(Some),
+            Command::CloseDocument(p) => return self.close_document(p).map(Some),
+            Command::SaveDocument(p) => return self.save_document(p).map(Some),
+            Command::SaveAs(p) => {
+                return self
+                    .save_document(SaveDocumentParams {
+                        guard: p.guard,
+                        path: Some(p.path),
+                    })
+                    .map(Some);
+            }
+            Command::Export(p) => return self.prepare_export(p)?.execute().map(Some),
             Command::SetModel(p) => return self.set_model(p).map(Some),
             Command::PersonalModel(p) => return self.personal_model(p).map(Some),
             Command::SetMetadata(p) => self.set_metadata(p)?,

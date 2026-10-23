@@ -5,6 +5,7 @@ use serde_json::json;
 impl Engine {
     pub fn query(&self, query: Query) -> Result<Value, CommandError> {
         Ok(match query {
+            Query::RecoveryList(_) => self.recovery_query(),
             Query::Models(_) => self.models_query(),
             Query::SpellingIssues(_) => {
                 serde_json::to_value(self.spelling_issues()?).expect("serializable spelling issues")
@@ -13,7 +14,10 @@ impl Engine {
             Query::Inspect(_) => json!({
                 "guard": self.session.target_guard(),
                 "selection": self.session.selection_target(self.selection).ok(),
-                "dirty": self.session.is_dirty(),
+                "open": self.open,
+                "path":self.session.file_path,
+                "recovered":self.session.recovered,
+                "dirty": self.open && self.session.is_dirty(),
                 "can_undo": !self.session.undo.is_empty(),
                 "can_redo": !self.session.redo.is_empty(),
             }),

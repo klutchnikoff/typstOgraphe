@@ -8,7 +8,7 @@ pub use fields::{FieldValue, MetadataField};
 use crate::document::{DocumentOptions, typst_string};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum DocumentType {
     Courrier,

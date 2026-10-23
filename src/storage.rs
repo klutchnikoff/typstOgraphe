@@ -185,7 +185,7 @@ fn entry<R: Read + std::io::Seek>(zip: &mut ZipArchive<R>, name: &str) -> Result
     Ok(value)
 }
 
-fn validate(letter: &StoredDocument) -> Result<(), String> {
+pub(crate) fn validate(letter: &StoredDocument) -> Result<(), String> {
     crate::packages::validate(&letter.template, &letter.dependencies)?;
     let document = Document::from_source(&letter.source)?;
     if let Some(path) = letter.metadata.signature_path() {
