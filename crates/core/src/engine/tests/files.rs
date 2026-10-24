@@ -68,6 +68,7 @@ fn replacement_requires_a_current_guard_and_explicit_discard_before_reading_path
     ] {
         let error = e
             .run(Command::OpenDocument(OpenDocumentParams {
+                read_only: false,
                 guard,
                 path: "absent.typsto".into(),
                 discard_changes: discard,
@@ -214,6 +215,7 @@ fn open_replaces_identity_and_history_but_corrupt_archives_leave_the_session_unt
     changed(&mut e);
     let old = e.target_guard();
     e.run(Command::OpenDocument(OpenDocumentParams {
+        read_only: false,
         guard: old,
         path: path.clone(),
         discard_changes: true,
@@ -230,6 +232,7 @@ fn open_replaces_identity_and_history_but_corrupt_archives_leave_the_session_unt
     std::fs::write(&bad, b"bad").unwrap();
     assert!(
         e.run(Command::OpenDocument(OpenDocumentParams {
+            read_only: false,
             guard,
             path: bad,
             discard_changes: false

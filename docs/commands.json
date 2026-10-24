@@ -401,6 +401,11 @@
           },
           "path": {
             "type": "string"
+          },
+          "read_only": {
+            "default": false,
+            "description": "Lecture d’un instantané enregistré, sans réservation pour l’écriture.",
+            "type": "boolean"
           }
         },
         "required": [

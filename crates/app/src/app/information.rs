@@ -86,14 +86,18 @@ impl App {
                 .id_salt(("information-scroll", self.dialogs.information_group))
                 .max_height(max_height)
                 .auto_shrink([false, true])
-                .show(ui, |ui| match self.dialogs.information_group {
-                    InformationGroup::General => self.general_information_ui(ui),
-                    InformationGroup::Fields(group) => {
-                        self.information_fields_ui(ui, group);
-                        if group == "sender" {
-                            self.document_signature_ui(ui);
+                .show(ui, |ui| {
+                    ui.add_enabled_ui(!self.document.engine.is_read_only(), |ui| {
+                        match self.dialogs.information_group {
+                            InformationGroup::General => self.general_information_ui(ui),
+                            InformationGroup::Fields(group) => {
+                                self.information_fields_ui(ui, group);
+                                if group == "sender" {
+                                    self.document_signature_ui(ui);
+                                }
+                            }
                         }
-                    }
+                    });
                 });
         }
     }

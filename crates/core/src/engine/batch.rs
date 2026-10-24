@@ -39,6 +39,7 @@ fn step_error(index: usize, id: &str, error: CommandError) -> CommandError {
 impl Engine {
     /// Le contrôle de toutes les étapes précède même les lectures des imports.
     pub(super) fn check_batch(&self, p: &BatchParams) -> Result<Vec<Command>, CommandError> {
+        self.check_access("document.batch")?;
         self.check_guard(p.guard)?;
         if !self.open {
             return Err(CommandError::new(ErrorCode::Unavailable, "no_document"));

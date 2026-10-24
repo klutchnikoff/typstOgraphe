@@ -99,11 +99,15 @@ impl App {
         }
     }
     pub(super) fn open_path(&mut self, path: PathBuf) -> bool {
+        self.open_path_with_access(path, false)
+    }
+    pub(super) fn open_path_with_access(&mut self, path: PathBuf, read_only: bool) -> bool {
         // Le parcours UI a déjà traité le brouillon dans request_action/file_dialogs.
         match self.execute_document_command(crate::engine::Command::OpenDocument(
             crate::engine::OpenDocumentParams {
+                read_only,
                 guard: self.document.engine.target_guard(),
-                path,
+                path: path.clone(),
                 discard_changes: true,
             },
         )) {
@@ -112,6 +116,10 @@ impl App {
                 true
             }
             Err(error) => {
+                if error.reason() == "file_locked" {
+                    self.file.read_only_offer = Some(path);
+                    return false;
+                }
                 self.file.error = Some(Self::command_error_text(&error));
                 false
             }
@@ -306,6 +314,31 @@ impl App {
         ctx.request_repaint();
     }
     pub(super) fn file_dialogs(&mut self, ctx: &egui::Context) {
+        if self.file.read_only_offer.is_some() {
+            let mut choice = None;
+            egui::Window::new(crate::tr!("file-locked-title"))
+                .id(egui::Id::new("read-only-offer"))
+                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+                .collapsible(false)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ui.label(crate::tr!("file-locked"));
+                    ui.horizontal(|ui| {
+                        if ui.button(crate::tr!("file-open-read-only")).clicked() {
+                            choice = Some(true);
+                        }
+                        if ui.button(crate::tr!("cancel")).clicked() {
+                            choice = Some(false);
+                        }
+                    });
+                });
+            if let Some(read_only) = choice {
+                let path = self.file.read_only_offer.take().expect("pending path");
+                if read_only {
+                    self.open_path_with_access(path, true);
+                }
+            }
+        }
         if self.file.pending_action.is_some() {
             let mut choice = None;
             egui::Window::new(crate::tr!("unsaved-title"))

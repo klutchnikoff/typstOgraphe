@@ -86,6 +86,7 @@ impl From<EditError> for CommandError {
             ErrorCode::Document,
             match error {
                 EditError::ProtectedBoundary => "protected_boundary",
+                EditError::ReadOnly => "file_read_only",
                 EditError::InvalidText => "invalid_text",
                 EditError::StaleDraft => "stale_revision",
                 EditError::InvalidSelection => "invalid_selection",

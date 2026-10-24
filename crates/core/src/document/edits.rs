@@ -7,6 +7,7 @@ use std::{collections::BTreeSet, ops::Range};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditError {
+    ReadOnly,
     InvalidSelection,
     ProtectedBoundary,
     InvalidText,

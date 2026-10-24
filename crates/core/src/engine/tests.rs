@@ -21,6 +21,8 @@ mod discovery;
 mod files;
 #[path = "tests/images.rs"]
 mod images;
+#[path = "tests/locking.rs"]
+mod locking;
 #[path = "tests/metadata.rs"]
 mod metadata;
 #[path = "tests/models.rs"]

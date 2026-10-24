@@ -65,8 +65,9 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
 #[test]
 fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplicates() {
     let (ctx, mut app) = demo_app();
+    let dir = tempfile::tempdir().unwrap();
     fixture(&mut app.document.engine, |data| {
-        data.file_path = Some(PathBuf::from("exemple.typsto"));
+        data.file_path = Some(dir.path().join("exemple.typsto"));
     });
     let source = app.document.engine.document().source().to_owned();
     let mut time = 0.0;

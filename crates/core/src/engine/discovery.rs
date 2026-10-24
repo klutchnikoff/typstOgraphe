@@ -67,6 +67,9 @@ impl Engine {
 
     fn catalogue_availability(&self, spec: &CommandSpec) -> Value {
         let id = spec.id.as_str();
+        if let Err(reason) = self.check_access(id) {
+            return serde_json::to_value(Availability::Disabled { reason }).expect("availability");
+        }
         // Une commande valide avec ses seuls défauts est réellement vérifiable.
         // Aucun chemin, texte, garde ou ressource artificiel n’est fabriqué.
         if let Ok(command) = Command::from_call(id, json!({})) {

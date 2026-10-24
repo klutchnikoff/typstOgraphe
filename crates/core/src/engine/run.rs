@@ -55,6 +55,7 @@ impl Engine {
         }
     }
     fn check(&self, command: &Command) -> Result<(), CommandError> {
+        self.check_access(command.id())?;
         if let Command::Batch(p) = command {
             self.check_batch(p)?;
         }

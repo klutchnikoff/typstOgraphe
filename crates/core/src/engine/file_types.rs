@@ -30,6 +30,9 @@ pub struct NewDocumentParams {
 pub struct OpenDocumentParams {
     pub guard: TargetGuard,
     pub path: PathBuf,
+    /// Lecture d’un instantané enregistré, sans réservation pour l’écriture.
+    #[serde(default)]
+    pub read_only: bool,
     #[serde(default)]
     pub discard_changes: bool,
 }

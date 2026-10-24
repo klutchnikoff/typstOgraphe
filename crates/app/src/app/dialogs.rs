@@ -10,6 +10,7 @@ impl App {
             || self.dialogs.link_open
             || self.file.export_open
             || self.file.pending_action.is_some()
+            || self.file.read_only_offer.is_some()
             || self.file.error.is_some()
     }
     pub(super) fn welcome_ui(&mut self, ui: &mut egui::Ui) {

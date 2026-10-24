@@ -31,6 +31,7 @@ impl Engine {
                 "guard": self.session.target_guard(),
                 "selection": self.open.then(|| self.session.selection_target(self.selection).ok()).flatten(),
                 "open": self.open,
+                "read_only":self.is_read_only(),
                 "render": self.render_info(),
                 "path":self.session.file_path,
                 "recovered":self.is_recovered(),

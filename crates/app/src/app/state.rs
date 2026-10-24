@@ -50,6 +50,7 @@ pub(super) struct FileState {
     pub(super) error: Option<String>,
     pub(super) allow_close: bool,
     pub(super) window_title: String,
+    pub(super) read_only_offer: Option<PathBuf>,
     pub(super) export_open: bool,
     pub(super) export_path: String,
     pub(super) export_format: crate::engine::ExportFormat,

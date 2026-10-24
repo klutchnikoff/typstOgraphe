@@ -10,6 +10,9 @@ pub struct HistoryInfo {
     pub redo: usize,
 }
 impl Engine {
+    pub fn is_read_only(&self) -> bool {
+        self.session.read_only
+    }
     pub fn history(&self) -> super::HistoryInfo {
         HistoryInfo {
             undo: self.session.undo.len(),

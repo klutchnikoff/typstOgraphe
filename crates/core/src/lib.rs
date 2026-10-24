@@ -9,6 +9,7 @@ pub mod document_types;
 pub mod engine;
 pub mod errors;
 pub mod exporting;
+mod file_access;
 pub mod fonts;
 mod identity;
 pub mod navigation;

@@ -30,8 +30,27 @@ impl CommandIntent {
     }
 }
 impl Engine {
+    pub(super) fn check_access(&self, id: &str) -> Result<(), CommandError> {
+        if self.is_read_only()
+            && catalogue().iter().any(|spec| {
+                spec.id.as_str() == id
+                    && (matches!(
+                        spec.family,
+                        Family::Edit
+                            | Family::Image
+                            | Family::Letter
+                            | Family::History
+                            | Family::Batch
+                    ) || id == "document.save")
+            })
+        {
+            return Err(CommandError::new(ErrorCode::Unavailable, "file_read_only"));
+        }
+        Ok(())
+    }
     pub fn available_intent(&self, intent: CommandIntent, target: TextTarget) -> Availability {
         let checked = || {
+            self.check_access(intent.id())?;
             let rule = Command::command_specs()
                 .iter()
                 .find(|spec| spec.id.as_str() == intent.id())

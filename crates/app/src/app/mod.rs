@@ -222,6 +222,11 @@ impl App {
                 marker = if dirty { " *" } else { "" }
             )
         };
+        let title = if self.document.open && self.document.engine.is_read_only() {
+            crate::tr!("file-read-only-title", name = title)
+        } else {
+            title
+        };
         if title != self.file.window_title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
             self.file.window_title = title;

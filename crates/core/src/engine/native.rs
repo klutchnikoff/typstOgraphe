@@ -38,6 +38,9 @@ impl Engine {
         selection: Selection,
         input: super::NativeInput,
     ) -> Result<Selection, EditError> {
+        if self.is_read_only() {
+            return Err(EditError::ReadOnly);
+        }
         if !self.open {
             return Err(EditError::StaleDraft);
         }

@@ -120,6 +120,7 @@ impl App {
                 error: None,
                 allow_close: false,
                 window_title: String::new(),
+                read_only_offer: None,
                 export_open: false,
                 export_format: Default::default(),
                 export_page_images: true,

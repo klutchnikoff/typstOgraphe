@@ -31,6 +31,7 @@ impl App {
     }
     pub(super) fn edit_error_text(error: crate::document::edits::EditError) -> String {
         crate::i18n::text(match error {
+            crate::document::edits::EditError::ReadOnly => "file-read-only",
             crate::document::edits::EditError::ProtectedBoundary => "edit-protected-boundary",
             crate::document::edits::EditError::InvalidText => "edit-invalid-text",
             crate::document::edits::EditError::StaleDraft

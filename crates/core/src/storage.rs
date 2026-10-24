@@ -75,6 +75,10 @@ pub fn read(path: &Path) -> Result<StoredDocument, CoreError> {
             error: (e.to_string()).to_string(),
         })
     })?;
+    read_file(file)
+}
+
+pub(crate) fn read_file(file: File) -> Result<StoredDocument, CoreError> {
     if file.metadata().map_err(CoreError::external)?.len() > LIMIT + 2 * 1024 * 1024 {
         return Err(CoreError::from(StorageError::FileTooLarge));
     }
@@ -246,6 +250,13 @@ pub(crate) fn validate(letter: &StoredDocument) -> Result<(), CoreError> {
 /// Écrit et synchronise un fichier temporaire voisin, puis remplace la cible
 /// par renommage atomique. Une erreur d'écriture conserve le courrier précédent.
 pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), CoreError> {
+    save_tracked(path, letter).map(|_| ())
+}
+
+pub(crate) fn save_tracked(
+    path: &Path,
+    letter: &StoredDocument,
+) -> Result<crate::file_access::Fingerprint, CoreError> {
     let mut letter = letter.clone();
     letter.assets = crate::rendering::retained_assets(
         &letter.source,
@@ -254,13 +265,20 @@ pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), CoreError> {
         &letter.assets,
         &letter.dependencies,
     )?;
-    save_archive(path, &letter, None)
+    save_archive_tracked(path, &letter, None)
 }
 
 /// Publication d’un nouveau fichier sans écrasement, y compris si une autre
 /// application crée la cible pendant la préparation de l’archive.
 /// L’archive passe par la même écriture atomique avant sa publication sans remplacement.
 pub fn save_new(path: &Path, letter: &StoredDocument) -> Result<(), CoreError> {
+    save_new_tracked(path, letter).map(|_| ())
+}
+
+pub(crate) fn save_new_tracked(
+    path: &Path,
+    letter: &StoredDocument,
+) -> Result<crate::file_access::Fingerprint, CoreError> {
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -268,11 +286,11 @@ pub fn save_new(path: &Path, letter: &StoredDocument) -> Result<(), CoreError> {
     let temporary = tempfile::NamedTempFile::new_in(parent)
         .map_err(CoreError::external)?
         .into_temp_path();
-    save(&temporary, letter)?;
+    let fingerprint = save_tracked(&temporary, letter)?;
     temporary
         .persist_noclobber(path)
         .map_err(CoreError::external)?;
-    Ok(())
+    Ok(fingerprint)
 }
 
 /// Une seule voie d’écriture atomique pour les documents et leur récupération.
@@ -282,6 +300,14 @@ pub(crate) fn save_archive(
     letter: &StoredDocument,
     extra: Option<(&str, &str)>,
 ) -> Result<(), CoreError> {
+    save_archive_tracked(path, letter, extra).map(|_| ())
+}
+
+fn save_archive_tracked(
+    path: &Path,
+    letter: &StoredDocument,
+    extra: Option<(&str, &str)>,
+) -> Result<crate::file_access::Fingerprint, CoreError> {
     validate(letter)?;
     if letter.assets.len() + letter.dependencies.len() + ENTRIES.len() > 4096 {
         return Err(CoreError::from(StorageError::FileCount));
@@ -315,7 +341,8 @@ pub(crate) fn save_archive(
     {
         return Err(CoreError::from(StorageError::LetterTooLarge));
     }
-    let options = atomic_write_file::AtomicWriteFile::options();
+    let mut options = atomic_write_file::AtomicWriteFile::options();
+    options.read(true);
     #[cfg(unix)]
     let options = {
         use std::os::unix::fs::OpenOptionsExt;
@@ -348,12 +375,15 @@ pub(crate) fn save_archive(
         }
         zip.finish().map_err(CoreError::external)?;
     }
+    // Toutes les lectures faillibles précèdent la publication atomique.
+    let fingerprint =
+        crate::file_access::fingerprint(temporary.as_file_mut()).map_err(CoreError::external)?;
     temporary.commit().map_err(|e| {
         CoreError::from(StorageError::ReplaceFailed {
             error: (e.to_string()).to_string(),
         })
     })?;
-    Ok(())
+    Ok(fingerprint)
 }
 
 #[cfg(test)]

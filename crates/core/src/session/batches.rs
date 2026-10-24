@@ -13,6 +13,8 @@ impl Session {
             template: self.template.clone(),
             dependencies: self.dependencies.clone(),
             file_path: self.file_path.clone(),
+            file_binding: self.file_binding.clone(),
+            read_only: self.read_only,
             saved: self.saved.clone(),
             undo: vec![],
             redo: vec![],

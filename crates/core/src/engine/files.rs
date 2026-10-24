@@ -20,7 +20,16 @@ impl Engine {
         path: Option<PathBuf>,
     ) -> Result<Self, CommandError> {
         let mut engine = Self::empty();
+        let binding = path
+            .as_deref()
+            .map(|path| {
+                let mut binding = crate::file_access::Binding::acquire(path, false)?;
+                binding.observe()?;
+                Ok::<_, CommandError>(binding)
+            })
+            .transpose()?;
         engine.install_stored(stored, path, false)?;
+        engine.session.file_binding = binding;
         Ok(engine)
     }
     pub fn is_open(&self) -> bool {
@@ -119,10 +128,21 @@ impl Engine {
         Ok(json!({"open":true,"type":p.document_type}))
     }
     pub(super) fn open_document(&mut self, p: OpenDocumentParams) -> Result<Value, CommandError> {
-        let stored = crate::storage::read(&p.path)
-            .map_err(|e| CommandError::with_cause(ErrorCode::Io, "file_open", e))?;
+        // Réouvrir le même document garde le verrou existant, sans l’acquérir deux fois.
+        let target = crate::file_access::canonical_target(&p.path)?;
+        let mut binding = self
+            .session
+            .file_binding
+            .as_ref()
+            .filter(|binding| binding.target == target && !p.read_only && binding.owns_lock())
+            .cloned()
+            .map(Ok)
+            .unwrap_or_else(|| crate::file_access::Binding::acquire(&p.path, p.read_only))?;
+        let stored = binding.read()?;
         self.install_stored(stored, Some(p.path.clone()), false)?;
-        Ok(json!({"path":p.path}))
+        self.session.file_binding = Some(binding);
+        self.session.read_only = p.read_only;
+        Ok(json!({"path":p.path,"read_only":p.read_only}))
     }
     pub(super) fn close_document(&mut self, _: CloseDocumentParams) -> Result<Value, CommandError> {
         let stored = StoredDocument::blank(DocumentType::Courrier);
@@ -144,13 +164,27 @@ impl Engine {
             .or_else(|| self.session.file_path.clone())
             .filter(|path| !path.as_os_str().is_empty())
             .ok_or_else(|| CommandError::new(ErrorCode::InvalidParams, "save_path_required"))?;
-        let overwrite = self.session.file_path.as_ref() == Some(&path);
+        let target = crate::file_access::canonical_target(&path)?;
+        let overwrite = self
+            .session
+            .file_binding
+            .as_ref()
+            .is_some_and(|b| b.target == target);
         self.write_document(path, overwrite)
     }
     pub(super) fn save_as(&mut self, p: SaveAsParams) -> Result<Value, CommandError> {
         self.write_document(p.path, p.overwrite)
     }
     fn write_document(&mut self, path: PathBuf, overwrite: bool) -> Result<Value, CommandError> {
+        let target = crate::file_access::canonical_target(&path)?;
+        let current = self
+            .session
+            .file_binding
+            .as_ref()
+            .filter(|b| b.target == target);
+        if current.is_some() && self.session.read_only {
+            return Err(CommandError::new(ErrorCode::Unavailable, "file_read_only"));
+        }
         if !overwrite
             && path
                 .try_exists()
@@ -158,13 +192,25 @@ impl Engine {
         {
             return Err(CommandError::new(ErrorCode::Io, "file_exists"));
         }
+        let mut binding = if let Some(current) = current {
+            current.clone()
+        } else {
+            let mut binding = crate::file_access::Binding::acquire(&path, false)?;
+            binding.observe()?;
+            binding
+        };
+        binding.check_unchanged()?;
         let stored = self.session.stored_document();
         let result = if overwrite {
-            crate::storage::save(&path, &stored)
+            crate::storage::save_tracked(&binding.target, &stored)
         } else {
-            crate::storage::save_new(&path, &stored)
+            crate::storage::save_new_tracked(&binding.target, &stored)
         };
-        result.map_err(|e| CommandError::with_cause(ErrorCode::Io, "file_save", e))?;
+        let fingerprint =
+            result.map_err(|e| CommandError::with_cause(ErrorCode::Io, "file_save", e))?;
+        binding.saved(fingerprint);
+        self.session.file_binding = Some(binding);
+        self.session.read_only = false;
         // Le disque est nettoyé, mais ce repère conserve les ressources de l’historique.
         self.session.saved = stored;
         self.session.file_path = Some(path.clone());

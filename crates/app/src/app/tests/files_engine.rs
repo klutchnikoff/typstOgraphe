@@ -3,6 +3,52 @@ use crate::engine::{self, Call, Empty, Query};
 use serde_json::json;
 
 #[test]
+fn a_locked_document_offers_read_only_and_copying_it_reenables_edits() {
+    let (ctx, mut app) = demo_app();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("locked.typsto");
+    let stored = app.stored_document();
+    crate::storage::save(&path, &stored).unwrap();
+    let mut owner = engine::Engine::empty();
+    owner
+        .run(engine::Command::OpenDocument(engine::OpenDocumentParams {
+            guard: owner.target_guard(),
+            path: path.clone(),
+            read_only: false,
+            discard_changes: false,
+        }))
+        .unwrap();
+    assert!(!app.open_path(path.clone()));
+    assert_eq!(app.file.read_only_offer, Some(path.clone()));
+    assert!(app.modal_open());
+    assert!(!app.document.engine.is_read_only());
+    recovery_click(&mut app, &ctx, &crate::tr!("file-open-read-only"));
+    assert!(app.document.engine.is_read_only());
+    assert!(app.file.read_only_offer.is_none());
+    frame(&mut app, &ctx, vec![]);
+    assert!(app.file.window_title.contains("lecture seule"));
+    assert!(!app.command_enabled(Command::Bold));
+    assert!(!app.command_enabled(Command::File(FileCommand::Save)));
+    assert!(app.command_enabled(Command::File(FileCommand::SaveAs)));
+    assert!(app.command_enabled(Command::File(FileCommand::Export)));
+    let editor_id = egui::Id::new(editor::EDITOR_ID);
+    ctx.memory_mut(|memory| memory.request_focus(editor_id));
+    frame(&mut app, &ctx, vec![egui::Event::Text("Interdit".into())]);
+    assert_eq!(app.stored_document(), stored);
+    app.execute_document_command(engine::Command::SaveAs(engine::SaveAsParams {
+        guard: app.document.engine.target_guard(),
+        path: dir.path().join("copy.typsto"),
+        overwrite: false,
+    }))
+    .unwrap();
+    frame(&mut app, &ctx, vec![]);
+    assert!(!app.document.engine.is_read_only());
+    assert!(!app.file.window_title.contains("lecture seule"));
+    assert!(app.command_enabled(Command::Bold));
+    assert_eq!(crate::storage::read(&path).unwrap(), stored);
+}
+
+#[test]
 fn profile_creation_matches_explicit_json_values_and_never_changes_global_preferences() {
     let (_ctx, mut app) = demo_app();
     app.preferences.profile.name = "Zoé Martin".into();
@@ -68,6 +114,7 @@ fn file_adapter_and_json_preserve_history_on_save_and_reset_caches_only_after_su
     assert!(app.open_path(path.clone()));
     core.run_call(
         engine::Command::OpenDocument(engine::OpenDocumentParams {
+            read_only: true,
             guard: core.target_guard(),
             path,
             discard_changes: false,

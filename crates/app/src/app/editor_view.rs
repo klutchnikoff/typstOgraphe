@@ -128,7 +128,14 @@ impl App {
         let mut draft = crate::document::edits::TextInput {
             view: frame.view.clone(),
         };
-        let output = egui::TextEdit::multiline(&mut editor::InputBuffer(&mut draft))
+        let mut read_only_text = frame.view.text.as_str();
+        let mut editable = editor::InputBuffer(&mut draft);
+        let buffer: &mut dyn egui::TextBuffer = if self.document.engine.is_read_only() {
+            &mut read_only_text
+        } else {
+            &mut editable
+        };
+        let output = egui::TextEdit::multiline(buffer)
             .lock_focus(lock_tab)
             .id(egui::Id::new(editor::EDITOR_ID))
             .desired_width(f32::INFINITY)
