@@ -135,6 +135,8 @@ Fuites à traiter avant tout découpage en crates :
 | D20 | Granularité des changements | **Validée après relecture.** Un déplacement par commit, plusieurs commits cohérents possibles par PR. Les limites portent sur le code de production ; le découpage de `document.rs` et d’`editor.rs` est planifié avant leur application globale | 1, 3, 7 |
 | D21 | Périmètre de clôture et gel du catalogue | **Validée et mise en œuvre le 24 octobre 2026.** Ajouter les cinq lectures manquantes et enrichir disponibilité/inspection avant le gel : 49 commandes et 19 requêtes. Stabiliser leurs IDs et contrats d’entrée ; tout changement incompatible exige une décision explicite, les ajouts compatibles restent possibles. Les réponses documentées et les extensions restantes sont décrites dans [le bilan de sortie](docs/architecture-phase-2-review.md) et [le contrat des lectures](docs/engine-queries.md) | 2, 3, 4 |
 | D22 | Précisions de phase 3 | **Validées le 24 octobre 2026.** Gestion et persistance du profil personnel avec les préférences dans l’application ; le cœur ne reçoit que des valeurs et ressources explicites. Confirmer le repli anglais de D7, dans un commit distinct lors de l’extraction i18n. Trois crates livrées en phase 3 (`core`, `i18n`, application), CLI/MCP dans les phases 4/5, sans crate vide anticipée | 3, 4, 5 |
+| D23 | Contrat CLI | **Validé le 24 octobre 2026.** Une invocation indépendante de l’UI ; commandes de confort et entrées `query`/`run` dérivées du registre. Sauvegarde explicite avec `--save` ou `--output`, destination existante refusée par défaut ; export vers un répertoire absent ou vide. Scripts JSON versionnés, étapes `{id, params}`, chemins relatifs au script, un document et une sauvegarde atomique finale, export séparé. `check` distingue validité, préparation à l’export et orthographe facultative. JSON version 1, langue système/repli anglais/`--lang`, aucun profil GUI implicite | 4 |
+| D24 | Accès concurrents aux fichiers locaux | **Validé le 24 octobre 2026.** Un seul détenteur du verrou d’écriture, conservé pendant la session ; lectures de la dernière version enregistrée autorisées. Compagnon stable verrouillé par le système, libération à la fermeture ou au plantage, empreinte SHA-256 vérifiée avant sauvegarde. Ouverture GUI en lecture seule proposée en cas de verrou ; copie vers un autre fichier possible. La politique des sessions d’agents MCP sera définie en phase 5 | 4, 5 |
 
 
 ## 4. Vue d'ensemble
@@ -658,15 +660,21 @@ Les vérifications Windows/Linux seront exécutées par la CI après la poussée
 
 **But** : tout ce que fait l'interface sur un document se fait aussi sans fenêtre.
 
+**En cours : premier lot livré le 24 octobre 2026.** Catalogue, inspection,
+validation et export réutilisent le moteur, avec verrou d’écriture et contrôle
+des modifications externes communs à l’UI. Détail et suite dans
+[le bilan de phase 4](docs/architecture-phase-4.md).
+
 ### 4.1 Squelette
 
-- [ ] Crate `typstographe-cli`, `clap` en dérivation (D10). Remplacer l'analyse manuelle de
-  `--render-demo` ; les options `--capture-*` restent dans l'application sous une
-  forme documentée « développement ».
-- [ ] `Engine::open(path)` et `Engine::save(path)` sans interface (écriture atomique déjà
-  disponible), vérification de la lecture du fichier créé par l'application.
-- [ ] Vérifier que le correcteur orthographique (`spelling`) offre un mode synchrone,
-  sans fil d'arrière-plan, pour la commande `check` ; l'ajouter sinon.
+- [x] Crate `typstographe-cli`, `clap` en dérivation (D10).
+- [ ] Retirer le diagnostic historique `--render-demo` du lanceur graphique et adapter
+  le script de références visuelles ; les options `--capture-*` restent des outils de développement.
+- [x] Réutiliser `Command::OpenDocument`, `SaveDocument`, `SaveAs` et `Export`, sans
+  ajouter des méthodes parallèles `Engine::open/save`. Lecture CLI d’archives GUI vérifiée ;
+  création CLI et ouverture inverse à vérifier dans le lot suivant.
+- [x] `spelling.issues` fournit déjà une lecture synchrone, utilisée par `check --spelling`.
+- [x] Verrou interprocessus, contrôle d’empreinte et lecture seule dans le moteur (D24).
 
 ### 4.2 Commandes
 
@@ -676,36 +684,39 @@ Les vérifications Windows/Linux seront exécutées par la CI après la poussée
 | `typstographe-cli commands describe <id>` | description et schéma des paramètres |
 | `typstographe-cli new --type courrier --model <id> -o f.typsto` | création |
 | `typstographe-cli inspect f.typsto [--json]` | métadonnées, blocs, statistiques |
-| `typstographe-cli run <id> [--params JSON] f.typsto [--save]` | une commande |
+| `typstographe-cli query <id> [--params JSON] f.typsto` | une lecture ; lot suivant |
+| `typstographe-cli run <id> [--params JSON] f.typsto [--save ou --output copie.typsto]` | une modification documentaire ; lot suivant |
 | `typstographe-cli script job.json` | lot d’édition d’un document sur session temporaire ; un seul enregistrement atomique après réussite, aucune écriture intermédiaire (D16), taille limitée |
-| `typstographe-cli export f.typsto --pdf out.pdf` / `--typst dir` | exports |
-| `typstographe-cli check f.typsto` | orthographe, validité du modèle, champs requis à l'export ; code de sortie non nul en cas de problème |
+| `typstographe-cli export f.typsto --format pdf\|typst\|both --output dir [--pages]` | exports ; PDF par défaut, PNG seulement avec `--pages` |
+| `typstographe-cli check f.typsto [--for-export] [--spelling]` | validité du brouillon ; champs requis et orthographe sur demande ; sortie non nulle si le contrôle demandé échoue |
 | `typstographe-cli render f.typsto --page N --png out.png` | aperçu |
 
 ### 4.3 Contrat
 
-- [ ] Codes de sortie : 0 succès, 1 erreur de commande, 2 usage, 3 entrée/sortie.
-- [ ] Sortie `--json` stable : `{ "ok": true, "outcome": … }` ou
-  `{ "ok": false, "error": { "code", "message", "params" } }`.
-- [ ] Messages en français ou en anglais via `typstographe-i18n` (D7) : option `--lang fr|en`,
+- [x] Codes de sortie : 0 succès, 1 opération refusée ou contrôle négatif, 2 usage, 3 entrée/sortie.
+- [x] Sortie `--json` stable : `{ "version": 1, "ok": true, "outcome": … }` ou
+  `{ "version": 1, "ok": false, "error": { "code", "message", "params" } }`.
+  Un contrôle négatif a `ok: true`, `outcome.passed: false` et une sortie 1.
+- [x] Messages en français ou en anglais via `typstographe-i18n` (D7) : option `--lang fr|en`,
   les codes du JSON restent identiques. **Langue par défaut : celle du système, avec repli
   en anglais**, comme l'application (décidé le 21 octobre 2026).
-- [ ] Format du script (`job.json`) versionné : `{ "version": 1, "document": …, "steps": [ {"command": …, "params": …} ] }`.
+- [ ] Format du script (`job.json`) versionné : `{ "version": 1, "document": …, "steps": [ {"id": …, "params": …} ] }`.
 
 ### 4.4 Tests
 
-- [ ] Tests d'intégration par processus (`assert_cmd`) sur trois systèmes.
+- [x] Tests d'intégration par processus (`assert_cmd`), inclus dans la CI des trois systèmes ;
+  exécutés localement sur macOS, résultats distants à confirmer après la poussée.
 - [ ] Atomicité : une erreur de validation ou d’exécution, même à la dernière étape,
   laisse intacts la session publiée et le fichier précédent. Refuser `save`, `export`
   et les effets globaux dans les étapes ; tester ces refus et l’échec d’écriture finale.
 - [ ] Parité : pour un échantillon de commandes, résultat CLI = résultat de l'interface
   (même `Engine`, comparaison du source Typst produit).
 - [ ] Fichier créé en CLI ouvert dans l'application et inversement.
-- [ ] `docs/cli.md` généré depuis le registre, vérifié dans la CI.
+- [x] `docs/cli.md` généré depuis le registre, vérifié dans les tests exécutés par la CI.
 
 **Scénario d'acceptation** : créer un courrier, renseigner les métadonnées, insérer
-un paragraphe et un post-scriptum, enregistrer, exporter en PDF, le tout par un script
-JSON, sans fenêtre.
+un paragraphe et un post-scriptum dans un script JSON, enregistrer, puis exporter en PDF
+par une commande distincte, sans fenêtre. L’export est hors transaction (D16/D23).
 
 ---
 

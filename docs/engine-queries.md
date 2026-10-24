@@ -6,6 +6,11 @@ proviennent du registre Rust. Aucun transport CLI/MCP n’est livré ici.
 
 ## État publié et gardes
 
+Extension additive de phase 4 : `document.inspect` expose `read_only` ;
+`document.open` accepte `read_only: true` pour lire un instantané sans verrou
+d’écriture. La disponibilité des mutations reflète ce mode. Voir
+[les protections de fichiers](architecture-phase-4.md).
+
 Toutes ces lectures concernent le document publié ; le brouillon IME reste privé
 à l’adaptateur jusqu’à validation. Elles ne changent ni source, métadonnées,
 sélection, style de frappe, état modifié, révision, historique ou fichiers.
