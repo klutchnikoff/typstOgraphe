@@ -89,7 +89,9 @@ gardées, lots et aperçu PNG. `--read-root` et `--write-root` (répétables) au
 les fichiers sous des répertoires existants ; sans racine, aucun accès documentaire
 au disque. L’ouverture éditable réserve le verrou commun à l’application ;
 sauvegarde et export sont explicites. `--read-only` autorise les requêtes,
-l’ouverture en lecture seule et la fermeture. Voir [docs/mcp.md](mcp.md).
+l’ouverture en lecture seule et la fermeture. Les capacités sont documentées par
+`capabilities.describe` ; les cinq ressources virtuelles incluent le document courant,
+le catalogue documenté et les fiches de modèles. Voir [docs/mcp.md](mcp.md).
 
 Le catalogue décrit les contrats du moteur, y compris les opérations qui ne disposent pas encore d’un déclencheur CLI. L’ouverture accepte l’option additive `read_only` (false par défaut).
 

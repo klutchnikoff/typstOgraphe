@@ -44,8 +44,15 @@ et les règles des commandes de Courrier sont la source de cette liste.
 
 Les API Rust `Engine::type_documentation` et `Engine::command_documentation`
 fournissent la documentation commune aux adaptateurs : champs existants du type,
-capacités, fiches des modèles, schémas et premiers exemples. Aucun nouvel
+capacités et fiches des modèles. Chaque opération dispose d’une fiche explicite :
+`command` (schéma commun inchangé), `details`, `defaults` extraits du schéma,
+`restrictions`, `result`, `effects`, `transaction`, `target_guidance` et `examples`.
+Chaque exemple contient `params` et `bindings` : les valeurs null signalées sont
+remplacées par les références réellement obtenues des lectures, sans inventer d’identité.
+Une opération ajoutée sans fiche fait échouer le test du catalogue. Aucun nouvel
 identifiant ni changement de paramètres du catalogue JSON n’est introduit.
+L’adaptateur MCP ajoute ses schémas effectifs, autorisations et disponibilité courante,
+y compris pour ses trois helpers ; ses ressources réutilisent ces mêmes fiches.
 
 `document.source` renvoie `{ guard, source }`. `source` est le corps documentaire
 Typst (`contenu.typ`), distinct du texte visible, du modèle et de la composition

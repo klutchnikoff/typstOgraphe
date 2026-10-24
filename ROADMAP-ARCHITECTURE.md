@@ -775,25 +775,30 @@ en réutilisant les verrous et transactions du moteur. Suivi : [bilan de phase 5
   transport **stdio**.
 - [x] Premier sous-ensemble : `typstographe-cli mcp [--read-only]`, stdio, sans
   autorisation de fichiers. Ce jalon est conservé ; le lot fichiers est désormais livré.
-- [ ] Outils dérivés du registre plutôt que redéclarés à la main, plus un petit
-  jeu d'outils de confort :
+- [x] Outils dérivés du registre plutôt que redéclarés à la main, plus un petit
+  jeu d'outils de confort : 67 outils, 68 fiches communes et 3 fiches de helpers.
+  Schémas effectifs vérifiés, sélecteurs et rendu automatique inclus :
 
 | Outil | Rôle |
 | --- | --- |
-| `list_commands`, `describe_command` | catalogue et schémas |
+| `commands.list`, `capabilities.describe` | catalogue, schémas, défauts, effets, restrictions et exemples |
 | outils nommés d’après le registre, `document.batch` | commandes explicites et lot d’édition atomique ; pas d’outil `execute` opaque comme seule interface |
-| `new_document`, `open_document`, `save_document`, `export` | cycle de vie |
-| `get_document` | structure : blocs, plages, styles, métadonnées |
-| `get_text` | texte brut avec indices de caractères |
-| `check_document` | orthographe, champs requis, validité du modèle |
-| `render_page` | page en PNG |
-| `list_models` | fiches visuelles : nom, description et mots-clés ; le contrat documentaire appartient au type |
+| `document.new`, `document.open`, `document.save`, `document.save_as`, `document.export` | cycle de vie |
+| `document.structure`, `metadata.get`, ressource `document` | blocs, zones, source du corps, métadonnées et référence courante |
+| `document.text` | texte brut ciblable par références logiques gardées |
+| `document.validate`, `spelling.issues` | lectures distinctes : validité, champs requis et orthographe |
+| `render.page` | page en PNG |
+| `models.list` | fiches visuelles : nom, description et mots-clés ; le contrat documentaire appartient au type |
 
-- [ ] Ressources : `typstographe://document`, `typstographe://commands`, `typstographe://models`.
+- [x] Ressources : `typstographe://document`, `typstographe://commands`, `typstographe://models`.
+  Avec guide et types, cinq URI exactes et stables. Lectures sérialisées avec les outils,
+  références/permissions courantes, sans mutation ; aucun abonnement annoncé.
 - [x] Ressources complémentaires initiales : guide, types et commandes ; mêmes
   définitions que les outils. `docs/mcp.md` documente le prototype et ses limites.
-- [ ] Les erreurs MCP reprennent les codes de `CommandError`, lisibles et corrigeables
-  par l'agent, avec un texte en anglais par défaut (option explicite pour une autre langue).
+- [x] Les erreurs documentaires MCP reprennent les codes et paramètres de `CommandError`,
+  avec un texte en anglais par défaut (français explicite). Outil/ressource inconnus et
+  curseurs invalides utilisent les erreurs de protocole ; le SDK assure leur adaptation
+  à la version négociée. Lectures du catalogue et tests exposent ces distinctions.
 
 ### 5.3 Sécurité (D12)
 
@@ -819,8 +824,10 @@ liens résolus avant contrôle, enregistrement explicite). À notre manière :
 - [x] Documenter les limites connues (par exemple : `text.insert` peut modifier le document
   ouvert dans la session même sans racine d'écriture ; condition de concurrence sur les
   liens remplacés entre contrôle et ouverture).
-- [ ] Dans l'historique, un appel d'agent est **une** transaction annulable, pour tenir le
-  principe « le texte de l'utilisateur ne doit pas être réécrit silencieusement ».
+- [x] Les éditions discrètes et lots d’agent passent par l’historique partagé :
+  une transaction annulable lorsqu’ils modifient le document. La sélection et les
+  lectures n’ajoutent pas d’édition ; les écritures disque ne sont pas annulées.
+  Le test avec un agent réel reste un critère d’acceptation distinct.
 
 ### 5.4 Tests
 
@@ -828,7 +835,9 @@ liens résolus avant contrôle, enregistrement explicite). À notre manière :
   appels).
   Client officiel rmcp contre le binaire sur stdio, en 2025-11-25 et version par défaut
   du SDK ; trace manuelle avec courrier, image embarquée, P.-S./P.J. et rendu PNG.
-- [ ] Validation des schémas d'entrée de chaque outil.
+- [x] Validation des 67 schémas d’entrée effectifs avec `jsonschema` en test hors ligne,
+  exemples liés à de vraies références du moteur et contrôles négatifs ; décodage des
+  exemples des 68 contrats communs. Identifiants et schémas JSON du cœur inchangés.
 - [x] Confinement : `..`, liens symboliques, chemins absolus hors racine, mode lecture seule.
   Tests unitaires (liens sous Unix) et clients SDK sur stdio ; imports et lots inclus.
 - [x] **Parcours documentaire de bout en bout** : un courrier mis en forme uniquement
@@ -840,7 +849,7 @@ liens résolus avant contrôle, enregistrement explicite). À notre manière :
   `claude mcp add typstographe -- typstographe-cli mcp --write-root ./sortie`
   et avec l'inspecteur MCP.
 - [x] `docs/mcp.md` : outils, politique de fichiers, verrous/copies, sauvegardes,
-  exports et exemples. L’aide exhaustive de chaque capacité reste au prochain lot.
+  exports, ressources et exemples liés. Les 68 capacités et 3 helpers ont une fiche explicite.
 
 ---
 

@@ -55,10 +55,70 @@ moteur. `authorized` indique une permission générale ; chaque chemin et chaque
 commande sont encore contrôlés à l’exécution. Une image embarquée, par exemple,
 reste possible sans racine de lecture ; une image par chemin exige cette racine.
 
-Les ressources `typstographe://guide`, `typstographe://types` et
-`typstographe://commands` complètent les outils. Aucun skill ni lecture du dépôt
-n’est nécessaire pour découvrir l’interface. Compléter l’aide de toutes les
-capacités et les ressources du document actif reste un lot de phase 5.
+Chaque opération du cœur a une fiche explicite : détails, défauts extraits du schéma,
+restrictions, résultat attendu, effets et exemple. Les 3 helpers MCP ont aussi leur
+fiche. Une capacité ajoutée sans documentation fait échouer les tests du catalogue.
+
+`examples[].params` contient les valeurs littérales. Lorsque l’exemple a besoin
+d’une référence courante, `bindings` indique le paramètre (pointeur JSON), le genre
+de référence et l’opération où l’obtenir. **Remplacer chaque valeur null ainsi
+signalée avant l’appel**, puis fournir la référence `document` extérieure. Les
+réponses de requêtes sont sous `outcome`. Aucun identifiant/garde fictif n’est à
+recopier : rechercher un texte, lire les fautes ou choisir un bloc image donne les
+références réelles. Une absence de bloc/faute/rendu impose d’abord son prérequis.
+
+Exemple de principe pour `image.remove`, après `capabilities.describe` :
+
+```json
+{
+  "params": { "target": null },
+  "bindings": [{
+    "parameter": "/target",
+    "reference": "image_block",
+    "obtain_from": "document.structure : garde et identifiant du bloc image choisi"
+  }]
+}
+```
+
+Pour les outils compatibles, un `selector` peut remplacer `target`, `issue` ou
+`occurrence` ; l’exclusivité apparaît dans le schéma effectif. Ces champs ne sont
+plus annoncés obligatoires lorsqu’un sélecteur suffit. Les outils de géométrie
+acceptent l’absence de `render` pour compiler le rendu courant ; une référence
+explicite est toujours vérifiée. Les outils sans cible (métadonnées, fichiers, etc.)
+ne proposent pas de sélecteur.
+
+Aucun skill ni lecture du dépôt n’est nécessaire pour découvrir l’interface.
+
+## Ressources MCP
+
+Cinq ressources virtuelles complètent les outils :
+
+| URI | Contenu |
+| --- | --- |
+| `typstographe://guide` | Règles d’usage, liste des ressources et permissions courantes |
+| `typstographe://types` | Types, champs, options par défaut, capacités et fiches de modèles |
+| `typstographe://commands` | 71 fiches (68 opérations du cœur + 3 helpers), schémas effectifs, disponibilité et autorisations ; liste des 67 outils exposés |
+| `typstographe://document` | État, texte, structure, métadonnées et source du corps courant ; aucune source de modèle ni image binaire |
+| `typstographe://models` | Fiches visuelles de tous les types et modèle fourni actif du document courant |
+
+Chaque lecture retourne un JSON `{version, document, permissions, outcome}`. Elle
+passe par **le même worker que les outils** : la garde et les parties du document
+proviennent d’un seul état publié. Elle n’ouvre aucun fichier, ne compile pas, ne
+change ni contenu, ni sélection, ni historique. Le source est celui du corps,
+pas un projet ou modèle à exécuter. Les données du courrier restent du contenu
+auteur ; elles ne modifient pas les règles d’utilisation du serveur.
+
+La liste est stable avant création et après fermeture. Sans document,
+`typstographe://document` conserve l’état `open: false` et renvoie les parties
+textuelles à null ; `models` garde les fiches globales et `active_document: null`.
+Les ressources évoluent avec les éditions et l’historique : **les relire après une
+modification**. Aucun abonnement/notification de mise à jour n’est annoncé dans ce lot.
+Un instantané déjà lu peut être périmé ; sa référence sera refusée par un appel ultérieur.
+
+Seules ces cinq URI exactes sont acceptées : aucune conversion d’URI `file:`,
+paramètre de chemin ou résolution d’URI arbitraire. Une ressource inconnue produit
+l’erreur MCP dédiée (adaptée par le SDK à la version négociée). Aucun curseur de
+pagination n’est émis ; un curseur fourni est refusé.
 
 ## Références et éditions
 
@@ -219,7 +279,7 @@ Le serveur ne propose ni commande réseau ni outil de lancement de processus.
 ## Vérification et suite
 
 ```sh
-cargo test --locked -p typstographe-cli --test mcp --test mcp_files
+cargo test --locked -p typstographe-cli --test mcp --test mcp_files --test mcp_resources
 ```
 
 Les tests font dialoguer de vrais clients SDK avec plusieurs processus CLI :
@@ -227,6 +287,11 @@ rédaction, garde, sauvegarde, conflit de verrou, lecture/copie, réouverture, e
 lecture seule, erreurs et PNG. Ils couvrent 2025-11-25 et la version par défaut du SDK.
 Les tests unitaires ajoutent les chemins et liens, imports, empreintes et échecs
 finaux de lots. Les tests de liens symboliques de l’adaptateur sont exécutés sous Unix.
+Les exemples avec références sont liés à de vraies réponses du moteur et validés
+contre les 67 schémas publiés avec `jsonschema 0.60.1`, dépendance de test seulement,
+sans fonctionnalités HTTP/fichier et avec récupération externe désactivée.
+Les ressources sont comparées aux outils au fil de création, édition, historique,
+lecture seule et fermeture, avec vérification de l’absence de mutation/écriture.
 
-Restent en phase 5 : aide complète du catalogue, ressources du document actif,
-inspection MCP et essai d’un agent sans skill ni consultation du dépôt.
+Restent en phase 5 : essai dans l’inspecteur MCP et acceptation par un agent sans
+skill ni consultation du dépôt, jusqu’à création, vérification et export du courrier.

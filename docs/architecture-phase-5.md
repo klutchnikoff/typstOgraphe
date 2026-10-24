@@ -196,11 +196,85 @@ est documentée dans [le guide MCP](mcp.md), avec les budgets et l’annulation 
 
 Les journaux de tests et de Clippy sont dans `output/phase-5-files-*.log`.
 
+## Troisième lot — documentation et ressources
+
+Livré le 24 octobre 2026. Le diagnostic de `getrandom` est consigné dans le
+[bilan technique de phase 3](architecture-phase-3.md#diagnostic-wasm--24-octobre-2026) :
+le contrôle WASM reste informatif, sans activation de `wasm_js` ni chantier Web.
+
+### Capacités documentées
+
+Les **68 opérations du cœur** possèdent une fiche explicite, indépendante du SDK :
+contrat commun, détails, défauts extraits du schéma, restrictions, résultat attendu,
+effets, transaction et exemple. Un test exige une fiche pour chaque entrée du
+registre et décode tous les exemples. Les **3 helpers MCP** ont aussi leur fiche,
+disponible par `capabilities.describe` : l’agent peut documenter n’importe lequel
+des **67 outils exposés**, ainsi que comprendre les 4 opérations du cœur non exposées.
+Les identifiants et schémas d’entrée JSON du cœur restent inchangés.
+
+Les exemples sont des objets `{params, bindings}`. Les paramètres littéraux sont
+séparés des références contextuelles : une liaison indique le pointeur JSON à
+remplacer, le genre de référence et la lecture dont elle provient. Les cibles
+d’image, occurrences de recherche, fautes orthographiques, rendus et références
+de récupération ne sont pas des identités fictives à copier. La documentation
+MCP explique l’enveloppe `document`, les résultats sous `outcome`, les prérequis
+et les permissions de fichiers applicables.
+
+La vérification utilise **jsonschema 0.60.1** uniquement en dépendance de test de la
+CLI, avec `default-features=false` et `.offline()` : pas de fonctionnalité de
+récupération HTTP/fichier, aucun ajout à la production ou au cœur. La version
+requiert Rust 1.85, compatible avec le minimum du projet (1.92). Voir la
+[documentation de validation hors ligne](https://docs.rs/jsonschema/0.60.1/jsonschema/#offline-validation).
+
+Ce contrôle a permis de rendre explicites les adaptations déjà faites par le
+résolveur MCP : `selector` peut fournir une cible/occurrence/faute requise, les
+cibles et sélecteurs sont exclusifs, et le rendu peut être compilé si `render`
+est absent. Les commandes sans cible ne proposent plus un sélecteur sans effet.
+Les exemples liés à de **vraies réponses du moteur** valident les 67 schémas effectifs,
+avec des contrôles négatifs. `commands.list`, les fiches et les ressources utilisent
+les mêmes schémas et règles d’autorisation ; la disponibilité contextuelle reste distincte.
+
+### Ressources du moteur courant
+
+Cinq URI exactes et stables sont proposées : guide, types, commandes, document et
+modèles. `typstographe://commands` présente 71 fiches (68 + 3), la liste des 67 outils,
+les schémas effectifs et le contexte courant. `typstographe://document` fournit
+état, texte, structure, métadonnées et source du corps ; aucun modèle source ou
+binaire image. `typstographe://models` garde les fiches visuelles succinctes de
+tous les types et le modèle fourni actif du document courant.
+
+Toutes les lectures passent par le **même worker propriétaire que les outils** :
+chaque réponse est un instantané cohérent avec référence documentaire et permissions.
+Elles ne modifient ni contenu, sélection ou historique, ne compilent pas et ne
+lisent pas de fichier. Sans document, l’état est fermé, les parties textuelles
+sont null et les fiches globales restent disponibles. Après édition, Annuler/Rétablir
+ou remplacement, une nouvelle lecture renvoie l’état courant ; les références
+anciennes sont toujours gardées. Aucun abonnement ni notification de mise à jour
+n’est annoncé. Les URI arbitraires, `file:` et variantes avec paramètres sont
+refusées ; le SDK adapte l’erreur de ressource inconnue à la version du protocole.
+
+### Contrôles
+
+- **432 tests Rust du workspace** passent sous macOS : 226 cœur, 139 application,
+  7 i18n, 60 CLI (19 unitaires, 41 de processus). Le contrôle des exemples du cœur
+  est renforcé, avec 4 tests unitaires MCP et 2 tests de processus supplémentaires.
+- Les clients SDK en 2025-11-25 et version courante vérifient le cycle des ressources,
+  la cohérence des gardes, l’absence de mutation/écriture, l’historique, le mode lecture
+  seule, le catalogue, les erreurs et la stabilité de la liste. Ce sont des tests de
+  protocole ; l’acceptation avec un agent/LLM reste distincte.
+- **14 tests Python**, formatage, Clippy toutes cibles, gardes de dépendances et limite
+  de 800 lignes passent. La documentation CLI est générée puis contrôlée pour dérive.
+- Les **8 captures natives sont strictement identiques** aux références :
+  `output/baseline/run-_xq0bi2a/`, journal `output/phase-5-docs-captures.log`.
+
+Les journaux du lot sont conservés dans `output/phase-5-docs-*.log`.
+
 ## Lots suivants
 
-1. Compléter la documentation des capacités et la parité de tous les outils,
-   ressources et erreurs. Test de création/vérification/export d’un courrier
-   sans skill ni consultation du dépôt, puis essai avec un agent dans un client MCP.
+1. Relecture finale des critères et essai dans l’inspecteur MCP.
+2. Test d’acceptation avec un agent/LLM : découvrir les capacités, créer, rédiger,
+   vérifier et exporter un courrier sans skill ni consultation du dépôt. Consigner
+   les défauts éventuels et les corriger avant de clore la phase 5.
 
 ## Phase 6
 
