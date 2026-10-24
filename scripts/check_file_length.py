@@ -63,7 +63,7 @@ def violations(source_root, limit):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=ROOT / "src")
+    parser.add_argument("--root", type=Path, default=ROOT / "crates")
     parser.add_argument("--limit", type=int, default=800)
     parser.add_argument("--warn", action="store_true", help="Report size violations without failing (until phase 7)")
     args = parser.parse_args()

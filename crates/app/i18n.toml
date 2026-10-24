@@ -1,0 +1,7 @@
+# i18n-embed-fl vérifie les appels à la compilation dans le crate appelant.
+# Le catalogue et le chargeur restent possédés par typstographe-i18n.
+fallback_language = "fr"
+
+[fluent]
+assets_dir = "../i18n/i18n"
+domain = "typstographe"

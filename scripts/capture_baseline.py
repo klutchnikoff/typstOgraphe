@@ -75,9 +75,9 @@ def fixtures(binary, work):
     run(binary, ["--render-demo", exported], work / "render-demo.log")
     files = {name: (exported / name).read_bytes() for name in
              ["main.typ", "modele.typ", "metadonnees.json", "dependencies.json"]}
-    files["manifest.json"] = (ROOT / "tests/fixtures/capture-manifest.json").read_bytes()
-    files["contenu.typ"] = (ROOT / "tests/fixtures/capture-letter.typ").read_bytes()
-    files["images/parc.svg"] = (ROOT / "tests/fixtures/parc.svg").read_bytes()
+    files["manifest.json"] = (ROOT / "fixtures/capture-manifest.json").read_bytes()
+    files["contenu.typ"] = (ROOT / "fixtures/capture-letter.typ").read_bytes()
+    files["images/parc.svg"] = (ROOT / "fixtures/parc.svg").read_bytes()
     for folder in ["capabilities", "packages"]:
         for path in (exported / folder).rglob("*"):
             if path.is_file():

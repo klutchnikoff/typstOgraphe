@@ -1,20 +1,17 @@
-[package]
-name = "typstographe"
+[workspace]
+members = ["crates/core", "crates/i18n", "crates/app"]
+default-members = ["crates/app"]
+resolver = "3"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.92"
-description = "Édition visuelle de documents avec egui et Typst"
 publish = false
 
-[features]
-editor-model-spike = []
-
-[[example]]
-name = "editor-model-spike"
-path = "experiments/editor-model/main.rs"
-required-features = ["editor-model-spike"]
-
-[dependencies]
+[workspace.dependencies]
+typstographe-core = { path = "crates/core" }
+typstographe-i18n = { path = "crates/i18n" }
 eframe = { version = "=0.33.3", default-features = false, features = ["default_fonts", "glow", "x11", "wayland", "accesskit", "persistence"] }
 resvg = { version = "=0.47.0", default-features = false }
 unicode-segmentation = "1.13"
@@ -45,14 +42,10 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 regex = "1.13.1"
 spellbook = "0.4.2"
 unicode-normalization = "0.1"
-
-[target.'cfg(target_os = "macos")'.dependencies]
 muda = { version = "0.21", default-features = false }
-
-[dev-dependencies]
 fluent-syntax = "0.12"
 
-[lints.rust]
+[workspace.lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
 [profile.dev]

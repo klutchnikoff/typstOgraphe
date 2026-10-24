@@ -5290,17 +5290,35 @@ version = "0.1.0"
 dependencies = [
  "atomic-write-file",
  "base64 0.22.1",
- "chrono",
- "comemo",
  "eframe",
- "fluent-syntax",
  "i18n-embed",
  "i18n-embed-fl",
  "muda",
  "png",
- "regex",
  "resvg",
  "rfd",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "time",
+ "typst",
+ "typst-assets",
+ "typst-syntax",
+ "typstographe-core",
+ "typstographe-i18n",
+]
+
+[[package]]
+name = "typstographe-core"
+version = "0.1.0"
+dependencies = [
+ "atomic-write-file",
+ "base64 0.22.1",
+ "chrono",
+ "comemo",
+ "png",
+ "regex",
+ "resvg",
  "rust-embed",
  "schemars",
  "serde",
@@ -5320,6 +5338,18 @@ dependencies = [
  "unicode-normalization",
  "unicode-segmentation",
  "zip",
+]
+
+[[package]]
+name = "typstographe-i18n"
+version = "0.1.0"
+dependencies = [
+ "fluent-syntax",
+ "i18n-embed",
+ "i18n-embed-fl",
+ "rust-embed",
+ "serde_json",
+ "typstographe-core",
 ]
 
 [[package]]

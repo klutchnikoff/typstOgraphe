@@ -1,0 +1,44 @@
+[package]
+name = "typstographe"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+description = "Édition visuelle de documents avec egui et Typst"
+
+[lints]
+workspace = true
+
+[features]
+editor-model-spike = []
+
+[[example]]
+name = "editor-model-spike"
+path = "../../experiments/editor-model/main.rs"
+required-features = ["editor-model-spike"]
+
+[dependencies]
+typstographe-core.workspace = true
+typstographe-i18n.workspace = true
+eframe.workspace = true
+resvg.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+base64.workspace = true
+typst-assets.workspace = true
+png.workspace = true
+tempfile.workspace = true
+rfd.workspace = true
+i18n-embed.workspace = true
+i18n-embed-fl.workspace = true
+time.workspace = true
+typst.workspace = true
+atomic-write-file.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+muda.workspace = true
+
+[dev-dependencies]
+typst-syntax.workspace = true
+typstographe-core = { workspace = true, features = ["test-support"] }
+typstographe-i18n = { workspace = true, features = ["test-support"] }

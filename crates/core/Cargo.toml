@@ -1,0 +1,42 @@
+[package]
+name = "typstographe-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+description = "Moteur documentaire et rendu Typst, sans interface graphique"
+
+[lints]
+workspace = true
+
+[features]
+# Synchronisation des workers pour les tests inter-crates ; aucune session mutable.
+test-support = []
+
+[dependencies]
+resvg.workspace = true
+unicode-segmentation.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+thiserror.workspace = true
+base64.workspace = true
+typst.workspace = true
+typst-eval.workspace = true
+typst-layout.workspace = true
+typst-ide.workspace = true
+typst-assets.workspace = true
+typst-render.workspace = true
+typst-pdf.workspace = true
+typst-syntax.workspace = true
+comemo.workspace = true
+png.workspace = true
+zip.workspace = true
+tempfile.workspace = true
+rust-embed.workspace = true
+atomic-write-file.workspace = true
+time.workspace = true
+chrono.workspace = true
+regex.workspace = true
+spellbook.workspace = true
+unicode-normalization.workspace = true

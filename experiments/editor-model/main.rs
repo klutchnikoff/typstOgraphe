@@ -1,64 +1,7 @@
 //! Diagnostic borné de phase 1.6, exclu du logiciel et des builds par défaut.
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
-#![allow(
-    dead_code,
-    reason = "Réutilisation des vrais modules du prototype dans un diagnostic isolé."
-)]
 
-#[path = "../../src/annotations.rs"]
-mod annotations;
-#[path = "../../src/assets.rs"]
-mod assets;
-#[path = "../../src/commands.rs"]
-mod commands;
-#[path = "../../src/dates.rs"]
-mod dates;
-#[path = "../../src/document.rs"]
-mod document;
-#[path = "../../src/document_types/mod.rs"]
-mod document_types;
-#[path = "../../src/editor.rs"]
-mod editor;
-#[path = "../../src/engine/mod.rs"]
-mod engine;
-#[path = "../../src/errors.rs"]
-mod errors;
-#[path = "../../src/exporting.rs"]
-mod exporting;
-#[path = "../../src/fonts.rs"]
-mod fonts;
-#[path = "../../src/i18n.rs"]
-mod i18n;
-#[path = "../../src/icons.rs"]
-mod icons;
-#[path = "../../src/identity.rs"]
-mod identity;
-#[path = "../../src/menus.rs"]
-mod menus;
-#[path = "../../src/navigation.rs"]
-mod navigation;
-#[path = "../../src/packages.rs"]
-mod packages;
-#[path = "../../src/preferences.rs"]
-mod preferences;
-#[path = "../../src/profile.rs"]
-mod profile;
-#[path = "../../src/recovery.rs"]
-mod recovery;
-#[path = "../../src/rendering.rs"]
-mod rendering;
-#[path = "../../src/search.rs"]
-mod search;
-#[path = "../../src/session.rs"]
-mod session;
-#[path = "../../src/spelling.rs"]
-mod spelling;
-#[path = "../../src/statistics.rs"]
-mod statistics;
-#[path = "../../src/storage.rs"]
-mod storage;
-#[path = "../../src/toolbar.rs"]
-mod toolbar;
+use typstographe::{document, editor};
 
 use document::Projection;
 use eframe::egui::{self, text::CCursorRange};

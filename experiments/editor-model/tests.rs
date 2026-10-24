@@ -1,4 +1,5 @@
 use super::*;
+use typstographe::{document_types, rendering};
 
 #[test]
 fn model_spike_navigation_is_unicode_and_does_not_change_the_document() {

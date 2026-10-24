@@ -37,18 +37,18 @@ jobs:
             target
           key: rust-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: rust-${{ runner.os }}-
-      - run: cargo +stable fmt --check
+      - run: cargo +stable fmt --all --check
       - name: Architecture guards
         if: runner.os == 'Linux'
         run: |
           python3 -m unittest discover -s scripts/tests -v
           scripts/check-file-length.sh --warn
-          scripts/check-file-length.sh --root src/app
-          scripts/check-file-length.sh --root src/engine
-          scripts/check-file-length.sh --root src/document
-          scripts/check-file-length.sh --root src/editor
+          scripts/check-file-length.sh --root crates/app/src/app
+          scripts/check-file-length.sh --root crates/core/src/engine
+          scripts/check-file-length.sh --root crates/core/src/document
+          scripts/check-file-length.sh --root crates/app/src/editor
       - name: Editor model experiment
         if: runner.os == 'Linux'
         run: cargo +stable test --locked --features editor-model-spike --example editor-model-spike model_spike
-      - run: cargo +stable test --locked
-      - run: cargo +stable clippy --locked --all-targets -- -D warnings
+      - run: cargo +stable test --locked --workspace
+      - run: cargo +stable clippy --locked --workspace --all-targets -- -D warnings

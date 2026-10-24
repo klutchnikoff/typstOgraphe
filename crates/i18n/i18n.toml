@@ -1,0 +1,5 @@
+fallback_language = "fr"
+
+[fluent]
+assets_dir = "i18n"
+domain = "typstographe"
