@@ -35,7 +35,8 @@ impl Engine {
                     .ok()
                     .and_then(|i| i.original_name.clone()),
                 saved_at: entry.info.as_ref().ok().map(|i| i.saved_at),
-                error: entry.info.as_ref().err().cloned(),
+                error: entry.info.as_ref().err().map(ToString::to_string),
+                cause: entry.info.as_ref().err().cloned(),
             })
             .collect()
     }
@@ -76,7 +77,7 @@ impl Engine {
         let entry = &self.recovery.entries[index].1;
         let stored = entry
             .load()
-            .map_err(|e| CommandError::detail(ErrorCode::Io, "recovery_load", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Io, "recovery_load", e))?;
         let name = entry
             .info
             .as_ref()
@@ -95,7 +96,7 @@ impl Engine {
         self.recovery.entries[index]
             .1
             .delete()
-            .map_err(|e| CommandError::detail(ErrorCode::Io, "recovery_delete", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Io, "recovery_delete", e))?;
         self.recovery.entries.remove(index);
         Ok(json!({"deleted":p.reference}))
     }

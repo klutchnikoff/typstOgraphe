@@ -16,10 +16,10 @@ pub enum DocumentType {
 }
 impl DocumentType {
     pub const ALL: [Self; 2] = [Self::Courrier, Self::CompteRendu];
-    pub fn label(self) -> String {
+    pub fn label_key(self) -> &'static str {
         match self {
-            Self::Courrier => crate::tr!("letter-type"),
-            Self::CompteRendu => crate::tr!("minutes-type"),
+            Self::Courrier => "letter-type",
+            Self::CompteRendu => "minutes-type",
         }
     }
     pub fn composition_function(self) -> &'static str {
@@ -283,6 +283,7 @@ mod tests {
                         &format!("#let {}(..args) = []", other.composition_function())
                     )
                     .unwrap_err()
+                    .to_string()
                     .contains(kind.composition_function())
             );
             assert!(

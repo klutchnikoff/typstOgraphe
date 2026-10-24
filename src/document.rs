@@ -1,5 +1,6 @@
 //! Projection éditable du sous-ensemble Typst. Les indices publics sont des
 //! indices de caractères Unicode (comme les curseurs egui), jamais des octets.
+use crate::errors::{CoreError, SourceError};
 use std::{collections::BTreeMap, ops::Range};
 
 #[path = "document/structure.rs"]
@@ -156,15 +157,15 @@ impl Document {
             && self.view.same_content(&other.view)
             && self.assets == other.assets
     }
-    pub fn from_source(source: &str) -> Result<Self, String> {
+    pub fn from_source(source: &str) -> Result<Self, CoreError> {
         let parsed = typst_syntax::Source::detached(source);
         let tree = parsed.root();
         if tree.diagnosis().errors {
-            return Err(crate::tr!("source-syntax-error"));
+            return Err(CoreError::from(SourceError::SyntaxError));
         }
         let markup = tree
             .cast::<ast::Markup>()
-            .ok_or(crate::tr!("source-unreadable"))?;
+            .ok_or(CoreError::from(SourceError::Unreadable))?;
         let mut parser = Projector {
             source: Some(parsed.clone()),
             ..Default::default()
@@ -1027,7 +1028,7 @@ impl Projector {
             });
         }
     }
-    fn markup(&mut self, markup: ast::Markup<'_>, style: &InlineStyle) -> Result<(), String> {
+    fn markup(&mut self, markup: ast::Markup<'_>, style: &InlineStyle) -> Result<(), CoreError> {
         for expr in markup.exprs() {
             self.origin = self
                 .source
@@ -1081,7 +1082,7 @@ impl Projector {
                 }
                 Expr::Heading(heading) => {
                     if heading.depth().get() > 3 {
-                        return Err(crate::tr!("source-heading-depth"));
+                        return Err(CoreError::from(SourceError::HeadingDepth));
                     }
                     self.pending_break = !self.view.text.is_empty();
                     self.ensure_block(BlockKind::Heading(heading.depth().get() as u8));
@@ -1125,18 +1126,17 @@ impl Projector {
                     self.append(&url, &nested);
                 }
                 _ => {
-                    return Err(crate::tr!(
-                        "source-unsupported-node",
-                        kind = format!("{:?}", expr.to_untyped().kind())
-                    ));
+                    return Err(CoreError::from(SourceError::UnsupportedNode {
+                        kind: (format!("{:?}", expr.to_untyped().kind())).to_string(),
+                    }));
                 }
             }
         }
         Ok(())
     }
-    fn call(&mut self, call: ast::FuncCall<'_>, style: &InlineStyle) -> Result<(), String> {
+    fn call(&mut self, call: ast::FuncCall<'_>, style: &InlineStyle) -> Result<(), CoreError> {
         let Expr::Ident(callee) = call.callee() else {
-            return Err(crate::tr!("source-computed-call"));
+            return Err(CoreError::from(SourceError::ComputedCall));
         };
         let args: Vec<_> = call.args().items().collect();
         if matches!(callee.as_str(), "postscript" | "attachment") {
@@ -1169,16 +1169,15 @@ impl Projector {
                 *body
             }
             _ => {
-                return Err(crate::tr!(
-                    "source-unsupported-function",
-                    name = callee.as_str()
-                ));
+                return Err(CoreError::from(SourceError::UnsupportedFunction {
+                    name: (callee.as_str()).to_string(),
+                }));
             }
         };
         self.inline_markup(body.body(), &nested)
     }
-    fn figure(&mut self, args: &[ast::Arg<'_>]) -> Result<(), String> {
-        let invalid = || crate::tr!("source-image-signature");
+    fn figure(&mut self, args: &[ast::Arg<'_>]) -> Result<(), CoreError> {
+        let invalid = || CoreError::from(SourceError::ImageSignature);
         let mut image = None;
         let mut caption = None;
         for arg in args {
@@ -1257,9 +1256,9 @@ impl Projector {
         name: &str,
         args: &[ast::Arg<'_>],
         style: &InlineStyle,
-    ) -> Result<(), String> {
+    ) -> Result<(), CoreError> {
         let [ast::Arg::Pos(Expr::ContentBlock(body))] = args else {
-            return Err(crate::tr!("source-letter-note-signature"));
+            return Err(CoreError::from(SourceError::LetterNoteSignature));
         };
         let kind = if name == "postscript" {
             BlockKind::Postscript
@@ -1272,7 +1271,7 @@ impl Projector {
         };
         note.inline_markup(body.body(), style)?;
         if kind == BlockKind::Attachment && note.view.blocks.len() != 1 {
-            return Err(crate::tr!("source-letter-note-signature"));
+            return Err(CoreError::from(SourceError::LetterNoteSignature));
         }
         note.view.blocks.fill(kind);
         self.pending_break =
@@ -1282,8 +1281,8 @@ impl Projector {
         self.pending_break = true;
         Ok(())
     }
-    fn quote(&mut self, args: &[ast::Arg<'_>], style: &InlineStyle) -> Result<(), String> {
-        let invalid = || crate::tr!("source-quote-signature");
+    fn quote(&mut self, args: &[ast::Arg<'_>], style: &InlineStyle) -> Result<(), CoreError> {
+        let invalid = || CoreError::from(SourceError::QuoteSignature);
         let mut block = false;
         let mut body = None;
         let mut attribution = None;
@@ -1348,7 +1347,7 @@ impl Projector {
         &mut self,
         markup: ast::Markup<'_>,
         style: &InlineStyle,
-    ) -> Result<(), String> {
+    ) -> Result<(), CoreError> {
         if markup.exprs().any(|expr| {
             matches!(
                 expr,
@@ -1356,7 +1355,7 @@ impl Projector {
             )
             || matches!(expr, Expr::FuncCall(call) if matches!(call.callee(), Expr::Ident(name) if matches!(name.as_str(), "quote" | "figure" | "postscript" | "attachment")))
         }) {
-            return Err(crate::tr!("source-nested-blocks"));
+            return Err(CoreError::from(SourceError::NestedBlocks));
         }
         self.markup(markup, style)
     }
@@ -1387,13 +1386,13 @@ impl PaperFormat {
             Self::Legal => "us-legal",
         }
     }
-    pub fn label(self) -> String {
+    pub fn label_key(self) -> &'static str {
         match self {
-            Self::A3 => "A3".into(),
-            Self::A4 => "A4".into(),
-            Self::A5 => "A5".into(),
-            Self::Letter => crate::tr!("paper-letter"),
-            Self::Legal => crate::tr!("paper-legal"),
+            Self::A3 => "paper-a3",
+            Self::A4 => "paper-a4",
+            Self::A5 => "paper-a5",
+            Self::Letter => "paper-letter",
+            Self::Legal => "paper-legal",
         }
     }
 }
@@ -1439,15 +1438,15 @@ impl DocumentLanguage {
             Self::Dutch => "nl",
         }
     }
-    pub fn label(self) -> String {
+    pub fn label_key(self) -> &'static str {
         match self {
-            Self::French => crate::tr!("language-french"),
-            Self::English => crate::tr!("language-english"),
-            Self::German => crate::tr!("language-german"),
-            Self::Spanish => crate::tr!("language-spanish"),
-            Self::Italian => crate::tr!("language-italian"),
-            Self::Portuguese => crate::tr!("language-portuguese"),
-            Self::Dutch => crate::tr!("language-dutch"),
+            Self::French => "language-french",
+            Self::English => "language-english",
+            Self::German => "language-german",
+            Self::Spanish => "language-spanish",
+            Self::Italian => "language-italian",
+            Self::Portuguese => "language-portuguese",
+            Self::Dutch => "language-dutch",
         }
     }
 }

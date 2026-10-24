@@ -1,5 +1,6 @@
 //! Copies de récupération autonomes, hors du fichier utilisateur et du rendu.
 //! Le worker possède le verrou de sa session ; les autres instances l’ignorent.
+use crate::errors::{CoreError, RecoveryError, StorageError};
 use crate::storage::{self, StoredDocument};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -51,41 +52,41 @@ struct Slot {
     lock: Option<File>,
 }
 impl Slot {
-    fn create(root: &Path) -> Result<Self, String> {
+    fn create(root: &Path) -> Result<Self, CoreError> {
         let directory = tempfile::Builder::new()
             .prefix("session-")
             .tempdir_in(root)
-            .map_err(|e| e.to_string())?;
-        let lock = File::create_new(directory.path().join("lock")).map_err(|e| e.to_string())?;
-        lock.try_lock().map_err(|e| e.to_string())?;
+            .map_err(CoreError::external)?;
+        let lock = File::create_new(directory.path().join("lock")).map_err(CoreError::external)?;
+        lock.try_lock().map_err(CoreError::external)?;
         Ok(Self {
             directory: directory.keep(),
             lock: Some(lock),
         })
     }
-    fn claim(directory: PathBuf) -> Result<Option<Self>, String> {
+    fn claim(directory: PathBuf) -> Result<Option<Self>, CoreError> {
         let lock = File::options()
             .read(true)
             .write(true)
             .open(directory.join("lock"))
-            .map_err(|e| e.to_string())?;
+            .map_err(CoreError::external)?;
         match lock.try_lock() {
             Ok(()) => Ok(Some(Self {
                 directory,
                 lock: Some(lock),
             })),
             Err(std::fs::TryLockError::WouldBlock) => Ok(None),
-            Err(error) => Err(error.to_string()),
+            Err(error) => Err(CoreError::external(error)),
         }
     }
     fn path(&self) -> PathBuf {
         self.directory.join(SNAPSHOT)
     }
-    fn clear(&self) -> Result<(), String> {
+    fn clear(&self) -> Result<(), CoreError> {
         match fs::remove_file(self.path()) {
             Ok(()) => Ok(()),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(error.to_string()),
+            Err(error) => Err(CoreError::external(error)),
         }
     }
 }
@@ -103,17 +104,17 @@ impl Drop for Slot {
 
 pub struct Entry {
     slot: Slot,
-    pub info: Result<Info, String>,
+    pub info: Result<Info, CoreError>,
 }
-fn open_snapshot(path: &Path) -> Result<File, String> {
-    let metadata = fs::symlink_metadata(path).map_err(|e| e.to_string())?;
+fn open_snapshot(path: &Path) -> Result<File, CoreError> {
+    let metadata = fs::symlink_metadata(path).map_err(CoreError::external)?;
     if !metadata.is_file() || metadata.len() > crate::assets::MAX_DOCUMENT_BYTES + 512 * 1024 {
-        return Err(crate::tr!("storage-file-too-large"));
+        return Err(CoreError::from(StorageError::FileTooLarge));
     }
-    File::open(path).map_err(|e| e.to_string())
+    File::open(path).map_err(CoreError::external)
 }
-fn decode_info(text: &str) -> Result<Info, String> {
-    let info: Info = serde_json::from_str(text).map_err(|e| e.to_string())?;
+fn decode_info(text: &str) -> Result<Info, CoreError> {
+    let info: Info = serde_json::from_str(text).map_err(CoreError::external)?;
     if info.version != 1
         || time::OffsetDateTime::from_unix_timestamp(info.saved_at).is_err()
         || info
@@ -121,7 +122,7 @@ fn decode_info(text: &str) -> Result<Info, String> {
             .as_ref()
             .is_some_and(|name| name.len() > 1024 || name.contains(['/', '\\', '\0']))
     {
-        return Err(crate::tr!("storage-unsupported"));
+        return Err(CoreError::from(StorageError::Unsupported));
     }
     Ok(info)
 }
@@ -129,38 +130,38 @@ impl Entry {
     fn from_slot(slot: Slot) -> Self {
         let info = (|| {
             let mut zip =
-                zip::ZipArchive::new(open_snapshot(&slot.path())?).map_err(|e| e.to_string())?;
-            let file = zip.by_name(INFO).map_err(|e| e.to_string())?;
+                zip::ZipArchive::new(open_snapshot(&slot.path())?).map_err(CoreError::external)?;
+            let file = zip.by_name(INFO).map_err(CoreError::external)?;
             if file.size() > INFO_LIMIT {
-                return Err(crate::tr!("storage-invalid-size"));
+                return Err(CoreError::from(StorageError::InvalidSize));
             }
             let mut text = String::new();
             file.take(INFO_LIMIT + 1)
                 .read_to_string(&mut text)
-                .map_err(|e| e.to_string())?;
+                .map_err(CoreError::external)?;
             if text.len() as u64 > INFO_LIMIT {
-                return Err(crate::tr!("storage-invalid-size"));
+                return Err(CoreError::from(StorageError::InvalidSize));
             }
             decode_info(&text)
         })();
         Self { slot, info }
     }
-    pub fn load(&self) -> Result<StoredDocument, String> {
+    pub fn load(&self) -> Result<StoredDocument, CoreError> {
         let (document, info) =
             storage::decode_archive(open_snapshot(&self.slot.path())?, Some(INFO))?;
-        decode_info(&info.ok_or_else(|| crate::tr!("storage-unsupported"))?)?;
+        decode_info(&info.ok_or_else(|| CoreError::from(StorageError::Unsupported))?)?;
         Ok(document)
     }
-    pub fn delete(&self) -> Result<(), String> {
+    pub fn delete(&self) -> Result<(), CoreError> {
         self.slot.clear()
     }
 }
 
-fn scan(root: &Path) -> Result<Vec<Entry>, String> {
+fn scan(root: &Path) -> Result<Vec<Entry>, CoreError> {
     let mut entries = Vec::new();
-    for directory in fs::read_dir(root).map_err(|e| e.to_string())? {
-        let directory = directory.map_err(|e| e.to_string())?;
-        if !directory.file_type().map_err(|e| e.to_string())?.is_dir()
+    for directory in fs::read_dir(root).map_err(CoreError::external)? {
+        let directory = directory.map_err(CoreError::external)?;
+        if !directory.file_type().map_err(CoreError::external)?.is_dir()
             || !directory
                 .file_name()
                 .to_string_lossy()
@@ -197,7 +198,7 @@ enum Task {
 }
 struct Completed {
     epoch: u64,
-    result: Result<(), String>,
+    result: Result<(), CoreError>,
 }
 pub struct Recovery {
     sender: Option<Sender<Task>>,
@@ -212,8 +213,8 @@ impl Recovery {
     pub fn start(
         root: &Path,
         wake: std::sync::Arc<dyn Fn() + Send + Sync>,
-    ) -> Result<(Self, Vec<Entry>), String> {
-        fs::create_dir_all(root).map_err(|e| e.to_string())?;
+    ) -> Result<(Self, Vec<Entry>), CoreError> {
+        fs::create_dir_all(root).map_err(CoreError::external)?;
         let entries = scan(root)?;
         let mut slot = Slot::create(root)?;
         let (sender, tasks) = mpsc::channel();
@@ -229,7 +230,7 @@ impl Recovery {
                             info,
                         } => {
                             let result = serde_json::to_string(&info)
-                                .map_err(|e| e.to_string())
+                                .map_err(CoreError::external)
                                 .and_then(|info| {
                                     storage::save_archive(
                                         &slot.path(),
@@ -257,7 +258,7 @@ impl Recovery {
                     wake();
                 }
             })
-            .map_err(|e| e.to_string())?;
+            .map_err(CoreError::external)?;
         Ok((
             Self {
                 sender: Some(sender),
@@ -271,19 +272,19 @@ impl Recovery {
             entries,
         ))
     }
-    fn send(&self, task: Task) -> Result<(), String> {
+    fn send(&self, task: Task) -> Result<(), CoreError> {
         self.sender
             .as_ref()
             .unwrap()
             .send(task)
-            .map_err(|_| crate::tr!("recovery-worker-stopped"))
+            .map_err(|_| CoreError::from(RecoveryError::WorkerStopped))
     }
     pub fn checkpoint(
         &mut self,
         revision: u64,
         dirty: bool,
         snapshot: impl FnOnce() -> (StoredDocument, Option<String>),
-    ) -> Result<(), String> {
+    ) -> Result<(), CoreError> {
         if self.last_check.elapsed() < INTERVAL {
             return Ok(());
         }
@@ -304,7 +305,7 @@ impl Recovery {
         }
         Ok(())
     }
-    pub fn poll(&mut self) -> Vec<Result<(), String>> {
+    pub fn poll(&mut self) -> Vec<Result<(), CoreError>> {
         let mut results = vec![];
         loop {
             let completed = match self.receiver.try_recv() {
@@ -313,7 +314,7 @@ impl Recovery {
                 Err(mpsc::TryRecvError::Disconnected) => {
                     self.busy = false;
                     self.submitted = None;
-                    results.push(Err(crate::tr!("recovery-worker-stopped")));
+                    results.push(Err(CoreError::from(RecoveryError::WorkerStopped)));
                     break;
                 }
             };
@@ -330,14 +331,14 @@ impl Recovery {
         }
         results
     }
-    pub fn clear(&mut self) -> Result<(), String> {
+    pub fn clear(&mut self) -> Result<(), CoreError> {
         self.epoch += 1;
         self.submitted = None;
         self.busy = false;
         self.last_check = Instant::now();
         self.send(Task::Clear { epoch: self.epoch })
     }
-    pub fn adopt(&mut self, entry: Entry) -> Result<(), String> {
+    pub fn adopt(&mut self, entry: Entry) -> Result<(), CoreError> {
         self.epoch += 1;
         self.submitted = None;
         self.busy = false;

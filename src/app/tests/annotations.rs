@@ -22,7 +22,7 @@ fn tab_places_the_native_caret_on_each_empty_annotation_placeholder() {
         });
         let annotation = app.document.engine.document().view.annotations().remove(0);
         let at = annotation.content.start;
-        let placeholder = annotation.kind.placeholder();
+        let placeholder = crate::i18n::text(annotation.kind.placeholder_key());
         app.document.selection = editor::cursor(annotation.main_target());
         app.document.force_selection = true;
         let mut time = 0.0;

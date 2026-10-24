@@ -609,6 +609,7 @@ fn compiler_reports_error_and_recovers_on_next_request() {
                 Model::Personal
             )
             .unwrap_err()
+            .to_string()
             .contains("essai")
     );
     assert!(

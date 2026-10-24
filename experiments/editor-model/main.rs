@@ -21,6 +21,8 @@ mod document_types;
 mod editor;
 #[path = "../../src/engine/mod.rs"]
 mod engine;
+#[path = "../../src/errors.rs"]
+mod errors;
 #[path = "../../src/exporting.rs"]
 mod exporting;
 #[path = "../../src/fonts.rs"]

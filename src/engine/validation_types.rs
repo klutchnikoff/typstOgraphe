@@ -19,14 +19,23 @@ pub struct Diagnostic {
     pub detail: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub field: Option<MetadataField>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cause: Option<crate::errors::CoreError>,
 }
 impl Diagnostic {
+    pub(super) fn with_cause(code: &str, cause: crate::errors::CoreError) -> Self {
+        let mut diagnostic = Self::error(code, &cause);
+        diagnostic.cause = Some(cause);
+        diagnostic
+    }
+
     pub(super) fn error(code: &str, detail: impl ToString) -> Self {
         Self {
             severity: Severity::Error,
             code: code.into(),
             detail: Some(detail.to_string()),
             field: None,
+            cause: None,
         }
     }
 }

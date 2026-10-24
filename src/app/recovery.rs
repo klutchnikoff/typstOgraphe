@@ -12,14 +12,14 @@ impl App {
                 self.document.engine.configure_recovery(entries);
                 self.refresh_recovery_list();
             }
-            Err(error) => self.recovery.error = Some(error),
+            Err(error) => self.recovery.error = Some(crate::i18n::error(&error)),
         }
     }
     pub(super) fn clear_recovery(&mut self) {
         if let Some(recovery) = &mut self.recovery.worker
             && let Err(error) = recovery.clear()
         {
-            self.recovery.error = Some(error);
+            self.recovery.error = Some(crate::i18n::error(&error));
         }
     }
     pub(super) fn checkpoint_recovery(&mut self) {
@@ -29,7 +29,7 @@ impl App {
         let dirty = self.is_dirty();
         if let Some(recovery) = &mut self.recovery.worker {
             for result in recovery.poll() {
-                self.recovery.error = result.err();
+                self.recovery.error = result.err().map(|e| crate::i18n::error(&e));
             }
             let session = &self.document.engine;
             let suggested = &self.recovery.recovered_name;
@@ -42,7 +42,7 @@ impl App {
                     .or_else(|| suggested.clone());
                 (session.stored_document(), name)
             }) {
-                self.recovery.error = Some(error);
+                self.recovery.error = Some(crate::i18n::error(&error));
             }
         }
     }
@@ -85,7 +85,7 @@ impl App {
                     && let Some(recovery) = &mut self.recovery.worker
                     && let Err(error) = recovery.adopt(entry)
                 {
-                    self.recovery.error = Some(error);
+                    self.recovery.error = Some(crate::i18n::error(&error));
                 }
                 self.refresh_recovery_list();
                 self.recovery.open = false;
@@ -129,7 +129,14 @@ impl App {
                             if let Some(error) = &entry.error {
                                 ui.colored_label(
                                     Color32::LIGHT_RED,
-                                    crate::tr!("recovery-load-failed", error = error.as_str()),
+                                    crate::tr!(
+                                        "recovery-load-failed",
+                                        error = entry
+                                            .cause
+                                            .as_ref()
+                                            .map(crate::i18n::error)
+                                            .unwrap_or_else(|| error.clone())
+                                    ),
                                 );
                             } else if let Some(date) = entry.saved_at {
                                 let date = time::OffsetDateTime::from_unix_timestamp(date)

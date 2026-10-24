@@ -17,10 +17,10 @@ impl Engine {
             &stored.dependencies,
         ) {
             Ok(retained) => stored.assets = retained,
-            Err(detail) => diagnostics.push(Diagnostic::error("asset_inventory", detail)),
+            Err(detail) => diagnostics.push(Diagnostic::with_cause("asset_inventory", detail)),
         }
         if let Err(detail) = crate::storage::validate(&stored) {
-            diagnostics.push(Diagnostic::error("document_storage", detail));
+            diagnostics.push(Diagnostic::with_cause("document_storage", detail));
         } else {
             let mut world = crate::rendering::TypstWorld::default();
             world.set_assets(&stored.assets);
@@ -28,7 +28,7 @@ impl Engine {
             if let Err(detail) =
                 world.validate_model(&stored.source, &stored.metadata, &stored.template)
             {
-                diagnostics.push(Diagnostic::error("model_validation", detail));
+                diagnostics.push(Diagnostic::with_cause("model_validation", detail));
             }
         }
         let options = self.metadata().options();
@@ -51,6 +51,7 @@ impl Engine {
                     code: "export_required_field".into(),
                     detail: None,
                     field: Some(field.field),
+                    cause: None,
                 });
             }
         }

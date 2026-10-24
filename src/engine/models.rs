@@ -92,7 +92,7 @@ impl Engine {
             crate::packages::with_existing(&template, &self.session.dependencies)
         };
         crate::packages::validate(&template, &dependencies)
-            .map_err(|e| CommandError::detail(ErrorCode::Template, "model_dependencies", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Template, "model_dependencies", e))?;
         let before = self.session.snapshot(self.selection);
         let mut candidate = before.clone();
         if template != before.template || dependencies != before.dependencies {
@@ -109,7 +109,7 @@ impl Engine {
         world.set_assets(&candidate.document.assets);
         let presentation: ModelPresentation = world.validate_model(candidate.document.source(),&candidate.metadata,&candidate.template)
             .map_err(|e| CommandError { code:ErrorCode::Template,
-                params:json!({"reason":"model_validation","detail":e,"signature":candidate.metadata.model_signature()}) })?;
+                params:json!({"reason":"model_validation","detail":e.to_string(),"cause":e,"signature":candidate.metadata.model_signature()}) })?;
         super::resources::check_budget(&candidate)?;
         self.selection = self.session.commit_snapshot(
             params.guard,

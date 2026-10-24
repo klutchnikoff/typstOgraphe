@@ -106,7 +106,7 @@ impl Engine {
             Err(detail) => CompileResult {
                 guard: p.guard,
                 render: None,
-                diagnostics: vec![Diagnostic::error("render_compile", detail)],
+                diagnostics: vec![Diagnostic::with_cause("render_compile", detail)],
             },
         };
         comemo::evict(10);

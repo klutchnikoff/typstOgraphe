@@ -28,6 +28,12 @@ impl CommandError {
             params: json!({"reason": reason, "detail": detail.to_string()}),
         }
     }
+    pub fn with_cause(code: ErrorCode, reason: &str, cause: crate::errors::CoreError) -> Self {
+        Self {
+            code,
+            params: json!({"reason":reason,"detail":cause.to_string(),"cause":cause}),
+        }
+    }
     pub fn new(code: ErrorCode, reason: &str) -> Self {
         Self {
             code,
@@ -54,7 +60,7 @@ impl From<crate::assets::ImageError> for CommandError {
             ImageError::Decode(_) => (ErrorCode::InvalidParams, "image_decode"),
             ImageError::Io(_) => (ErrorCode::Io, "image_io"),
         };
-        Self::detail(code, reason, error)
+        Self::with_cause(code, reason, error.into())
     }
 }
 impl From<TargetError> for CommandError {

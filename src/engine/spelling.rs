@@ -53,7 +53,9 @@ impl Engine {
             let issues = cache
                 .analysis
                 .analyze(&self.session.document.view.text, options.language, &key.2)
-                .map_err(|e| CommandError::detail(ErrorCode::Document, "spelling_dictionary", e))?;
+                .map_err(|e| {
+                    CommandError::with_cause(ErrorCode::Document, "spelling_dictionary", e)
+                })?;
             cache.issues = issues;
             cache.key = Some(key);
         }
@@ -120,7 +122,7 @@ impl Engine {
             return Err(CommandError::new(ErrorCode::InvalidParams, "spelling_word"));
         }
         let suggestions = spelling::suggestions(language, &word)
-            .map_err(|e| CommandError::detail(ErrorCode::Document, "spelling_dictionary", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Document, "spelling_dictionary", e))?;
         Ok(json!({"language":language,"word":word,"suggestions":suggestions}))
     }
     pub(super) fn check_spelling(&self, command: &Command) -> Result<(), CommandError> {

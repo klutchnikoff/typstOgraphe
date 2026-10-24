@@ -16,10 +16,10 @@ impl AnnotationKind {
             _ => None,
         }
     }
-    pub fn placeholder(self) -> String {
+    pub fn placeholder_key(self) -> &'static str {
         match self {
-            Self::ImageCaption => crate::tr!("image-caption-placeholder"),
-            Self::QuoteAttribution => crate::tr!("quote-attribution-placeholder"),
+            Self::ImageCaption => "image-caption-placeholder",
+            Self::QuoteAttribution => "quote-attribution-placeholder",
         }
     }
 }

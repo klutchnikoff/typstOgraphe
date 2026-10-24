@@ -18,7 +18,7 @@ impl ExportTask {
                 &self.request.metadata,
                 &self.request.template,
             )
-            .map_err(|e| CommandError::detail(ErrorCode::Template, "export_compile", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Template, "export_compile", e))?;
         crate::exporting::write_document(
             &document,
             &self.request,
@@ -26,7 +26,7 @@ impl ExportTask {
             self.params.format,
             self.params.page_images,
         )
-        .map_err(|e| CommandError::detail(ErrorCode::Io, "file_export", e))?;
+        .map_err(|e| CommandError::with_cause(ErrorCode::Io, "file_export", e))?;
         comemo::evict(10);
         Ok(
             json!({"directory":self.params.directory,"format":self.params.format,"page_images":self.params.page_images,"guard":self.params.guard}),
@@ -42,9 +42,9 @@ impl Engine {
         }
         self.check_export_fields()?;
         crate::packages::validate(&self.session.template, &self.session.dependencies)
-            .map_err(|e| CommandError::detail(ErrorCode::Template, "model_dependencies", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Template, "model_dependencies", e))?;
         crate::exporting::check_directory(&params.directory)
-            .map_err(|e| CommandError::detail(ErrorCode::Io, "file_export", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Io, "file_export", e))?;
         Ok(ExportTask {
             request: RenderRequest {
                 revision: self.session.revision,

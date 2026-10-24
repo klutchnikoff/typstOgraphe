@@ -29,6 +29,7 @@ impl Profile {
                     return Err(crate::tr!("profile-invalid-signature"));
                 }
                 ImageData::read(&directory.join("profile").join(name))
+                    .map_err(|e| crate::i18n::error(&e.into()))
             })
             .transpose()
     }
@@ -36,7 +37,7 @@ impl Profile {
         directory: &Path,
         source: &Path,
     ) -> Result<(String, ImageData), String> {
-        let image = ImageData::read(source)?;
+        let image = ImageData::read(source).map_err(|e| crate::i18n::error(&e.into()))?;
         let name = format!(
             "signature-{:032x}.{}",
             typst::utils::hash128(&image.data),

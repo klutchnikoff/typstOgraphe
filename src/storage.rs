@@ -1,4 +1,5 @@
 //! Archive ZIP autonome, jamais extraite sur le disque. Seul le format actuel est pris en charge.
+use crate::errors::{CoreError, StorageError};
 use crate::{
     document::Document,
     document_types::{DocumentType, Metadata},
@@ -68,16 +69,19 @@ impl Manifest {
     }
 }
 
-pub fn read(path: &Path) -> Result<StoredDocument, String> {
-    let file =
-        File::open(path).map_err(|e| crate::tr!("storage-open-failed", error = e.to_string()))?;
-    if file.metadata().map_err(|e| e.to_string())?.len() > LIMIT + 2 * 1024 * 1024 {
-        return Err(crate::tr!("storage-file-too-large"));
+pub fn read(path: &Path) -> Result<StoredDocument, CoreError> {
+    let file = File::open(path).map_err(|e| {
+        CoreError::from(StorageError::OpenFailed {
+            error: (e.to_string()).to_string(),
+        })
+    })?;
+    if file.metadata().map_err(CoreError::external)?.len() > LIMIT + 2 * 1024 * 1024 {
+        return Err(CoreError::from(StorageError::FileTooLarge));
     }
-    decode(file).map_err(|e| crate::tr!("storage-invalid", error = e))
+    decode(file).map_err(|e| CoreError::from(StorageError::Invalid { error: Box::new(e) }))
 }
 
-fn decode(reader: impl Read + std::io::Seek) -> Result<StoredDocument, String> {
+fn decode(reader: impl Read + std::io::Seek) -> Result<StoredDocument, CoreError> {
     decode_archive(reader, None).map(|(document, _)| document)
 }
 
@@ -86,51 +90,58 @@ fn decode(reader: impl Read + std::io::Seek) -> Result<StoredDocument, String> {
 pub(crate) fn decode_archive(
     reader: impl Read + Seek,
     extra_name: Option<&str>,
-) -> Result<(StoredDocument, Option<String>), String> {
-    let mut zip = ZipArchive::new(reader)
-        .map_err(|e| crate::tr!("storage-zip-unreadable", error = e.to_string()))?;
+) -> Result<(StoredDocument, Option<String>), CoreError> {
+    let mut zip = ZipArchive::new(reader).map_err(|e| {
+        CoreError::from(StorageError::ZipUnreadable {
+            error: (e.to_string()).to_string(),
+        })
+    })?;
     let extra_count = usize::from(extra_name.is_some());
     if zip.len() < ENTRIES.len() + extra_count || zip.len() > 4096 + extra_count {
-        return Err(crate::tr!("storage-file-count"));
+        return Err(CoreError::from(StorageError::FileCount));
     }
     let mut total = 0_u64;
     let mut names = std::collections::HashSet::new();
     for index in 0..zip.len() {
-        let file = zip.by_index(index).map_err(|e| e.to_string())?;
+        let file = zip.by_index(index).map_err(CoreError::external)?;
         if (!ENTRIES.contains(&file.name())
             && Some(file.name()) != extra_name
             && !crate::assets::valid_path(file.name())
             && !crate::packages::valid_path(file.name()))
             || !names.insert(file.name().to_owned())
         {
-            return Err(crate::tr!("storage-unknown-entry"));
+            return Err(CoreError::from(StorageError::UnknownEntry));
         }
         if Some(file.name()) == extra_name {
             if file.size() > EXTRA_ENTRY_LIMIT {
-                return Err(crate::tr!("storage-invalid-size"));
+                return Err(CoreError::from(StorageError::InvalidSize));
             }
         } else {
             total = total
                 .checked_add(file.size())
-                .ok_or(crate::tr!("storage-invalid-size"))?;
+                .ok_or(CoreError::from(StorageError::InvalidSize))?;
         }
         if total > LIMIT {
-            return Err(crate::tr!("storage-expanded-too-large"));
+            return Err(CoreError::from(StorageError::ExpandedTooLarge));
         }
     }
-    let manifest: Manifest = serde_json::from_str(&entry(&mut zip, "manifest.json")?)
-        .map_err(|e| crate::tr!("storage-manifest-unreadable", error = e.to_string()))?;
+    let manifest: Manifest =
+        serde_json::from_str(&entry(&mut zip, "manifest.json")?).map_err(|e| {
+            CoreError::from(StorageError::ManifestUnreadable {
+                error: (e.to_string()).to_string(),
+            })
+        })?;
     if manifest.format != "typstOgraphe" || manifest.version != FORMAT_VERSION {
-        return Err(crate::tr!("storage-unsupported"));
+        return Err(CoreError::from(StorageError::Unsupported));
     }
     let mut assets = crate::assets::Assets::new();
     for name in names.iter().filter(|name| crate::assets::valid_path(name)) {
         let mut data = Vec::new();
         zip.by_name(name)
-            .map_err(|e| e.to_string())?
+            .map_err(CoreError::external)?
             .take(crate::assets::MAX_IMAGE_BYTES as u64 + 1)
             .read_to_end(&mut data)
-            .map_err(|e| e.to_string())?;
+            .map_err(CoreError::external)?;
         assets.insert(name.clone(), data.into());
     }
     let mut dependencies = std::collections::BTreeMap::new();
@@ -140,73 +151,84 @@ pub(crate) fn decode_archive(
     {
         let mut data = Vec::new();
         zip.by_name(name)
-            .map_err(|e| e.to_string())?
+            .map_err(CoreError::external)?
             .take(crate::assets::MAX_IMAGE_BYTES as u64 + 1)
             .read_to_end(&mut data)
-            .map_err(|e| e.to_string())?;
+            .map_err(CoreError::external)?;
         dependencies.insert(name.clone(), data.into());
     }
     let letter = StoredDocument {
         source: entry(&mut zip, "contenu.typ")?,
-        metadata: serde_json::from_str(&entry(&mut zip, "metadonnees.json")?)
-            .map_err(|e| crate::tr!("storage-metadata-unreadable", error = e.to_string()))?,
+        metadata: serde_json::from_str(&entry(&mut zip, "metadonnees.json")?).map_err(|e| {
+            CoreError::from(StorageError::MetadataUnreadable {
+                error: (e.to_string()).to_string(),
+            })
+        })?,
         template: entry(&mut zip, "modele.typ")?,
         assets,
         dependencies: std::sync::Arc::new(dependencies),
     };
     if manifest.document_type != letter.metadata.document_type() {
-        return Err(crate::tr!("storage-unsupported"));
+        return Err(CoreError::from(StorageError::Unsupported));
     }
     validate(&letter)?;
     if entry(&mut zip, "main.typ")? != letter.metadata.main_source() {
-        return Err(crate::tr!("storage-main-mismatch"));
+        return Err(CoreError::from(StorageError::MainMismatch));
     }
     let extra = extra_name.map(|name| entry(&mut zip, name)).transpose()?;
     Ok((letter, extra))
 }
 
-fn entry<R: Read + std::io::Seek>(zip: &mut ZipArchive<R>, name: &str) -> Result<String, String> {
-    let file = zip
-        .by_name(name)
-        .map_err(|e| crate::tr!("storage-entry-missing", name = name, error = e.to_string()))?;
+fn entry<R: Read + std::io::Seek>(
+    zip: &mut ZipArchive<R>,
+    name: &str,
+) -> Result<String, CoreError> {
+    let file = zip.by_name(name).map_err(|e| {
+        CoreError::from(StorageError::EntryMissing {
+            name: (name).to_string(),
+            error: (e.to_string()).to_string(),
+        })
+    })?;
     let mut value = String::new();
     file.take(LIMIT + 1)
         .read_to_string(&mut value)
         .map_err(|e| {
-            crate::tr!(
-                "storage-entry-unreadable",
-                name = name,
-                error = e.to_string()
-            )
+            CoreError::from(StorageError::EntryUnreadable {
+                name: (name).to_string(),
+                error: (e.to_string()).to_string(),
+            })
         })?;
     if value.len() as u64 > LIMIT {
-        return Err(crate::tr!("storage-entry-too-large", name = name));
+        return Err(CoreError::from(StorageError::EntryTooLarge {
+            name: (name).to_string(),
+        }));
     }
     Ok(value)
 }
 
-pub(crate) fn validate(letter: &StoredDocument) -> Result<(), String> {
+pub(crate) fn validate(letter: &StoredDocument) -> Result<(), CoreError> {
     crate::packages::validate(&letter.template, &letter.dependencies)?;
     let document = Document::from_source(&letter.source)?;
     if let Some(path) = letter.metadata.signature_path() {
         if !crate::assets::valid_path(path) {
-            return Err(crate::tr!("storage-unknown-entry"));
+            return Err(CoreError::from(StorageError::UnknownEntry));
         }
         if !letter.assets.contains_key(path) {
-            return Err(crate::tr!("image-resource-missing", path = path));
+            return Err(CoreError::from(StorageError::ImageResourceMissing {
+                path: (path).to_string(),
+            }));
         }
     }
     for image in document.view.images.values() {
         if !letter.assets.contains_key(&image.path) {
-            return Err(crate::tr!(
-                "image-resource-missing",
-                path = image.path.clone()
-            ));
+            return Err(CoreError::from(StorageError::ImageResourceMissing {
+                path: (image.path.clone()).to_string(),
+            }));
         }
     }
     for (path, data) in &letter.assets {
         if !crate::assets::valid_path(path) {
-            return Err(crate::tr!("storage-unknown-entry"));
+            return Err(CoreError::from(StorageError::UnknownEntry));
         }
         crate::assets::decode(data, path.rsplit('.').next().unwrap())?;
     }
@@ -216,14 +238,14 @@ pub(crate) fn validate(letter: &StoredDocument) -> Result<(), String> {
             .diagnosis()
             .errors
     {
-        return Err(crate::tr!("storage-invalid-template"));
+        return Err(CoreError::from(StorageError::InvalidTemplate));
     }
     Ok(())
 }
 
 /// Écrit et synchronise un fichier temporaire voisin, puis remplace la cible
 /// par renommage atomique. Une erreur d'écriture conserve le courrier précédent.
-pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
+pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), CoreError> {
     let mut letter = letter.clone();
     letter.assets = crate::rendering::retained_assets(
         &letter.source,
@@ -238,18 +260,18 @@ pub fn save(path: &Path, letter: &StoredDocument) -> Result<(), String> {
 /// Publication d’un nouveau fichier sans écrasement, y compris si une autre
 /// application crée la cible pendant la préparation de l’archive.
 /// L’archive passe par la même écriture atomique avant sa publication sans remplacement.
-pub fn save_new(path: &Path, letter: &StoredDocument) -> Result<(), String> {
+pub fn save_new(path: &Path, letter: &StoredDocument) -> Result<(), CoreError> {
     let parent = path
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
     let temporary = tempfile::NamedTempFile::new_in(parent)
-        .map_err(|e| e.to_string())?
+        .map_err(CoreError::external)?
         .into_temp_path();
     save(&temporary, letter)?;
     temporary
         .persist_noclobber(path)
-        .map_err(|e| e.to_string())?;
+        .map_err(CoreError::external)?;
     Ok(())
 }
 
@@ -259,17 +281,17 @@ pub(crate) fn save_archive(
     path: &Path,
     letter: &StoredDocument,
     extra: Option<(&str, &str)>,
-) -> Result<(), String> {
+) -> Result<(), CoreError> {
     validate(letter)?;
     if letter.assets.len() + letter.dependencies.len() + ENTRIES.len() > 4096 {
-        return Err(crate::tr!("storage-file-count"));
+        return Err(CoreError::from(StorageError::FileCount));
     }
     if extra.is_some_and(|(_, text)| text.len() as u64 > EXTRA_ENTRY_LIMIT) {
-        return Err(crate::tr!("storage-invalid-size"));
+        return Err(CoreError::from(StorageError::InvalidSize));
     }
     let manifest = serde_json::to_string_pretty(&Manifest::new(letter.metadata.document_type()))
-        .map_err(|e| e.to_string())?;
-    let metadata = serde_json::to_string_pretty(&letter.metadata).map_err(|e| e.to_string())?;
+        .map_err(CoreError::external)?;
+    let metadata = serde_json::to_string_pretty(&letter.metadata).map_err(CoreError::external)?;
     let main = letter.metadata.main_source();
     let files = [
         manifest.as_str(),
@@ -291,7 +313,7 @@ pub(crate) fn save_archive(
             .sum::<u64>()
         > LIMIT
     {
-        return Err(crate::tr!("storage-letter-too-large"));
+        return Err(CoreError::from(StorageError::LetterTooLarge));
     }
     let options = atomic_write_file::AtomicWriteFile::options();
     #[cfg(unix)]
@@ -301,30 +323,36 @@ pub(crate) fn save_archive(
         options.mode(0o600);
         options
     };
-    let mut temporary = options
-        .open(path)
-        .map_err(|e| crate::tr!("storage-temporary-failed", error = e.to_string()))?;
+    let mut temporary = options.open(path).map_err(|e| {
+        CoreError::from(StorageError::TemporaryFailed {
+            error: (e.to_string()).to_string(),
+        })
+    })?;
     {
         let mut zip = ZipWriter::new(&mut temporary);
         let options =
             SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
         for (name, text) in ENTRIES.into_iter().zip(files) {
-            zip.start_file(name, options).map_err(|e| e.to_string())?;
-            zip.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
+            zip.start_file(name, options).map_err(CoreError::external)?;
+            zip.write_all(text.as_bytes())
+                .map_err(CoreError::external)?;
         }
         for (name, data) in letter.assets.iter().chain(letter.dependencies.iter()) {
-            zip.start_file(name, options).map_err(|e| e.to_string())?;
-            zip.write_all(data).map_err(|e| e.to_string())?;
+            zip.start_file(name, options).map_err(CoreError::external)?;
+            zip.write_all(data).map_err(CoreError::external)?;
         }
         if let Some((name, text)) = extra {
-            zip.start_file(name, options).map_err(|e| e.to_string())?;
-            zip.write_all(text.as_bytes()).map_err(|e| e.to_string())?;
+            zip.start_file(name, options).map_err(CoreError::external)?;
+            zip.write_all(text.as_bytes())
+                .map_err(CoreError::external)?;
         }
-        zip.finish().map_err(|e| e.to_string())?;
+        zip.finish().map_err(CoreError::external)?;
     }
-    temporary
-        .commit()
-        .map_err(|e| crate::tr!("storage-replace-failed", error = e.to_string()))?;
+    temporary.commit().map_err(|e| {
+        CoreError::from(StorageError::ReplaceFailed {
+            error: (e.to_string()).to_string(),
+        })
+    })?;
     Ok(())
 }
 

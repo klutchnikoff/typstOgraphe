@@ -1,5 +1,6 @@
 //! Interfaces Typst des capacités et paquets privés, copiés dans chaque document.
 //! Le catalogue est partagé avec les créateurs de modèles ; aucun téléchargement.
+use crate::errors::{CoreError, PackageError, StorageError};
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -187,13 +188,15 @@ pub fn with_existing(template: &str, existing: &Dependencies) -> Dependencies {
     files
 }
 
-pub fn validate(template: &str, files: &Dependencies) -> Result<(), String> {
+pub fn validate(template: &str, files: &Dependencies) -> Result<(), CoreError> {
     for (name, data) in files.iter() {
         if !valid_path(name) {
-            return Err(crate::tr!("storage-unknown-entry"));
+            return Err(CoreError::from(StorageError::UnknownEntry));
         }
         if data.len() > crate::assets::MAX_IMAGE_BYTES {
-            return Err(crate::tr!("storage-entry-too-large", name = name.as_str()));
+            return Err(CoreError::from(StorageError::EntryTooLarge {
+                name: (name.as_str()).to_string(),
+            }));
         }
     }
     // Même une erreur dans le modèle ne permet pas d’oublier les locales ou wrappers.
@@ -201,7 +204,9 @@ pub fn validate(template: &str, files: &Dependencies) -> Result<(), String> {
     let (expected, required) = select(paths.iter().chain(files.keys()).map(String::as_str));
     for name in required.keys() {
         if !files.contains_key(name) {
-            return Err(crate::tr!("package-resource-missing", path = name.as_str()));
+            return Err(CoreError::from(PackageError::ResourceMissing {
+                path: (name.as_str()).to_string(),
+            }));
         }
     }
     if !files.is_empty() {
@@ -209,7 +214,7 @@ pub fn validate(template: &str, files: &Dependencies) -> Result<(), String> {
             .get(INVENTORY)
             .and_then(|bytes| serde_json::from_slice::<Catalog>(bytes).ok());
         if inventory.as_ref() != Some(&expected) {
-            return Err(crate::tr!("package-inventory-invalid"));
+            return Err(CoreError::from(PackageError::InventoryInvalid));
         }
     }
     Ok(())

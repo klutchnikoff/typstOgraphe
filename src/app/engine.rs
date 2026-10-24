@@ -123,6 +123,24 @@ impl App {
                 error = Self::command_error_text(&cause)
             );
         }
+        if let Some(cause) = error.params.get("cause").and_then(|value| {
+            serde_json::from_value::<crate::errors::CoreError>(value.clone()).ok()
+        }) {
+            let detail = crate::i18n::error(&cause);
+            return if error.reason() == "model_validation" {
+                format!(
+                    "{}\n{detail}",
+                    error.params["signature"].as_str().unwrap_or("")
+                )
+            } else if matches!(
+                error.reason(),
+                "image_decode" | "image_io" | "asset_validation"
+            ) {
+                crate::tr!("engine-image-error", error = detail)
+            } else {
+                detail
+            };
+        }
         if error.reason() == "model_validation" {
             return format!(
                 "{}\n{}",

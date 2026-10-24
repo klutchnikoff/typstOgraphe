@@ -47,9 +47,9 @@ impl Engine {
         recovered: bool,
     ) -> Result<(), CommandError> {
         crate::storage::validate(&stored)
-            .map_err(|e| CommandError::detail(ErrorCode::Document, "file_document", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Document, "file_document", e))?;
         let document = Document::from_source(&stored.source)
-            .map_err(|e| CommandError::detail(ErrorCode::Document, "file_document", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Document, "file_document", e))?;
         let mut session = Session::new(stored, document, path, self.session.revision + 1);
         session.recovered = recovered;
         self.session = session;
@@ -102,14 +102,14 @@ impl Engine {
         world.set_assets(&stored.assets);
         let presentation = world
             .validate_model(&stored.source, &stored.metadata, &stored.template)
-            .map_err(|e| CommandError::detail(ErrorCode::Template, "file_document", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Template, "file_document", e))?;
         self.install_stored(stored, None, false)?;
         self.cache_presentation(presentation);
         Ok(json!({"open":true,"type":p.document_type}))
     }
     pub(super) fn open_document(&mut self, p: OpenDocumentParams) -> Result<Value, CommandError> {
         let stored = crate::storage::read(&p.path)
-            .map_err(|e| CommandError::detail(ErrorCode::Io, "file_open", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Io, "file_open", e))?;
         self.install_stored(stored, Some(p.path.clone()), false)?;
         Ok(json!({"path":p.path}))
     }
@@ -153,7 +153,7 @@ impl Engine {
         } else {
             crate::storage::save_new(&path, &stored)
         };
-        result.map_err(|e| CommandError::detail(ErrorCode::Io, "file_save", e))?;
+        result.map_err(|e| CommandError::with_cause(ErrorCode::Io, "file_save", e))?;
         // Le disque est nettoyé, mais ce repère conserve les ressources de l’historique.
         self.session.saved = stored;
         self.session.file_path = Some(path.clone());

@@ -15,7 +15,16 @@ pub type Assets = BTreeMap<String, Arc<[u8]>>;
 pub const MAX_IMAGE_BYTES: usize = 16 * 1024 * 1024;
 pub const MAX_DOCUMENT_BYTES: u64 = 64 * 1024 * 1024;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+    thiserror::Error,
+)]
 pub enum ImageError {
     #[error("image exceeds the size limit")]
     TooLarge,
@@ -28,16 +37,6 @@ pub enum ImageError {
     #[error("{0}")]
     Io(String),
 }
-impl ImageError {
-    pub fn localized(&self) -> String {
-        match self {
-            Self::TooLarge => crate::tr!("image-too-large"),
-            Self::Unsupported => crate::tr!("image-format-unsupported"),
-            Self::InvalidSvg => crate::tr!("image-invalid-svg"),
-            Self::Decode(message) | Self::Io(message) => message.clone(),
-        }
-    }
-}
 
 #[derive(Clone, Debug)]
 pub struct ImageData {
@@ -45,8 +44,8 @@ pub struct ImageData {
     pub data: Arc<[u8]>,
 }
 impl ImageData {
-    pub fn read(path: &std::path::Path) -> Result<Self, String> {
-        Self::read_checked(path).map_err(|error| error.localized())
+    pub fn read(path: &std::path::Path) -> Result<Self, ImageError> {
+        Self::read_checked(path)
     }
     pub fn read_checked(path: &std::path::Path) -> Result<Self, ImageError> {
         use std::io::Read;
@@ -101,8 +100,8 @@ pub fn valid_path(path: &str) -> bool {
         && matches!(extension, "png" | "jpg" | "svg")
 }
 
-pub fn decode(data: &[u8], extension: &str) -> Result<Image, String> {
-    decode_checked(data, extension).map_err(|error| error.localized())
+pub fn decode(data: &[u8], extension: &str) -> Result<Image, ImageError> {
+    decode_checked(data, extension)
 }
 
 pub fn decode_checked(data: &[u8], extension: &str) -> Result<Image, ImageError> {
@@ -135,7 +134,7 @@ pub fn decode_checked(data: &[u8], extension: &str) -> Result<Image, ImageError>
 
 /// La vignette utilise le même décodeur et le même moteur que l’aperçu,
 /// sans dépendre des règles graphiques du modèle.
-pub fn thumbnail(data: &[u8], extension: &str) -> Result<RgbaImage, String> {
+pub fn thumbnail(data: &[u8], extension: &str) -> Result<RgbaImage, ImageError> {
     let image = decode(data, extension)?;
     let scale = (640.0 / image.width()).min(400.0 / image.height()).min(1.0);
     let size = Size::new(

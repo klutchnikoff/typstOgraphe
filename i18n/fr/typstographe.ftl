@@ -398,3 +398,9 @@ engine-batch-size-limit = Le lot dépasse la taille maximale autorisée.
 engine-batch-step-forbidden = Cette action n’est pas autorisée dans un lot d’édition.
 
 engine-batch-resource-limit = Les ressources importées par le lot dépassent la taille maximale autorisée.
+
+core-external-error = { $error }
+paper-a3 = A3
+paper-a4 = A4
+paper-a5 = A5
+spelling-no-dictionary-detail = Aucun dictionnaire embarqué pour la langue { $language }.

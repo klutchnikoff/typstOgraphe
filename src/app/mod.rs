@@ -3,6 +3,7 @@
 mod availability;
 mod setup;
 mod state;
+use crate::i18n::LocalizedLabel;
 use state::*;
 mod chrome;
 mod commands;

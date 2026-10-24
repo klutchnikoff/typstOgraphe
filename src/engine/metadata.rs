@@ -61,7 +61,7 @@ impl Engine {
         world.set_assets(&self.session.document.assets);
         let policy = world
             .model_presentation(&self.session.template)
-            .map_err(|e| CommandError::detail(ErrorCode::Template, "model_presentation", e))?;
+            .map_err(|e| CommandError::with_cause(ErrorCode::Template, "model_presentation", e))?;
         *cached = Some((guard, policy.clone()));
         Ok(policy)
     }

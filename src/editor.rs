@@ -989,7 +989,7 @@ pub fn paint_decorations(
         cursor.prefer_next_row = true;
         let point = output.galley.pos_from_cursor(cursor);
         let hint = painter.layout_no_wrap(
-            annotation.kind.placeholder(),
+            crate::i18n::text(annotation.kind.placeholder_key()),
             editor.font.font_id(editor.size * ANNOTATION_SCALE, 2),
             ui.visuals().weak_text_color(),
         );

@@ -1,4 +1,5 @@
 //! Moteur Typst embarqué : fichiers virtuels et polices embarquées, sans réseau.
+use crate::errors::{CoreError, TemplateError};
 use crate::{
     document::SourceMap,
     document_types::{Metadata, ModelPresentation},
@@ -87,11 +88,11 @@ impl TypstWorld {
             })
             .or_insert_with(|| Source::new(id, text.to_owned()));
     }
-    fn model_module(&mut self, template: &str) -> Result<Module, String> {
+    fn model_module(&mut self, template: &str) -> Result<Module, CoreError> {
         self.set_source("modele.typ", template);
         let source = self
             .source(file_id("modele.typ"))
-            .map_err(|e| e.to_string())?;
+            .map_err(CoreError::external)?;
         typst_eval::eval(
             (self as &dyn World).track(),
             &self.library,
@@ -107,13 +108,14 @@ impl TypstWorld {
                 .collect::<Vec<_>>()
                 .join("\n")
         })
+        .map_err(|error| CoreError::from(TemplateError::Compilation { error }))
     }
     pub fn validate_model(
         &mut self,
         source: &str,
         metadata: &Metadata,
         template: &str,
-    ) -> Result<ModelPresentation, String> {
+    ) -> Result<ModelPresentation, CoreError> {
         let module = self.model_module(template)?;
         let function = metadata.document_type().composition_function();
         if !module
@@ -121,18 +123,20 @@ impl TypstWorld {
             .get(function)
             .is_some_and(|binding| matches!(binding.read(), Value::Func(_)))
         {
-            return Err(crate::tr!("model-contract-missing", function = function));
+            return Err(CoreError::from(TemplateError::ContractMissing {
+                function: (function).to_string(),
+            }));
         }
         self.compile_with_template(source, metadata, template)?;
         self.model_presentation(template)
     }
-    pub fn model_presentation(&mut self, template: &str) -> Result<ModelPresentation, String> {
+    pub fn model_presentation(&mut self, template: &str) -> Result<ModelPresentation, CoreError> {
         let module = self.model_module(template)?;
         let mut policy = ModelPresentation::default();
         let Some(binding) = module.scope().get("editor-options") else {
             return Ok(policy);
         };
-        let invalid = || crate::tr!("model-invalid-editor-options");
+        let invalid = || CoreError::from(TemplateError::InvalidEditorOptions);
         let Value::Dict(options) = binding.read() else {
             return Err(invalid());
         };
@@ -166,7 +170,7 @@ impl TypstWorld {
         source: &str,
         metadata: &Metadata,
         model: crate::document_types::models::Model,
-    ) -> Result<PagedDocument, String> {
+    ) -> Result<PagedDocument, CoreError> {
         self.compile_with_template(source, metadata, &model.source())
     }
     pub fn compile_with_template(
@@ -174,45 +178,48 @@ impl TypstWorld {
         source: &str,
         metadata: &Metadata,
         template: &str,
-    ) -> Result<PagedDocument, String> {
+    ) -> Result<PagedDocument, CoreError> {
         let presentation = self.model_presentation(template)?;
         if let Some(marker) = &metadata.options().bullet_marker
             && !presentation.allows_bullet_marker(marker)
         {
-            return Err(crate::tr!("model-bullet-marker-not-allowed"));
+            return Err(CoreError::from(TemplateError::BulletMarkerNotAllowed));
         }
         self.set_source("main.typ", &metadata.main_source());
         self.set_source("modele.typ", template);
         self.set_source("contenu.typ", source);
         let result = typst::compile::<PagedDocument>(self);
-        result.output.map_err(|errors| {
-            errors
-                .iter()
-                .map(|error| {
-                    let location = error
-                        .span
-                        .id()
-                        .and_then(|id| self.files.get(&id).map(|s| (id, s)))
-                        .and_then(|(id, s)| {
-                            self.range(error.span).map(|range| {
-                                format!(
-                                    "{}:{}",
-                                    id.vpath().get_with_slash(),
-                                    s.lines().byte_to_line(range.start).unwrap_or(0) + 1
-                                )
+        result
+            .output
+            .map_err(|errors| {
+                errors
+                    .iter()
+                    .map(|error| {
+                        let location = error
+                            .span
+                            .id()
+                            .and_then(|id| self.files.get(&id).map(|s| (id, s)))
+                            .and_then(|(id, s)| {
+                                self.range(error.span).map(|range| {
+                                    format!(
+                                        "{}:{}",
+                                        id.vpath().get_with_slash(),
+                                        s.lines().byte_to_line(range.start).unwrap_or(0) + 1
+                                    )
+                                })
                             })
-                        })
-                        .unwrap_or_else(|| "Typst".into());
-                    let hints = error
-                        .hints
-                        .iter()
-                        .map(|hint| format!("\n  {}", hint.v))
-                        .collect::<String>();
-                    format!("{location} : {}{hints}", error.message)
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        })
+                            .unwrap_or_else(|| "Typst".into());
+                        let hints = error
+                            .hints
+                            .iter()
+                            .map(|hint| format!("\n  {}", hint.v))
+                            .collect::<String>();
+                        format!("{location} : {}{hints}", error.message)
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .map_err(|error| CoreError::from(TemplateError::Compilation { error }))
     }
 }
 
@@ -287,7 +294,7 @@ pub struct PreviewRequest {
 }
 pub struct RenderResponse {
     pub guard: crate::session::TargetGuard,
-    pub result: Result<Rendered, String>,
+    pub result: Result<Rendered, CoreError>,
     pub is_export: bool,
 }
 
@@ -301,7 +308,7 @@ pub fn retained_assets(
     template: &str,
     assets: &crate::assets::Assets,
     dependencies: &crate::packages::Dependencies,
-) -> Result<crate::assets::Assets, String> {
+) -> Result<crate::assets::Assets, CoreError> {
     if assets.is_empty() {
         return Ok(assets.clone());
     }
@@ -389,7 +396,7 @@ pub fn retained_assets(
 pub(crate) fn compile_request(
     world: &mut TypstWorld,
     request: &RenderRequest,
-) -> Result<(PagedDocument, ModelPresentation), String> {
+) -> Result<(PagedDocument, ModelPresentation), CoreError> {
     crate::packages::validate(&request.template, &request.dependencies)?;
     world.set_assets(&request.assets);
     world.set_dependencies(&request.dependencies);
@@ -399,7 +406,7 @@ pub(crate) fn compile_request(
     Ok((document, presentation))
 }
 
-pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendered, String> {
+pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendered, CoreError> {
     let start = Instant::now();
     let (document, presentation) = compile_request(world, request)?;
     if let Some(path) = &request.export_dir {

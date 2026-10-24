@@ -222,6 +222,72 @@ mod tests {
     }
 
     #[test]
+    fn all_core_error_and_label_contracts_exist_in_each_catalog_without_fallback() {
+        for (language, source) in [
+            ("fr", include_str!("../i18n/fr/typstographe.ftl")),
+            ("en", include_str!("../i18n/en/typstographe.ftl")),
+        ] {
+            let catalog = catalog_contract(source);
+            for contract in crate::errors::CoreError::message_contracts() {
+                let expected: BTreeSet<_> = contract.parameters.iter().copied().collect();
+                assert_eq!(
+                    catalog.get(contract.key),
+                    Some(&expected),
+                    "{language}: {}",
+                    contract.key
+                );
+            }
+            let mut keys: Vec<_> = crate::document_types::DocumentType::ALL
+                .into_iter()
+                .map(|kind| kind.label_key())
+                .collect();
+            keys.extend(
+                crate::document::PaperFormat::ALL
+                    .into_iter()
+                    .map(|paper| paper.label_key()),
+            );
+            keys.extend(
+                crate::document::DocumentLanguage::ALL
+                    .into_iter()
+                    .map(|language| language.label_key()),
+            );
+            keys.extend([
+                crate::annotations::AnnotationKind::ImageCaption.placeholder_key(),
+                crate::annotations::AnnotationKind::QuoteAttribution.placeholder_key(),
+            ]);
+            for key in keys {
+                assert_eq!(
+                    catalog.get(key),
+                    Some(&BTreeSet::new()),
+                    "{language}: {key}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn nested_error_localization_keeps_unicode_parameters_and_machine_payload_identical() {
+        use crate::errors::{CoreError, SourceError, StorageError};
+        let error = CoreError::from(StorageError::Invalid {
+            error: Box::new(
+                SourceError::UnsupportedFunction {
+                    name: "fonction_Élodie_日本".into(),
+                }
+                .into(),
+            ),
+        });
+        let payload = serde_json::to_value(&error).unwrap();
+        let french = error_with(&requested(&["fr"]), &error);
+        let english = error_with(&requested(&["en"]), &error);
+        assert_ne!(french, english);
+        for message in [&french, &english] {
+            assert!(message.contains("fonction_Élodie_日本"));
+            assert!(!message.contains("SourceError"));
+        }
+        assert_eq!(serde_json::to_value(error).unwrap(), payload);
+    }
+
+    #[test]
     fn fluent_handles_plural_rules_and_unicode_parameters() {
         for (language, singular, plural) in [("fr", "mot", "mots"), ("en", "word", "words")] {
             let loader = requested(&[language]);
@@ -248,5 +314,40 @@ mod tests {
                     .contains(path)
             );
         }
+    }
+}
+
+/// Mise en phrases des erreurs typées ; le cœur ne connaît pas le chargeur.
+pub fn error(error: &crate::errors::CoreError) -> String {
+    error_with(loader(), error)
+}
+pub fn error_with(loader: &FluentLanguageLoader, error: &crate::errors::CoreError) -> String {
+    let mut args = error.arguments();
+    if let Some(cause) = error.cause() {
+        args.insert("error".into(), error_with(loader, cause));
+    }
+    loader.get_args(
+        error.message_key(),
+        args.into_iter()
+            .collect::<std::collections::HashMap<_, _>>(),
+    )
+}
+
+pub trait LocalizedLabel {
+    fn label(&self) -> String;
+}
+impl LocalizedLabel for crate::document_types::DocumentType {
+    fn label(&self) -> String {
+        text(self.label_key())
+    }
+}
+impl LocalizedLabel for crate::document::PaperFormat {
+    fn label(&self) -> String {
+        text(self.label_key())
+    }
+}
+impl LocalizedLabel for crate::document::DocumentLanguage {
+    fn label(&self) -> String {
+        text(self.label_key())
     }
 }

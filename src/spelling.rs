@@ -1,5 +1,6 @@
 //! Orthographe locale : dictionnaires embarqués, analyse et suggestions hors UI.
 use crate::document::DocumentLanguage;
+use crate::errors::{CoreError, SpellingError};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -60,9 +61,9 @@ pub fn accepted(
         .collect()
 }
 
-fn dictionary(language: DocumentLanguage) -> Result<&'static spellbook::Dictionary, String> {
-    static FR: OnceLock<Result<spellbook::Dictionary, String>> = OnceLock::new();
-    static EN: OnceLock<Result<spellbook::Dictionary, String>> = OnceLock::new();
+fn dictionary(language: DocumentLanguage) -> Result<&'static spellbook::Dictionary, CoreError> {
+    static FR: OnceLock<Result<spellbook::Dictionary, CoreError>> = OnceLock::new();
+    static EN: OnceLock<Result<spellbook::Dictionary, CoreError>> = OnceLock::new();
     let (cell, aff, dic) = match language {
         DocumentLanguage::French => (
             &FR,
@@ -74,9 +75,13 @@ fn dictionary(language: DocumentLanguage) -> Result<&'static spellbook::Dictiona
             include_str!("../assets/dictionaries/en_US.aff"),
             include_str!("../assets/dictionaries/en_US.dic"),
         ),
-        _ => return Err("No bundled dictionary for this language".into()),
+        _ => {
+            return Err(CoreError::from(SpellingError::NoDictionary {
+                language: language.code().into(),
+            }));
+        }
     };
-    cell.get_or_init(|| spellbook::Dictionary::new(aff, dic).map_err(|e| e.to_string()))
+    cell.get_or_init(|| spellbook::Dictionary::new(aff, dic).map_err(CoreError::external))
         .as_ref()
         .map_err(Clone::clone)
 }
@@ -145,7 +150,7 @@ impl Analysis {
         text: &str,
         language: DocumentLanguage,
         accepted: &BTreeSet<String>,
-    ) -> Result<Vec<Issue>, String> {
+    ) -> Result<Vec<Issue>, CoreError> {
         self.check(
             &Request {
                 ticket: 0,
@@ -156,7 +161,11 @@ impl Analysis {
             &AtomicU64::new(0),
         )
     }
-    fn check(&mut self, request: &Request, generation: &AtomicU64) -> Result<Vec<Issue>, String> {
+    fn check(
+        &mut self,
+        request: &Request,
+        generation: &AtomicU64,
+    ) -> Result<Vec<Issue>, CoreError> {
         let dictionary = dictionary(request.language)?;
         if self.language != Some(request.language) {
             self.lines.clear();
@@ -189,7 +198,10 @@ impl Analysis {
     }
 }
 
-pub(crate) fn suggestions(language: DocumentLanguage, word: &str) -> Result<Vec<String>, String> {
+pub(crate) fn suggestions(
+    language: DocumentLanguage,
+    word: &str,
+) -> Result<Vec<String>, CoreError> {
     let mut suggestions = Vec::new();
     dictionary(language)?.suggest(&dictionary_word(word), &mut suggestions);
     if word.contains('’') {
@@ -230,8 +242,8 @@ enum Task {
     Barrier(mpsc::Sender<()>),
 }
 enum Response {
-    Checked(u64, Result<Vec<Issue>, String>),
-    Suggested(u64, String, Result<Vec<String>, String>),
+    Checked(u64, Result<Vec<Issue>, CoreError>),
+    Suggested(u64, String, Result<Vec<String>, CoreError>),
 }
 
 pub struct Checker {
@@ -242,7 +254,7 @@ pub struct Checker {
     pending: Option<(Instant, Request)>,
     pub issues: Vec<Issue>,
     pub ready: bool,
-    pub error: Option<String>,
+    pub error: Option<CoreError>,
     pub suggestions: Option<(String, Option<Vec<String>>)>,
 }
 impl Checker {
@@ -339,7 +351,7 @@ impl Checker {
         if self.pending.as_ref().is_some_and(|(due, _)| now >= *due) {
             let (_, request) = self.pending.take().unwrap();
             if let Err(error) = self.sender.send(Task::Check(request)) {
-                self.error = Some(error.to_string());
+                self.error = Some(CoreError::external(error));
             }
         }
         self.poll();
@@ -388,7 +400,7 @@ impl Checker {
             language,
             word.into(),
         )) {
-            self.error = Some(error.to_string());
+            self.error = Some(CoreError::external(error));
         }
     }
     pub fn next_wake(&self, now: Instant) -> Option<Duration> {

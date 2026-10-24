@@ -445,7 +445,7 @@ fn render_responses_are_guarded_by_document_identity_even_at_the_same_revision()
     responses
         .send(crate::rendering::RenderResponse {
             guard: old_guard,
-            result: Err("Old failure".into()),
+            result: Err(crate::errors::CoreError::external("Old failure")),
             is_export: false,
         })
         .unwrap();

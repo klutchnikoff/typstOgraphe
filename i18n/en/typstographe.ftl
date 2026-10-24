@@ -395,3 +395,9 @@ engine-batch-size-limit = The batch exceeds the allowed size limit.
 engine-batch-step-forbidden = This action is not allowed in an editing batch.
 
 engine-batch-resource-limit = Resources imported by the batch exceed the allowed size limit.
+
+core-external-error = { $error }
+paper-a3 = A3
+paper-a4 = A4
+paper-a5 = A5
+spelling-no-dictionary-detail = No bundled dictionary for language { $language }.

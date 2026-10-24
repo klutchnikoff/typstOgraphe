@@ -9,6 +9,7 @@ mod document;
 mod document_types;
 mod editor;
 mod engine;
+mod errors;
 mod exporting;
 mod fonts;
 mod i18n;

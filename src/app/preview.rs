@@ -50,7 +50,7 @@ impl App {
                 }
                 Err(error) => {
                     if response.guard == self.document.engine.target_guard() || response.is_export {
-                        self.preview.error = Some(error);
+                        self.preview.error = Some(crate::i18n::error(&error));
                         self.preview.revision = Some(response.guard.revision);
                     }
                 }

@@ -25,4 +25,6 @@ pub struct RecoveryItem {
     pub name: Option<String>,
     pub saved_at: Option<i64>,
     pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cause: Option<crate::errors::CoreError>,
 }

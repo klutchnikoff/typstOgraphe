@@ -38,7 +38,7 @@ impl Engine {
             &self.document().assets,
             self.dependencies(),
         )
-        .map_err(|e| CommandError::detail(ErrorCode::Document, "asset_inventory", e))?;
+        .map_err(|e| CommandError::with_cause(ErrorCode::Document, "asset_inventory", e))?;
         let inventory = |files: &crate::assets::Assets| -> Vec<Value> {
             files
                 .iter()

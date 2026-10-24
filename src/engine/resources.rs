@@ -28,7 +28,7 @@ pub(super) fn check_budget(candidate: &Snapshot) -> Result<(), CommandError> {
         &document.assets,
         &candidate.dependencies,
     )
-    .map_err(|error| CommandError::detail(ErrorCode::Document, "asset_validation", error))?;
+    .map_err(|error| CommandError::with_cause(ErrorCode::Document, "asset_validation", error))?;
     if retained.values().map(|data| data.len()).sum::<usize>() + dependencies
         > MAX_DOCUMENT_BYTES as usize
     {
