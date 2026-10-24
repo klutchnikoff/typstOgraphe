@@ -465,3 +465,14 @@ cli-block-required = Cette commande nécessite un bloc image. Utilisez --block.
 cli-spelling-missing = La sélection ne correspond pas à une erreur orthographique de ce document.
 cli-selection-required = Cette commande nécessite une occurrence de texte exacte. Utilisez --select.
 cli-target-unsupported = Cette opération ne prend pas en charge cette option de cible.
+cli-target-options = Utilisez select ou block, avec des numéros positifs ; occurrence nécessite select.
+cli-script-help = Appliquer un script JSON versionné en une transaction documentaire atomique
+cli-script-file-help = Script JSON UTF-8, ou - pour l’entrée standard
+cli-script-io = Impossible de lire le script ou son répertoire de référence.
+cli-script-version = Version de script non prise en charge. Seule la version 1 est acceptée.
+cli-script-save = Un nouveau document n’a pas de fichier courant. Choisissez save.kind as et un nouveau chemin.
+cli-script-completed =
+    { $steps ->
+        [one] Script terminé : { $steps } étape.
+       *[other] Script terminé : { $steps } étapes.
+    }

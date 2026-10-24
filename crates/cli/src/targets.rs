@@ -41,14 +41,28 @@ pub fn portable(value: &Value) -> Result<(), CommandError> {
 }
 
 impl Target {
-    pub fn bind(
+    pub fn validate(&self) -> Result<(), CommandError> {
+        if (self.select.is_some() && self.block.is_some())
+            || (self.occurrence.is_some() && self.select.is_none())
+            || self.occurrence == Some(0)
+            || self.block == Some(0)
+        {
+            return Err(CommandError::new(
+                ErrorCode::InvalidParams,
+                "cli_target_options",
+            ));
+        }
+        Ok(())
+    }
+    pub fn resolve(
         self,
-        engine: &mut Engine,
+        engine: &Engine,
         spec: &CommandSpec,
         params: &mut Map<String, Value>,
-    ) -> Result<(), CommandError> {
+    ) -> Result<Option<SelectionTarget>, CommandError> {
+        self.validate()?;
         if self.select.is_none() && self.block.is_none() {
-            return Ok(());
+            return Ok(None);
         }
         let properties = &spec.params_schema["properties"];
         if ["target", "issue", "occurrence"]
@@ -141,10 +155,6 @@ impl Target {
                 "cli_target_unsupported",
             ));
         }
-        engine.run(Command::SelectText(SelectTextParams {
-            target: selection.into(),
-            part: None,
-        }))?;
-        Ok(())
+        Ok(Some(selection))
     }
 }

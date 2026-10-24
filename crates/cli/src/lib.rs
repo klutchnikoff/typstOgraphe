@@ -4,6 +4,9 @@ mod calls;
 mod creation;
 mod output;
 mod parameters;
+mod paths;
+mod script;
+mod script_format;
 mod targets;
 use args::{Action, CatalogueAction, Cli};
 use serde_json::{Value, json};
@@ -18,6 +21,7 @@ pub struct Report {
 
 pub fn execute(cli: Cli) -> Result<Report, CommandError> {
     match cli.action {
+        Action::Script { file } => script::execute(file),
         Action::Query {
             id,
             file,

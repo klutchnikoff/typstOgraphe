@@ -37,14 +37,29 @@ fn parameters(
     input: Parameters,
     target: Target,
 ) -> Result<Value, CommandError> {
-    let mut params = input.load()?;
+    let (params, selection) = resolve_parameters(engine, spec, input.load()?, target)?;
+    if let Some(selection) = selection {
+        engine.run(Command::SelectText(SelectTextParams {
+            target: selection.into(),
+            part: None,
+        }))?;
+    }
+    Ok(params)
+}
+
+pub(crate) fn resolve_parameters(
+    engine: &Engine,
+    spec: &CommandSpec,
+    mut params: Map<String, Value>,
+    target: Target,
+) -> Result<(Value, Option<SelectionTarget>), CommandError> {
     targets::portable(&Value::Object(params.clone()))?;
-    target.bind(engine, spec, &mut params)?;
+    let selection = target.resolve(engine, spec, &mut params)?;
     if !spec.params_schema["properties"]["guard"].is_null() {
         params.insert("guard".into(), json!(engine.target_guard()));
     }
     prepare_render(engine, spec, &mut params)?;
-    Ok(Value::Object(params))
+    Ok((Value::Object(params), selection))
 }
 
 fn prepare_render(
@@ -115,18 +130,7 @@ pub fn run(
 ) -> Result<Report, CommandError> {
     let spec = specification(&id, false)?;
     // --save réserve le fichier AVANT sa lecture. Une copie/prévisualisation reste indépendante.
-    let mut engine = if save {
-        let mut engine = Engine::empty();
-        engine.run(Command::OpenDocument(OpenDocumentParams {
-            guard: engine.target_guard(),
-            path: file.clone(),
-            read_only: false,
-            discard_changes: false,
-        }))?;
-        engine
-    } else {
-        Engine::from_stored(open(file.clone())?.stored_document(), None)?
-    };
+    let mut engine = working_copy(file.clone(), save)?;
     let params = parameters(&mut engine, spec, params, target)?;
     let command = engine.run_call(Call {
         id: spec.id.clone(),
@@ -162,4 +166,19 @@ pub fn run(
         ),
         exit: 0,
     })
+}
+
+pub(crate) fn working_copy(file: PathBuf, in_place: bool) -> Result<Engine, CommandError> {
+    if in_place {
+        let mut engine = Engine::empty();
+        engine.run(Command::OpenDocument(OpenDocumentParams {
+            guard: engine.target_guard(),
+            path: file,
+            read_only: false,
+            discard_changes: false,
+        }))?;
+        Ok(engine)
+    } else {
+        Engine::from_stored(open(file)?.stored_document(), None)
+    }
 }

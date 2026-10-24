@@ -21,6 +21,11 @@ pub enum Language {
 
 #[derive(Subcommand)]
 pub enum Action {
+    #[command(about = tr!("cli-script-help"))]
+    Script {
+        #[arg(help = tr!("cli-script-file-help"))]
+        file: PathBuf,
+    },
     #[command(about = tr!("cli-query-call-help"))]
     Query {
         id: String,
@@ -89,7 +94,8 @@ pub struct Parameters {
     pub params_file: Option<PathBuf>,
 }
 
-#[derive(Args, Default)]
+#[derive(Args, Clone, Default, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct Target {
     #[arg(long, conflicts_with = "block", help = tr!("cli-select-help"))]
     pub select: Option<String>,

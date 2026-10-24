@@ -4,7 +4,7 @@ use serde_json::{Map, Value};
 use std::{fs::File, io::Read, path::Path};
 use typstographe_core::engine::{CommandError, ErrorCode};
 
-pub const MAX_PARAMETERS_BYTES: usize = 4 * 1024 * 1024;
+pub const MAX_PARAMETERS_BYTES: usize = typstographe_core::engine::MAX_BATCH_BYTES;
 
 impl Parameters {
     pub fn load(self) -> Result<Map<String, Value>, CommandError> {
@@ -30,13 +30,20 @@ impl Parameters {
     }
 }
 fn read(input: impl Read) -> Result<Vec<u8>, CommandError> {
+    read_payload(input, "cli_params_io", "cli_params_too_large")
+}
+pub(crate) fn read_payload(
+    input: impl Read,
+    io_reason: &str,
+    size_reason: &str,
+) -> Result<Vec<u8>, CommandError> {
     let mut bytes = Vec::new();
     input
         .take(MAX_PARAMETERS_BYTES as u64 + 1)
         .read_to_end(&mut bytes)
-        .map_err(io_error)?;
+        .map_err(|e| CommandError::detail(ErrorCode::Io, io_reason, e))?;
     if bytes.len() > MAX_PARAMETERS_BYTES {
-        return Err(too_large());
+        return Err(CommandError::new(ErrorCode::InvalidParams, size_reason));
     }
     Ok(bytes)
 }
