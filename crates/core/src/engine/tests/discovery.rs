@@ -44,8 +44,39 @@ fn capability_documentation_preserves_the_registry_schema_and_examples_decode() 
         let doc = Engine::command_documentation(spec.id.as_str()).unwrap();
         assert_eq!(doc["command"], serde_json::to_value(spec).unwrap());
         assert!(!doc["details"].as_str().unwrap().is_empty());
+        assert!(
+            !doc["examples"].as_array().unwrap().is_empty(),
+            "{}",
+            spec.id.as_str()
+        );
+        assert!(doc["defaults"].is_object());
+        for key in ["restrictions", "result", "transaction", "example_format"] {
+            assert!(
+                !doc[key].as_str().unwrap().is_empty(),
+                "{}: {key}",
+                spec.id.as_str()
+            );
+        }
+        assert_eq!(doc["effects"]["batch_step"], spec.batch_step);
         for example in doc["examples"].as_array().unwrap() {
-            let mut params = example.clone();
+            let mut params = example["params"].clone();
+            for binding in example["bindings"].as_array().unwrap() {
+                let value = match binding["reference"].as_str().unwrap() {
+                    "image_block" => json!({"guard":e.target_guard(),"block_id":1}),
+                    "search_occurrence" => {
+                        json!({"target":{"guard":e.target_guard(),"selection":{"anchor":{"kind":"before","position":1},"head":{"kind":"after","position":1}}},"text":"Élodie"})
+                    }
+                    "spelling_issue" => {
+                        json!({"target":{"guard":e.target_guard(),"selection":{"anchor":{"kind":"before","position":1},"head":{"kind":"after","position":1}}},"language":"fr","word":"bonjor"})
+                    }
+                    "render" => json!({"guard":e.target_guard(),"id":1}),
+                    "recovery" => json!(1),
+                    other => panic!("unknown documented binding: {other}"),
+                };
+                *params
+                    .pointer_mut(binding["parameter"].as_str().unwrap())
+                    .unwrap() = value;
+            }
             if !spec.params_schema["properties"]["guard"].is_null() {
                 params["guard"] = json!(e.target_guard());
             }

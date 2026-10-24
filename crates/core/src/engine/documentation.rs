@@ -31,102 +31,37 @@ impl Engine {
             .iter()
             .find(|s| s.id.as_str() == id)
             .ok_or_else(|| CommandError::new(ErrorCode::NotFound, "unknown_command"))?;
-        let (details, examples) = guidance(id);
-        Ok(json!({"command":spec,"details":details,"examples":examples,
-            "defaults":"Defaults and required fields are declared in params_schema. A missing text target means the current logical selection; document.text defaults to all text. Never reuse revision-guarded references after a mutation.",
-            "transaction":match spec.family { Family::Query => "Read only; no document undo entry.", Family::Selection => "Moves the selection; no document undo entry.", Family::File => "Lifecycle, save and export operations are explicit and are not undone by editing history. Export does not mark a document saved.", _ => "Document mutations are undoable. Batch steps form one transaction; save and export are explicit." }}))
+        let guide = super::documentation_guides::guide(id)
+            .ok_or_else(|| CommandError::new(ErrorCode::NotFound, "documentation_missing"))?;
+        let defaults: serde_json::Map<String, Value> = spec.params_schema["properties"]
+            .as_object()
+            .into_iter()
+            .flat_map(|p| p.iter())
+            .filter_map(|(key, schema)| schema.get("default").map(|v| (key.clone(), v.clone())))
+            .collect();
+        Ok(
+            json!({"command":spec,"details":guide.details,"examples":[guide.example],
+            "example_format":"examples[].params are parameters. Before calling, replace every null reference listed in bindings with a value read from the indicated operation; never invent IDs or guards. Root guard is supplied by the caller or adapter. Examples may require a suitable current selection or structure; see restrictions.",
+            "defaults":defaults,"restrictions":guide.restrictions,"result":guide.result,
+            "target_guidance":"Text targets default to the current logical selection except document.text (all text) and document.statistics (no selection counter). Explicit targets retain their revision guard; refresh after document edits. Structural IDs are opaque and never character offsets.",
+            "effects":effects(spec),
+            "transaction":match spec.family { Family::Query => "Read only; no document undo entry. A read may populate derived caches.", Family::Selection => "Moves the selection; no document undo entry.", Family::File => "Lifecycle, save and export operations are explicit and are not undone by editing history. Export does not mark a document saved.", Family::History => "Moves through existing history; does not add a new edit. Disk writes are not undone.", _ => "Changes to document content are undoable. Discrete calls form an edit; typing inputs may group. A batch is one transaction with optional final save; export is separate." }}),
+        )
     }
 }
-
-fn guidance(id: &str) -> (&'static str, Vec<Value>) {
-    let (details, example) = match id {
-        "document.new" => (
-            "Choose a creatable type and a supplied model from discovery. Initial field values and an embedded signature are explicit; no personal profile is loaded. Replacing unsaved work requires discard_changes.",
-            json!({"type":"courrier","model":"courrier.model.personal"}),
-        ),
-        "document.open" => (
-            "Open the last saved archive. Writable opening takes a cooperative writer lock; read_only=true reads a snapshot without taking that lock. It never sees another session's unsaved edits. Replacing dirty work requires discard_changes. To edit a read-only snapshot, save_as a separate writable copy. File permissions are enforced by the adapter.",
-            json!({"path":"letter.typsto","read_only":true}),
-        ),
-        "document.save" => (
-            "Atomically save to the current path, or an explicit path for a new document. The current writer lock and fingerprint prevent cooperative writers or external disk changes from being overwritten. A different existing destination requires save_as with an explicit overwrite decision. Saving does not add an undo entry.",
-            json!({}),
-        ),
-        "document.save_as" => (
-            "Atomically save to an explicit destination, taking its writer lock. Existing files are refused unless overwrite=true, and active locks remain protected. A read-only snapshot may be saved to a different path to become an editable independent copy. Permissions are enforced by the adapter.",
-            json!({"path":"copy.typsto","overwrite":false}),
-        ),
-        "document.export" => (
-            "Export the current in-memory document to a new or empty directory. format is pdf, typst or both; page_images defaults to true. Typst export includes resources, packages and fonts needed for autonomy. Export does not save or clear unsaved changes. It is separate from a batch; an IO failure may leave partial export files, which are never overwritten.",
-            json!({"directory":"export","format":"both","page_images":false}),
-        ),
-        "document.set_model" => (
-            "Validate and install a Typst model source or a UTF-8 file as one undoable change. It must implement the current type's contract. Imports are confined to embedded dependencies; no packages are downloaded. Use a supplied named model command when possible; models change presentation, not document semantics.",
-            json!({"model":{"kind":"path","path":"model.typ"}}),
-        ),
-        "text.insert" => (
-            "Insert literal text at the target, replacing any selection. A single newline is a space in the same paragraph; two newlines create a paragraph. Apply formatting through dedicated commands rather than inserting Typst code.",
-            json!({"text":"Bonjour Élodie.\n\nUn nouveau paragraphe."}),
-        ),
-        "text.bold" | "text.italic" => (
-            "Use on/off for predictable formatting, or toggle. An empty selection changes the subsequent typing style; a selected range changes that text.",
-            json!({"target":{"kind":"all"},"value":"on"}),
-        ),
-        "text.link" => (
-            "Apply an explicit URL to selected text. The visible label stays in the document.",
-            json!({"target":{"kind":"all"},"url":"https://example.org"}),
-        ),
-        "metadata.set" => (
-            "Set one field listed by the document type. The field identifier is independent of UI language. A date is a fixed ISO YYYY-MM-DD value.",
-            json!({"field":"letter.subject","value":"Demande de renseignements"}),
-        ),
-        "document.set_option" => (
-            "Set a document option, independently of UI language. The engine applies the active model presentation policy.",
-            json!({"option":{"key":"language","value":"fr"}}),
-        ),
-        "letter.insert_postscript" => (
-            "Create or select the letter's postscript and move the insertion point to its body; then insert literal text. This is a letter capability.",
-            json!({}),
-        ),
-        "letter.insert_attachment" => (
-            "Insert an enclosure mention and move to its text. Mentions do not embed the enclosed files.",
-            json!({}),
-        ),
-        "block.quote" => (
-            "Convert the target paragraphs to a block quotation. Use text.select with part=annotation to edit the optional attribution.",
-            json!({"target":{"kind":"all"}}),
-        ),
-        "insert.image" => (
-            "Insert an image with optional caption and alternative text. The caption is a logical annotation. The stored resource follows the common save/export retention policy.",
-            json!({"image":{"kind":"embedded","extension":"svg","data":"PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiLz4="},"alt":"Description de l’image","caption":"Légende facultative"}),
-        ),
-        "search.find" => (
-            "Find exact literal text without moving the selection. Results contain revision-guarded logical targets. Matching is case-insensitive by default.",
-            json!({"query":"Élodie","case_sensitive":true}),
-        ),
-        "document.validate" => (
-            "Report document/model errors separately from fields missing for export. This check never corrects text and does not perform spelling checks.",
-            json!({}),
-        ),
-        "spelling.issues" => (
-            "List suspected spelling errors and dictionary availability. This is not grammar checking and does not correct anything automatically.",
-            json!({}),
-        ),
-        "document.batch" => (
-            "Execute bounded editing steps on the evolving private draft. Failure publishes nothing. On success the entire lot is one undo transaction; a final save is explicit and export is separate.",
-            json!({"steps":[{"id":"letter.insert_postscript","params":{}},{"id":"text.insert","params":{"text":"Une précision."}}]}),
-        ),
-        _ => (
-            "Use the typed parameter schema and the context availability returned by commands.list. Logical targets must belong to the current document revision.",
-            Value::Null,
-        ),
-    };
-    (
-        details,
-        if example.is_null() {
-            vec![]
-        } else {
-            vec![example]
+fn effects(spec: &CommandSpec) -> Value {
+    let id = spec.id.as_str();
+    json!({"batch_step":spec.batch_step,"requires_document":spec.availability != AvailabilityRule::Always,
+        "document":"Mutations publish only after validation; selection-only and read operations do not change document content.",
+        "filesystem":match id {
+            "document.open" => "Reads a saved archive; writable open may create/acquire its lock companion.",
+            "document.save" | "document.save_as" => "Explicit atomic archive write, lock acquisition and fingerprint check.",
+            "document.export" => "Explicit new/empty export directory; may leave a partial export after an IO error.",
+            "document.batch" => "No writes in steps; optional single final atomic archive save. Path imports are reads.",
+            "recovery.delete" => "Deletes one configured recovery copy explicitly.",
+            "recovery.restore" => "Reads a configured recovery copy into an unsaved document.",
+            "document.new" | "insert.image" | "image.replace" | "document.set_signature" | "document.set_model" => "May read an explicit resource path; imports are embedded in memory. No automatic save.",
+            _ => "No document filesystem write. Closing/replacing a session may release a cooperative lock."
         },
-    )
+        "render_cache":if id == "render.compile" {"Installs a derived in-memory render for this revision; no disk write or undo entry."} else {"Document changes invalidate derived rendering; other reads do not install an edited document."}})
 }
