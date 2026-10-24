@@ -3,7 +3,20 @@ use super::*;
 use crate::{document::Document, document_types::Metadata};
 use std::{path::Path, time::Instant};
 
+/// Nombre d’étapes disponibles ; aucun instantané de session ne sort du moteur.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct HistoryInfo {
+    pub undo: usize,
+    pub redo: usize,
+}
 impl Engine {
+    pub fn history(&self) -> super::HistoryInfo {
+        HistoryInfo {
+            undo: self.session.undo.len(),
+            redo: self.session.redo.len(),
+        }
+    }
+
     pub fn document(&self) -> &Document {
         &self.session.document
     }
@@ -32,10 +45,10 @@ impl Engine {
         self.open && self.session.is_dirty()
     }
     pub fn can_undo(&self) -> bool {
-        !self.session.undo.is_empty()
+        self.history().undo > 0
     }
     pub fn can_redo(&self) -> bool {
-        !self.session.redo.is_empty()
+        self.history().redo > 0
     }
     pub fn target_guard(&self) -> TargetGuard {
         self.session.target_guard()

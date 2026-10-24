@@ -9,30 +9,27 @@ fn today_button_keeps_a_fixed_date_through_history_and_reopening() {
     app.dialogs.information_group = InformationGroup::Fields("information");
     let source = app.document.engine.document().source().to_owned();
     recovery_click(&mut app, &ctx, &crate::tr!("date-today"));
-    let fixed = app.document.engine.metadata().courrier().date.clone();
+    let fixed = app.document.engine.metadata().letter().date.clone();
     assert_eq!(fixed, crate::dates::today());
     app.apply(Command::Undo);
-    assert!(app.document.engine.metadata().courrier().date.is_empty());
+    assert!(app.document.engine.metadata().letter().date.is_empty());
     app.apply(Command::Redo);
-    assert_eq!(app.document.engine.metadata().courrier().date, fixed);
+    assert_eq!(app.document.engine.metadata().letter().date, fixed);
     assert_eq!(app.document.engine.document().source(), source);
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("date-fixe.typsto");
     assert!(app.save_path(path.clone()));
     app.close_document();
     assert!(app.open_path(path));
-    assert_eq!(app.document.engine.metadata().courrier().date, fixed);
+    assert_eq!(app.document.engine.metadata().letter().date, fixed);
     assert!(!app.is_dirty());
 }
 
 #[test]
 fn general_settings_and_template_selection_preserve_letter_content() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.template = "#let courrier(..args, options: (:), body) = { set page(paper: options.paper, flipped: options.landscape); body }".into();
-    });
-    fixture(&mut app.document.engine, |session| {
-        session.saved.template = session.template.clone();
+    fixture(&mut app.document.engine, |data| {
+        data.template = "#let courrier(..args, options: (:), body) = { set page(paper: options.paper, flipped: options.landscape); body }".into();
     });
     app.dialogs.information_open = true;
     ctx.style_mut(|s| s.animation_time = 0.0);
@@ -251,10 +248,10 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     );
     draw(&mut app, vec![]);
     let correspondence = draw(&mut app, vec![]);
-    let original_subject = app.document.engine.metadata().courrier().objet.clone();
+    let original_subject = app.document.engine.metadata().letter().objet.clone();
     let subject = text_rect(
         &correspondence,
-        &app.document.engine.metadata().courrier().objet,
+        &app.document.engine.metadata().letter().objet,
     );
     assert!(subject.is_positive());
     assert!(subject.right() < preview.left());
@@ -273,7 +270,7 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
         ],
     );
     assert_eq!(
-        app.document.engine.metadata().courrier().objet,
+        app.document.engine.metadata().letter().objet,
         "Objet modifié"
     );
     assert_eq!(app.document.engine.document().source(), source);
@@ -297,14 +294,14 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     assert!(!app.dialogs.palette_open);
     draw(&mut app, vec![]);
     assert_eq!(
-        app.document.engine.metadata().courrier().objet,
+        app.document.engine.metadata().letter().objet,
         original_subject
     );
     assert_eq!(app.document.engine.document().source(), source);
     app.dispatch_action(Command::Redo, &ctx);
     draw(&mut app, vec![]);
     assert_eq!(
-        app.document.engine.metadata().courrier().objet,
+        app.document.engine.metadata().letter().objet,
         "Objet modifié"
     );
     assert_eq!(app.document.engine.revision(), revision + 3);
@@ -317,7 +314,7 @@ fn inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_docum
     draw(&mut app, vec![]);
     assert!(!app.dialogs.information_open);
     assert_eq!(
-        app.document.engine.metadata().courrier().objet,
+        app.document.engine.metadata().letter().objet,
         "Objet modifié"
     );
     assert_eq!(app.document.engine.revision(), revision + 3);
@@ -352,13 +349,11 @@ fn document_information_offers_only_the_markers_allowed_by_the_template() {
     assert!(point(&output, "Automatique (modèle)").is_some());
     assert!(point(&output, "▪").is_none());
     assert!(point(&output, "Caractère personnalisé…").is_none());
-    let before = app.snapshot();
-    fixture(&mut app.document.engine, |session| {
-        session
-            .template
-            .push_str("\n#let editor-options = (bullet-markers: (\"▪\",),)");
-    });
-    app.remember(before, false);
+    let template = format!(
+        "{}\n#let editor-options = (bullet-markers: (\"▪\",),)",
+        app.document.engine.template()
+    );
+    app.install_model(template).unwrap();
     app.document.presentation = world
         .model_presentation("#let editor-options = (bullet-markers: (\"▪\",),)")
         .unwrap();

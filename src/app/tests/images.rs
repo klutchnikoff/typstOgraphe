@@ -1,38 +1,11 @@
 use super::*;
 
 #[test]
-fn discarded_images_in_memory_do_not_exhaust_the_document_size_limit() {
-    let mut app = App::with_demo_context(egui::Context::default(), None);
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("").unwrap();
-    });
-    // Simuler plus de 64 Mio d’anciennes ressources partagées en mémoire.
-    // Elles ne sont plus référencées par le document ni par son modèle.
-    let unused: std::sync::Arc<[u8]> = vec![0; 1024 * 1024].into();
-    for index in 0..65 {
-        fixture(&mut app.document.engine, |session| {
-            session
-                .document
-                .assets
-                .insert(format!("images/old-{index}.png"), unused.clone());
-        });
-    }
-    let dir = tempfile::tempdir().unwrap();
-    let image = dir.path().join("parc.svg");
-    std::fs::write(&image, include_bytes!("../../../tests/fixtures/parc.svg")).unwrap();
-    app.import_image(&image, None).unwrap();
-    let path = dir.path().join("courrier.typsto");
-    assert!(app.save_path(path.clone()), "{:?}", app.file.error);
-    assert_eq!(storage::read(&path).unwrap().assets.len(), 1);
-    assert!(!app.is_dirty());
-}
-
-#[test]
 fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
     let ctx = egui::Context::default();
     let mut app = App::with_demo_context(ctx, None);
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("").unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source("").unwrap();
     });
     let dir = tempfile::tempdir().unwrap();
     let original = dir.path().join("original.svg");
@@ -114,14 +87,14 @@ fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
 fn image_remove_button_deletes_the_selected_block_and_caption_with_undo() {
     for caption in ["", ", caption: [Le parc.]"] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |session| {
-            session.document = Document::from_source(&format!(
+        fixture(&mut app.document.engine, |data| {
+            data.document = Document::from_source(&format!(
                 "Avant.\n\n#figure(image(\"images/parc.svg\"){caption})\n\nAprès."
             ))
             .unwrap();
         });
-        fixture(&mut app.document.engine, |session| {
-            session.document.assets.insert(
+        fixture(&mut app.document.engine, |data| {
+            data.document.assets.insert(
                 "images/parc.svg".into(),
                 include_bytes!("../../../tests/fixtures/parc.svg")
                     .as_slice()
@@ -204,8 +177,8 @@ fn image_remove_button_deletes_the_selected_block_and_caption_with_undo() {
 #[test]
 fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("Avant.\n\nAprès.").unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source("Avant.\n\nAprès.").unwrap();
     });
     app.document.selection = editor::cursor(6..6);
     let dir = tempfile::tempdir().unwrap();
@@ -321,8 +294,8 @@ fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
 #[test]
 fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("Avant.\n\nAprès.").unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source("Avant.\n\nAprès.").unwrap();
     });
     app.document.selection = editor::cursor(6..6);
     let dir = tempfile::tempdir().unwrap();
@@ -376,12 +349,13 @@ fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
     };
     frame(&mut app, &ctx, vec![key(egui::Key::Tab)]);
     assert_eq!(app.range(), object + 1..object + 1);
-    let before_alt = app.snapshot();
-    fixture(&mut app.document.engine, |session| {
-        session.document.view.images.get_mut(&id).unwrap().alt =
-            "Trois arbres autour d’un chemin".into();
-    });
-    app.remember(before_alt, false);
+    app.execute_document_command(crate::engine::Command::SetImageAlt(
+        crate::engine::ImageAltParams {
+            target: app.document.engine.image_target(id).unwrap(),
+            alt: "Trois arbres autour d’un chemin".into(),
+        },
+    ))
+    .unwrap();
     app.import_image(&original, Some(id)).unwrap();
     assert_eq!(
         app.document.engine.document().view.images[&id].alt,

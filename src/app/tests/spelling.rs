@@ -57,7 +57,7 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
             .iter()
             .all(|style| style.bold)
     );
-    assert_eq!(app.document.engine.undo().len(), 1);
+    assert_eq!(app.document.engine.history().undo, 1);
     app.apply(Command::Undo);
     assert_eq!(app.stored_document(), original);
     // Même mot et mêmes positions après annulation : le ticket ancien reste invalide.
@@ -148,11 +148,11 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     app.refresh_spelling(&ctx);
     app.spelling.checker.wait();
     assert_eq!(app.spelling.checker.issues.len(), 2);
-    let before = app.snapshot();
-    fixture(&mut app.document.engine, |session| {
-        session.metadata.options_mut().language = DocumentLanguage::German;
-    });
-    app.remember(before, false);
+    assert!(
+        app.set_document_option(crate::engine::DocumentOption::Language(
+            DocumentLanguage::German
+        ))
+    );
     app.refresh_spelling(&ctx);
     assert!(app.spelling.checker.issues.is_empty() && !app.spelling.checker.ready);
     app.apply(Command::ToggleSpelling);

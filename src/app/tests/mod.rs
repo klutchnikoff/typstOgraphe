@@ -4,8 +4,7 @@
 )]
 
 use super::*;
-use crate::engine::test_support::with_session as fixture;
-use crate::{document::Mark, session::Session};
+use crate::document::Mark;
 use support::*;
 
 mod annotations;

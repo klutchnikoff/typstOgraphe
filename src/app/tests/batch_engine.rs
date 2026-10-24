@@ -51,7 +51,7 @@ fn batch_adapter_matches_json_execution_and_restores_the_whole_transaction_with_
     assert!(app.stored_document() == core.stored_document());
     assert_eq!(app_outcome.changed, core_outcome.changed);
     assert_eq!(app_outcome.value, core_outcome.value);
-    assert_eq!(app.document.engine.undo().len(), 1);
+    assert_eq!(app.document.engine.history().undo, 1);
     let core_selection: CCursorRange = editor::to_editor(core.selection());
     assert_eq!(app.document.selection, core_selection);
     let final_state = app.stored_document();
@@ -66,10 +66,10 @@ fn saved_batch_clears_recovery_only_on_success_and_keeps_preview_synchronization
     let (ctx, mut app) = demo_app();
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("recovery");
+    seed_recovery(&root, &app.stored_document(), None);
     app.start_recovery(root.clone(), ctx);
-    fixture(&mut app.document.engine, |session| {
-        session.recovered = true;
-    });
+    app.recover_document(0);
+    assert!(app.document.engine.is_recovered());
     app.recovery.worker.as_mut().unwrap().make_due();
     app.checkpoint_recovery();
     app.recovery.worker.as_mut().unwrap().wait();
@@ -107,7 +107,7 @@ fn saved_batch_clears_recovery_only_on_success_and_keeps_preview_synchronization
     assert!(app.preview.forward_pending && app.document.force_selection);
     assert_eq!(app.preferences, prefs);
     assert!(storage::read(&output).unwrap() == app.stored_document());
-    assert_eq!(app.document.engine.undo().len(), 1);
+    assert_eq!(app.document.engine.history().undo, 1);
     drop(app);
     assert_eq!(std::fs::read_dir(root).unwrap().count(), 0);
 }
@@ -146,7 +146,7 @@ fn model_batch_refreshes_editor_policy_immediately_and_metadata_only_batches_kee
     assert!(!app.document.force_selection);
     assert_eq!(app.document.selection, selected);
     assert_eq!(
-        app.document.engine.metadata().courrier().objet,
+        app.document.engine.metadata().letter().objet,
         "Objet modifié"
     );
 }
@@ -169,7 +169,7 @@ fn batch_errors_are_localized_and_do_not_change_editor_content_selection_or_focu
     assert_eq!(app.document.selection, selection);
     assert_eq!(app.document.engine.target_guard(), guard);
     assert!(!app.document.force_selection);
-    assert!(app.document.engine.undo().is_empty());
+    assert!(!app.document.engine.can_undo());
     assert!(
         app.dialogs
             .message

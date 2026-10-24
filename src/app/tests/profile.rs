@@ -17,7 +17,7 @@ fn personal_profile_seeds_new_documents_and_signature_edits_are_independent_and_
     app.profile_signature = Some(image);
     app.create_document(DocumentType::Courrier);
     let initial = app.stored_document();
-    assert_eq!(initial.metadata.courrier().expediteur, "Zoé Martin");
+    assert_eq!(initial.metadata.letter().expediteur, "Zoé Martin");
     assert_eq!(
         initial.metadata.signature_path(),
         Some("images/signature-1.svg")
@@ -97,7 +97,7 @@ fn personal_profile_seeds_new_documents_and_signature_edits_are_independent_and_
     assert_eq!(app.stored_document(), changed);
     assert!(app.open_path(path));
     assert_eq!(
-        app.document.engine.metadata().courrier().expediteur,
+        app.document.engine.metadata().letter().expediteur,
         "Zoé Martin"
     );
     assert_eq!(app.preferences.profile.name, "Autre nom");

@@ -9,11 +9,11 @@ fn tab_places_the_native_caret_on_each_empty_annotation_placeholder() {
         let (ctx, mut app) = demo_app();
         // Vérifier la géométrie réellement peinte, indépendamment du clignotement.
         ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
-        fixture(&mut app.document.engine, |session| {
-            session.document = Document::from_source(source).unwrap();
+        fixture(&mut app.document.engine, |data| {
+            data.document = Document::from_source(source).unwrap();
         });
-        fixture(&mut app.document.engine, |session| {
-            session.document.assets.insert(
+        fixture(&mut app.document.engine, |data| {
+            data.document.assets.insert(
                 "images/parc.svg".into(),
                 include_bytes!("../../../tests/fixtures/parc.svg")
                     .as_slice()
@@ -115,8 +115,8 @@ fn annotation_navigation_and_exit_preserve_content_selection_and_undo() {
         "#quote(block: true, attribution: [Été *à Paris*.])[Une pensée.]\n\nSuite.",
     ] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |session| {
-            session.document = Document::from_source(source).unwrap();
+        fixture(&mut app.document.engine, |data| {
+            data.document = Document::from_source(source).unwrap();
         });
         let annotation = app.document.engine.document().view.annotations().remove(0);
         let at = annotation.content.start;
@@ -144,7 +144,7 @@ fn annotation_navigation_and_exit_preserve_content_selection_and_undo() {
         );
         assert_eq!(app.range(), at..at);
         assert!(
-            app.document.engine.undo().is_empty(),
+            !app.document.engine.can_undo(),
             "la navigation ne modifie pas le document"
         );
         let original = app.document.engine.document().clone();
@@ -202,8 +202,8 @@ fn annotation_navigation_scrolls_to_the_target_in_both_structures() {
         format!("#quote(block: true)[{}]", "Une pensée.\n\n".repeat(80)),
     ] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |session| {
-            session.document = Document::from_source(&source).unwrap();
+        fixture(&mut app.document.engine, |data| {
+            data.document = Document::from_source(&source).unwrap();
         });
         let annotation = app.document.engine.document().view.annotations().remove(0);
         app.document.selection = editor::cursor(annotation.main_target());

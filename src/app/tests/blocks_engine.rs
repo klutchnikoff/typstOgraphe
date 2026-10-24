@@ -61,7 +61,7 @@ fn description_tab_shift_tab_and_note_tab_match_json_navigation_and_exit() {
             json!({"part":part}),
         );
     }
-    assert!(engine.undo().is_empty());
+    assert!(!engine.can_undo());
     for source in [
         "#postscript[Merci *encore*]",
         "#attachment[Rapport]\n#attachment[Formulaire]",
@@ -76,7 +76,7 @@ fn description_tab_shift_tab_and_note_tab_match_json_navigation_and_exit() {
             "block.exit",
             json!({}),
         );
-        assert_eq!(engine.undo().len(), 1);
+        assert_eq!(engine.history().undo, 1);
     }
 }
 
@@ -110,7 +110,7 @@ fn native_text_shortcuts_and_typing_mode_json_keep_the_same_complete_literal_und
             .unwrap();
         frame(&mut app, &ctx, vec![egui::Event::Text(text.into())]);
         equivalent(&app, &engine);
-        assert_eq!(engine.undo().len(), 1);
+        assert_eq!(engine.history().undo, 1);
         app.apply(Command::Undo);
         engine.run(Core::Undo(Empty {})).unwrap();
         equivalent(&app, &engine);
@@ -142,5 +142,5 @@ fn ime_commit_keeps_literal_text_even_when_it_looks_like_a_typing_shortcut() {
         app.document.engine.document().view.blocks,
         [BlockKind::Paragraph]
     );
-    assert_eq!(app.document.engine.undo().len(), 1);
+    assert_eq!(app.document.engine.history().undo, 1);
 }

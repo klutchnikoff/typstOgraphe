@@ -182,23 +182,6 @@ impl Session {
             || self.saved.assets != self.document.assets
             || self.saved.dependencies != self.dependencies
     }
-    #[cfg(test)]
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub fn changed(&mut self, mut selection: Selection) -> Selection {
-        for at in self.document.sync_source() {
-            for cursor in [&mut selection.primary, &mut selection.secondary] {
-                if cursor.index > at {
-                    cursor.index += 1;
-                }
-            }
-        }
-        for cursor in [&mut selection.primary, &mut selection.secondary] {
-            cursor.index = cursor.index.min(self.document.view.len());
-        }
-        self.revision += 1;
-        self.changed_at = Instant::now();
-        selection
-    }
     pub fn history(&mut self, undo: bool, selection: Selection) -> Option<Selection> {
         let current = self.snapshot(selection);
         let item = if undo {

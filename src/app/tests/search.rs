@@ -296,7 +296,7 @@ fn replacement_commands_refresh_results_and_replace_all_is_a_single_document_tra
         6,
         "les nouveaux résultats ne sont pas remplacés en boucle"
     );
-    assert_eq!(app.document.engine.undo().len(), 1);
+    assert_eq!(app.document.engine.history().undo, 1);
     app.apply(Command::Undo);
     assert_eq!(app.stored_document(), stored);
     app.apply(Command::Redo);

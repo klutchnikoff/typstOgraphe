@@ -92,8 +92,8 @@ fn column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_ca
 #[test]
 fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.document =
+    fixture(&mut app.document.engine, |data| {
+        data.document =
             Document::from_source(&"Un paragraphe à retrouver.\n\n".repeat(100)).unwrap();
     });
     let mut world = crate::rendering::TypstWorld::default();
@@ -165,14 +165,22 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
     assert!(offset > 1000.0, "preview offset {offset}");
 
     app.document.selection = editor::cursor(0..0);
-    fixture(&mut app.document.engine, |session| {
-        session.revision += 1;
-    });
+    app.preview
+        .render
+        .as_mut()
+        .unwrap()
+        .reference
+        .guard
+        .revision += 1;
     app.navigate_backward(location, &ctx);
     assert_eq!(app.document.selection.primary.index, 0);
-    fixture(&mut app.document.engine, |session| {
-        session.revision -= 1;
-    });
+    app.preview
+        .render
+        .as_mut()
+        .unwrap()
+        .reference
+        .guard
+        .revision -= 1;
     app.preview.error = Some("essai".into());
     app.navigate_backward(location, &ctx);
     assert_eq!(app.document.selection.primary.index, 0);
@@ -402,13 +410,21 @@ fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
     app.document.selection = editor::cursor(index..index);
     assert!(draw(&mut app, 400.0).is_empty());
     app.document.selection = editor::cursor(index..index + 5);
-    fixture(&mut app.document.engine, |session| {
-        session.revision += 1;
-    });
+    app.preview
+        .render
+        .as_mut()
+        .unwrap()
+        .reference
+        .guard
+        .revision += 1;
     assert!(draw(&mut app, 400.0).is_empty());
-    fixture(&mut app.document.engine, |session| {
-        session.revision -= 1;
-    });
+    app.preview
+        .render
+        .as_mut()
+        .unwrap()
+        .reference
+        .guard
+        .revision -= 1;
     app.preview.error = Some("essai".into());
     assert!(draw(&mut app, 400.0).is_empty());
     app.preview.error = None;

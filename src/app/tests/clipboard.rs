@@ -4,9 +4,8 @@ use crate::engine::{Command as Core, InsertTextParams, TargetParams, TextTarget}
 
 fn editing() -> (egui::Context, App) {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("Un *été*.").unwrap();
-        session.saved = session.stored_document();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source("Un *été*.").unwrap();
     });
     app.document.selection = editor::cursor(3..6);
     app.document.force_selection = true;
@@ -33,14 +32,9 @@ fn native_copy_and_cut_use_visible_unicode_text_and_cut_matches_guarded_delete()
     assert_eq!(copied(&output), Some("été"));
     assert_eq!(app.document.engine.target_guard(), guard);
     assert_eq!(app.stored_document(), before);
-    assert!(app.document.engine.undo().is_empty());
-    let mut expected: crate::engine::Engine = Session::new(
-        before.clone(),
-        app.document.engine.document().clone(),
-        None,
-        guard.revision,
-    )
-    .into();
+    assert!(!app.document.engine.can_undo());
+    let mut expected: crate::engine::Engine =
+        crate::engine::Engine::from_stored(before.clone(), None).unwrap();
     let target: TextTarget = expected
         .selection_target(editor::to_core(app.document.selection))
         .unwrap()
@@ -58,7 +52,7 @@ fn native_copy_and_cut_use_visible_unicode_text_and_cut_matches_guarded_delete()
         (actual.secondary.index, actual.primary.index),
         (expected.secondary.index, expected.primary.index)
     );
-    assert_eq!(app.document.engine.undo().len(), 1);
+    assert_eq!(app.document.engine.history().undo, 1);
     app.apply(Command::Undo);
     assert_eq!(app.stored_document(), before);
     assert_eq!(app.range(), 3..6);
@@ -68,13 +62,8 @@ fn native_copy_and_cut_use_visible_unicode_text_and_cut_matches_guarded_delete()
 fn native_plain_paste_matches_literal_insert_and_keeps_one_complete_undo() {
     let (ctx, mut app) = editing();
     let before = app.stored_document();
-    let mut expected: crate::engine::Engine = Session::new(
-        before.clone(),
-        app.document.engine.document().clone(),
-        None,
-        app.document.engine.revision(),
-    )
-    .into();
+    let mut expected: crate::engine::Engine =
+        crate::engine::Engine::from_stored(before.clone(), None).unwrap();
     let target: TextTarget = expected
         .selection_target(editor::to_core(app.document.selection))
         .unwrap()
@@ -97,7 +86,7 @@ fn native_plain_paste_matches_literal_insert_and_keeps_one_complete_undo() {
         (expected.secondary.index, expected.primary.index)
     );
     assert!(app.document.engine.document().view.text.contains(text));
-    assert_eq!(app.document.engine.undo().len(), 1);
+    assert_eq!(app.document.engine.history().undo, 1);
     app.apply(Command::Undo);
     assert_eq!(app.stored_document(), before);
     assert_eq!(app.range(), 3..6);

@@ -4,19 +4,14 @@ use serde_json::{Value, json};
 
 pub(super) fn pair(source: &str, range: Range<usize>) -> (egui::Context, App, Engine) {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source(source).unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source(source).unwrap();
     });
     app.document.selection = editor::cursor(range);
     app.document.force_selection = true;
     frame(&mut app, &ctx, vec![]);
-    let mut engine: Engine = Session::new(
-        app.stored_document(),
-        app.document.engine.document().clone(),
-        None,
-        app.document.engine.revision(),
-    )
-    .into();
+    let mut engine: Engine =
+        crate::engine::Engine::from_stored(app.stored_document(), None).unwrap();
     engine
         .set_adapter_selection(editor::to_core(app.document.selection))
         .unwrap();
@@ -31,8 +26,8 @@ pub(super) fn equivalent(app: &App, engine: &Engine) {
         editor::to_editor(engine.selection())
     );
     assert_eq!(app.document.engine.revision(), engine.revision());
-    assert_eq!(app.document.engine.undo().len(), engine.undo().len());
-    assert_eq!(app.document.engine.redo().len(), engine.redo().len());
+    assert_eq!(app.document.engine.history().undo, engine.history().undo);
+    assert_eq!(app.document.engine.history().redo, engine.history().redo);
 }
 
 pub(super) fn gesture(
@@ -91,7 +86,7 @@ fn tab_shift_tab_and_enter_match_json_commands_for_both_optional_annotations() {
                 json!({"part":part}),
             );
         }
-        assert!(engine.undo().is_empty());
+        assert!(!engine.can_undo());
         gesture(
             &ctx,
             &mut app,
@@ -101,7 +96,7 @@ fn tab_shift_tab_and_enter_match_json_commands_for_both_optional_annotations() {
             "block.split",
             json!({}),
         );
-        assert_eq!(engine.undo().len(), 1);
+        assert_eq!(engine.history().undo, 1);
         app.apply(Command::Undo);
         engine.run(Core::Undo(Empty {})).unwrap();
         equivalent(&app, &engine);
@@ -127,7 +122,7 @@ fn quote_enter_and_empty_line_exit_match_json_and_preserve_native_history() {
             json!({}),
         );
     }
-    assert_eq!(engine.undo().len(), 2);
+    assert_eq!(engine.history().undo, 2);
     for _ in 0..2 {
         app.apply(Command::Undo);
         engine.run(Core::Undo(Empty {})).unwrap();
@@ -153,5 +148,5 @@ fn enter_on_a_whole_quote_selection_matches_json_without_leaving_an_orphan_annot
         json!({}),
     );
     assert!(engine.document().view.annotations().is_empty());
-    assert_eq!(engine.undo().len(), 1);
+    assert_eq!(engine.history().undo, 1);
 }

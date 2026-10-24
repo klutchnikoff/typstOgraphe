@@ -19,8 +19,8 @@ fn compact_toolbar_and_status_show_unicode_totals_selection_and_tooltips() {
     }
     let (ctx, mut app) = demo_app();
     ctx.style_mut(|style| style.interaction.tooltip_delay = 0.0);
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("#strong[e\u{301}] 👩🏽‍💻").unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source("#strong[e\u{301}] 👩🏽‍💻").unwrap();
     });
     app.document.force_selection = true;
     let mut time = 0.0;
@@ -168,8 +168,8 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
             egui::Visuals::light()
         });
         ctx.style_mut(|style| style.animation_time = 0.0);
-        fixture(&mut app.document.engine, |session| {
-            session.document = Document::from_source("Été à Paris.").unwrap();
+        fixture(&mut app.document.engine, |data| {
+            data.document = Document::from_source("Été à Paris.").unwrap();
         });
         app.document.selection = editor::cursor(0..3);
         let text = app.document.engine.document().view.text.clone();

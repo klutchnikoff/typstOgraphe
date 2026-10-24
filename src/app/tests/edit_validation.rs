@@ -2,21 +2,13 @@ use super::*;
 
 fn editing(source: &str, range: Range<usize>) -> (egui::Context, App) {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source(source).unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source(source).unwrap();
     });
-    fixture(&mut app.document.engine, |session| {
-        session.saved = session.stored_document();
-    });
-    fixture(&mut app.document.engine, |session| {
-        session.undo.clear();
-    });
-    fixture(&mut app.document.engine, |session| {
-        session.redo.clear();
-    });
-    fixture(&mut app.document.engine, |session| {
-        session.typing_group = false;
-    });
+    app.document
+        .engine
+        .update_adapter_cursor(editor::to_core(app.document.selection))
+        .unwrap();
     app.document.selection = editor::cursor(range);
     app.document.force_selection = true;
     frame(&mut app, &ctx, vec![]);
@@ -56,7 +48,7 @@ fn native_replacements_cut_and_backspace_refuse_role_boundaries_and_restore_sele
         assert_eq!(app.stored_document(), stored, "{source}");
         assert_eq!(app.document.engine.revision(), revision);
         assert_eq!(app.document.selection.as_sorted_char_range(), range);
-        assert!(app.document.engine.undo().is_empty());
+        assert!(!app.document.engine.can_undo());
         assert_eq!(
             app.dialogs.message.as_deref(),
             Some(crate::tr!("edit-protected-boundary").as_str())
@@ -78,10 +70,10 @@ fn rejected_paste_keeps_original_caption_and_a_following_valid_edit_works() {
     );
     assert_eq!(app.stored_document(), before);
     assert_eq!(app.document.selection.as_sorted_char_range(), 1..4);
-    assert!(app.document.engine.undo().is_empty());
+    assert!(!app.document.engine.can_undo());
     frame(&mut app, &ctx, vec![egui::Event::Text("Été".into())]);
     assert_eq!(app.document.engine.document().view.text, "\u{fffc}Été");
-    assert_eq!(app.document.engine.undo().len(), 1);
+    assert_eq!(app.document.engine.history().undo, 1);
     app.apply(Command::Undo);
     assert_eq!(app.stored_document(), before);
 }
@@ -98,7 +90,7 @@ fn native_select_all_delete_clears_all_structures_and_undo_restores_them() {
         app.document.engine.document().view.blocks,
         [BlockKind::Paragraph]
     );
-    assert_eq!(app.document.engine.undo().len(), 1);
+    assert_eq!(app.document.engine.history().undo, 1);
     app.apply(Command::Undo);
     assert_eq!(app.stored_document(), original);
     assert_eq!(app.document.selection.as_sorted_char_range(), 0..len);
@@ -124,18 +116,19 @@ fn native_and_explicit_unicode_replacements_share_source_styles_normalization_an
     ] {
         let (ctx, mut app) = editing(source, range.clone());
         let stored = app.stored_document();
-        let document = Document::from_source(source).unwrap();
-        let mut explicit: crate::engine::Engine = Session::new(
-            stored.clone(),
-            document,
-            None,
-            app.document.engine.revision(),
-        )
-        .into();
-        fixture(&mut explicit, |session| {
-            session.document.view.typing_style =
-                app.document.engine.document().view.typing_style.clone();
-        });
+        let mut explicit: crate::engine::Engine =
+            crate::engine::Engine::from_stored(stored.clone(), None).unwrap();
+        let draft = explicit.begin_native_edit(editor::to_core(app.document.selection));
+        let mut view = draft.view().clone();
+        view.typing_style = app.document.engine.document().view.typing_style.clone();
+        explicit
+            .commit_native_edit(
+                draft,
+                view,
+                editor::to_core(app.document.selection),
+                crate::engine::NativeInput::Typing,
+            )
+            .unwrap();
         let target = explicit
             .selection_target(editor::to_core(editor::cursor(range.clone())))
             .unwrap();
@@ -167,7 +160,7 @@ fn native_and_explicit_unicode_replacements_share_source_styles_normalization_an
             explicit_selection.range()
         );
         assert_eq!(app.document.engine.revision(), explicit.revision());
-        assert_eq!(app.document.engine.undo().len(), explicit.undo().len());
+        assert_eq!(app.document.engine.history().undo, explicit.history().undo);
         app.apply(Command::Undo);
         explicit
             .run(crate::engine::Command::Undo(crate::engine::Empty {}))

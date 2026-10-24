@@ -88,24 +88,75 @@ impl App {
         app.load_demo();
         app
     }
-    pub(in crate::app) fn remember(&mut self, before: crate::engine::NativeEdit, typing: bool) {
-        let previous = before.selection();
-        let result = crate::engine::test_support::remember(
-            &mut self.document.engine,
-            before,
-            editor::to_core(self.document.selection),
-            typing,
-        );
-        self.accept_edit(result, previous);
+}
+
+/// Valeurs possédées, détachées du moteur. Ne contient ni historique ni révision.
+pub(super) struct Fixture {
+    pub document: Document,
+    pub metadata: crate::document_types::Metadata,
+    pub template: String,
+    pub dependencies: crate::packages::Dependencies,
+    pub file_path: Option<PathBuf>,
+}
+pub(super) fn fixture(engine: &mut crate::engine::Engine, setup: impl FnOnce(&mut Fixture)) {
+    let mut data = Fixture {
+        document: engine.document().clone(),
+        metadata: engine.metadata().clone(),
+        template: engine.template().into(),
+        dependencies: engine.dependencies().clone(),
+        file_path: engine.file_path().map(PathBuf::from),
+    };
+    setup(&mut data);
+    // Ressource partagée des scénarios de géométrie d’image.
+    for image in data.document.view.images.values() {
+        if image.path == "images/parc.svg" {
+            data.document
+                .assets
+                .entry(image.path.clone())
+                .or_insert_with(|| {
+                    include_bytes!("../../../tests/fixtures/parc.svg")
+                        .as_slice()
+                        .into()
+                });
+        }
     }
-    pub(in crate::app) fn changed(&mut self) {
-        let adjusted = crate::engine::test_support::changed(
-            &mut self.document.engine,
-            editor::to_core(self.document.selection),
-        );
-        self.document.force_selection |= adjusted != editor::to_core(self.document.selection);
-        self.document.selection = editor::to_editor(adjusted);
-    }
+    *engine = crate::engine::Engine::from_stored(
+        StoredDocument {
+            source: data.document.source().into(),
+            metadata: data.metadata,
+            template: data.template,
+            dependencies: data.dependencies,
+            assets: data.document.assets,
+        },
+        data.file_path,
+    )
+    .unwrap();
+}
+pub(super) fn insert_fixture_text(app: &mut App, text: &str) {
+    let target = app
+        .document
+        .engine
+        .selection_target(editor::to_core(editor::cursor(0..0)))
+        .unwrap();
+    app.execute_document_command(crate::engine::Command::InsertText(
+        crate::engine::InsertTextParams {
+            target: target.into(),
+            text: text.into(),
+            input_rules: crate::engine::InputRules::Literal,
+        },
+    ))
+    .unwrap();
+}
+pub(super) fn set_subject(app: &mut App, value: &str) {
+    app.execute_document_command(crate::engine::Command::SetMetadata(
+        crate::engine::SetMetadataParams {
+            guard: app.document.engine.target_guard(),
+            field: crate::document_types::MetadataField::LetterSubject,
+            value: value.into(),
+            input: crate::engine::MetadataInput::Discrete,
+        },
+    ))
+    .unwrap();
 }
 
 pub(super) fn demo_app() -> (egui::Context, App) {
@@ -122,5 +173,24 @@ pub(super) fn frame_input(events: Vec<egui::Event>) -> egui::RawInput {
         )),
         events,
         ..Default::default()
+    }
+}
+
+pub(super) trait LetterFixture {
+    fn letter(&self) -> &crate::document_types::courrier::Metadata;
+    fn letter_mut(&mut self) -> &mut crate::document_types::courrier::Metadata;
+}
+impl LetterFixture for crate::document_types::Metadata {
+    fn letter(&self) -> &crate::document_types::courrier::Metadata {
+        let Self::Courrier(data) = self else {
+            panic!("fixture Courrier attendue")
+        };
+        data
+    }
+    fn letter_mut(&mut self) -> &mut crate::document_types::courrier::Metadata {
+        let Self::Courrier(data) = self else {
+            panic!("fixture Courrier attendue")
+        };
+        data
     }
 }

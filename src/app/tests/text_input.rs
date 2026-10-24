@@ -9,8 +9,8 @@ fn links_accept_soft_lines_and_reject_paragraph_or_list_boundaries() {
         ("Été\n\nNoël", 0..9, false),
         ("- Un\n- Deux", 0..7, false),
     ] {
-        fixture(&mut app.document.engine, |session| {
-            session.document = Document::from_source(source).unwrap();
+        fixture(&mut app.document.engine, |data| {
+            data.document = Document::from_source(source).unwrap();
         });
         app.document.selection = editor::cursor(selection);
         app.dialogs.link_open = false;
@@ -22,8 +22,8 @@ fn links_accept_soft_lines_and_reject_paragraph_or_list_boundaries() {
 #[test]
 fn native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopening() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("Alpha").unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source("Alpha").unwrap();
     });
     app.document.selection = editor::cursor(5..5);
     app.document.force_selection = true;
@@ -47,9 +47,10 @@ fn native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopeni
     let paragraphs = app.document.engine.document().clone();
     app.document.selection = editor::cursor(12..12);
     app.document.force_selection = true;
-    fixture(&mut app.document.engine, |session| {
-        session.typing_group = false;
-    });
+    app.document
+        .engine
+        .update_adapter_cursor(editor::to_core(app.document.selection))
+        .unwrap();
     frame(&mut app, &ctx, vec![]);
     frame(&mut app, &ctx, vec![key(egui::Key::Backspace)]);
     assert_eq!(
@@ -70,8 +71,8 @@ fn native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopeni
 #[test]
 fn native_egui_replaces_a_unicode_selection_without_source_markers() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("Élodie écrit.\n\nDeuxième paragraphe.").unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source("Élodie écrit.\n\nDeuxième paragraphe.").unwrap();
     });
     app.document.selection = editor::cursor(0..6);
     app.document.force_selection = true;
@@ -141,8 +142,8 @@ fn text_shortcuts_can_be_undone_to_the_complete_literal_input() {
         ("\\*Bonjour", "*", "*Bonjour*", None),
     ] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |session| {
-            session.document = Document::from_source(source).unwrap();
+        fixture(&mut app.document.engine, |data| {
+            data.document = Document::from_source(source).unwrap();
         });
         let end = app.document.engine.document().view.len();
         app.document.selection = editor::cursor(end..end);
@@ -179,8 +180,8 @@ fn description_editing_uses_tab_and_colon_without_exposing_typst() {
         egui::Event::Text(" ".into()),
     ] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |session| {
-            session.document = Document::from_source("Échéance").unwrap();
+        fixture(&mut app.document.engine, |data| {
+            data.document = Document::from_source("Échéance").unwrap();
         });
         app.document.selection = editor::cursor(8..8);
         app.apply(Command::Block(BlockKind::Description));
@@ -265,8 +266,8 @@ fn description_editing_uses_tab_and_colon_without_exposing_typst() {
 #[test]
 fn quote_keyboard_edits_body_and_attribution_and_exits_without_losing_source() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("Bonjour").unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source("Bonjour").unwrap();
     });
     app.document.selection = editor::cursor(7..7);
     app.apply(Command::Block(BlockKind::Quote));
@@ -343,8 +344,8 @@ fn quote_keyboard_edits_body_and_attribution_and_exits_without_losing_source() {
 fn converting_multiple_paragraphs_to_quote_preserves_selection_and_can_be_undone() {
     let ctx = egui::Context::default();
     let mut app = App::with_demo_context(ctx, None);
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("Un.\n\nDeux.\n\nTrois.").unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source("Un.\n\nDeux.\n\nTrois.").unwrap();
     });
     let original = app.document.engine.document().clone();
     app.document.selection = CCursorRange::two(CCursor::new(3), CCursor::new(0));
@@ -396,8 +397,8 @@ fn converting_multiple_paragraphs_to_quote_preserves_selection_and_can_be_undone
 #[test]
 fn description_tab_with_a_selection_and_enter_in_text_create_an_empty_label() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("/ Échéance: Vendredi").unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source("/ Échéance: Vendredi").unwrap();
     });
     app.document.selection = editor::cursor(2..5);
     app.document.force_selection = true;

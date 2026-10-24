@@ -9,7 +9,7 @@ fn recovery_dialog_defers_restores_and_saves_a_copy_without_overwriting_the_orig
     storage::save(&original, &saved).unwrap();
     let mut unsaved = saved.clone();
     unsaved.source = "Un travail *non enregistré*.".into();
-    unsaved.metadata.courrier_mut().objet = "Nouvel objet".into();
+    unsaved.metadata.letter_mut().objet = "Nouvel objet".into();
     unsaved.template = Model::Personal.source();
     seed_recovery(&root, &unsaved, Some("original.typsto".into()));
     let (ctx, mut app) = demo_app();
@@ -25,7 +25,7 @@ fn recovery_dialog_defers_restores_and_saves_a_copy_without_overwriting_the_orig
     assert!(app.recovery.entries.is_empty());
     assert!(app.is_dirty() && app.document.engine.is_recovered());
     assert!(app.document.engine.file_path().map(PathBuf::from).is_none());
-    assert!(app.document.engine.undo().is_empty() && app.document.engine.redo().is_empty());
+    assert!(!app.document.engine.can_undo() && !app.document.engine.can_redo());
     assert_eq!(app.stored_document(), unsaved);
     assert!(
         app.recovered_filename()
@@ -74,10 +74,7 @@ fn explicit_delete_and_discard_remove_recovery_but_cancelling_keeps_it() {
     recovery_click(&mut app, &ctx, &crate::tr!("recovery-delete"));
     assert!(app.recovery.entries.is_empty());
     assert!(!app.recovery.open);
-    fixture(&mut app.document.engine, |session| {
-        session.document.view.insert_text("À conserver. ", 0);
-    });
-    app.changed();
+    insert_fixture_text(&mut app, "À conserver. ");
     app.recovery.worker.as_mut().unwrap().make_due();
     app.checkpoint_recovery();
     app.recovery.worker.as_mut().unwrap().wait();

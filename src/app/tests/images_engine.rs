@@ -152,10 +152,10 @@ fn stale_image_dialog_refuses_its_edit_without_retargeting_the_current_image() {
         )
         .unwrap();
     let revision = app.document.engine.revision();
-    let history = app.document.engine.undo().len();
+    let history = app.document.engine.history().undo;
     recovery_click(&mut app, &ctx, &crate::tr!("image-apply"));
     assert_eq!(app.document.engine.revision(), revision);
-    assert_eq!(app.document.engine.undo().len(), history);
+    assert_eq!(app.document.engine.history().undo, history);
     assert_eq!(
         app.document.engine.document().view.images[&1].alt,
         "Modification plus récente"

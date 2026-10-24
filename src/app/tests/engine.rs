@@ -91,20 +91,14 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
         ),
     ] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |session| {
-            session.document = Document::from_source(source).unwrap();
+        fixture(&mut app.document.engine, |data| {
+            data.document = Document::from_source(source).unwrap();
         });
         app.document.selection = editor::cursor(range);
         app.document.force_selection = true;
         frame(&mut app, &ctx, vec![]);
         let before = app.stored_document();
-        let mut engine: Engine = Session::new(
-            before.clone(),
-            app.document.engine.document().clone(),
-            None,
-            app.document.engine.revision(),
-        )
-        .into();
+        let mut engine: Engine = crate::engine::Engine::from_stored(before.clone(), None).unwrap();
         engine
             .set_adapter_selection(editor::to_core(app.document.selection))
             .unwrap();
@@ -129,8 +123,8 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
             "{id}"
         );
         assert_eq!(
-            app.document.engine.undo().len(),
-            engine.undo().len(),
+            app.document.engine.history().undo,
+            engine.history().undo,
             "{id}"
         );
         app.apply(Command::Undo);
@@ -153,8 +147,8 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
 #[test]
 fn native_typing_selection_and_preedit_keep_engine_queries_in_sync_with_the_published_document() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source("Texte").unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source("Texte").unwrap();
     });
     app.document.selection = editor::cursor(0..5);
     app.document.force_selection = true;
@@ -211,18 +205,15 @@ fn native_typing_selection_and_preedit_keep_engine_queries_in_sync_with_the_publ
 fn link_dialog_uses_the_captured_selection_and_refuses_a_stale_revision() {
     for stale in [false, true] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |session| {
-            session.document = Document::from_source("Avant après").unwrap();
+        fixture(&mut app.document.engine, |data| {
+            data.document = Document::from_source("Avant après").unwrap();
         });
         app.document.selection = editor::cursor(0..5);
         app.apply(Command::Link);
         app.dialogs.link_url = "https://example.org".into();
         app.document.selection = editor::cursor(6..11);
         if stale {
-            fixture(&mut app.document.engine, |session| {
-                session.metadata.courrier_mut().objet = "Autre objet".into();
-            });
-            app.changed();
+            set_subject(&mut app, "Autre objet");
         }
         recovery_click(&mut app, &ctx, &crate::tr!("apply"));
         if stale {

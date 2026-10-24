@@ -392,3 +392,28 @@ fn full_snapshot_publication_rejects_invalid_or_stale_candidates_without_partial
     );
     assert!(e.stored_document() == current);
 }
+
+#[test]
+fn discarded_images_in_memory_do_not_exhaust_the_document_size_limit() {
+    let mut e = engine("");
+    // Les ressources orphelines peuvent survivre dans l’historique en mémoire.
+    // Ce cas interne dépasse délibérément le budget accepté par from_stored.
+    let unused: std::sync::Arc<[u8]> = vec![0; 1024 * 1024].into();
+    for index in 0..65 {
+        e.session
+            .document
+            .assets
+            .insert(format!("images/old-{index}.png"), unused.clone());
+    }
+    call(&mut e, "insert.image", json!({"image":embedded()})).unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("courrier.typsto");
+    let guard = e.target_guard();
+    e.run(Command::SaveDocument(SaveDocumentParams {
+        guard,
+        path: Some(path.clone()),
+    }))
+    .unwrap();
+    assert_eq!(crate::storage::read(&path).unwrap().assets.len(), 1);
+    assert!(!e.is_dirty());
+}

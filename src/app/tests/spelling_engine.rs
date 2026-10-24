@@ -21,12 +21,12 @@ fn keyboard_ignore_uses_the_selection_after_a_closed_popup_and_learning_stays_gl
     app.apply(Command::NextSpelling);
     let before = app.stored_document();
     let revision = app.document.engine.revision();
-    let len = app.document.engine.undo().len();
+    let len = app.document.engine.history().undo;
     app.apply(Command::LearnSpelling);
     assert!(app.preferences.spelling.personal["fr"].contains("courrrier"));
     assert!(app.stored_document() == before);
     assert_eq!(app.document.engine.revision(), revision);
-    assert_eq!(app.document.engine.undo().len(), len);
+    assert_eq!(app.document.engine.history().undo, len);
     assert!(
         app.document
             .engine
@@ -139,7 +139,7 @@ fn spelling_popup_uses_guarded_selection_and_shared_suggestions_then_corrects_li
         .as_ref()
         .unwrap();
     assert_eq!(json!(graphical), suggestions["suggestions"]);
-    assert!(engine.undo().is_empty());
+    assert!(!engine.can_undo());
     let target = app.spelling.target.clone().unwrap();
     app.correct_spelling(&target, "courrier");
     run(
@@ -176,7 +176,7 @@ fn captured_spelling_actions_never_retarget_an_identical_word_in_another_documen
     app.apply_spelling_issue(Command::IgnoreSpelling, old);
     assert!(app.stored_document() == before);
     assert_eq!(app.document.selection, selection);
-    assert!(app.document.engine.undo().is_empty());
+    assert!(!app.document.engine.can_undo());
     assert_eq!(
         app.dialogs.message.as_deref(),
         Some(crate::tr!("edit-stale-draft").as_str())

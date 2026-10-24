@@ -49,10 +49,7 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
     assert!(!app.document.open && !app.file.allow_close);
     assert!(app.open_path(path));
     assert!(app.document.open);
-    fixture(&mut app.document.engine, |session| {
-        session.document.view.insert_text("À conserver", 0);
-    });
-    app.changed();
+    insert_fixture_text(&mut app, "À conserver");
     app.handle_file_command(FileCommand::Close, &ctx);
     assert!(matches!(
         app.file.pending_action,
@@ -68,8 +65,8 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
 #[test]
 fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplicates() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.file_path = Some(PathBuf::from("exemple.typsto"));
+    fixture(&mut app.document.engine, |data| {
+        data.file_path = Some(PathBuf::from("exemple.typsto"));
     });
     let source = app.document.engine.document().source().to_owned();
     let mut time = 0.0;
@@ -146,9 +143,7 @@ fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplica
     app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
     assert!(app.file.command.is_none());
     app.file.export_open = false;
-    fixture(&mut app.document.engine, |session| {
-        session.metadata.courrier_mut().objet = "Brouillon à conserver".into();
-    });
+    set_subject(&mut app, "Brouillon à conserver");
     let before = app.stored_document();
     app.dispatch_action(Command::File(FileCommand::Quit), &ctx);
     let output = draw(&mut app, vec![]);
@@ -177,28 +172,18 @@ fn save_reopen_restores_the_letter_and_failed_open_preserves_current_work() {
     assert!(app.is_dirty());
     app.apply(Command::Undo);
     assert!(!app.is_dirty());
-    fixture(&mut app.document.engine, |session| {
-        session.metadata.courrier_mut().objet = "Objet personnalisé".into();
+    set_subject(&mut app, "Objet personnalisé");
+    fixture(&mut app.document.engine, |data| {
+        data.template = Model::Personal.source();
     });
-    fixture(&mut app.document.engine, |session| {
-        session.template = Model::Personal.source();
+    fixture(&mut app.document.engine, |data| {
+        data.template.push_str("\n// Modèle embarqué personnalisé");
     });
-    fixture(&mut app.document.engine, |session| {
-        session.template = session
-            .template
-            .replace("VILLE DE VALMONT", "MODÈLE ARCHIVÉ");
-    });
-    fixture(&mut app.document.engine, |session| {
-        session.document.view.insert_text("Élodie : ", 0);
-    });
-    app.changed();
+    insert_fixture_text(&mut app, "Élodie : ");
     let letter = app.stored_document();
     assert!(app.save_path(path.clone()));
     assert!(!app.is_dirty());
-    fixture(&mut app.document.engine, |session| {
-        session.document.view.insert_text("Brouillon ", 0);
-    });
-    app.changed();
+    insert_fixture_text(&mut app, "Brouillon ");
     assert!(app.is_dirty());
     assert!(app.open_path(path.clone()));
     assert_eq!(app.stored_document(), letter);
@@ -207,17 +192,14 @@ fn save_reopen_restores_the_letter_and_failed_open_preserves_current_work() {
         Some(path.clone())
     );
     assert!(!app.is_dirty());
-    assert!(app.document.engine.undo().is_empty() && app.document.engine.redo().is_empty());
+    assert!(!app.document.engine.can_undo() && !app.document.engine.can_redo());
     assert_eq!(app.document.selection.primary.index, 0);
     assert!(app.preview.pages.is_empty() && app.preview.render.is_none());
     assert_eq!(
         app.document.engine.preview_request().unwrap().template,
         letter.template
     );
-    fixture(&mut app.document.engine, |session| {
-        session.document.view.insert_text("À conserver ", 0);
-    });
-    app.changed();
+    insert_fixture_text(&mut app, "À conserver ");
     let before = app.stored_document();
     let bad = dir.path().join("illisible.typsto");
     std::fs::write(&bad, "invalide").unwrap();
@@ -244,10 +226,7 @@ fn save_shortcut_and_save_as_keep_both_files_and_track_clean_state() {
     let first = dir.path().join("premier.typsto");
     assert!(app.save_path(first.clone()));
     let initial = storage::read(&first).unwrap();
-    fixture(&mut app.document.engine, |session| {
-        session.document.view.insert_text("Un ajout. ", 0);
-    });
-    app.changed();
+    insert_fixture_text(&mut app, "Un ajout. ");
     frame(
         &mut app,
         &ctx,
@@ -262,9 +241,7 @@ fn save_shortcut_and_save_as_keep_both_files_and_track_clean_state() {
     assert!(!app.is_dirty());
     assert_ne!(storage::read(&first).unwrap(), initial);
     let saved = app.stored_document();
-    fixture(&mut app.document.engine, |session| {
-        session.metadata.courrier_mut().objet = "Deuxième courrier".into();
-    });
+    set_subject(&mut app, "Deuxième courrier");
     let second = dir.path().join("second.typsto");
     assert!(app.save_path(second.clone()));
     assert_eq!(
@@ -278,9 +255,7 @@ fn save_shortcut_and_save_as_keep_both_files_and_track_clean_state() {
 #[test]
 fn unsaved_work_blocks_closing_or_replacing_until_the_user_decides() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |session| {
-        session.metadata.courrier_mut().objet = "Travail à conserver".into();
-    });
+    set_subject(&mut app, "Travail à conserver");
     let before = app.stored_document();
     app.request_action(PendingAction::Open, &ctx);
     assert!(app.file.pending_action.is_some()); // Aucune fenêtre de fichier tant que la décision manque.

@@ -23,7 +23,7 @@ fn profile_creation_matches_explicit_json_values_and_never_changes_global_prefer
     assert!(app.stored_document() == core.stored_document());
     assert_eq!(app.preferences, prefs);
     assert!(app.document.open && app.document.engine.is_open());
-    assert!(!app.is_dirty() && app.document.engine.undo().is_empty());
+    assert!(!app.is_dirty() && !app.document.engine.can_undo());
     assert!(app.preview.pages.is_empty() && app.preview.render.is_none());
     assert_eq!(app.document.selection.primary.index, 0);
 }
@@ -41,7 +41,7 @@ fn file_adapter_and_json_preserve_history_on_save_and_reset_caches_only_after_su
     let selection = app.document.selection;
     app.document.force_selection = false;
     app.preview.forward_pending = false;
-    let undo = app.document.engine.undo().len();
+    let undo = app.document.engine.history().undo;
     assert!(app.save_path(path.clone()));
     core.run_call(
         engine::Command::SaveDocument(engine::SaveDocumentParams {
@@ -53,7 +53,7 @@ fn file_adapter_and_json_preserve_history_on_save_and_reset_caches_only_after_su
     .unwrap();
     assert!(!app.is_dirty() && !core.is_dirty());
     assert_eq!(app.document.selection, selection);
-    assert_eq!(app.document.engine.undo().len(), undo);
+    assert_eq!(app.document.engine.history().undo, undo);
     assert!(!app.document.force_selection && !app.preview.forward_pending);
     assert!(app.stored_document() == core.stored_document());
     let guard = app.document.engine.target_guard();
@@ -64,7 +64,7 @@ fn file_adapter_and_json_preserve_history_on_save_and_reset_caches_only_after_su
     assert!(app.search.open);
     assert_eq!(app.document.engine.target_guard(), guard);
     assert_eq!(app.document.selection, selection);
-    assert_eq!(app.document.engine.undo().len(), undo);
+    assert_eq!(app.document.engine.history().undo, undo);
     assert!(app.open_path(path.clone()));
     core.run_call(
         engine::Command::OpenDocument(engine::OpenDocumentParams {
@@ -76,7 +76,7 @@ fn file_adapter_and_json_preserve_history_on_save_and_reset_caches_only_after_su
     )
     .unwrap();
     assert!(app.stored_document() == core.stored_document());
-    assert!(!app.search.open && app.document.engine.undo().is_empty());
+    assert!(!app.search.open && !app.document.engine.can_undo());
     assert!(app.preview.pages.is_empty() && app.preview.revision.is_none());
     assert_ne!(
         app.document.engine.target_guard().document_id,
@@ -115,7 +115,7 @@ fn asynchronous_export_uses_the_requested_snapshot_and_keeps_edits_and_history()
     assert_eq!(app.document.selection, selection);
     app.apply(Command::Italic);
     let edited = app.stored_document();
-    let undo = app.document.engine.undo().len();
+    let undo = app.document.engine.history().undo;
     let result = app
         .file
         .export_task
@@ -132,7 +132,7 @@ fn asynchronous_export_uses_the_requested_snapshot_and_keeps_edits_and_history()
     );
     assert!(!output.join("courrier.pdf").exists() && !output.join("page-1.png").exists());
     assert!(app.stored_document() == edited);
-    assert_eq!(app.document.engine.undo().len(), undo);
+    assert_eq!(app.document.engine.history().undo, undo);
     assert_eq!(app.preferences, prefs);
     assert!(!app.export_document(
         engine::ExportParams {

@@ -25,7 +25,7 @@ fn native_metadata_typing_matches_json_grouping_and_keeps_field_focus_body_and_p
     app.dialogs.information_group = InformationGroup::Fields("information");
     let preferences = app.preferences.clone();
     let selection = app.document.selection;
-    let subject = app.document.engine.metadata().courrier().objet.clone();
+    let subject = app.document.engine.metadata().letter().objet.clone();
     recovery_click(&mut app, &ctx, &subject);
     for (events, value) in [
         (
@@ -52,7 +52,7 @@ fn native_metadata_typing_matches_json_grouping_and_keeps_field_focus_body_and_p
         assert!(ctx.memory(|m| m.has_focus(id)));
         assert_ne!(id, egui::Id::new(editor::EDITOR_ID));
     }
-    assert_eq!(engine.undo().len(), 1);
+    assert_eq!(engine.history().undo, 1);
     assert_eq!(app.document.selection, selection);
     assert_eq!(app.preferences, preferences);
     for (ui, id) in [(Command::Undo, "edit.undo"), (Command::Redo, "edit.redo")] {
@@ -70,7 +70,7 @@ fn today_button_publishes_the_same_explicit_fixed_date_as_json_without_changing_
     app.dialogs.information_open = true;
     app.dialogs.information_group = InformationGroup::Fields("information");
     recovery_click(&mut app, &ctx, &crate::tr!("date-today"));
-    let fixed = app.document.engine.metadata().courrier().date.clone();
+    let fixed = app.document.engine.metadata().letter().date.clone();
     let guard = engine.target_guard();
     run(
         &mut engine,
@@ -94,19 +94,9 @@ fn custom_marker_drafts_remain_local_until_valid_then_match_guarded_json_and_und
         app.document.engine.template()
     );
     app.install_model(template).unwrap();
-    fixture(&mut app.document.engine, |session| {
-        session.undo.clear();
-    });
-    fixture(&mut app.document.engine, |session| {
-        session.redo.clear();
-    });
-    let mut engine: Engine = Session::new(
-        app.stored_document(),
-        app.document.engine.document().clone(),
-        None,
-        app.document.engine.revision(),
-    )
-    .into();
+    app.document.engine = Engine::from_stored(app.stored_document(), None).unwrap();
+    let mut engine: Engine =
+        crate::engine::Engine::from_stored(app.stored_document(), None).unwrap();
     engine
         .set_adapter_selection(editor::to_core(app.document.selection))
         .unwrap();

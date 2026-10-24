@@ -5,8 +5,8 @@ use crate::{
 };
 
 fn body(app: &mut App, source: &str, range: Range<usize>) {
-    fixture(&mut app.document.engine, |session| {
-        session.document = Document::from_source(source).unwrap();
+    fixture(&mut app.document.engine, |data| {
+        data.document = Document::from_source(source).unwrap();
     });
     app.document.selection = editor::cursor(range);
     app.document.force_selection = true;
@@ -216,7 +216,7 @@ fn menus_toolbar_palette_and_custom_shortcut_publish_engine_transactions_and_und
             _ => unreachable!(),
         }
         assert_eq!(app.document.engine.revision(), revision + 1, "{surface}");
-        assert_eq!(app.document.engine.undo().len(), 1, "{surface}");
+        assert_eq!(app.document.engine.history().undo, 1, "{surface}");
         assert!(
             app.document.engine.document().view.styles[3..6]
                 .iter()
@@ -255,7 +255,7 @@ fn disabled_link_stays_disabled_for_toolbar_palette_shortcut_and_direct_dispatch
     app.dispatch_action(Command::Link, &ctx);
     assert!(!app.dialogs.link_open);
     assert_eq!(app.stored_document(), before);
-    assert!(app.document.engine.undo().is_empty());
+    assert!(!app.document.engine.can_undo());
 }
 
 #[test]
@@ -270,7 +270,7 @@ fn search_and_spelling_availability_read_the_engine_instead_of_graphical_result_
     assert!(app.command_enabled(Command::IgnoreSpelling));
     let before = app.stored_document();
     app.apply(Command::IgnoreSpelling);
-    assert_eq!(app.document.engine.undo().len(), 1);
+    assert_eq!(app.document.engine.history().undo, 1);
     assert!(!app.command_enabled(Command::NextSpelling));
     app.apply(Command::Undo);
     assert_eq!(app.stored_document(), before);

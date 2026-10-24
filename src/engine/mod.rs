@@ -31,8 +31,6 @@ mod spelling;
 mod spelling_types;
 mod state;
 mod statistics;
-#[cfg(test)]
-pub(crate) mod test_support;
 mod types;
 mod typing;
 mod validation;
@@ -57,6 +55,7 @@ pub use search_types::*;
 use serde::Serialize;
 use serde_json::Value;
 pub use spelling_types::*;
+pub use state::HistoryInfo;
 pub use statistics::{StatisticsParams, StatisticsResult};
 pub use types::*;
 pub use validation_types::*;

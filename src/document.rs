@@ -76,7 +76,7 @@ pub struct Projection {
     pub images: BTreeMap<u64, ImageBlock>,
     /// Ancres transitoires, conservées par les instantanés mais jamais exportées.
     line_ids: Vec<LineId>,
-    pub(crate) edit_error: Option<edits::EditError>,
+    edit_error: Option<edits::EditError>,
 }
 
 impl PartialEq for Projection {
