@@ -134,8 +134,8 @@ du document. Rien de ce cache n’est archivé.
 
 ## Vérifications
 
-Les suites [discovery.rs](../src/engine/tests/discovery.rs) et
-[validation.rs](../src/engine/tests/validation.rs) couvrent découverte à vide,
+Les suites [discovery.rs](../crates/core/src/engine/tests/discovery.rs) et
+[validation.rs](../crates/core/src/engine/tests/validation.rs) couvrent découverte à vide,
 types et paramètres, contexte de frappe, inventaire et annulation, brouillon
 valide/incomplet, modèle/ressources/options invalides, gardes refusées,
 géométrie sur plusieurs pages, réutilisation du cache, erreurs et préédition privée.

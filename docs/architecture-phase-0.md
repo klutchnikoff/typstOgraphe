@@ -112,6 +112,6 @@ référence reste intact et que la boucle de captures accepte son répertoire pr
 
 ## Suite
 
-Commencer par la tâche 1.1 : déplacer les tests de `app.rs` dans `src/app/tests/`,
+Commencer par la tâche 1.1 : déplacer les tests de `app.rs` dans `crates/app/src/app/tests/`,
 sans changer les comportements. Les limites de taille, les regroupements d’état et
 le prototype du modèle d’édition sont détaillés dans la feuille de route technique.

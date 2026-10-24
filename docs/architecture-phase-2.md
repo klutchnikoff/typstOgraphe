@@ -11,7 +11,7 @@ recense les éléments couverts, les limites et le périmètre stabilisé après
 
 ## Blocs et zones en mémoire
 
-`src/document/structure.rs` décrit les blocs existants : paragraphes et titres,
+`crates/core/src/document/structure.rs` décrit les blocs existants : paragraphes et titres,
 éléments de listes, descriptions, citations, images, P.-S. et mentions de P.J.
 Les descriptions possèdent des zones terme/définition ; les citations des zones
 corps/attribution ; les images une zone de légende et leurs propriétés d’image.
@@ -139,7 +139,7 @@ carrés dans l’éditeur : les tests précédents vérifiaient le texte Unicode
 vérifier la présence des glyphes. Le défaut a été reproduit dans egui et dans
 Typst, indépendamment de la conservation correcte du texte par le commit.
 
-Le catalogue `src/fonts.rs` fournit maintenant aux deux moteurs les mêmes
+Le catalogue `crates/core/src/fonts.rs` fournit maintenant aux deux moteurs les mêmes
 polices embarquées, avec Noto Sans CJK JP 2.004 normal et gras en secours.
 Le Latin conserve ses familles et variantes existantes ; les petites capitales
 et les mathématiques restent composées par Typst avec les fontes déjà embarquées.
@@ -150,7 +150,7 @@ consigné dans le chantier E ; aucune découverte de polices système n’est aj
 
 ## Registre typé et premier moteur
 
-`src/engine/` sépare les commandes avec paramètres, les requêtes en lecture seule,
+`crates/core/src/engine/` sépare les commandes avec paramètres, les requêtes en lecture seule,
 les descriptions et les schémas JSON, les règles de disponibilité, et les erreurs
 structurées. `schemars` 1.2.3 produit les schémas depuis les paramètres Rust et
 leurs attributs Serde ; `thiserror` fournit l’erreur standard. Le moteur n’importe
@@ -210,7 +210,7 @@ Les identifiants et signatures ne sont pas encore gelés.
 ## Annotations, navigation et raccourcis
 
 Le lot du 23 octobre migre les règles des légendes d’images et des attributions
-de citations dans `src/engine/annotations.rs`. Le moteur résout la structure
+de citations dans `crates/core/src/engine/annotations.rs`. Le moteur résout la structure
 ciblée et calcule la sélection ; l’application adapte uniquement les touches,
 le focus et le défilement. Les événements clavier et les appels JSON rejoignent
 les mêmes commandes :
@@ -248,7 +248,7 @@ utilisateur le 23 octobre. Le présent lot est vérifié séparément ci-dessous
 
 ## Descriptions, listes, notes et règles de saisie
 
-`src/engine/blocks.rs` étend `text.select { part }` avec `term` et `definition`.
+`crates/core/src/engine/blocks.rs` étend `text.select { part }` avec `term` et `definition`.
 Tab, Maj+Tab et le clic sur un terme vide rejoignent ces commandes. Les zones
 existent déjà à la publication : leur navigation n’insère pas de séparateur et
 ne crée aucune transaction. Une sélection qui traverse plusieurs éléments ne
@@ -263,7 +263,7 @@ description sans terme ni définition peut être quittée même avec des espaces
 `block.exit` permet aussi de sortir après le groupe de P.-S./P.J. sans remplacer
 le texte sélectionné. Les gardes et protections des frontières restent communes.
 
-`src/engine/typing.rs` porte les règles de frappe existantes : préfixes de titres,
+`crates/core/src/engine/typing.rs` porte les règles de frappe existantes : préfixes de titres,
 listes, description et citation suivis d’espace ; fermetures `*…*` / `_…_` ;
 « : espace » qui termine le terme d’une description. `text.insert` reste littéral
 par défaut. Le paramètre explicite `input_rules: "typing"` active ces règles sur
@@ -280,7 +280,7 @@ lot suivant ; le dernier adaptateur de focus restant concerne l’orthographe.
 
 ## Images et signatures
 
-`src/engine/images.rs` porte désormais `insert.image`, `image.replace`,
+`crates/core/src/engine/images.rs` porte désormais `insert.image`, `image.replace`,
 `image.remove`, `image.set_alt` et `document.set_signature`. L’identifiant
 `insert.image` est conservé. Le registre compte 27 commandes et six requêtes.
 

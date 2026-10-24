@@ -303,7 +303,7 @@ côté Rust ; l’activation par type reste à préciser pour les prochaines str
 
 **Convention Typst retenue :** chaque capacité ayant une logique commune ou un
 paquet externe fournit une interface stable dans un fichier dédié sous
-`templates/capabilities/`. Les modèles importent cette interface et choisissent
+`crates/core/templates/capabilities/`. Les modèles importent cette interface et choisissent
 sa présentation. Seul l’adaptateur connaît le paquet et son API : une mise à jour
 ou un remplacement du paquet doit conserver le contrat public et ses tests.
 Les fonctions natives de Typst (`strong`, `emph`, `quote`, `figure`, etc.) restent
@@ -326,7 +326,7 @@ consulte jamais l’horloge. Le modèle de courrier utilise cette interface ; il
 connaît plus Datify. Les paramètres supplémentaires seront choisis ensemble
 lorsqu’un besoin concret de modèle les justifiera.
 
-`templates/dependencies.json` est l’inventaire de référence des capacités et des
+`crates/core/templates/dependencies.json` est l’inventaire de référence des capacités et des
 paquets : signature, point d’entrée, version, licence, archive, empreinte SHA-256
 et dépendances transitives. Le chargement s’appuie sur cet inventaire, sans
 condition Rust spécifique à Datify. Chaque document et export reçoit son propre
@@ -436,7 +436,7 @@ cryptographique constituerait un chantier distinct.
 **Objectif :** réutiliser des modèles personnels ou d’organisation au-delà d’un
 seul document. L’import dans le document courant existe déjà.
 
-**Socle intégré implémenté :** le [catalogue](src/document_types/models.rs)
+**Socle intégré implémenté :** le [catalogue](crates/core/src/document_types/models.rs)
 associe chaque modèle à son type, son source Typst, ses libellés et sa commande.
 Les types de la création viennent de `DocumentType::ALL` ; un type sans modèle
 est affiché indisponible. Les modèles proposés à la création, dans les paramètres
@@ -451,7 +451,7 @@ embarqué à large couverture, puis permettre le choix de polices système.
 Le catalogue partagé fournit les fontes latines et mathématiques de `typst-assets`
 et le secours Noto Sans CJK 2.004 en normal et gras. L’éditeur et l’aperçu utilisent
 ces données hors ligne ; les exports de sources joignent les faces CJK utilisées
-et leur licence. Leur provenance est dans [le catalogue des fontes](assets/fonts/noto-cjk/README.md).
+et leur licence. Leur provenance est dans [le catalogue des fontes](crates/core/assets/fonts/noto-cjk/README.md).
 
 Le sélecteur de polices système reste à réaliser. Distinguer la préférence de
 lecture de l’éditeur des polices de présentation choisies par le modèle ; définir
@@ -470,7 +470,7 @@ un document d’organisation.
   non utilisées actuellement.
   Les dépendances suivent le modèle dans l’historique ; les images gardent
   leur mécanisme distinct de suppression des ressources inutilisées.
-  Provenance et modification d’import dans `templates/packages/PROVENANCE.md`.
+  Provenance et modification d’import dans `crates/core/templates/packages/PROVENANCE.md`.
   Vérifié : réouverture avec les données propres à l’archive, changement de langue,
   annulation d’un changement de modèle et recompilation d’un export déplacé avec
   le CLI Typst, répertoires de paquets et de cache vides.
@@ -530,8 +530,8 @@ au-delà des démonstrations fictives.
 - **P1 : Courrier**, avec un modèle personnel utile et un modèle professionnel
   ou administratif ; raccordement au profil et à la signature.
 - **Courrier personnel : présentation validée et modèle intégré.** La présentation retenue
-  est composée en pur Typst dans [le modèle](templates/courrier-personnel.typ),
-  avec [un exemple autonome](examples/courrier-personnel.typ). Cible : A4 portrait,
+  est composée en pur Typst dans [le modèle](crates/core/templates/courrier-personnel.typ),
+  avec [un exemple autonome](crates/core/examples/courrier-personnel.typ). Cible : A4 portrait,
   plis à 99/198 mm, enveloppe DL 110 × 220 mm, fenêtre 100 × 35 mm à 20 mm du bas
   et de droite ([GPV 60013 / ES35F110](https://myprint.gpvfrance.fr/products/60013-boite-de-500-enveloppes-blanches-dl-110x220-90-g-m2-fenetre-35x100-bande-de-protection-es35f110)).
   Zone d'adresse de 82 × 18 mm, centrée verticalement à x=104/y=58 mm ; marges
@@ -658,15 +658,14 @@ contextuelle ; `document.inspect` le type, les capacités et le style de frappe.
 Le [contrat des lectures](docs/engine-queries.md) précise leurs réponses et limites.
 **Phase 2 terminée le 24 octobre 2026 :** les 68 identifiants et contrats d’entrée
 sont stabilisés, avec ajouts compatibles possibles et décision explicite pour tout
-changement incompatible. La phase 3 est engagée : réveils indépendants d’egui,
-images RGBA et présentations de types/modèles côté application sont en place.
-Le profil global reste avec les préférences (le cœur reçoit des valeurs explicites).
-Le lot 3.2 est également terminé : erreurs typées, causes structurées et libellés
-comme données dans le futur cœur ; traduction centralisée dans i18n, avec contrats
-français/anglais testés. La frontière publique des adaptateurs et le découpage
-des gros modules sont maintenant préparés ; les tests graphiques ne passent plus
-par une session mutable. Prochaine étape : création du workspace et extraction des crates. Le repli anglais sera
-appliqué dans un commit distinct du lot i18n.
+changement incompatible.
+**Phase 3 réalisée le 24 octobre 2026 :** workspace `core` / `i18n` / application,
+cœur compilable indépendamment sans dépendances graphiques ou Fluent, profil
+conservé côté application, ressources et tests répartis. Le repli anglais est
+appliqué dans un commit distinct ; la langue documentaire reste indépendante.
+Les 356 tests des trois crates et les 6 tests du diagnostic passent ; les huit
+captures natives sont identiques. La prochaine phase est la CLI (phase 4), avec
+ses choix principaux à valider ensemble.
 Voir [le suivi de phase 3](docs/architecture-phase-3.md).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une

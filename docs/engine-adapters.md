@@ -1,6 +1,6 @@
 # Frontière Rust des adaptateurs documentaires
 
-Préparation de la phase 3, dans le crate actuel. Le catalogue machine reste à
+API de `typstographe-core`, extraite en phase 3. Le catalogue machine reste à
 **49 commandes et 19 requêtes** : les méthodes décrites ici sont des points
 d’intégration Rust, pas de nouveaux identifiants JSON.
 
@@ -78,9 +78,10 @@ d’images qui fabrique volontairement des ressources invalides en mémoire rés
 dans les tests du moteur. Le module `engine/test_support.rs` et le helper de
 publication non transactionnelle `Session::changed` ont été supprimés.
 
-Lors du déplacement physique, les modules et réexportations de la bibliothèque
-seront déclarés à sa racine, en gardant `session` privé. Les helpers de
-synchronisation des workers et les échantillons d’erreurs utilisés par les tests
-inter-crates devront être raccordés séparément : cela ne justifie pas de rouvrir
-l’accès mutable à la session. Les chemins du diagnostic et des ressources seront
-également adaptés dans ce lot d’extraction.
+Les réexportations sont déclarées dans `crates/core/src/lib.rs`, en gardant
+`session` privé. Les tests graphiques utilisent uniquement les données et
+opérations publiques. Les quelques helpers de synchronisation des workers
+restent derrière la fonctionnalité `test-support`, activée par la dépendance de
+développement de l’application ; ils n’exposent aucune session. Les échantillons
+d’erreurs restent dans les tests internes du cœur. Le diagnostic réutilise les
+bibliothèques extraites, avec `fixtures/` partagé à la racine.

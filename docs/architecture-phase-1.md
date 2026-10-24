@@ -11,7 +11,7 @@ précédera le gel des signatures du moteur.
 
 Les 93 méthodes initiales ont d’abord été déplacées sans modification de logique,
 dans un commit par responsabilité. Les tests ont été répartis dans
-`src/app/tests/` ; leurs assistants et leurs amorces communes sont dans `support.rs`.
+`crates/app/src/app/tests/` ; leurs assistants et leurs amorces communes sont dans `support.rs`.
 Les assertions des 143 tests existants sont conservées.
 
 Les fonctions longues ont ensuite été découpées dans des commits distincts des
@@ -19,7 +19,7 @@ déplacements : raccourcis par comportement, une fonction par dialogue, rangées
 recherche et de remplacement, préparation du texte, rendu et retour d’éditeur.
 Les coordonnées et les identifiants egui conservent leur rôle et leur ordre d’usage.
 
-Huit structures dans `src/app/state.rs` regroupent maintenant l’état :
+Huit structures dans `crates/app/src/app/state.rs` regroupent maintenant l’état :
 `DocumentState`, `FileState`, `SearchState`, `SpellingState`, `RecoveryState`,
 `PreviewState`, `DialogState` et `CaptureState`. Chaque regroupement a son commit
 et son passage des tests. La construction est dans `setup.rs`, pour que `mod.rs`
@@ -32,7 +32,7 @@ des textures et les menus natifs restent des champs propres à l’application.
 | `cargo fmt --check` | Conforme |
 | `cargo clippy --locked --all-targets -- -D warnings` | Aucun avertissement |
 | `python3 -m unittest discover -s scripts/tests` | 11 tests réussis |
-| `scripts/check-file-length.sh --root src/app` | Tous les fichiers sous 800 lignes |
+| `scripts/check-file-length.sh --root crates/app/src/app` | Tous les fichiers sous 800 lignes |
 | `scripts/capture-baseline.sh --compare` | Huit captures strictement identiques à la phase 0 |
 
 `app/mod.rs` fait 341 lignes physiques ; le plus grand module est `text_input.rs`

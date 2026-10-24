@@ -17,17 +17,17 @@ vers `block.split` et sa sortie commune `block.exit` pour légendes et attributi
 Le lot suivant ajoute les descriptions (`term`/`definition`), listes et notes à
 ces règles, puis migre les transformations de frappe via
 `text.insert { input_rules: "typing" }` (défaut littéral). Tests de parité :
-[annotations_engine.rs](../src/app/tests/annotations_engine.rs) ; refus atomiques,
-cibles et historique : [annotations.rs](../src/engine/tests/annotations.rs).
+[annotations_engine.rs](../crates/app/src/app/tests/annotations_engine.rs) ; refus atomiques,
+cibles et historique : [annotations.rs](../crates/core/src/engine/tests/annotations.rs).
 Les tests complémentaires de ce lot sont dans
-[blocks_engine.rs](../src/app/tests/blocks_engine.rs) et
-[blocks.rs](../src/engine/tests/blocks.rs).
+[blocks_engine.rs](../crates/app/src/app/tests/blocks_engine.rs) et
+[blocks.rs](../crates/core/src/engine/tests/blocks.rs).
 Le lot images/signatures ajoute `insert.image`, `image.replace`, `image.remove`,
 `image.set_alt` et `document.set_signature` : blocs gardés, ressources préparées
 avant publication, import local ou copie base64 explicite. Les dialogues et le
 profil global restent dans l’application. Voir les essais
-[images_engine.rs](../src/app/tests/images_engine.rs) et
-[images.rs](../src/engine/tests/images.rs).
+[images_engine.rs](../crates/app/src/app/tests/images_engine.rs) et
+[images.rs](../crates/core/src/engine/tests/images.rs).
 La recherche passe aussi par le moteur : `search.find`, `edit.find_next`,
 `edit.find_previous`, `edit.replace_current`, `edit.replace_all` et `text.select`
 pour le clic sur une occurrence. Les paramètres actuels et les gardes sont décrits
@@ -38,8 +38,8 @@ Le lot orthographique migre `spelling.next/previous/correct/ignore/reset`, avec 
 lectures `spelling.issues/suggestions`. Une faute porte une cible logique gardée,
 son mot exact et sa langue. L’activation et l’apprentissage restent des actions
 globales ; les mots personnels sont une configuration de lecture explicite du moteur.
-Les essais sont dans [spelling_engine.rs](../src/app/tests/spelling_engine.rs) et
-[spelling.rs](../src/engine/tests/spelling.rs).
+Les essais sont dans [spelling_engine.rs](../crates/app/src/app/tests/spelling_engine.rs) et
+[spelling.rs](../crates/core/src/engine/tests/spelling.rs).
 Le lot suivant implémente `metadata.set`, `document.set_option`, les champs anglais
 du type actif dans `metadata.get` et `models.presentation`. Dates explicites,
 regroupement par champ et contraintes de page/puces sont détaillés dans le
@@ -47,8 +47,8 @@ regroupement par champ et contraintes de page/puces sont détaillés dans le
 Le lot modèles ajoute `document.set_model`, le préréglage conservé
 `courrier.model.personal` et `models.list`. L’import graphique conserve son
 identifiant `document.import_model` pour le dialogue, puis transmet un chemin
-explicite au moteur. Voir les essais [models_engine.rs](../src/app/tests/models_engine.rs)
-et [models.rs](../src/engine/tests/models.rs).
+explicite au moteur. Voir les essais [models_engine.rs](../crates/app/src/app/tests/models_engine.rs)
+et [models.rs](../crates/core/src/engine/tests/models.rs).
 Les tableaux ci-dessous restent l’inventaire de migration de toutes les actions,
 pas la liste des opérations déjà disponibles sans interface.
 Les règles déjà validées sont dans [la feuille de route technique](../ROADMAP-ARCHITECTURE.md),
@@ -595,70 +595,70 @@ pas devenir une voie contournant les validations du cœur.
 
 | Réf. | Fichier | Nom exact du test |
 | --- | --- | --- |
-| T01 | [files.rs](../src/app/tests/files.rs) | `welcome_creation_and_close_use_the_catalog_without_an_implicit_document` |
-| T02 | [files.rs](../src/app/tests/files.rs) | `save_reopen_restores_the_letter_and_failed_open_preserves_current_work` |
-| T03 | [files.rs](../src/app/tests/files.rs) | `save_shortcut_and_save_as_keep_both_files_and_track_clean_state` |
-| T04 | [files.rs](../src/app/tests/files.rs) | `unsaved_work_blocks_closing_or_replacing_until_the_user_decides` |
-| T05 | [files.rs](../src/app/tests/files.rs) | `egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplicates` |
-| T06 | [commands.rs](../src/app/tests/commands.rs) | `cross_paragraph_formatting_undo_restores_source_and_selection` |
-| T07 | [text_input.rs](../src/app/tests/text_input.rs) | `native_egui_replaces_a_unicode_selection_without_source_markers` |
-| T08 | [text_input.rs](../src/app/tests/text_input.rs) | `text_shortcuts_can_be_undone_to_the_complete_literal_input` |
-| T09 | [commands.rs](../src/app/tests/commands.rs) | `remove_link_keeps_other_styles_and_selection_and_can_be_undone` |
-| T10 | [toolbar.rs](../src/app/tests/toolbar.rs) | `toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes` |
-| T11 | [text_input.rs](../src/app/tests/text_input.rs) | `description_editing_uses_tab_and_colon_without_exposing_typst` |
-| T12 | [text_input.rs](../src/app/tests/text_input.rs) | `quote_keyboard_edits_body_and_attribution_and_exits_without_losing_source` |
-| T13 | [text_input.rs](../src/app/tests/text_input.rs) | `letter_notes_insert_type_scope_editing_exit_and_undo_use_the_shared_session` |
-| T14 | [images.rs](../src/app/tests/images.rs) | `images_insert_edit_caption_replace_undo_and_reopen_without_original_file` |
-| T15 | [images.rs](../src/app/tests/images.rs) | `image_remove_button_deletes_the_selected_block_and_caption_with_undo` |
-| T16 | [images.rs](../src/app/tests/images.rs) | `image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo` |
-| T17 | [images.rs](../src/app/tests/images.rs) | `saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state` |
-| T18 | [annotations.rs](../src/app/tests/annotations.rs) | `annotation_navigation_and_exit_preserve_content_selection_and_undo` |
-| T19 | [annotations.rs](../src/app/tests/annotations.rs) | `tab_places_the_native_caret_on_each_empty_annotation_placeholder` |
-| T20 | [annotations.rs](../src/app/tests/annotations.rs) | `annotation_navigation_scrolls_to_the_target_in_both_structures` |
-| T21 | [information.rs](../src/app/tests/information.rs) | `inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_document` |
-| T22 | [information.rs](../src/app/tests/information.rs) | `today_button_keeps_a_fixed_date_through_history_and_reopening` |
-| T23 | [information.rs](../src/app/tests/information.rs) | `document_information_offers_only_the_markers_allowed_by_the_template` |
-| T24 | [commands.rs](../src/app/tests/commands.rs) | `creation_and_template_import_preserve_the_type_and_use_unified_history` |
-| T25 | [commands.rs](../src/app/tests/commands.rs) | `model_dependencies_follow_imports_choices_and_undo_without_changing_the_body` |
-| T26 | [profile.rs](../src/app/tests/profile.rs) | `personal_profile_seeds_new_documents_and_signature_edits_are_independent_and_undoable` |
-| T27 | [profile.rs](../src/app/tests/profile.rs) | `global_profile_saves_after_changes_or_closing_without_modifying_the_document` |
-| T28 | [profile.rs](../src/app/tests/profile.rs) | `editor_preferences_change_glyphs_and_theme_without_touching_the_letter` |
-| T29 | [search.rs](../src/app/tests/search.rs) | `incremental_search_keeps_one_selection_and_clicking_another_result_updates_preview_highlights` |
-| T30 | [search.rs](../src/app/tests/search.rs) | `replacement_commands_refresh_results_and_replace_all_is_a_single_document_transaction` |
-| T31 | [spelling.rs](../src/app/tests/spelling.rs) | `spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_suggestion` |
-| T32 | [spelling.rs](../src/app/tests/spelling.rs) | `spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst` |
-| T33 | [recovery.rs](../src/app/tests/recovery.rs) | `recovery_dialog_defers_restores_and_saves_a_copy_without_overwriting_the_original` |
-| T34 | [recovery.rs](../src/app/tests/recovery.rs) | `explicit_delete_and_discard_remove_recovery_but_cancelling_keeps_it` |
-| T35 | [preferences.rs](../src/preferences.rs) | `appearance_and_column_preferences_survive_a_new_session` |
-| T36 | [toolbar.rs](../src/app/tests/toolbar.rs) | `compact_toolbar_and_status_show_unicode_totals_selection_and_tooltips` |
-| T37 | [preview.rs](../src/app/tests/preview.rs) | `column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_cap` |
-| T38 | [preview.rs](../src/app/tests/preview.rs) | `synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders` |
-| T39 | [commands.rs](../src/app/tests/commands.rs) | `shortcut_override_updates_dispatch_and_hints_without_changing_the_document` |
-| T40 | [tests.rs](../src/tests.rs) | `literal_typst_characters_are_not_executed` |
-| T41 | [courrier.rs](../src/document_types/courrier.rs) | `courrier_contract_accepts_independent_typst_models_without_presentation_flags` |
-| T42 | [models.rs](../src/document_types/models.rs) | `type_availability_defaults_and_public_commands_all_follow_the_catalog` |
-| T43 | [session.rs](../src/session.rs) | `unified_history_restores_content_metadata_model_selection_and_clean_state` |
-| T44 | [search.rs](../src/search.rs) | `navigation_wraps_and_search_includes_annotations_but_excludes_structure_and_private_fields` |
-| T47 | [storage.rs](../src/storage.rs) | `replacing_an_archive_is_atomic_and_invalid_save_preserves_existing_bytes` |
-| T48 | [storage.rs](../src/storage.rs) | `archive_and_export_omit_unused_images_but_keep_document_and_model_resources` |
-| T49 | [commands.rs](../src/app/tests/commands.rs) | `information_and_presentations_work_from_palette_and_custom_shortcuts` |
-| T50 | [text_input.rs](../src/app/tests/text_input.rs) | `links_accept_soft_lines_and_reject_paragraph_or_list_boundaries` |
-| T51 | [tests.rs](../src/tests.rs) | `paragraph_commands_include_soft_lines_but_stop_at_separators_and_structures` |
-| T52 | [tests.rs](../src/tests.rs) | `model_controls_list_markers_and_language_defaults_in_actual_typst_output` |
-| T53 | [tests.rs](../src/tests.rs) | `description_lists_preserve_terms_styles_unicode_and_source_positions` |
-| T54 | [text_input.rs](../src/app/tests/text_input.rs) | `converting_multiple_paragraphs_to_quote_preserves_selection_and_can_be_undone` |
-| T55 | [tests.rs](../src/tests.rs) | `postscript_insertion_precedes_existing_enclosures_and_reuses_its_existing_block` |
-| T56 | [tests.rs](../src/tests.rs) | `image_insertions_and_cross_block_deletions_keep_the_projection_valid` |
-| T57 | [text_input.rs](../src/app/tests/text_input.rs) | `native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopening` |
-| T58 | [courrier.rs](../src/document_types/courrier.rs) | `courrier_field_definitions_drive_header_and_required_export_fields` |
-| T59 | [dates.rs](../src/dates.rs) | `aliases_resolve_to_fixed_dates_and_explicit_dates_are_validated` |
-| T60 | [tests.rs](../src/tests.rs) | `document_options_control_real_page_dimensions_and_text_language` |
-| T61 | [courrier.rs](../src/document_types/courrier.rs) | `personal_window_letter_compiles_in_app_and_keeps_addresses_on_first_page` |
-| T62 | [profile.rs](../src/profile.rs) | `profile_resources_are_managed_and_documents_survive_original_and_global_image_removal` |
-| T63 | [commands.rs](../src/commands.rs) | `registry_ids_are_unique_and_defaults_have_no_conflicts_on_either_platform` |
-| T64 | [tests.rs](../src/tests.rs) | `bidirectional_navigation_handles_unicode_styles_links_and_repeated_passages` |
-| T65 | [tests.rs](../src/tests.rs) | `selection_highlights_follow_visible_unicode_text_across_styles_and_links` |
-| T66 | [ime.rs](../src/app/tests/ime.rs) | `preedit_survives_frames_and_is_visible_without_publishing_any_session_state` |
-| T67 | [ime.rs](../src/app/tests/ime.rs) | `ime_commit_and_explicit_replacement_have_the_same_literal_source_styles_and_selection` |
-| T68 | [ime.rs](../src/app/tests/ime.rs) | `saving_and_recovery_only_contain_committed_text` |
-| T69 | [ime.rs](../src/app/tests/ime.rs) | `commands_and_new_documents_cancel_composition_and_ignore_its_late_commit` |
+| T01 | [files.rs](../crates/app/src/app/tests/files.rs) | `welcome_creation_and_close_use_the_catalog_without_an_implicit_document` |
+| T02 | [files.rs](../crates/app/src/app/tests/files.rs) | `save_reopen_restores_the_letter_and_failed_open_preserves_current_work` |
+| T03 | [files.rs](../crates/app/src/app/tests/files.rs) | `save_shortcut_and_save_as_keep_both_files_and_track_clean_state` |
+| T04 | [files.rs](../crates/app/src/app/tests/files.rs) | `unsaved_work_blocks_closing_or_replacing_until_the_user_decides` |
+| T05 | [files.rs](../crates/app/src/app/tests/files.rs) | `egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplicates` |
+| T06 | [commands.rs](../crates/app/src/app/tests/commands.rs) | `cross_paragraph_formatting_undo_restores_source_and_selection` |
+| T07 | [text_input.rs](../crates/app/src/app/tests/text_input.rs) | `native_egui_replaces_a_unicode_selection_without_source_markers` |
+| T08 | [text_input.rs](../crates/app/src/app/tests/text_input.rs) | `text_shortcuts_can_be_undone_to_the_complete_literal_input` |
+| T09 | [commands.rs](../crates/app/src/app/tests/commands.rs) | `remove_link_keeps_other_styles_and_selection_and_can_be_undone` |
+| T10 | [toolbar.rs](../crates/app/src/app/tests/toolbar.rs) | `toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes` |
+| T11 | [text_input.rs](../crates/app/src/app/tests/text_input.rs) | `description_editing_uses_tab_and_colon_without_exposing_typst` |
+| T12 | [text_input.rs](../crates/app/src/app/tests/text_input.rs) | `quote_keyboard_edits_body_and_attribution_and_exits_without_losing_source` |
+| T13 | [text_input.rs](../crates/app/src/app/tests/text_input.rs) | `letter_notes_insert_type_scope_editing_exit_and_undo_use_the_shared_session` |
+| T14 | [images.rs](../crates/app/src/app/tests/images.rs) | `images_insert_edit_caption_replace_undo_and_reopen_without_original_file` |
+| T15 | [images.rs](../crates/app/src/app/tests/images.rs) | `image_remove_button_deletes_the_selected_block_and_caption_with_undo` |
+| T16 | [images.rs](../crates/app/src/app/tests/images.rs) | `image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo` |
+| T17 | [images.rs](../crates/app/src/app/tests/images.rs) | `saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state` |
+| T18 | [annotations.rs](../crates/app/src/app/tests/annotations.rs) | `annotation_navigation_and_exit_preserve_content_selection_and_undo` |
+| T19 | [annotations.rs](../crates/app/src/app/tests/annotations.rs) | `tab_places_the_native_caret_on_each_empty_annotation_placeholder` |
+| T20 | [annotations.rs](../crates/app/src/app/tests/annotations.rs) | `annotation_navigation_scrolls_to_the_target_in_both_structures` |
+| T21 | [information.rs](../crates/app/src/app/tests/information.rs) | `inline_information_keeps_text_accessible_and_metadata_edits_refresh_the_document` |
+| T22 | [information.rs](../crates/app/src/app/tests/information.rs) | `today_button_keeps_a_fixed_date_through_history_and_reopening` |
+| T23 | [information.rs](../crates/app/src/app/tests/information.rs) | `document_information_offers_only_the_markers_allowed_by_the_template` |
+| T24 | [commands.rs](../crates/app/src/app/tests/commands.rs) | `creation_and_template_import_preserve_the_type_and_use_unified_history` |
+| T25 | [commands.rs](../crates/app/src/app/tests/commands.rs) | `model_dependencies_follow_imports_choices_and_undo_without_changing_the_body` |
+| T26 | [profile.rs](../crates/app/src/app/tests/profile.rs) | `personal_profile_seeds_new_documents_and_signature_edits_are_independent_and_undoable` |
+| T27 | [profile.rs](../crates/app/src/app/tests/profile.rs) | `global_profile_saves_after_changes_or_closing_without_modifying_the_document` |
+| T28 | [profile.rs](../crates/app/src/app/tests/profile.rs) | `editor_preferences_change_glyphs_and_theme_without_touching_the_letter` |
+| T29 | [search.rs](../crates/app/src/app/tests/search.rs) | `incremental_search_keeps_one_selection_and_clicking_another_result_updates_preview_highlights` |
+| T30 | [search.rs](../crates/app/src/app/tests/search.rs) | `replacement_commands_refresh_results_and_replace_all_is_a_single_document_transaction` |
+| T31 | [spelling.rs](../crates/app/src/app/tests/spelling.rs) | `spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_suggestion` |
+| T32 | [spelling.rs](../crates/app/src/app/tests/spelling.rs) | `spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst` |
+| T33 | [recovery.rs](../crates/app/src/app/tests/recovery.rs) | `recovery_dialog_defers_restores_and_saves_a_copy_without_overwriting_the_original` |
+| T34 | [recovery.rs](../crates/app/src/app/tests/recovery.rs) | `explicit_delete_and_discard_remove_recovery_but_cancelling_keeps_it` |
+| T35 | [preferences.rs](../crates/app/src/preferences.rs) | `appearance_and_column_preferences_survive_a_new_session` |
+| T36 | [toolbar.rs](../crates/app/src/app/tests/toolbar.rs) | `compact_toolbar_and_status_show_unicode_totals_selection_and_tooltips` |
+| T37 | [preview.rs](../crates/app/src/app/tests/preview.rs) | `column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_cap` |
+| T38 | [preview.rs](../crates/app/src/app/tests/preview.rs) | `synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders` |
+| T39 | [commands.rs](../crates/app/src/app/tests/commands.rs) | `shortcut_override_updates_dispatch_and_hints_without_changing_the_document` |
+| T40 | [tests.rs](../crates/core/src/tests.rs) | `literal_typst_characters_are_not_executed` |
+| T41 | [courrier.rs](../crates/core/src/document_types/courrier.rs) | `courrier_contract_accepts_independent_typst_models_without_presentation_flags` |
+| T42 | [models.rs](../crates/core/src/document_types/models.rs) | `type_availability_defaults_and_public_commands_all_follow_the_catalog` |
+| T43 | [session.rs](../crates/core/src/session.rs) | `unified_history_restores_content_metadata_model_selection_and_clean_state` |
+| T44 | [search.rs](../crates/core/src/search.rs) | `navigation_wraps_and_search_includes_annotations_but_excludes_structure_and_private_fields` |
+| T47 | [storage.rs](../crates/core/src/storage.rs) | `replacing_an_archive_is_atomic_and_invalid_save_preserves_existing_bytes` |
+| T48 | [storage.rs](../crates/core/src/storage.rs) | `archive_and_export_omit_unused_images_but_keep_document_and_model_resources` |
+| T49 | [commands.rs](../crates/app/src/app/tests/commands.rs) | `information_and_presentations_work_from_palette_and_custom_shortcuts` |
+| T50 | [text_input.rs](../crates/app/src/app/tests/text_input.rs) | `links_accept_soft_lines_and_reject_paragraph_or_list_boundaries` |
+| T51 | [tests.rs](../crates/core/src/tests.rs) | `paragraph_commands_include_soft_lines_but_stop_at_separators_and_structures` |
+| T52 | [tests.rs](../crates/core/src/tests.rs) | `model_controls_list_markers_and_language_defaults_in_actual_typst_output` |
+| T53 | [tests.rs](../crates/core/src/tests.rs) | `description_lists_preserve_terms_styles_unicode_and_source_positions` |
+| T54 | [text_input.rs](../crates/app/src/app/tests/text_input.rs) | `converting_multiple_paragraphs_to_quote_preserves_selection_and_can_be_undone` |
+| T55 | [tests.rs](../crates/core/src/tests.rs) | `postscript_insertion_precedes_existing_enclosures_and_reuses_its_existing_block` |
+| T56 | [tests.rs](../crates/core/src/tests.rs) | `image_insertions_and_cross_block_deletions_keep_the_projection_valid` |
+| T57 | [text_input.rs](../crates/app/src/app/tests/text_input.rs) | `native_enter_distinguishes_soft_newlines_and_paragraphs_with_undo_and_reopening` |
+| T58 | [courrier.rs](../crates/core/src/document_types/courrier.rs) | `courrier_field_definitions_drive_header_and_required_export_fields` |
+| T59 | [dates.rs](../crates/core/src/dates.rs) | `aliases_resolve_to_fixed_dates_and_explicit_dates_are_validated` |
+| T60 | [tests.rs](../crates/core/src/tests.rs) | `document_options_control_real_page_dimensions_and_text_language` |
+| T61 | [courrier.rs](../crates/core/src/document_types/courrier.rs) | `personal_window_letter_compiles_in_app_and_keeps_addresses_on_first_page` |
+| T62 | [profile.rs](../crates/app/src/profile.rs) | `profile_resources_are_managed_and_documents_survive_original_and_global_image_removal` |
+| T63 | [commands.rs](../crates/app/src/commands.rs) | `registry_ids_are_unique_and_defaults_have_no_conflicts_on_either_platform` |
+| T64 | [tests.rs](../crates/core/src/tests.rs) | `bidirectional_navigation_handles_unicode_styles_links_and_repeated_passages` |
+| T65 | [tests.rs](../crates/core/src/tests.rs) | `selection_highlights_follow_visible_unicode_text_across_styles_and_links` |
+| T66 | [ime.rs](../crates/app/src/app/tests/ime.rs) | `preedit_survives_frames_and_is_visible_without_publishing_any_session_state` |
+| T67 | [ime.rs](../crates/app/src/app/tests/ime.rs) | `ime_commit_and_explicit_replacement_have_the_same_literal_source_styles_and_selection` |
+| T68 | [ime.rs](../crates/app/src/app/tests/ime.rs) | `saving_and_recovery_only_contain_committed_text` |
+| T69 | [ime.rs](../crates/app/src/app/tests/ime.rs) | `commands_and_new_documents_cancel_composition_and_ignore_its_late_commit` |

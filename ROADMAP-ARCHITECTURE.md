@@ -97,8 +97,8 @@ Fuites à traiter avant tout découpage en crates :
   (`document` 21, `storage` 27, `document_types` 9, `recovery` 8, `rendering` 6,
   `packages` 5, `spelling` 4, `assets` 3, `preferences` 3, `annotations` 2, `profile` 2).
 - Chemins relatifs à la racine du crate : sept `include_bytes!`/`include_str!` vers
-  `tests/fixtures`, `examples/`, `templates/`, `assets/` et `i18n/`, plus deux
-  `#[folder = ...]` de `RustEmbed` (`templates/packages/`, `templates/capabilities/`).
+  `tests/fixtures`, `crates/core/examples/`, `crates/core/templates/`, `assets/` et `crates/i18n/i18n/`, plus deux
+  `#[folder = ...]` de `RustEmbed` (`crates/core/templates/packages/`, `crates/core/templates/capabilities/`).
   Ils casseront au passage en espace de travail.
 - `main.rs` analyse les arguments à la main : sept options `--capture-*`, `--render-demo`,
   `--help`. Pas de `clap`.
@@ -119,9 +119,9 @@ Fuites à traiter avant tout découpage en crates :
 | D4 | Lectures et écritures | **Validée le 21 octobre 2026.** Deux familles distinctes : `Command` (modifie la session) et `Query` (lecture seule : texte, structure, erreurs d'orthographe, métadonnées, catalogue) | 2 |
 | D5 | Commandes d'interface seule | **Validée le 21 octobre 2026.** Une énumération `UiCommand` (palette, préférences, ouverture de dialogues, focus) non exposée par la CLI ni MCP | 2 |
 | D6 | Erreurs | **Validée le 21 octobre 2026, reprise le même jour.** Type `CommandError` avec code stable et paramètres structurés ; énumérations `thiserror` par module converties vers lui. La phrase lisible n'est pas produite par le cœur : voir D7. Le cœur n'a qu'un `Display` à usage de développeur (journaux, tests) | 2 |
-| D7 | Internationalisation | **Validée le 21 octobre 2026** (option C, choisie après examen de trois options). Le cœur ne dépend pas de Fluent : il renvoie des codes, des paramètres et des clés Fluent comme données (environ 90 appels de `tr!` à convertir). Un crate `typstographe-i18n`, **en aval** du cœur (il en connaît les codes, le cœur l'ignore), porte le chargeur, la macro `tr!`, un catalogue unique français et anglais (aujourd'hui `i18n/`, 310 clés) et la mise en phrases des erreurs. L'application et la CLI en dépendent. L'application et la CLI suivent la langue du système avec **repli en anglais** (l'application avait le français pour repli) ; MCP répond en anglais par défaut. Un autre front-end (web, terminal) réutilise le même catalogue | 3 |
+| D7 | Internationalisation | **Validée le 21 octobre 2026** (option C, choisie après examen de trois options). Le cœur ne dépend pas de Fluent : il renvoie des codes, des paramètres et des clés Fluent comme données (environ 90 appels de `tr!` à convertir). Un crate `typstographe-i18n`, **en aval** du cœur (il en connaît les codes, le cœur l'ignore), porte le chargeur, la macro `tr!`, un catalogue unique français et anglais (aujourd'hui `crates/i18n/i18n/`, 310 clés) et la mise en phrases des erreurs. L'application et la CLI en dépendent. L'application et la CLI suivent la langue du système avec **repli en anglais** (l'application avait le français pour repli) ; MCP répond en anglais par défaut. Un autre front-end (web, terminal) réutilise le même catalogue | 3 |
 | D8 | Réveil de l'interface | **Validée le 21 octobre 2026.** Rappel `Arc<dyn Fn() + Send + Sync>` à la place de `egui::Context` | 3 |
-| D9 | Emplacement des ressources | **Validée le 21 octobre 2026.** `templates/`, `examples/` et `assets/dictionaries/` passent dans `crates/core` ; `assets/icons/` dans l'application ; `i18n/` dans `crates/i18n` (D7) ; `tests/fixtures/` devient un dossier partagé `fixtures/` à la racine de l'espace de travail, utilisé par les tests des deux crates | 3 |
+| D9 | Emplacement des ressources | **Validée le 21 octobre 2026.** `crates/core/templates/`, `crates/core/examples/` et `crates/core/assets/dictionaries/` passent dans `crates/core` ; `crates/app/assets/icons/` dans l'application ; `crates/i18n/i18n/` dans `crates/i18n` (D7) ; `fixtures/` est partagé à la racine de l'espace de travail, utilisé par les tests des crates | 3 |
 | D10 | CLI | **Validée le 21 octobre 2026.** Binaire séparé `typstographe-cli`, `clap` en mode dérivation, sortie `--json` au contrat stable | 4 |
 | D11 | MCP | **Validée le 21 octobre 2026.** SDK Rust officiel `rmcp` après un prototype d'une journée qui vérifie : liste d'outils dynamique dérivée du registre, taille du binaire, temps de compilation, version courante de l'API (versions majeures successives constatées sur docs.rs). `tokio` uniquement dans la CLI. Repli : JSON-RPC minimal sur stdio. Transport stdio d'abord | 5 |
 | D12 | Sécurité MCP par défaut | **Validée le 21 octobre 2026.** Aucun accès aux fichiers hors racines déclarées (`--read-root`, `--write-root` séparées), enregistrement explicite, mode `--read-only`, aucune action réseau | 5 |
@@ -206,8 +206,8 @@ des seuils attend les tâches complémentaires de 3.8 et la phase 7. **Un seul c
 
 ### 1.1 Sortir les tests (zéro risque pour la production)
 
-- [x] Créer `src/app/` et convertir `app.rs` en `src/app/mod.rs`.
-- [x] Déplacer les lignes 3717–7223 vers `src/app/tests/` : `mod.rs` (déclarations),
+- [x] Créer `crates/app/src/app/` et convertir `app.rs` en `crates/app/src/app/mod.rs`.
+- [x] Déplacer les lignes 3717–7223 vers `crates/app/src/app/tests/` : `mod.rs` (déclarations),
   `support.rs` (assistants partagés), puis un fichier par thème :
   `files.rs` (enregistrer, rouvrir, fermer), `recovery.rs`, `search.rs`, `spelling.rs`,
   `images.rs`, `annotations.rs`, `preview.rs` (synchronisation, sélection, échelle),
@@ -408,7 +408,7 @@ et les limites de ces premiers lots. Aucune commande de tableau n’est ajoutée
 
 ### 2.2 Types du registre (taille M)
 
-Dans `src/engine/` (futur crate `core`) :
+Dans `crates/core/src/engine/` (futur crate `core`) :
 
 - [x] `CommandId` (chaîne validée au démarrage : unicité, forme `domaine.action` avec
   tirets bas ; D2). Renommer `letter.insert-postscript` et `letter.insert-attachment`
@@ -577,13 +577,11 @@ les signatures, les limites restantes et les preuves de validation.
 
 **But** : `typstographe-core` sans aucune dépendance à egui, eframe, winit, `rfd` ou `muda`.
 
-**En cours :** lots 3.1 et 3.2 terminés dans le crate actuel. Les trois crates seront
-`crates/core`, `crates/i18n` et `crates/app` ; la CLI est développée en phase 4.
-Les erreurs typées et libellés indépendants de Fluent (3.2) sont en place ;
-la frontière publique des adaptateurs et le découpage 3.8 sont également préparés.
-Les tests graphiques passent par des moteurs validés, sans accès mutable à la session.
-Le [suivi de phase 3](docs/architecture-phase-3.md) distingue ces préparations du
-workspace et du changement de repli linguistique, qui restent à réaliser.
+**Réalisée le 24 octobre 2026, vérifications locales réussies.** Le workspace
+contient `crates/core`, `crates/i18n` et `crates/app`. Le cœur compile seul et son
+arbre normal ne contient aucune bibliothèque graphique ou Fluent. Les tests
+et les captures sont conservés ; le repli anglais est appliqué dans un commit
+distinct. Voir le [bilan de phase 3](docs/architecture-phase-3.md).
 
 - [x] **3.1** Corriger les fuites graphiques **dans le crate actuel** avant les
   déplacements : réveils de rendu/récupération par rappel (D8), images RGBA sans
@@ -598,40 +596,42 @@ workspace et du changement de repli linguistique, qui restent à réaliser.
   `CommandError` conserve les six codes, les raisons et le champ textuel `detail`,
   et ajoute une cause structurée quand elle est disponible. Les diagnostics et
   lectures de récupération conservent eux aussi cette cause. La mise en phrases
-  commune réside dans `i18n` / `i18n/errors.rs`, utilisée par l’application et
+  commune réside dans `crates/i18n/src/lib.rs` / `crates/i18n/src/errors.rs`, utilisée par l’application et
   réutilisable par les futurs transports. Les contrats des 44 messages du cœur
   et des libellés sont vérifiés en français et anglais sans masquer les manques
   par le repli. Aucun appel Fluent ne reste dans les modules destinés au cœur.
-- [ ] **3.3** Créer l'espace de travail : `Cargo.toml` racine `[workspace]`,
+- [x] **3.3** Créer l'espace de travail : `Cargo.toml` racine `[workspace]`,
   `resolver = "3"`, `[workspace.dependencies]` pour les versions épinglées
   (`typst =0.15.1`, etc.).
-- [ ] **3.4** Créer `crates/core` : y déplacer `document`, `annotations`, `search`,
+- [x] **3.4** Créer `crates/core` : y déplacer `document`, `annotations`, `search`,
   `statistics`, `session`, `identity`, `errors`, `storage`, `packages`, `spelling`, `recovery`,
   `rendering`, `navigation`, `assets`, `fonts`, `exporting`, `dates`, `document_types`, `engine` et
-  `src/tests.rs`. Déplacer avec eux `templates/`, `examples/`, `assets/dictionaries/` et
-  `assets/fonts/` (secours communs éditeur/Typst) ;
-  déplacer `tests/fixtures/` vers un dossier partagé `fixtures/` à la racine (D9) ;
+  `crates/core/src/tests.rs`. Déplacer avec eux `crates/core/templates/`, `crates/core/examples/`, `crates/core/assets/dictionaries/` et
+  `crates/core/assets/fonts/` (secours communs éditeur/Typst) ;
+  utiliser le dossier partagé `fixtures/` à la racine (D9) ;
   corriger les `include_*` et les `#[folder]`.
-- [ ] **3.4b** Créer `crates/i18n` (`typstographe-i18n`, dépend de `typstographe-core`) :
-  déplacer `src/i18n.rs` et `src/i18n/` (chargeur, macro `tr!`, formateur partagé,
-  tests des catalogues) et `i18n/` (fr, en,
-  `i18n.toml`) ; y transférer la mise en phrases de `CommandError` et des erreurs typées du
+- [x] **3.4b** Créer `crates/i18n` (`typstographe-i18n`, dépend de `typstographe-core`) :
+  déplacer `crates/i18n/src/lib.rs` et `crates/i18n/src/` (chargeur, macro `tr!`, formateur partagé,
+  tests des catalogues) et `crates/i18n/i18n/` (fr, en,
+  `crates/i18n/i18n.toml`) ; y transférer la mise en phrases de `CommandError` et des erreurs typées du
   cœur déjà préparée en 3.2. Une seule langue active, choisie une fois par le programme appelant. La langue
   de repli est l'**anglais pour tous les programmes** (application, CLI, MCP) : passer
-  `fallback_language` de `"fr"` à `"en"` dans `i18n.toml`. C'est un changement de
+  `fallback_language` de `"fr"` à `"en"` dans `crates/i18n/i18n.toml`. C'est un changement de
   comportement visible (un système dont la langue n'est ni le français ni l'anglais passe
-  de l'interface française à l'interface anglaise) : à faire dans un commit distinct et
-  à signaler dans la PR : c'est un changement volontaire au sens de la section 1.
-- [ ] **3.5** Créer `crates/app` (`typstographe`, dépend de `core` et de `i18n`) : `app/`,
+  de l'interface française à l'interface anglaise), réalisé dans le commit distinct
+  `4df98fe` et consigné dans le bilan : changement volontaire au sens de la section 1.
+- [x] **3.5** Créer `crates/app` (`typstographe`, dépend de `core` et de `i18n`) : `app/`,
   `editor`, `toolbar`, `menus`, `icons`, `preferences`, `profile`, `commands` (présentation), `main`.
   Reproduire `#![cfg_attr(coverage_nightly, feature(coverage_attribute))]` dans chaque racine.
-- [ ] **3.6** CI : `cargo test --workspace`, `cargo clippy --workspace --all-targets`,
+- [x] **3.6** CI : `cargo test --workspace`, `cargo clippy --workspace --all-targets`,
   couverture inchangée (`--workspace`). Ajouter une étape **bloquante** :
   `cargo tree -p typstographe-core -e normal` ne doit contenir aucun de
   `egui`, `eframe`, `winit`, `rfd`, `muda`, ni `fluent*` et `i18n-embed*`.
-- [ ] **3.7** Ajouter une étape **informative** (non bloquante) :
+- [x] **3.7** Ajouter une étape **informative** (non bloquante) :
   `cargo check -p typstographe-core --target wasm32-unknown-unknown`. Elle échouera au
   début ; elle mesure la distance à une éventuelle cible WASM sans l'engager.
+  Étape Linux avec installation de cible, `continue-on-error: true` ; localement
+  la cible est absente, ce qui ne permet pas de conclure à la compatibilité.
 
 - [x] **3.8** Avant d’appliquer les limites globales, découper explicitement le code
   de production de `document.rs` (1 382 lignes au relevé) et d’`editor.rs` (1 045 lignes
@@ -647,6 +647,10 @@ workspace et du changement de repli linguistique, qui restent à réaliser.
 **Critères de sortie** : mêmes tests et mêmes captures qu'avant, hors changements
 volontaires consignés (par exemple le repli en anglais) ; l'arbre de dépendances
 du cœur est propre ; l'application se lance et ouvre un fichier existant.
+**Vérifiés localement :** 356 tests entre les trois crates et 6 tests de diagnostic,
+Clippy, contrôle du cœur indépendant, 14 tests de scripts et 8 captures identiques.
+Un `.typsto` antérieur avec japonais/chinois se rouvre et se compose correctement.
+Les vérifications Windows/Linux seront exécutées par la CI après la poussée.
 
 ---
 

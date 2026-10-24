@@ -1,9 +1,9 @@
 # Phase 3 — Préparation et extraction des crates
 
-État du **24 octobre 2026** : choix principaux confirmés, **lots 3.1 et 3.2
-terminés**, frontière publique des adaptateurs préparée et **découpage 3.8 terminé**
-dans le crate actuel. Le workspace n’est pas encore créé. La phase 2 conserve
-ses 49 commandes et 19 requêtes, ses contrats d’entrée et ses références générées.
+État du **24 octobre 2026** : **phase 3 réalisée et vérifiée localement**.
+Le workspace contient les trois crates prévues ; les lots 3.1 à 3.8 sont livrés.
+Le catalogue conserve ses **49 commandes et 19 requêtes**, ses contrats d’entrée
+et ses références générées. La CI vérifiera les trois systèmes après la poussée.
 
 Références : [feuille technique](../ROADMAP-ARCHITECTURE.md#phase-3--espace-de-travail-taille-m),
 [bilan de phase 2](architecture-phase-2-review.md), [contrat des lectures](engine-queries.md).
@@ -17,9 +17,9 @@ Références : [feuille technique](../ROADMAP-ARCHITECTURE.md#phase-3--espace-de
 | `crates/app` : `typstographe` | egui, éditeur et adaptateur natif, menus, commandes graphiques, dialogues, préférences et profil | `core`, `i18n` |
 | Future `crates/cli` : `typstographe-cli` | CLI puis MCP, phases 4 et 5 | `core`, `i18n` |
 
-Trois crates seront livrées dans cette phase ; aucune CLI vide n’est anticipée.
+Trois crates sont livrées dans cette phase ; aucune CLI vide n’est anticipée.
 Le cœur conserve compilation, stockage et ressources ensemble : aucun découpage
-supplémentaire n’est introduit à ce stade. Il ne dépendra ni d’egui/eframe, winit,
+supplémentaire n’est introduit à ce stade. Il ne dépend ni d’egui/eframe, winit,
 rfd, muda, ni de Fluent/i18n-embed, même transitivement.
 
 Le **profil global et sa persistance restent dans l’application**, avec les
@@ -28,9 +28,10 @@ le cœur ignore d’où elles viennent et ne consulte aucun profil personnel.
 La mention initiale de `profile` parmi les modules à extraire dans le cœur est
 corrigée par D22.
 
-La langue suit le système, avec **repli anglais** confirmé. Ce changement reste
-à appliquer dans un commit distinct du lot i18n ; le repli actuel est encore
-français. La langue documentaire demeure indépendante.
+La langue suit le système, avec **repli anglais**, appliqué dans le commit distinct
+`4df98fe`. Un système sans préférence française ou anglaise utilise donc désormais
+l’anglais. La langue documentaire demeure indépendante. Les captures et les tests
+graphiques choisissent explicitement le français pour rester reproductibles.
 
 ## Lot 3.1 — Frontières graphiques
 
@@ -90,7 +91,7 @@ traduction est effectuée par l’adaptateur. Les deux anciennes voies d’image
 (localisée/typée) sont réunies en une API typée `read` / `decode`.
 
 La mise en phrases de `CoreError` et de `CommandError` se trouve désormais dans
-`i18n.rs` et `i18n/errors.rs`, avec un chargeur explicite possible pour les futurs
+`crates/i18n/src/lib.rs` et `crates/i18n/src/errors.rs`, avec un chargeur explicite possible pour les futurs
 transports. `App::command_error_text` y délègue ; il ne contient plus de catalogue
 parallèle d’erreurs. Le profil reste applicatif et adapte ses erreurs d’image à
 cette frontière, conformément à D22.
@@ -125,8 +126,8 @@ imbriquées, erreurs de lots et séparation entre texte localisé et données ma
   appartiendra à 3.6, après extraction.
 - Les huit captures correspondent exactement aux références :
   `output/baseline/run-jgrspqm2/`.
-- Le repli reste français dans ce lot ; son passage à l’anglais reste prévu dans
-  un commit distinct lors de l’extraction i18n. La langue documentaire est inchangée.
+- À la clôture de 3.2, le repli reste français ; son passage à l’anglais est ensuite
+  appliqué dans le commit distinct de 3.4b. La langue documentaire est inchangée.
 
 ## Frontière publique — préparation de 3.4 et 3.5
 
@@ -185,17 +186,75 @@ aussi dans la CI pour ces quatre dossiers. Les limites globales restent en phase
 - Les **huit captures natives correspondent exactement** aux références :
   `output/baseline/run-5su3hjya/`. Aucun changement visuel dans ce lot.
 
+## Livraison 3.3 à 3.7 — Workspace et extraction
+
+Le `Cargo.toml` racine est un workspace virtuel avec `resolver = "3"`, versions
+centralisées dans `workspace.dependencies` et métadonnées/lints partagés. Le membre
+par défaut est l’application : **`cargo run --locked` fonctionne depuis la racine**.
+Le verrou ne change aucune version de dépendance externe ; il décrit désormais
+les trois paquets locaux et leurs dépendances propres. Les **824 ressources
+déplacées sont identiques octet pour octet** à leurs versions précédentes,
+catalogues, polices et packages Typst compris.
+
+- **Cœur** : `crates/core/src/lib.rs` expose les modules documentaires et garde
+  `session` et `identity` privés. Compilation, rendu, E/S et ressources restent
+  ensemble. Le profil et sa persistance restent dans l’application. Les modèles,
+  exemples, dictionnaires et polices se trouvent sous `crates/core` ; leurs
+  inclusions et dossiers RustEmbed sont résolus depuis ce crate.
+- **Traduction** : `crates/i18n/src/lib.rs` porte chargeur, macro et présentations
+  des erreurs. Il dépend du cœur ; le cœur ne le connaît pas. Les catalogues
+  restent uniques sous `crates/i18n/i18n/`. `initialize` fixe une fois la langue
+  demandée ; `loader_for` permet un chargeur explicite. L’application ne déclare
+  plus de dépendance directe à Fluent/i18n-embed. Son petit `i18n.toml` pointe sur
+  le catalogue partagé pour la vérification des appels de macro à la compilation.
+- **Application** : `crates/app/src/lib.rs` réunit l’adaptateur egui, ses menus,
+  préférences et profil ; `main.rs` conserve le lancement et les options natives.
+  Le diagnostic réutilise cette bibliothèque et le cœur plutôt que d’inclure leurs
+  sources. Il ne réexécute plus leurs suites unitaires.
+- **Tests et ressources** : `fixtures/` est partagé à la racine. Les helpers
+  bornés `Recovery::make_due/wait` et `Checker::wait` sont disponibles pour les
+  tests via la fonctionnalité `test-support` du cœur, activée seulement en
+  dépendance de développement par l’application. La fonctionnalité homonyme
+  d’i18n fixe le français des tests graphiques. Aucun accès à la session n’est
+  exposé ; les échantillons d’erreurs restent dans les tests du cœur.
+- **CI** : tests et Clippy couvrent le workspace, la couverture continue avec
+  `--workspace`, les chemins des contrôles de taille sont adaptés. Le script
+  `scripts/check_core_dependencies.py` bloque toute dépendance normale vers
+  egui/eframe, winit, rfd, muda, Fluent ou i18n-embed, sur les trois systèmes.
+  Le contrôle WASM Linux installe sa cible puis lance `cargo check`, en étape
+  informative et non bloquante.
+
+### Vérifications finales de l’extraction
+
+| Vérification locale | Résultat |
+| --- | --- |
+| `cargo test --locked --workspace --all-targets --features editor-model-spike` | **212 tests cœur, 137 application, 7 traduction, 6 diagnostic réussis** |
+| `cargo clippy --locked --workspace --all-targets --features editor-model-spike -- -D warnings` | Succès |
+| `cargo fmt --all --check` et `git diff --check` | Succès |
+| `cargo check --locked -p typstographe-core` | Succès, cœur compilé indépendamment |
+| `python3 scripts/check_core_dependencies.py` | Aucune dépendance interdite dans l’arbre normal du cœur |
+| Tests des scripts et contrôles de taille | **14 tests réussis**, seuils respectés |
+| `cargo run --locked -- --commands-catalogue-json` | Les 68 entrées correspondent à `docs/commands.json` |
+| Huit captures natives | **Identiques aux références** : `output/baseline/run-0h915vs_/` |
+| Réouverture d’un `.typsto` antérieur, format 9 | Vérifiée visuellement : japonais/chinois présents dans l’éditeur et l’aperçu ; `output/workspace-existing-cjk.png` |
+
+Les 356 tests répartis entre les trois crates correspondent aux scénarios déjà
+présents ; les 6 tests du diagnostic s’y ajoutent, sans les anciennes copies de
+suites. Les catalogues `docs/commands.md` et `docs/commands.json` et le format
+`.typsto` restent inchangés. Le repli anglais est le changement visible volontaire.
+
+Logs locaux : `/tmp/typstographe-workspace-final-tests.log`,
+`/tmp/typstographe-workspace-final-clippy.log`,
+`/tmp/typstographe-workspace-final-scripts.log`,
+`/tmp/typstographe-core-alone-check.log` et
+`/tmp/typstographe-workspace-captures.log`.
+Le Rust Homebrew local ne dispose pas de la cible WASM : le contrôle local s’arrête
+sur `E0463` (bibliothèque standard absente), sans conclure à la compatibilité du
+cœur. La nouvelle étape CI installera cette cible pour mesurer les obstacles réels.
+
 ## Suite
 
-1. Créer le workspace puis déplacer les trois crates et leurs ressources. Déclarer
-   les réexportations publiques de bibliothèque en gardant `session` privé ;
-   raccorder les helpers de synchronisation des workers et les échantillons
-   d’erreurs nécessaires aux tests inter-crates, sans exposer de session mutable.
-2. Adapter les chemins du diagnostic, les inclusions de ressources et les outils
-   de contrôle aux nouveaux emplacements.
-3. Appliquer le repli anglais dans le lot i18n, adapter la CI et bloquer toute
-   dépendance graphique ou Fluent dans l’arbre du cœur. Vérifier compilation,
-   lancement, ouverture d’un `.typsto` existant et captures.
-
-Les dépendances transitives restent à contrôler après l’extraction physique. Les
-préparations 3.1, 3.2 et 3.8 ne présentent pas le workspace et les crates comme réalisés.
+La prochaine phase est la **phase 4 : CLI**. Ses choix principaux et son premier
+lot seront validés ensemble avant implémentation. Les critères de séparation des
+crates seront conservés pendant cette extension. La CLI et MCP restent absents
+de ce lot ; aucune nouvelle opération documentaire n’est ajoutée au catalogue.
