@@ -6,7 +6,8 @@ Il complète la [feuille de route générale](ROADMAP.md) et suit sa méthode : 
 phase commence par les décisions de la section 3, validées ensemble avant
 implémentation**. Il constitue le détail du chantier J de `ROADMAP.md`.
 Les décisions D1 à D14 et les précisions D15 à D20 ci-dessous sont validées ;
-les choix supplémentaires restent à discuter au début de chaque phase.
+les choix supplémentaires restent à discuter au début de chaque phase. D29 et D30
+(chantier K) sont validées avec les précisions du 24 octobre 2026.
 
 Les estimations sont des tailles relatives (S, M, L), pas un calendrier. Chaque
 tâche numérotée vise une unité de travail vérifiable. Les déplacements restent
@@ -21,8 +22,14 @@ dans une même demande de fusion (PR), avec les tests au vert.
    à identifiant stable et paramètres typés, exécutée par un moteur sans interface.
 3. **Exposer ce moteur** par une ligne de commande (CLI) puis par un serveur MCP
    (Model Context Protocol), à partir du même registre.
+4. **Préparer des interfaces multiples** (chantier K, D29 et D30) : egui aujourd'hui,
+   une interface web éventuelle demain. Les deux ne partagent pas l'éditeur (saisie,
+   IME, défilement, dessin des lignes) mais doivent partager le **contrat
+   d'interaction** : actions, lectures, effets, synchronisation source ↔ aperçu. Ce
+   contrat est décrit une fois, dans le cœur, en données pures.
 
-**Ce qui n'est pas dans ce document** : collaboration, compilation WASM, nouvelles
+**Ce qui n'est pas dans ce document** : collaboration, compilation WASM, interface web
+elle-même (seul son contrat d'interaction est préparé, chantier K), nouvelles
 fonctions d'édition (tableaux, notes), correction grammaticale. La section 9 liste
 des points repérés en chemin et volontairement laissés de côté.
 
@@ -141,6 +148,8 @@ Fuites à traiter avant tout découpage en crates :
 | D26 | Modèles dans MCP | **Validée le 24 octobre 2026.** Fiche succincte : identifiant, nom, type, description et mots-clés. Les modèles d’un même type sont interchangeables ; champs et capacités appartiennent au type, le modèle ne change que la présentation. Pas de contrat technique de modèle à apprendre par l’agent | 5 |
 | D27 | Session documentaire MCP | **Validée le 24 octobre 2026.** Un document en mémoire par processus MCP, indépendant de l’application, identifié explicitement dans les appels documentaires. Ouverture éditable sous verrou ; lecture/copie si le fichier est déjà réservé. Aucun enregistrement implicite. Le rattachement futur à l’application passe par la frontière d’adaptation, pas par le chemin du fichier | 5, 6 |
 | D28 | Éditions et résultats MCP | **Validée le 24 octobre 2026.** Cibles logiques et révisions gardées, recherche exacte et refus des références périmées. Texte littéral et commandes de mise en forme ; transactions individuelles ou lots atomiques annulables en une fois. Sauvegarde finale de lot explicite facultative, export distinct. Résultats structurés avec résumé ; contrôle séparé de validité, champs requis, orthographe facultative sans correction automatique, et aperçu PNG en mémoire. Acceptation sans skill ni lecture du dépôt | 5 |
+| D29 | Contrat d'interaction commun aux interfaces | **Validée avec précisions le 24 octobre 2026.** Les interfaces réutilisent le contrat documentaire commun : `Call` → `Outcome`, `query_call`, `available()`, `Effect`. Validation et résolution des cibles appartiennent au moteur. Les règles communes de coordination des vues peuvent appartenir à un composant distinct du cœur, sans dépendance graphique ; focus, attente du placement visuel, défilement en pixels, saisie/IME et dessin restent dans l'adaptateur. Pas de trait « UI » symétrique : le moteur répond par des données ; le réveil reste le rappel de D8. `NativeEdit` (D17) reste un mécanisme de saisie en mémoire, construit par chaque adaptateur, sans devenir un format réseau. Cœur web côté client en WASM ou côté serveur : choix ultérieur, aucun des deux n'est imposé par ce contrat | K |
+| D30 | Coordination de la vue (synchronisation source ↔ aperçu) | **Validée avec précisions le 24 octobre 2026.** Les primitives existent dans le cœur (`locate` avec `ToPreview`/`ToSource`, `selection_boxes`, `target_guard`, `RenderReference`). L'inventaire recense l'orchestration encore dans egui (`forward_pending`, `editor_scroll_pending`, validité du rendu, surbrillances, choix de cible), notamment dans `engine.rs`, `ime.rs`, `files.rs`, `search.rs`, `editor_view.rs`, `preview.rs`, `setup.rs`. Les règles communes sont extraites dans un composant pur du cœur, distinct du moteur documentaire, nommé provisoirement `ViewSync`, avec **une instance par vue**. Événements envisagés : `SelectionChanged`, `DocumentReplaced`, `RenderInstalled`, `PreviewClicked` ; sorties en données : `RevealInPreview { page, point }`, `RevealInEditor { cible }`, `Highlights(boîtes)`. Un rendu périmé diffère l'action et conserve la demande jusqu'au rendu à jour ; le clic dans l'aperçu annule le retour inverse. Les effets `Render` et `RevealSelection` alimentent la coordination. La CLI autonome n'a pas besoin d'état de vue. **Aucun changement de comportement** dans l'extraction : reprendre les règles actuelles, les tester sans egui, conserver les captures | K |
 
 
 ## 4. Vue d'ensemble
@@ -152,7 +161,8 @@ Phase 2  commandes strictes + moteur (Engine)      │ cœur de la refonte
 Phase 3  espace de travail : core / i18n / app     │ déplacements + changements volontaires isolés
 Phase 4  CLI                                       │ première exposition
 Phase 5  MCP                                       │ deuxième exposition
-Phase 6  canal de contrôle (facultatif, reporté)   │
+Phase 6  assistance à la composition              │
+Chantier K  contrat d'interaction des interfaces   │ inventaire avant 6, avant 7
 Phase 7  consolidation, documentation, ROADMAP.md ─┘
 ```
 
@@ -160,6 +170,12 @@ Dépendances : 1 avant 2 (on range avant de réformer) ; 2 avant 3 (le moteur es
 contenu du crate `core`) ; 3 avant 4 ; 4 avant 5 (MCP réutilise les commandes, les
 schémas et les politiques de chemins de la CLI). Les phases 1 et 2 peuvent être
 interrompues entre deux PR sans laisser le dépôt dans un état intermédiaire.
+
+Le chantier K dépend des phases 2 et 3 (moteur et cœur sans egui). Terminer la phase 5,
+puis réaliser K.1 avant de préciser la phase 6 ; organiser ensuite K.2 à K.4 en fonction
+de cet inventaire, avant la phase 7. Il prépare la phase 6 : les modifications d'un
+agent rejoignant le document ouvert doivent rejoindre la coordination commune via
+les mêmes `Effect`, en conservant les règles de navigation actuelles.
 
 Autres chantiers : la livraison des tableaux et notes (étape 5 de `ROADMAP.md`)
 vient après la phase 7. Le prototype de décision du modèle d’édition est avancé
@@ -865,6 +881,70 @@ aucun pilotage de fenêtre ou accès au moteur de l’application n’est ajout�
 
 ---
 
+## Chantier K — Contrat d'interaction des interfaces (taille M, D29, D30)
+
+**Objectif.** Une seconde interface éventuelle réutilise les règles documentaires
+et les règles communes de coordination source ↔ aperçu, testables sans interface.
+Chaque adaptateur garde sa saisie, son IME, son curseur, son dessin et l'exécution
+visuelle des actions : focus, attente du placement, défilement en pixels, textures.
+L'inventaire distingue ces responsabilités plutôt que de déplacer toute décision
+d'interface dans le moteur. `ViewSync` est un composant distinct du moteur,
+avec une instance par vue ; deux fenêtres peuvent naviguer indépendamment et la CLI
+autonome n'en a pas besoin. Aucun éditeur web ni protocole réseau n'est livré ici.
+
+**Ce qui est déjà commun** (ne pas refaire) : `Engine::run_call`, `query_call`,
+`available`, `Outcome` avec ses `Effect`, la sélection, les lots atomiques, `locate`
+et `selection_boxes`.
+
+**Ce qui reste dans l'application egui** : l'orchestration de la synchronisation, voir D30.
+
+### K.1 Inventaire (taille S)
+
+- [ ] Classer, pour `crates/app/src/app/` (aperçu, recherche, navigation, annotations,
+  orthographe, récupération, fichiers), chaque règle : **règle documentaire**,
+  **coordination commune de vue** ou **responsabilité propre à l'adaptateur**.
+  Résultat : un tableau dans `docs/`, sans changement de code.
+- [ ] Lister les états qui encodent une règle commune (notamment `forward_pending`
+  et `editor_scroll_pending`), les événements qui les posent et l'origine des
+  changements de sélection ; distinguer sélection et demande de révélation.
+
+### K.2 Composant de coordination (taille M)
+
+- [ ] Définir dans le cœur les événements d'entrée et les actions de vue de sortie
+  (D30), en données sérialisables sans type egui, pour un composant par vue distinct
+  du moteur. `NativeEdit` reste un brouillon opaque en mémoire, pas un contrat réseau.
+- [ ] Implémenter `ViewSync` en reprenant **exactement** les règles actuelles de
+  `preview.rs` : validité par comparaison des gardes, demande d'aperçu unique,
+  annulation lorsqu'un clic dans l'aperçu sélectionne le texte. Un rendu périmé
+  conserve la demande différée jusqu'à l'arrivée du rendu à jour ; la dernière
+  intention remplace les précédentes, y compris sans changement de révision.
+- [ ] Tests unitaires sans egui : rendu périmé (aucune action immédiate, demande conservée),
+  installation du rendu à jour (une action), clic dans l'aperçu (révélation de l'éditeur,
+  pas de boucle inverse), remplacement du document et indépendance de deux vues.
+
+### K.3 Branchement de l'application (taille M)
+
+- [ ] Remplacer les indicateurs qui portent les règles communes par le composant.
+  L'application exécute les actions de vue et conserve l'état propre à leur
+  réalisation : placement prêt, cible de défilement en pixels, focus.
+- [ ] Déplacement pur, captures de référence identiques (règle de toutes les phases).
+  Un éventuel changement de comportement constaté en route est consigné et traité
+  dans un commit séparé.
+
+### K.4 Contrat documenté (taille S)
+
+- [ ] `docs/interface-contract.md` : les appels, les lectures, les effets, les événements et
+  actions de vue, ce qui reste à la charge de l'interface (saisie, `NativeEdit`,
+  texture, défilement), avec un exemple de séquence (frappe → rendu → révélation).
+- [ ] Contrôle `cargo check` du cœur sans dépendance graphique, inchangé (phase 3).
+
+**Critères de sortie** : plus aucune règle commune de synchronisation dupliquée
+dans l'application ; l'état nécessaire à l'exécution visuelle reste dans l'adaptateur.
+Le composant par vue est testé sans egui ; les captures de l'application sont
+identiques ; le contrat est documenté et vérifié par la CI.
+
+---
+
 ## Phase 7 — Consolidation (taille S)
 
 - [ ] Rendre bloquants `clippy::too_many_lines` (seuil 120) et le script de taille de
@@ -889,6 +969,8 @@ aucun pilotage de fenêtre ou accès au moteur de l’application n’est ajout�
 | Chemins `include_*` après déplacement | tâche 3.4 explicite ; compilation de chaque crate seule |
 | Dérive entre catalogue, schémas et documentation | génération depuis le registre et contrôle dans la CI |
 | Surface MCP trop permissive | refus par défaut, lecture seule, tests de confinement |
+| Sur-abstraire l'éditeur pour le partager avec une interface web | D29 limite le partage aux décisions ; saisie, IME, défilement et dessin restent propres à chaque interface |
+| La coordination remontée change subtilement la synchronisation | déplacement pur, tests du composant sans egui, comparaison des captures (chantier K) |
 | Verrouillage prématuré des identifiants | gel seulement à la fin de la phase 2, après relecture de l'inventaire |
 
 ## 9. Repéré en chemin, hors de ce périmètre
@@ -908,6 +990,11 @@ aucun pilotage de fenêtre ou accès au moteur de l’application n’est ajout�
   dans `app.rs`, dont une part dans les tests, non triée).
 - **`experiments/reformulation/`** : volumineux pour une piste abandonnée ; envisager de
   l'archiver hors de la branche principale.
+- **Cible web** : cœur en WASM côté client, ou cœur côté serveur derrière un protocole
+  (les `Call`, `Value` et `CommandError` sont déjà sérialisables). Décision à prendre
+  après le chantier K. L'option côté navigateur suppose l'adaptation du stockage
+  et la résolution du diagnostic WASM de la phase 3 ; l'option côté serveur
+  conserve un cœur natif et n'a pas ces mêmes prérequis.
 - **Abstraction de stockage** (fichier local, WebDAV, autre) : prérequis commun d'une
   éventuelle cible WASM, d'un connecteur Nextcloud et de la récupération.
 
@@ -920,6 +1007,8 @@ La refonte est terminée lorsque :
    Fluent ni `i18n-embed` ;
 3. les actions passent par une `Command`, une `Query` ou une `UiCommand` ;
    l’adaptateur de saisie native partage la voie de commit du cœur, avec tests de parité ;
+   les règles communes source ↔ aperçu sont portées par un composant du cœur par vue
+   (chantier K), l’exécution visuelle restant dans l’adaptateur ;
 4. le catalogue de commandes, la documentation de la CLI et celle de MCP sont générés
    depuis le registre et contrôlés dans la CI ;
 5. le scénario d'acceptation de la CLI et celui de MCP passent sur trois systèmes ;
