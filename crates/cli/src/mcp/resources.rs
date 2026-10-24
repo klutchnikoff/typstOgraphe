@@ -21,7 +21,7 @@ pub fn list() -> Vec<Resource> {
 pub fn read(uri: &str) -> Option<String> {
     let value = match uri {
         "typstographe://guide" => {
-            json!({"instructions":INSTRUCTIONS,"prototype":"in_memory","filesystem":false})
+            json!({"instructions":INSTRUCTIONS,"session":"autonomous","permissions":"Call document.inspect and read the outer permissions object. No roots grants no document file access."})
         }
         "typstographe://types" => {
             json!({"types":DocumentType::ALL.map(Engine::type_documentation)})

@@ -189,15 +189,15 @@ shortcut-unknown-command = Commande inconnue : { $id }
 shortcut-duplicate = Raccourci défini plusieurs fois pour { $command }
 shortcut-conflict = Conflit de raccourcis : { $first } et { $second }
 cli-render-help = Rendre une page d’un document enregistré en PNG
-cli-mcp-help = Lancer le prototype MCP local sur stdio (documents en mémoire ; aucun accès aux fichiers)
-cli-mcp-read-only-help = Refuser toute mutation documentaire, y compris les éditions en mémoire
-mcp-file-access = Ce prototype ne permet pas l’accès aux fichiers documentaires. Utiliser des ressources embarquées ; les racines, ouvertures, sauvegardes et exports viendront dans un prochain lot de phase 5.
+cli-mcp-help = Lancer le serveur MCP local sur stdio avec permissions explicites sur les fichiers
+cli-mcp-read-only-help = Autoriser uniquement les lectures, ouvertures en lecture seule et fermetures
+mcp-file-access = Accès documentaire refusé. Vérifier les racines de lecture/écriture, les composants parents, les liens et le compagnon de verrou.
 mcp-read-only = Ce serveur MCP est en lecture seule.
 mcp-document-required = Fournir la référence documentaire renvoyée par document.inspect ou l’édition précédente.
 mcp-document-foreign = Cette référence appartient à une autre session MCP ou à un document remplacé.
 mcp-step-guard = Le serveur prépare les gardes des étapes ; utiliser la référence documentaire extérieure et omettre les gardes d’étape.
 mcp-stdio-required = Lancer le serveur MCP par son point d’entrée stdio.
-mcp-completed = { $id } terminé ; aucun fichier écrit.
+mcp-completed = { $id } terminé ; consulter le résultat de toute opération de fichier explicitement demandée.
 cli-page-help = Numéro de page, à partir de 1
 cli-png-help = Nouveau fichier PNG ; les destinations existantes sont refusées
 cli-render-page = La page demandée n’existe pas dans ce document.
@@ -483,3 +483,6 @@ cli-script-completed =
         [one] Script terminé : { $steps } étape.
        *[other] Script terminé : { $steps } étapes.
     }
+cli-mcp-read-root-help = Autoriser la lecture sous ce répertoire existant (répétable)
+cli-mcp-write-root-help = Autoriser l’écriture sous ce répertoire existant (répétable ; ne donne pas la lecture)
+mcp-root = Les racines MCP doivent être des répertoires existants et accessibles.

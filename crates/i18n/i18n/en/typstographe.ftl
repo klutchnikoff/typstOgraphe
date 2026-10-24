@@ -127,15 +127,15 @@ shortcut-unknown-command = Unknown command: { $id }
 shortcut-duplicate = Shortcut defined more than once for { $command }
 shortcut-conflict = Shortcut conflict: { $first } and { $second }
 cli-render-help = Render one page of a saved document as PNG
-cli-mcp-help = Run the local MCP prototype over stdio (in-memory documents; no file access)
-cli-mcp-read-only-help = Refuse all document mutations, including in-memory edits
-mcp-file-access = This prototype does not allow document file access. Use embedded resources; file roots, opening, saving and export are a subsequent phase-5 lot.
+cli-mcp-help = Run the local MCP server over stdio with explicit file permissions
+cli-mcp-read-only-help = Allow queries, read-only opening and closing only
+mcp-file-access = Document file access is refused. Check the declared read/write roots, parent components, symlinks and lock companion.
 mcp-read-only = This MCP server is read-only.
 mcp-document-required = Supply the document reference returned by document.inspect or the previous edit.
 mcp-document-foreign = This document reference belongs to another MCP session or a replaced document.
 mcp-step-guard = Batch step guards are prepared by the server; use the outer document reference and omit step guards.
 mcp-stdio-required = Start the MCP server through the stdio entry point.
-mcp-completed = { $id } completed; no file was written.
+mcp-completed = { $id } completed; inspect the outcome for any explicitly requested file operation.
 cli-page-help = Page number, starting at 1
 cli-png-help = New PNG file; existing destinations are refused
 cli-render-page = The requested page does not exist in this document.
@@ -480,3 +480,6 @@ cli-script-completed =
         [one] Script completed: { $steps } step.
        *[other] Script completed: { $steps } steps.
     }
+cli-mcp-read-root-help = Authorize reading under this existing directory (repeatable)
+cli-mcp-write-root-help = Authorize writing under this existing directory (repeatable; does not grant reads)
+mcp-root = MCP roots must be existing, accessible directories.

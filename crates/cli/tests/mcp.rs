@@ -1,54 +1,10 @@
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 #![cfg_attr(coverage_nightly, coverage(off))]
-use rmcp::{
-    RoleClient, ServiceExt, model::*, service::RunningService, transport::TokioChildProcess,
-};
+mod mcp_support;
+use mcp_support::*;
+use rmcp::model::*;
 use serde_json::{Value, json};
-use std::{path::Path, process::Stdio, sync::Arc, time::Duration};
-
-type Client = RunningService<RoleClient, ClientConfig>;
-fn runtime() -> tokio::runtime::Runtime {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap()
-}
-async fn start(path: &Path, version: ProtocolVersion, args: &[&str]) -> Client {
-    let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_typstographe-cli"));
-    command
-        .arg("mcp")
-        .args(args)
-        .current_dir(path)
-        .stderr(Stdio::from(
-            std::fs::File::create(path.join("stderr.log")).unwrap(),
-        ));
-    ClientConfig::default()
-        .with_protocol_version(version)
-        .serve(TokioChildProcess::new(command).unwrap())
-        .await
-        .unwrap()
-}
-async fn result(client: &Client, name: &str, args: Value, success: bool) -> CallToolResult {
-    let result = client
-        .call_tool(
-            CallToolRequestParams::new(name.to_owned())
-                .with_arguments(args.as_object().unwrap().clone()),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        result.is_error.unwrap_or(false),
-        !success,
-        "{name}: {result:?}"
-    );
-    result
-}
-async fn call(client: &Client, name: &str, args: Value) -> Value {
-    result(client, name, args, true)
-        .await
-        .structured_content
-        .unwrap()
-}
+use std::{sync::Arc, time::Duration};
 
 #[test]
 fn official_sdk_clients_discover_edit_validate_undo_and_render_a_letter_over_stdio() {
@@ -60,7 +16,7 @@ fn official_sdk_clients_discover_edit_validate_undo_and_render_a_letter_over_std
                 let tools = client.list_all_tools().await.unwrap();
                 assert!(tools.iter().any(|t| t.name == "document_types.describe"));
                 assert!(tools.iter().any(|t| t.name == "text.bold"));
-                assert!(!tools.iter().any(|t| t.name == "document.save"));
+                assert!(tools.iter().any(|t| t.name == "document.save"));
                 let types = call(&client, "document_types.list", json!({})).await;
                 let letter = types["outcome"]["types"]
                     .as_array()
@@ -95,7 +51,11 @@ fn official_sdk_clients_discover_edit_validate_undo_and_render_a_letter_over_std
                     .read_resource(ReadResourceRequestParams::new("typstographe://guide"))
                     .await
                     .unwrap();
-                assert!(serde_json::to_string(&guide).unwrap().contains("in_memory"));
+                assert!(
+                    serde_json::to_string(&guide)
+                        .unwrap()
+                        .contains("autonomous")
+                );
                 let mut new: Value = serde_json::from_str(include_str!(
                     "../../../fixtures/capture-letter-params.json"
                 ))
@@ -244,19 +204,13 @@ fn stdio_errors_preserve_the_document_and_read_only_mode_is_enforced() {
                 invalid.structured_content.unwrap()["error"]["params"]["reason"]
                     == "invalid_params"
             );
-            assert!(
-                client
-                    .call_tool(
-                        CallToolRequestParams::new("document.open").with_arguments(
-                            json!({"path":"anything.typsto"})
-                                .as_object()
-                                .unwrap()
-                                .clone()
-                        )
-                    )
-                    .await
-                    .is_err()
-            );
+            result(
+                &client,
+                "document.open",
+                json!({"document":changed["document"],"path":"anything.typsto"}),
+                false,
+            )
+            .await;
             client.cancel().await.unwrap();
             assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
             let readonly = start(

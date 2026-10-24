@@ -7,14 +7,18 @@ use typstographe_core::engine::*;
 pub struct Host {
     engine: Engine,
     id: Option<String>,
-    read_only: bool,
+    policy: policy::Policy,
 }
 impl Host {
+    #[cfg(test)]
     pub fn new(read_only: bool) -> Self {
+        Self::with_policy(policy::Policy::new(vec![], vec![], read_only).unwrap())
+    }
+    pub fn with_policy(policy: policy::Policy) -> Self {
         Self {
             engine: Engine::empty(),
             id: None,
-            read_only,
+            policy,
         }
     }
     fn reference(&self) -> Option<DocumentRef> {
@@ -76,7 +80,7 @@ impl Host {
                     .iter()
                     .find(|s| s.id.as_str() == p.id)
                     .expect("described command");
-                info["prototype_support"] = json!({"exposed":policy::exposed(spec),"authorized":policy::exposed(spec) && (!self.read_only || spec.family == Family::Query),"filesystem":false,"read_only":self.read_only});
+                info["prototype_support"] = self.policy.support(spec);
                 info["mcp_input_schema"] = catalogue::tools()
                     .iter()
                     .find(|t| t.name == p.id)
@@ -105,7 +109,7 @@ impl Host {
             _ => (self.registered(name, arguments)?, None),
         };
         Ok(Reply {
-            value: json!({"version":1,"ok":true,"document":self.reference(),"outcome":outcome,"summary":typstographe_i18n::tr!("mcp-completed", id=name)}),
+            value: json!({"version":1,"ok":true,"document":self.reference(),"outcome":outcome,"summary":typstographe_i18n::tr!("mcp-completed", id=name),"permissions":self.policy.describe()}),
             png,
         })
     }
@@ -119,7 +123,7 @@ impl Host {
             .find(|s| s.id.as_str() == name)
             .ok_or_else(|| CommandError::new(ErrorCode::NotFound, "unknown_command"))?;
         if !policy::exposed(spec) {
-            return policy::denied();
+            return super::roots::denied();
         }
         let reference = params
             .remove("document")
@@ -128,7 +132,8 @@ impl Host {
             .map_err(CommandError::invalid)?;
         self.check_document(
             reference,
-            catalogue::needs_document(spec) || (name == "document.new" && self.engine.is_open()),
+            catalogue::needs_document(spec)
+                || (matches!(name, "document.new" | "document.open") && self.engine.is_open()),
         )?;
         let selector: Target = params
             .remove("selector")
@@ -149,8 +154,8 @@ impl Host {
                 .query(Query::from_call(name, Value::Object(params))?)?;
             return Ok(self.query_response(name, value));
         }
-        let command = Command::from_call(name, Value::Object(params))?;
-        policy::check(&command, self.read_only)?;
+        let mut command = Command::from_call(name, Value::Object(params))?;
+        self.policy.prepare(&self.engine, &mut command)?;
         let outcome = if let Command::Batch(p) = command {
             self.engine.run_resolved_batch(p, |_, draft, call| {
                 let spec = typstographe_core::engine::catalogue()
@@ -175,8 +180,8 @@ impl Host {
                     .map_err(CommandError::invalid)?
                     .unwrap_or_default();
                 let selection = prepare(draft, spec, &mut params, selector)?;
-                let command = Command::from_call(call.id.as_str(), Value::Object(params))?;
-                policy::check(&command, self.read_only)?;
+                let mut command = Command::from_call(call.id.as_str(), Value::Object(params))?;
+                self.policy.prepare(draft, &mut command)?;
                 Ok(ResolvedBatchStep { command, selection })
             })?
         } else if selection.is_some() && command.batch_step_allowed() {
@@ -209,7 +214,7 @@ impl Host {
                     .iter()
                     .find(|s| s.id.as_str() == entry["id"])
                     .expect("registered entry");
-                entry["mcp_support"] = json!({"exposed":policy::exposed(spec),"authorized":policy::exposed(spec) && (!self.read_only || spec.family == Family::Query),"read_only":self.read_only,"filesystem":false});
+                entry["mcp_support"] = self.policy.support(spec);
             }
         }
         if name == "models.list" {

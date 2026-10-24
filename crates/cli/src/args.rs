@@ -25,6 +25,10 @@ pub enum Action {
     Mcp {
         #[arg(long, help = tr!("cli-mcp-read-only-help"))]
         read_only: bool,
+        #[arg(long = "read-root", help = tr!("cli-mcp-read-root-help"))]
+        read_roots: Vec<PathBuf>,
+        #[arg(long = "write-root", help = tr!("cli-mcp-write-root-help"))]
+        write_roots: Vec<PathBuf>,
     },
     #[command(about = tr!("cli-render-help"))]
     Render {

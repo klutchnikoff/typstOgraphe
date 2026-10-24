@@ -18,21 +18,11 @@ pub fn tools() -> &'static [Tool] {
             }
             add_property::<DocumentRef>(&mut schema,"document");
             add_property::<Target>(&mut schema,"selector");
-            if let Some(image) = schema.get_mut("$defs").and_then(|d| d.get_mut("ImageInput")) {
-                for key in ["oneOf", "anyOf"] {
-                    if let Some(variants) = image.get_mut(key).and_then(Value::as_array_mut) {
-                        variants.retain(|v| v["properties"]["kind"]["const"] != "path");
-                    }
-                }
-            }
             if needs_document(spec) {
                 schema.as_object_mut().expect("object").entry("required")
                     .or_insert_with(|| json!([])).as_array_mut().expect("required").push(json!("document"));
             }
-            if spec.id.as_str() == "document.batch" {
-                schema["properties"]["save"] = json!({"type":"null","description":"No filesystem writes in this prototype."});
-            }
-            let mut tool = Tool::new(spec.id.as_str().to_owned(), format!("{} Supply document from the latest response; guard is prepared by the adapter. See capabilities.describe for details. File paths are unavailable in this in-memory prototype.", spec.description), object(schema));
+            let mut tool = Tool::new(spec.id.as_str().to_owned(), format!("{} Supply document from the latest response; guard is prepared by the adapter. See capabilities.describe for details. File paths require declared server roots; discover current permissions with document.inspect.", spec.description), object(schema));
             tool.annotations = Some(ToolAnnotations::new().read_only(spec.family == Family::Query).open_world(false));
             tool
         }).collect();

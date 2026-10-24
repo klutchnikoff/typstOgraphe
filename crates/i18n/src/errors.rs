@@ -108,6 +108,7 @@ pub fn command_error_with(loader: &FluentLanguageLoader, error: &CommandError) -
         "cli_render_page" => "cli-render-page",
         "cli_render_io" => "cli-render-io",
         "mcp_file_access" => "mcp-file-access",
+        "mcp_root" => "mcp-root",
         "mcp_read_only" => "mcp-read-only",
         "mcp_document_required" => "mcp-document-required",
         "mcp_document_foreign" => "mcp-document-foreign",

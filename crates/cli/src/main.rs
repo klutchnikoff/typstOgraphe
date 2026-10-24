@@ -53,7 +53,12 @@ fn main() -> ExitCode {
         }
     };
     let json_output = cli.json;
-    if let typstographe_cli::args::Action::Mcp { read_only } = cli.action {
+    if let typstographe_cli::args::Action::Mcp {
+        read_only,
+        read_roots,
+        write_roots,
+    } = cli.action
+    {
         let language = cli.lang.unwrap_or(typstographe_cli::args::Language::En);
         i18n::initialize(&[match language {
             typstographe_cli::args::Language::Fr => "fr",
@@ -61,7 +66,7 @@ fn main() -> ExitCode {
         }
         .parse()
         .expect("MCP language")]);
-        return match typstographe_cli::mcp::serve(read_only) {
+        return match typstographe_cli::mcp::serve(read_only, read_roots, write_roots) {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {
                 let _ = writeln!(io::stderr().lock(), "{error}");

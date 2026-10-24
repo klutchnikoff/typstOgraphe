@@ -61,14 +61,14 @@ fn tools_are_generated_from_the_registry_and_local_schema_references_resolve() {
         assert!(schema["properties"]["guard"].is_null());
         if let Some(image) = schema.get("$defs").and_then(|d| d.get("ImageInput")) {
             assert!(
-                !serde_json::to_string(image)
+                serde_json::to_string(image)
                     .unwrap()
                     .contains("\"const\":\"path\"")
             );
         }
     }
-    assert!(!names.contains(&"document.open"));
-    assert!(!names.contains(&"document.save"));
+    assert!(names.contains(&"document.open"));
+    assert!(names.contains(&"document.save"));
     assert!(names.contains(&"document.batch"));
     assert!(names.contains(&"render.page"));
 }
@@ -118,7 +118,8 @@ fn types_and_models_are_self_describing_without_exposing_a_model_contract() {
         "capabilities.describe",
         json!({"id":"document.save"}),
     );
-    assert_eq!(denied["outcome"]["prototype_support"]["exposed"], false);
+    assert_eq!(denied["outcome"]["prototype_support"]["exposed"], true);
+    assert_eq!(denied["outcome"]["prototype_support"]["authorized"], false);
     assert_eq!(resources::list().len(), 3);
     let types: Value =
         serde_json::from_str(&resources::read("typstographe://types").unwrap()).unwrap();

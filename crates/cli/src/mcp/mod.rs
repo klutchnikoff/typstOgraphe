@@ -3,13 +3,14 @@ mod catalogue;
 mod host;
 mod policy;
 mod resources;
+mod roots;
 mod types;
 use rmcp::{ErrorData, RoleServer, ServerHandler, ServiceExt, model::*, service::RequestContext};
 use serde_json::{Map, Value, json};
 use tokio::sync::{mpsc, oneshot};
 use typstographe_core::engine::CommandError;
 
-const INSTRUCTIONS: &str = "Discover document_types.list, then document_types.describe and capabilities.describe. Models are interchangeable visual presentations of a type. Start with document.new; pass the outer document reference from the latest response to every documentary call. Put literal prose in text.insert and use formatting tools; do not write Typst markup. Reads, validation and inline PNG rendering never correct or save text. This prototype keeps one document in memory: no opening, saving, export, recovery, model imports or path-based images/signatures. Embedded images are allowed. document.batch edits atomically and can be undone once; batch step guards are filled by the server. A step may use params.selector to resolve exact text or a block on the evolving draft. Refresh with document.inspect after a stale-reference error. Do not assume a type capability is authorized by this prototype. No skill or repository access is required.";
+const INSTRUCTIONS: &str = "Discover document_types.list, then document_types.describe and capabilities.describe. Models are interchangeable visual presentations of a type. Start with document.new or document.open; pass the outer document reference from the latest response to every documentary call, including replacement. Put literal prose in text.insert and use formatting tools; do not write Typst markup. Each response includes server permissions: read/write roots are independent, paths are relative to the server launch directory, parent components are refused and symlinks are resolved. No roots means no document file access. Writable open needs both read and write authorization and reserves a cooperative writer lock; if locked, open read_only=true to read the last saved snapshot, then save_as an authorized separate copy to edit. A globally read-only server allows only queries, read-only opening and closing. Edits remain in memory; saving is explicit, export is separate and never marks the document saved. document.batch edits atomically and can be undone once, with an optional final save; failure publishes no edits. Step guards are filled by the server. Steps may use params.selector on the evolving draft; file operations are forbidden inside steps. Reads, validation, spelling and inline PNG rendering never correct or save text. Refresh document.inspect after a stale-reference error. No recovery, network or subprocess tools; no GUI attachment in phase 5. No skill or repository access is required.";
 
 struct Request {
     name: String,
@@ -21,13 +22,13 @@ struct Server {
     sender: mpsc::Sender<Request>,
 }
 impl Server {
-    fn new(read_only: bool) -> Result<Self, std::io::Error> {
+    fn new(policy: policy::Policy) -> Result<Self, std::io::Error> {
         let (sender, mut receiver) = mpsc::channel::<Request>(16);
         std::thread::Builder::new()
             .name("mcp-document".into())
             .stack_size(16 * 1024 * 1024)
             .spawn(move || {
-                let mut host = host::Host::new(read_only);
+                let mut host = host::Host::with_policy(policy);
                 while let Some(request) = receiver.blocking_recv() {
                     // Un appel annulé avant son exécution n’a aucun effet.
                     if !request.reply.is_closed() {
@@ -150,14 +151,17 @@ fn internal() -> ErrorData {
     ErrorData::internal_error("Document worker stopped", None)
 }
 
-pub fn serve(read_only: bool) -> Result<(), Box<dyn std::error::Error>> {
+pub fn serve(
+    read_only: bool,
+    read_roots: Vec<std::path::PathBuf>,
+    write_roots: Vec<std::path::PathBuf>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let policy = policy::Policy::new(read_roots, write_roots, read_only)?;
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
     runtime.block_on(async {
-        let server = Server::new(read_only)?
-            .serve(rmcp::transport::stdio())
-            .await?;
+        let server = Server::new(policy)?.serve(rmcp::transport::stdio()).await?;
         server.waiting().await?;
         Ok(())
     })
@@ -166,3 +170,7 @@ pub fn serve(read_only: bool) -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod file_tests;
