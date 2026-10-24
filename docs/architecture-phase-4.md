@@ -194,6 +194,16 @@ en PDF et Typst dans `output/courrier-script-export/`. Sa réouverture native et
 capture `output/phase-4-script-courrier-gui.png` ont été inspectées. Les résultats
 JSON, captures et journaux du lot sont conservés dans `output/` (ignoré par Git).
 
+### Contrôle Windows des fins de ligne
+
+La CI des deuxième et troisième lots a révélé un échec Windows dans la comparaison
+de la documentation générée : Git extrait le préambule Markdown en CRLF, tandis
+que les lignes du catalogue sont générées en LF. Le générateur normalise désormais
+le préambule en LF, sans assouplir le contrôle de dérive. Un test reproduit les deux
+extractions et exige une sortie identique sans CR ; les 29 tests de la CLI passent
+localement. macOS, Linux et couverture ont réussi sur la poussée du troisième lot ;
+le correctif fait l’objet d’une nouvelle vérification distante.
+
 ## Suite
 
 Page PNG dédiée, retrait de `--render-demo` et adaptation des références visuelles,

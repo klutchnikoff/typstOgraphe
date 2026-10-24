@@ -1,4 +1,5 @@
 //! Adaptateur synchrone : aucune logique documentaire ni préférence graphique.
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 pub mod args;
 mod calls;
 mod creation;
@@ -153,7 +154,13 @@ fn catalogue_report(action: CatalogueAction) -> Result<Report, CommandError> {
 }
 
 pub fn documentation() -> String {
-    let mut text = String::from(include_str!("reference.md"));
+    documentation_from_reference(include_str!("reference.md"))
+}
+
+fn documentation_from_reference(reference: &str) -> String {
+    // Git peut convertir le Markdown en CRLF à l’extraction sous Windows.
+    // La sortie générée doit rester en LF, comme les lignes du catalogue.
+    let mut text = reference.replace("\r\n", "\n");
     for spec in catalogue() {
         let family = serde_json::to_value(spec.family).expect("family");
         text.push_str(&format!(
@@ -164,4 +171,18 @@ pub fn documentation() -> String {
         ));
     }
     text
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    #[test]
+    fn documentation_is_identical_for_lf_and_windows_crlf_templates() {
+        let reference = include_str!("reference.md").replace("\r\n", "\n");
+        let lf = super::documentation_from_reference(&reference);
+        let crlf = super::documentation_from_reference(&reference.replace('\n', "\r\n"));
+        assert_eq!(lf, crlf);
+        assert!(!crlf.contains('\r'));
+        assert!(crlf.contains("| `document.batch` | batch |"));
+    }
 }
