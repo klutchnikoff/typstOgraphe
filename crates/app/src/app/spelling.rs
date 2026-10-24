@@ -6,16 +6,13 @@ use crate::engine::{
 
 impl App {
     pub fn capture_spelling(&mut self, ctx: &egui::Context) {
-        self.load_demo();
-        let before = self.snapshot();
-        let view = Document::from_source("Madame, Monsieur,\n\nNous vous adressons ce *courrrier* pour confirmer la _réservvation_ de la salle.\n\nLa réunion aura lieu aujourd’hui à l’école, lors du rendez-vous prévu avec les associations.\n\nNous vous remercions de votre attention.").unwrap().view;
-        let result = self.document.engine.commit_native_edit(
-            before.clone(),
-            view,
-            editor::to_core(self.document.selection),
-            crate::engine::NativeInput::Composition,
-        );
-        self.accept_edit(result, before.selection());
+        // This is a complete diagnostic fixture, not native keyboard input.
+        // Install it through the document loader rather than replacing a guarded
+        // NativeEdit with an unrelated projection that has no recorded splices.
+        let mut stored = StoredDocument::demo(self.dialogs.new_document_type);
+        stored.source = "Madame, Monsieur,\n\nNous vous adressons ce *courrrier* pour confirmer la _réservvation_ de la salle.\n\nLa réunion aura lieu aujourd’hui à l’école, lors du rendez-vous prévu avec les associations.\n\nNous vous remercions de votre attention.".into();
+        self.install_document(stored, None)
+            .expect("valid capture fixture");
         self.preferences = Preferences::default();
         self.preferences.appearance = Appearance::Light;
         ctx.set_theme(egui::ThemePreference::Light);

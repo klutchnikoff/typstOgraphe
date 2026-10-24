@@ -1,6 +1,42 @@
 use super::*;
 
 #[test]
+fn spelling_capture_installs_its_fixture_instead_of_submitting_an_unrelated_native_draft() {
+    let (ctx, mut app) = demo_app();
+    app.capture_spelling(&ctx);
+    let _ = search_draw(&mut app, &ctx, vec![]);
+    app.spelling.checker.wait();
+    assert!(app.dialogs.message.is_none());
+    let words: Vec<_> = app
+        .spelling
+        .checker
+        .issues
+        .iter()
+        .map(|issue| issue.word.as_str())
+        .collect();
+    assert!(words.contains(&"courrrier"));
+    assert!(words.contains(&"réservvation"));
+    assert!(
+        app.document
+            .engine
+            .document()
+            .view
+            .styles
+            .iter()
+            .any(|s| s.bold)
+    );
+    assert!(
+        app.document
+            .engine
+            .document()
+            .view
+            .styles
+            .iter()
+            .any(|s| s.italic)
+    );
+}
+
+#[test]
 fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_suggestion() {
     let ctx = egui::Context::default();
     ctx.set_theme(egui::ThemePreference::Dark);

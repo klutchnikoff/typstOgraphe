@@ -4,6 +4,8 @@ mod assistance;
 mod availability;
 mod setup;
 mod state;
+#[cfg(test)]
+use crate::document::Document;
 use crate::i18n::LocalizedLabel;
 use state::*;
 mod chrome;
@@ -29,7 +31,7 @@ mod text_input;
 mod view_coordination;
 use crate::{
     commands::{FileCommand, Keymap, Registry, ShortcutOverrides, UiCommand as Command},
-    document::{BlockKind, Document, DocumentLanguage, PaperFormat, Projection},
+    document::{BlockKind, DocumentLanguage, PaperFormat, Projection},
     document_types::{DocumentType, ModelPresentation, models::Model},
     editor, menus,
     navigation::PagePoint,
