@@ -72,13 +72,15 @@ persistante de modèles restent à développer.
 
 ### Suivi de réalisation
 
-- **Architecture — phase 4 en cours.** Premier lot CLI : catalogue, inspection,
+- **Architecture — phase 4 terminée le 24 octobre 2026.** Premier lot CLI : catalogue, inspection,
   vérification et exports sans fenêtre, avec protection des écritures concurrentes
   commune à l’application. Deuxième lot : création, `query`/`run`, cibles résolues
   dans la session et enregistrement explicite. Troisième lot : scripts JSON atomiques,
   avec cibles portables et sauvegarde finale facultative ; parcours courrier/P.-S./P.J.,
-  exports puis réouverture native vérifiés. Restent la page PNG dédiée et le retrait
-  du diagnostic `--render-demo` avant clôture de la phase.
+  exports puis réouverture native vérifiés. Dernier lot : rendu d’une page en PNG,
+  retrait du diagnostic `--render-demo` et préparation des références par la CLI ;
+  les huit captures restent strictement identiques. La phase suivante est MCP,
+  avec ses choix principaux à valider ensemble avant implémentation.
   Choix validés et état détaillé dans [le bilan](docs/architecture-phase-4.md).
 
 - **Étape 1 — Récupération : implémentée ; essai utilisateur fait.** Les choix
@@ -673,8 +675,8 @@ cœur compilable indépendamment sans dépendances graphiques ou Fluent, profil
 conservé côté application, ressources et tests répartis. Le repli anglais est
 appliqué dans un commit distinct ; la langue documentaire reste indépendante.
 Les 356 tests des trois crates et les 6 tests du diagnostic passent ; les huit
-captures natives sont identiques. La prochaine phase est la CLI (phase 4), avec
-ses choix principaux à valider ensemble.
+captures natives sont identiques. La CLI (phase 4) est maintenant réalisée ;
+son [bilan](docs/architecture-phase-4.md) consigne les lots et leur validation.
 Voir [le suivi de phase 3](docs/architecture-phase-3.md).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une

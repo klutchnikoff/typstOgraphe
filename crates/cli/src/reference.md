@@ -17,6 +17,7 @@ typstographe-cli inspect courrier.typsto --json
 typstographe-cli check courrier.typsto --for-export
 typstographe-cli check courrier.typsto --spelling
 typstographe-cli export courrier.typsto --format pdf --output export/
+typstographe-cli render courrier.typsto --page 1 --png courrier.png
 ```
 
 Les lectures utilisent la dernière version enregistrée, même si le document est ouvert dans l’application. L’export crée un répertoire ou utilise un répertoire vide, avec `--pages` pour ajouter des images PNG.
@@ -69,7 +70,17 @@ typstographe-cli check output/courrier-script.typsto --for-export
 typstographe-cli export output/courrier-script.typsto --output output/courrier-script-export
 ```
 
-L’export est une opération distincte après la réussite du script. Les images de pages dédiées restent un lot suivant ; MCP est prévu en phase 5.
+L’export est une opération distincte après la réussite du script. MCP est prévu en phase 5.
+
+## Rendu d’une page en PNG
+
+`render fichier.typsto --page N --png page.png` ouvre un instantané enregistré en lecture seule, compile avec le moteur commun et rasterise uniquement la page demandée. Les deux options sont obligatoires ; les pages sont numérotées à partir de 1. Une page hors document est refusée sans créer de fichier. Un brouillon dont les champs ne sont pas encore tous renseignés peut être rendu si sa compilation réussit.
+
+Le PNG utilise la même résolution Typst que `export --pages` (2 pixels par point, soit 144 ppp), sans limite liée aux textures d’affichage egui. Aucun PDF ni répertoire d’export n’est créé. La lecture reste possible avec un écrivain actif, sans inclure ses modifications non enregistrées. Le fichier `.typsto` n’est pas modifié.
+
+Le dossier de destination doit exister. Le PNG est préparé dans un temporaire voisin, puis publié sans remplacement : fichier existant, dossier ou lien symbolique sont refusés, même si la cible apparaît pendant la préparation. Un échec de compilation ou d’écriture ne laisse pas de PNG partiel. Les chemins relatifs sont interprétés depuis le répertoire courant.
+
+Avec `--json`, le résultat contient `path`, `page` et `pages` (numéros/nombre de pages), ainsi que `size_points` (largeur et hauteur en points Typst). Les octets PNG sont dans le fichier, jamais dans stdout. Les erreurs conservent les codes de sortie communs : 1 pour une page inexistante ou une destination occupée, 2 pour l’usage des options, 3 pour une erreur d’entrée/sortie.
 
 ## Catalogue du moteur
 

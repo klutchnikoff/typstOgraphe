@@ -660,19 +660,21 @@ Les vérifications Windows/Linux seront exécutées par la CI après la poussée
 
 **But** : tout ce que fait l'interface sur un document se fait aussi sans fenêtre.
 
-**En cours : premier lot livré le 24 octobre 2026.** Catalogue, inspection,
+**Terminée le 24 octobre 2026.** Premier lot : catalogue, inspection,
 validation et export réutilisent le moteur, avec verrou d’écriture et contrôle
 des modifications externes communs à l’UI. **Deuxième lot livré le même jour :**
 création depuis le catalogue, `query`/`run`, paramètres JSON bornés et cibles
 résolues dans la session ; aperçu, copie ou sauvegarde explicite. **Troisième lot
 livré le même jour :** scripts JSON versionnés, cibles résolues au fil du brouillon
-et une seule transaction avec sauvegarde finale facultative. Détail et suite dans
+et une seule transaction avec sauvegarde finale facultative. **Dernier lot :**
+rendu d’une page en PNG et retrait de `--render-demo` ; les huit références visuelles
+restent strictement identiques avec leur préparation par la CLI. Détail et suite dans
 [le bilan de phase 4](docs/architecture-phase-4.md).
 
 ### 4.1 Squelette
 
 - [x] Crate `typstographe-cli`, `clap` en dérivation (D10).
-- [ ] Retirer le diagnostic historique `--render-demo` du lanceur graphique et adapter
+- [x] Retirer le diagnostic historique `--render-demo` du lanceur graphique et adapter
   le script de références visuelles ; les options `--capture-*` restent des outils de développement.
 - [x] Réutiliser `Command::OpenDocument`, `SaveDocument`, `SaveAs` et `Export`, sans
   ajouter des méthodes parallèles `Engine::open/save`. Lecture CLI d’archives GUI vérifiée ;
@@ -693,7 +695,7 @@ et une seule transaction avec sauvegarde finale facultative. Détail et suite da
 | `typstographe-cli script job.json` | lot d’édition d’un document sur session temporaire ; un seul enregistrement atomique après réussite, aucune écriture intermédiaire (D16), taille limitée |
 | `typstographe-cli export f.typsto --format pdf\|typst\|both --output dir [--pages]` | exports ; PDF par défaut, PNG seulement avec `--pages` |
 | `typstographe-cli check f.typsto [--for-export] [--spelling]` | validité du brouillon ; champs requis et orthographe sur demande ; sortie non nulle si le contrôle demandé échoue |
-| `typstographe-cli render f.typsto --page N --png out.png` | aperçu |
+| `typstographe-cli render f.typsto --page N --png out.png` | une page, numérotation à partir de 1, PNG publié sans remplacement ; même rasterisation que l’export |
 
 ### 4.3 Contrat
 
@@ -723,13 +725,18 @@ et une seule transaction avec sauvegarde finale facultative. Détail et suite da
 - [x] Création depuis le catalogue et appels génériques : paramètres JSON argument/fichier/stdin,
   limite 4 Mio, gardes automatiques, sélection exacte ou numéro de bloc, refus des références
   périmées et des familles nécessitant une session durable, protections de fichiers conservées.
+- [x] Rendu ciblé : parité binaire avec le PNG d’export, lecture avec écrivain actif,
+  pages invalides et options manquantes, échecs de compilation/publication, liens
+  symboliques et refus d’écrasement. Le source, les métadonnées et l’historique restent intacts.
+- [x] Migration des références visuelles : création et export de la fixture par la CLI,
+  puis huit captures natives strictement identiques aux références existantes.
 
 **Scénario d'acceptation** : créer un courrier, renseigner les métadonnées, insérer
 un paragraphe et un post-scriptum dans un script JSON, enregistrer, puis exporter en PDF
 par une commande distincte, sans fenêtre. L’export est hors transaction (D16/D23).
 **Réussi le 24 octobre 2026** avec `examples/cli/courrier.json`, puis réouverture
-native et inspection de la capture. La page PNG dédiée et le retrait de
-`--render-demo` restent à réaliser avant de clore la phase.
+native et inspection de la capture. Le parcours a été rejoué pour la clôture avec
+exports PDF/Typst et rendu PNG dédié, identique au PNG de la même page exportée.
 
 ---
 

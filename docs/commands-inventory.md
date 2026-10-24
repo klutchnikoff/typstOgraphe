@@ -562,10 +562,12 @@ services/effets du cycle de vie. Ils ne créent pas une commande d’édition pa
 Les focus et données de formulaires/palette/menu relèvent de `UiCommand` ou de
 leur état de présentation ; leur validation seule déclenche la commande de contenu.
 
-`--render-demo`, `--capture*`, les scénarios d’exemple et le prototype de tableau
+`--capture*`, les scénarios d’exemple et le prototype de tableau
 restent des outils de diagnostic, pas des fonctions du catalogue métier CLI/MCP.
 Leurs appels internes pourront réutiliser les opérations normales ; ils ne doivent
 pas devenir une voie contournant les validations du cœur.
+L’ancien `--render-demo` a été retiré en phase 4 ; les fixtures de capture utilisent
+la création et l’export de la CLI publique.
 
 ### 7.4 Couverture relue avant le gel
 

@@ -1,7 +1,7 @@
 # Phase 4 — CLI documentaire
 
 Décisions validées le **24 octobre 2026** avant implémentation : D23 et D24 dans
-[ROADMAP-ARCHITECTURE.md](../ROADMAP-ARCHITECTURE.md). La phase reste en cours.
+[ROADMAP-ARCHITECTURE.md](../ROADMAP-ARCHITECTURE.md). **Phase terminée le 24 octobre 2026.**
 
 ## Premier lot
 
@@ -213,11 +213,66 @@ par tiny-skia déjà disponible via resvg. Le document Typst, le PDF et les coor
 de synchronisation restent intacts. Un test injecte un véritable rendu A3 terminé
 avant la frame pour vérifier cette limite, les proportions et la synchronisation.
 
+Ces deux corrections ont été confirmées par la CI du commit `8cc9554` :
+[macOS/Windows/Linux](https://github.com/klutchnikoff/typstOgraphe/actions/runs/40099125227)
+et [couverture](https://github.com/klutchnikoff/typstOgraphe/actions/runs/40099125202).
+
+## Dernier lot — page PNG et retrait du diagnostic graphique
+
+- `render fichier.typsto --page N --png page.png` ouvre la dernière archive
+  enregistrée en lecture seule, utilise la compilation commune puis ne rasterise
+  que la page demandée. Numérotation CLI à partir de 1, options obligatoires ; un
+  brouillon compilable peut être rendu sans les champs exigés pour export.
+- La réponse JSON expose le chemin, le numéro, le nombre de pages et leurs
+  dimensions en points Typst. Le PNG reste dans le fichier, pas dans stdout.
+  Les codes de sortie et la localisation fr/en restent ceux de la CLI.
+- L’API Rust `Engine::render_page_png` lit le cache de rendu gardé : aucun accès
+  mutable à la session, aucune recompilation, aucune modification d’historique.
+  Cette lecture binaire pour les adaptateurs ne modifie pas les **68 contrats JSON**
+  du catalogue. La rasterisation/encodage est commune avec les PNG d’export.
+- Le PNG conserve la résolution Typst (2 pixels par point, 144 ppp), indépendamment
+  des textures egui. Publication depuis un temporaire voisin avec
+  `tempfile::NamedTempFile::persist_noclobber`, après écriture et synchronisation :
+  pas d’écrasement, y compris en cas de création concurrente. Destinations occupées,
+  dossiers et liens symboliques sont refusés ; le dossier parent doit exister.
+  Un échec ne laisse pas de PNG partiel et préserve le document.
+- `--render-demo`, sa branche de lancement et ses messages d’aide sont supprimés.
+  Les captures restent des outils de développement. Le script de références construit
+  les deux binaires et prépare sa fixture avec `new` puis `export --format typst`,
+  à partir de `fixtures/capture-letter-params.json`. Aucun profil implicite ou
+  commande spéciale de production n’est nécessaire. `--binary`/`--cli-binary`
+  permettent de réutiliser les binaires déjà construits.
+
+Vérification locale de clôture : **404 tests Rust du workspace réussis** (224 cœur,
+139 UI, 7 i18n, 34 CLI dont 33 tests de processus). Le nouveau test du cœur vérifie
+le cache gardé, les pages et l’absence de mutation. Les 5 nouveaux tests de processus
+vérifient parité exacte avec moteur et export, écrivain actif, absence d’écritures
+annexes, pages hors limites, arguments obligatoires, erreurs de compilation/écriture,
+refus d’écrasement, liens symboliques sur Unix, chemins Unicode/relatifs et langues.
+Ces tests sont inclus dans la matrice CI des trois systèmes ; l’exécution locale
+est macOS. Le formatage, Clippy de toutes les cibles, les 14 tests Python et les
+gardes de dépendances et de taille des fichiers de production passent.
+`tempfile` était déjà utilisé dans le workspace et en test CLI ; aucune nouvelle
+bibliothèque externe n’est ajoutée et la CLI n’a pas de dépendance graphique.
+
+La comparaison native conserve **les huit références strictement identiques**
+(dimensions et empreintes), sans réenregistrer leur manifeste. Captures et journaux
+du contrôle : `output/baseline/run-0_krgait/` et `output/phase-4-final-captures.log`.
+Le lanceur refuse maintenant `--render-demo` avant toute fenêtre.
+
+Le scénario de clôture repart de `examples/cli/courrier.json` avec une destination
+isolée : création, métadonnées, texte et gras, P.-S./P.J., sauvegarde, validation
+pour export, exports PDF/Typst/PNG puis rendu de la page 1 par la commande dédiée.
+Ce PNG a été inspecté visuellement et comparé octet pour octet à `page-1.png`
+de l’export. Résultats conservés dans `output/phase-4-final-acceptance/`.
+La [documentation CLI](cli.md) a été régénérée et son contrôle de dérive passe.
+
 ## Suite
 
-Page PNG dédiée, retrait de `--render-demo` et adaptation des références visuelles,
-puis relecture finale des critères de sortie. Le scénario d’acceptation documentaire
-a été réalisé dans le troisième lot.
+Les critères de sortie de la phase 4 sont remplis. La phase 5 concerne MCP ; ses
+choix principaux, notamment la politique de sessions et d’accès aux fichiers pour
+les agents, seront validés ensemble avant de coder. Aucun serveur MCP ou canal
+de contrôle de l’application n’est ajouté dans la phase 4.
 
 Outils réutilisés : [clap](https://docs.rs/clap/4.6.7/clap/),
 [assert_cmd](https://docs.rs/assert_cmd/2.2.2/assert_cmd/),
