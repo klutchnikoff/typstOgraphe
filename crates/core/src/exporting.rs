@@ -105,12 +105,11 @@ pub fn write_document(
         crate::fonts::export_used(document, path).map_err(CoreError::external)?;
     }
     if page_images {
-        for (index, page) in document.pages().iter().enumerate() {
-            let pixmap = typst_render::render(page, &typst_render::RenderOptions::default());
+        for index in 0..document.pages().len() {
             write(
                 path,
                 &format!("page-{}.png", index + 1),
-                &pixmap.encode_png().map_err(CoreError::external)?,
+                &crate::rendering::page_png(document, index)?.expect("rendered page"),
             )?;
         }
     }

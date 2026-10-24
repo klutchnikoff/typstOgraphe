@@ -105,6 +105,8 @@ pub fn command_error_with(loader: &FluentLanguageLoader, error: &CommandError) -
         "cli_script_too_large" => "engine-batch-size-limit",
         "cli_script_version" => "cli-script-version",
         "cli_script_save" => "cli-script-save",
+        "cli_render_page" => "cli-render-page",
+        "cli_render_io" => "cli-render-io",
         "unsaved_changes" => "unsaved-message",
         "creation_model" => "type-no-model",
         "export_required_fields" => "export-required-fields",

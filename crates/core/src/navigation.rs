@@ -47,6 +47,13 @@ pub struct RenderSync {
 }
 
 impl RenderSync {
+    pub(crate) fn page_png(
+        &self,
+        index: usize,
+    ) -> Result<Option<Vec<u8>>, crate::errors::CoreError> {
+        crate::rendering::page_png(&self.document, index)
+    }
+
     pub fn new(revision: u64, world: TypstWorld, document: PagedDocument, map: SourceMap) -> Self {
         let mut anchors = Vec::new();
         let mut frames = Vec::new();

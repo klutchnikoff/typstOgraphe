@@ -70,19 +70,23 @@ fn prepare_render(
     if spec.params_schema["properties"]["render"].is_null() {
         return Ok(());
     }
+    let render = compile_render(engine)?;
+    params.insert("render".into(), json!(render.reference));
+    Ok(())
+}
+
+pub(crate) fn compile_render(engine: &Engine) -> Result<RenderInfo, CommandError> {
     let compiled = engine.compile(GuardParams {
         guard: engine.target_guard(),
     })?;
-    let render = compiled.render.ok_or_else(|| {
+    compiled.render.ok_or_else(|| {
         compiled
             .diagnostics
             .into_iter()
             .find_map(|d| d.cause)
             .map(|cause| CommandError::with_cause(ErrorCode::Template, "render_compile", cause))
             .unwrap_or_else(|| CommandError::new(ErrorCode::Template, "render_unavailable"))
-    })?;
-    params.insert("render".into(), json!(render.reference));
-    Ok(())
+    })
 }
 
 pub fn query(

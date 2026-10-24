@@ -79,6 +79,23 @@ impl Engine {
         .map_err(|_| CommandError::new(ErrorCode::NotFound, "render_unavailable"))
     }
 
+    /// Lecture binaire pour les adaptateurs : rasterise une seule page (indice à
+    /// partir de zéro) du rendu gardé, sans recompilation, édition ou écriture.
+    /// Les octets PNG ne font pas partie du protocole JSON du catalogue.
+    pub fn render_page_png(
+        &self,
+        reference: RenderReference,
+        page: usize,
+    ) -> Result<Vec<u8>, CommandError> {
+        self.checked_render(reference)?
+            .sync
+            .page_png(page)
+            .map_err(|cause| {
+                CommandError::with_cause(ErrorCode::Document, "render_compile", cause)
+            })?
+            .ok_or_else(|| CommandError::invalid("unknown render page"))
+    }
+
     /// Compilation synchrone hors UI. Seul le cache dérivé change ; un transport
     /// peut exécuter cette lecture sur son worker, sans rasterisation ni export.
     pub fn compile(&self, p: GuardParams) -> Result<CompileResult, CommandError> {

@@ -21,6 +21,14 @@ pub enum Language {
 
 #[derive(Subcommand)]
 pub enum Action {
+    #[command(about = tr!("cli-render-help"))]
+    Render {
+        file: PathBuf,
+        #[arg(long, value_parser = clap::value_parser!(u32).range(1..), help = tr!("cli-page-help"))]
+        page: u32,
+        #[arg(long, help = tr!("cli-png-help"))]
+        png: PathBuf,
+    },
     #[command(about = tr!("cli-script-help"))]
     Script {
         #[arg(help = tr!("cli-script-file-help"))]

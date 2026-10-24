@@ -25,6 +25,46 @@ fn word(e: &Engine, text: &str) -> std::ops::Range<usize> {
 }
 
 #[test]
+fn one_page_png_uses_the_guarded_cache_without_editing_or_creating_files() {
+    let mut e = engine("Première page.");
+    e.session.template = "#let courrier(..args, body) = { set page(width: 120pt, height: 80pt, margin: 5pt); body; pagebreak(); [Seconde page.] }".into();
+    let info = e
+        .compile(GuardParams {
+            guard: e.target_guard(),
+        })
+        .unwrap()
+        .render
+        .unwrap();
+    assert_eq!(info.pages.len(), 2);
+    let before = e.query(Query::Inspect(Empty {})).unwrap();
+    let stored = e.stored_document();
+    let first = e.render_page_png(info.reference, 0).unwrap();
+    let second = e.render_page_png(info.reference, 1).unwrap();
+    assert!(first.starts_with(b"\x89PNG\r\n\x1a\n"));
+    assert_ne!(first, second);
+    assert_eq!(e.render_page_png(info.reference, 1).unwrap(), second);
+    assert_eq!(
+        e.render_page_png(info.reference, 2).unwrap_err().code,
+        ErrorCode::InvalidParams
+    );
+    assert_eq!(e.query(Query::Inspect(Empty {})).unwrap(), before);
+    assert_eq!(e.stored_document(), stored);
+    let other = engine("Autre document.");
+    assert_eq!(
+        other
+            .render_page_png(info.reference, 0)
+            .unwrap_err()
+            .reason(),
+        "foreign_document"
+    );
+    call(&mut e, "text.insert", json!({"text":"Suite "})).unwrap();
+    assert_eq!(
+        e.render_page_png(info.reference, 0).unwrap_err().reason(),
+        "stale_revision"
+    );
+}
+
+#[test]
 fn render_queries_bridge_logical_unicode_zones_and_typst_points_without_mutation() {
     let mut e = engine(
         "#import \"modele.typ\": postscript, attachment\n\n= Échéance\n\nNoël écrit un *courrier* avec _Élodie_.\n\n/ Terme: Définition\n\n#quote(block: true, attribution: [Attribution])[Une citation.]\n\n#figure(image(\"images/parc.svg\", alt: \"Des arbres\"), caption: [Le parc.])\n\n#postscript[Merci]\n\n#attachment[Rapport]",

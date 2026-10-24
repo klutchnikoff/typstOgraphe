@@ -281,6 +281,23 @@ pub struct RenderRequest {
     pub export_dir: Option<PathBuf>,
 }
 pub use crate::assets::RgbaImage as PageImage;
+
+/// Même rasterisation pour une page demandée par un adaptateur et les PNG d’export.
+pub(crate) fn page_png(
+    document: &PagedDocument,
+    index: usize,
+) -> Result<Option<Vec<u8>>, CoreError> {
+    document
+        .pages()
+        .get(index)
+        .map(|page| {
+            typst_render::render(page, &typst_render::RenderOptions::default())
+                .encode_png()
+                .map_err(CoreError::external)
+        })
+        .transpose()
+}
+
 pub struct Rendered {
     pub pages: Vec<PageImage>,
     pub sync: RenderSync,

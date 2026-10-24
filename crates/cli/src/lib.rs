@@ -6,6 +6,7 @@ mod creation;
 mod output;
 mod parameters;
 mod paths;
+mod render;
 mod script;
 mod script_format;
 mod targets;
@@ -22,6 +23,7 @@ pub struct Report {
 
 pub fn execute(cli: Cli) -> Result<Report, CommandError> {
     match cli.action {
+        Action::Render { file, page, png } => render::execute(file, page, png),
         Action::Script { file } => script::execute(file),
         Action::Query {
             id,
