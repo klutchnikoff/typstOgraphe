@@ -41,6 +41,7 @@ use crate::{
     session::{EditGroup, Session, Snapshot},
 };
 pub use availability::CommandIntent;
+pub use batch::{MAX_BATCH_BYTES, MAX_BATCH_STEPS};
 pub use batch_types::*;
 pub use error::{CommandError, ErrorCode};
 pub use file_types::*;

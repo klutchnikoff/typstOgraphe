@@ -22,6 +22,12 @@ pub struct CommandError {
     pub params: Value,
 }
 impl CommandError {
+    pub fn at_batch_step(self, index: usize, id: &str) -> Self {
+        Self {
+            code: self.code,
+            params: json!({"reason":"batch_step","step":index,"command":id,"error":self}),
+        }
+    }
     pub fn detail(code: ErrorCode, reason: &str, detail: impl std::fmt::Display) -> Self {
         Self {
             code,

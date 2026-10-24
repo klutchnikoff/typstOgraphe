@@ -31,6 +31,8 @@ mod models;
 mod native;
 #[path = "tests/render.rs"]
 mod render;
+#[path = "tests/resolved_batch.rs"]
+mod resolved_batch;
 #[path = "tests/search.rs"]
 mod search;
 #[path = "tests/spelling.rs"]

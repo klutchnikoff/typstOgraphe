@@ -31,14 +31,10 @@ impl Command {
     }
 }
 fn step_error(index: usize, id: &str, error: CommandError) -> CommandError {
-    CommandError {
-        code: error.code,
-        params: json!({"reason":"batch_step","step":index,"command":id,"error":error}),
-    }
+    error.at_batch_step(index, id)
 }
 impl Engine {
-    /// Le contrôle de toutes les étapes précède même les lectures des imports.
-    pub(super) fn check_batch(&self, p: &BatchParams) -> Result<Vec<Command>, CommandError> {
+    fn check_batch_header(&self, p: &BatchParams) -> Result<(), CommandError> {
         self.check_access("document.batch")?;
         self.check_guard(p.guard)?;
         if !self.open {
@@ -52,6 +48,33 @@ impl Engine {
         }
         serde_json::to_writer(ByteLimit(MAX_BATCH_BYTES), p)
             .map_err(|_| CommandError::new(ErrorCode::InvalidParams, "batch_size_limit"))?;
+        Ok(())
+    }
+    fn check_batch_ids(&self, p: &BatchParams) -> Result<(), CommandError> {
+        for (index, call) in p.steps.iter().enumerate() {
+            let spec = catalogue()
+                .iter()
+                .find(|s| s.id == call.id)
+                .ok_or_else(|| {
+                    step_error(
+                        index,
+                        call.id.as_str(),
+                        CommandError::new(ErrorCode::NotFound, "unknown_command"),
+                    )
+                })?;
+            if !spec.batch_step {
+                return Err(step_error(
+                    index,
+                    call.id.as_str(),
+                    CommandError::new(ErrorCode::Unavailable, "batch_step_forbidden"),
+                ));
+            }
+        }
+        Ok(())
+    }
+    /// Le contrôle de toutes les étapes précède même les lectures des imports.
+    pub(super) fn check_batch(&self, p: &BatchParams) -> Result<Vec<Command>, CommandError> {
+        self.check_batch_header(p)?;
         p.steps
             .iter()
             .enumerate()
@@ -92,14 +115,64 @@ impl Engine {
         Ok(())
     }
     pub(super) fn run_batch(&mut self, p: BatchParams) -> Result<Outcome, CommandError> {
-        let commands = self.check_batch(&p)?;
+        let mut commands = self.check_batch(&p)?.into_iter();
+        self.execute_batch(p, |_, _, _| {
+            Ok(ResolvedBatchStep {
+                command: commands.next().expect("checked steps"),
+                selection: None,
+            })
+        })
+    }
+    /// Résout des appels portables sur le même brouillon privé que les lots typés.
+    /// Le résolveur ne fait que préparer une commande et une sélection : aucune IO
+    /// d’écriture ne doit y être effectuée. Les familles et identifiants sont
+    /// contrôlés avant toute résolution, puis les résultats sont vérifiés à nouveau.
+    pub fn run_resolved_batch(
+        &mut self,
+        p: BatchParams,
+        mut resolve: impl FnMut(usize, &Engine, &Call) -> Result<ResolvedBatchStep, CommandError>,
+    ) -> Result<Outcome, CommandError> {
+        self.check_batch_header(&p)?;
+        self.check_batch_ids(&p)?;
+        let mut budget = ByteLimit(MAX_BATCH_BYTES);
+        self.execute_batch(p, |index, draft, call| {
+            let resolved = resolve(index, draft, call)?;
+            serde_json::to_writer(&mut budget, &resolved.command)
+                .and_then(|_| serde_json::to_writer(&mut budget, &resolved.selection))
+                .map_err(|_| CommandError::new(ErrorCode::InvalidParams, "batch_size_limit"))?;
+            Ok(resolved)
+        })
+    }
+    fn execute_batch(
+        &mut self,
+        p: BatchParams,
+        mut resolve: impl FnMut(usize, &Engine, &Call) -> Result<ResolvedBatchStep, CommandError>,
+    ) -> Result<Outcome, CommandError> {
         let mut draft: Engine = self.session.fork_for_batch().into();
         draft.selection = self.selection;
         draft.spelling = self.spelling.fork();
         let mut reveal = false;
-        for (index, command) in commands.into_iter().enumerate() {
-            let id = command.id();
-            let outcome = draft.run(command).map_err(|e| step_error(index, id, e))?;
+        for (index, call) in p.steps.iter().enumerate() {
+            let id = call.id.as_str();
+            let resolved = resolve(index, &draft, call).map_err(|e| step_error(index, id, e))?;
+            if resolved.command.id() != id || !resolved.command.batch_step_allowed() {
+                return Err(step_error(
+                    index,
+                    id,
+                    CommandError::new(ErrorCode::Unavailable, "batch_step_forbidden"),
+                ));
+            }
+            if let Some(selection) = resolved.selection {
+                draft
+                    .run(Command::SelectText(SelectTextParams {
+                        target: selection.into(),
+                        part: None,
+                    }))
+                    .map_err(|e| step_error(index, id, e))?;
+            }
+            let outcome = draft
+                .run(resolved.command)
+                .map_err(|e| step_error(index, id, e))?;
             self.check_batch_resources(&draft)
                 .map_err(|e| step_error(index, id, e))?;
             reveal |= outcome.effects.contains(&Effect::RevealSelection);
