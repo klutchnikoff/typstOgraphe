@@ -16,7 +16,7 @@ impl Roots {
                 let root = path
                     .canonicalize()
                     .map_err(|e| CommandError::detail(ErrorCode::InvalidParams, "mcp_root", e))?;
-                if !root.is_dir() {
+                if !root.is_dir() || root.to_str().is_none() {
                     return Err(CommandError::new(ErrorCode::InvalidParams, "mcp_root"));
                 }
                 if !roots.contains(&root) {
@@ -25,10 +25,14 @@ impl Roots {
             }
             Ok(roots)
         }
+        let cwd = std::env::current_dir()
+            .and_then(|p| p.canonicalize())
+            .map_err(|e| CommandError::detail(ErrorCode::Io, "mcp_root", e))?;
+        if cwd.to_str().is_none() {
+            return Err(CommandError::new(ErrorCode::InvalidParams, "mcp_root"));
+        }
         Ok(Self {
-            cwd: std::env::current_dir()
-                .and_then(|p| p.canonicalize())
-                .map_err(|e| CommandError::detail(ErrorCode::Io, "mcp_root", e))?,
+            cwd,
             read: directories(read)?,
             write: directories(write)?,
         })
@@ -74,11 +78,13 @@ impl Roots {
             target.push(name);
         }
         // Une racine remplacée par un lien après le démarrage ne donne aucun droit.
-        if roots.iter().any(|root| {
-            root.is_dir()
-                && root.canonicalize().is_ok_and(|current| current == *root)
-                && target.starts_with(root)
-        }) {
+        if target.to_str().is_some()
+            && roots.iter().any(|root| {
+                root.is_dir()
+                    && root.canonicalize().is_ok_and(|current| current == *root)
+                    && target.starts_with(root)
+            })
+        {
             Ok(target)
         } else {
             denied()

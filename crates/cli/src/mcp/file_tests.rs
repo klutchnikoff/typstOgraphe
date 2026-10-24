@@ -97,6 +97,16 @@ fn symlinks_dangling_links_replaced_roots_and_lock_companions_cannot_escape() {
         assert!(roots.read_file(&path).is_err());
     }
     assert!(roots.document_write(&root.join("letter.typsto")).is_err());
+    use std::os::unix::ffi::OsStringExt;
+    let non_utf8 = root.join(std::ffi::OsString::from_vec(vec![0xff]));
+    assert!(roots.document_write(&non_utf8).is_err());
+    #[cfg(target_os = "linux")]
+    {
+        // APFS ne permet pas de créer ce nom ; ext4 permet de tester l’alias réel.
+        std::fs::write(&non_utf8, "test").unwrap();
+        symlink(&non_utf8, root.join("utf8-alias")).unwrap();
+        assert!(roots.read_file(&root.join("utf8-alias")).is_err());
+    }
     std::fs::rename(&root, dir.path().join("moved")).unwrap();
     symlink(&other, &root).unwrap();
     assert!(roots.write(&root.join("new")).is_err());
