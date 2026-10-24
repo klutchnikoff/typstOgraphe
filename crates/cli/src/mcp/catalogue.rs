@@ -17,7 +17,24 @@ pub fn tools() -> &'static [Tool] {
                 required.retain(|key| key != "guard");
             }
             add_property::<DocumentRef>(&mut schema,"document");
-            add_property::<Target>(&mut schema,"selector");
+            let selector = supports_selector(spec);
+            if selector { add_property::<Target>(&mut schema,"selector"); }
+            // Le résolveur MCP peut fournir ces champs depuis un sélecteur,
+            // et compiler le rendu si l’appelant ne l’a pas fourni.
+            if let Some(required) = schema.get_mut("required").and_then(Value::as_array_mut) {
+                required.retain(|key| key != "render");
+                if selector {
+                    let resolved: Vec<_> = required.iter().filter(|k| matches!(k.as_str(), Some("target" | "issue" | "occurrence"))).cloned().collect();
+                    required.retain(|key| !resolved.contains(key));
+                    if !resolved.is_empty() { schema["oneOf"] = json!([{ "required":resolved }, { "required":["selector"] }]); }
+                }
+            }
+            if selector {
+                let conflicts: Vec<_> = ["target", "issue", "occurrence"].into_iter()
+                    .filter(|key| !schema["properties"][key].is_null())
+                    .map(|key| json!({"not":{"required":["selector",key]}})).collect();
+                if !conflicts.is_empty() {schema["allOf"] = json!(conflicts);}
+            }
             if needs_document(spec) {
                 schema.as_object_mut().expect("object").entry("required")
                     .or_insert_with(|| json!([])).as_array_mut().expect("required").push(json!("document"));
@@ -72,4 +89,10 @@ fn add_property<P: JsonSchema>(schema: &mut Value, name: &str) {
     }
     added.as_object_mut().expect("object").remove("$schema");
     schema["properties"][name] = added;
+}
+
+pub fn supports_selector(spec: &CommandSpec) -> bool {
+    ["target", "occurrence", "issue", "position"]
+        .iter()
+        .any(|key| !spec.params_schema["properties"][key].is_null())
 }

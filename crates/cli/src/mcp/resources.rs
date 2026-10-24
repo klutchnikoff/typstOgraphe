@@ -1,33 +1,45 @@
-use super::INSTRUCTIONS;
+//! Ressources virtuelles uniquement ; aucun URI n’est converti en chemin disque.
 use rmcp::model::Resource;
-use serde_json::json;
-use typstographe_core::{
-    document_types::DocumentType,
-    engine::{Engine, catalogue},
-};
 
+const RESOURCES: [(&str, &str, &str); 5] = [
+    (
+        "guide",
+        "Usage guide",
+        "Session rules, current permissions and discovery workflow.",
+    ),
+    (
+        "types",
+        "Document types",
+        "Fields, defaults, capabilities and brief interchangeable model cards.",
+    ),
+    (
+        "commands",
+        "Documented command catalogue",
+        "Complete capability documentation, effective MCP schemas and current availability/authorization.",
+    ),
+    (
+        "document",
+        "Current document",
+        "Coherent current snapshot: document reference, state, text, structure, metadata and content source. No model source or binary assets.",
+    ),
+    (
+        "models",
+        "Visual model catalogue",
+        "Brief model cards for all types, with the active supplied model identified for the current type.",
+    ),
+];
 pub fn list() -> Vec<Resource> {
-    [
-        ("guide", "Usage guide"),
-        ("types", "Document types and brief model cards"),
-        ("commands", "Command catalogue"),
-    ]
-    .into_iter()
-    .map(|(id, name)| {
-        Resource::new(format!("typstographe://{id}"), name).with_mime_type("application/json")
-    })
-    .collect()
+    RESOURCES
+        .into_iter()
+        .map(|(id, name, description)| {
+            Resource::new(format!("typstographe://{id}"), name)
+                .with_description(description)
+                .with_mime_type("application/json")
+        })
+        .collect()
 }
-pub fn read(uri: &str) -> Option<String> {
-    let value = match uri {
-        "typstographe://guide" => {
-            json!({"instructions":INSTRUCTIONS,"session":"autonomous","permissions":"Call document.inspect and read the outer permissions object. No roots grants no document file access."})
-        }
-        "typstographe://types" => {
-            json!({"types":DocumentType::ALL.map(Engine::type_documentation)})
-        }
-        "typstographe://commands" => json!({"entries":catalogue()}),
-        _ => return None,
-    };
-    Some(serde_json::to_string_pretty(&value).expect("resource"))
+pub fn known(uri: &str) -> bool {
+    RESOURCES
+        .iter()
+        .any(|(id, _, _)| uri == format!("typstographe://{id}"))
 }

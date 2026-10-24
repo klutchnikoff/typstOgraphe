@@ -75,17 +75,7 @@ impl Host {
             }
             "capabilities.describe" => {
                 let p: DescribeCapability = decode(arguments)?;
-                let mut info = Engine::command_documentation(&p.id)?;
-                let spec = typstographe_core::engine::catalogue()
-                    .iter()
-                    .find(|s| s.id.as_str() == p.id)
-                    .expect("described command");
-                info["prototype_support"] = self.policy.support(spec);
-                info["mcp_input_schema"] = catalogue::tools()
-                    .iter()
-                    .find(|t| t.name == p.id)
-                    .map(|t| json!(t.input_schema))
-                    .unwrap_or(Value::Null);
+                let info = self.describe_capability(&p.id)?;
                 (info, None)
             }
             "render.page" => {
@@ -113,6 +103,88 @@ impl Host {
             png,
         })
     }
+    fn describe_capability(&self, id: &str) -> Result<Value, CommandError> {
+        super::documentation::describe(
+            id,
+            &self.engine.query(Query::Commands(Empty {}))?,
+            &self.policy,
+        )
+    }
+    pub fn resource(&self, uri: &str) -> Result<Reply, CommandError> {
+        use typstographe_core::document_types::DocumentType;
+        let outcome = match uri {
+            "typstographe://guide" => {
+                json!({"instructions":super::INSTRUCTIONS,"session":"autonomous",
+                "resources":super::resources::list(),"resource_consistency":"Each read is a current snapshot serialized with tool calls; no subscriptions. Read again after edits. The outer document reference guards subsequent calls."})
+            }
+            "typstographe://types" => {
+                json!({"types":DocumentType::ALL.map(Engine::type_documentation)})
+            }
+            "typstographe://commands" => {
+                let context = self.engine.query(Query::Commands(Empty {}))?;
+                let entries: Vec<_> = typstographe_core::engine::catalogue()
+                    .iter()
+                    .map(|s| s.id.as_str())
+                    .chain([
+                        "document_types.describe",
+                        "capabilities.describe",
+                        "render.page",
+                    ])
+                    .map(|id| super::documentation::describe(id, &context, &self.policy))
+                    .collect::<Result<_, _>>()?;
+                json!({"entries":entries,"tools":catalogue::tools(),
+                    "extra_tools":"document_types.describe, capabilities.describe and render.page are MCP discovery/rasterization helpers; their schemas and descriptions are in tools."})
+            }
+            "typstographe://document" => {
+                let mut snapshot = json!({"state":self.engine.query(Query::Inspect(Empty {}))?,
+                    "text":null,"structure":null,"metadata":null,"source":null});
+                if self.engine.is_open() {
+                    for (key, query) in [
+                        (
+                            "text",
+                            Query::Text(TextQueryParams {
+                                target: TextTarget::All {},
+                            }),
+                        ),
+                        ("structure", Query::Structure(Empty {})),
+                        ("metadata", Query::Metadata(Empty {})),
+                        ("source", Query::Source(Empty {})),
+                    ] {
+                        snapshot[key] = self.engine.query(query)?;
+                    }
+                }
+                snapshot
+            }
+            "typstographe://models" => {
+                let types: Vec<_> = DocumentType::ALL
+                    .into_iter()
+                    .map(|kind| {
+                        let doc = Engine::type_documentation(kind);
+                        json!({"type":kind,"models":doc["models"]})
+                    })
+                    .collect();
+                let active = self.engine.is_open().then(|| {
+                    self.query_response(
+                        "models.list",
+                        self.engine
+                            .query(Query::Models(Empty {}))
+                            .expect("models query"),
+                    )
+                });
+                json!({"types":types,"active_document":active})
+            }
+            _ => {
+                return Err(CommandError::new(
+                    ErrorCode::NotFound,
+                    "mcp_resource_unknown",
+                ));
+            }
+        };
+        Ok(Reply {
+            value: json!({"version":1,"document":self.reference(),"permissions":self.policy.describe(),"outcome":outcome}),
+            png: None,
+        })
+    }
     fn registered(
         &mut self,
         name: &str,
@@ -135,12 +207,7 @@ impl Host {
             catalogue::needs_document(spec)
                 || (matches!(name, "document.new" | "document.open") && self.engine.is_open()),
         )?;
-        let selector: Target = params
-            .remove("selector")
-            .map(serde_json::from_value)
-            .transpose()
-            .map_err(CommandError::invalid)?
-            .unwrap_or_default();
+        let selector = take_selector(spec, &mut params)?;
         if params.contains_key("guard") {
             return Err(CommandError::new(
                 ErrorCode::InvalidParams,
@@ -173,12 +240,7 @@ impl Host {
                         "mcp_step_guard",
                     ));
                 }
-                let selector = params
-                    .remove("selector")
-                    .map(serde_json::from_value)
-                    .transpose()
-                    .map_err(CommandError::invalid)?
-                    .unwrap_or_default();
+                let selector = take_selector(spec, &mut params)?;
                 let selection = prepare(draft, spec, &mut params, selector)?;
                 let mut command = Command::from_call(call.id.as_str(), Value::Object(params))?;
                 self.policy.prepare(draft, &mut command)?;
@@ -215,6 +277,11 @@ impl Host {
                     .find(|s| s.id.as_str() == entry["id"])
                     .expect("registered entry");
                 entry["mcp_support"] = self.policy.support(spec);
+                entry["mcp_input_schema"] = catalogue::tools()
+                    .iter()
+                    .find(|t| t.name == spec.id.as_str())
+                    .map(|t| json!(t.input_schema))
+                    .unwrap_or(Value::Null);
             }
         }
         if name == "models.list" {
@@ -237,6 +304,22 @@ fn decode<P: serde::de::DeserializeOwned>(
 ) -> Result<P, CommandError> {
     serde_json::from_value(Value::Object(arguments)).map_err(CommandError::invalid)
 }
+fn take_selector(
+    spec: &CommandSpec,
+    params: &mut Map<String, Value>,
+) -> Result<Target, CommandError> {
+    let Some(value) = params.remove("selector") else {
+        return Ok(Target::default());
+    };
+    if !catalogue::supports_selector(spec) {
+        return Err(CommandError::new(
+            ErrorCode::InvalidParams,
+            "cli_target_unsupported",
+        ));
+    }
+    serde_json::from_value(value).map_err(CommandError::invalid)
+}
+
 fn prepare(
     engine: &Engine,
     spec: &CommandSpec,

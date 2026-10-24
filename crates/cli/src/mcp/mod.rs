@@ -1,5 +1,6 @@
 //! Transport MCP uniquement en aval du cœur. Le worker possède sa session.
 mod catalogue;
+mod documentation;
 mod host;
 mod policy;
 mod resources;
@@ -10,11 +11,19 @@ use serde_json::{Map, Value, json};
 use tokio::sync::{mpsc, oneshot};
 use typstographe_core::engine::CommandError;
 
-const INSTRUCTIONS: &str = "Discover document_types.list, then document_types.describe and capabilities.describe. Models are interchangeable visual presentations of a type. Start with document.new or document.open; pass the outer document reference from the latest response to every documentary call, including replacement. Put literal prose in text.insert and use formatting tools; do not write Typst markup. Each response includes server permissions: read/write roots are independent, paths are relative to the server launch directory, parent components are refused and symlinks are resolved. No roots means no document file access. Writable open needs both read and write authorization and reserves a cooperative writer lock; if locked, open read_only=true to read the last saved snapshot, then save_as an authorized separate copy to edit. A globally read-only server allows only queries, read-only opening and closing. Edits remain in memory; saving is explicit, export is separate and never marks the document saved. document.batch edits atomically and can be undone once, with an optional final save; failure publishes no edits. Step guards are filled by the server. Steps may use params.selector on the evolving draft; file operations are forbidden inside steps. Reads, validation, spelling and inline PNG rendering never correct or save text. Refresh document.inspect after a stale-reference error. No recovery, network or subprocess tools; no GUI attachment in phase 5. No skill or repository access is required.";
+const INSTRUCTIONS: &str = "Discover document_types.list, then document_types.describe and capabilities.describe. Models are interchangeable visual presentations of a type. Start with document.new or document.open; pass the outer document reference from the latest response to every documentary call, including replacement. Put literal prose in text.insert and use formatting tools; do not write Typst markup. Each response includes server permissions: read/write roots are independent, paths are relative to the server launch directory, parent components are refused and symlinks are resolved. No roots means no document file access. Writable open needs both read and write authorization and reserves a cooperative writer lock; if locked, open read_only=true to read the last saved snapshot, then save_as an authorized separate copy to edit. A globally read-only server allows only queries, read-only opening and closing. Edits remain in memory; saving is explicit, export is separate and never marks the document saved. document.batch edits atomically and can be undone once, with an optional final save; failure publishes no edits. Step guards are filled by the server. Steps may use params.selector on the evolving draft; file operations are forbidden inside steps. Reads, validation, spelling and inline PNG rendering never correct or save text. Refresh document.inspect after a stale-reference error. No recovery, network or subprocess tools; no GUI attachment in phase 5. Resources typstographe://guide, types, commands, document and models provide current serialized snapshots; read them again after edits, as subscriptions are not advertised. Capability examples contain params and bindings: replace listed null references with actual current results before calling. Effective MCP schemas are authoritative. No skill or repository access is required.";
 
+enum Operation {
+    Tool {
+        name: String,
+        arguments: Map<String, Value>,
+    },
+    Resource {
+        uri: String,
+    },
+}
 struct Request {
-    name: String,
-    arguments: Map<String, Value>,
+    operation: Operation,
     reply: oneshot::Sender<Result<types::Reply, CommandError>>,
 }
 #[derive(Clone)]
@@ -32,7 +41,10 @@ impl Server {
                 while let Some(request) = receiver.blocking_recv() {
                     // Un appel annulé avant son exécution n’a aucun effet.
                     if !request.reply.is_closed() {
-                        let result = host.dispatch(&request.name, request.arguments);
+                        let result = match request.operation {
+                            Operation::Tool { name, arguments } => host.dispatch(&name, arguments),
+                            Operation::Resource { uri } => host.resource(&uri),
+                        };
                         let _ = request.reply.send(result);
                     }
                 }
@@ -44,16 +56,7 @@ impl Server {
         name: String,
         arguments: Map<String, Value>,
     ) -> Result<CallToolResult, ErrorData> {
-        let (reply, response) = oneshot::channel();
-        self.sender
-            .send(Request {
-                name,
-                arguments,
-                reply,
-            })
-            .await
-            .map_err(|_| internal())?;
-        let result = response.await.map_err(|_| internal())?;
+        let result = self.request(Operation::Tool { name, arguments }).await?;
         Ok(match result {
             Ok(reply) => {
                 let mut result = CallToolResult::structured(reply.value);
@@ -70,6 +73,17 @@ impl Server {
                 json!({"version":1,"ok":false,"error":{"code":error.code,"params":error.params,"message":typstographe_i18n::command_error(&error)}}),
             ),
         })
+    }
+    async fn request(
+        &self,
+        operation: Operation,
+    ) -> Result<Result<types::Reply, CommandError>, ErrorData> {
+        let (reply, response) = oneshot::channel();
+        self.sender
+            .send(Request { operation, reply })
+            .await
+            .map_err(|_| internal())?;
+        response.await.map_err(|_| internal())
     }
 }
 impl ServerHandler for Server {
@@ -126,9 +140,15 @@ impl ServerHandler for Server {
     }
     async fn list_resources(
         &self,
-        _: Option<PaginatedRequestParams>,
+        request: Option<PaginatedRequestParams>,
         _: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, ErrorData> {
+        if request.is_some_and(|r| r.cursor.is_some()) {
+            return Err(ErrorData::invalid_params(
+                "No resource pagination cursor is issued",
+                None,
+            ));
+        }
         Ok(ListResourcesResult {
             resources: resources::list(),
             ..Default::default()
@@ -139,8 +159,24 @@ impl ServerHandler for Server {
         request: ReadResourceRequestParams,
         _: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResponse, ErrorData> {
-        let value = resources::read(&request.uri)
-            .ok_or_else(|| ErrorData::invalid_params("Unknown typstographe resource", None))?;
+        if !resources::known(&request.uri) {
+            return Err(ErrorData::resource_not_found(
+                "Unknown typstographe resource",
+                Some(json!({"uri":request.uri})),
+            ));
+        }
+        let reply = self
+            .request(Operation::Resource {
+                uri: request.uri.clone(),
+            })
+            .await?
+            .map_err(|error| {
+                ErrorData::internal_error(
+                    typstographe_i18n::command_error(&error),
+                    Some(json!({"code":error.code,"params":error.params})),
+                )
+            })?;
+        let value = serde_json::to_string_pretty(&reply.value).map_err(|_| internal())?;
         Ok(ReadResourceResult::new(vec![
             ResourceContents::text(value, request.uri).with_mime_type("application/json"),
         ])
@@ -174,3 +210,7 @@ mod tests;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod file_tests;
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod documentation_tests;

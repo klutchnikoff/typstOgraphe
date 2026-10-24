@@ -120,11 +120,10 @@ fn types_and_models_are_self_describing_without_exposing_a_model_contract() {
     );
     assert_eq!(denied["outcome"]["prototype_support"]["exposed"], true);
     assert_eq!(denied["outcome"]["prototype_support"]["authorized"], false);
-    assert_eq!(resources::list().len(), 3);
-    let types: Value =
-        serde_json::from_str(&resources::read("typstographe://types").unwrap()).unwrap();
-    assert_eq!(types["types"][0]["id"], "courrier");
-    assert!(resources::read("file:///etc/passwd").is_none());
+    assert_eq!(resources::list().len(), 5);
+    let types = host.resource("typstographe://types").unwrap().value;
+    assert_eq!(types["outcome"]["types"][0]["id"], "courrier");
+    assert!(!resources::known("file:///etc/passwd"));
 }
 
 #[test]
