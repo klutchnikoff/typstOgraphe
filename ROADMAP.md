@@ -80,7 +80,10 @@ persistante de modèles restent à développer.
   exports puis réouverture native vérifiés. Dernier lot : rendu d’une page en PNG,
   retrait du diagnostic `--render-demo` et préparation des références par la CLI ;
   les huit captures restent strictement identiques. La phase suivante est MCP,
-  avec ses choix principaux à valider ensemble avant implémentation.
+  dont les choix ont été validés : outils issus du registre, découverte documentée
+  sans skill requis, modèles décrits par nom/description/mots-clés, session autonome
+  et éditions gardées. **Phase 5 en cours : prototype `rmcp` stdio.** La phase 6
+  aura pour objectif l’assistance à la composition dans la session de l’application.
   Choix validés et état détaillé dans [le bilan](docs/architecture-phase-4.md).
 
 - **Étape 1 — Récupération : implémentée ; essai utilisateur fait.** Les choix

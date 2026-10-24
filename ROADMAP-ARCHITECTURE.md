@@ -126,7 +126,7 @@ Fuites à traiter avant tout découpage en crates :
 | D11 | MCP | **Validée le 21 octobre 2026.** SDK Rust officiel `rmcp` après un prototype d'une journée qui vérifie : liste d'outils dynamique dérivée du registre, taille du binaire, temps de compilation, version courante de l'API (versions majeures successives constatées sur docs.rs). `tokio` uniquement dans la CLI. Repli : JSON-RPC minimal sur stdio. Transport stdio d'abord | 5 |
 | D12 | Sécurité MCP par défaut | **Validée le 21 octobre 2026.** Aucun accès aux fichiers hors racines déclarées (`--read-root`, `--write-root` séparées), enregistrement explicite, mode `--read-only`, aucune action réseau | 5 |
 | D13 | Seuils de lint | **Validée le 21 octobre 2026.** `clippy::too_many_lines` à 120 (`clippy.toml`) ; fichier de production maximal 800 lignes, contrôlé par un script de CI (tests exclus), en avertissement à la fin de la phase 1 et bloquant en phase 7 | 1, 7 |
-| D14 | Canal de contrôle de l'application en cours d'exécution | **Validée le 21 octobre 2026.** Reporté ; à rouvrir après la phase 5 seulement si un besoin de test visuel automatisé ou d'essais assistés apparaît | 6 |
+| D14 | Assistance dans l'application en cours d'exécution | **Complétée le 24 octobre 2026.** La phase 6 a pour objectif l’assistance à la composition dans la session de l’application. L’agent rejoindra le même moteur via un canal local ; il n’ouvrira pas une seconde copie du fichier. La phase 5 reste autonome et prépare cette frontière, sans implémenter le canal | 5, 6 |
 | D15 | Historique | **Validée après relecture.** Une mutation documentaire validée constitue une transaction ; sélection, navigation, recherche et enregistrement n’ajoutent pas d’étape d’annulation. La frappe conserve ses groupes naturels ; un lot d’édition se défait en une étape | 2 |
 | D16 | Atomicité des lots | **Validée après relecture.** D’abord un document, modifié sur une session temporaire puis enregistré une seule fois par écriture atomique. Les étapes ne peuvent ni enregistrer ni exporter, ni modifier le profil ou le dictionnaire global. Export et autres effets externes sont des opérations séparées ; une atomicité multi-fichiers demanderait une autre décision | 2, 4, 5 |
 | D17 | Saisie native | **Validée après relecture.** L’adaptateur egui peut préparer une édition native, mais validation, normalisation, révision et historique utilisent la même voie du cœur que les commandes. Une erreur ne publie aucune mutation partielle ; tests de parité avec `text.insert` | 2 |
@@ -137,6 +137,10 @@ Fuites à traiter avant tout découpage en crates :
 | D22 | Précisions de phase 3 | **Validées le 24 octobre 2026.** Gestion et persistance du profil personnel avec les préférences dans l’application ; le cœur ne reçoit que des valeurs et ressources explicites. Confirmer le repli anglais de D7, dans un commit distinct lors de l’extraction i18n. Trois crates livrées en phase 3 (`core`, `i18n`, application), CLI/MCP dans les phases 4/5, sans crate vide anticipée | 3, 4, 5 |
 | D23 | Contrat CLI | **Validé le 24 octobre 2026.** Une invocation indépendante de l’UI ; commandes de confort et entrées `query`/`run` dérivées du registre. Sauvegarde explicite avec `--save` ou `--output`, destination existante refusée par défaut ; export vers un répertoire absent ou vide. Scripts JSON versionnés, étapes `{id, params}`, chemins relatifs au script, un document et une sauvegarde atomique finale, export séparé. `check` distingue validité, préparation à l’export et orthographe facultative. JSON version 1, langue système/repli anglais/`--lang`, aucun profil GUI implicite | 4 |
 | D24 | Accès concurrents aux fichiers locaux | **Validé le 24 octobre 2026.** Un seul détenteur du verrou d’écriture, conservé pendant la session ; lectures de la dernière version enregistrée autorisées. Compagnon stable verrouillé par le système, libération à la fermeture ou au plantage, empreinte SHA-256 vérifiée avant sauvegarde. Ouverture GUI en lecture seule proposée en cas de verrou ; copie vers un autre fichier possible. La politique des sessions d’agents MCP sera définie en phase 5 | 4, 5 |
+| D25 | Découverte et documentation MCP | **Validée le 24 octobre 2026.** Outils explicites générés depuis le registre, liste stable ; disponibilité contextuelle décrite séparément. Découverte progressive des types, champs, capacités et exemples par outils, avec ressources complémentaires. Documentation commune aux adaptateurs, pas de registre parallèle ni de skill requis pour utiliser le logiciel | 5 |
+| D26 | Modèles dans MCP | **Validée le 24 octobre 2026.** Fiche succincte : identifiant, nom, type, description et mots-clés. Les modèles d’un même type sont interchangeables ; champs et capacités appartiennent au type, le modèle ne change que la présentation. Pas de contrat technique de modèle à apprendre par l’agent | 5 |
+| D27 | Session documentaire MCP | **Validée le 24 octobre 2026.** Un document en mémoire par processus MCP, indépendant de l’application, identifié explicitement dans les appels documentaires. Ouverture éditable sous verrou ; lecture/copie si le fichier est déjà réservé. Aucun enregistrement implicite. Le rattachement futur à l’application passe par la frontière d’adaptation, pas par le chemin du fichier | 5, 6 |
+| D28 | Éditions et résultats MCP | **Validée le 24 octobre 2026.** Cibles logiques et révisions gardées, recherche exacte et refus des références périmées. Texte littéral et commandes de mise en forme ; transactions individuelles ou lots atomiques annulables en une fois. Sauvegarde finale de lot explicite facultative, export distinct. Résultats structurés avec résumé ; contrôle séparé de validité, champs requis, orthographe facultative sans correction automatique, et aperçu PNG en mémoire. Acceptation sans skill ni lecture du dépôt | 5 |
 
 
 ## 4. Vue d'ensemble
@@ -744,6 +748,12 @@ exports PDF/Typst et rendu PNG dédié, identique au PNG de la même page export
 
 **But** : un assistant IA pilote le moteur par le même registre, avec des garde-fous.
 
+**Choix validés le 24 octobre 2026 : D25 à D28.** Premier lot : prototype `rmcp`
+sur stdio, catalogue généré, découverte documentée et session en mémoire. Le
+prototype refuse les accès documentaires au système de fichiers ; les racines,
+ouvertures et sauvegardes/export sous permissions seront un lot distinct après
+validation de la faisabilité du SDK. Suivi : [bilan de phase 5](docs/architecture-phase-5.md).
+
 ### 5.1 Choix de la mise en œuvre (D11)
 
 - [ ] Prototype d'une journée avec `rmcp` (D11) : consulter d'abord la documentation de
@@ -762,13 +772,13 @@ exports PDF/Typst et rendu PNG dédié, identique au PNG de la même page export
 | Outil | Rôle |
 | --- | --- |
 | `list_commands`, `describe_command` | catalogue et schémas |
-| `execute`, `batch` | une commande ; lot d’édition d’un document sur copie temporaire, validé et annulable en une étape (D16) |
+| outils nommés d’après le registre, `document.batch` | commandes explicites et lot d’édition atomique ; pas d’outil `execute` opaque comme seule interface |
 | `new_document`, `open_document`, `save_document`, `export` | cycle de vie |
 | `get_document` | structure : blocs, plages, styles, métadonnées |
 | `get_text` | texte brut avec indices de caractères |
 | `check_document` | orthographe, champs requis, validité du modèle |
 | `render_page` | page en PNG |
-| `list_models` | modèles et paramètres disponibles |
+| `list_models` | fiches visuelles : nom, description et mots-clés ; le contrat documentaire appartient au type |
 
 - [ ] Ressources : `typstographe://document`, `typstographe://commands`, `typstographe://models`.
 - [ ] Les erreurs MCP reprennent les codes de `CommandError`, lisibles et corrigeables
@@ -810,12 +820,15 @@ liens résolus avant contrôle, enregistrement explicite). À notre manière :
 
 ---
 
-## Phase 6 — Canal de contrôle de l'application (facultatif, D14)
+## Phase 6 — Assistance à la composition dans l’application (D14)
 
-Reporté. À décider après la phase 5, seulement si un besoin concret apparaît :
-connexion de la CLI ou de MCP à l'application en cours d'exécution (boucle locale, clé de
-contrôle, captures d'écran, clics et touches pour tests de bout en bout et essais
-assistés). Ne rien construire avant d'avoir tranché.
+Objectif validé le 24 octobre 2026 : rattacher l’agent au document ouvert et au même
+moteur en mémoire, via un canal local contrôlé. Les révisions protègent la frappe
+de l’utilisateur ; les modifications sont visibles et annulables. Aucun deuxième
+écrivain ne contourne le verrou du fichier. La session MCP autonome de phase 5 et
+la session rattachée réutilisent les mêmes capacités et leur documentation.
+Le transport local et les interactions précises seront validés avant cette phase ;
+aucun pilotage de fenêtre ou accès au moteur de l’application n’est ajouté en phase 5.
 
 ---
 
