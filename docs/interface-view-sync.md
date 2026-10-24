@@ -160,9 +160,12 @@ du coordinateur ne remplace pas le contrôle du focus et de la géométrie natif
 
 ## Choix à reprendre ensemble
 
-Les points suivants sont des conséquences de l'inventaire, pas de nouvelles
-décisions validées. Ils séparent l'extraction à comportement constant des politiques
-nécessaires à l'assistance dans une session réellement partagée.
+Les points ci-dessous conservent les questions relevées en K.1. Les choix de
+périmètre, contextes, concurrence, focus/navigation et interruptions ont depuis
+été validés : D31 à D33 et la liste de phase 6 dans
+[la feuille de route](../ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).
+Le transport, le rattachement et la revalidation des décisions différées restent
+à préciser. Les choix de phase 6 ne sont pas implémentés par K.2.
 
 | Étape | Choix à préciser avant le code concerné | Base observée |
 | --- | --- | --- |
@@ -177,5 +180,5 @@ nécessaires à l'assistance dans une session réellement partagée.
 
 L'inventaire ne choisit ni le transport local, ni une cible WASM, ni un protocole
 d'éditeur web. Il ne remet pas en cause le registre typé, les lots atomiques et
-les gardes déjà livrés. La prochaine décision porte sur le périmètre concret de
-K.2 et son articulation avec la phase 6, à partir de ces observations.
+les gardes déjà livrés. Le périmètre de K.2 est validé ; les questions techniques
+de rattachement de phase 6 seront précisées après la coordination des vues.

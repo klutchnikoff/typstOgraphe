@@ -150,6 +150,9 @@ Fuites à traiter avant tout découpage en crates :
 | D28 | Éditions et résultats MCP | **Validée le 24 octobre 2026.** Cibles logiques et révisions gardées, recherche exacte et refus des références périmées. Texte littéral et commandes de mise en forme ; transactions individuelles ou lots atomiques annulables en une fois. Sauvegarde finale de lot explicite facultative, export distinct. Résultats structurés avec résumé ; contrôle séparé de validité, champs requis, orthographe facultative sans correction automatique, et aperçu PNG en mémoire. Acceptation sans skill ni lecture du dépôt | 5 |
 | D29 | Contrat d'interaction commun aux interfaces | **Validée avec précisions le 24 octobre 2026.** Les interfaces réutilisent le contrat documentaire commun : `Call` → `Outcome`, `query_call`, `available()`, `Effect`. Validation et résolution des cibles appartiennent au moteur. Les règles communes de coordination des vues peuvent appartenir à un composant distinct du cœur, sans dépendance graphique ; focus, attente du placement visuel, défilement en pixels, saisie/IME et dessin restent dans l'adaptateur. Pas de trait « UI » symétrique : le moteur répond par des données ; le réveil reste le rappel de D8. `NativeEdit` (D17) reste un mécanisme de saisie en mémoire, construit par chaque adaptateur, sans devenir un format réseau. Cœur web côté client en WASM ou côté serveur : choix ultérieur, aucun des deux n'est imposé par ce contrat | K |
 | D30 | Coordination de la vue (synchronisation source ↔ aperçu) | **Validée avec précisions le 24 octobre 2026.** Les primitives existent dans le cœur (`locate` avec `ToPreview`/`ToSource`, `selection_boxes`, `target_guard`, `RenderReference`). L'inventaire recense l'orchestration encore dans egui (`forward_pending`, `editor_scroll_pending`, validité du rendu, surbrillances, choix de cible), notamment dans `engine.rs`, `ime.rs`, `files.rs`, `search.rs`, `editor_view.rs`, `preview.rs`, `setup.rs`. Les règles communes sont extraites dans un composant pur du cœur, distinct du moteur documentaire, nommé provisoirement `ViewSync`, avec **une instance par vue**. Événements envisagés : `SelectionChanged`, `DocumentReplaced`, `RenderInstalled`, `PreviewClicked` ; sorties en données : `RevealInPreview { page, point }`, `RevealInEditor { cible }`, `Highlights(boîtes)`. Un rendu périmé diffère l'action et conserve la demande jusqu'au rendu à jour ; le clic dans l'aperçu annule le retour inverse. Les effets `Render` et `RevealSelection` alimentent la coordination. La CLI autonome n'a pas besoin d'état de vue. **Aucun changement de comportement** dans l'extraction : reprendre les règles actuelles, les tester sans egui, conserver les captures | K |
+| D31 | Périmètre concret de la coordination | **Validé le 24 octobre 2026 après K.1.** `ViewSync` coordonne sélection, révélation et surbrillances, avec l'origine des actions. Publications documentaires, sélections, demandes explicites, remplacement et résultats de rendu sont distincts. Temporisation, planification et exécution des services restent hors du composant. K.2 livre le composant pur et ses tests ; K.3 branche egui à comportement constant | K.2, K.3 |
+| D32 | Contextes et concurrence dans l'application | **Validés le 24 octobre 2026.** Un contexte d'édition par participant (sélection et style de frappe), un document, ses révisions et son historique communs. Une sélection confiée à l'agent est capturée à la demande. Les éditions ou lots sont atomiques et refusés si la garde complète a changé ; l'agent relit et recalcule, sans fusion automatique. Les positions de l'utilisateur sont reportées à travers les transactions ; une suppression de leur passage les ramène à la fin du remplacement | 6 |
+| D33 | Focus, navigation et interruptions de l'assistance | **Validés le 24 octobre 2026.** Une édition d'agent conserve le champ actif, le style utilisateur et sa navigation. Notification discrète et action volontaire « Voir » vers une cible gardée, avec repérage temporaire distinct de la sélection. Lectures du texte publié possibles pendant IME/modalité ; mutations temporairement refusées, sans application différée implicite. La saisie native est publiée avant examen de la demande. Ancienne session et résultat tardif d'une demande annulée sont refusés ; une édition déjà publiée relève de l'historique commun | 6 |
 
 
 ## 4. Vue d'ensemble
@@ -885,15 +888,41 @@ moteur en mémoire, via un canal local contrôlé. Les révisions protègent la 
 de l’utilisateur ; les modifications sont visibles et annulables. Aucun deuxième
 écrivain ne contourne le verrou du fichier. La session MCP autonome de phase 5 et
 la session rattachée réutilisent les mêmes capacités et leur documentation.
-Le transport local et les interactions précises seront validés avant cette phase ;
-aucun pilotage de fenêtre ou accès au moteur de l’application n’est ajouté en phase 5.
+L'[inventaire K.1](docs/interface-interactions.md) est terminé. Les choix de
+contextes, concurrence et interactions sont validés (D32, D33) ; ils restent à
+implémenter en phase 6. Le transport local et les modalités de rattachement restent
+à préciser ensemble. Aucun accès au moteur de l'application n'est livré par K.2.
 
-L'[inventaire K.1](docs/interface-interactions.md) est terminé. Les
-[choix issus du relevé](docs/interface-view-sync.md#choix-à-reprendre-ensemble)
-restent à valider : sélection et style de frappe de l'agent, révélation/focus,
-intervention pendant l'IME ou un dialogue, revalidation des décisions différées
-et point d'application commun. Une instance de coordination par vue ne crée pas
-à elle seule plusieurs sélections dans le moteur actuel.
+- [ ] Contextes d'édition séparés : sélection et style de frappe propres à
+  l'utilisateur et à l'agent. Une sélection transmise est capturée à la demande,
+  sans suivre ensuite les déplacements de l'utilisateur.
+- [ ] Concurrence stricte : garde d'identité et de révision vérifiée pour chaque
+  commande/lot ; état périmé refusé, avec relecture avant une nouvelle tentative.
+  Les commandes rejoignent un point d'exécution commun, après publication des
+  entrées natives, et leurs effets sont adaptés une seule fois selon leur origine.
+- [ ] Reporter les positions utilisateur à travers les transactions, y compris
+  celles utilisées pour conserver le passage visible. Si le passage contenant
+  le curseur est supprimé, le replacer à la fin du remplacement.
+- [ ] Conserver focus, style de frappe et navigation utilisateur pendant une
+  intervention ; actualiser le rendu sans défiler vers la sélection de l'agent.
+  Notification discrète et bouton « Voir » volontaire : révéler dans les deux
+  panneaux, focaliser l'éditeur, repérer temporairement sans modifier la sélection.
+  Revalider la cible au clic ; une cible périmée est signalée sans approximation.
+- [ ] Pendant préédition IME ou dialogue modal, autoriser les lectures du texte
+  publié et refuser temporairement les mutations. Pas de file d'attente qui
+  appliquerait silencieusement la demande à la levée de l'interruption.
+- [ ] Refuser les demandes visant un document fermé/remplacé ; ignorer les
+  résultats tardifs d'une demande annulée. Une édition déjà publiée s'annule par
+  l'historique, pas par l'annulation rétroactive de la demande.
+- [ ] Historique chronologique commun : un lot cohérent d'agent forme une étape,
+  séparée des groupes de frappe. Les frappes ultérieures de l'utilisateur se
+  défont avant ce lot. Identifier l'origine de l'intervention.
+- [ ] Préciser puis implémenter le rattachement local à la session et la
+  revalidation des décisions différées, notamment une confirmation d'abandon.
+
+Ces choix demandent un travail propre au moteur : un coordinateur par vue ne
+crée pas à lui seul les contextes séparés ni le report des positions. K.2 prépare
+la coordination ; K.3 conserve le comportement de l'utilisateur local existant.
 
 ---
 
@@ -938,9 +967,9 @@ pour l'assistance seront décidées ensemble avant le code concerné.
 
 ### K.2 Composant de coordination (taille M)
 
-- [ ] Valider les événements et le périmètre concret à partir des
+- [x] Valider les événements et le périmètre concret à partir des
   [choix relevés en K.1](docs/interface-view-sync.md#choix-à-reprendre-ensemble),
-  notamment la frontière entre navigation et planification du rendu.
+  notamment la frontière entre navigation et planification du rendu (D31).
 - [ ] Définir dans le cœur les événements d'entrée et les actions de vue de sortie
   (D30), en données sérialisables sans type egui, pour un composant par vue distinct
   du moteur. `NativeEdit` reste un brouillon opaque en mémoire, pas un contrat réseau.

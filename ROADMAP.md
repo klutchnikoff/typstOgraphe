@@ -93,9 +93,12 @@ persistante de modèles restent à développer.
   le courrier réel devient un scénario de régression. **K.1 terminé le 24 octobre 2026 :**
   [inventaire des interactions](docs/interface-interactions.md) et
   [relevé des états et transitions](docs/interface-view-sync.md), sans changement
-  de code. Prochaine étape : valider ensemble le périmètre de K.2 et préciser la
-  phase 6, notamment la sélection de l'agent, le focus et l'IME. La phase 6 aura
-  pour objectif l’assistance à la composition dans la session de l’application.
+  de code. **Choix K.2 et interactions de phase 6 validés :** coordination pure,
+  contextes d'édition séparés, concurrence stricte, conservation du focus et de
+  la navigation, refus temporaire des mutations pendant IME/modalité. K.2 commence
+  par le composant et ses tests, avant son branchement egui en K.3. La phase 6
+  réalisera l'assistance à la composition dans la session de l'application ;
+  le transport et les modalités de rattachement restent à préciser.
   État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),
   décisions et lots MCP dans [celui de phase 5](docs/architecture-phase-5.md).
 
