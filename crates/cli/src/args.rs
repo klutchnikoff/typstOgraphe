@@ -21,6 +21,11 @@ pub enum Language {
 
 #[derive(Subcommand)]
 pub enum Action {
+    #[command(about = tr!("cli-mcp-help"))]
+    Mcp {
+        #[arg(long, help = tr!("cli-mcp-read-only-help"))]
+        read_only: bool,
+    },
     #[command(about = tr!("cli-render-help"))]
     Render {
         file: PathBuf,
@@ -102,7 +107,7 @@ pub struct Parameters {
     pub params_file: Option<PathBuf>,
 }
 
-#[derive(Args, Clone, Default, serde::Deserialize)]
+#[derive(Args, Clone, Default, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct Target {
     #[arg(long, conflicts_with = "block", help = tr!("cli-select-help"))]

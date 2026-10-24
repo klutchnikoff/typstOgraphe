@@ -3,6 +3,7 @@
 pub mod args;
 mod calls;
 mod creation;
+pub mod mcp;
 mod output;
 mod parameters;
 mod paths;
@@ -23,6 +24,10 @@ pub struct Report {
 
 pub fn execute(cli: Cli) -> Result<Report, CommandError> {
     match cli.action {
+        Action::Mcp { .. } => Err(CommandError::new(
+            ErrorCode::Unavailable,
+            "mcp_stdio_required",
+        )),
         Action::Render { file, page, png } => render::execute(file, page, png),
         Action::Script { file } => script::execute(file),
         Action::Query {

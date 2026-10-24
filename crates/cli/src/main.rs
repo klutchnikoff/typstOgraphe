@@ -53,6 +53,22 @@ fn main() -> ExitCode {
         }
     };
     let json_output = cli.json;
+    if let typstographe_cli::args::Action::Mcp { read_only } = cli.action {
+        let language = cli.lang.unwrap_or(typstographe_cli::args::Language::En);
+        i18n::initialize(&[match language {
+            typstographe_cli::args::Language::Fr => "fr",
+            typstographe_cli::args::Language::En => "en",
+        }
+        .parse()
+        .expect("MCP language")]);
+        return match typstographe_cli::mcp::serve(read_only) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                let _ = writeln!(io::stderr().lock(), "{error}");
+                ExitCode::from(3)
+            }
+        };
+    }
     let (exit, value, text) = match typstographe_cli::execute(cli) {
         Ok(report) => (
             report.exit,
