@@ -16,7 +16,7 @@ use std::{
 };
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
-use typstographe_core::engine::{Engine, TargetGuard};
+use typstographe_core::engine::{EditContext, Engine, TargetGuard};
 
 /// Explicit read-only invitation for one in-memory document, consumed by one client.
 /// Dropping it revokes the channel and removes its private invitation file.
@@ -27,9 +27,10 @@ pub struct LocalSession {
     status: Arc<AtomicU8>,
     guard: TargetGuard,
     id: String,
+    context: EditContext,
 }
 impl LocalSession {
-    pub fn start(engine: &Engine, wake: Arc<dyn Fn() + Send + Sync>) -> io::Result<Self> {
+    pub fn start(engine: &mut Engine, wake: Arc<dyn Fn() + Send + Sync>) -> io::Result<Self> {
         if !engine.is_open() {
             return Err(io::Error::other("No document open"));
         }
@@ -60,6 +61,11 @@ impl LocalSession {
                 }
             })?;
         started.recv().map_err(io::Error::other)??;
+        // A context has no source, revision, history or focus effects. Its lifetime
+        // is tied to this invitation, never to an individual incoming request.
+        let context = engine
+            .create_edit_context(engine.target_guard(), None)
+            .map_err(io::Error::other)?;
         Ok(Self {
             invitation,
             receiver,
@@ -67,6 +73,7 @@ impl LocalSession {
             status,
             guard: engine.target_guard(),
             id: uuid::Uuid::new_v4().to_string(),
+            context,
         })
     }
     pub fn invitation_path(&self) -> &Path {
@@ -96,12 +103,12 @@ impl LocalSession {
             if request.reply.is_closed() || self.shutdown.is_cancelled() {
                 continue;
             }
-            let result = Host::attached(engine, self.id.clone()).and_then(|mut host| match request
-                .operation
-            {
-                Operation::Tool { name, arguments } => host.dispatch(&name, arguments),
-                Operation::Resource { uri } => host.resource(&uri),
-            });
+            let result = Host::attached(engine, self.id.clone(), self.context.clone()).and_then(
+                |mut host| match request.operation {
+                    Operation::Tool { name, arguments } => host.dispatch(&name, arguments),
+                    Operation::Resource { uri } => host.resource(&uri),
+                },
+            );
             let _ = request.reply.send(result);
         }
         true

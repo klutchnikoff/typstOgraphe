@@ -158,6 +158,7 @@ impl App {
         let editor_style = frame.style;
         let before = &frame.before;
         let old_range = frame.old_range;
+        self.remember_visible_editor_position(ui, &output);
         let clicked_term =
             editor::paint_decorations(ui, &draft.view, &output, editor_style, background);
         self.scroll_ime(ui, &output);

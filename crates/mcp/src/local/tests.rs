@@ -20,7 +20,10 @@ fn borrowed_reads_share_the_published_engine_and_refuse_every_command() {
     let mut engine = engine();
     let before = engine.query(Query::Inspect(Empty {})).unwrap();
     let source = engine.document().source().to_owned();
-    let mut host = Host::attached(&mut engine, "test-attachment".into()).unwrap();
+    let context = engine
+        .create_edit_context(engine.target_guard(), None)
+        .unwrap();
+    let mut host = Host::attached(&mut engine, "test-attachment".into(), context.clone()).unwrap();
     let inspect = run(&mut host, "document.inspect", json!({})).unwrap().value;
     assert_eq!(inspect["outcome"], before);
     assert_eq!(inspect["permissions"]["session_mode"], "attached");
@@ -59,8 +62,11 @@ fn borrowed_reads_share_the_published_engine_and_refuse_every_command() {
 #[test]
 fn attachment_references_expire_when_user_edits_but_inspect_can_refresh() {
     let mut engine = engine();
+    let context = engine
+        .create_edit_context(engine.target_guard(), None)
+        .unwrap();
     let reference = run(
-        &mut Host::attached(&mut engine, "same".into()).unwrap(),
+        &mut Host::attached(&mut engine, "same".into(), context.clone()).unwrap(),
         "document.inspect",
         json!({}),
     )
@@ -74,7 +80,7 @@ fn attachment_references_expire_when_user_edits_but_inspect_can_refresh() {
             input_rules: InputRules::Literal,
         }))
         .unwrap();
-    let mut host = Host::attached(&mut engine, "same".into()).unwrap();
+    let mut host = Host::attached(&mut engine, "same".into(), context.clone()).unwrap();
     assert_eq!(
         run(
             &mut host,
@@ -99,9 +105,74 @@ fn attachment_references_expire_when_user_edits_but_inspect_can_refresh() {
 }
 
 #[test]
+fn attached_reads_use_a_persistent_independent_context_and_never_the_user_selection() {
+    let mut engine = engine();
+    engine
+        .run(Command::SelectText(SelectTextParams {
+            target: TextTarget::All {},
+            part: None,
+        }))
+        .unwrap();
+    engine
+        .run(Command::Bold(StyleParams {
+            target: Default::default(),
+            value: StyleValue::On,
+        }))
+        .unwrap();
+    let user = engine.primary_context().unwrap();
+    assert!(user.typing_style.bold);
+    let context = engine
+        .create_edit_context(engine.target_guard(), None)
+        .unwrap();
+    {
+        let mut host = Host::attached(&mut engine, "context-test".into(), context.clone()).unwrap();
+        let inspect = run(&mut host, "document.inspect", json!({})).unwrap().value;
+        assert_ne!(inspect["outcome"]["selection"], json!(user.selection));
+        assert_eq!(inspect["outcome"]["typing_style"]["bold"], false);
+        let reference = &inspect["document"];
+        let text = run(
+            &mut host,
+            "document.text",
+            json!({"document":reference,"target":{"kind":"current"}}),
+        )
+        .unwrap()
+        .value;
+        assert_eq!(text["outcome"]["text"], "");
+        let resource = host.resource("typstographe://document").unwrap().value;
+        assert_eq!(
+            resource["outcome"]["state"]["selection"],
+            inspect["outcome"]["selection"]
+        );
+    }
+    assert_eq!(engine.primary_context(), Some(user));
+    engine.update_adapter_cursor(Selection::default()).unwrap();
+    engine
+        .run(Command::InsertText(InsertTextParams {
+            target: Default::default(),
+            text: "にほん ".into(),
+            input_rules: InputRules::Literal,
+        }))
+        .unwrap();
+    engine
+        .run(Command::SelectText(SelectTextParams {
+            target: TextTarget::All {},
+            part: None,
+        }))
+        .unwrap();
+    let retained = engine.editing_context(&context).unwrap();
+    assert_eq!(engine.resolve_target(retained.selection).unwrap(), (4, 4));
+    let primary = engine.primary_context().unwrap();
+    let mut host = Host::attached(&mut engine, "context-test".into(), context.clone()).unwrap();
+    let inspect = run(&mut host, "document.inspect", json!({})).unwrap().value;
+    assert_eq!(inspect["outcome"]["selection"], json!(retained.selection));
+    drop(host);
+    assert_eq!(engine.primary_context(), Some(primary));
+}
+
+#[test]
 fn invitation_is_private_and_removed_on_revoke_or_document_replacement() {
     let mut engine = engine();
-    let mut session = LocalSession::start(&engine, Arc::new(|| {})).unwrap();
+    let mut session = LocalSession::start(&mut engine, Arc::new(|| {})).unwrap();
     let path = session.invitation_path().to_path_buf();
     #[cfg(unix)]
     {
@@ -143,7 +214,7 @@ fn real_local_mcp_connection_reads_resources_rejects_writes_and_is_single_use() 
     let wakes = Arc::new(AtomicUsize::new(0));
     let counter = wakes.clone();
     let mut session = LocalSession::start(
-        &engine,
+        &mut engine,
         Arc::new(move || {
             counter.fetch_add(1, Ordering::Relaxed);
         }),
@@ -229,12 +300,12 @@ fn malformed_and_oversized_invitations_are_refused_before_connecting() {
 
 #[test]
 fn revoking_a_live_connection_abandons_its_queued_read_and_closes_the_transport() {
-    let engine = engine();
+    let mut engine = engine();
     let guard = engine.target_guard();
     let wakes = Arc::new(AtomicUsize::new(0));
     let count = wakes.clone();
     let session = LocalSession::start(
-        &engine,
+        &mut engine,
         Arc::new(move || {
             count.fetch_add(1, Ordering::Release);
         }),

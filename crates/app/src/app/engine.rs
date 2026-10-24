@@ -54,6 +54,7 @@ impl App {
             .engine
             .set_adapter_selection(editor::to_core(self.document.selection))?;
         let outcome = self.document.engine.run_call(command.to_call())?;
+        self.map_view_positions();
         if outcome
             .effects
             .contains(&crate::engine::Effect::DocumentReplaced)

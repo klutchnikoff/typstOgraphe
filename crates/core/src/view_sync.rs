@@ -3,7 +3,7 @@
 //! L'adaptateur publie des faits ordonnés puis consomme les actions au moment
 //! où il peut les peindre. Aucun focus, pixel, IME, délai, worker ou accès disque.
 //! Les lectures géométriques empruntent le moteur sans modifier sa sélection.
-use crate::engine::{RenderReference, SelectionTarget, TargetGuard};
+use crate::engine::{PositionMap, RenderReference, SelectionTarget, TargetGuard};
 
 mod geometry;
 mod types;
@@ -13,6 +13,7 @@ pub use types::*;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ViewSync {
     selection: Option<SelectionTarget>,
+    visible_position: Option<SelectionTarget>,
     render: Option<RenderReference>,
     render_failed: bool,
     forward_pending: bool,
@@ -24,6 +25,7 @@ impl Default for ViewSync {
     fn default() -> Self {
         Self {
             selection: None,
+            visible_position: None,
             render: None,
             render_failed: false,
             forward_pending: true,
@@ -36,6 +38,40 @@ impl Default for ViewSync {
 impl ViewSync {
     pub fn selection(&self) -> Option<SelectionTarget> {
         self.selection
+    }
+    /// Logical anchor of the visible passage. Pixel offsets belong to the adapter.
+    pub fn visible_position(&self) -> Option<SelectionTarget> {
+        self.visible_position
+    }
+    pub fn remember_visible_position(&mut self, target: SelectionTarget) -> bool {
+        if !self.matches_guard(target.guard) {
+            return false;
+        }
+        self.visible_position = Some(target);
+        true
+    }
+    /// Advance retained user positions without creating a reveal/focus intention.
+    /// This does not make stale command targets valid. Call once per publication,
+    /// before publishing the native selection or adapting the command outcome.
+    pub fn map_retained_positions(&mut self, positions: &PositionMap) -> bool {
+        let Some(current) = self.selection.filter(|s| s.guard == positions.before) else {
+            return false;
+        };
+        let Ok(selection) = positions.map_retained(current) else {
+            return false;
+        };
+        let visible = match self.visible_position {
+            Some(target) => {
+                let Ok(mapped) = positions.map_retained(target) else {
+                    return false;
+                };
+                Some(mapped)
+            }
+            None => None,
+        };
+        self.selection = Some(selection);
+        self.visible_position = visible;
+        true
     }
 
     pub fn preview_pending(&self) -> bool {
@@ -119,6 +155,12 @@ impl ViewSync {
             return false;
         }
         self.selection = Some(selection);
+        if self
+            .visible_position
+            .is_some_and(|p| p.guard != selection.guard)
+        {
+            self.visible_position = None;
+        }
         true
     }
 

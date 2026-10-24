@@ -34,6 +34,23 @@ fn published_target(app: &App) -> crate::engine::SelectionTarget {
 }
 
 #[test]
+fn native_frame_maps_the_visible_anchor_before_publishing_the_new_selection() {
+    let (ctx, mut app, _responses, _requests) = controlled("Un passage visible.");
+    let old = app
+        .preview
+        .sync
+        .visible_position()
+        .expect("published visible anchor");
+    assert_eq!(app.document.engine.resolve_target(old).unwrap(), (0, 0));
+    frame(&mut app, &ctx, vec![egui::Event::Text("Été ".into())]);
+    let mapped = app.preview.sync.visible_position().unwrap();
+    assert_eq!(mapped.guard, app.document.engine.target_guard());
+    assert_eq!(app.document.engine.resolve_target(mapped).unwrap(), (4, 4));
+    assert_eq!(app.preview.sync.selection(), Some(published_target(&app)));
+    assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
+}
+
+#[test]
 fn preedit_stays_out_of_view_sync_and_commit_waits_for_its_own_render() {
     let (ctx, mut app, responses, _requests) = controlled("Une phrase à compléter.");
     let baseline = app.preview.sync.clone();

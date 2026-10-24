@@ -9,6 +9,7 @@ pub struct Host<'a> {
     engine: EngineAccess<'a>,
     id: Option<String>,
     policy: policy::Policy,
+    context: Option<EditContext>,
 }
 impl<'a> Host<'a> {
     #[cfg(test)]
@@ -20,15 +21,28 @@ impl<'a> Host<'a> {
             engine: EngineAccess::Owned(Box::new(Engine::empty())),
             id: None,
             policy,
+            context: None,
         }
     }
     /// Borrow the application's published engine; never open or clone its file.
-    pub(crate) fn attached(engine: &'a mut Engine, id: String) -> Result<Self, CommandError> {
+    pub(crate) fn attached(
+        engine: &'a mut Engine,
+        id: String,
+        context: EditContext,
+    ) -> Result<Self, CommandError> {
+        engine.editing_context(&context)?;
         Ok(Self {
             engine: EngineAccess::Borrowed(engine),
             id: Some(id),
             policy: policy::Policy::attached_read_only()?,
+            context: Some(context),
         })
+    }
+    fn query(&self, query: Query) -> Result<Value, CommandError> {
+        match &self.context {
+            Some(context) => self.engine.query_in_context(context, query),
+            None => self.engine.query(query),
+        }
     }
     fn reference(&self) -> Option<DocumentRef> {
         self.id.as_ref().map(|id| DocumentRef {
@@ -113,11 +127,7 @@ impl<'a> Host<'a> {
         })
     }
     fn describe_capability(&self, id: &str) -> Result<Value, CommandError> {
-        super::documentation::describe(
-            id,
-            &self.engine.query(Query::Commands(Empty {}))?,
-            &self.policy,
-        )
+        super::documentation::describe(id, &self.query(Query::Commands(Empty {}))?, &self.policy)
     }
     pub fn resource(&self, uri: &str) -> Result<Reply, CommandError> {
         use typstographe_core::document_types::DocumentType;
@@ -130,7 +140,7 @@ impl<'a> Host<'a> {
                 json!({"types":DocumentType::ALL.map(Engine::type_documentation)})
             }
             "typstographe://commands" => {
-                let context = self.engine.query(Query::Commands(Empty {}))?;
+                let context = self.query(Query::Commands(Empty {}))?;
                 let entries: Vec<_> = typstographe_core::engine::catalogue()
                     .iter()
                     .map(|s| s.id.as_str())
@@ -145,7 +155,7 @@ impl<'a> Host<'a> {
                     "extra_tools":"document_types.describe, capabilities.describe and render.page are MCP discovery/rasterization helpers; their schemas and descriptions are in tools."})
             }
             "typstographe://document" => {
-                let mut snapshot = json!({"state":self.engine.query(Query::Inspect(Empty {}))?,
+                let mut snapshot = json!({"state":self.query(Query::Inspect(Empty {}))?,
                     "text":null,"structure":null,"metadata":null,"source":null});
                 if self.engine.is_open() {
                     for (key, query) in [
@@ -159,7 +169,7 @@ impl<'a> Host<'a> {
                         ("metadata", Query::Metadata(Empty {})),
                         ("source", Query::Source(Empty {})),
                     ] {
-                        snapshot[key] = self.engine.query(query)?;
+                        snapshot[key] = self.query(query)?;
                     }
                 }
                 snapshot
@@ -175,9 +185,7 @@ impl<'a> Host<'a> {
                 let active = self.engine.is_open().then(|| {
                     self.query_response(
                         "models.list",
-                        self.engine
-                            .query(Query::Models(Empty {}))
-                            .expect("models query"),
+                        self.query(Query::Models(Empty {})).expect("models query"),
                     )
                 });
                 json!({"types":types,"active_document":active})
@@ -231,9 +239,7 @@ impl<'a> Host<'a> {
         }
         let selection = prepare(&self.engine, spec, &mut params, selector)?;
         if spec.family == Family::Query {
-            let value = self
-                .engine
-                .query(Query::from_call(name, Value::Object(params))?)?;
+            let value = self.query(Query::from_call(name, Value::Object(params))?)?;
             return Ok(self.query_response(name, value));
         }
         let mut command = Command::from_call(name, Value::Object(params))?;

@@ -35,7 +35,7 @@ impl Owner {
                 let mut engine =
                     Engine::from_stored(StoredDocument::demo(DocumentType::Courrier), None)
                         .unwrap();
-                let mut session = LocalSession::start(&engine, Arc::new(|| {})).unwrap();
+                let mut session = LocalSession::start(&mut engine, Arc::new(|| {})).unwrap();
                 ready.send(session.invitation_path().to_path_buf()).unwrap();
                 while !stopped.load(Ordering::Acquire) {
                     // Same publication order as egui: native input before attached requests.

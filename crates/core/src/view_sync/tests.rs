@@ -7,6 +7,7 @@ use crate::{
 use serde_json::json;
 
 mod geometry;
+mod positions;
 mod transitions;
 
 fn engine(source: &str) -> Engine {

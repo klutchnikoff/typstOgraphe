@@ -28,7 +28,7 @@ impl App {
     pub(super) fn start_assistance(&mut self, ctx: &egui::Context) {
         let repaint = ctx.clone();
         match LocalSession::start(
-            &self.document.engine,
+            &mut self.document.engine,
             std::sync::Arc::new(move || repaint.request_repaint()),
         ) {
             Ok(session) => {
