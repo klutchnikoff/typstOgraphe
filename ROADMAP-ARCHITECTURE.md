@@ -171,11 +171,12 @@ contenu du crate `core`) ; 3 avant 4 ; 4 avant 5 (MCP réutilise les commandes, 
 schémas et les politiques de chemins de la CLI). Les phases 1 et 2 peuvent être
 interrompues entre deux PR sans laisser le dépôt dans un état intermédiaire.
 
-Le chantier K dépend des phases 2 et 3 (moteur et cœur sans egui). Terminer la phase 5,
-puis réaliser K.1 avant de préciser la phase 6 ; organiser ensuite K.2 à K.4 en fonction
-de cet inventaire, avant la phase 7. Il prépare la phase 6 : les modifications d'un
-agent rejoignant le document ouvert doivent rejoindre la coordination commune via
-les mêmes `Effect`, en conservant les règles de navigation actuelles.
+Le chantier K dépend des phases 2 et 3 (moteur et cœur sans egui). La phase 5 et
+l'inventaire K.1 sont terminés. Préciser ensemble la phase 6 et l'organisation de
+K.2 à K.4 à partir de cet inventaire, avant la phase 7. K prépare la phase 6 : les
+modifications d'un agent rejoignant le document ouvert doivent rejoindre la
+coordination commune via les mêmes `Effect`, en conservant les règles de navigation
+actuelles.
 
 Autres chantiers : la livraison des tableaux et notes (étape 5 de `ROADMAP.md`)
 vient après la phase 7. Le prototype de décision du modèle d’édition est avancé
@@ -887,6 +888,13 @@ la session rattachée réutilisent les mêmes capacités et leur documentation.
 Le transport local et les interactions précises seront validés avant cette phase ;
 aucun pilotage de fenêtre ou accès au moteur de l’application n’est ajouté en phase 5.
 
+L'[inventaire K.1](docs/interface-interactions.md) est terminé. Les
+[choix issus du relevé](docs/interface-view-sync.md#choix-à-reprendre-ensemble)
+restent à valider : sélection et style de frappe de l'agent, révélation/focus,
+intervention pendant l'IME ou un dialogue, revalidation des décisions différées
+et point d'application commun. Une instance de coordination par vue ne crée pas
+à elle seule plusieurs sélections dans le moteur actuel.
+
 ---
 
 ## Chantier K — Contrat d'interaction des interfaces (taille M, D29, D30)
@@ -906,25 +914,40 @@ et `selection_boxes`.
 
 **Ce qui reste dans l'application egui** : l'orchestration de la synchronisation, voir D30.
 
-### K.1 Inventaire (taille S)
+### K.1 Inventaire (taille S) — terminé le 24 octobre 2026
 
-- [ ] Classer, pour `crates/app/src/app/` (aperçu, recherche, navigation, annotations,
+- [x] Classer, pour `crates/app/src/app/` (aperçu, recherche, navigation, annotations,
   orthographe, récupération, fichiers), chaque règle : **règle documentaire**,
   **coordination commune de vue** ou **responsabilité propre à l'adaptateur**.
   Résultat : un tableau dans `docs/`, sans changement de code.
-- [ ] Lister les états qui encodent une règle commune (notamment `forward_pending`
+- [x] Lister les états qui encodent une règle commune (notamment `forward_pending`
   et `editor_scroll_pending`), les événements qui les posent et l'origine des
   changements de sélection ; distinguer sélection et demande de révélation.
 
+**Livrables :** [interactions et responsabilités](docs/interface-interactions.md),
+[états, événements, séquences et preuves existantes](docs/interface-view-sync.md).
+Relecture du code `af81da4`, sans changement de comportement ni d'API.
+
+**Constats pour la suite :** la sélection, sa révélation et la prise de focus sont
+distinctes ; certaines demandes viennent encore des déclencheurs UI (P.-S./P.J.,
+clic de recherche), pas seulement des effets du moteur. L'aperçu est traité avant
+l'éditeur dans une frame. La garde complète valide le rendu, tandis qu'une sélection
+peut changer sans nouvelle révision. Le moteur possède encore une sélection et un
+style de frappe uniques. K.2 doit préserver ces faits ; les politiques supplémentaires
+pour l'assistance seront décidées ensemble avant le code concerné.
+
 ### K.2 Composant de coordination (taille M)
 
+- [ ] Valider les événements et le périmètre concret à partir des
+  [choix relevés en K.1](docs/interface-view-sync.md#choix-à-reprendre-ensemble),
+  notamment la frontière entre navigation et planification du rendu.
 - [ ] Définir dans le cœur les événements d'entrée et les actions de vue de sortie
   (D30), en données sérialisables sans type egui, pour un composant par vue distinct
   du moteur. `NativeEdit` reste un brouillon opaque en mémoire, pas un contrat réseau.
 - [ ] Implémenter `ViewSync` en reprenant **exactement** les règles actuelles de
   `preview.rs` : validité par comparaison des gardes, demande d'aperçu unique,
-  annulation lorsqu'un clic dans l'aperçu sélectionne le texte. Un rendu périmé
-  conserve la demande différée jusqu'à l'arrivée du rendu à jour ; la dernière
+  annulation lorsque le double-clic actuel dans l'aperçu sélectionne le texte.
+  Un rendu périmé conserve la demande différée jusqu'à l'arrivée du rendu à jour ; la dernière
   intention remplace les précédentes, y compris sans changement de révision.
 - [ ] Tests unitaires sans egui : rendu périmé (aucune action immédiate, demande conservée),
   installation du rendu à jour (une action), clic dans l'aperçu (révélation de l'éditeur,

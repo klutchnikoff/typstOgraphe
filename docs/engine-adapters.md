@@ -68,6 +68,19 @@ géométrie ; la rédaction utilise `InputBuffer` et sa validation des entrées.
 - Les réveils des workers restent des rappels sans contexte egui ; les images
   échangées sont des pixels RGBA, convertis en textures dans l’application.
 
+## Coordination des vues — inventaire K.1
+
+Le contrat documentaire ci-dessus est déjà commun. La coordination source ↔ aperçu
+reste dans l'application ; son extraction vers un composant pur, distinct du moteur
+et instancié par vue, est prévue en K.2/K.3. L'[inventaire des interactions](interface-interactions.md)
+classe les responsabilités ; le [relevé des états et événements](interface-view-sync.md)
+décrit les règles actuelles et les tests qui les protègent. Il ne fige pas encore
+l'API de ce composant.
+
+`Engine` possède aujourd'hui une seule sélection et un seul style de frappe.
+La coordination indépendante de deux vues ne définit donc pas à elle seule la
+politique des curseurs d'un utilisateur et d'un agent ; ce choix relève de la phase 6.
+
 ## Tests et extraction
 
 Les tests graphiques construisent des données détachées, puis appellent

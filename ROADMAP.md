@@ -90,9 +90,12 @@ persistante de modèles restent à développer.
   La [recette finale](docs/mcp-acceptance.md) valide l'inspecteur officiel et un agent
   sans skill ni lecture du dépôt jusqu'à l'export du courrier et sa réouverture.
   Deux corrections isolées portent sur le schéma des lots et la langue MCP par défaut ;
-  le courrier réel devient un scénario de régression. Prochaine étape : l'inventaire
-  K.1 du contrat d'interaction avant de préciser la phase 6. La phase 6
-  aura pour objectif l’assistance à la composition dans la session de l’application.
+  le courrier réel devient un scénario de régression. **K.1 terminé le 24 octobre 2026 :**
+  [inventaire des interactions](docs/interface-interactions.md) et
+  [relevé des états et transitions](docs/interface-view-sync.md), sans changement
+  de code. Prochaine étape : valider ensemble le périmètre de K.2 et préciser la
+  phase 6, notamment la sélection de l'agent, le focus et l'IME. La phase 6 aura
+  pour objectif l’assistance à la composition dans la session de l’application.
   État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),
   décisions et lots MCP dans [celui de phase 5](docs/architecture-phase-5.md).
 
