@@ -5,6 +5,10 @@ Relevé du code `af81da4`, le 24 octobre 2026. Complément de
 K.2/K.3 et des choix de phase 6. Les noms d'événements proposés par D30 restent
 provisoires ; ce document décrit d'abord ce que le code fait aujourd'hui.
 
+Suite livrée : [K.2 — coordinateur de vue](view-sync.md). L'inventaire ci-dessous
+reste le relevé du branchement egui avant K.3 ; K.2 ajoute le composant pur et
+14 tests, sans modifier ce branchement ni livrer l'assistance de phase 6.
+
 ## États et propriété
 
 Les structures sont dans [app/state.rs](../crates/app/src/app/state.rs), sauf

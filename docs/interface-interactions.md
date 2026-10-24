@@ -10,6 +10,9 @@ Cette coordination est distincte de la saisie, du placement et du focus propres
 à chaque interface. [Le relevé des états et événements](interface-view-sync.md)
 détaille les transitions à conserver.
 
+Suite livrée : le [composant de K.2](view-sync.md) reprend ces règles et leurs
+tests sans egui ; son branchement dans l'application reste prévu en K.3.
+
 ## Classement et périmètre
 
 | Classe | Responsabilité | Suite |

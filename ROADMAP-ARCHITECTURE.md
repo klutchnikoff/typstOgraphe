@@ -965,22 +965,36 @@ peut changer sans nouvelle révision. Le moteur possède encore une sélection e
 style de frappe uniques. K.2 doit préserver ces faits ; les politiques supplémentaires
 pour l'assistance seront décidées ensemble avant le code concerné.
 
-### K.2 Composant de coordination (taille M)
+### K.2 Composant de coordination (taille M) — livré le 24 octobre 2026
 
 - [x] Valider les événements et le périmètre concret à partir des
   [choix relevés en K.1](docs/interface-view-sync.md#choix-à-reprendre-ensemble),
   notamment la frontière entre navigation et planification du rendu (D31).
-- [ ] Définir dans le cœur les événements d'entrée et les actions de vue de sortie
+- [x] Définir dans le cœur les événements d'entrée et les actions de vue de sortie
   (D30), en données sérialisables sans type egui, pour un composant par vue distinct
   du moteur. `NativeEdit` reste un brouillon opaque en mémoire, pas un contrat réseau.
-- [ ] Implémenter `ViewSync` en reprenant **exactement** les règles actuelles de
+- [x] Implémenter `ViewSync` en reprenant **exactement** les règles actuelles de
   `preview.rs` : validité par comparaison des gardes, demande d'aperçu unique,
   annulation lorsque le double-clic actuel dans l'aperçu sélectionne le texte.
   Un rendu périmé conserve la demande différée jusqu'à l'arrivée du rendu à jour ; la dernière
   intention remplace les précédentes, y compris sans changement de révision.
-- [ ] Tests unitaires sans egui : rendu périmé (aucune action immédiate, demande conservée),
+- [x] Tests unitaires sans egui : rendu périmé (aucune action immédiate, demande conservée),
   installation du rendu à jour (une action), clic dans l'aperçu (révélation de l'éditeur,
   pas de boucle inverse), remplacement du document et indépendance de deux vues.
+
+**Livré :** `typstographe_core::view_sync`, avec événements/actions sérialisables,
+origine des intentions, adaptation de la partie utile d'`Outcome`, lectures
+géométriques gardées et consommations séparées pour aperçu/éditeur. Les règles
+locales particulières (no-op, sauvegarde, réarmement à l'installation, localisation
+sans point) sont conservées. Temporisation et services sont hors du composant.
+[Guide de K.2 et traduction des déclencheurs](docs/view-sync.md).
+
+**Vérification :** 14 nouveaux tests sans egui, dont géométrie sur rendu Typst
+réel ; 451 tests de l'espace de travail réussis, Clippy tous targets sans
+avertissement, formatage, limite des fichiers du cœur et frontière des dépendances
+vérifiés. L'application n'est pas encore branchée sur ce composant : K.3 et ses
+captures restent à faire. Les contextes séparés, le report des positions et le
+canal d'agent de phase 6 ne sont pas implémentés par K.2.
 
 ### K.3 Branchement de l'application (taille M)
 

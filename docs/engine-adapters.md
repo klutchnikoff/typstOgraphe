@@ -71,15 +71,17 @@ géométrie ; la rédaction utilise `InputBuffer` et sa validation des entrées.
 ## Coordination des vues — inventaire K.1
 
 Le contrat documentaire ci-dessus est déjà commun. La coordination source ↔ aperçu
-reste dans l'application ; son extraction vers un composant pur, distinct du moteur
-et instancié par vue, est prévue en K.2/K.3. L'[inventaire des interactions](interface-interactions.md)
-classe les responsabilités ; le [relevé des états et événements](interface-view-sync.md)
-décrit les règles actuelles et les tests qui les protègent. Il ne fige pas encore
-l'API de ce composant.
+reste branchée dans l'application jusqu'à K.3. Le composant pur `ViewSync`, distinct
+du moteur et instancié par vue, est livré en K.2 :
+[API, événements et séquences d'intégration](view-sync.md).
+L'[inventaire des interactions](interface-interactions.md) classe les responsabilités ;
+le [relevé des états et événements](interface-view-sync.md) décrit les règles
+observées avant l'extraction et les tests graphiques qui les protègent.
 
 `Engine` possède aujourd'hui une seule sélection et un seul style de frappe.
 La coordination indépendante de deux vues ne définit donc pas à elle seule la
-politique des curseurs d'un utilisateur et d'un agent ; ce choix relève de la phase 6.
+politique des curseurs d'un utilisateur et d'un agent. Les contextes séparés sont
+validés pour la phase 6 et restent à implémenter.
 
 ## Tests et extraction
 
