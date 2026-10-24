@@ -1,5 +1,9 @@
 # Frontière Rust des adaptateurs documentaires
 
+Le [contrat général des interfaces](interface-contract.md) réunit appels,
+lectures, effets, saisie native et coordination des vues. Cette page détaille
+la frontière Rust et la propriété des données.
+
 API de `typstographe-core`, extraite en phase 3. Le catalogue machine reste à
 **49 commandes et 19 requêtes** : les méthodes décrites ici sont des points
 d’intégration Rust, pas de nouveaux identifiants JSON.
@@ -48,7 +52,7 @@ L’application implémente `egui::TextBuffer` sur ses types locaux `InputBuffer
 `ProjectionBuffer`, qui empruntent les tampons du cœur. Les conversions
 `editor::to_core` / `to_editor` conservent direction et affinité de ligne. Aucun
 trait egui ou `From` entre deux types externes n’est implémenté sur un type du
-futur cœur : les règles de cohérence de Rust resteront satisfaites après extraction.
+cœur : les règles de cohérence de Rust sont respectées depuis l'extraction.
 Le tampon brut `ProjectionBuffer` sert au diagnostic de tableaux et aux tests de
 géométrie ; la rédaction utilise `InputBuffer` et sa validation des entrées.
 

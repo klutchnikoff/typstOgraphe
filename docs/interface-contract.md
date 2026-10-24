@@ -107,13 +107,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(text["text"], "Bonjour.");
 
     let captured = outcome.selection.expect("sélection après insertion");
-    engine.run_call(Command::from_call("text.insert", json!({"text": " Suite."}))?.to_call())?;
+    let next = engine.run_call(Command::from_call("text.insert", json!({"text": " Suite."}))?.to_call())?;
+    assert!(view.apply(ViewEvent::CommandCompleted {
+        result: (&next).into(), origin: ViewOrigin::User,
+    }));
     let before = engine.stored_document();
+    let view_before = view.clone();
     let error = engine.run_call(Command::from_call("text.insert", json!({
         "target": TextTarget::from(captured), "text": "À refuser",
     }))?.to_call()).unwrap_err();
     assert_eq!(error.reason(), "stale_revision");
     assert_eq!(engine.stored_document(), before);
+    assert_eq!(view, view_before); // Aucun événement réussi pour le refus.
     Ok(())
 }
 ```
@@ -315,12 +320,14 @@ couvert par `cargo test --locked --workspace` dans la CI des trois systèmes.
 `cargo check --locked -p typstographe-core` et le contrôle des dépendances
 confirment séparément la frontière sans egui/eframe, Fluent, Tokio ni MCP.
 
-Pour le détail :
+Pour le détail, les guides du dépôt sont liés ci-dessous avec leurs URL GitHub,
+afin que ces liens fonctionnent aussi depuis la documentation HTML de Rustdoc.
+Ils restent disponibles localement dans `docs/` et dans la feuille de route.
 
-- [Registre et schémas des opérations](commands.md), [schémas JSON](commands.json).
-- [Frontière Rust et saisie native](engine-adapters.md).
-- [Lectures, découverte et caches](engine-queries.md).
-- [Événements et actions de `ViewSync`](view-sync.md).
-- [Branchement egui, parcours et captures identiques](view-sync-egui.md).
-- [CLI](cli.md) et [MCP](mcp.md), pour leurs enveloppes et politiques propres.
-- [Décisions et suite de phase 6](../ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).
+- [Registre des opérations](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/commands.md), [schémas JSON](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/commands.json).
+- [Frontière Rust et saisie native](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/engine-adapters.md).
+- [Lectures, découverte et caches](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/engine-queries.md).
+- [Événements et actions de `ViewSync`](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/view-sync.md).
+- [Branchement egui, parcours et captures identiques](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/view-sync-egui.md).
+- [CLI](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/cli.md) et [MCP](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/mcp.md), pour leurs enveloppes et politiques propres.
+- [Décisions et suite de phase 6](https://github.com/klutchnikoff/typstOgraphe/blob/main/ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).

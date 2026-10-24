@@ -1,5 +1,8 @@
 # Lectures documentaires et découverte du moteur
 
+Le [contrat général des interfaces](interface-contract.md) décrit la frontière
+commune ; cette page précise les lectures et leurs réponses.
+
 Complément de phase 2 du 24 octobre 2026 : cinq requêtes ajoutées et deux réponses
 enrichies. Le [catalogue](commands.md) et ses [schémas d’entrée](commands.json)
 proviennent du registre Rust. Aucun transport CLI/MCP n’est livré ici.

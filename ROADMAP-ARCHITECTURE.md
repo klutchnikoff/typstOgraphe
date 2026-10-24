@@ -175,9 +175,9 @@ schémas et les politiques de chemins de la CLI). Les phases 1 et 2 peuvent êtr
 interrompues entre deux PR sans laisser le dépôt dans un état intermédiaire.
 
 Le chantier K dépend des phases 2 et 3 (moteur et cœur sans egui). La phase 5 et
-l'inventaire K.1 sont terminés. Préciser ensemble la phase 6 et l'organisation de
-K.2 à K.4 à partir de cet inventaire, avant la phase 7. K prépare la phase 6 : les
-modifications d'un agent rejoignant le document ouvert doivent rejoindre la
+K.1 à K.4 sont terminés. Les interactions de phase 6 sont validées (D32/D33) ;
+transport et rattachement restent à préciser ensemble. K prépare cette phase :
+les modifications d'un agent rejoignant le document ouvert doivent rejoindre la
 coordination commune via les mêmes `Effect`, en conservant les règles de navigation
 actuelles.
 
@@ -926,7 +926,7 @@ la coordination ; K.3 conserve le comportement de l'utilisateur local existant.
 
 ---
 
-## Chantier K — Contrat d'interaction des interfaces (taille M, D29, D30)
+## Chantier K — Contrat d'interaction des interfaces (taille M, D29, D30) — terminé le 24 octobre 2026
 
 **Objectif.** Une seconde interface éventuelle réutilise les règles documentaires
 et les règles communes de coordination source ↔ aperçu, testables sans interface.
@@ -1019,19 +1019,45 @@ supplémentaires couvrent préédition/rendu tardif, révélation pendant la sai
 focus de recherche. Les 454 tests de l'espace de travail, Clippy tous targets,
 formatage, taille des fichiers de l'adaptateur et frontière des dépendances passent.
 Les huit captures natives macOS, avant et après branchement, sont strictement
-identiques aux références conservées (SHA-256). K.4 reste à faire avant la suite.
+identiques aux références conservées (SHA-256). Le contrat général est livré en K.4.
 
-### K.4 Contrat documenté (taille S)
+### K.4 Contrat documenté (taille S) — livré le 24 octobre 2026
 
-- [ ] `docs/interface-contract.md` : les appels, les lectures, les effets, les événements et
+- [x] [Contrat général des interfaces](docs/interface-contract.md) : les appels,
+  les lectures, les effets, les événements et
   actions de vue, ce qui reste à la charge de l'interface (saisie, `NativeEdit`,
   texture, défilement), avec un exemple de séquence (frappe → rendu → révélation).
-- [ ] Contrôle `cargo check` du cœur sans dépendance graphique, inchangé (phase 3).
+- [x] Contrôle `cargo check` du cœur sans dépendance graphique, inchangé (phase 3).
+
+**Livré :** guide commun à egui, CLI, MCP et aux futures interfaces, avec frontières
+de propriété, gardes/cibles, transactions, disponibilité, erreurs et effets,
+édition native/IME, worker et coordination. Deux exemples Rust autonomes couvrent
+appel/lecture/cible périmée et frappe → worker → révélation dans les deux sens.
+Le guide est inclus dans Rustdoc ; la CI existante compile et exécute ces exemples
+avec les tests de l'espace de travail, sans copie parallèle des exemples.
+
+**Frontière vérifiée :** `cargo check --locked -p typstographe-core` réussi et
+aucune dépendance graphique, Fluent, Tokio ou MCP dans l'arbre normal du cœur.
+La documentation Rust du crate se génère. Les détails des autres surfaces restent
+dans leurs guides spécialisés, liés au contrat général. Aucun comportement
+documentaire ou graphique n'est modifié par K.4.
+
+**Vérification du lot :** 456 tests réussis (454 tests existants et les deux
+exemples Rust du guide), Clippy tous targets sans avertissement, formatage et
+liens des documents vérifiés. Les journaux de compilation, tests, Clippy et
+génération Rustdoc sont conservés dans `output/k4-interface-contract/`.
 
 **Critères de sortie** : plus aucune règle commune de synchronisation dupliquée
 dans l'application ; l'état nécessaire à l'exécution visuelle reste dans l'adaptateur.
 Le composant par vue est testé sans egui ; les captures de l'application sont
 identiques ; le contrat est documenté et vérifié par la CI.
+
+**Bilan de sortie : critères atteints.** K.1 a inventorié les interactions ; K.2
+a livré le coordinateur pur et ses tests ; K.3 l'a branché dans egui avec parcours
+et captures identiques ; K.4 documente et exerce la frontière générale. Les preuves
+de K.2/K.3 restent valables ; aucune nouvelle capture n'est nécessaire pour ce lot
+documentaire. La phase 6 reste à implémenter : un `ViewSync` par vue n'ajoute ni
+contexte d'édition séparé, ni report des positions, ni canal de rattachement.
 
 ---
 

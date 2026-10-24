@@ -1,5 +1,8 @@
 # K.2 — Coordinateur de vue
 
+Le [contrat général des interfaces](interface-contract.md) relie ce composant
+aux commandes, lectures et services. Cette page détaille ses événements et actions.
+
 `typstographe_core::view_sync::ViewSync` est un composant par vue, distinct
 d'`Engine`. Il reprend les règles relevées en [K.1](interface-view-sync.md) et
 réutilise les lectures géométriques du moteur. K.2 livre le composant et ses

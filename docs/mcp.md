@@ -1,5 +1,8 @@
 # MCP typstOgraphe — session documentaire autonome
 
+Le [contrat général des interfaces](interface-contract.md) décrit le moteur commun.
+Ce guide précise l'enveloppe MCP, sa découverte et ses règles de session/fichiers.
+
 Construire avec `cargo build --locked -p typstographe-cli`, puis lancer :
 
 ```sh

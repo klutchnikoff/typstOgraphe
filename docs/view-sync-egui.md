@@ -109,6 +109,7 @@ Les fichiers `workspace-tests.log`, `clippy.log`, `coordination-tests.log`,
 
 ## Suite
 
-K.4 doit réunir appels, lectures, effets et coordination dans le contrat général
-des interfaces. Les contextes d'édition séparés, le report des positions et les
-interactions d'agent validées en D32/D33 restent des travaux de phase 6.
+Le [contrat général des interfaces](interface-contract.md), livré en K.4, réunit
+appels, lectures, effets et coordination. Les contextes d'édition séparés, le
+report des positions et les interactions d'agent validées en D32/D33 restent
+des travaux de phase 6.

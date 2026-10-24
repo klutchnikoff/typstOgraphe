@@ -112,7 +112,8 @@ et services du cœur qu'ils appellent, ainsi que les tests pertinents.
 
 K.1 n'ajoute ni interface publique, ni transport, ni nouvelle sémantique d'effet.
 Le [contrat Rust existant](engine-adapters.md) reste la référence d'intégration ;
-`docs/interface-contract.md` sera le livrable de K.4 après l'extraction.
+Le [contrat général](interface-contract.md), livré en K.4 après l'extraction,
+réunit désormais cette frontière et la coordination des vues.
 
 [availability]: ../crates/app/src/app/availability.rs
 [commands]: ../crates/app/src/app/commands.rs

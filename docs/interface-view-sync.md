@@ -10,6 +10,8 @@ reste le relevé du branchement egui avant K.3 ; K.2 ajoute le composant pur et
 14 tests, sans modifier ce branchement ni livrer l'assistance de phase 6.
 Le [branchement K.3 et sa recette](view-sync-egui.md) sont désormais livrés ; les
 deux indicateurs décrits dans cet inventaire historique ont été retirés d'egui.
+Le [contrat général livré en K.4](interface-contract.md) est la référence
+d'intégration ; cet inventaire conserve les observations de départ.
 
 ## États et propriété
 

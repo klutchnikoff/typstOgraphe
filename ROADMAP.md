@@ -99,10 +99,12 @@ persistante de modèles restent à développer.
   **K.2 livré :** [coordinateur de vue pur et ses tests](docs/view-sync.md), sans
   changement du branchement egui dans ce premier lot. **K.3 livré :**
   [branchement egui, parcours et captures](docs/view-sync-egui.md), avec 454 tests
-  réussis et huit captures strictement identiques. Prochaine étape : documentation
-  commune K.4. La phase 6
-  réalisera l'assistance à la composition dans la session de l'application ;
-  le transport et les modalités de rattachement restent à préciser.
+  réussis et huit captures strictement identiques. **Chantier K terminé :**
+  le [contrat général des interfaces](docs/interface-contract.md) est livré en K.4,
+  avec deux exemples Rust exécutés par les tests de documentation et le contrôle
+  du cœur seul sans dépendance graphique. Prochaine étape : préciser le transport
+  et le rattachement de phase 6 à partir des interactions déjà validées. Cette phase
+  réalisera l'assistance à la composition dans la session de l'application.
   État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),
   décisions et lots MCP dans [celui de phase 5](docs/architecture-phase-5.md).
 
