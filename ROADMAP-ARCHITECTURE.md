@@ -577,10 +577,11 @@ les signatures, les limites restantes et les preuves de validation.
 
 **But** : `typstographe-core` sans aucune dépendance à egui, eframe, winit, `rfd` ou `muda`.
 
-**En cours :** lot 3.1 terminé dans le crate actuel. Les trois crates seront
+**En cours :** lots 3.1 et 3.2 terminés dans le crate actuel. Les trois crates seront
 `crates/core`, `crates/i18n` et `crates/app` ; la CLI est développée en phase 4.
-Les types d’erreur indépendants de Fluent (3.2) précèdent les déplacements.
-Le [suivi de phase 3](docs/architecture-phase-3.md) distingue ce premier lot du
+Les erreurs typées et libellés indépendants de Fluent (3.2) sont en place ;
+les frontières publiques, le découpage des gros modules et les déplacements suivent.
+Le [suivi de phase 3](docs/architecture-phase-3.md) distingue ces deux lots du
 workspace et du changement de repli linguistique, qui restent à réaliser.
 
 - [x] **3.1** Corriger les fuites graphiques **dans le crate actuel** avant les
@@ -590,26 +591,31 @@ workspace et du changement de repli linguistique, qui restent à réaliser.
   Les préférences et l’interface des champs sont déjà côté application ; la
   gestion du profil les y rejoindra lors du découpage (D22). `CommandSpec` et
   `Presentation` sont séparés. Voir [le suivi de phase 3](docs/architecture-phase-3.md).
-- [ ] **3.2** Internationalisation (D7) : remplacer les environ 90 appels à `tr!` du
-  cœur par des erreurs typées (`SourceError`, `StorageError`, `RecoveryError`,
-  `TemplateError`, etc.) avec codes et paramètres. Les libellés du cœur deviennent des
-  clés Fluent (données). Les messages sont produits par le futur crate `typstographe-i18n`
-  (tâche 3.4b) ; étendre le test des catalogues pour que chaque code ait une phrase
-  en français et en anglais.
+- [x] **3.2** Retirer Fluent des modules destinés au cœur : familles d’erreurs
+  typées dans `errors.rs`, variantes, paramètres et causes sérialisables ; libellés
+  et textes indicatifs exposés comme clés de données. La conversion vers
+  `CommandError` conserve les six codes, les raisons et le champ textuel `detail`,
+  et ajoute une cause structurée quand elle est disponible. Les diagnostics et
+  lectures de récupération conservent eux aussi cette cause. La mise en phrases
+  commune réside dans `i18n` / `i18n/errors.rs`, utilisée par l’application et
+  réutilisable par les futurs transports. Les contrats des 44 messages du cœur
+  et des libellés sont vérifiés en français et anglais sans masquer les manques
+  par le repli. Aucun appel Fluent ne reste dans les modules destinés au cœur.
 - [ ] **3.3** Créer l'espace de travail : `Cargo.toml` racine `[workspace]`,
   `resolver = "3"`, `[workspace.dependencies]` pour les versions épinglées
   (`typst =0.15.1`, etc.).
 - [ ] **3.4** Créer `crates/core` : y déplacer `document`, `annotations`, `search`,
-  `statistics`, `session`, `identity`, `storage`, `packages`, `spelling`, `recovery`,
+  `statistics`, `session`, `identity`, `errors`, `storage`, `packages`, `spelling`, `recovery`,
   `rendering`, `navigation`, `assets`, `fonts`, `exporting`, `dates`, `document_types`, `engine` et
   `src/tests.rs`. Déplacer avec eux `templates/`, `examples/`, `assets/dictionaries/` et
   `assets/fonts/` (secours communs éditeur/Typst) ;
   déplacer `tests/fixtures/` vers un dossier partagé `fixtures/` à la racine (D9) ;
   corriger les `include_*` et les `#[folder]`.
 - [ ] **3.4b** Créer `crates/i18n` (`typstographe-i18n`, dépend de `typstographe-core`) :
-  déplacer `src/i18n.rs` (chargeur, macro `tr!`, test des catalogues) et `i18n/` (fr, en,
-  `i18n.toml`) ; y ajouter la mise en phrases de `CommandError` et des erreurs typées du
-  cœur. Une seule langue active, choisie une fois par le programme appelant. La langue
+  déplacer `src/i18n.rs` et `src/i18n/` (chargeur, macro `tr!`, formateur partagé,
+  tests des catalogues) et `i18n/` (fr, en,
+  `i18n.toml`) ; y transférer la mise en phrases de `CommandError` et des erreurs typées du
+  cœur déjà préparée en 3.2. Une seule langue active, choisie une fois par le programme appelant. La langue
   de repli est l'**anglais pour tous les programmes** (application, CLI, MCP) : passer
   `fallback_language` de `"fr"` à `"en"` dans `i18n.toml`. C'est un changement de
   comportement visible (un système dont la langue n'est ni le français ni l'anglais passe

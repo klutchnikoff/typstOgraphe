@@ -97,7 +97,10 @@ Il réutilise la rétention et la validation du stockage, valide le contrat du
 modèle avec Typst, puis contrôle les options réelles et les champs requis à l’export.
 
 Un diagnostic comporte `severity` (`error` ou `warning`), `code`, et éventuellement
-`field` (identifiant anglais) ou `detail` (texte explicatif non contractuel).
+`field` (identifiant anglais), `detail` (texte technique non contractuel) et
+`cause` (erreur typée, quand disponible). Depuis le lot 3.2, l’interface traduit
+la cause structurée ; le moteur ne produit plus de phrase Fluent. Les entrées
+de `recovery.list` peuvent également ajouter une `cause` à leur champ `error`.
 Les codes de ce lot sont `asset_inventory`, `document_storage`, `model_validation`,
 les raisons des contrôles d’options (`model_fixed_page`, `bullet_marker_invalid`,
 `bullet_marker_policy`, `model_presentation`) et `export_required_field`.
@@ -139,3 +142,8 @@ géométrie sur plusieurs pages, réutilisation du cache, erreurs et prééditio
 Les tests de rendu natif existants vérifient toujours les références remplacées
 et les réponses tardives. Les 68 entrées ont leurs schémas stricts et tests
 d’aller-retour ; les requêtes restent exclues des lots d’édition.
+
+Le [lot 3.2](architecture-phase-3.md#lot-32--erreurs-et-libellés-sans-fluent)
+détaille les causes sérialisées et leur traduction. `CommandError` garde ses codes,
+raisons et détails ; `params.cause` est un ajout compatible, sans modification des
+schémas d’entrée ou de la disponibilité des opérations.
