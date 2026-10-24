@@ -2,10 +2,10 @@
 
 Les choix D34/D35/D36 et les lots sont consignés dans
 [ROADMAP-ARCHITECTURE.md](../ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).
-Ce premier lot livre **le rattachement en lecture seule**. L'édition partagée,
-l'enregistrement et l'export rattachés attendent les contextes séparés et les
-protections D32/D33, ainsi que l’approbation préalable D36 ; ils restent prévus
-en 6.3 à 6.5.
+Le rattachement reste **en lecture seule**. Le lot 6.3 ajoute les contextes
+séparés, le report des positions et la préparation isolée des propositions dans
+le cœur. Leur exposition MCP, l'édition approuvée, l'enregistrement et l'export
+rattachés restent prévus en 6.4 et 6.5, avec les protections D32/D33/D36.
 
 ## Décision pour les futures modifications rattachées (D36)
 
@@ -159,6 +159,64 @@ Tokio stdin. La connexion se ferme sans nouvelle entrée du client.
   `output/phase6-local/` (ignoré par Git).
 
 La validation locale a été faite sous macOS ; la CI des trois systèmes reste
-nécessaire pour confirmer Linux et les tubes Windows. Le premier lot n'est pas
-une clôture de phase 6 : les contextes séparés, le report des positions, les
-éditions, sauvegardes/exports rattachés et la recette de composition restent à faire.
+nécessaire pour confirmer Linux et les tubes Windows. À l'issue de 6.1/6.2, il
+restait les contextes séparés, le report des positions, les éditions,
+sauvegardes/exports rattachés et la recette de composition. Le lot suivant est
+décrit ci-dessous.
+
+### Lot 6.3 — contextes et préparation des propositions
+
+Livré le 25 octobre 2026 ; [contrat détaillé](editing-contexts.md).
+
+- Une invitation possède maintenant son contexte d'édition pour toute sa durée,
+  indépendant de la sélection et du style utilisateur. Les lectures `Current`,
+  `inspect`, le catalogue contextualisé et la ressource du document l'utilisent.
+  Le moteur est toujours emprunté ; aucun fichier n'est rouvert.
+- Les positions conservées sont reportées à partir des opérations réellement
+  publiées, y compris Unicode, normalisations, remplacements multiples, lots,
+  annulation et rétablissement. Les anciennes références externes restent refusées.
+- `ViewSync` reporte sélection et ancre du passage visible sans prendre le focus
+  ni créer une demande de navigation. egui capture cette ancre hors préédition.
+- Le moteur prépare un candidat de proposition isolé, à partir du contexte agent.
+  Aucun changement du document, de ses contextes, de l'historique, de la révision
+  ou du fichier. Images/signature restent privées au candidat ; aucun verrou de
+  fichier n'est retenu. La vérification de fraîcheur ne vaut pas accord humain.
+- Aucun outil de proposition/approbation exposé, aucune publication de candidat.
+  Les 67 outils et cinq ressources gardent leurs schémas ; toutes les commandes
+  rattachées restent refusées. Le serveur autonome conserve son fonctionnement.
+
+La présentation des différences, l'acceptation/refus du lot entier, la conservation
+effective du focus et du passage visible lors de l'acceptation et le filtrage des
+interruptions seront traités en 6.4. Les propositions périmées devront être
+recalculées et présentées à nouveau, sans fusion automatique.
+
+#### Recette du 25 octobre 2026
+
+Code : `02dff51` (positions), `17db142` (contextes/candidats), `f80261d`
+(MCP/vues), `2b19c74` (diagnostic de capture).
+
+- `cargo test --locked --workspace --offline` : **485 tests réussis**, aucun
+  échec ni test ignoré, dont les deux exemples Rustdoc du contrat d'interface.
+- Clippy workspace/toutes cibles avec `-D warnings`, formatage, frontières du
+  cœur et limites de 800 lignes : réussis. Les 14 tests Python passent.
+- Construction des deux binaires réussie. Les huit captures natives correspondent
+  exactement aux références préservées : `output/baseline/run-jvk0u8_4`.
+- Les tests ajoutés couvrent report Unicode et textes répétés, remplacements
+  multiples, normalisation, saisie native et brouillons refusés, historique groupé,
+  lots, contextes indépendants, disponibilité contextualisée, péremption,
+  propositions sans effets (y compris ressources et verrou), ancre visible egui
+  et hors IME, lectures MCP dans leur contexte persistant.
+
+La première capture orthographique a révélé un ancien diagnostic qui soumettait
+une projection indépendante comme brouillon natif. Le contrôle des traces le
+refusait ; la capture attendait ensuite des fautes non chargées. Le diagnostic
+installe désormais sa fixture par le chargeur documentaire, avec un test de
+régression. Un second essai avait uniquement le cadre de focus de la recherche
+différent ; la série finale, sans autre lancement pendant les captures, est
+identique sur les huit scénarios. Aucune référence n'a été remplacée.
+
+Journaux conservés dans `output/phase6-3/` (ignoré par Git) : `tests.log`,
+`clippy.log`, `build.log`, `guards-tests.log` et les essais intermédiaires.
+Les captures intermédiaires restent dans `output/baseline/run-e77nqmip` et
+`run-kf018kr8`. Vérification locale macOS ; Linux et Windows restent à confirmer
+par la CI. Le lot 6.3 ne clôt pas la phase 6 et n'active aucune édition rattachée.

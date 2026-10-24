@@ -906,9 +906,14 @@ implémenter en phase 6. Le transport local et les modalités de rattachement so
   attachée au document ouvert, jeton temporaire, passerelle stdio, un agent,
   révocation, lectures du même moteur au point de publication de l'interface.
   Refuser toutes les mutations à ce stade ; tester les trois systèmes en CI.
-- [ ] **6.3 — Contextes et positions.** Contextes par participant, report des
+- [x] **6.3 — Contextes et positions.** Contextes par participant, report des
   positions utilisateur et du passage visible à travers les transactions. Préparer
   la séparation entre contexte de proposition et document publié (D36).
+  Livré le 25 octobre 2026 : traces exactes Unicode, annulation/rétablissement et
+  lots composés, contextes séparés et lectures MCP rattachées contextualisées,
+  ancre visible dans `ViewSync`/egui, préparation de candidats isolés sans écriture
+  ni publication. Aucun outil MCP d’édition/approbation ajouté ; le parcours de
+  validation humaine reste en 6.4. Voir [le contrat](docs/editing-contexts.md).
 - [ ] **6.4 — Propositions et éditions approuvées.** Préparation isolée d'un lot,
   présentation des différences à valider ensemble, acceptation/refus du lot entier
   par l'utilisateur. Revalidation de la garde à l'acceptation ; proposition périmée

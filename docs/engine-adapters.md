@@ -83,10 +83,11 @@ L'[inventaire des interactions](interface-interactions.md) classe les responsabi
 le [relevé des états et événements](interface-view-sync.md) décrit les règles
 observées avant l'extraction et les tests graphiques qui les protègent.
 
-`Engine` possède aujourd'hui une seule sélection et un seul style de frappe.
-La coordination indépendante de deux vues ne définit donc pas à elle seule la
-politique des curseurs d'un utilisateur et d'un agent. Les contextes séparés sont
-validés pour la phase 6 et restent à implémenter.
+Depuis le lot 6.3, `Engine` conserve le contexte principal utilisateur et des
+contextes de participants indépendants. `ViewSync` ne crée pas ces contextes :
+l'hôte gère leurs handles et utilise les cartes de transaction pour reporter les
+positions conservées. La préparation des propositions reste isolée du document
+publié. Voir [le contrat et les limites avant approbation](editing-contexts.md).
 
 ## Tests et extraction
 

@@ -110,6 +110,7 @@ Les fichiers `workspace-tests.log`, `clippy.log`, `coordination-tests.log`,
 ## Suite
 
 Le [contrat général des interfaces](interface-contract.md), livré en K.4, réunit
-appels, lectures, effets et coordination. Les contextes d'édition séparés, le
-report des positions et les interactions d'agent validées en D32/D33 restent
-des travaux de phase 6.
+appels, lectures, effets et coordination. Les contextes d'édition séparés et le
+report des positions ont été livrés depuis en 6.3 : voir
+[le contrat correspondant](editing-contexts.md). Les publications approuvées et
+les interactions d'agent restent des travaux de 6.4–6.6.

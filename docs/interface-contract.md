@@ -9,8 +9,8 @@ n'ajoute ni commande, ni transport, ni contexte d'édition au moteur.
 
 | Couche | Responsabilité | État possédé |
 | --- | --- | --- |
-| `Engine` | Valider et publier les éditions, résoudre les cibles, gérer historique, fichiers et lectures. | Un document publié, sa sélection et son style de frappe actuels ; caches dérivés de recherche, orthographe, rendu et compteurs. |
-| `ViewSync`, une instance par vue | Coordonner sélection, révélation et surbrillances, attendre un rendu utilisable et éviter le retour inverse immédiat. | Position logique de la vue, référence/statut du rendu et demandes de navigation. |
+| `Engine` | Valider et publier les éditions, résoudre les cibles, gérer historique, fichiers et lectures. | Un document publié, un contexte principal et des contextes de participants (sélection/style de frappe) ; caches dérivés de recherche, orthographe, rendu et compteurs. |
+| `ViewSync`, une instance par vue | Coordonner sélection, révélation et surbrillances, attendre un rendu utilisable et éviter le retour inverse immédiat. | Sélection et ancre logique du passage visible, référence/statut du rendu et demandes de navigation. |
 | Adaptateur | Traduire gestes/appels, fournir les valeurs explicites et exécuter les actions adaptées à son interface. | Saisie/IME, curseur natif, focus, attente du placement, défilement en pixels, textures, dialogues, préférences et notifications. |
 | Services | Exécuter les tâches et réveiller l'hôte par rappel. | Worker et caches Typst, canaux, instantanés d'export, planification locale. |
 
@@ -298,22 +298,40 @@ il n'ouvre pas le document par son chemin. Une interface web pourra réutiliser 
 contrat, avec cœur côté client ou serveur à décider ; K ne choisit ni WASM ni
 protocole de placement/édition web.
 
-## Limite actuelle et phase 6
+## Contextes, positions et propositions (lot 6.3)
 
-`Engine` possède encore **une seule sélection et un seul style de frappe**.
-Deux `ViewSync` permettent une navigation indépendante, sans créer deux contextes
-d'édition. L'origine `Agent` prépare la coordination, pas le rattachement : la
-position fournie doit être celle de la vue utilisateur déjà reportée, pas le
-curseur de l'agent. La conversion directe depuis `Outcome` convient au parcours
-local ; elle ne réalise aucun report de position.
+Le contexte principal reste celui de l'interface ou du MCP autonome. Un
+`EditContext` opaque ajoute un participant au même moteur : sélection et style
+de frappe indépendants, sans seconde session ni substitution temporaire du curseur
+utilisateur. Sa durée de vie suit ses handles Rust ; il ne se sérialise pas.
+`create_edit_context` démarre au début, en style neutre, ou capture une sélection
+explicitement confiée. `select_in_context` et `query_in_context` ne modifient pas
+le contexte principal, le contenu, la révision ou l'historique.
 
-Les choix validés de phase 6 restent à implémenter : contextes séparés, concurrence
-stricte, report des positions, maintien du focus et de la navigation, indication
-« Voir », refus temporaire des mutations pendant IME/modalité et filtrage des
-résultats d'une demande annulée. Les choix de transport/rattachement sont validés
-(D34/D35) et le canal de lecture est livré ; l'édition, les décisions différées et
-les opérations de fichiers rattachées restent à implémenter. Une donnée sérialisable
-de vue n'autorise pas à contourner ces contrôles.
+Chaque transaction publiée fournit un `PositionMap` exact (insertions/suppressions
+Unicode, normalisations, lots, annulation/rétablissement). Il sert aux positions
+conservées par le moteur et les vues, jamais à réancrer silencieusement une ancienne
+référence de commande. Les contextes sont avancés automatiquement ; l'adaptateur
+appelle `ViewSync::map_retained_positions` avant de publier sa sélection native ou
+son résultat de commande. Cette opération ne crée aucune intention de navigation.
+egui capture l'ancre logique du passage visible sur le texte publié ; l'ancre est
+reportée, sans décision de focus ni restauration du défilement en pixels à ce stade.
+
+L'origine `Agent` attend la position utilisateur ainsi reportée, jamais le curseur
+agent. La conversion directe depuis `Outcome` convient au parcours local ; elle
+ne remplace pas le report des positions. La préparation d'un `PreparedProposal`
+réutilise le brouillon des lots atomiques, avec le contexte agent : aucune
+publication, aucun historique et aucune écriture disque. Son candidat conserve
+les identités de blocs et zones. `check_proposal` vérifie la fraîcheur, sans
+représenter un accord humain ni publier quoi que ce soit.
+
+Le [contrat des contextes et propositions](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/editing-contexts.md)
+précise ces API et les affinités aux frontières. Le MCP rattaché utilise son propre
+contexte en lecture seule ; les outils de proposition/approbation ne sont pas
+encore exposés. Restent en 6.4–6.6 : présentation et acceptation du lot entier,
+publication approuvée, maintien du focus/défilement à cette publication,
+interruptions/IME/modalité, indication « Voir », opérations de fichiers autorisées
+et recette simultanée. Une donnée de vue n'autorise pas à contourner ces contrôles.
 
 La décision D36 (25 octobre 2026) ajoute une approbation humaine obligatoire pour
 les futures éditions rattachées : préparer un lot isolé sans modifier le document

@@ -100,8 +100,13 @@ La conversion directe depuis `Outcome` est celle du parcours local. Dans une
 session partagée, l'adaptateur devra substituer la sélection reportée de la vue à
 la sélection de l'agent avant de transmettre le résultat. K.2 ne calcule pas ce
 report, ne crée pas les contextes d'édition et ne gère pas les interruptions,
-notifications, annulations ou le bouton « Voir ». Ces travaux restent en phase 6
-(D32/D33) ; le branchement de K.3 conserve le parcours utilisateur existant.
+notifications, annulations ou le bouton « Voir ». Le branchement de K.3 conserve
+le parcours utilisateur existant. Depuis 6.3, `map_retained_positions` reporte
+sélection et ancre logique du passage visible depuis la carte exacte du moteur,
+sans créer d'intention de navigation. `remember_visible_position` reçoit une
+ancre de la vue courante ; remplacement/fermeture la réinitialisent. Les contextes
+sont gérés par `Engine` et le [contrat de proposition](editing-contexts.md) ; la
+publication approuvée et ses interruptions restent en 6.4.
 
 ## Vérifications
 
