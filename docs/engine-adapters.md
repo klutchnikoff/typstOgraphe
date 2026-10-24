@@ -68,12 +68,13 @@ géométrie ; la rédaction utilise `InputBuffer` et sa validation des entrées.
 - Les réveils des workers restent des rappels sans contexte egui ; les images
   échangées sont des pixels RGBA, convertis en textures dans l’application.
 
-## Coordination des vues — inventaire K.1
+## Coordination des vues — K.1 à K.3
 
 Le contrat documentaire ci-dessus est déjà commun. La coordination source ↔ aperçu
-reste branchée dans l'application jusqu'à K.3. Le composant pur `ViewSync`, distinct
-du moteur et instancié par vue, est livré en K.2 :
+utilise désormais le composant pur `ViewSync`, distinct du moteur et instancié
+par vue, livré en K.2 puis branché dans egui en K.3 :
 [API, événements et séquences d'intégration](view-sync.md).
+Le [bilan K.3](view-sync-egui.md) précise les parcours et les captures vérifiés.
 L'[inventaire des interactions](interface-interactions.md) classe les responsabilités ;
 le [relevé des états et événements](interface-view-sync.md) décrit les règles
 observées avant l'extraction et les tests graphiques qui les protègent.

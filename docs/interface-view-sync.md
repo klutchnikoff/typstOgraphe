@@ -8,6 +8,8 @@ provisoires ; ce document décrit d'abord ce que le code fait aujourd'hui.
 Suite livrée : [K.2 — coordinateur de vue](view-sync.md). L'inventaire ci-dessous
 reste le relevé du branchement egui avant K.3 ; K.2 ajoute le composant pur et
 14 tests, sans modifier ce branchement ni livrer l'assistance de phase 6.
+Le [branchement K.3 et sa recette](view-sync-egui.md) sont désormais livrés ; les
+deux indicateurs décrits dans cet inventaire historique ont été retirés d'egui.
 
 ## États et propriété
 

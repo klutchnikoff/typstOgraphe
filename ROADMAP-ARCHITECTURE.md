@@ -941,7 +941,9 @@ autonome n'en a pas besoin. Aucun éditeur web ni protocole réseau n'est livré
 `available`, `Outcome` avec ses `Effect`, la sélection, les lots atomiques, `locate`
 et `selection_boxes`.
 
-**Ce qui reste dans l'application egui** : l'orchestration de la synchronisation, voir D30.
+**Depuis K.3** : la coordination commune utilise `ViewSync`. L'application egui
+transmet les faits et exécute les actions ; saisie native, placement, focus,
+textures et services restent locaux. Voir le [bilan du branchement](docs/view-sync-egui.md).
 
 ### K.1 Inventaire (taille S) — terminé le 24 octobre 2026
 
@@ -992,18 +994,32 @@ sans point) sont conservées. Temporisation et services sont hors du composant.
 **Vérification :** 14 nouveaux tests sans egui, dont géométrie sur rendu Typst
 réel ; 451 tests de l'espace de travail réussis, Clippy tous targets sans
 avertissement, formatage, limite des fichiers du cœur et frontière des dépendances
-vérifiés. L'application n'est pas encore branchée sur ce composant : K.3 et ses
-captures restent à faire. Les contextes séparés, le report des positions et le
+vérifiés au terme de K.2. Le branchement et les captures sont livrés en K.3
+ci-dessous. Les contextes séparés, le report des positions et le
 canal d'agent de phase 6 ne sont pas implémentés par K.2.
 
-### K.3 Branchement de l'application (taille M)
+### K.3 Branchement de l'application (taille M) — livré le 24 octobre 2026
 
-- [ ] Remplacer les indicateurs qui portent les règles communes par le composant.
+- [x] Remplacer les indicateurs qui portent les règles communes par le composant.
   L'application exécute les actions de vue et conserve l'état propre à leur
   réalisation : placement prêt, cible de défilement en pixels, focus.
-- [ ] Déplacement pur, captures de référence identiques (règle de toutes les phases).
+- [x] Déplacement pur, captures de référence identiques (règle de toutes les phases).
   Un éventuel changement de comportement constaté en route est consigné et traité
   dans un commit séparé.
+
+**Livré :** `PreviewState::sync` remplace les deux anciens indicateurs. Les
+commandes/lots, publications natives, Commit IME, recherche, P.-S./P.J. et réponses
+de rendu alimentent les événements communs ; egui consomme les actions de vue.
+Ordre des colonnes, focus de recherche et placement du curseur natif avant
+publication sont conservés. Aucun changement du cœur ou du catalogue dans ce lot.
+[Bilan des parcours et des captures](docs/view-sync-egui.md).
+
+**Vérification :** les 139 tests existants de l'application passent ; trois tests
+supplémentaires couvrent préédition/rendu tardif, révélation pendant la saisie et
+focus de recherche. Les 454 tests de l'espace de travail, Clippy tous targets,
+formatage, taille des fichiers de l'adaptateur et frontière des dépendances passent.
+Les huit captures natives macOS, avant et après branchement, sont strictement
+identiques aux références conservées (SHA-256). K.4 reste à faire avant la suite.
 
 ### K.4 Contrat documenté (taille S)
 

@@ -97,8 +97,10 @@ persistante de modèles restent à développer.
   contextes d'édition séparés, concurrence stricte, conservation du focus et de
   la navigation, refus temporaire des mutations pendant IME/modalité.
   **K.2 livré :** [coordinateur de vue pur et ses tests](docs/view-sync.md), sans
-  changement du branchement egui. Prochaine étape : K.3 et vérification des
-  parcours graphiques/captures, puis documentation commune K.4. La phase 6
+  changement du branchement egui dans ce premier lot. **K.3 livré :**
+  [branchement egui, parcours et captures](docs/view-sync-egui.md), avec 454 tests
+  réussis et huit captures strictement identiques. Prochaine étape : documentation
+  commune K.4. La phase 6
   réalisera l'assistance à la composition dans la session de l'application ;
   le transport et les modalités de rattachement restent à préciser.
   État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),

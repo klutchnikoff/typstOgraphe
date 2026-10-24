@@ -11,7 +11,8 @@ Cette coordination est distincte de la saisie, du placement et du focus propres
 détaille les transitions à conserver.
 
 Suite livrée : le [composant de K.2](view-sync.md) reprend ces règles et leurs
-tests sans egui ; son branchement dans l'application reste prévu en K.3.
+tests sans egui ; le [branchement K.3](view-sync-egui.md) est également livré.
+Les tableaux ci-dessous conservent l'inventaire historique du code relu en K.1.
 
 ## Classement et périmètre
 

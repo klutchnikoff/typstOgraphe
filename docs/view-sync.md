@@ -3,7 +3,7 @@
 `typstographe_core::view_sync::ViewSync` est un composant par vue, distinct
 d'`Engine`. Il reprend les règles relevées en [K.1](interface-view-sync.md) et
 réutilise les lectures géométriques du moteur. K.2 livre le composant et ses
-tests ; l'application conserve son branchement actuel jusqu'à K.3.
+tests ; le [branchement egui et sa vérification](view-sync-egui.md) sont livrés en K.3.
 
 ## Frontière
 
@@ -59,9 +59,9 @@ la référence installée et le statut d'erreur. Les lectures du moteur contrôl
 aussi l'identifiant de rendu et les positions. Aucune correspondance n'est déduite
 d'une simple égalité de révision entre deux documents.
 
-## Traduction du parcours egui à préparer en K.3
+## Traduction du parcours egui livrée en K.3
 
-| Site actuel | Traduction prévue |
+| Site egui | Adaptation |
 | --- | --- |
 | Initialisation sans document | `ViewSync::default()` ; aucune action géométrique tant que la vue est fermée. |
 | `execute_document_command` | Un `CommandCompleted` après succès, avec origine `User` dans le parcours local. La conversion traite les effets de remplacement ; éviter une seconde réinitialisation du coordinateur pour le même résultat. |
@@ -76,8 +76,10 @@ d'une simple égalité de révision entre deux documents.
 
 Préserver l'ordre observable : aperçu traité avant l'éditeur, demande inverse
 consommable dans la même frame, publication native et nouveaux suivis visibles
-dans la suite du cycle. K.3 vérifiera les parcours graphiques et les captures ;
+dans la suite du cycle. K.3 vérifie les parcours graphiques et les captures ;
 ces tests restent nécessaires même si le coordinateur passe ses tests purs.
+Le [bilan du branchement](view-sync-egui.md) précise le placement du curseur natif
+avant publication et les huit comparaisons de captures réussies.
 
 Deux particularités sont volontairement conservées : une commande réussie sans
 changement et sans `Saved` demande le suivi avant ; une sauvegarde seule n'en
@@ -96,7 +98,7 @@ session partagée, l'adaptateur devra substituer la sélection reportée de la v
 la sélection de l'agent avant de transmettre le résultat. K.2 ne calcule pas ce
 report, ne crée pas les contextes d'édition et ne gère pas les interruptions,
 notifications, annulations ou le bouton « Voir ». Ces travaux restent en phase 6
-(D32/D33) ; le branchement de K.3 utilisera le parcours utilisateur existant.
+(D32/D33) ; le branchement de K.3 conserve le parcours utilisateur existant.
 
 ## Vérifications
 
