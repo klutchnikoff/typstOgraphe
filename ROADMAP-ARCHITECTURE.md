@@ -153,6 +153,8 @@ Fuites à traiter avant tout découpage en crates :
 | D31 | Périmètre concret de la coordination | **Validé le 24 octobre 2026 après K.1.** `ViewSync` coordonne sélection, révélation et surbrillances, avec l'origine des actions. Publications documentaires, sélections, demandes explicites, remplacement et résultats de rendu sont distincts. Temporisation, planification et exécution des services restent hors du composant. K.2 livre le composant pur et ses tests ; K.3 branche egui à comportement constant | K.2, K.3 |
 | D32 | Contextes et concurrence dans l'application | **Validés le 24 octobre 2026.** Un contexte d'édition par participant (sélection et style de frappe), un document, ses révisions et son historique communs. Une sélection confiée à l'agent est capturée à la demande. Les éditions ou lots sont atomiques et refusés si la garde complète a changé ; l'agent relit et recalcule, sans fusion automatique. Les positions de l'utilisateur sont reportées à travers les transactions ; une suppression de leur passage les ramène à la fin du remplacement | 6 |
 | D33 | Focus, navigation et interruptions de l'assistance | **Validés le 24 octobre 2026.** Une édition d'agent conserve le champ actif, le style utilisateur et sa navigation. Notification discrète et action volontaire « Voir » vers une cible gardée, avec repérage temporaire distinct de la sélection. Lectures du texte publié possibles pendant IME/modalité ; mutations temporairement refusées, sans application différée implicite. La saisie native est publiée avant examen de la demande. Ancienne session et résultat tardif d'une demande annulée sont refusés ; une édition déjà publiée relève de l'historique commun | 6 |
+| D34 | Transport et rattachement locaux | **Validés le 24 octobre 2026.** Passerelle CLI MCP stdio vers l'application par sockets locales `interprocess` (sockets Unix sous macOS/Linux, tubes nommés sous Windows). Réutiliser `rmcp`, le catalogue, les schémas et la documentation. Autorisation explicite par document en mémoire, lecture seule ou modification, identifiant opaque et jeton temporaire ; canal réservé au compte utilisateur. Un agent par document initialement. Fermeture/remplacement révoque le rattachement ; aucune reconnexion vers un autre document ni répétition automatique d'une édition | 6 |
+| D35 | Périmètre de l'assistance rattachée | **Validé le 24 octobre 2026.** Lectures, éditions, validation, rendu ; enregistrement explicite dans le fichier courant et export explicite vers un emplacement autorisé. Pas de fermeture/remplacement du document par l'agent, d'accès aux préférences globales ou aux autres documents. Autorisations vérifiées à chaque opération. Les étapes intermédiaires peuvent rester en lecture seule jusqu'à la livraison des contextes séparés et des protections D32/D33 | 6 |
 
 
 ## 4. Vue d'ensemble
@@ -176,7 +178,7 @@ interrompues entre deux PR sans laisser le dépôt dans un état intermédiaire.
 
 Le chantier K dépend des phases 2 et 3 (moteur et cœur sans egui). La phase 5 et
 K.1 à K.4 sont terminés. Les interactions de phase 6 sont validées (D32/D33) ;
-transport et rattachement restent à préciser ensemble. K prépare cette phase :
+transport et rattachement sont validés (D34/D35), à implémenter. K prépare cette phase :
 les modifications d'un agent rejoignant le document ouvert doivent rejoindre la
 coordination commune via les mêmes `Effect`, en conservant les règles de navigation
 actuelles.
@@ -890,8 +892,33 @@ de l’utilisateur ; les modifications sont visibles et annulables. Aucun deuxi�
 la session rattachée réutilisent les mêmes capacités et leur documentation.
 L'[inventaire K.1](docs/interface-interactions.md) est terminé. Les choix de
 contextes, concurrence et interactions sont validés (D32, D33) ; ils restent à
-implémenter en phase 6. Le transport local et les modalités de rattachement restent
-à préciser ensemble. Aucun accès au moteur de l'application n'est livré par K.2.
+implémenter en phase 6. Le transport local et les modalités de rattachement sont validés (D34/D35). Aucun accès au moteur de l'application n'est livré par K.2.
+
+### Lots d'implémentation
+
+- [ ] **6.1 — Adaptateur MCP partagé.** Extraire l'adaptateur hors de la CLI pour
+  le réutiliser depuis l'application sans dépendance application → CLI, sans
+  dupliquer le catalogue ni les règles de résolution des cibles. Garder le cœur
+  sans transport ni runtime. Vérifier le mode autonome existant.
+- [ ] **6.2 — Canal et rattachement en lecture.** Invitation locale explicite
+  attachée au document ouvert, jeton temporaire, passerelle stdio, un agent,
+  révocation, lectures du même moteur au point de publication de l'interface.
+  Refuser toutes les mutations à ce stade ; tester les trois systèmes en CI.
+- [ ] **6.3 — Contextes et positions.** Contextes par participant, report des
+  positions utilisateur et du passage visible à travers les transactions.
+- [ ] **6.4 — Éditions rattachées.** Gardes strictes, interruptions et annulations,
+  historique commun, effets selon l'origine, notification et action « Voir ».
+- [ ] **6.5 — Enregistrement et export.** Fichier courant, destinations autorisées,
+  contrôle à l'exécution et décisions différées revalidées.
+- [ ] **6.6 — Recette.** Agent réel sans skill ni accès au dépôt, rédaction
+  simultanée, IME/modalité, coupure, sauvegarde/export et captures graphiques.
+
+La phase démarre par 6.1 et 6.2 : aucun accès en écriture n'est livré avant les
+protections des contextes. Le rattachement peut être matérialisé par une invitation
+créée volontairement dans l'application pour son document courant ; cette
+invitation ne confère aucun accès aux autres documents.
+
+### Critères de sortie
 
 - [ ] Contextes d'édition séparés : sélection et style de frappe propres à
   l'utilisateur et à l'agent. Une sélection transmise est capturée à la demande,
