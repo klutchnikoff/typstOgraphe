@@ -620,9 +620,10 @@ sérialiseur, positions logiques et gardes de révision, restauration des sélec
 par l’historique. Frontières de zones protégées et voie commune de validation,
 normalisation et publication des éditions en place. La préédition IME reste
 isolée entre frames, avec une publication unique à validation, vérifiée par les
-événements egui ; l’essai d’une méthode IME du système reste au chantier I.
+événements egui et une saisie japonaise confirmée ; la matrice complète des
+méthodes système reste au chantier I.
 Le registre typé, ses schémas et un premier moteur possédant la session et sa
-sélection sont en place : 49 commandes et quatorze requêtes, décrites par un
+sélection sont en place : 49 commandes et dix-neuf requêtes, décrites par un
 [catalogue généré](docs/commands.md). Mise en forme, blocs, P.-S./P.J. et historique
 sont raccordés à l’interface. Les légendes/attributions et leurs raccourcis
 Tab, Maj+Tab et Entrée passent également par le moteur, comme les descriptions,
@@ -651,8 +652,13 @@ et les routes des déclencheurs sont explicites et testées ; les règles
 documentaires viennent du moteur, les états de fenêtres/préférences restent
 dans l’interface ([contrat d’aiguillage](docs/command-routing.md)). La relecture
 finale est consignée dans le [bilan de sortie](docs/architecture-phase-2-review.md).
-Le périmètre proposé (49 commandes et 14 requêtes, ajouts futurs possibles) et le gel
-restent à valider ensemble ; la phase n’est pas encore déclarée terminée.
+Les cinq lectures complémentaires validées sont livrées : types, source, ressources,
+validation et compilation sans interface. `commands.list` expose la disponibilité
+contextuelle ; `document.inspect` le type, les capacités et le style de frappe.
+Le [contrat des lectures](docs/engine-queries.md) précise leurs réponses et limites.
+**Phase 2 terminée le 24 octobre 2026 :** les 68 identifiants et contrats d’entrée
+sont stabilisés, avec ajouts compatibles possibles et décision explicite pour tout
+changement incompatible. La suite technique est le découpage en crates de phase 3.
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une
 commande à identifiant stable, pilotable par une ligne de commande et par MCP.

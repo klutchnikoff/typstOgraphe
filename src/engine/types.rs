@@ -194,7 +194,7 @@ define_calls! {
     Compile(GuardParams) => "render.compile", "Compile a guarded document synchronously into a cached in-memory render reference and diagnostics, without rasterization, export or document edits.", Query, Read, false;
     DocumentTypes(Empty) => "document_types.list", "List built-in types, supplied models, creation availability and documentary command capabilities without requiring an open document.", Query, Always, false;
     Source(Empty) => "document.source", "Read the committed documentary Typst source with its revision guard, without executing code.", Query, Read, false;
-    Assets(Empty) => "document.assets", "Inventory retained document/model resources and packaged dependencies using the save/export retention policy, without returning file contents or undo-only assets.", Query, Read, false;
+    Assets(Empty) => "document.assets", "Inventory document/model resources retained by the save/export policy and packaged dependencies, without returning file contents or traversing undo history.", Query, Read, false;
     Locate(LocateParams) => "render.locate", "Locate a logical text target in an identified render or return the guarded text target at a page point, without moving selection.", Query, Read, false;
     SelectionBoxes(SelectionBoxesParams) => "render.selection_boxes", "Read page quadrilaterals for a guarded text selection on an identified render, in Typst points.", Query, Read, false;
     Statistics(StatisticsParams) => "document.statistics", "Read Unicode word and grapheme counts for the document and an optional text target, excluding structural markers and private fields.", Query, Read, false;

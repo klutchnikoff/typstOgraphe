@@ -139,11 +139,10 @@ macro_rules! define_calls {
     };
 }
 
-/// Diagnostic généré pendant la migration ; les identifiants ne seront gelés
-/// qu'une fois toutes les familles de phase 2 migrées et relues.
+/// Référence générée des identifiants et contrats d’entrée stabilisés en phase 2.
 pub fn catalogue_markdown(value: &Value) -> String {
     let mut text = String::from(
-        "# Catalogue documentaire implémenté\n\nFichier généré par `cargo run --locked -- --commands-catalogue`.\nCe catalogue de phase 2 est partiel et ses signatures restent en cours de validation.\nLes actions d’interface et les familles non migrées n’y figurent pas.\nLes schémas JSON sont disponibles avec `--commands-catalogue-json`.\n\n| Identifiant | Famille | Étape de lot | Description |\n| --- | --- | --- | --- |\n",
+        "# Catalogue documentaire implémenté\n\nFichier généré par `cargo run --locked -- --commands-catalogue`.\nIdentifiants et contrats d’entrée stabilisés à la clôture de la phase 2, le 24 octobre 2026.\nTout changement incompatible exige une décision explicite ; les ajouts compatibles restent possibles.\nLes actions propres à l’interface ne figurent pas dans ce catalogue documentaire.\nLes schémas JSON sont disponibles avec `--commands-catalogue-json`.\nLes réponses complémentaires sont décrites dans [le contrat des lectures](engine-queries.md).\n\n| Identifiant | Famille | Étape de lot | Description |\n| --- | --- | --- | --- |\n",
     );
     for spec in value["entries"].as_array().expect("catalogue entries") {
         text.push_str(&format!(

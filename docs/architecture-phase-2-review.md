@@ -1,9 +1,13 @@
 # Relecture de sortie de phase 2
 
-Relecture du **24 octobre 2026**, sur le code `39245c4edbafb9067231c84f11257056b05aabb5`,
-complétée par deux tests de presse-papiers. **Le catalogue n’est pas encore gelé et
-la phase n’est pas déclarée terminée.** Le périmètre de gel proposé ci-dessous
-reste à valider ensemble.
+**Phase 2 terminée le 24 octobre 2026**, après les cinq lectures et les deux
+réponses complémentaires demandées par l’utilisateur avant le gel. Les 68
+identifiants et contrats d’entrée sont stabilisés ; les ajouts compatibles restent
+possibles et un changement incompatible exige une décision explicite.
+
+La première relecture portait sur `39245c4edbafb9067231c84f11257056b05aabb5`, puis
+sur les tests de presse-papiers. Les absences signalées ont ensuite été complétées
+dans les lots `88d68d7` et `01f4328`, avec les vérifications ci-dessous.
 
 Références : [feuille technique](../ROADMAP-ARCHITECTURE.md),
 [inventaire relu](commands-inventory.md), [catalogue](commands.md),
@@ -13,7 +17,7 @@ une seconde définition des paramètres à côté du registre Rust.
 
 ## 1. État vérifié
 
-- 49 commandes typées et 14 requêtes, soit **63 entrées** générées depuis les enums.
+- 49 commandes typées et 19 requêtes, soit **68 entrées** générées depuis les enums.
 - 31 variantes de `UiCommand`, 41 définitions communes, deux actions de Courrier
   et un modèle fourni : 44 présentations pour Courrier, 41 pour Compte-rendu.
   Ce dernier type reste sans modèle fourni et sa création graphique indisponible.
@@ -22,8 +26,10 @@ une seconde définition des paramètres à côté du registre Rust.
 - Les 67 références de tests de l’inventaire existent encore aux emplacements indiqués.
 - Aucun `Deref/DerefMut` vers `Session` ni écriture `engine.session` dans l’application.
   `App::apply` compose des actions UI ou des appels documentaires au moteur.
-- La CI du code relu est verte : [Rust](https://github.com/klutchnikoff/typstOgraphe/actions/runs/40038633290)
+- La CI du code de la première relecture (`39245c4`) est verte : [Rust](https://github.com/klutchnikoff/typstOgraphe/actions/runs/40038633290)
   (matrice Linux/macOS/Windows) et [couverture](https://github.com/klutchnikoff/typstOgraphe/actions/runs/40038633323).
+  Ces liens ne prouvent pas le résultat CI de la clôture : ses tests locaux sont
+  détaillés au §6, la nouvelle CI sera déclenchée par la poussée finale.
 
 ## 2. Inventaire des actions : voies relues
 
@@ -56,30 +62,32 @@ sont pas des identifiants JSON implémentés : leurs comportements restent V5/UI
 
 ## 3. Lectures : couverture réelle du §6
 
-Les 14 requêtes sont bien implémentées et testées. Le relevé initial décrivait
-aussi des vues plus riches et huit noms supplémentaires. Voici leur statut exact.
+Les 19 requêtes sont implémentées et testées. Le [contrat des lectures](engine-queries.md)
+précise les cinq ajouts et les deux réponses enrichies. Les noms du relevé initial
+qui désignent la même vue ne sont pas dupliqués.
 
-| Lecture ou promesse initiale | État réel | Proposition avant gel |
+| Lecture ou promesse initiale | État à la clôture | Limite ou extension explicite |
 | --- | --- | --- |
-| `commands.list` | Catalogue global, schémas d’entrée, règle statique de disponibilité, admissibilité aux lots. Pas de filtre par type ni de disponibilité évaluée avec motif dans sa réponse | Garder cette requête ; conserver `Engine::available` / `available_intent` pour l’évaluation. Examiner une lecture de disponibilité lors du transport CLI/MCP |
-| `document.inspect` | Garde, sélection logique, ouverture, chemin, récupération, état modifié, undo/redo, rendu courant | Garder ; type et champs sont lisibles dans `metadata.get`, pas directement dans `inspect`. Pas de catalogue de capacités agrégé |
-| `document.selection` | Aucun identifiant dédié ; la sélection gardée est dans `document.inspect.selection`. Le contexte de frappe n’y est pas exposé | Ne pas ajouter d’alias maintenant ; revoir une éventuelle lecture du contexte avant un besoin CLI |
-| `metadata.fields` | Aucun identifiant dédié ; `metadata.get.fields` donne valeurs, clés, groupes, types, multiligne et obligations d’export | Considérer la vue couverte, sans alias supplémentaire |
-| `document.options` | Aucun identifiant dédié ; valeurs dans `metadata.get.metadata.options`, contraintes dans `models.presentation` | Considérer la vue couverte par ces deux lectures |
-| `document.structure` / `document.text` | Blocs et zones ordonnés avec identités et texte ; concaténation lisible ciblée séparément, sans objet image | Garder. Les indices de la concaténation ne sont jamais des cibles publiques ; pas de lecture générale de tous les styles dans cet arbre |
-| `search.find` / remplacements | Recherche exacte du document éditable, casse optionnelle ; pas de restriction de recherche à une zone/sélection, pas de regex ni mots entiers | Garder ce périmètre déjà retenu ; les restrictions de recherche restent une extension du chantier B |
-| `document_types.list` | Absent du registre ; catalogue de types actuellement accessible en Rust | Ajouter quand nécessaire pour la découverte sans UI avant livraison CLI/MCP |
-| `document.source` | Absent du registre ; accesseur Rust immuable disponible | Ajouter si nécessaire pour une lecture de source sans transport graphique ; aucun accès d’exécution arbitraire à créer |
-| `document.assets` | Absent du registre ; accès internes et filtrage des ressources à la sauvegarde/export disponibles | Définir une vue d’inventaire des ressources lorsque le transport en a besoin, sans exposer les ressources abandonnées de l’historique |
-| `document.validate` | Absent du registre ; validations existantes appliquées aux opérations, sans rapport agrégé autonome | Préparer une opération dédiée avant de livrer la commande CLI de validation prévue en phase 4 |
-| `render.compile` | Absent du registre. Compilation/installation du rendu par l’adaptateur natif ; `render.locate` et `render.selection_boxes` exigent une référence déjà installée | Définir le service de rendu au découpage en crates, puis exposer la compilation si nécessaire pour CLI/MCP. Ne pas annoncer une compilation publique déjà disponible |
-| Autres requêtes livrées | `document.statistics`, `models.list`, `models.presentation`, `spelling.issues/suggestions`, `recovery.list` | Garder ; pas de fonctionnalité proposée mais non implémentée annoncée dans le catalogue |
+| `commands.list` | Catalogue et schémas, règles statiques, disponibilité contextuelle avec motif ou `requires_parameters` | Paramètres réels revalidés à l’exécution ; pas de filtre paramétrable par type ni de promesse d’acceptation d’un appel incomplet |
+| `document.inspect` | État de session, sélection, rendu, type, capacités et style de frappe | Les capacités sont les IDs des étapes documentaires du type ; le style de frappe n’est pas un résumé d’une sélection aux styles mélangés |
+| `document.selection` | Sélection dans `document.inspect.selection`, style de frappe dans `typing_style` | Pas d’alias dédié |
+| `metadata.fields` | Descripteurs complets et valeurs dans `metadata.get.fields` | Pas d’alias dédié |
+| `document.options` | Valeurs dans `metadata.get.metadata.options`, contraintes dans `models.presentation` | Pas d’alias dédié |
+| `document.structure` / `document.text` | Blocs, zones, identités et texte ciblé, sans objet image dans la concaténation lisible | Lecture exhaustive des styles internes reportée ; les indices de concaténation ne sont jamais des cibles publiques |
+| `search.find` / remplacements | Recherche exacte documentaire, casse optionnelle | Restriction à une zone/sélection, mots entiers et regex hors périmètre retenu, extensions du chantier B |
+| `document_types.list` | Types, modèles, création effective et capacités, même sans document ouvert | Compte-rendu sans modèle fourni, donc création indisponible |
+| `document.source` | Source Typst du corps publié avec garde | Aucune exécution de code fourni ; modèle et `main.typ` ne sont pas ce corps |
+| `document.assets` | Inventaire des ressources retenues et dépendances, chemins internes et tailles | Politique commune à sauvegarde/export, prudente si le modèle invalide empêche de prouver qu’une ressource est inutile ; aucun parcours de l’historique |
+| `document.validate` | Rapport gardé : erreurs, avertissements, validité du brouillon et préparation à l’export | Les contrôles réutilisés peuvent s’arrêter à leur première erreur par catégorie ; pas de promesse d’exhaustivité des erreurs d’un programme invalide |
+| `render.compile` | Compilation synchrone sans UI, référence de rendu et diagnostics, sans rasterisation ni export | Cache courant réutilisé ; un transport pourra appeler la lecture sur un worker |
+| Autres requêtes | Compteurs, modèles, présentation, orthographe, récupération et géométrie du rendu déjà livrés | Services globaux V5 toujours distincts des mutations documentaires |
 
-**Décision à valider :** ces absences/limites ne sont pas reclassées silencieusement
-en éléments terminés. La proposition est de clore la migration des comportements
-existants avec les 63 entrées actuelles, puis d’ajouter les lectures nécessaires
-aux usages CLI/MCP. Une liste de commandes gelée peut être enrichie ; elle n’a pas
-besoin de contenir tous les noms envisagés avant sa première validation.
+**Périmètre validé et livré :** cinq requêtes supplémentaires et deux réponses
+enrichies avant la clôture. Aucune de ces cinq fonctions n’est reportée à CLI/MCP.
+La représentation détaillée des styles, les recherches supplémentaires et les
+schémas exhaustifs de sortie restent des extensions identifiées, sans être
+annoncées comme terminées. Les schémas nécessaires aux transports seront précisés
+avant leur livraison.
 
 ## 4. Contrats relus avant stabilisation
 
@@ -116,8 +124,8 @@ besoin de contenir tous les noms envisagés avant sa première validation.
 | `App::apply` compose UI ou moteur | Conforme ; routes exhaustives et tests des quatre déclencheurs |
 | Aucune publication directe de session par l’UI | Conforme ; brouillons opaques et validation D17. Le chargeur interne `install_stored` est encore utilisé pour les démonstrations/captures, hors commandes utilisateur ; frontière à maintenir lors du découpage en crates |
 | Blocs, zones, cibles et sélection migrés | Conforme pour les structures existantes. Zones réutilisables pour de futures cellules ; aucune structure Table/Cell ni commande de tableau n’est livrée |
-| Inventaire classé et catalogue relu | Relecture réalisée ; **validation du périmètre du §3 en attente** |
-| Gel des identifiants | **Non effectué**, à décider après validation de cette relecture |
+| Inventaire classé et catalogue relu | Conforme ; cinq lectures ajoutées et deux réponses enrichies selon le périmètre validé |
+| Gel des identifiants et contrats d’entrée | Effectué après les compléments : 49 commandes et 19 requêtes, références générées et tests synchronisés |
 
 Les fuites transitives d’egui/Fluent et la séparation des crates appartiennent
 à la phase 3 déjà prévue. Elles ne sont pas présentées comme résolues par ce lot.
@@ -126,34 +134,38 @@ par l’utilisateur, mais la matrice native complète (candidats, annulation,
 presse-papiers et dépôt système) reste au chantier I. Les tests Copy/Cut/Paste
 ajoutés ici ne testent pas le presse-papiers réel des trois OS.
 
-## 6. Validation de la relecture
+## 6. Validation de clôture
 
-- `cargo test --locked --all-targets --features editor-model-spike` : **339 tests
-  de l’application et 203 du diagnostic passent**, dont les deux nouveaux scénarios
-  du presse-papiers. Les tests contrôlent aussi les fichiers de catalogue générés.
+- `cargo test --locked --all-targets --features editor-model-spike` : **347 tests
+  application et 211 tests diagnostic passent**. Huit scénarios ajoutés dans
+  `engine/tests/discovery.rs` et `validation.rs` couvrent les lectures complémentaires.
+  Logs locaux : `/tmp/typstographe-phase2-completion-tests.log`.
 - `cargo clippy --locked --all-targets --features editor-model-spike -- -D warnings` :
-  succès ; formatage et différences vérifiés.
-- Le code de production et les fichiers `docs/commands.md` / `commands.json` sont
-  inchangés. Les huit captures natives du lot précédent restent la référence
-  (`output/baseline/run-wfbf4qxl/`) ; aucune nouvelle capture n’est requise pour
-  des tests et de la documentation seuls.
+  succès ; formatage et différences vérifiés. Log :
+  `/tmp/typstographe-phase2-completion-clippy.log`.
+- Les 68 entrées ont des schémas d’entrée stricts, un test d’aller-retour et un
+  catalogue généré comparé aux références. La génération statique est séparée de
+  `commands.list`, dont la réponse dépend du contexte. Après actualisation de
+  l’en-tête de clôture, les tests du catalogue sont exécutés à nouveau.
+- Les huit captures natives correspondent exactement aux références :
+  `output/baseline/run-8091w1lx/`. Le worker graphique partage la compilation
+  Typst de la requête sans UI et conserve ses protections contre les réponses périmées.
 - Les liens et noms des 67 tests historiques de l’inventaire ont été vérifiés ;
-  ils restent un index de départ, complété par les suites de parité du moteur.
-  Quatre collisions de références T60–T63 ont été désambiguïsées : les scénarios
-  IME portent désormais T66–T69, sans renommer leurs tests.
+  ils restent un index de départ, complété par les suites du moteur. Les références
+  IME T66–T69 distinguent les anciennes collisions T60–T63.
 
-## 7. Proposition de gel à valider ensemble
+## 7. Périmètre stabilisé
 
-
-1. Stabiliser les **49 identifiants de commandes et 14 de requêtes**, leurs
-   paramètres existants, valeurs par défaut et invariants documentés. Pas de
-   renommage ou suppression ni changement incompatible sans décision explicite.
-2. Autoriser les ajouts compatibles pour les lectures manquantes, types et capacités
-   futurs. Ne pas créer maintenant les alias déjà couverts par d’autres réponses.
-3. Ne pas annoncer un schéma exhaustif de réponses : plusieurs lectures renvoient
-   encore `serde_json::Value`. Les champs de réponse documentés sont à préserver,
-   les détails de diagnostic ne deviennent pas du texte contractuel ; préciser les
-   schémas de sortie nécessaires aux transports avant leur livraison.
-4. Après accord seulement : clôturer 2.6, actualiser l’en-tête généré du catalogue
-   et son test de référence, puis passer à la phase 3. Ce rapport et les cases
-   d’implémentation vérifiées ne valent pas cet accord.
+1. Les **49 identifiants de commandes et 19 de requêtes**, leurs paramètres,
+   défauts et invariants documentés sont stabilisés. Pas de renommage, suppression
+   ou modification incompatible sans décision explicite.
+2. Les ajouts compatibles restent possibles pour les types et capacités futurs.
+   Aucune requête supplémentaire n’est créée pour une vue déjà couverte.
+3. Les champs de réponse documentés sont à préserver. Les diagnostics comportent
+   codes et sévérités ; leur détail textuel et les identités temporaires ne sont
+   pas des valeurs constantes entre exécutions. Plusieurs réponses sont encore
+   assemblées en `serde_json::Value` : leurs schémas exhaustifs seront précisés
+   avant les transports, sans les prétendre générés aujourd’hui.
+4. La phase 3 peut commencer : découpage en crates et retrait des dépendances
+   graphiques/localisées du cœur. CLI/MCP, tableaux et matrice système complète
+   restent dans leurs phases ou chantiers respectifs.

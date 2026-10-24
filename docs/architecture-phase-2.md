@@ -1,13 +1,13 @@
 # Phase 2 — Mise en place du modèle structuré et du moteur
 
-**État au 24 octobre 2026 : relecture finale effectuée, clôture et gel en attente de validation.** Les orientations
+**État au 24 octobre 2026 : phase terminée, compléments D21 livrés et contrats d’entrée stabilisés.** Les orientations
 V1–V6 de [l’inventaire](commands-inventory.md) sont validées. Les premiers lots
 portent sur les blocs, les zones, leurs identités, les cibles de sélection, puis
 la protection des frontières et la publication commune des éditions.
 La préédition IME est maintenant isolée entre frames, avec une publication à validation.
 Le registre typé et le premier moteur sont implémentés : 49 commandes, quatorze
 requêtes et leur catalogue généré. Le [bilan de sortie](architecture-phase-2-review.md)
-recense les éléments couverts, les limites et le périmètre proposé pour le gel.
+recense les éléments couverts, les limites et le périmètre stabilisé après les compléments D21.
 
 ## Blocs et zones en mémoire
 
@@ -902,27 +902,45 @@ sans Typst, coupe comparée à `text.delete`, collage Unicode littéral comparé
 Le pont réel du presse-papiers et la matrice IME système restent au chantier I.
 Aucun code de production ni schéma de catalogue n’est modifié par cette relecture.
 
-## Suite de la phase
+## Complément D21 et clôture
 
-Les lectures de synchronisation et de comptage sont migrées vers le moteur. Les
-cartes de source Typst sont conservées derrière les requêtes ; la peinture de la
-recherche reste également un adaptateur du tampon graphique. Les règles des blocs
-et de transformation de frappe, les images, signatures, actions de recherche/remplacement,
-l’orthographe documentaire, les champs, les options et les modèles sont migrés.
+Après clarification de la relecture, l’utilisateur valide l’ajout des cinq lectures
+manquantes et l’enrichissement des deux réponses existantes avant le gel.
+Le moteur comprend maintenant **49 commandes et 19 requêtes**, soit 68 entrées.
 
-L’utilisateur confirme maintenant l’affichage japonais après ajout des fontes.
-Les essais complets de composition, choix des candidats, annulation et historique
-avec les méthodes système restent à poursuivre dans le chantier I. Le contrat natif
-D17 est implémenté ; les autres critères de 2.1 bis ont été relus dans le bilan
-de sortie, sans présenter les essais système restants comme réalisés.
+- `document_types.list` découvre les types et modèles sans document ouvert.
+- `document.source` lit le corps Typst publié.
+- `document.assets` applique la politique de rétention de sauvegarde/export sans
+  parcourir l’historique et sans détruire les ressources nécessaires à Annuler.
+- `document.validate` distingue erreurs et champs encore manquants à l’export.
+- `render.compile` compile sans UI ni export, installe une référence utilisable
+  pour la synchronisation et réutilise un rendu déjà courant.
+- `commands.list` évalue le contexte, avec motifs et état `requires_parameters`.
+- `document.inspect` ajoute type, capacités et style de frappe, nuls à l’accueil.
 
-Les familles documentaires prévues en 2.4 sont migrées, y compris les fichiers,
-la récupération et les lots atomiques D16. L’accès transitoire à la session est
-supprimé. La disponibilité commune et l’aiguillage des déclencheurs sont en place.
-L’inventaire et les critères de sortie ont été relus. Restent l’accord explicite
-sur le périmètre proposé en D21 et le gel du catalogue ; la clôture n’est pas
-encore prononcée.
-V5 conserve les réglages globaux dans l’application ; les formats d’export séparés
-et la création sans interface de V6 sont implémentés et testés. Le lot de lectures
-ne livre pas de `render.compile` public ; son service et les lectures complémentaires
-figurent dans les points de périmètre du bilan, encore à valider ensemble.
+Le [contrat des lectures](engine-queries.md) détaille réponses, gardes, cache,
+erreurs et limites. La compilation est partagée avec le worker graphique ; le
+cache de rendu est dérivé du document et peut être alimenté par une lecture sans
+modifier révision, sélection, historique ou fichiers. Le catalogue statique généré
+est séparé de la réponse contextuelle à `commands.list`.
+
+Huit nouveaux tests couvrent découverte, inventaire/annulation, contexte, validation,
+gardes, compilation, géométrie sur plusieurs pages, cache et préédition privée.
+Validation finale : **347 tests application et 211 diagnostic** passent ; Clippy
+avec `-D warnings`, formatage et catalogues générés passent. Les huit captures
+natives correspondent exactement aux références (`output/baseline/run-8091w1lx/`).
+
+**Phase 2 terminée.** Les 68 identifiants, paramètres, défauts et invariants
+sont stabilisés : toute modification incompatible demande une décision explicite,
+les ajouts compatibles restent possibles. Aucune structure de tableau, aucun
+transport CLI/MCP et aucune séparation de crates ne sont ajoutés ici.
+
+La suite est la phase 3 : dépendances egui/Fluent, espace de travail et séparation
+core/i18n/application/CLI. Les schémas exhaustifs des réponses devront être précisés
+avant livraison des transports. La lecture détaillée des styles et les extensions
+de périmètre de recherche restent identifiées dans le bilan, sans bloquer la clôture.
+
+L’utilisateur a confirmé le japonais après ajout des fontes. Le contrat natif D17
+est implémenté ; les essais complets des candidats, de l’annulation, du presse-papiers
+et du dépôt avec les méthodes système restent au chantier I. V5 conserve les
+réglages globaux dans l’application ; les fichiers et exports V6 sont implémentés.

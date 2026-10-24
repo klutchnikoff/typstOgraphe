@@ -6654,7 +6654,7 @@
     {
       "availability": "read",
       "batch_step": false,
-      "description": "Inventory retained document/model resources and packaged dependencies using the save/export retention policy, without returning file contents or undo-only assets.",
+      "description": "Inventory document/model resources retained by the save/export policy and packaged dependencies, without returning file contents or traversing undo history.",
       "family": "query",
       "id": "document.assets",
       "params_schema": {

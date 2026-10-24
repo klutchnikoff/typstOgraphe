@@ -133,7 +133,7 @@ Fuites à traiter avant tout découpage en crates :
 | D18 | Modèle d’édition | **Validée après relecture.** Prototype borné de tableaux et vérification de la composition IME après le rangement initial, avant le gel des paramètres publics du moteur en phase 2. **Choix validé le 22 octobre 2026 après le prototype : blocs et cellules explicites en mémoire**, avec des zones de texte réutilisant la projection actuelle et la saisie egui. Cette représentation est reconstruite depuis le Typst et sérialisée en Typst, qui reste la référence documentaire | 1, 2 |
 | D19 | Captures comparables | **Validée après relecture.** Figer en mode capture la langue, le thème, le curseur, les animations et le temps de rendu affiché. Fixtures et dates fixes, attente des résultats asynchrones. Les empreintes PNG ne servent de contrôle qu’après répétition réussie sur le même environnement | 0 |
 | D20 | Granularité des changements | **Validée après relecture.** Un déplacement par commit, plusieurs commits cohérents possibles par PR. Les limites portent sur le code de production ; le découpage de `document.rs` et d’`editor.rs` est planifié avant leur application globale | 1, 3, 7 |
-| D21 | Périmètre de clôture et gel du catalogue | **Proposition du 24 octobre 2026, à valider ensemble.** Stabiliser les 49 commandes et 14 requêtes actuelles, leurs IDs et contrats d’entrée, en autorisant les ajouts compatibles. Les lectures non livrées, les réponses encore non schématisées et les critères de sortie sont explicités dans [le bilan de sortie](docs/architecture-phase-2-review.md). Ne pas clore la phase avant cet accord | 2, 3, 4 |
+| D21 | Périmètre de clôture et gel du catalogue | **Validée et mise en œuvre le 24 octobre 2026.** Ajouter les cinq lectures manquantes et enrichir disponibilité/inspection avant le gel : 49 commandes et 19 requêtes. Stabiliser leurs IDs et contrats d’entrée ; tout changement incompatible exige une décision explicite, les ajouts compatibles restent possibles. Les réponses documentées et les extensions restantes sont décrites dans [le bilan de sortie](docs/architecture-phase-2-review.md) et [le contrat des lectures](docs/engine-queries.md) | 2, 3, 4 |
 
 
 ## 4. Vue d'ensemble
@@ -417,16 +417,16 @@ Dans `src/engine/` (futur crate `core`) :
   `SetMetadata { field, value }`, `SetOption { option, value }`, `ReplaceAll { with }`…).
   Les variantes actuelles sans paramètres restent telles quelles.
   **Relu :** 49 commandes typées implémentées, dont les lots atomiques ;
-  le gel et son périmètre restent à valider ensemble. Les espaces de noms
+  leurs identifiants et contrats d’entrée sont stabilisés à la clôture de phase 2. Les espaces de noms
   hiérarchiques existants (`courrier.model.personal`) sont conservés, sans autre renommage que D2.
 - [x] `Query` : lectures seules (`document.inspect`, `document.text`, `spelling.issues`,
   `search.find`, `metadata.get`, `commands.list`, `models.list`).
-  **Relu :** quatorze requêtes implémentées, dont `render.locate`,
-  `render.selection_boxes` et `document.statistics`. Les lectures orthographiques,
-  champs actifs, modèles et récupération sont également disponibles. La couverture
-  de l’inventaire et les limites des autres propositions sont recensées dans le
-  [bilan de sortie](docs/architecture-phase-2-review.md) ; aucun ajout ni gel implicite.
-  Voir [le contrat des lectures de rendu et compteurs](docs/read-queries.md).
+  **Clôture :** dix-neuf requêtes implémentées, dont les cinq lectures complémentaires
+  `document_types.list`, `document.source`, `document.assets`, `document.validate`
+  et `render.compile`. `commands.list` expose la disponibilité contextuelle et
+  `document.inspect` le type, les capacités et le style de frappe. Voir
+  [le contrat des lectures](docs/engine-queries.md), [rendu et compteurs](docs/read-queries.md)
+  et [le bilan de sortie](docs/architecture-phase-2-review.md).
 - [x] `UiCommand` : palette, préférences, ouverture des dialogues, focus. Reste dans l'application.
 - [x] `CommandSpec` (cœur, sans egui) : identifiant, description **en anglais** (pour les
   agents), famille, schéma des paramètres (`schemars`), règle de disponibilité
@@ -547,15 +547,15 @@ Dans le style du test existant sur les fichiers Fluent :
   garde de sélection et transaction annulable, refus des actions indisponibles ;
 - [x] **catalogue contrôlé** : `docs/commands.md` et `docs/commands.json` sont générés depuis le registre et comparés
   dans la CI (échec si le fichier est périmé).
-  Le catalogue courant ne couvre que les familles implémentées ; son gel reste
-  un critère de sortie de phase 2. Le suivi détaillé est dans
+  Les 68 entrées documentaires sont relues et stabilisées ; les actions propres
+  à l’interface restent hors catalogue. Le suivi détaillé est dans
   [docs/architecture-phase-2.md](docs/architecture-phase-2.md).
 
 ### 2.6 Critères de sortie
 
-**Relecture effectuée le 24 octobre ; clôture et gel non prononcés.**
+**Phase 2 terminée le 24 octobre 2026, après les compléments validés en D21.**
 Le [bilan de sortie](docs/architecture-phase-2-review.md) confronte l’inventaire,
-les signatures et les preuves ; il propose le périmètre à valider ensemble (D21).
+les signatures, les limites restantes et les preuves de validation.
 
 - [x] `App::apply` ne contient plus que des `UiCommand` et des appels au moteur.
 - [x] Aucune publication directe de session par l’interface ; la saisie native
@@ -563,12 +563,12 @@ les signatures et les preuves ; il propose le périmètre à valider ensemble (D
   reste hors catalogue et sous validation du moteur.
 - [x] Représentation structurée migrée et cibles validées pour les blocs existants.
   Les zones préparent de futures cellules ; aucune commande de tableau livrée ici.
-- [ ] Inventaire classé et catalogue généré relu : relecture faite, mais périmètre
-  des lectures complémentaires à valider. Les propositions absentes ne sont pas
-  comptées comme implémentées.
-- [ ] **Gel des identifiants et contrats d’entrée existants** : proposition D21,
-  aucune clôture automatique. Après accord, pas de changement incompatible sans
-  décision explicite ; les ajouts compatibles resteront possibles.
+- [x] Inventaire classé et catalogue généré relu : 49 commandes et 19 requêtes ;
+  cinq lectures ajoutées, deux réponses enrichies, vues redondantes sans alias.
+- [x] **Gel des identifiants et contrats d’entrée existants** : D21 mise en œuvre
+  après les compléments demandés. Pas de changement incompatible sans décision
+  explicite ; les ajouts compatibles restent possibles. Les schémas exhaustifs
+  de sortie seront précisés avant les transports CLI/MCP.
 
 ---
 

@@ -42,8 +42,10 @@ accepté une `RenderReference { guard, id }`. `document.inspect` expose le rendu
 courant dans `render: { reference, pages }`, ou `null` si aucun rendu ne correspond
 à la session publiée. Les dimensions de `pages` sont en points Typst.
 
-Une requête doit fournir cette référence. Deux compilations d’une même révision
-obtiennent des identifiants différents ; seule la dernière acceptée est utilisable.
+Les requêtes de géométrie doivent fournir cette référence. Deux rendus nouvellement
+installés d’une même révision obtiennent des identifiants différents ; seule la
+dernière référence acceptée est utilisable. `render.compile` réutilise au contraire
+la référence déjà courante, si elle existe.
 Une édition rend la référence précédente périmée. Remplacer ou fermer le document
 libère le rendu détenu par le moteur. Rien n’est enregistré dans le `.typsto`.
 
@@ -73,5 +75,6 @@ produit `render_unavailable` ; les gardes étrangères/périmées conservent les
 Les pixels, le zoom, le focus et les défilements restent dans l’interface. Les
 cartes de source et les algorithmes de `RenderSync` sont conservés derrière ces
 requêtes ; aucun indice global du tampon egui ne devient un paramètre JSON.
-Ce lot n’ajoute ni `render.compile` public, ni transport CLI/MCP. Le gel du
-catalogue et la relecture exhaustive de l’inventaire restent à faire.
+Le complément de clôture de phase 2 ajoute `render.compile`, décrit avec la
+validation et la découverte dans [le contrat des lectures](engine-queries.md).
+Aucun transport CLI/MCP n’est encore livré.

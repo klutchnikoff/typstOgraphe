@@ -1,9 +1,11 @@
 # Catalogue documentaire implémenté
 
 Fichier généré par `cargo run --locked -- --commands-catalogue`.
-Ce catalogue de phase 2 est partiel et ses signatures restent en cours de validation.
-Les actions d’interface et les familles non migrées n’y figurent pas.
+Identifiants et contrats d’entrée stabilisés à la clôture de la phase 2, le 24 octobre 2026.
+Tout changement incompatible exige une décision explicite ; les ajouts compatibles restent possibles.
+Les actions propres à l’interface ne figurent pas dans ce catalogue documentaire.
 Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
+Les réponses complémentaires sont décrites dans [le contrat des lectures](engine-queries.md).
 
 | Identifiant | Famille | Étape de lot | Description |
 | --- | --- | --- | --- |
@@ -60,7 +62,7 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 | `render.compile` | query | non | Compile a guarded document synchronously into a cached in-memory render reference and diagnostics, without rasterization, export or document edits. |
 | `document_types.list` | query | non | List built-in types, supplied models, creation availability and documentary command capabilities without requiring an open document. |
 | `document.source` | query | non | Read the committed documentary Typst source with its revision guard, without executing code. |
-| `document.assets` | query | non | Inventory retained document/model resources and packaged dependencies using the save/export retention policy, without returning file contents or undo-only assets. |
+| `document.assets` | query | non | Inventory document/model resources retained by the save/export policy and packaged dependencies, without returning file contents or traversing undo history. |
 | `render.locate` | query | non | Locate a logical text target in an identified render or return the guarded text target at a page point, without moving selection. |
 | `render.selection_boxes` | query | non | Read page quadrilaterals for a guarded text selection on an identified render, in Typst points. |
 | `document.statistics` | query | non | Read Unicode word and grapheme counts for the document and an optional text target, excluding structural markers and private fields. |

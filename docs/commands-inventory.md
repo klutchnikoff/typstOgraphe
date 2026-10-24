@@ -6,10 +6,12 @@ L’implémentation a commencé par les blocs, leurs zones, leurs identités et 
 cibles de sélection, puis la protection des frontières et la voie commune de
 publication des éditions, puis l’isolation IME entre frames ; voir
 [le suivi de phase 2](architecture-phase-2.md).
-Le moteur comprend maintenant **49 commandes documentaires et 14 requêtes**,
+Le moteur comprend maintenant **49 commandes documentaires et 19 requêtes**,
 avec leurs schémas JSON ; voir le [catalogue généré](commands.md).
 **Relecture finale du 24 octobre :** [bilan des voies, lectures et critères de sortie](architecture-phase-2-review.md).
-Le gel et le périmètre des lectures complémentaires restent à valider ensemble.
+Les cinq lectures complémentaires et les deux réponses enrichies sont livrées ;
+les identifiants et contrats d’entrée sont stabilisés à la clôture de phase 2.
+Le [contrat des lectures](engine-queries.md) précise la disponibilité et les réponses.
 Le lot du 23 octobre migre Tab/Maj+Tab vers `text.select { part }`, puis Entrée
 vers `block.split` et sa sortie commune `block.exit` pour légendes et attributions.
 Le lot suivant ajoute les descriptions (`term`/`definition`), listes et notes à
@@ -464,35 +466,37 @@ conditions graphiques restantes et les règles de validation à la confirmation.
 
 ## 6. Requêtes proposées pour lire et préparer les actions
 
-**Statut relu :** les 14 requêtes du catalogue sont implémentées. Cette table
-conserve aussi les propositions initiales, dont huit noms n’ont pas d’entrée
-dédiée. Leur couverture, leurs limites et leur éventuel report sont explicités
-dans le [bilan de sortie, §3](architecture-phase-2-review.md).
-Ce tableau ne promet pas des signatures supplémentaires déjà disponibles.
+**Statut de clôture :** les 19 requêtes du catalogue sont implémentées. Cette
+table conserve les vues du relevé initial : `document.selection`, `metadata.fields`
+et `document.options` sont couvertes par d’autres réponses, sans alias. Les cinq
+lectures auparavant absentes et la disponibilité/inspection enrichies sont livrées.
+Le [bilan de sortie, §3](architecture-phase-2-review.md) distingue cette couverture
+des extensions (styles détaillés, recherche restreinte et schémas de sortie).
+Les signatures exactes sont dans le catalogue et le [contrat des lectures](engine-queries.md).
 
-| Requête | Données / cible | Source actuelle | Test / vérification à reprendre |
+| Requête / vue | Données / cible | Implémentation actuelle | Preuves |
 | --- | --- | --- | --- |
-| `commands.list` | Actions, familles, schémas, disponibilité et motif, capacités du type ; filtre sans UI | `Registry::definitions`, `menu_statuses` | T42, T63 ; distinction C/Q/UI à tester |
-| `document_types.list` | Types définis, modèles proposés, possibilité effective de création | `DocumentType::ALL/can_create` | T01, T42 |
-| `models.list` | Modèles fournis du type actif, avec identifiants des préréglages | `models::ALL`, `DocumentType::models` | T42 |
-| `models.presentation` | Contrat, papier verrouillé, puces et choix autorisés du modèle fourni ou courant | `model_presentation`, descripteurs | T23, T41 |
-| `document.inspect` | Type, session, révision, état enregistré/récupéré, capacités ; pas le profil global | `Session`, `is_dirty`, registre | T01, T02, T43 |
-| `document.structure` | Arbre logique, identités de blocs/zones, rôles, limites d’édition | `Projection` et annotations, à migrer en 2.1 bis | T12, T14, T53 ; identités à tester |
-| `document.text` | Texte visible d’une sélection/zone/document ; exclure sentinelles et champs privés | `Projection`, `Search`, `statistics` | T07, T36, T44 ; découpage par zones à tester |
-| `document.source` | Source Typst documentaire du relevé validé, pas une commande d’exécution de code | `Document::source` | T40, T48 |
-| `document.selection` | Sélection logique orientée et contexte de frappe | `Session::Selection`, `App.document.selection` | T06, T43 |
-| `document.statistics` | Mots, signes Unicode, signes hors espaces ; document et cible | `statistics::Counter` | T36 |
-| `document.assets` | Inventaire des ressources du document et références utilisées, pas l’historique abandonné | `Assets`, `retained_assets` | T17, T48 |
-| `metadata.get` / `metadata.fields` | Valeurs / schéma des champs du type actif, groupes et obligations | `Metadata`, `TextField`, `FieldGroup` | T21, T58 |
-| `document.options` | Valeurs communes et libertés du modèle ; exceptions orthographiques documentaires séparées | `DocumentOptions`, `ModelPresentation` | T23, T60 |
-| `document.validate` | Diagnostics du sous-ensemble, du contrat, des champs d’export et ressources | `Document::from_source`, `validate_model`, stockage, `ready_for_export` | T41, T47, T48 |
-| `search.find` | Recherche exacte, casse et périmètre explicites ; références d’occurrence avec révision | `search::Search` | T29, T44 |
-| `spelling.issues` | Faute, langue, cible et révision ; statut dictionnaire disponible/indisponible | `spelling::Checker` | T31, T32 |
-| `spelling.suggestions` | Mot/langue explicites ou référence de faute ; suggestions, pas ouverture de menu | `Checker::request_suggestions` | T31 |
-| `render.compile` | Compiler un relevé validé ; référence de rendu, révision et diagnostics, aucun export disque | `RenderWorker`, `TypstWorld` | T60, T64 |
-| `render.locate` | `direction: to_source/to_preview`, position logique ou page/point du rendu identifié | `RenderSync` | T38, T64 |
-| `render.selection_boxes` | Quadrilatères par page de la sélection sur un rendu identifié | `RenderSync::selection_highlights` | T65 |
-| `recovery.list` | Copies du service de récupération configuré, sans les restaurer ou les supprimer | `Recovery::start`, entrées | T33, T34 |
+| `commands.list` | Catalogue, schémas et disponibilité contextuelle avec motifs ; paramètres encore nécessaires signalés | `engine/discovery.rs` | `engine/tests/discovery.rs`, contrôle généré dans `engine/tests.rs` |
+| `document_types.list` | Types définis, modèles, création effective et capacités | `engine/discovery.rs`, `DocumentType::ALL` | `engine/tests/discovery.rs` |
+| `models.list` | Modèles fournis du type actif | `engine/models.rs` | `engine/tests/models.rs` |
+| `models.presentation` | Papier verrouillé, puces et choix autorisés du modèle courant | `engine/metadata.rs` | `engine/tests/metadata.rs` |
+| `document.inspect` | Session, sélection, rendu, type, capacités et style de frappe | `engine/queries.rs` | `engine/tests/discovery.rs`, `files.rs`, `render.rs` |
+| `document.structure` | Blocs, zones, rôles et identités ; pas de vue exhaustive des styles | `engine/queries.rs`, `document/structure/` | T12, T14, T53 ; tests structure et moteur |
+| `document.text` | Texte visible ciblé, sans objet image ni champs privés | `engine/queries.rs` | `engine/tests.rs`, T07, T36, T44 |
+| `document.source` | Corps Typst publié et garde, sans exécution de code fourni | `engine/queries.rs` | `engine/tests/discovery.rs`, `validation.rs` |
+| `document.selection` (vue) | Sélection orientée et style de frappe, dans `document.inspect` | `engine/queries.rs`, sans alias dédié | `engine/tests/discovery.rs` |
+| `document.statistics` | Mots, signes Unicode, signes hors espaces ; document et cible | `engine/statistics.rs` | `engine/tests/statistics.rs` |
+| `document.assets` | Ressources retenues et dépendances, chemins internes et tailles | `engine/discovery.rs`, `rendering::retained_assets` | `engine/tests/discovery.rs` |
+| `metadata.get` / `metadata.fields` (vue) | Métadonnées et descripteurs des champs actifs, sans alias | `engine/queries.rs`, `Metadata::field_values` | `engine/tests/metadata.rs` |
+| `document.options` (vue) | Valeurs dans `metadata.get`, contraintes dans `models.presentation` | `engine/queries.rs`, `metadata.rs`, sans alias dédié | `engine/tests/metadata.rs` |
+| `document.validate` | Rapport gardé : erreurs, champs d’export manquants, validité et préparation | `engine/validation.rs` | `engine/tests/validation.rs` |
+| `search.find` | Recherche documentaire exacte, casse optionnelle, occurrences gardées | `engine/search.rs` | `engine/tests/search.rs` |
+| `spelling.issues` | Fautes gardées et statut des dictionnaires | `engine/spelling.rs` | `engine/tests/spelling.rs` |
+| `spelling.suggestions` | Suggestions pour mot/langue ou référence de faute | `engine/spelling.rs` | `engine/tests/spelling.rs` |
+| `render.compile` | Compilation gardée en mémoire, référence de rendu et diagnostics | `engine/render.rs`, `rendering::compile_request` | `engine/tests/validation.rs`, `render.rs` |
+| `render.locate` | Position logique ↔ page/point du rendu identifié | `engine/render.rs` | `engine/tests/render.rs` |
+| `render.selection_boxes` | Quadrilatères de sélection par page, en points Typst | `engine/render.rs` | `engine/tests/render.rs` |
+| `recovery.list` | Références opaques du service configuré, sans restauration/suppression | `engine/recovery.rs` | `engine/tests/files.rs` |
 
 Les Q asynchrones doivent identifier leur état de référence. Une géométrie de rendu
 n’est utilisable qu’avec le rendu, la session et la révision qui l’ont produite ;
@@ -582,8 +586,10 @@ pas devenir une voie contournant les validations du cœur.
 - [ ] Essais natifs complets du presse-papiers, du dépôt et des IME système :
   chantier I, distinct des séquences egui automatisées ; saisie japonaise déjà
   confirmée par l’utilisateur. Ne pas les annoncer comme entièrement réalisés.
-- [ ] Valider ensemble le périmètre des requêtes complémentaires et le gel proposé
-  dans le [bilan de sortie](architecture-phase-2-review.md).
+- [x] Périmètre complémentaire validé puis implémenté : cinq requêtes et deux
+  réponses enrichies ; identifiants et contrats d’entrée stabilisés (D21). Voir
+  [le bilan de sortie](architecture-phase-2-review.md) et les suites
+  `engine/tests/discovery.rs` / `validation.rs`.
 
 ## 8. Références des tests existants
 
