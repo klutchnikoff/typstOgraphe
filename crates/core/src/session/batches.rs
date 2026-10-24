@@ -23,6 +23,7 @@ impl Session {
             changed_at: self.changed_at,
             last_edit: self.last_edit,
             last_group: EditGroup::Discrete,
+            last_positions: None,
         }
     }
 
@@ -38,6 +39,9 @@ impl Session {
                 self.undo.drain(..self.undo.len() - 100);
             }
             self.redo.clear();
+        }
+        if prepared.last_positions.is_none() {
+            prepared.last_positions = self.last_positions.take();
         }
         prepared.undo = std::mem::take(&mut self.undo);
         prepared.redo = std::mem::take(&mut self.redo);
@@ -76,9 +80,10 @@ mod tests {
         assert_eq!(original.stored_document().source, "Un Avant");
         let mut prepared = original.fork_for_batch();
         let mut candidate = before.clone();
+        let edits = draft.last_positions.as_ref().unwrap().edits.clone();
         candidate.document = draft.document;
         let published = prepared
-            .commit_snapshot(guard, before, candidate, after, EditGroup::Discrete)
+            .commit_mapped_snapshot(guard, before, candidate, after, edits)
             .unwrap();
         original.adopt_batch(prepared);
         assert_eq!(original.revision, guard.revision + 1);

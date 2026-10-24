@@ -38,6 +38,7 @@ mod types;
 mod typing;
 mod validation;
 mod validation_types;
+pub use crate::position_map::PositionMap;
 pub use crate::session::{Caret, Selection, SelectionTarget, TargetGuard};
 use crate::{
     document::{Projection, edits::EditError},
@@ -118,6 +119,10 @@ impl From<Session> for Engine {
     }
 }
 impl Engine {
+    /// Last committed transaction, including native input and undo/redo.
+    pub fn position_map(&self) -> Option<&PositionMap> {
+        self.session.last_positions.as_ref()
+    }
     pub fn selection(&self) -> Selection {
         self.selection
     }

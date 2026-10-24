@@ -152,6 +152,7 @@ impl Engine {
         draft.selection = self.selection;
         draft.spelling = self.spelling.fork();
         let mut reveal = false;
+        let mut edits = Vec::new();
         for (index, call) in p.steps.iter().enumerate() {
             let id = call.id.as_str();
             let resolved = resolve(index, &draft, call).map_err(|e| step_error(index, id, e))?;
@@ -175,6 +176,15 @@ impl Engine {
                 .map_err(|e| step_error(index, id, e))?;
             self.check_batch_resources(&draft)
                 .map_err(|e| step_error(index, id, e))?;
+            if outcome.changed {
+                edits.extend(
+                    draft
+                        .position_map()
+                        .expect("published transaction")
+                        .edits
+                        .clone(),
+                );
+            }
             reveal |= outcome.effects.contains(&Effect::RevealSelection);
             // L’historique provisoire ne sert pas à annuler les étapes individuellement.
             // Ne pas garder 256 copies du document ; seul l’instantané publié sera retenu.
@@ -182,13 +192,14 @@ impl Engine {
             draft.session.redo.clear();
             draft.session.typing_group = false;
         }
-        self.finish_batch(p, draft, reveal)
+        self.finish_batch(p, draft, reveal, edits)
     }
     fn finish_batch(
         &mut self,
         p: BatchParams,
         draft: Engine,
         reveal: bool,
+        edits: Vec<crate::position_map::Splice>,
     ) -> Result<Outcome, CommandError> {
         let model_changed = self.session.template != draft.session.template
             || self.session.dependencies != draft.session.dependencies;
@@ -206,12 +217,12 @@ impl Engine {
         candidate.template = draft.session.template;
         candidate.dependencies = draft.session.dependencies;
         let mut prepared: Engine = self.session.fork_for_batch().into();
-        prepared.selection = prepared.session.commit_snapshot(
+        prepared.selection = prepared.session.commit_mapped_snapshot(
             p.guard,
             before,
             candidate,
             draft.selection,
-            EditGroup::Discrete,
+            edits,
         )?;
         let changed = prepared.session.revision != self.session.revision;
         let mut saved = None;

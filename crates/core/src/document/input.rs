@@ -81,6 +81,7 @@ impl Projection {
         }
         self.blocks
             .splice(line + 1..line + 1, std::iter::repeat_n(next_kind, newlines));
+        self.record_splice(at..at, &text);
         self.text.insert_str(self.byte_index(at), &text);
         self.styles.splice(
             at..at,
@@ -113,13 +114,19 @@ impl Projection {
         }
         self.blocks.drain(line + 1..line + newlines + 1);
         self.line_ids.drain(line + 1..line + newlines + 1);
+        self.record_splice(start..end, "");
         self.text.replace_range(bytes, "");
         self.styles.drain(start..end);
         self.clean_images();
     }
     pub fn replace_with(&mut self, text: &str) {
         let error = self.edit_error;
+        let mut trace = self.trace.clone();
+        trace
+            .edits
+            .push(crate::position_map::Splice::new(0, &self.text, ""));
         *self = Self::default();
+        self.trace = trace;
         self.edit_error = error;
         self.insert_text(text, 0);
     }

@@ -39,10 +39,37 @@ pub enum TargetError {
     StaleRevision,
 }
 
-struct Placement<'a> {
-    block: &'a Block,
+#[derive(Clone, Debug)]
+struct Placement {
+    id: BlockId,
+    image: bool,
     range: Range<usize>,
-    zones: Vec<(&'a TextZone, Range<usize>)>,
+    zones: Vec<(ZoneId, Range<usize>)>,
+}
+#[derive(Clone, Debug)]
+pub(crate) struct PositionIndex {
+    placements: Vec<Placement>,
+}
+impl PositionIndex {
+    pub fn selection_at(
+        &self,
+        anchor: usize,
+        head: usize,
+    ) -> Result<LogicalSelection, TargetError> {
+        Ok(LogicalSelection {
+            anchor: position_at(&self.placements, anchor)?,
+            head: position_at(&self.placements, head)?,
+        })
+    }
+    pub fn resolve_selection(
+        &self,
+        selection: LogicalSelection,
+    ) -> Result<(usize, usize), TargetError> {
+        Ok((
+            resolve(&self.placements, selection.anchor)?,
+            resolve(&self.placements, selection.head)?,
+        ))
+    }
 }
 
 impl Structure {
@@ -70,7 +97,13 @@ impl Structure {
         ))
     }
 
-    fn placements(&self) -> Vec<Placement<'_>> {
+    pub(crate) fn position_index(&self) -> PositionIndex {
+        PositionIndex {
+            placements: self.placements(),
+        }
+    }
+
+    fn placements(&self) -> Vec<Placement> {
         let mut cursor = 0;
         self.blocks
             .iter()
@@ -97,7 +130,8 @@ impl Structure {
                     }
                 }
                 Placement {
-                    block,
+                    id: block.id,
+                    image: matches!(block.content, BlockContent::Image { .. }),
                     range: start..cursor,
                     zones,
                 }
@@ -106,44 +140,38 @@ impl Structure {
     }
 }
 
-fn place<'a>(
-    zones: &mut Vec<(&'a TextZone, Range<usize>)>,
-    cursor: &mut usize,
-    zone: &'a TextZone,
-) {
+fn place(zones: &mut Vec<(ZoneId, Range<usize>)>, cursor: &mut usize, zone: &TextZone) {
     let start = *cursor;
     *cursor += zone.view.len();
-    zones.push((zone, start..*cursor));
+    zones.push((zone.id, start..*cursor));
 }
 
-fn position_at(placements: &[Placement<'_>], index: usize) -> Result<Position, TargetError> {
+fn position_at(placements: &[Placement], index: usize) -> Result<Position, TargetError> {
     for placement in placements {
-        if index == placement.range.start
-            && matches!(placement.block.content, BlockContent::Image { .. })
-        {
-            return Ok(Position::Before(placement.block.id));
+        if index == placement.range.start && placement.image {
+            return Ok(Position::Before(placement.id));
         }
         for (zone, range) in &placement.zones {
             if range.start <= index && index <= range.end {
                 return Ok(Position::Text(TextPosition {
-                    zone_id: zone.id,
+                    zone_id: *zone,
                     offset: index - range.start,
                 }));
             }
         }
         if index == placement.range.end {
-            return Ok(Position::After(placement.block.id));
+            return Ok(Position::After(placement.id));
         }
     }
     Err(TargetError::InvalidPosition)
 }
 
-fn resolve(placements: &[Placement<'_>], position: Position) -> Result<usize, TargetError> {
+fn resolve(placements: &[Placement], position: Position) -> Result<usize, TargetError> {
     match position {
         Position::Before(id) | Position::After(id) => {
             let placement = placements
                 .iter()
-                .find(|placement| placement.block.id == id)
+                .find(|placement| placement.id == id)
                 .ok_or(TargetError::UnknownBlock)?;
             Ok(if matches!(position, Position::Before(_)) {
                 placement.range.start
@@ -152,12 +180,12 @@ fn resolve(placements: &[Placement<'_>], position: Position) -> Result<usize, Ta
             })
         }
         Position::Text(position) => {
-            let (zone, range) = placements
+            let (_, range) = placements
                 .iter()
                 .flat_map(|placement| &placement.zones)
-                .find(|(zone, _)| zone.id == position.zone_id)
+                .find(|(zone, _)| *zone == position.zone_id)
                 .ok_or(TargetError::UnknownZone)?;
-            if position.offset > zone.view.len() {
+            if position.offset > range.len() {
                 return Err(TargetError::InvalidPosition);
             }
             Ok(range.start + position.offset)

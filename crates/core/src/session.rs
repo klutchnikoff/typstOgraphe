@@ -25,6 +25,8 @@ mod edits;
 #[cfg_attr(coverage_nightly, coverage(off))]
 #[path = "session/edits_tests.rs"]
 mod edits_tests;
+#[path = "session/positions.rs"]
+mod positions;
 
 static NEXT_SESSION: AtomicU64 = AtomicU64::new(1);
 
@@ -71,6 +73,7 @@ pub struct Snapshot {
     pub dependencies: crate::packages::Dependencies,
     pub selection: Selection,
     logical_selection: Option<SelectionTarget>,
+    inverse_edits: Vec<crate::position_map::Splice>,
 }
 impl Snapshot {
     pub(crate) fn guard(&self) -> TargetGuard {
@@ -102,6 +105,7 @@ pub struct Session {
     pub changed_at: Instant,
     last_edit: Instant,
     last_group: EditGroup,
+    pub(crate) last_positions: Option<crate::position_map::PositionMap>,
 }
 impl Session {
     pub fn new(
@@ -111,6 +115,7 @@ impl Session {
         revision: u64,
     ) -> Self {
         document.assets = letter.assets.clone();
+        document.view.reset_trace();
         Self {
             id: DocumentId(crate::identity::next(&NEXT_SESSION)),
             recovered: false,
@@ -129,6 +134,7 @@ impl Session {
             changed_at: Instant::now() - Duration::from_secs(1),
             last_edit: Instant::now(),
             last_group: EditGroup::Discrete,
+            last_positions: None,
         }
     }
     pub fn snapshot(&self, selection: Selection) -> Snapshot {
@@ -140,6 +146,7 @@ impl Session {
             dependencies: self.dependencies.clone(),
             selection,
             logical_selection: self.selection_target(selection).ok(),
+            inverse_edits: vec![],
         }
     }
 
@@ -187,12 +194,16 @@ impl Session {
             || self.saved.dependencies != self.dependencies
     }
     pub fn history(&mut self, undo: bool, selection: Selection) -> Option<Selection> {
-        let current = self.snapshot(selection);
+        let mut current = self.snapshot(selection);
         let item = if undo {
             self.undo.pop()
         } else {
             self.redo.pop()
         }?;
+        let from = self.target_guard();
+        let old_index = self.document.structure.position_index();
+        let edits = item.inverse_edits.clone();
+        current.inverse_edits = crate::position_map::inverse(&edits);
         if undo {
             self.redo.push(current);
         } else {
@@ -205,6 +216,14 @@ impl Session {
         self.typing_group = false;
         self.revision += 1;
         self.changed_at = Instant::now();
+        self.last_positions = Some(crate::position_map::PositionMap::new(
+            from,
+            self.target_guard(),
+            old_index,
+            self.document.structure.position_index(),
+            edits,
+        ));
+        self.document.view.reset_trace();
         let mut selection = item.selection;
         if let Some(mut target) = item.logical_selection {
             // Restauration d’un instantané connu : nouvelle révision, mêmes objets.

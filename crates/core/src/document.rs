@@ -77,6 +77,7 @@ pub struct Projection {
     /// Ancres transitoires, conservées par les instantanés mais jamais exportées.
     line_ids: Vec<LineId>,
     edit_error: Option<edits::EditError>,
+    pub(crate) trace: crate::position_map::Trace,
 }
 
 impl PartialEq for Projection {
@@ -96,6 +97,7 @@ impl Default for Projection {
             images: BTreeMap::new(),
             line_ids: vec![LineId::new()],
             edit_error: None,
+            trace: Default::default(),
         }
     }
 }

@@ -27,3 +27,5 @@ pub mod view_sync;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
+
+mod position_map;

@@ -105,6 +105,7 @@ impl Projection {
                     && !ranges[line + 1].is_empty()
                 {
                     let byte = self.byte_index(ranges[line].end);
+                    self.record_splice(ranges[line].end..ranges[line].end + 1, " ");
                     self.text.replace_range(byte..byte + 1, " ");
                     self.blocks.remove(line + 1);
                     self.line_ids.remove(line + 1);
@@ -137,6 +138,7 @@ impl Projection {
                     .position(|c| c == '\t')
                 {
                     let byte = self.byte_index(line.start + at);
+                    self.record_splice(line.start + at..line.start + at + 1, " ");
                     self.text.replace_range(byte..byte + 1, " ");
                 }
             }
@@ -211,6 +213,7 @@ impl Projection {
                 && !(at == ranges[line].start && matches!(self.blocks[line], BlockKind::Image(_)))
             {
                 let byte = self.byte_index(at);
+                self.record_splice(at..at + 1, "");
                 self.text
                     .replace_range(byte..byte + IMAGE_OBJECT.len_utf8(), "");
                 self.styles.remove(at);

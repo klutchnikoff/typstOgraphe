@@ -35,7 +35,7 @@ impl Session {
         }
         let candidate = self.snapshot(selection);
         self.restore_fields(&before);
-        self.publish(before, candidate, selection, group)
+        self.publish(before, candidate, selection, group, None)
     }
 
     pub fn commit_projection(
@@ -63,7 +63,27 @@ impl Session {
         if guard != self.target_guard() || before.guard != guard || candidate.guard != guard {
             return Err(EditError::StaleDraft);
         }
-        self.publish(before, candidate, selection, group)
+        self.publish(before, candidate, selection, group, None)
+    }
+
+    pub(crate) fn commit_mapped_snapshot(
+        &mut self,
+        guard: TargetGuard,
+        before: Snapshot,
+        candidate: Snapshot,
+        selection: Selection,
+        edits: Vec<crate::position_map::Splice>,
+    ) -> Result<Selection, EditError> {
+        if guard != self.target_guard() || before.guard != guard || candidate.guard != guard {
+            return Err(EditError::StaleDraft);
+        }
+        self.publish(
+            before,
+            candidate,
+            selection,
+            EditGroup::Discrete,
+            Some(edits),
+        )
     }
 
     fn restore_fields(&mut self, snapshot: &Snapshot) {
@@ -79,6 +99,7 @@ impl Session {
         mut candidate: Snapshot,
         mut selection: Selection,
         group: EditGroup,
+        mapped: Option<Vec<crate::position_map::Splice>>,
     ) -> Result<Selection, EditError> {
         candidate.document.view.validate_edit()?;
         if !before.document.same_content(&candidate.document) {
@@ -116,13 +137,17 @@ impl Session {
         }
         if !changed {
             self.restore_fields(&candidate);
+            self.document.view.trace.edits.clear();
             return Ok(selection);
         }
-        if group == EditGroup::Discrete
-            || !self.typing_group
-            || self.last_group != group
-            || self.last_edit.elapsed() > Duration::from_millis(650)
-        {
+        let (edits, inverse) = self.prepare_positions(&before, &candidate, mapped)?;
+        let old_guard = self.target_guard();
+        let old_index = self.document.structure.position_index();
+        let grouped = group != EditGroup::Discrete
+            && self.typing_group
+            && self.last_group == group
+            && self.last_edit.elapsed() <= Duration::from_millis(650);
+        if !grouped {
             let mut before = before;
             // Certains raccourcis préparent un instantané avec leur saisie
             // littérale : recalculer la sélection après cette préparation.
@@ -138,10 +163,16 @@ impl Session {
                     guard: self.target_guard(),
                     selection,
                 });
+            before.inverse_edits = inverse.clone();
             self.undo.push(before);
             if self.undo.len() > 100 {
                 self.undo.remove(0);
             }
+        }
+        if grouped && let Some(previous) = self.undo.last_mut() {
+            let mut combined = inverse;
+            combined.append(&mut previous.inverse_edits);
+            previous.inverse_edits = combined;
         }
         self.restore_fields(&candidate);
         self.redo.clear();
@@ -150,6 +181,14 @@ impl Session {
         self.last_edit = Instant::now();
         self.revision += 1;
         self.changed_at = Instant::now();
+        self.last_positions = Some(crate::position_map::PositionMap::new(
+            old_guard,
+            self.target_guard(),
+            old_index,
+            self.document.structure.position_index(),
+            edits,
+        ));
+        self.document.view.reset_trace();
         Ok(selection)
     }
 
