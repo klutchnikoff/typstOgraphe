@@ -83,14 +83,64 @@ formatage et Clippy sans avertissement sur tout le workspace et ses cibles,
 frontière de dépendances du cœur et limite de 800 lignes de production respectées.
 La CI distante des trois systèmes reste à confirmer après la poussée.
 
+## Deuxième lot — création et appels du registre
+
+Livré le **24 octobre 2026** :
+
+- `new --type <id> [--model <id>] --output fichier.typsto` consulte
+  `document_types.list`, sans liste parallèle des types/modèles dans la CLI.
+  Le modèle est choisi automatiquement seulement s’il est unique. Les valeurs
+  initiales et la signature éventuelle sont explicites, sans profil GUI.
+- `query <id> [fichier.typsto]` exécute les requêtes du registre. Les lectures
+  documentaires exigent un fichier ; découverte globale et suggestions sur un
+  mot explicite restent disponibles sans document.
+- `run <id> fichier.typsto` travaille par défaut sur un moteur indépendant construit
+  à partir de la dernière archive enregistrée. Le résultat contient source et
+  métadonnées résultants, avec `saved: false` et un message explicite. `--output`
+  crée une nouvelle copie, même avec un écrivain actif sur la source. `--save`
+  prend le verrou avant de lire, puis utilise la sauvegarde atomique du moteur.
+  Aucune destination existante n’est écrasée. Les deux options sont exclusives.
+- Les paramètres JSON UTF-8 se donnent avec `--params` ou `--params-file` (`-` pour
+  stdin), avec une limite de 4 Mio. Les ressources et chemins du JSON sont relatifs
+  au répertoire courant, même si le JSON est lu ailleurs.
+- `--select` recherche un texte exact sensible à la casse. Une ambiguïté exige
+  `--occurrence N`. `--block N` utilise l’ordre de `document.structure` ; les
+  numéros commencent à 1. Recherche, blocs, images, orthographe et remplacement
+  utilisent les sélections/cibles typées du moteur courant, sans indices egui.
+- Les gardes sont fournies automatiquement. Les références de session copiées
+  depuis un ancien processus sont refusées ; les cibles symboliques `current/all`
+  restent utilisables. Les lectures de géométrie compilent leur propre rendu
+  et résolvent leur référence dans le même processus, sans écrire de PNG.
+- Les appels génériques refusent les opérations de fichiers, lots, historique
+  et récupération avant d’ouvrir le document. Les fichiers utilisent les commandes
+  dédiées ; les scripts atomiques restent le lot suivant. Aucun choix sur les
+  sessions MCP n’est anticipé.
+
+Le code de production du cœur et de l’application ne change pas dans ce lot.
+Les modules CLI de lecture des paramètres, résolution des cibles et exécution
+des appels sont séparés pour leur réutilisation lors des scripts.
+
+Vérification locale : **385 tests du workspace réussis**, dont 20 tests de processus
+CLI (7 existants, 4 de création, 9 d’appels). Ils couvrent parité avec le moteur,
+réouverture par `document.open`, sélection Unicode d’une occurrence, modes aperçu/
+copie/sauvegarde, verrous, refus d’écrasement, paramètres fichier/stdin, bornes,
+familles interdites, références périmées et requêtes de géométrie sans fichiers.
+Clippy sur toutes les cibles, formatage et gardes d’architecture passent.
+
+Le parcours manuel CLI crée un courrier avec ses métadonnées, insère et met en
+forme son texte, le valide pour export et produit son PDF autonome. Les données et
+résultats de l’essai sont conservés dans `output/phase-4-next-manual/` (ignoré par Git).
+L’archive ainsi créée a été ouverte dans l’application native et sa capture
+`courrier-gui.png` inspectée : texte, gras, métadonnées et japonais sont correctement
+affichés dans l’éditeur et le rendu. Les 14 tests Python d’architecture passent ;
+l’arbre des dépendances normales de la CLI ne contient ni egui, eframe, winit, muda
+ou rfd. Aucune dépendance supplémentaire n’a été ajoutée dans ce deuxième lot.
+
 ## Suite
 
-1. Création à partir du catalogue des types/modèles et ouverture croisée GUI/CLI.
-2. `query` et `run` : JSON en argument, fichier ou stdin ; résolution des cibles
-   dans la session ; sauvegarde explicite (`--save` ou `--output`).
-3. Scripts versionnés : étapes `{id, params}`, chemins relatifs au script, limites
+1. Scripts versionnés : étapes `{id, params}`, chemins relatifs au script, limites
    et atomicité du moteur réutilisées. Export distinct après enregistrement.
-4. Page PNG, retrait de `--render-demo` et adaptation des références visuelles,
+2. Page PNG, retrait de `--render-demo` et adaptation des références visuelles,
    puis scénario complet d’acceptation.
 
 Outils réutilisés : [clap](https://docs.rs/clap/4.6.7/clap/),

@@ -662,7 +662,9 @@ Les vérifications Windows/Linux seront exécutées par la CI après la poussée
 
 **En cours : premier lot livré le 24 octobre 2026.** Catalogue, inspection,
 validation et export réutilisent le moteur, avec verrou d’écriture et contrôle
-des modifications externes communs à l’UI. Détail et suite dans
+des modifications externes communs à l’UI. **Deuxième lot livré le même jour :**
+création depuis le catalogue, `query`/`run`, paramètres JSON bornés et cibles
+résolues dans la session ; aperçu, copie ou sauvegarde explicite. Détail et suite dans
 [le bilan de phase 4](docs/architecture-phase-4.md).
 
 ### 4.1 Squelette
@@ -672,7 +674,7 @@ des modifications externes communs à l’UI. Détail et suite dans
   le script de références visuelles ; les options `--capture-*` restent des outils de développement.
 - [x] Réutiliser `Command::OpenDocument`, `SaveDocument`, `SaveAs` et `Export`, sans
   ajouter des méthodes parallèles `Engine::open/save`. Lecture CLI d’archives GUI vérifiée ;
-  création CLI et ouverture inverse à vérifier dans le lot suivant.
+  création CLI et réouverture par la même commande que l’application vérifiées.
 - [x] `spelling.issues` fournit déjà une lecture synchrone, utilisée par `check --spelling`.
 - [x] Verrou interprocessus, contrôle d’empreinte et lecture seule dans le moteur (D24).
 
@@ -684,8 +686,8 @@ des modifications externes communs à l’UI. Détail et suite dans
 | `typstographe-cli commands describe <id>` | description et schéma des paramètres |
 | `typstographe-cli new --type courrier --model <id> -o f.typsto` | création |
 | `typstographe-cli inspect f.typsto [--json]` | métadonnées, blocs, statistiques |
-| `typstographe-cli query <id> [--params JSON] f.typsto` | une lecture ; lot suivant |
-| `typstographe-cli run <id> [--params JSON] f.typsto [--save ou --output copie.typsto]` | une modification documentaire ; lot suivant |
+| `typstographe-cli query <id> [f.typsto] [--params JSON ou --params-file chemin]` | lecture du registre ; fichier nécessaire pour les requêtes documentaires |
+| `typstographe-cli run <id> f.typsto [--params JSON ou --params-file chemin] [--select texte ou --block N] [--save ou --output copie.typsto]` | commande documentaire ; mémoire seule par défaut, cibles résolues dans la session |
 | `typstographe-cli script job.json` | lot d’édition d’un document sur session temporaire ; un seul enregistrement atomique après réussite, aucune écriture intermédiaire (D16), taille limitée |
 | `typstographe-cli export f.typsto --format pdf\|typst\|both --output dir [--pages]` | exports ; PDF par défaut, PNG seulement avec `--pages` |
 | `typstographe-cli check f.typsto [--for-export] [--spelling]` | validité du brouillon ; champs requis et orthographe sur demande ; sortie non nulle si le contrôle demandé échoue |
@@ -713,6 +715,9 @@ des modifications externes communs à l’UI. Détail et suite dans
   (même `Engine`, comparaison du source Typst produit).
 - [ ] Fichier créé en CLI ouvert dans l'application et inversement.
 - [x] `docs/cli.md` généré depuis le registre, vérifié dans les tests exécutés par la CI.
+- [x] Création depuis le catalogue et appels génériques : paramètres JSON argument/fichier/stdin,
+  limite 4 Mio, gardes automatiques, sélection exacte ou numéro de bloc, refus des références
+  périmées et des familles nécessitant une session durable, protections de fichiers conservées.
 
 **Scénario d'acceptation** : créer un courrier, renseigner les métadonnées, insérer
 un paragraphe et un post-scriptum dans un script JSON, enregistrer, puis exporter en PDF
