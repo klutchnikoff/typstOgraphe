@@ -10,7 +10,7 @@ fn dispatch(host: &mut Host, id: &str, args: Value) -> Result<Value, CommandErro
 fn call(host: &mut Host, id: &str, args: Value) -> Value {
     dispatch(host, id, args).unwrap()
 }
-fn host(read: &[&Path], write: &[&Path], read_only: bool) -> Host {
+fn host(read: &[&Path], write: &[&Path], read_only: bool) -> Host<'static> {
     Host::with_policy(
         Policy::new(
             read.iter().map(PathBuf::from).collect(),

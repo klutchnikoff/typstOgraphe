@@ -75,6 +75,7 @@ impl App {
             Command::ImportModel => self.import_model(),
             Command::InsertImage => self.choose_image(None),
             Command::Preferences => self.dialogs.preferences_open = true,
+            Command::Assistance => self.dialogs.assistance_open = true,
             Command::File(command) => self.file.command = Some(command),
             Command::Palette => {
                 self.dialogs.palette_open = !self.dialogs.palette_open;

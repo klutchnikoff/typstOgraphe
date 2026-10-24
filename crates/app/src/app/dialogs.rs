@@ -3,6 +3,7 @@ use super::*;
 impl App {
     pub(super) fn modal_open(&self) -> bool {
         self.recovery.open
+            || self.dialogs.assistance_open
             || self.dialogs.new_document_open
             || self.dialogs.image_info.is_some()
             || self.dialogs.preferences_open
@@ -44,6 +45,7 @@ impl App {
         self.export_dialog(ctx);
         if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
             self.recovery.open = false;
+            self.dialogs.assistance_open = false;
             self.dialogs.palette_open = false;
             self.dialogs.link_open = false;
             self.dialogs.information_open = false;

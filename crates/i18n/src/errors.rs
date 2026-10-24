@@ -73,6 +73,7 @@ pub fn command_error_with(loader: &FluentLanguageLoader, error: &CommandError) -
         );
     }
     loader.get(match error.reason() {
+        "mcp_attached_read_only" => "mcp-attached-read-only",
         "image_too_large" => "image-too-large",
         "batch_step_limit" => "engine-batch-step-limit",
         "batch_resource_limit" => "engine-batch-resource-limit",

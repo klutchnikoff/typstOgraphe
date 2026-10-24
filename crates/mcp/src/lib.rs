@@ -7,3 +7,5 @@ mod mcp;
 pub mod targets;
 pub use calls::compile_render;
 pub use mcp::serve;
+
+pub mod local;

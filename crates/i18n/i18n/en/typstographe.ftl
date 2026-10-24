@@ -154,6 +154,7 @@ cli-help =
       cargo run -- --capture-new-document IMAGE.png
       cargo run -- --capture-recovery IMAGE.png RECOVERY_FOLDER
       cargo run -- --capture-search IMAGE.png QUERY
+      cargo run -- --capture-assistance IMAGE.png
       cargo run -- --capture-spelling IMAGE.png
       cargo run -- --capture-profile IMAGE.png
       cargo run -- --capture-profile-letter IMAGE.png
@@ -483,3 +484,19 @@ cli-script-completed =
 cli-mcp-read-root-help = Authorize reading under this existing directory (repeatable)
 cli-mcp-write-root-help = Authorize writing under this existing directory (repeatable; does not grant reads)
 mcp-root = MCP roots must be existing, accessible directories.
+
+# Local assistance — phase 6
+cmd-assistance = Agent assistance…
+cli-mcp-attach-help = Connect MCP to the document authorized by an application invitation, without opening a document file.
+mcp-attached-read-only = This attachment is read-only; all editing and file commands are refused.
+assistance-title = Agent assistance
+assistance-help = Allow a local agent to read the document currently open, even if unsaved. Editing will become available in a later step.
+assistance-read-only = Access: read-only document and preview. No access to preferences or other documents.
+assistance-authorize = Create an invitation for this document
+assistance-copy = Copy MCP configuration
+assistance-revoke = Revoke invitation and disconnect
+assistance-ready = Agent: invitation ready
+assistance-connected = Agent connected · read-only
+assistance-disconnected = The agent connection has ended. Create a new invitation to reconnect.
+assistance-error = Cannot create the local channel: { $error }
+cli-usage-capture-assistance = Usage: --capture-assistance IMAGE.png

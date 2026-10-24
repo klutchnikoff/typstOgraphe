@@ -116,6 +116,7 @@ fn every_registered_ui_action_has_an_explicit_route_and_documentary_routes_are_r
                     Command::File(FileCommand::Quit)
                         | Command::Palette
                         | Command::Preferences
+                        | Command::Assistance
                         | Command::Information
                         | Command::RecoverDocuments
                         | Command::Find

@@ -1,25 +1,34 @@
-//! Session autonome propriétaire : aucune dépendance au chemin d’un document.
+//! Hôte documentaire autonome ou rattaché : identité indépendante du chemin.
+use super::engine_access::EngineAccess;
 use super::{catalogue, policy, types::*};
 use crate::{args::Target, calls};
 use serde_json::{Map, Value, json};
 use typstographe_core::engine::*;
 
-pub struct Host {
-    engine: Engine,
+pub struct Host<'a> {
+    engine: EngineAccess<'a>,
     id: Option<String>,
     policy: policy::Policy,
 }
-impl Host {
+impl<'a> Host<'a> {
     #[cfg(test)]
     pub fn new(read_only: bool) -> Self {
         Self::with_policy(policy::Policy::new(vec![], vec![], read_only).unwrap())
     }
     pub fn with_policy(policy: policy::Policy) -> Self {
         Self {
-            engine: Engine::empty(),
+            engine: EngineAccess::Owned(Box::new(Engine::empty())),
             id: None,
             policy,
         }
+    }
+    /// Borrow the application's published engine; never open or clone its file.
+    pub(crate) fn attached(engine: &'a mut Engine, id: String) -> Result<Self, CommandError> {
+        Ok(Self {
+            engine: EngineAccess::Borrowed(engine),
+            id: Some(id),
+            policy: policy::Policy::attached_read_only()?,
+        })
     }
     fn reference(&self) -> Option<DocumentRef> {
         self.id.as_ref().map(|id| DocumentRef {
@@ -114,7 +123,7 @@ impl Host {
         use typstographe_core::document_types::DocumentType;
         let outcome = match uri {
             "typstographe://guide" => {
-                json!({"instructions":super::INSTRUCTIONS,"session":"autonomous",
+                json!({"instructions":super::instructions(self.policy.is_attached()),"session":if self.policy.is_attached() {"attached"} else {"autonomous"},
                 "resources":super::resources::list(),"resource_consistency":"Each read is a current snapshot serialized with tool calls; no subscriptions. Read again after edits. The outer document reference guards subsequent calls."})
             }
             "typstographe://types" => {
@@ -197,6 +206,12 @@ impl Host {
         if !policy::exposed(spec) {
             return super::roots::denied();
         }
+        if self.policy.is_attached() && spec.family != Family::Query {
+            return Err(CommandError::new(
+                ErrorCode::Unavailable,
+                "mcp_attached_read_only",
+            ));
+        }
         let reference = params
             .remove("document")
             .map(serde_json::from_value)
@@ -250,9 +265,10 @@ impl Host {
             // La sélection de confort et l’édition doivent échouer ensemble.
             let mut resolved = Some(ResolvedBatchStep { command, selection });
             let steps = vec![resolved.as_ref().expect("one step").command.to_call()];
+            let guard = self.engine.target_guard();
             self.engine.run_resolved_batch(
                 BatchParams {
-                    guard: self.engine.target_guard(),
+                    guard,
                     steps,
                     save: None,
                 },

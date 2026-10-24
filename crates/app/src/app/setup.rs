@@ -95,6 +95,7 @@ impl App {
                 marker_draft: None,
                 preferences_page: PreferencesPage::default(),
                 preferences_open: false,
+                assistance_open: false,
                 new_document_open: false,
                 new_document_type: initial_type,
                 new_document_model: initial_type.models().next().map(|entry| entry.model),
@@ -171,6 +172,7 @@ impl App {
             #[cfg(target_os = "macos")]
             native_menus: None,
             image_textures: Default::default(),
+            assistance: Default::default(),
         }
     }
 }

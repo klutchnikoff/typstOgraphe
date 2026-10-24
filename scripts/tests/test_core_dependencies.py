@@ -13,11 +13,11 @@ class CoreDependencyTests(unittest.TestCase):
         tree = "\n".join(f"{name} v1.0 (*)" for name in
                          ["egui", "eframe", "winit", "rfd", "muda", "egui",
                           "fluent-bundle", "fluent-syntax", "i18n-embed", "i18n-embed-fl",
-                          "tokio", "tokio-util", "rmcp", "rmcp-macros"])
+                          "tokio", "tokio-util", "rmcp", "rmcp-macros", "interprocess"])
         self.assertEqual(checker.forbidden_dependencies(tree),
                          sorted(["egui", "eframe", "winit", "rfd", "muda", "fluent-bundle",
                                  "fluent-syntax", "i18n-embed", "i18n-embed-fl",
-                                 "tokio", "tokio-util", "rmcp", "rmcp-macros"]))
+                                 "tokio", "tokio-util", "rmcp", "rmcp-macros", "interprocess"]))
 
     def test_typst_rendering_and_unicode_dependencies_are_allowed(self):
         self.assertEqual(checker.forbidden_dependencies(

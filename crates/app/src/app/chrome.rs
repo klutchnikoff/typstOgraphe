@@ -79,6 +79,17 @@ impl App {
                     ui.weak(crate::tr!("spelling-checking"));
                 }
             }
+            if let Some(session) = &self.assistance.session {
+                ui.separator();
+                let label = if session.connected() {
+                    crate::tr!("assistance-connected")
+                } else {
+                    crate::tr!("assistance-ready")
+                };
+                if ui.button(label).clicked() {
+                    self.apply(Command::Assistance);
+                }
+            }
             if let Some(message) = &self.dialogs.message {
                 ui.separator();
                 ui.add(egui::Label::new(message).truncate())

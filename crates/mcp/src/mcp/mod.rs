@@ -1,11 +1,13 @@
-//! Transport MCP uniquement en aval du cœur. Le worker possède sa session.
+//! Transport MCP en aval du cœur : worker autonome ou demandes au propriétaire UI.
 mod catalogue;
 mod documentation;
+mod engine_access;
 mod host;
 mod policy;
 mod resources;
 mod roots;
-mod types;
+pub(crate) mod types;
+pub(crate) use host::Host;
 use rmcp::{ErrorData, RoleServer, ServerHandler, ServiceExt, model::*, service::RequestContext};
 use serde_json::{Map, Value, json};
 use tokio::sync::{mpsc, oneshot};
@@ -13,7 +15,14 @@ use typstographe_core::engine::CommandError;
 
 const INSTRUCTIONS: &str = "Discover document_types.list, then document_types.describe and capabilities.describe. Models are interchangeable visual presentations of a type. Start with document.new or document.open; pass the outer document reference from the latest response to every documentary call, including replacement. Put literal prose in text.insert and use formatting tools; *bold* and _italic_ are literal text, not inline markup. Bold/italic persist: at an empty caret use on, insert text, then off for each style you want to stop. Off on a nonempty selection removes its formatting. New paragraphs/structures do not guarantee a reset. capabilities.describe exposes batch_examples for undoable on/insert/off composition; do not write Typst markup. Each response includes server permissions: read/write roots are independent, paths are relative to the server launch directory, parent components are refused and symlinks are resolved. No roots means no document file access. Writable open needs both read and write authorization and reserves a cooperative writer lock; if locked, open read_only=true to read the last saved snapshot, then save_as an authorized separate copy to edit. A globally read-only server allows only queries, read-only opening and closing. Edits remain in memory; saving is explicit, export is separate and never marks the document saved. document.batch edits atomically and can be undone once, with an optional final save; failure publishes no edits. Step guards are filled by the server. Steps may use params.selector on the evolving draft; file operations are forbidden inside steps. Reads, validation, spelling and inline PNG rendering never correct or save text. Refresh document.inspect after a stale-reference error. No recovery, network or subprocess tools; no GUI attachment in phase 5. Resources typstographe://guide, types, commands, document and models provide current serialized snapshots; read them again after edits, as subscriptions are not advertised. Capability examples contain params and bindings: replace listed null references with actual current results before calling. Effective MCP schemas are authoritative. No skill or repository access is required.";
 
-enum Operation {
+pub(crate) fn instructions(attached: bool) -> String {
+    if !attached {
+        return INSTRUCTIONS.into();
+    }
+    "This connection is explicitly attached to the document open in typstOgraphe. Start with document.inspect. Read-only stage: all commands, including open/new/close/save/export, are refused. Use commands.list and capabilities.describe for effective permissions and schemas; the shared catalogue includes unavailable operations. No file roots or global preferences are accessible. Supply the outer document reference from the latest response to documentary tools. Refresh document.inspect after stale-reference errors: the user can keep editing. Resources are published snapshots; read them again after changes. render.page returns an inline PNG. Closing/replacing the document, disconnecting, or revoking the invitation terminates this attachment; never retry mutations automatically. No skill or repository access is needed.".into()
+}
+
+pub(crate) enum Operation {
     Tool {
         name: String,
         arguments: Map<String, Value>,
@@ -22,13 +31,15 @@ enum Operation {
         uri: String,
     },
 }
-struct Request {
-    operation: Operation,
-    reply: oneshot::Sender<Result<types::Reply, CommandError>>,
+pub(crate) struct Request {
+    pub(crate) operation: Operation,
+    pub(crate) reply: oneshot::Sender<Result<types::Reply, CommandError>>,
 }
 #[derive(Clone)]
-struct Server {
+pub(crate) struct Server {
     sender: mpsc::Sender<Request>,
+    attached: bool,
+    wake: Option<std::sync::Arc<dyn Fn() + Send + Sync>>,
 }
 impl Server {
     fn new(policy: policy::Policy) -> Result<Self, std::io::Error> {
@@ -49,7 +60,21 @@ impl Server {
                     }
                 }
             })?;
-        Ok(Self { sender })
+        Ok(Self {
+            sender,
+            attached: false,
+            wake: None,
+        })
+    }
+    pub(crate) fn attached(
+        sender: mpsc::Sender<Request>,
+        wake: std::sync::Arc<dyn Fn() + Send + Sync>,
+    ) -> Self {
+        Self {
+            sender,
+            attached: true,
+            wake: Some(wake),
+        }
     }
     async fn dispatch(
         &self,
@@ -83,6 +108,9 @@ impl Server {
             .send(Request { operation, reply })
             .await
             .map_err(|_| internal())?;
+        if let Some(wake) = &self.wake {
+            wake();
+        }
         response.await.map_err(|_| internal())
     }
 }
@@ -98,7 +126,7 @@ impl ServerHandler for Server {
             "typstographe",
             env!("CARGO_PKG_VERSION"),
         ))
-        .with_instructions(INSTRUCTIONS)
+        .with_instructions(instructions(self.attached))
     }
     async fn list_tools(
         &self,

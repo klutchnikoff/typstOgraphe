@@ -1,5 +1,6 @@
 #![warn(clippy::too_many_lines)]
 
+mod assistance;
 mod availability;
 mod setup;
 mod state;
@@ -77,6 +78,7 @@ enum PreferencesPage {
 
 pub struct App {
     document: DocumentState,
+    assistance: assistance::AssistanceState,
     dialogs: DialogState,
     file: FileState,
     preview: PreviewState,
@@ -108,6 +110,7 @@ impl App {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.dialogs.new_document_open = false;
             self.dialogs.preferences_open = false;
+            self.dialogs.assistance_open = false;
             self.dialogs.palette_open = false;
             self.dialogs.link_open = false;
             self.file.export_open = false;
@@ -196,6 +199,8 @@ impl App {
         }
         self.track_history_focus(ctx);
         self.sync_published_selection();
+        self.poll_assistance();
+        self.assistance_ui(ctx);
         #[cfg(target_os = "macos")]
         self.refresh_native_menus(ctx);
         self.capture(ctx);

@@ -340,6 +340,7 @@ mod tests {
                 (Command::FindPrevious, false),
                 (Command::Palette, true),
                 (Command::Preferences, true),
+                (Command::Assistance, false),
                 (Command::ToggleSpelling, true),
                 (Command::NextSpelling, false),
                 (Command::PreviousSpelling, false),

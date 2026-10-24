@@ -63,6 +63,7 @@ pub(super) struct DialogState {
     pub(super) marker_draft: Option<(crate::engine::TargetGuard, String)>,
     pub(super) preferences_page: PreferencesPage,
     pub(super) preferences_open: bool,
+    pub(super) assistance_open: bool,
     pub(super) new_document_open: bool,
     pub(super) new_document_type: DocumentType,
     pub(super) new_document_model: Option<Model>,

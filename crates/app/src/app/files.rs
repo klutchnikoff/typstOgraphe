@@ -138,6 +138,8 @@ impl App {
         Ok(())
     }
     pub(super) fn after_document_replaced(&mut self) {
+        self.assistance.session = None;
+        self.dialogs.assistance_open = false;
         let keymap = self
             .keymap
             .for_document(self.document.engine.metadata().document_type())

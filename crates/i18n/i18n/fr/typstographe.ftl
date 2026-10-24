@@ -216,6 +216,7 @@ cli-help =
       cargo run -- --capture-new-document IMAGE.png
       cargo run -- --capture-recovery IMAGE.png DOSSIER_RECUPERATION
       cargo run -- --capture-search IMAGE.png RECHERCHE
+      cargo run -- --capture-assistance IMAGE.png
       cargo run -- --capture-spelling IMAGE.png
       cargo run -- --capture-profile IMAGE.png
       cargo run -- --capture-profile-letter IMAGE.png
@@ -486,3 +487,19 @@ cli-script-completed =
 cli-mcp-read-root-help = Autoriser la lecture sous ce répertoire existant (répétable)
 cli-mcp-write-root-help = Autoriser l’écriture sous ce répertoire existant (répétable ; ne donne pas la lecture)
 mcp-root = Les racines MCP doivent être des répertoires existants et accessibles.
+
+# Assistance locale — phase 6
+cmd-assistance = Assistance par un agent…
+cli-mcp-attach-help = Relier MCP au document autorisé par une invitation de l’application, sans ouvrir de fichier documentaire.
+mcp-attached-read-only = Ce rattachement est en lecture seule ; toutes les commandes d’écriture et de fichiers sont refusées.
+assistance-title = Assistance par un agent
+assistance-help = Autorisez un agent local à lire le document actuellement ouvert, même s’il n’est pas enregistré. Les modifications seront disponibles dans une prochaine étape.
+assistance-read-only = Accès : lecture seule du document et de son rendu. Aucun accès aux préférences ni aux autres documents.
+assistance-authorize = Créer une invitation pour ce document
+assistance-copy = Copier la configuration MCP
+assistance-revoke = Révoquer l’invitation et déconnecter
+assistance-ready = Agent : invitation prête
+assistance-connected = Agent connecté · lecture seule
+assistance-disconnected = La connexion de l’agent est terminée. Créez une nouvelle invitation pour le reconnecter.
+assistance-error = Impossible de créer le canal local : { $error }
+cli-usage-capture-assistance = Usage : --capture-assistance IMAGE.png

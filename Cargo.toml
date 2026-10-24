@@ -50,6 +50,7 @@ clap = { version = "4.6.7", features = ["derive", "string"] }
 assert_cmd = "2.2.2"
 rmcp = { version = "=3.7.0", default-features = false, features = ["server", "transport-io"] }
 tokio = { version = "1", features = ["rt", "sync"] }
+interprocess = { version = "=2.4.7", features = ["tokio"] }
 uuid = { version = "1", features = ["v4"] }
 
 [workspace.lints.rust]

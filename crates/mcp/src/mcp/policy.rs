@@ -10,6 +10,7 @@ pub fn exposed(spec: &CommandSpec) -> bool {
 pub struct Policy {
     roots: Roots,
     read_only: bool,
+    attached: bool,
 }
 impl Policy {
     pub fn new(
@@ -20,16 +21,31 @@ impl Policy {
         Ok(Self {
             roots: Roots::new(read, write)?,
             read_only,
+            attached: false,
         })
+    }
+    pub(crate) fn attached_read_only() -> Result<Self, CommandError> {
+        let mut policy = Self::new(vec![], vec![], true)?;
+        policy.attached = true;
+        Ok(policy)
+    }
+    pub(crate) fn is_attached(&self) -> bool {
+        self.attached
     }
     pub fn describe(&self) -> Value {
         let mut value = self.roots.describe();
+        value["session_mode"] = json!(if self.attached {
+            "attached"
+        } else {
+            "autonomous"
+        });
         value["read_only"] = json!(self.read_only);
         value["write_enabled"] = json!(!self.read_only && self.roots.can_write());
         value
     }
     pub fn support(&self, spec: &CommandSpec) -> Value {
         let authorized = exposed(spec)
+            && (!self.attached || spec.family == Family::Query)
             && match spec.id.as_str() {
                 "document.open" => self.roots.can_read(),
                 "document.save" | "document.save_as" | "document.export" => {

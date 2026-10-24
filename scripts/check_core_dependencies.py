@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-FORBIDDEN = {"egui", "eframe", "winit", "rfd", "muda", "tokio", "rmcp"}
+FORBIDDEN = {"egui", "eframe", "winit", "rfd", "muda", "tokio", "rmcp", "interprocess"}
 
 
 def forbidden_dependencies(tree):
@@ -30,7 +30,7 @@ def main():
     if blocked:
         print("Forbidden normal core dependencies: " + ", ".join(blocked), file=sys.stderr)
         return 1
-    print("Core normal dependencies contain no GUI, Fluent, Tokio or MCP libraries.")
+    print("Core normal dependencies contain no GUI, Fluent, Tokio, MCP or local IPC libraries.")
     return 0
 
 

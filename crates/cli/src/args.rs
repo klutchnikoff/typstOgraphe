@@ -23,6 +23,8 @@ pub enum Language {
 pub enum Action {
     #[command(about = tr!("cli-mcp-help"))]
     Mcp {
+        #[arg(long, value_name = "INVITATION", conflicts_with_all = ["read_only", "read_roots", "write_roots"], help = tr!("cli-mcp-attach-help"))]
+        attach: Option<PathBuf>,
         #[arg(long, help = tr!("cli-mcp-read-only-help"))]
         read_only: bool,
         #[arg(long = "read-root", help = tr!("cli-mcp-read-root-help"))]
