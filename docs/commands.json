@@ -6540,6 +6540,45 @@
       }
     },
     {
+      "availability": "always",
+      "batch_step": false,
+      "description": "List built-in types, supplied models, creation availability and documentary command capabilities without requiring an open document.",
+      "family": "query",
+      "id": "document_types.list",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "batch_step": false,
+      "description": "Read the committed documentary Typst source with its revision guard, without executing code.",
+      "family": "query",
+      "id": "document.source",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "batch_step": false,
+      "description": "Inventory retained document/model resources and packaged dependencies using the save/export retention policy, without returning file contents or undo-only assets.",
+      "family": "query",
+      "id": "document.assets",
+      "params_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "title": "Empty",
+        "type": "object"
+      }
+    },
+    {
       "availability": "read",
       "batch_step": false,
       "description": "Locate a logical text target in an identified render or return the guarded text target at a page point, without moving selection.",
@@ -7507,9 +7546,9 @@
       }
     },
     {
-      "availability": "read",
+      "availability": "always",
       "batch_step": false,
-      "description": "Read the current revision, selection and history availability.",
+      "description": "Read session state, document type, documentary command capabilities, guarded selection and typing style; document context is null when closed.",
       "family": "query",
       "id": "document.inspect",
       "params_schema": {
@@ -7736,9 +7775,9 @@
       }
     },
     {
-      "availability": "read",
+      "availability": "always",
       "batch_step": false,
-      "description": "Read the implemented command and query catalogue with JSON schemas.",
+      "description": "Read command/query schemas and context availability with reasons, distinguishing calls that still require parameters; no execution or file access.",
       "family": "query",
       "id": "commands.list",
       "params_schema": {

@@ -56,6 +56,9 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 | `letter.insert_attachment` | letter | oui | Insert an attachment mention into a letter. |
 | `edit.undo` | history | non | Undo the previous document transaction. |
 | `edit.redo` | history | non | Redo the next document transaction. |
+| `document_types.list` | query | non | List built-in types, supplied models, creation availability and documentary command capabilities without requiring an open document. |
+| `document.source` | query | non | Read the committed documentary Typst source with its revision guard, without executing code. |
+| `document.assets` | query | non | Inventory retained document/model resources and packaged dependencies using the save/export retention policy, without returning file contents or undo-only assets. |
 | `render.locate` | query | non | Locate a logical text target in an identified render or return the guarded text target at a page point, without moving selection. |
 | `render.selection_boxes` | query | non | Read page quadrilaterals for a guarded text selection on an identified render, in Typst points. |
 | `document.statistics` | query | non | Read Unicode word and grapheme counts for the document and an optional text target, excluding structural markers and private fields. |
@@ -64,9 +67,9 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 | `models.presentation` | query | non | Read the current model page constraints and permitted bullet markers. |
 | `spelling.issues` | query | non | Read revision-guarded spelling issues and dictionary availability using the configured personal words. |
 | `spelling.suggestions` | query | non | Suggest corrections for an explicit word and language or a validated spelling issue, without changing selection. |
-| `document.inspect` | query | non | Read the current revision, selection and history availability. |
+| `document.inspect` | query | non | Read session state, document type, documentary command capabilities, guarded selection and typing style; document context is null when closed. |
 | `document.text` | query | non | Read editable text without Typst markup. |
 | `document.structure` | query | non | Read blocks, text zones, roles and their opaque identities. |
 | `metadata.get` | query | non | Read the document metadata. |
-| `commands.list` | query | non | Read the implemented command and query catalogue with JSON schemas. |
+| `commands.list` | query | non | Read command/query schemas and context availability with reasons, distinguishing calls that still require parameters; no execution or file access. |
 | `search.find` | query | non | Find literal Unicode text without modifying the selection. |

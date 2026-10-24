@@ -5,6 +5,7 @@ mod availability;
 mod batch;
 mod batch_types;
 mod blocks;
+mod discovery;
 mod error;
 mod exports;
 mod file_types;

@@ -162,6 +162,11 @@ pub fn catalogue_markdown(value: &Value) -> String {
 }
 pub(super) use define_calls;
 
+/// Catalogue statique reproductible, distinct de commands.list et de son contexte.
+pub fn catalogue_json() -> Value {
+    serde_json::json!({"entries": catalogue()})
+}
+
 pub fn catalogue() -> &'static [CommandSpec] {
     static SPECS: OnceLock<Vec<CommandSpec>> = OnceLock::new();
     SPECS.get_or_init(|| {

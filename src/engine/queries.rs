@@ -5,6 +5,12 @@ use serde_json::json;
 impl Engine {
     pub fn query(&self, query: Query) -> Result<Value, CommandError> {
         Ok(match query {
+            Query::DocumentTypes(_) => Self::document_types_query(),
+            Query::Source(_) => {
+                self.check_rule(AvailabilityRule::Read)?;
+                json!({"guard": self.target_guard(), "source": self.document().source()})
+            }
+            Query::Assets(_) => self.assets_query()?,
             Query::Locate(p) => {
                 serde_json::to_value(self.locate(p)?).expect("serializable location")
             }
@@ -21,7 +27,7 @@ impl Engine {
             Query::SpellingSuggestions(p) => self.spelling_suggestions(p)?,
             Query::Inspect(_) => json!({
                 "guard": self.session.target_guard(),
-                "selection": self.session.selection_target(self.selection).ok(),
+                "selection": self.open.then(|| self.session.selection_target(self.selection).ok()).flatten(),
                 "open": self.open,
                 "render": self.render_info(),
                 "path":self.session.file_path,
@@ -29,6 +35,12 @@ impl Engine {
                 "dirty": self.open && self.session.is_dirty(),
                 "can_undo": !self.session.undo.is_empty(),
                 "can_redo": !self.session.redo.is_empty(),
+                "document_type": self.open.then(|| self.metadata().document_type()),
+                "capabilities": self.open.then(|| Self::capabilities(self.metadata().document_type())),
+                "typing_style": self.open.then(|| {
+                    let style = &self.document().view.typing_style;
+                    json!({"bold":style.bold,"italic":style.italic,"link":style.link})
+                }),
             }),
             Query::Text(params) => {
                 let range = self.resolve_query_target(params.target)?.range();
@@ -50,7 +62,7 @@ impl Engine {
                     "fields":self.session.metadata.field_values()})
             }
             Query::ModelPresentation(_) => self.presentation_query()?,
-            Query::Commands(_) => json!({"entries": catalogue()}),
+            Query::Commands(_) => self.commands_query(),
             Query::Find(params) => serde_json::to_value(self.search_results(params)?)
                 .expect("serializable search results"),
         })

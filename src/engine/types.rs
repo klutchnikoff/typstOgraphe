@@ -190,6 +190,9 @@ define_calls! {
 
 define_calls! {
     Query, query_specs;
+    DocumentTypes(Empty) => "document_types.list", "List built-in types, supplied models, creation availability and documentary command capabilities without requiring an open document.", Query, Always, false;
+    Source(Empty) => "document.source", "Read the committed documentary Typst source with its revision guard, without executing code.", Query, Read, false;
+    Assets(Empty) => "document.assets", "Inventory retained document/model resources and packaged dependencies using the save/export retention policy, without returning file contents or undo-only assets.", Query, Read, false;
     Locate(LocateParams) => "render.locate", "Locate a logical text target in an identified render or return the guarded text target at a page point, without moving selection.", Query, Read, false;
     SelectionBoxes(SelectionBoxesParams) => "render.selection_boxes", "Read page quadrilaterals for a guarded text selection on an identified render, in Typst points.", Query, Read, false;
     Statistics(StatisticsParams) => "document.statistics", "Read Unicode word and grapheme counts for the document and an optional text target, excluding structural markers and private fields.", Query, Read, false;
@@ -198,11 +201,11 @@ define_calls! {
     ModelPresentation(Empty) => "models.presentation", "Read the current model page constraints and permitted bullet markers.", Query, Read, false;
     SpellingIssues(Empty) => "spelling.issues", "Read revision-guarded spelling issues and dictionary availability using the configured personal words.", Query, Read, false;
     SpellingSuggestions(SpellingSuggestionsParams) => "spelling.suggestions", "Suggest corrections for an explicit word and language or a validated spelling issue, without changing selection.", Query, Read, false;
-    Inspect(Empty) => "document.inspect", "Read the current revision, selection and history availability.", Query, Read, false;
+    Inspect(Empty) => "document.inspect", "Read session state, document type, documentary command capabilities, guarded selection and typing style; document context is null when closed.", Query, Always, false;
     Text(TextQueryParams) => "document.text", "Read editable text without Typst markup.", Query, Read, false;
     Structure(Empty) => "document.structure", "Read blocks, text zones, roles and their opaque identities.", Query, Read, false;
     Metadata(Empty) => "metadata.get", "Read the document metadata.", Query, Read, false;
-    Commands(Empty) => "commands.list", "Read the implemented command and query catalogue with JSON schemas.", Query, Read, false;
+    Commands(Empty) => "commands.list", "Read command/query schemas and context availability with reasons, distinguishing calls that still require parameters; no execution or file access.", Query, Always, false;
     Find(SearchParams) => "search.find", "Find literal Unicode text without modifying the selection.", Query, Read, false;
 }
 
