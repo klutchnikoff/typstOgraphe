@@ -23,6 +23,139 @@ fn validator(schema: &Value) -> jsonschema::Validator {
 }
 
 #[test]
+fn documented_style_batches_keep_inserted_formatting_stop_future_style_and_undo_once() {
+    let schema = json!(
+        catalogue::tools()
+            .iter()
+            .find(|t| t.name == "document.batch")
+            .unwrap()
+            .input_schema
+    );
+    let valid = validator(&schema);
+    for (id, style) in [("text.bold", "bold"), ("text.italic", "italic")] {
+        let mut host = host::Host::new(false);
+        let doc = created(&mut host);
+        let docs = call(&mut host, "capabilities.describe", json!({"id":id}));
+        let examples = docs["outcome"]["batch_examples"].as_array().unwrap();
+        assert_eq!(examples.len(), 1);
+        let example = &examples[0];
+        assert_eq!(example["id"], "document.batch");
+        assert!(example["preconditions"].as_str().unwrap().contains("empty"));
+        assert!(example["expected"].as_str().unwrap().contains("undo"));
+        let mut args = example["params"].clone();
+        args["document"] = doc;
+        assert!(valid.is_valid(&args));
+        let edited = call(&mut host, "document.batch", args);
+        let source = call(
+            &mut host,
+            "document.source",
+            json!({"document":edited["document"]}),
+        );
+        let document = typstographe_core::document::Document::from_source(
+            source["outcome"]["source"].as_str().unwrap(),
+        )
+        .unwrap();
+        let steps = example["params"]["steps"].as_array().unwrap();
+        let marked = steps[1]["params"]["text"].as_str().unwrap();
+        let following = steps[3]["params"]["text"].as_str().unwrap();
+        assert_eq!(document.view.text, format!("{marked}{following}"));
+        for (index, actual) in document.view.styles.iter().enumerate() {
+            let enabled = index < marked.chars().count();
+            assert_eq!(actual.bold, style == "bold" && enabled);
+            assert_eq!(actual.italic, style == "italic" && enabled);
+        }
+        let inspection = call(&mut host, "document.inspect", json!({}));
+        assert_eq!(inspection["outcome"]["typing_style"]["bold"], false);
+        assert_eq!(inspection["outcome"]["typing_style"]["italic"], false);
+        let undone = call(
+            &mut host,
+            "edit.undo",
+            json!({"document":edited["document"]}),
+        );
+        assert_eq!(
+            call(
+                &mut host,
+                "document.text",
+                json!({"document":undone["document"]})
+            )["outcome"]["text"],
+            ""
+        );
+        assert_eq!(
+            call(&mut host, "document.inspect", json!({}))["outcome"]["can_undo"],
+            false
+        );
+        let redone = call(
+            &mut host,
+            "edit.redo",
+            json!({"document":undone["document"]}),
+        );
+        assert_eq!(
+            call(
+                &mut host,
+                "document.source",
+                json!({"document":redone["document"]})
+            )["outcome"]["source"],
+            source["outcome"]["source"]
+        );
+    }
+}
+
+#[test]
+fn style_batch_examples_are_the_same_in_fiches_resources_and_the_mcp_guide() {
+    let mut host = host::Host::new(false);
+    let docs = call(
+        &mut host,
+        "capabilities.describe",
+        json!({"id":"document.batch"}),
+    );
+    let examples = docs["outcome"]["batch_examples"].clone();
+    assert_eq!(examples.as_array().unwrap().len(), 2);
+    let insert = call(
+        &mut host,
+        "capabilities.describe",
+        json!({"id":"text.insert"}),
+    );
+    assert_eq!(insert["outcome"]["batch_examples"], examples);
+    let resource = resource(&host, "typstographe://commands");
+    for id in ["text.bold", "text.italic", "text.insert", "document.batch"] {
+        let entry = resource["outcome"]["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["command"]["id"] == id)
+            .unwrap();
+        assert_eq!(
+            entry["batch_examples"],
+            Engine::command_documentation(id).unwrap()["batch_examples"]
+        );
+    }
+    let guide = include_str!("../../../../docs/mcp.md");
+    let section = guide
+        .split("## Gras et italique : délimiter les insertions")
+        .nth(1)
+        .unwrap()
+        .split("\n## ")
+        .next()
+        .unwrap();
+    let snippets: Vec<Value> = section
+        .split("```json\n")
+        .skip(1)
+        .map(|s| serde_json::from_str(s.split("\n```").next().unwrap()).unwrap())
+        .collect();
+    let params: Vec<_> = examples
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["params"].clone())
+        .collect();
+    assert_eq!(snippets, params);
+    let guide = host.resource("typstographe://guide").unwrap().value;
+    let instructions = guide["outcome"]["instructions"].as_str().unwrap();
+    assert!(instructions.contains("on/insert/off"));
+    assert!(instructions.contains("*bold* and _italic_ are literal text"));
+}
+
+#[test]
 fn batch_step_schema_advertises_the_object_params_required_by_the_adapter() {
     let schema = json!(
         catalogue::tools()
