@@ -1,5 +1,5 @@
-//! Un rendu immuable enregistré par l’adaptateur natif, lu par les mêmes requêtes
-//! que les futurs transports. Une lecture ne déplace jamais la sélection.
+//! Cache dérivé du document validé, alimenté par la compilation publique ou le
+//! worker natif. Une lecture ne modifie ni la sélection ni le document.
 use super::*;
 use crate::{navigation::RenderSync, rendering::RenderRequest, session::Caret};
 use std::sync::atomic::AtomicU64;
@@ -30,7 +30,7 @@ impl Engine {
     /// Point d’entrée réservé au worker natif. Les données Typst ne font pas
     /// partie des paramètres JSON et ne peuvent pas être injectées par un appel.
     pub(crate) fn install_render(
-        &mut self,
+        &self,
         guard: TargetGuard,
         sync: RenderSync,
     ) -> Result<RenderInfo, CommandError> {
@@ -50,27 +50,67 @@ impl Engine {
                 .map(|page| sync.page_size(page).expect("rendered page"))
                 .collect(),
         };
-        self.render = Some(RenderState {
+        *self.render.borrow_mut() = Some(RenderState {
             info: info.clone(),
             sync,
         });
         Ok(info)
     }
-    pub(super) fn render_info(&self) -> Option<&RenderInfo> {
+    pub(super) fn render_info(&self) -> Option<RenderInfo> {
         self.render
+            .borrow()
             .as_ref()
             .filter(|state| self.open && state.info.reference.guard == self.target_guard())
-            .map(|state| &state.info)
+            .map(|state| state.info.clone())
     }
-    fn checked_render(&self, reference: RenderReference) -> Result<&RenderState, CommandError> {
+    fn checked_render(
+        &self,
+        reference: RenderReference,
+    ) -> Result<std::cell::Ref<'_, RenderState>, CommandError> {
         if !self.open {
             return Err(CommandError::new(ErrorCode::Unavailable, "no_document"));
         }
         self.check_guard(reference.guard)?;
-        self.render
-            .as_ref()
-            .filter(|state| state.info.reference == reference)
-            .ok_or_else(|| CommandError::new(ErrorCode::NotFound, "render_unavailable"))
+        std::cell::Ref::filter_map(self.render.borrow(), |state| {
+            state
+                .as_ref()
+                .filter(|state| state.info.reference == reference)
+        })
+        .map_err(|_| CommandError::new(ErrorCode::NotFound, "render_unavailable"))
+    }
+
+    /// Compilation synchrone hors UI. Seul le cache dérivé change ; un transport
+    /// peut exécuter cette lecture sur son worker, sans rasterisation ni export.
+    pub fn compile(&self, p: GuardParams) -> Result<CompileResult, CommandError> {
+        self.check_rule(AvailabilityRule::Read)?;
+        self.check_guard(p.guard)?;
+        if let Some(render) = self.render_info() {
+            return Ok(CompileResult {
+                guard: p.guard,
+                render: Some(render),
+                diagnostics: vec![],
+            });
+        }
+        let request = self.preview_request()?;
+        let mut world = crate::rendering::TypstWorld::default();
+        let result = crate::rendering::compile_request(&mut world, &request);
+        let result = match result {
+            Ok((document, _)) => CompileResult {
+                guard: p.guard,
+                render: Some(self.install_render(
+                    p.guard,
+                    RenderSync::new(p.guard.revision, world, document, request.source_map),
+                )?),
+                diagnostics: vec![],
+            },
+            Err(detail) => CompileResult {
+                guard: p.guard,
+                render: None,
+                diagnostics: vec![Diagnostic::error("render_compile", detail)],
+            },
+        };
+        comemo::evict(10);
+        Ok(result)
     }
     pub fn locate(&self, p: LocateParams) -> Result<super::LocateResult, CommandError> {
         let state = self.checked_render(p.render)?;

@@ -387,14 +387,24 @@ pub fn retained_assets(
     Ok(retained)
 }
 
-pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendered, String> {
-    let start = Instant::now();
+/// Même compilation Typst pour le worker natif et la requête sans UI. La
+/// rasterisation et les écritures éventuelles appartiennent à leurs adaptateurs.
+pub(crate) fn compile_request(
+    world: &mut TypstWorld,
+    request: &RenderRequest,
+) -> Result<(PagedDocument, ModelPresentation), String> {
     crate::packages::validate(&request.template, &request.dependencies)?;
     world.set_assets(&request.assets);
     world.set_dependencies(&request.dependencies);
     let document =
         world.compile_with_template(&request.source, &request.metadata, &request.template)?;
     let presentation = world.model_presentation(&request.template)?;
+    Ok((document, presentation))
+}
+
+pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendered, String> {
+    let start = Instant::now();
+    let (document, presentation) = compile_request(world, request)?;
     if let Some(path) = &request.export_dir {
         crate::exporting::write_document(
             &document,

@@ -5,6 +5,8 @@ use serde_json::json;
 impl Engine {
     pub fn query(&self, query: Query) -> Result<Value, CommandError> {
         Ok(match query {
+            Query::Validate(p) => serde_json::to_value(self.validate(p)?).expect("validation"),
+            Query::Compile(p) => serde_json::to_value(self.compile(p)?).expect("compilation"),
             Query::DocumentTypes(_) => Self::document_types_query(),
             Query::Source(_) => {
                 self.check_rule(AvailabilityRule::Read)?;

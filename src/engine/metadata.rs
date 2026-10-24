@@ -78,7 +78,7 @@ impl Engine {
             "bullet_markers":policy.bullet_markers,"custom_bullet_marker":policy.custom_bullet_marker}),
         )
     }
-    fn check_option(&self, params: &SetOptionParams) -> Result<(), CommandError> {
+    pub(super) fn check_option(&self, params: &SetOptionParams) -> Result<(), CommandError> {
         self.check_guard(params.guard)?;
         let allowed = match &params.option {
             DocumentOption::Paper(paper) => self.fixed_page().is_none_or(|(p, _)| p == *paper),

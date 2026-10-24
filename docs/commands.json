@@ -6540,6 +6540,92 @@
       }
     },
     {
+      "availability": "read",
+      "batch_step": false,
+      "description": "Validate a guarded draft, model, resources and options; report errors separately from fields missing for export, without editing or installing a render.",
+      "family": "query",
+      "id": "document.validate",
+      "params_schema": {
+        "$defs": {
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          }
+        },
+        "required": [
+          "guard"
+        ],
+        "title": "GuardParams",
+        "type": "object"
+      }
+    },
+    {
+      "availability": "read",
+      "batch_step": false,
+      "description": "Compile a guarded document synchronously into a cached in-memory render reference and diagnostics, without rasterization, export or document edits.",
+      "family": "query",
+      "id": "render.compile",
+      "params_schema": {
+        "$defs": {
+          "TargetGuard": {
+            "additionalProperties": false,
+            "properties": {
+              "document_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "document_id",
+              "revision"
+            ],
+            "type": "object"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "guard": {
+            "$ref": "#/$defs/TargetGuard"
+          }
+        },
+        "required": [
+          "guard"
+        ],
+        "title": "GuardParams",
+        "type": "object"
+      }
+    },
+    {
       "availability": "always",
       "batch_step": false,
       "description": "List built-in types, supplied models, creation availability and documentary command capabilities without requiring an open document.",

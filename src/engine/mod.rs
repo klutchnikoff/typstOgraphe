@@ -35,6 +35,8 @@ mod statistics;
 pub(crate) mod test_support;
 mod types;
 mod typing;
+mod validation;
+mod validation_types;
 use crate::{
     document::{Projection, edits::EditError},
     session::{EditGroup, Selection, SelectionTarget, Session, Snapshot, TargetGuard},
@@ -56,6 +58,7 @@ use serde_json::Value;
 pub use spelling_types::*;
 pub use statistics::{StatisticsParams, StatisticsResult};
 pub use types::*;
+pub use validation_types::*;
 
 pub struct Engine {
     session: Session,
@@ -64,7 +67,7 @@ pub struct Engine {
     selection: Selection,
     spelling: spelling::SpellingState,
     search_cache: std::cell::RefCell<search::SearchCache>,
-    render: Option<render::RenderState>,
+    render: std::cell::RefCell<Option<render::RenderState>>,
     statistics: std::cell::RefCell<statistics::StatisticsCache>,
     presentation_cache: metadata::PresentationCache,
 }
@@ -104,7 +107,7 @@ impl From<Session> for Engine {
             selection: Selection::default(),
             spelling: Default::default(),
             search_cache: Default::default(),
-            render: None,
+            render: Default::default(),
             statistics: Default::default(),
             presentation_cache: Default::default(),
         }

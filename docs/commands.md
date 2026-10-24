@@ -56,6 +56,8 @@ Les schémas JSON sont disponibles avec `--commands-catalogue-json`.
 | `letter.insert_attachment` | letter | oui | Insert an attachment mention into a letter. |
 | `edit.undo` | history | non | Undo the previous document transaction. |
 | `edit.redo` | history | non | Redo the next document transaction. |
+| `document.validate` | query | non | Validate a guarded draft, model, resources and options; report errors separately from fields missing for export, without editing or installing a render. |
+| `render.compile` | query | non | Compile a guarded document synchronously into a cached in-memory render reference and diagnostics, without rasterization, export or document edits. |
 | `document_types.list` | query | non | List built-in types, supplied models, creation availability and documentary command capabilities without requiring an open document. |
 | `document.source` | query | non | Read the committed documentary Typst source with its revision guard, without executing code. |
 | `document.assets` | query | non | Inventory retained document/model resources and packaged dependencies using the save/export retention policy, without returning file contents or undo-only assets. |

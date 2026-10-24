@@ -165,7 +165,7 @@ fn render_queries_refuse_stale_foreign_missing_and_replaced_render_references() 
         )
         .is_ok()
     );
-    e.render = None;
+    *e.render.get_mut() = None;
     assert_eq!(
         locate(
             &e,
