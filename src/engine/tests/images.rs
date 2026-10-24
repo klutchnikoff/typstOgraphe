@@ -397,7 +397,7 @@ fn full_snapshot_publication_rejects_invalid_or_stale_candidates_without_partial
 fn discarded_images_in_memory_do_not_exhaust_the_document_size_limit() {
     let mut e = engine("");
     // Les ressources orphelines peuvent survivre dans l’historique en mémoire.
-    // Ce cas interne dépasse délibérément le budget accepté par from_stored.
+    // Ces octets volontairement non décodables seraient refusés par from_stored.
     let unused: std::sync::Arc<[u8]> = vec![0; 1024 * 1024].into();
     for index in 0..65 {
         e.session

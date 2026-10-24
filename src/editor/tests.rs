@@ -567,9 +567,15 @@ fn native_buffer_and_ime_reset_cannot_erase_a_protected_boundary_error() {
     buffer.delete_char_range(0..7);
     assert_eq!(buffer.insert_text("Invalide", 0), 0);
     assert!(input.view.edit_error().is_some());
+    let rejected = input.view.clone();
     input.reset_projection(original.view.clone());
     assert_eq!(input.insert_text("Valide", 0), 0);
     assert!(input.view.validate_edit().is_err());
+    let mut healthy = crate::document::edits::TextInput {
+        view: original.view.clone(),
+    };
+    healthy.reset_projection(rejected);
+    assert!(healthy.view.validate_edit().is_err());
     // Abandonner le brouillon suffit : la projection publiée reste intacte.
     assert!(original.view.validate_edit().is_ok());
 }

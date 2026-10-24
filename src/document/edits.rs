@@ -181,7 +181,7 @@ impl TextInput {
     /// Repart de la projection initiale pour une nouvelle prédiction IME,
     /// sans effacer une erreur déjà rencontrée par ce brouillon.
     pub fn reset_projection(&mut self, mut view: Projection) {
-        view.edit_error = self.view.edit_error;
+        view.edit_error = self.view.edit_error.or(view.edit_error);
         self.view = view;
     }
 

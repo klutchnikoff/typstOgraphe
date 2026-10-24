@@ -665,12 +665,14 @@ au moteur. Les anciens helpers de mutation/restauration de `Session` ne sont com
 que sous `cfg(test)` pour arranger des scénarios historiques.
 
 Les assertions internes du moteur examinent ses champs privés depuis son module
-de tests. Les tests de l’application utilisent les lectures explicites et un helper
-de fixture à portée fermée dans `engine/test_support.rs`, lui aussi exclusivement
-sous `cfg(test)`, lorsqu’ils doivent construire un état volontairement invalide ou
-manipuler une révision pour vérifier les refus. Aucun retour de session mutable ni
-proxy de compatibilité n’est ajouté à l’API de production. Aucun identifiant du
-catalogue, format d’archive, dépendance Cargo ou fonctionnalité produit n’est changé.
+de tests. À la clôture de phase 2, les tests de l’application utilisent encore
+un helper fermé dans `engine/test_support.rs`, exclusivement sous `cfg(test)`.
+**Mise à jour de phase 3 :** ce module est supprimé. Les fixtures graphiques
+construisent des données détachées puis un moteur validé ; les scénarios
+volontairement invalides restent dans les tests du cœur. Voir le
+[contrat des adaptateurs](engine-adapters.md). Aucun retour de session mutable ni
+proxy de compatibilité n’est ajouté à l’API publique. Les identifiants du catalogue,
+le format d’archive et les fonctionnalités produit restent inchangés.
 
 ## Vérifications
 

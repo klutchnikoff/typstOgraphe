@@ -580,8 +580,9 @@ les signatures, les limites restantes et les preuves de validation.
 **En cours :** lots 3.1 et 3.2 terminés dans le crate actuel. Les trois crates seront
 `crates/core`, `crates/i18n` et `crates/app` ; la CLI est développée en phase 4.
 Les erreurs typées et libellés indépendants de Fluent (3.2) sont en place ;
-les frontières publiques, le découpage des gros modules et les déplacements suivent.
-Le [suivi de phase 3](docs/architecture-phase-3.md) distingue ces deux lots du
+la frontière publique des adaptateurs et le découpage 3.8 sont également préparés.
+Les tests graphiques passent par des moteurs validés, sans accès mutable à la session.
+Le [suivi de phase 3](docs/architecture-phase-3.md) distingue ces préparations du
 workspace et du changement de repli linguistique, qui restent à réaliser.
 
 - [x] **3.1** Corriger les fuites graphiques **dans le crate actuel** avant les
@@ -632,11 +633,16 @@ workspace et du changement de repli linguistique, qui restent à réaliser.
   `cargo check -p typstographe-core --target wasm32-unknown-unknown`. Elle échouera au
   début ; elle mesure la distance à une éventuelle cible WASM sans l'engager.
 
-- [ ] **3.8** Avant d’appliquer les limites globales, découper explicitement le code
+- [x] **3.8** Avant d’appliquer les limites globales, découper explicitement le code
   de production de `document.rs` (1 382 lignes au relevé) et d’`editor.rs` (1 045 lignes
   avant son module de tests). Isoler projection/sérialisation/parsing et les fonctions
   de composition/décoration, extraire les tests. Commits de déplacement séparés des
   changements de comportement ; ne pas changer de modèle d’édition implicitement.
+  **Réalisé :** façades de 194 et 67 lignes, responsabilités dans `document/` et
+  `editor/`, tests d’éditeur séparés ; plus gros modules de production de ces
+  dossiers à 418 et 365 lignes. Seuils appliqués en CI à ces dossiers et à `engine`.
+  Voir aussi le [contrat public des adaptateurs](docs/engine-adapters.md), préparé
+  sans exposition de `Session` ni modification du catalogue machine.
 
 **Critères de sortie** : mêmes tests et mêmes captures qu'avant, hors changements
 volontaires consignés (par exemple le repli en anglais) ; l'arbre de dépendances

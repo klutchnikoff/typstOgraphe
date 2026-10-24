@@ -293,7 +293,7 @@ dans le bilan de sortie ; il n’est pas nécessaire de renommer les identifiant
 
 | Action / cible proposée | Chemin actuel | Paramètres proposés | Famille | Dialogue | Sans UI | Tests actuels |
 | --- | --- | --- | --- | --- | --- | --- |
-| Insérer / remplacer une sélection → `text.insert` | `editor::TextBuffer for Projection`, `app/editor_view::editor_text`, `editor_feedback` | `target`, `text`, `input_rules: literal/typing` (V4) | C-doc | Non | Oui | T07, T08, T40 |
+| Insérer / remplacer une sélection → `text.insert` | `editor::InputBuffer` → `TextInput`, `app/editor_view::editor_text`, `editor_feedback` | `target`, `text`, `input_rules: literal/typing` (V4) | C-doc | Non | Oui | T07, T08, T40 |
 | Supprimer un texte → `text.delete` | `Projection::delete_char_range`, TextEdit natif | `target` validé ; pas d’offset sentinelle public | C-doc | Non | Oui | T07, T40, T56 |
 | Curseur/sélection, clic/glisser, flèches, Home/End, sélection totale → `text.select` | `editor_feedback`, état natif egui | `Selection` ou sélecteur `all` ; pixels et navigation visuelle résolus par l’adaptateur | C-sel | Non | Oui | T07, T29, T38 |
 | Copier | TextEdit egui, sortie presse-papiers | Texte visible de la sélection vers le presse-papiers par egui ; lecture sans UI via `document.text` | UI + Q | Non | Presse-papiers : non ; lecture : oui | Événement Copy positif : `app/tests/clipboard.rs` ; pont OS au chantier I |

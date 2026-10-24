@@ -1,7 +1,8 @@
 # Phase 3 — Préparation et extraction des crates
 
 État du **24 octobre 2026** : choix principaux confirmés, **lots 3.1 et 3.2
-terminés** dans le crate actuel. Le workspace n’est pas encore créé. La phase 2 conserve
+terminés**, frontière publique des adaptateurs préparée et **découpage 3.8 terminé**
+dans le crate actuel. Le workspace n’est pas encore créé. La phase 2 conserve
 ses 49 commandes et 19 requêtes, ses contrats d’entrée et ses références générées.
 
 Références : [feuille technique](../ROADMAP-ARCHITECTURE.md#phase-3--espace-de-travail-taille-m),
@@ -127,17 +128,74 @@ imbriquées, erreurs de lots et séparation entre texte localisé et données ma
 - Le repli reste français dans ce lot ; son passage à l’anglais reste prévu dans
   un commit distinct lors de l’extraction i18n. La langue documentaire est inchangée.
 
+## Frontière publique — préparation de 3.4 et 3.5
+
+Le [contrat Rust des adaptateurs](engine-adapters.md) précise les points d’entrée
+natifs, distincts du catalogue machine. `NativeEdit` et `NativeInput` sont publics,
+avec état initial opaque. La publication reste transactionnelle, vérifie la garde
+et passe par le validateur commun. Les conversions de curseurs et les tampons
+`TextBuffer` sont des types et fonctions locaux à l’éditeur ; ils ne créent plus
+d’implémentations de traits interdites une fois egui et le cœur dans deux crates
+externes. `TextInput::reset_projection` conserve la première erreur d’un brouillon
+IME. Le champ d’erreur de projection est privé, avec une lecture explicite.
+
+Les méthodes natives de sélection, les lectures utiles à l’adaptateur et les
+échanges du worker de rendu sont publics ; les instantanés de session et
+`install_stored` restent internes. `Engine::from_stored` valide des données
+possédées et crée une nouvelle identité, sans historique. La démonstration
+l’utilise sans accès privilégié à la session. Les parcours d’ouverture,
+enregistrement et récupération continuent de passer par les commandes.
+
+Les fixtures graphiques construisent des données détachées et utilisent ce
+constructeur. Leurs modifications réelles utilisent les commandes ou les
+brouillons natifs, leurs contrôles d’historique lisent des compteurs immuables.
+Les faux rendus périmés sont construits côté adaptateur sans manipuler la révision
+de session. Le scénario de ressources volontairement invalides est déplacé dans
+les tests internes du moteur. `engine/test_support.rs` et `Session::changed`
+sont supprimés ; aucun accès mutable de test à la session n’est rendu public.
+
+## Lot 3.8 — Découpage des modules
+
+Le premier commit ne fait que déplacer le code et ajuster les visibilités entre
+modules enfants ; les modifications d’API suivent dans des commits séparés.
+
+| Façade | Responsabilités extraites | Plus gros module de production du dossier |
+| --- | --- | --- |
+| `document.rs` : 194 lignes | `projection`, `serialization`, `parsing`, `input`, `options` ; conservation des modules `structure` et `edits` | 418 lignes |
+| `editor.rs` : 67 lignes | `buffer`, `fonts`, `layout`, `images`, `descriptions`, `geometry`, `decorations` ; tests dans `editor/tests.rs` | 365 lignes |
+
+Les chemins explicites des modules conservent la réutilisation par le diagnostic
+isolé. L’interface de rédaction et le format Typst ne changent pas. Les seuils de
+800 lignes sont vérifiés pour `app`, `engine`, `document` et `editor`, désormais
+aussi dans la CI pour ces quatre dossiers. Les limites globales restent en phase 7.
+
+### Vérifications de cette préparation
+
+- **356 tests application et 221 tests diagnostic** passent avec
+  `cargo test --locked --all-targets --features editor-model-spike`.
+  Log local : `/tmp/typstographe-phase3-adapters-final-tests.log`.
+- Clippy sur les mêmes cibles avec `-D warnings`, formatage et différences : succès.
+  Log : `/tmp/typstographe-phase3-adapters-final-clippy.log`.
+- Les 11 tests des scripts d’architecture passent ; les quatre dossiers respectent
+  le seuil. Le catalogue généré conserve ses 49 commandes et 19 requêtes.
+- Tests ajoutés : conservation de direction et affinité des curseurs, erreur
+  persistante à travers une remise à zéro IME, constructeur validant les données
+  et créant des identités indépendantes. Les contrôles des brouillons périmés,
+  étrangers, fermés et de leur historique sont conservés.
+- Les **huit captures natives correspondent exactement** aux références :
+  `output/baseline/run-5su3hjya/`. Aucun changement visuel dans ce lot.
+
 ## Suite
 
-1. Préciser la surface publique nécessaire aux adaptateurs : brouillons natifs
-   opaques et validation commune, sans accès à `Session`. Adapter les fixtures
-   graphiques à cette frontière, sans exposer un accès mutable réservé aux tests.
-2. Découper les gros modules de document et d’éditeur par responsabilité, puis
-   créer le workspace et déplacer les trois crates avec leurs ressources.
-3. Appliquer le repli anglais dans le lot i18n, adapter CI/scripts et bloquer toute
+1. Créer le workspace puis déplacer les trois crates et leurs ressources. Déclarer
+   les réexportations publiques de bibliothèque en gardant `session` privé ;
+   raccorder les helpers de synchronisation des workers et les échantillons
+   d’erreurs nécessaires aux tests inter-crates, sans exposer de session mutable.
+2. Adapter les chemins du diagnostic, les inclusions de ressources et les outils
+   de contrôle aux nouveaux emplacements.
+3. Appliquer le repli anglais dans le lot i18n, adapter la CI et bloquer toute
    dépendance graphique ou Fluent dans l’arbre du cœur. Vérifier compilation,
    lancement, ouverture d’un `.typsto` existant et captures.
 
-Les dépendances transitives du crate unique, les restrictions de visibilité Rust
-et les inclusions de ressources restent à traiter. Les lots 3.1 et 3.2 ne présentent
-pas le workspace et l’extraction des crates comme réalisés.
+Les dépendances transitives restent à contrôler après l’extraction physique. Les
+préparations 3.1, 3.2 et 3.8 ne présentent pas le workspace et les crates comme réalisés.
