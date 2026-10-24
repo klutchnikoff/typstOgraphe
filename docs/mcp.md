@@ -249,6 +249,81 @@ les imports d’images/modèles restent autorisés selon les racines de lecture.
 L’export est toujours un appel distinct. Annuler un lot déjà sauvegardé modifie
 le brouillon, sans annuler l’écriture disque ; il faut sauvegarder à nouveau.
 
+## Gras et italique : délimiter les insertions
+
+`text.bold` et `text.italic` ont deux usages, selon la cible :
+
+- **Une sélection non vide** : `on` applique le style, `off` l'enlève au texte
+  sélectionné. Le style de frappe est repris de la sélection après modification.
+- **Un point d'insertion vide** : `on` ou `off` règle le style des prochaines
+  insertions, sans modifier le texte déjà présent.
+
+Utiliser explicitement `value: "on"` et `value: "off"` pour une composition
+déterministe. Le défaut `toggle` dépend de l'état courant. Gras et italique sont
+indépendants : désactiver l'un conserve l'autre.
+
+**Un style actif persiste** : un nouveau paragraphe, P.-S. ou autre structure
+ne garantit pas son arrêt. Une navigation peut aussi reprendre le style du texte
+environnant. `document.inspect` expose `typing_style` et la sélection pour contrôler
+l'état. `text.insert` laisse un point d'insertion vide après le texte inséré :
+c'est là qu'il faut désactiver le style pour préserver le passage formaté tout
+en reprenant une rédaction sans ce style. `off` sur une sélection non vide
+retirerait au contraire la mise en forme de cette sélection.
+
+Ces exemples partent d'un **point d'insertion vide à l'endroit voulu, avec le gras
+et l'italique désactivés**. Si du texte est sélectionné, se déplacer d'abord vers
+un point d'insertion logique vide avec `text.select`, à partir des références
+gardées courantes ; ne pas inventer d'identifiants ou d'offsets.
+
+Arguments de `document.batch` pour le gras : **ajouter au premier niveau la
+propriété `document` reçue dans la dernière réponse**, puis envoyer cet objet à
+`document.batch`. Les étapes n'ont ni `document` ni `guard` extérieur.
+
+```json
+{
+  "steps": [
+    { "id": "text.bold", "params": { "value": "on" } },
+    { "id": "text.insert", "params": { "text": "Passage en gras" } },
+    { "id": "text.bold", "params": { "value": "off" } },
+    { "id": "text.insert", "params": { "text": " Puis la suite." } }
+  ]
+}
+```
+
+Même enchaînement pour l'italique, avec la même référence documentaire courante
+à fournir au premier niveau de l'appel :
+
+```json
+{
+  "steps": [
+    { "id": "text.italic", "params": { "value": "on" } },
+    { "id": "text.insert", "params": { "text": "Passage en italique" } },
+    { "id": "text.italic", "params": { "value": "off" } },
+    { "id": "text.insert", "params": { "text": " Puis la suite." } }
+  ]
+}
+```
+
+Seul le premier passage est formaté ; la suite ne l'est pas. Chaque lot constitue
+une seule modification annulable. La dernière insertion illustre la reprise de
+rédaction ; elle peut être omise si rien ne doit être ajouté immédiatement.
+
+Pour mettre en forme du texte existant, `selector: { "select": "passage exact" }`
+peut cibler directement ce texte avec `text.bold` ou `text.italic` ; une ambiguïté
+exige de préciser l'occurrence. Cela ne constitue pas une remise à zéro automatique
+du style de frappe.
+
+Les mêmes lots sont disponibles dans `batch_examples` des fiches
+`text.bold`, `text.italic`, `text.insert` et `document.batch`, consultables par
+`capabilities.describe` et `typstographe://commands`. Chaque exemple précise
+l'opération à appeler (`id`), ses `params`, ses préconditions et le résultat attendu ;
+la fiche d'une commande de style peut donc présenter un exemple appelant
+**`document.batch`**, sans que ses `steps` soient des paramètres de `text.bold`.
+
+En mode `input_rules: "literal"` (défaut), `*gras*` et `_italique_` restent du
+texte littéral : ce n'est pas un format de texte enrichi pour MCP. Utiliser les
+commandes dédiées pour la mise en forme.
+
 ## Contrôles et limites
 
 Les chemins sont résolus avant contrôle, y compris leurs ancêtres existants pour

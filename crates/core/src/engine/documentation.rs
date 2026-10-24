@@ -45,6 +45,7 @@ impl Engine {
             "defaults":defaults,"restrictions":guide.restrictions,"result":guide.result,
             "target_guidance":"Text targets default to the current logical selection except document.text (all text) and document.statistics (no selection counter). Explicit targets retain their revision guard; refresh after document edits. Structural IDs are opaque and never character offsets.",
             "effects":effects(spec),
+            "batch_examples":super::documentation_examples::style_batches(id),
             "transaction":match spec.family { Family::Query => "Read only; no document undo entry. A read may populate derived caches.", Family::Selection => "Moves the selection; no document undo entry.", Family::File => "Lifecycle, save and export operations are explicit and are not undone by editing history. Export does not mark a document saved.", Family::History => "Moves through existing history; does not add a new edit. Disk writes are not undone.", _ => "Changes to document content are undoable. Discrete calls form an edit; typing inputs may group. A batch is one transaction with optional final save; export is separate." }}),
         )
     }

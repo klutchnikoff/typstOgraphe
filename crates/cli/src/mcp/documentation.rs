@@ -39,7 +39,7 @@ pub fn describe(id: &str, context: &Value, policy: &Policy) -> Result<Value, Com
         .unwrap_or_else(|| json!({"exposed":true,"authorized":true,"filesystem":false,"read_only":policy.describe()["read_only"]}));
     info["mcp_input_schema"] = tool.map(|t| json!(t.input_schema)).unwrap_or(Value::Null);
     info["mcp_example_guidance"] = json!(
-        "examples[].params are templates: replace every binding with current values from the named tool's outcome. Supply document as the outer reference from the latest response, not a core guard; omit a separate root guard. Never invent IDs or references. render may be omitted for automatic current compilation; explicit references are validated. A selector can supply target/issue/occurrence where the schema allows it. Paths are illustrative and still require declared permissions."
+        "batch_examples (when present) describe calls to their own id (document.batch), with preconditions and expected results; do not send their steps to the described formatting tool. Their root document reference follows the same rules. examples[].params are templates: replace every binding with current values from the named tool's outcome. Supply document as the outer reference from the latest response, not a core guard; omit a separate root guard. Never invent IDs or references. render may be omitted for automatic current compilation; explicit references are validated. A selector can supply target/issue/occurrence where the schema allows it. Paths are illustrative and still require declared permissions."
     );
     info["context_availability"] = spec.map(|_| context["entries"].as_array().expect("entries").iter()
         .find(|e| e["id"]==id).expect("registered entry")["context_availability"].clone())

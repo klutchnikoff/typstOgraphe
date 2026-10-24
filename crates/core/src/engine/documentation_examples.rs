@@ -1,6 +1,31 @@
 //! Exemples littéraux et références à obtenir du moteur, jamais d’identités inventées.
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Value, json};
+
+/// Parcours de composition : ils appellent document.batch, pas la capacité décrite.
+pub(super) fn style_batches(id: &str) -> Vec<Value> {
+    [
+        ("text.bold", "Passage en gras"),
+        ("text.italic", "Passage en italique"),
+    ]
+    .into_iter()
+    .filter(|(style, _)| id == *style || matches!(id, "text.insert" | "document.batch"))
+    .map(|(style, text)| {
+        json!({
+            "id":"document.batch",
+            "preconditions":"Start at the intended empty insertion caret, with bold and italic off. If text is selected, first move to a guarded empty caret; otherwise on/off formats that selection. Root guard is supplied by the caller or adapter.",
+            "params":{"steps":[
+                {"id":style,"params":{"value":"on"}},
+                {"id":"text.insert","params":{"text":text}},
+                {"id":style,"params":{"value":"off"}},
+                {"id":"text.insert","params":{"text":" Puis la suite."}}
+            ]},
+            "bindings":[],
+            "expected":"Only the first passage has the named style; subsequent text does not. The caret is empty after insertion. Turning one style off leaves the other styles unchanged. One undo removes the whole batch."
+        })
+    })
+    .collect()
+}
 
 #[derive(Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
