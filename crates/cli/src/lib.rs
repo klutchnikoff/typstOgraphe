@@ -3,18 +3,18 @@
 pub mod args;
 mod calls;
 mod creation;
-pub mod mcp;
+pub use typstographe_mcp as mcp;
 mod output;
 mod parameters;
 mod paths;
 mod render;
 mod script;
 mod script_format;
-mod targets;
 use args::{Action, CatalogueAction, Cli};
 use serde_json::{Value, json};
 use typstographe_core::engine::*;
 use typstographe_i18n::tr;
+use typstographe_mcp::targets;
 
 pub struct Report {
     pub outcome: Value,

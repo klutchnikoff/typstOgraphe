@@ -10,6 +10,7 @@ description = "Interface documentaire sans fenêtre pour typstOgraphe"
 workspace = true
 
 [dependencies]
+typstographe-mcp.workspace = true
 typstographe-core.workspace = true
 typstographe-i18n.workspace = true
 clap.workspace = true

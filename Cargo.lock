@@ -5863,6 +5863,7 @@ dependencies = [
  "tokio",
  "typstographe-core",
  "typstographe-i18n",
+ "typstographe-mcp",
  "uuid",
 ]
 
@@ -5909,6 +5910,24 @@ dependencies = [
  "rust-embed",
  "serde_json",
  "typstographe-core",
+]
+
+[[package]]
+name = "typstographe-mcp"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "clap",
+ "jsonschema",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "typstographe-core",
+ "typstographe-i18n",
+ "uuid",
 ]
 
 [[package]]
