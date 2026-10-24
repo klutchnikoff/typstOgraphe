@@ -114,3 +114,29 @@ fermeture/remplacement du document.
 
 Les tests sont dans la suite existante des trois systèmes en CI ; leur exécution
 locale macOS ne prouve pas à elle seule le fonctionnement des tubes Windows.
+
+### Recette locale des 24 et 25 octobre 2026
+
+Code vérifié : `c83e5b2` (les modifications restantes concernent les guides et le
+suivi). Les tests d'arrêt de la passerelle couvrent aussi une révocation pendant
+que le client conserve stdin ouvert : le runtime de cette passerelle CLI utilise
+`shutdown_background` pour ne pas attendre la lecture bloquante non annulable de
+Tokio stdin. La connexion se ferme sans nouvelle entrée du client.
+
+- `cargo test --locked --workspace --offline` : **467 tests réussis**, aucun
+  échec ni test ignoré ; journal dans `output/phase6-local/tests.log`.
+- Clippy workspace/toutes cibles avec `-D warnings`, fmt, frontières du cœur et
+  limites de taille : réussis. Les 14 tests Python des garde-fous passent.
+- Les huit captures natives sans assistance active correspondent exactement aux
+  références conservées : `output/baseline/run-3orzok94`.
+- Panneau d'autorisation inspecté visuellement :
+  `output/phase6-local/assistance.png`, produit avec
+  `target/debug/typstographe --capture-assistance output/phase6-local/assistance.png`.
+  Ce diagnostic n'ouvre aucun canal ni invitation.
+- Journaux de construction, Clippy, captures et tests conservés dans
+  `output/phase6-local/` (ignoré par Git).
+
+La validation locale a été faite sous macOS ; la CI des trois systèmes reste
+nécessaire pour confirmer Linux et les tubes Windows. Le premier lot n'est pas
+une clôture de phase 6 : les contextes séparés, le report des positions, les
+éditions, sauvegardes/exports rattachés et la recette de composition restent à faire.

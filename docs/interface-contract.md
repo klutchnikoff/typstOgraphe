@@ -291,10 +291,12 @@ préparé avec `prepare_export` possède son instantané et n'exporte pas les fr
 ultérieures. La récupération utilise les références du moteur et un service
 planifié/configuré par l'hôte.
 
-La CLI autonome n'a pas besoin de coordinateur de vue. MCP stdio possède aujourd'hui
-sa session indépendante ; il n'accède pas au moteur d'une fenêtre par le chemin
-du fichier. Une interface web pourra réutiliser ce contrat, avec cœur côté client
-ou serveur à décider ; K ne choisit ni WASM ni protocole de placement/édition web.
+La CLI autonome n'a pas besoin de coordinateur de vue. Le mode MCP autonome possède
+sa session indépendante. Le mode rattaché de phase 6 rejoint maintenant le moteur
+d'une fenêtre par un canal local autorisé, en lecture seule dans le premier lot ;
+il n'ouvre pas le document par son chemin. Une interface web pourra réutiliser ce
+contrat, avec cœur côté client ou serveur à décider ; K ne choisit ni WASM ni
+protocole de placement/édition web.
 
 ## Limite actuelle et phase 6
 
@@ -308,9 +310,10 @@ local ; elle ne réalise aucun report de position.
 Les choix validés de phase 6 restent à implémenter : contextes séparés, concurrence
 stricte, report des positions, maintien du focus et de la navigation, indication
 « Voir », refus temporaire des mutations pendant IME/modalité et filtrage des
-résultats d'une demande annulée. Transport, rattachement et décisions différées
-restent à préciser ensemble. Une donnée sérialisable de vue n'autorise pas à
-contourner ces contrôles.
+résultats d'une demande annulée. Les choix de transport/rattachement sont validés
+(D34/D35) et le canal de lecture est livré ; l'édition, les décisions différées et
+les opérations de fichiers rattachées restent à implémenter. Une donnée sérialisable
+de vue n'autorise pas à contourner ces contrôles.
 
 ## Références et vérification
 
@@ -330,4 +333,5 @@ Ils restent disponibles localement dans `docs/` et dans la feuille de route.
 - [Événements et actions de `ViewSync`](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/view-sync.md).
 - [Branchement egui, parcours et captures identiques](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/view-sync-egui.md).
 - [CLI](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/cli.md) et [MCP](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/mcp.md), pour leurs enveloppes et politiques propres.
+- [Rattachement MCP local en lecture](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/mcp-local.md).
 - [Décisions et suite de phase 6](https://github.com/klutchnikoff/typstOgraphe/blob/main/ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).

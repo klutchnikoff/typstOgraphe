@@ -896,11 +896,11 @@ implémenter en phase 6. Le transport local et les modalités de rattachement so
 
 ### Lots d'implémentation
 
-- [ ] **6.1 — Adaptateur MCP partagé.** Extraire l'adaptateur hors de la CLI pour
+- [x] **6.1 — Adaptateur MCP partagé.** Extraire l'adaptateur hors de la CLI pour
   le réutiliser depuis l'application sans dépendance application → CLI, sans
   dupliquer le catalogue ni les règles de résolution des cibles. Garder le cœur
   sans transport ni runtime. Vérifier le mode autonome existant.
-- [ ] **6.2 — Canal et rattachement en lecture.** Invitation locale explicite
+- [x] **6.2 — Canal et rattachement en lecture.** Invitation locale explicite
   attachée au document ouvert, jeton temporaire, passerelle stdio, un agent,
   révocation, lectures du même moteur au point de publication de l'interface.
   Refuser toutes les mutations à ce stade ; tester les trois systèmes en CI.
@@ -917,6 +917,11 @@ La phase démarre par 6.1 et 6.2 : aucun accès en écriture n'est livré avant 
 protections des contextes. Le rattachement peut être matérialisé par une invitation
 créée volontairement dans l'application pour son document courant ; cette
 invitation ne confère aucun accès aux autres documents.
+
+Le [bilan du rattachement local](docs/mcp-local.md) décrit le parcours, les
+frontières, les 467 tests et les huit captures identiques du premier lot (`c83e5b2`).
+Le runtime Tokio est désormais également hébergé par l'adaptateur de l'application, sur un thread IO dédié ; D11
+reste la décision initiale de phase 5, le cœur ne change pas de dépendances.
 
 ### Critères de sortie
 
@@ -1083,8 +1088,8 @@ identiques ; le contrat est documenté et vérifié par la CI.
 a livré le coordinateur pur et ses tests ; K.3 l'a branché dans egui avec parcours
 et captures identiques ; K.4 documente et exerce la frontière générale. Les preuves
 de K.2/K.3 restent valables ; aucune nouvelle capture n'est nécessaire pour ce lot
-documentaire. La phase 6 reste à implémenter : un `ViewSync` par vue n'ajoute ni
-contexte d'édition séparé, ni report des positions, ni canal de rattachement.
+documentaire. L’édition rattachée de phase 6 reste à implémenter : un `ViewSync`
+par vue n’ajoute ni contexte d'édition séparé, ni report des positions, ni canal de rattachement.
 
 ---
 

@@ -718,7 +718,10 @@ commande à identifiant stable, pilotable par une ligne de commande et par MCP.
   exports séparés). Les lots excluent les écritures intermédiaires et les effets globaux.
 - **Phase 5 :** serveur MCP, accès aux fichiers refusé par défaut.
 - **Phase 6 :** assistance à la composition dans le document ouvert, en rejoignant
-  le moteur de l’application par un canal local contrôlé.
+  le moteur de l’application par un canal local contrôlé. Transport et permissions
+  validés (D34/D35) ; [rattachement en lecture seule livré](docs/mcp-local.md).
+  Une crate adaptateur MCP partagée complète les quatre crates initiales.
+  Prochaine étape : contextes d'édition séparés avant les écritures rattachées.
 - **Phase 7 :** consolidation et documentation.
 
 **Ordre avec les autres chantiers :** ce chantier passe avant l’étape 5.

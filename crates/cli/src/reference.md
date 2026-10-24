@@ -70,7 +70,8 @@ typstographe-cli check output/courrier-script.typsto --for-export
 typstographe-cli export output/courrier-script.typsto --output output/courrier-script-export
 ```
 
-L’export est une opération distincte après la réussite du script. MCP est prévu en phase 5.
+L’export est une opération distincte après la réussite du script. MCP utilise aussi le moteur commun ; voir les modes [autonome](mcp.md) et
+[rattaché en lecture](mcp-local.md).
 
 ## Rendu d’une page en PNG
 
