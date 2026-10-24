@@ -111,12 +111,94 @@ comparaison de constructions propres. Mesures, journaux et chronogramme Cargo
 sont conservés dans `output/phase-5-measurements.json`,
 `output/phase-5-first-build.log` et `output/phase-5-build-timings.html`.
 
+## Deuxième lot — fichiers autorisés et cycle de vie
+
+Livré le 24 octobre 2026, après validation du prototype. L’adaptateur expose désormais
+**67 outils** (64 opérations du cœur et les 3 outils complémentaires), avec une liste
+stable même sans racines. Les 68 contrats du moteur restent inchangés.
+
+### Autorisations et décisions d’implémentation
+
+- `--read-root` et `--write-root` acceptent plusieurs répertoires **existants** et
+  restent indépendants. Ils sont canonicalisés au démarrage ; un répertoire invalide
+  arrête le serveur avant MCP. Sans racine, aucun accès documentaire aux fichiers.
+- Les chemins relatifs utilisent le répertoire de lancement. Les composants `..`
+  sont refusés. Les liens et ancêtres existants sont résolus avant le contrôle
+  d’appartenance ; les nouvelles destinations d’export peuvent avoir des parents
+  à créer. Le compagnon `.<nom>.lock` est contrôlé lui aussi. Les lectures et les
+  cibles d’archive/verrou existantes doivent être des fichiers ordinaires ; les
+  chemins doivent être représentables en JSON UTF-8.
+- Chaque réponse réussie expose `permissions` ; `commands.list` et
+  `capabilities.describe` distinguent présence d’un outil et autorisation du serveur.
+  L’autorisation d’un chemin est toujours vérifiée à l’exécution. Une permission
+  générale d’image n’autorise pas tout chemin : la variante embarquée reste possible
+  sans racines, la variante fichier exige une racine de lecture.
+- Une ouverture éditable exige **lecture et écriture**, car elle réserve le même
+  verrou coopératif que l’application et la CLI. Elle peut créer le compagnon avant
+  toute sauvegarde ; ce fichier persistant n’est jamais supprimé au déverrouillage.
+  Un conflit donne `file_locked` sans attendre ni basculer silencieusement.
+- `document.open` avec `read_only: true` lit la dernière archive enregistrée, même
+  avec un écrivain actif. `save_as` vers un autre chemin autorisé crée une copie
+  éditable. Le serveur globalement `--read-only` refuse cette copie, les mutations,
+  sauvegardes et exports ; il autorise requêtes, ouverture explicitement en lecture
+  seule et fermeture. Ce sont les seules exceptions de cycle de vie au mode lecture seule.
+- Images, signatures et modèles par chemin suivent la même politique, y compris
+  dans les lots et à la création. Leurs ressources sont copiées en mémoire et restent
+  autonomes. Un modèle n’ouvre pas implicitement des fichiers voisins : son monde
+  Typst ne lit que les ressources et dépendances embarquées disponibles.
+
+### Sauvegarde, export et lots
+
+`document.save` et `save_as` réutilisent la sauvegarde atomique, les verrous et les
+empreintes du moteur, sans duplication d’une voie de stockage. Une modification
+externe donne `file_changed` ; remplacer une destination différente existante exige
+`overwrite: true`, sans contourner son verrou. Une nouvelle ouverture/remplacement
+exige aussi la référence documentaire courante ; l’abandon d’un brouillon reste explicite.
+
+Le champ final `save` d’un lot est désormais disponible (`current` ou `as`). Sa
+permission est vérifiée avant les étapes ; sa publication et son contrôle d’empreinte
+restent ceux de la transaction commune. Une erreur tardive ou finale conserve la
+session publiée et l’historique. Sauvegarde, export et cycle de vie restent interdits
+**dans** les étapes. L’annulation du lot restaure le brouillon, pas le fichier enregistré.
+
+L’export est un appel distinct vers un répertoire nouveau ou vide : PDF, Typst autonome,
+ou les deux, avec PNG facultatifs. Il utilise le contenu courant et ne marque pas
+l’archive comme sauvegardée. Comme dans la CLI et l’application, une erreur d’IO
+peut laisser un export partiel ; l’export multi-fichiers n’est pas atomique.
+
+La vérification des chemins est applicative et conserve une limite connue : un
+processus local hostile peut remplacer un lien/répertoire entre contrôle et ouverture.
+Ce n’est pas une sandbox OS ni une protection contre les liens physiques. Les
+répertoires autorisés doivent être de confiance. Cette limite, prévue par D12,
+est documentée dans [le guide MCP](mcp.md), avec les budgets et l’annulation des appels.
+
+### Vérifications
+
+- **426 tests Rust du workspace** passent sous macOS : 226 cœur, 139 application,
+  7 i18n et 54 CLI (15 unitaires, 39 de processus). Les tests ciblés ont été rejoués
+  après l’enrichissement de l’aide et le dernier contrôle des chemins UTF-8.
+- Les **14 tests Python**, formatage, Clippy toutes cibles, limite de 800 lignes,
+  garde de dépendances et vérification de dérive de la documentation CLI passent.
+- Les nouveaux clients SDK vérifient sauvegarde/réouverture, deux processus en conflit
+  de verrou, lecture d’un instantané, copie, export et ses dépendances, lecture seule,
+  refus de chemins et échecs tardifs. Les tests unitaires couvrent aussi les imports,
+  liens sortants/pendants, compagnon détourné, racine remplacée, empreinte modifiée,
+  sauvegarde finale et absence d’écriture implicite. Les tests de liens sont sous Unix ;
+  le contrôle d’un alias vers un nom non UTF-8 réel est réservé à Linux (APFS le refuse).
+- Les **huit captures natives sont strictement identiques** aux références :
+  `output/baseline/run-fup1uaj_/`, journal `output/phase-5-files-captures.log`.
+- Un parcours JSON-RPC manuel crée et met en forme un courrier, sauvegarde le lot,
+  valide, exporte PDF/Typst/PNG, ferme/réouvre l’archive et reçoit le PNG. Celui-ci
+  est identique au PNG exporté ; l’image a été inspectée. Arrêt propre, stderr vide,
+  répertoire de travail du serveur inchangé. Trace, script d’essai, archive, PDF,
+  sources et PNG sont conservés dans `output/phase-5-files-manual/`. Ce contrôle
+  protocolaire ne remplace pas l’essai final avec un agent sans skill ni lecture du dépôt.
+
+Les journaux de tests et de Clippy sont dans `output/phase-5-files-*.log`.
+
 ## Lots suivants
 
-1. Racines de lecture/écriture, ouverture sous verrou, copie et sauvegarde/export
-   avec confinement des chemins, y compris imports de modèles/images/signatures
-   et sauvegarde finale des lots. Mode lecture seule et limites documentées/testées.
-2. Compléter la documentation des capacités et la parité de tous les outils,
+1. Compléter la documentation des capacités et la parité de tous les outils,
    ressources et erreurs. Test de création/vérification/export d’un courrier
    sans skill ni consultation du dépôt, puis essai avec un agent dans un client MCP.
 

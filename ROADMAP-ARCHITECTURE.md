@@ -750,9 +750,9 @@ exports PDF/Typst et rendu PNG dédié, identique au PNG de la même page export
 
 **Choix validés le 24 octobre 2026 : D25 à D28.** Premier lot : prototype `rmcp`
 sur stdio, catalogue généré, découverte documentée et session en mémoire. Le
-prototype refuse les accès documentaires au système de fichiers ; les racines,
-ouvertures et sauvegardes/export sous permissions seront un lot distinct après
-validation de la faisabilité du SDK. Suivi : [bilan de phase 5](docs/architecture-phase-5.md).
+premier prototype refusait les accès documentaires au système de fichiers.
+Le deuxième lot livré ajoute racines, ouvertures et sauvegardes/export sous permissions,
+en réutilisant les verrous et transactions du moteur. Suivi : [bilan de phase 5](docs/architecture-phase-5.md).
 
 ### 5.1 Choix de la mise en œuvre (D11)
 
@@ -767,10 +767,10 @@ validation de la faisabilité du SDK. Suivi : [bilan de phase 5](docs/architectu
 
 ### 5.2 Serveur
 
-- [ ] Sous-commande `typstographe-cli mcp [--read-root …] [--write-root …] [--read-only]`,
+- [x] Sous-commande `typstographe-cli mcp [--read-root …] [--write-root …] [--read-only]`,
   transport **stdio**.
 - [x] Premier sous-ensemble : `typstographe-cli mcp [--read-only]`, stdio, sans
-  autorisation de fichiers. Racines, sauvegarde/export et ouverture restent au lot suivant.
+  autorisation de fichiers. Ce jalon est conservé ; le lot fichiers est désormais livré.
 - [ ] Outils dérivés du registre plutôt que redéclarés à la main, plus un petit
   jeu d'outils de confort :
 
@@ -797,17 +797,22 @@ Inspiré de ce que documente WordCraft (racines de lecture et d'écriture sépar
 liens résolus avant contrôle, enregistrement explicite). À notre manière :
 
 - [x] **Refus par défaut** : aucun accès documentaire aux fichiers dans le prototype,
-  même pour une image/signature ou une étape de lot. Les racines autorisées restent à développer.
-- [ ] Chemins canonicalisés ; échappement par lien symbolique ou `..` refusé.
-- [ ] Racines de lecture et d'écriture indépendantes ; `--read-only` interdit toute commande
-  modifiante et tout `save`.
-- [ ] La session MCP travaille sur une copie en mémoire ; rien n'est écrit sans
-  `save_document` ou `export`. Les étapes d’un `batch` excluent ces deux opérations
-  et les effets globaux ; un échec conserve la session publiée (D16).
-- [ ] Limites réutilisées : budget d’images (`engine/images.rs::check_budget`), taille de document,
+  même pour une image/signature ou une étape de lot. Désormais, sans racine déclarée,
+  ces accès restent refusés ; les outils de fichiers sont découverts mais non autorisés.
+- [x] Chemins canonicalisés ; échappement par lien symbolique ou `..` refusé.
+  Contrôle des ancêtres des nouvelles destinations et du compagnon de verrou ;
+  racines existantes, indépendantes et répétables. Limite TOCTOU documentée.
+- [x] Racines de lecture et d'écriture indépendantes ; `--read-only` interdit les éditions,
+  sauvegardes et exports. Les requêtes, ouvertures explicitement en lecture seule et
+  fermetures restent possibles. Une ouverture éditable exige lecture **et** écriture.
+- [x] La session MCP travaille en mémoire ; les contenus ne sont écrits que par
+  sauvegarde/export explicite ou sauvegarde finale de lot. L’ouverture éditable peut
+  créer le compagnon de verrou autorisé. Les étapes d’un `batch` excluent les opérations
+  de fichiers et les effets globaux ; un échec, même final, conserve la session publiée (D16).
+- [x] Limites réutilisées : budget d’images (`engine/images.rs::check_budget`), taille de document,
   taille de script.
-- [ ] Aucune commande réseau, aucun processus lancé.
-- [ ] Documenter les limites connues (par exemple : `text.insert` peut modifier le document
+- [x] Aucune commande réseau, aucun processus lancé par un outil MCP.
+- [x] Documenter les limites connues (par exemple : `text.insert` peut modifier le document
   ouvert dans la session même sans racine d'écriture ; condition de concurrence sur les
   liens remplacés entre contrôle et ouverture).
 - [ ] Dans l'historique, un appel d'agent est **une** transaction annulable, pour tenir le
@@ -820,13 +825,18 @@ liens résolus avant contrôle, enregistrement explicite). À notre manière :
   Client officiel rmcp contre le binaire sur stdio, en 2025-11-25 et version par défaut
   du SDK ; trace manuelle avec courrier, image embarquée, P.-S./P.J. et rendu PNG.
 - [ ] Validation des schémas d'entrée de chaque outil.
-- [ ] Confinement : `..`, liens symboliques, chemins absolus hors racine, mode lecture seule.
-- [ ] **Test d'acceptation** : un courrier mis en forme écrit uniquement par appels MCP,
-  exporté en PDF.
+- [x] Confinement : `..`, liens symboliques, chemins absolus hors racine, mode lecture seule.
+  Tests unitaires (liens sous Unix) et clients SDK sur stdio ; imports et lots inclus.
+- [x] **Parcours documentaire de bout en bout** : un courrier mis en forme uniquement
+  par appels MCP, sauvegardé/réouvert et exporté en PDF et sources Typst autonomes.
+  Tests SDK et trace protocolaire conservée.
+- [ ] **Test d’acceptation avec un agent/LLM**, sans skill ni lecture du dépôt,
+  jusqu’à l’export du courrier.
 - [ ] Essai manuel avec un client réel :
   `claude mcp add typstographe -- typstographe-cli mcp --write-root ./sortie`
   et avec l'inspecteur MCP.
-- [ ] `docs/mcp.md` : outils, politique de sécurité, exemples.
+- [x] `docs/mcp.md` : outils, politique de fichiers, verrous/copies, sauvegardes,
+  exports et exemples. L’aide exhaustive de chaque capacité reste au prochain lot.
 
 ---
 

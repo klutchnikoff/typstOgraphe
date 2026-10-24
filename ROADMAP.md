@@ -83,10 +83,12 @@ persistante de modèles restent à développer.
   dont les choix ont été validés : outils issus du registre, découverte documentée
   sans skill requis, modèles décrits par nom/description/mots-clés, session autonome
   et éditions gardées. **Phase 5 en cours : prototype `rmcp` stdio livré**, avec
-  découverte, éditions/lots et aperçu en mémoire ; accès aux fichiers, sauvegarde/export
-  et essai avec un agent restent à réaliser. La phase 6
+  découverte, éditions/lots et aperçu en mémoire. **Deuxième lot livré :** racines
+  autorisées, ouvertures sous verrou, imports, sauvegarde explicite et export autonome.
+  L’aide complète et l’essai avec un agent restent à réaliser. La phase 6
   aura pour objectif l’assistance à la composition dans la session de l’application.
-  Choix validés et état détaillé dans [le bilan](docs/architecture-phase-4.md).
+  État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),
+  décisions et lots MCP dans [celui de phase 5](docs/architecture-phase-5.md).
 
 - **Étape 1 — Récupération : implémentée ; essai utilisateur fait.** Les choix
   validés et le périmètre livré sont précisés dans le chantier A ci-dessous.
