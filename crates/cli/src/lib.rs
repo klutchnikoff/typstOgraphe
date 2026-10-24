@@ -1,8 +1,10 @@
 //! Adaptateur synchrone : aucune logique documentaire ni préférence graphique.
 pub mod args;
+mod calls;
 mod creation;
 mod output;
 mod parameters;
+mod targets;
 use args::{Action, CatalogueAction, Cli};
 use serde_json::{Value, json};
 use typstographe_core::engine::*;
@@ -16,6 +18,20 @@ pub struct Report {
 
 pub fn execute(cli: Cli) -> Result<Report, CommandError> {
     match cli.action {
+        Action::Query {
+            id,
+            file,
+            params,
+            target,
+        } => calls::query(id, file, params, target),
+        Action::Run {
+            id,
+            file,
+            params,
+            target,
+            save,
+            output,
+        } => calls::run(id, file, params, target, save, output),
         Action::New {
             document_type,
             model,

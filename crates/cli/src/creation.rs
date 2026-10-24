@@ -34,6 +34,7 @@ pub fn create(
         }
     };
     let mut params = params.load()?;
+    crate::targets::portable(&Value::Object(params.clone()))?;
     for (key, value) in [("type", entry["id"].clone()), ("model", json!(model))] {
         if params.insert(key.into(), value).is_some() {
             return Err(CommandError::new(

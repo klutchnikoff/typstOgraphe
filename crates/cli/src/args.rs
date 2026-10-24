@@ -21,6 +21,28 @@ pub enum Language {
 
 #[derive(Subcommand)]
 pub enum Action {
+    #[command(about = tr!("cli-query-call-help"))]
+    Query {
+        id: String,
+        file: Option<PathBuf>,
+        #[command(flatten)]
+        params: Parameters,
+        #[command(flatten)]
+        target: Target,
+    },
+    #[command(about = tr!("cli-run-help"))]
+    Run {
+        id: String,
+        file: PathBuf,
+        #[command(flatten)]
+        params: Parameters,
+        #[command(flatten)]
+        target: Target,
+        #[arg(long, conflicts_with = "output", help = tr!("cli-save-help"))]
+        save: bool,
+        #[arg(short, long, help = tr!("cli-document-output-help"))]
+        output: Option<PathBuf>,
+    },
     #[command(about = tr!("cli-new-help"))]
     New {
         #[arg(long = "type", help = tr!("cli-type-help"))]
@@ -65,6 +87,16 @@ pub struct Parameters {
     pub params: Option<String>,
     #[arg(long, help = tr!("cli-params-file-help"))]
     pub params_file: Option<PathBuf>,
+}
+
+#[derive(Args, Default)]
+pub struct Target {
+    #[arg(long, conflicts_with = "block", help = tr!("cli-select-help"))]
+    pub select: Option<String>,
+    #[arg(long, requires = "select", value_parser = clap::value_parser!(u32).range(1..), help = tr!("cli-occurrence-help"))]
+    pub occurrence: Option<u32>,
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..), help = tr!("cli-block-help"))]
+    pub block: Option<u32>,
 }
 
 #[derive(Subcommand)]

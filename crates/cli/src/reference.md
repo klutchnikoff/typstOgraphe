@@ -7,7 +7,12 @@ La CLI permet de créer des documents, consulter le catalogue, inspecter, vérif
 ```sh
 typstographe-cli commands list --json
 typstographe-cli commands describe metadata.set --json
+typstographe-cli query document_types.list --json
 typstographe-cli new --type courrier --output courrier.typsto
+typstographe-cli run text.insert courrier.typsto --params '{"text":"Bonjour Élodie."}' --save
+typstographe-cli run metadata.set courrier.typsto --params '{"field":"letter.subject","value":"Demande de renseignements"}' --save
+typstographe-cli run text.bold courrier.typsto --select 'Élodie' --output copie.typsto
+typstographe-cli query document.text copie.typsto --json
 typstographe-cli inspect courrier.typsto --json
 typstographe-cli check courrier.typsto --for-export
 typstographe-cli check courrier.typsto --spelling
@@ -22,7 +27,15 @@ Codes de sortie : 0 succès, 1 contrôle négatif ou opération refusée, 2 argu
 
 `new` choisit le modèle automatiquement si le type en propose exactement un ; sinon fournir `--model`. Ses paramètres JSON (`initial_values`, `signature`) se donnent avec `--params` ou `--params-file` (`-` pour stdin). Un objet JSON UTF-8 est requis, limité à 4 Mio. Les fichiers et ressources indiqués dans le JSON sont relatifs au répertoire courant, y compris quand le JSON vient d’un fichier.
 
-`query`, `run`, scripts atomiques et images de pages dédiées : lots suivants. Les identités de session ne sont pas des références persistantes entre deux exécutions. MCP est prévu en phase 5.
+`query <id> [fichier.typsto]` exécute une requête du registre. Le fichier est requis pour les lectures documentaires ; la découverte globale et les suggestions sur un mot explicite n’en ont pas besoin. Les réponses brutes de requête sont affichées en JSON lisible, ou dans l’enveloppe stable avec `--json`.
+
+`run <id> fichier.typsto` applique une commande documentaire sur une copie en mémoire et indique explicitement `saved: false`. Le résultat JSON contient le source et les métadonnées résultants pour examiner l’effet. `--save` prend le verrou avant la lecture et enregistre atomiquement dans le fichier source. `--output copie.typsto` crée une nouvelle archive sans modifier la source, même si elle est ouverte dans l’application. Les options sont exclusives et aucune destination existante n’est écrasée. Les commandes de cycle de vie passent par `new` et `export` ; lots, historique et récupération sont indisponibles dans ces appels isolés.
+
+Les paramètres de `query` et `run` utilisent aussi `--params` ou `--params-file`. Une seule source est admise. Les identités de session ne sont pas persistantes : les gardes et références de rendu sont remplies dans le processus courant, les références copiées depuis une exécution précédente sont refusées. Les requêtes de géométrie compilent leur rendu localement, sans produire de fichiers.
+
+Pour cibler le document, `--select TEXTE` recherche un texte exact sensible à la casse. Plusieurs occurrences exigent `--occurrence N`, à partir de 1. `--block N` cible un bloc dans l’ordre de `document.structure`, à partir de 1 ; c’est la cible des commandes d’images. Ces deux sélecteurs sont exclusifs, remplacent la sélection courante et ne se combinent pas avec une cible JSON explicite. Les corrections orthographiques et le remplacement d’une occurrence sont également résolus depuis `--select`. Les cibles symboliques du moteur, comme `{"target":{"kind":"all"}}`, restent utilisables en JSON sans sélecteur. Sans sélecteur, le moteur commence au début du document ; les commandes de style sur un curseur vide n’ont pas d’effet durable sur le texte.
+
+Scripts atomiques et images de pages dédiées : lots suivants. MCP est prévu en phase 5.
 
 ## Catalogue du moteur
 
