@@ -13,7 +13,7 @@ use crate::{
 impl ImageInput {
     pub(super) fn read(&self) -> Result<ImageData, CommandError> {
         match self {
-            Self::Path { path } => Ok(ImageData::read_checked(path)?),
+            Self::Path { path } => Ok(ImageData::read(path)?),
             Self::Embedded { extension, data } => {
                 use base64::Engine;
                 if data.len() > MAX_IMAGE_BYTES.div_ceil(3) * 4 {
@@ -30,7 +30,7 @@ impl ImageInput {
                 } else {
                     extension
                 };
-                crate::assets::decode_checked(&data, &extension)?;
+                crate::assets::decode(&data, &extension)?;
                 Ok(ImageData {
                     extension,
                     data: data.into(),

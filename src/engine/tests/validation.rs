@@ -137,6 +137,31 @@ fn expensive_reads_reject_closed_foreign_and_stale_guards_and_strictly_validate_
 }
 
 #[test]
+fn validation_and_compilation_keep_machine_readable_causes_beside_developer_details() {
+    use crate::errors::{CoreError, StorageError, TemplateError};
+    let e = engine("#figure(image(\"images/missing.svg\"))");
+    let report = read(&e, "document.validate");
+    assert!(report["diagnostics"][0]["detail"].is_string());
+    let cause: CoreError =
+        serde_json::from_value(report["diagnostics"][0]["cause"].clone()).unwrap();
+    assert_eq!(
+        cause,
+        CoreError::from(StorageError::ImageResourceMissing {
+            path: "images/missing.svg".into()
+        })
+    );
+    let report = read(&e, "render.compile");
+    let cause: CoreError =
+        serde_json::from_value(report["diagnostics"][0]["cause"].clone()).unwrap();
+    assert!(matches!(
+        cause,
+        CoreError::TemplateError(TemplateError::Compilation { .. })
+    ));
+    assert!(report["render"].is_null());
+    assert!(e.session.undo.is_empty());
+}
+
+#[test]
 fn public_compile_registers_usable_geometry_reuses_current_render_and_preserves_published_state() {
     let mut e = engine(&"Noël rédige un *courrier*.\n\n".repeat(70));
     let before = e.stored_document();

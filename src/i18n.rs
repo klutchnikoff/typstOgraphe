@@ -1,5 +1,11 @@
-//! Localisation de l'interface uniquement. Les catalogues sont embarqués dans
-//! le binaire ; aucun choix de langue ne touche aux données des courriers.
+//! Localisation des présentations et messages, indépendante de la langue documentaire.
+//! Les catalogues sont embarqués ; le cœur ne dépend pas de ce module.
+#[path = "i18n/errors.rs"]
+mod errors;
+pub use errors::command_error_with;
+pub fn command_error(error: &crate::engine::CommandError) -> String {
+    command_error_with(loader(), error)
+}
 use i18n_embed::{fluent::FluentLanguageLoader, unic_langid::LanguageIdentifier};
 use rust_embed::RustEmbed;
 use std::sync::OnceLock;
@@ -43,6 +49,41 @@ macro_rules! tr {
     ($id:literal $(, $name:ident = $value:expr)* $(,)?) => {
         i18n_embed_fl::fl!($crate::i18n::loader(), $id $(, $name = ($value))*)
     };
+}
+
+/// Mise en phrases des erreurs typées ; le cœur ne connaît pas le chargeur.
+pub fn error(error: &crate::errors::CoreError) -> String {
+    error_with(loader(), error)
+}
+pub fn error_with(loader: &FluentLanguageLoader, error: &crate::errors::CoreError) -> String {
+    let mut args = error.arguments();
+    if let Some(cause) = error.cause() {
+        args.insert("error".into(), error_with(loader, cause));
+    }
+    loader.get_args(
+        error.message_key(),
+        args.into_iter()
+            .collect::<std::collections::HashMap<_, _>>(),
+    )
+}
+
+pub trait LocalizedLabel {
+    fn label(&self) -> String;
+}
+impl LocalizedLabel for crate::document_types::DocumentType {
+    fn label(&self) -> String {
+        text(self.label_key())
+    }
+}
+impl LocalizedLabel for crate::document::PaperFormat {
+    fn label(&self) -> String {
+        text(self.label_key())
+    }
+}
+impl LocalizedLabel for crate::document::DocumentLanguage {
+    fn label(&self) -> String {
+        text(self.label_key())
+    }
 }
 
 #[cfg(test)]
@@ -315,39 +356,43 @@ mod tests {
             );
         }
     }
-}
 
-/// Mise en phrases des erreurs typées ; le cœur ne connaît pas le chargeur.
-pub fn error(error: &crate::errors::CoreError) -> String {
-    error_with(loader(), error)
-}
-pub fn error_with(loader: &FluentLanguageLoader, error: &crate::errors::CoreError) -> String {
-    let mut args = error.arguments();
-    if let Some(cause) = error.cause() {
-        args.insert("error".into(), error_with(loader, cause));
-    }
-    loader.get_args(
-        error.message_key(),
-        args.into_iter()
-            .collect::<std::collections::HashMap<_, _>>(),
-    )
-}
-
-pub trait LocalizedLabel {
-    fn label(&self) -> String;
-}
-impl LocalizedLabel for crate::document_types::DocumentType {
-    fn label(&self) -> String {
-        text(self.label_key())
-    }
-}
-impl LocalizedLabel for crate::document::PaperFormat {
-    fn label(&self) -> String {
-        text(self.label_key())
-    }
-}
-impl LocalizedLabel for crate::document::DocumentLanguage {
-    fn label(&self) -> String {
-        text(self.label_key())
+    #[test]
+    fn command_errors_preserve_codes_reasons_causes_and_localize_nested_batches() {
+        use crate::{
+            engine::{CommandError, ErrorCode},
+            errors::{CoreError, StorageError},
+        };
+        let cause = CoreError::from(StorageError::ImageResourceMissing {
+            path: "images/Élodie.svg".into(),
+        });
+        let command = CommandError::with_cause(ErrorCode::Document, "file_document", cause.clone());
+        let payload = serde_json::to_value(&command).unwrap();
+        assert_eq!(payload["code"], "document");
+        assert_eq!(payload["params"]["reason"], "file_document");
+        assert!(payload["params"]["detail"].is_string());
+        assert_eq!(
+            serde_json::from_value::<CoreError>(payload["params"]["cause"].clone()).unwrap(),
+            cause
+        );
+        let batch = CommandError {
+            code: ErrorCode::Document,
+            params: serde_json::json!({"reason":"batch_step","step":1,"error":command}),
+        };
+        let batch_payload = serde_json::to_value(&batch).unwrap();
+        let mut messages = Vec::new();
+        for language in ["fr", "en"] {
+            let loader = requested(&[language]);
+            let detail = command_error_with(&loader, &command);
+            assert!(detail.contains("images/Élodie.svg"));
+            assert!(!detail.contains("StorageError"));
+            let message = command_error_with(&loader, &batch);
+            assert!(message.contains(&detail));
+            assert!(message.contains('2'));
+            messages.push(message);
+        }
+        assert_ne!(messages[0], messages[1]);
+        assert_eq!(serde_json::to_value(command).unwrap(), payload);
+        assert_eq!(serde_json::to_value(batch).unwrap(), batch_payload);
     }
 }

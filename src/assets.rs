@@ -45,9 +45,6 @@ pub struct ImageData {
 }
 impl ImageData {
     pub fn read(path: &std::path::Path) -> Result<Self, ImageError> {
-        Self::read_checked(path)
-    }
-    pub fn read_checked(path: &std::path::Path) -> Result<Self, ImageError> {
         use std::io::Read;
         let extension = path
             .extension()
@@ -65,7 +62,7 @@ impl ImageData {
             .take(MAX_IMAGE_BYTES as u64 + 1)
             .read_to_end(&mut data)
             .map_err(|e| ImageError::Io(e.to_string()))?;
-        decode_checked(&data, &extension)?;
+        decode(&data, &extension)?;
         Ok(Self {
             extension,
             data: data.into(),
@@ -101,10 +98,6 @@ pub fn valid_path(path: &str) -> bool {
 }
 
 pub fn decode(data: &[u8], extension: &str) -> Result<Image, ImageError> {
-    decode_checked(data, extension)
-}
-
-pub fn decode_checked(data: &[u8], extension: &str) -> Result<Image, ImageError> {
     if data.len() > MAX_IMAGE_BYTES {
         return Err(ImageError::TooLarge);
     }
