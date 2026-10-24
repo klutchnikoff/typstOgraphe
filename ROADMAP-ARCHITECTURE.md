@@ -638,6 +638,10 @@ distinct. Voir le [bilan de phase 3](docs/architecture-phase-3.md).
   début ; elle mesure la distance à une éventuelle cible WASM sans l'engager.
   Étape Linux avec installation de cible, `continue-on-error: true` ; localement
   la cible est absente, ce qui ne permet pas de conclure à la compatibilité.
+  Diagnostic du 24 octobre : `atomic-write-file → rand → getrandom 0.4.3` bloque
+  cette cible générique ; les services natifs demanderaient ensuite une adaptation.
+  Contrôle conservé informatif, sans ajout de `wasm_js` au cœur :
+  [bilan technique](docs/architecture-phase-3.md#diagnostic-wasm--24-octobre-2026).
 
 - [x] **3.8** Avant d’appliquer les limites globales, découper explicitement le code
   de production de `document.rs` (1 382 lignes au relevé) et d’`editor.rs` (1 045 lignes

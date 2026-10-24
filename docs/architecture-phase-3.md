@@ -252,6 +252,38 @@ Le Rust Homebrew local ne dispose pas de la cible WASM : le contrôle local s’
 sur `E0463` (bibliothèque standard absente), sans conclure à la compatibilité du
 cœur. La nouvelle étape CI installera cette cible pour mesurer les obstacles réels.
 
+
+## Diagnostic WASM — 24 octobre 2026
+
+Le contrôle CI reste **informatif**, avec `continue-on-error: true`. L’échec actuel
+est identifié dans `getrandom 0.4.3`, sans affecter les cibles natives. Pour la cible
+`wasm32-unknown-unknown`, `cargo tree -p typstographe-core --target
+wasm32-unknown-unknown -i getrandom@0.4.3 -e normal` montre :
+
+```text
+typstographe-core → atomic-write-file 0.3.1 → rand 0.10.3 → getrandom 0.4.3
+```
+
+`atomic-write-file` génère des noms temporaires aléatoires pour publier les archives.
+Le graphe natif inclut aussi `getrandom` via `tempfile`, mais cette seconde branche
+n’est pas active pour la cible WASM testée. `getrandom` refuse par défaut cette cible
+qui ne précise ni système hôte ni disponibilité de JavaScript. L’option `wasm_js`
+choisit `Crypto.getRandomValues` via `wasm-bindgen` pour un environnement Web ; elle
+n’est pas ajoutée au cœur pour masquer cette erreur. Voir la [documentation getrandom
+0.4.3](https://docs.rs/getrandom/0.4.3/getrandom/#webassembly-support).
+
+Le cœur est indépendant de l’interface, mais contient encore stockage natif, fichiers
+temporaires, verrous et worker de récupération. La [cible Rust générique WASM](https://doc.rust-lang.org/rustc/platform-support/wasm32-unknown-unknown.html)
+ne fournit pas `std::fs` fonctionnel ni `std::thread::spawn`. Lever la première erreur
+ne prouverait donc pas la portabilité de ces services. Une construction complète
+avec `wasm_js` n’a pas été validée ; le Rust Homebrew local n’a toujours pas cette cible.
+
+**Décision :** conserver le contrôle informatif et les dépendances natives actuelles.
+Une future cible Web demandera d’isoler stockage/verrous/récupération derrière une
+frontière adaptée, en conservant édition, métadonnées et composition en mémoire.
+Ce diagnostic ne lance pas un chantier Web et ne remet pas en cause les choix natifs.
+Trace de l’échec CI : `output/phase-5-files-ci-linux.log`.
+
 ## Suite
 
 La prochaine phase est la **phase 4 : CLI**. Ses choix principaux et son premier
