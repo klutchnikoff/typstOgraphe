@@ -1,0 +1,48 @@
+{
+  "new": {
+    "type": "courrier",
+    "model": "courrier.model.personal",
+    "initial_values": [
+      {
+        "field": "sender.name",
+        "value": "Camille Martin"
+      },
+      {
+        "field": "sender.email",
+        "value": "camille.martin@example.org"
+      },
+      {
+        "field": "sender.address",
+        "value": "18 rue des Érables\n69003 Lyon"
+      },
+      {
+        "field": "recipient.name",
+        "value": "Service des équipements"
+      },
+      {
+        "field": "recipient.address",
+        "value": "Mairie de Valmont\n12 place de la République\n35000 Valmont"
+      },
+      {
+        "field": "letter.subject",
+        "value": "Demande de réservation d’une salle"
+      },
+      {
+        "field": "letter.reference",
+        "value": "CM-2026-042"
+      },
+      {
+        "field": "letter.place",
+        "value": "Lyon"
+      },
+      {
+        "field": "letter.date",
+        "value": "2026-10-24"
+      }
+    ]
+  },
+  "body": "Madame, Monsieur,\n\nJe souhaite connaître la disponibilité de la salle des Tilleuls le 12 novembre 2026, de 14 h à 18 h, pour une rencontre associative réunissant trente personnes.\n\nPourriez-vous également me préciser les modalités de réservation de cette salle ?\n\nJe vous remercie de votre réponse et vous prie d’agréer, Madame, Monsieur, l’expression de mes salutations distinguées.",
+  "date_emphasis": "12 novembre 2026",
+  "postscript": "L’horaire peut être adapté selon les disponibilités de la salle.",
+  "attachment": "Présentation de la rencontre"
+}
