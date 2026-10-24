@@ -21,6 +21,7 @@ impl Engine {
         let types: Vec<_> = DocumentType::ALL.into_iter().map(|kind| {
             let models: Vec<_> = kind.models().map(|model| json!({
                 "id": model.model.id(),
+                "name": model.name,"description":model.description,"keywords":model.keywords,
                 "fixed_page": model.page.map(|(paper,landscape)| json!({"paper":paper,"landscape":landscape})),
             })).collect();
             json!({"id":kind,"can_create":kind.can_create(),"models":models,

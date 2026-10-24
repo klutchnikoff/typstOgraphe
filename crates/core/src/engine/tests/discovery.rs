@@ -15,6 +15,50 @@ fn availability(e: &Engine, id: &str) -> Value {
 }
 
 #[test]
+fn type_documentation_reuses_field_definitions_and_model_cards_without_typst_source() {
+    let e = Engine::empty();
+    let types = query(&e, "document_types.list");
+    for kind in DocumentType::ALL {
+        let doc = Engine::type_documentation(kind);
+        let entry = types["types"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["id"] == json!(kind))
+            .unwrap();
+        assert_eq!(doc["fields"], json!(Metadata::blank(kind).field_values()));
+        assert_eq!(doc["capabilities"], entry["capabilities"]);
+        assert_eq!(doc["can_create"], kind.can_create());
+        for model in doc["models"].as_array().unwrap() {
+            assert!(model["description"].is_string());
+            assert!(!model["keywords"].as_array().unwrap().is_empty());
+            assert!(model["source"].is_null() && model["fixed_page"].is_null());
+        }
+    }
+}
+
+#[test]
+fn capability_documentation_preserves_the_registry_schema_and_examples_decode() {
+    let e = Engine::empty();
+    for spec in catalogue() {
+        let doc = Engine::command_documentation(spec.id.as_str()).unwrap();
+        assert_eq!(doc["command"], serde_json::to_value(spec).unwrap());
+        assert!(!doc["details"].as_str().unwrap().is_empty());
+        for example in doc["examples"].as_array().unwrap() {
+            let mut params = example.clone();
+            if !spec.params_schema["properties"]["guard"].is_null() {
+                params["guard"] = json!(e.target_guard());
+            }
+            if spec.family == Family::Query {
+                Query::from_call(spec.id.as_str(), params).unwrap();
+            } else {
+                Command::from_call(spec.id.as_str(), params).unwrap();
+            }
+        }
+    }
+}
+
+#[test]
 fn discovery_works_without_document_and_inspection_has_no_dummy_document_context() {
     let e = Engine::empty();
     let types = query(&e, "document_types.list");

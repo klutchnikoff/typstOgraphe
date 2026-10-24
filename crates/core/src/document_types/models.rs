@@ -11,12 +11,25 @@ pub struct Definition {
     pub kind: DocumentType,
     pub source: &'static str,
     pub page: Option<(PaperFormat, bool)>,
+    pub name: &'static str,
+    pub description: &'static str,
+    pub keywords: &'static [&'static str],
 }
 pub const ALL: &[Definition] = &[Definition {
     model: Model::Personal,
     kind: DocumentType::Courrier,
     source: include_str!("../../templates/courrier-personnel.typ"),
     page: Some((PaperFormat::A4, false)),
+    name: "Personal letter",
+    description: "A restrained French A4 letter, with the recipient positioned for a DL window envelope.",
+    keywords: &[
+        "personal",
+        "French",
+        "A4",
+        "DL",
+        "window envelope",
+        "minimal",
+    ],
 }];
 impl Model {
     pub const fn id(self) -> &'static str {

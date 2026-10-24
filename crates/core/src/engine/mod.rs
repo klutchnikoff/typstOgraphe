@@ -6,6 +6,7 @@ mod batch;
 mod batch_types;
 mod blocks;
 mod discovery;
+mod documentation;
 mod error;
 mod exports;
 mod file_types;
