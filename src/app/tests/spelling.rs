@@ -7,8 +7,7 @@ fn spelling_context_menu_corrects_rich_text_with_undo_and_never_applies_a_stale_
     let mut app = App::with_demo_context(ctx.clone(), None);
     let mut letter = StoredDocument::blank(DocumentType::Courrier);
     letter.source = "Un *courrrier* et une _réservvation_.".into();
-    let document = Document::from_source(&letter.source).unwrap();
-    app.install_document(letter, document, None).unwrap();
+    app.install_document(letter, None).unwrap();
     let original = app.stored_document();
     let _ = search_draw(&mut app, &ctx, vec![]);
     app.spelling.checker.wait();
@@ -96,8 +95,7 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     let (ctx, mut app) = demo_app();
     let mut letter = StoredDocument::blank(DocumentType::Courrier);
     letter.source = "Courrrier courrrier réservvation".into();
-    let document = Document::from_source(&letter.source).unwrap();
-    app.install_document(letter, document, None).unwrap();
+    app.install_document(letter, None).unwrap();
     let original_main = app.document.engine.metadata().main_source();
     app.refresh_spelling(&ctx);
     app.spelling.checker.wait();
@@ -163,8 +161,7 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
     let mut another = StoredDocument::blank(DocumentType::CompteRendu);
     another.source = stored.source.clone();
     another.template = "#let compte-rendu(..args) = []".into();
-    let document = Document::from_source(&another.source).unwrap();
-    app.install_document(another, document, None).unwrap();
+    app.install_document(another, None).unwrap();
     app.refresh_spelling(&ctx);
     app.spelling.checker.wait();
     assert_eq!(
@@ -172,8 +169,7 @@ fn spelling_exceptions_are_scoped_persisted_and_undoable_without_affecting_typst
         2,
         "les mots ignorés ne fuient pas vers un autre document ; le dictionnaire personnel reste partagé"
     );
-    let document = Document::from_source(&stored.source).unwrap();
-    app.install_document(stored, document, Some(path)).unwrap();
+    app.install_document(stored, Some(path)).unwrap();
     app.refresh_spelling(&ctx);
     app.spelling.checker.wait();
     assert!(

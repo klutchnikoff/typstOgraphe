@@ -106,7 +106,7 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
         )
         .into();
         engine
-            .set_adapter_selection(app.document.selection.into())
+            .set_adapter_selection(editor::to_core(app.document.selection))
             .unwrap();
         engine
             .run(crate::engine::Command::from_call(id, json!({})).unwrap())
@@ -125,7 +125,7 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
         );
         assert_eq!(
             app.document.selection,
-            CCursorRange::from(engine.selection()),
+            editor::to_editor(engine.selection()),
             "{id}"
         );
         assert_eq!(
@@ -141,7 +141,7 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
         );
         assert_eq!(
             app.document.selection,
-            CCursorRange::from(engine.selection()),
+            editor::to_editor(engine.selection()),
             "{id}"
         );
         app.apply(Command::Redo);
@@ -161,7 +161,7 @@ fn native_typing_selection_and_preedit_keep_engine_queries_in_sync_with_the_publ
     frame(&mut app, &ctx, vec![]);
     assert_eq!(
         app.document.engine.selection(),
-        app.document.selection.into()
+        editor::to_core(app.document.selection)
     );
     frame(
         &mut app,
@@ -178,7 +178,7 @@ fn native_typing_selection_and_preedit_keep_engine_queries_in_sync_with_the_publ
     assert_eq!(published["text"], "Texte");
     assert_eq!(
         app.document.engine.selection(),
-        app.document.selection.into()
+        editor::to_core(app.document.selection)
     );
     frame(
         &mut app,
@@ -200,7 +200,7 @@ fn native_typing_selection_and_preedit_keep_engine_queries_in_sync_with_the_publ
         serde_json::to_value(
             app.document
                 .engine
-                .selection_target(app.document.selection.into())
+                .selection_target(editor::to_core(app.document.selection))
                 .unwrap()
         )
         .unwrap()

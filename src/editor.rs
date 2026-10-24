@@ -30,8 +30,17 @@ mod geometry;
 mod images;
 #[path = "editor/layout.rs"]
 mod layout;
+#[allow(
+    unused_imports,
+    reason = "Le diagnostic isolé utilise seulement la projection."
+)]
+pub use buffer::{InputBuffer, ProjectionBuffer, to_core, to_editor};
 #[cfg(test)]
 use decorations::link_underlines;
+#[allow(
+    unused_imports,
+    reason = "Le diagnostic isolé ne peint pas les blocs du document."
+)]
 pub use decorations::paint_decorations;
 use descriptions::*;
 pub use fonts::install_fonts;
@@ -47,6 +56,10 @@ use images::image_frame;
 )]
 pub use images::{ImageAction, paint_images};
 use layout::*;
+#[allow(
+    unused_imports,
+    reason = "Le diagnostic isolé compose ses cellules séparément."
+)]
 pub use layout::{layout, layout_with_search};
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]

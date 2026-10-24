@@ -1,8 +1,9 @@
 //! Contrat de saisie : l’UI possède une projection, le moteur garde l’instantané original.
 use super::*;
 
+/// Brouillon opaque lié à une session et une révision. Sa projection est une copie.
 #[derive(Clone)]
-pub(crate) struct NativeEdit {
+pub struct NativeEdit {
     pub(super) before: Snapshot,
 }
 impl NativeEdit {
@@ -16,18 +17,21 @@ impl NativeEdit {
         self.before.guard()
     }
 }
+/// Politique de regroupement des éditions publiées par un adaptateur natif.
 #[derive(Clone, Copy)]
-pub(crate) enum NativeInput {
+pub enum NativeInput {
     Typing,
     Composition,
 }
 impl Engine {
-    pub(crate) fn begin_native_edit(&self, selection: Selection) -> super::NativeEdit {
+    /// Capture la base du brouillon ; toute publication ultérieure revalide sa garde.
+    pub fn begin_native_edit(&self, selection: Selection) -> super::NativeEdit {
         NativeEdit {
             before: self.session.snapshot(selection),
         }
     }
-    pub(crate) fn commit_native_edit(
+    /// Publie atomiquement une projection validée, ou ne change rien en cas de rejet.
+    pub fn commit_native_edit(
         &mut self,
         edit: super::NativeEdit,
         view: Projection,
@@ -50,10 +54,7 @@ impl Engine {
     }
     /// Un déplacement natif met à jour le contexte de frappe et clôt son groupe,
     /// sans publier une édition documentaire ni écraser un style activé sans déplacement.
-    pub(crate) fn update_adapter_cursor(
-        &mut self,
-        selection: Selection,
-    ) -> Result<(), CommandError> {
+    pub fn update_adapter_cursor(&mut self, selection: Selection) -> Result<(), CommandError> {
         self.set_adapter_selection(selection)?;
         let range = selection.range();
         self.session.document.view.typing_style = if !range.is_empty() {

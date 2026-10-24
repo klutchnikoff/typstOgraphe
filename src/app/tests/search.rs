@@ -122,12 +122,7 @@ fn search_cache_is_revision_and_session_bound_and_stale_clicks_are_refused() {
     assert_ne!(app.search.guard.unwrap(), old_guard);
     let mut stored = StoredDocument::blank(DocumentType::Courrier);
     stored.source = "Madame, bonjour Madame.".into();
-    app.install_document(
-        stored.clone(),
-        Document::from_source(&stored.source).unwrap(),
-        None,
-    )
-    .unwrap();
+    app.install_document(stored.clone(), None).unwrap();
     app.search.engine.query = "Madame".into();
     app.refresh_search();
     assert_eq!(app.search.occurrences.len(), 2);
@@ -141,8 +136,7 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
     let (ctx, mut app) = demo_app();
     let mut letter = StoredDocument::blank(DocumentType::Courrier);
     letter.source = "Un *été*, puis un ÉTÉ et encore un _été_.".into();
-    let document = Document::from_source(&letter.source).unwrap();
-    app.install_document(letter, document, None).unwrap();
+    app.install_document(letter, None).unwrap();
     let before = app.stored_document();
     let mut world = crate::rendering::TypstWorld::default();
     let compiled = world
@@ -257,7 +251,7 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
                 target: app
                     .document
                     .engine
-                    .selection_target(app.document.selection.into())
+                    .selection_target(editor::to_core(app.document.selection))
                     .unwrap()
                     .into(),
             })
@@ -282,12 +276,7 @@ fn replacement_commands_refresh_results_and_replace_all_is_a_single_document_tra
     let (_ctx, mut app) = demo_app();
     let mut stored = StoredDocument::blank(DocumentType::Courrier);
     stored.source = "Un *été* et un _ÉTÉ_, été.".into();
-    app.install_document(
-        stored.clone(),
-        Document::from_source(&stored.source).unwrap(),
-        None,
-    )
-    .unwrap();
+    app.install_document(stored.clone(), None).unwrap();
     app.apply(Command::FindReplace);
     app.search.engine.query = "été".into();
     app.search.engine.replacement = "Noël".into();

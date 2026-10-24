@@ -85,7 +85,7 @@ fn paragraph_marker_is_visual_only_and_keeps_native_blank_line_cursors() {
                     layout(ui, &view, text.as_str(), width, editor)
                 };
                 let background = ui.painter().add(egui::Shape::Noop);
-                let output = egui::TextEdit::multiline(&mut document.view)
+                let output = egui::TextEdit::multiline(&mut ProjectionBuffer(&mut document.view))
                     .layouter(&mut layouter)
                     .show(ui);
                 paint_decorations(ui, &document.view, &output, editor, background);
@@ -195,10 +195,11 @@ fn quote_wrapping_keeps_the_indent_and_native_cursors_for_body_and_attribution()
                         layout(ui, &view, text.as_str(), width, editor)
                     };
                     let background = ui.painter().add(egui::Shape::Noop);
-                    let output = egui::TextEdit::multiline(&mut document.view)
-                        .desired_width(width)
-                        .layouter(&mut layouter)
-                        .show(ui);
+                    let output =
+                        egui::TextEdit::multiline(&mut ProjectionBuffer(&mut document.view))
+                            .desired_width(width)
+                            .layouter(&mut layouter)
+                            .show(ui);
                     assert_eq!(output.galley.text(), view.text);
                     let mut line = 0;
                     for row in &output.galley.rows {
@@ -252,10 +253,11 @@ fn description_boxes_and_placeholders_keep_native_cursor_indices_and_source() {
                         layout(ui, &view, text.as_str(), width, editor)
                     };
                     let background = ui.painter().add(egui::Shape::Noop);
-                    let output = egui::TextEdit::multiline(&mut document.view)
-                        .desired_width(width)
-                        .layouter(&mut layouter)
-                        .show(ui);
+                    let output =
+                        egui::TextEdit::multiline(&mut ProjectionBuffer(&mut document.view))
+                            .desired_width(width)
+                            .layouter(&mut layouter)
+                            .show(ui);
                     let placeholder = description_placeholder(ui, editor);
                     let boxes = description_boxes(
                         &document.view,
@@ -413,7 +415,7 @@ fn wrapped_heading_rule_and_spacing_preserve_cursor_positions_and_text() {
                     layout(ui, &view, text.as_str(), width, editor)
                 };
                 let background = ui.painter().add(egui::Shape::Noop);
-                let output = egui::TextEdit::multiline(&mut document.view)
+                let output = egui::TextEdit::multiline(&mut ProjectionBuffer(&mut document.view))
                     .desired_width(280.0)
                     .layouter(&mut layouter)
                     .show(ui);
@@ -505,9 +507,10 @@ fn letter_note_frames_keep_wrapped_and_empty_text_native_cursors_in_both_themes(
                             layout(ui, &view, text.as_str(), width, editor)
                         };
                         let background = ui.painter().add(egui::Shape::Noop);
-                        let output = egui::TextEdit::multiline(&mut document.view)
-                            .layouter(&mut layouter)
-                            .show(ui);
+                        let output =
+                            egui::TextEdit::multiline(&mut ProjectionBuffer(&mut document.view))
+                                .layouter(&mut layouter)
+                                .show(ui);
                         for (line, range) in view.line_ranges().iter().enumerate() {
                             if view.blocks[line].is_letter_note() {
                                 let mut cursor = CCursor::new(range.start);
@@ -535,4 +538,38 @@ fn letter_note_frames_keep_wrapped_and_empty_text_native_cursors_in_both_themes(
         }
         assert_eq!(document, original);
     }
+}
+
+#[test]
+fn cursor_adapters_preserve_direction_and_line_affinity() {
+    let range = CCursorRange {
+        primary: CCursor {
+            index: 1,
+            prefer_next_row: true,
+        },
+        secondary: CCursor {
+            index: 9,
+            prefer_next_row: false,
+        },
+        h_pos: None,
+    };
+    assert_eq!(to_editor(to_core(range)), range);
+    assert_eq!(to_core(range).range(), 1..9);
+}
+
+#[test]
+fn native_buffer_and_ime_reset_cannot_erase_a_protected_boundary_error() {
+    let original = crate::document::Document::from_source("/ Terme: Définition").unwrap();
+    let mut input = crate::document::edits::TextInput {
+        view: original.view.clone(),
+    };
+    let mut buffer = InputBuffer(&mut input);
+    buffer.delete_char_range(0..7);
+    assert_eq!(buffer.insert_text("Invalide", 0), 0);
+    assert!(input.view.edit_error().is_some());
+    input.reset_projection(original.view.clone());
+    assert_eq!(input.insert_text("Valide", 0), 0);
+    assert!(input.view.validate_edit().is_err());
+    // Abandonner le brouillon suffit : la projection publiée reste intacte.
+    assert!(original.view.validate_edit().is_ok());
 }

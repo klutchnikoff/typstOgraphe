@@ -128,7 +128,7 @@ impl App {
         let mut draft = crate::document::edits::TextInput {
             view: frame.view.clone(),
         };
-        let output = egui::TextEdit::multiline(&mut draft)
+        let output = egui::TextEdit::multiline(&mut editor::InputBuffer(&mut draft))
             .lock_focus(lock_tab)
             .id(egui::Id::new(editor::EDITOR_ID))
             .desired_width(f32::INFINITY)
@@ -215,7 +215,7 @@ impl App {
             self.range(),
             editor_style,
         );
-        let changed = output.response.changed() || draft.view.edit_error.is_some();
+        let changed = output.response.changed() || draft.view.edit_error().is_some();
         let mut state = output.state;
         if self.document.force_selection {
             state.cursor.set_char_range(Some(self.document.selection));
@@ -226,7 +226,7 @@ impl App {
             let result = self.document.engine.commit_native_edit(
                 before.clone(),
                 draft.view,
-                self.document.selection.into(),
+                editor::to_core(self.document.selection),
                 crate::engine::NativeInput::Typing,
             );
             self.accept_edit(result, before.selection());
@@ -237,7 +237,7 @@ impl App {
         } else if self.document.selection != old_range {
             self.document
                 .engine
-                .update_adapter_cursor(self.document.selection.into())
+                .update_adapter_cursor(editor::to_core(self.document.selection))
                 .expect("native cursor in the published projection");
         }
         if self.document.selection != old_range {

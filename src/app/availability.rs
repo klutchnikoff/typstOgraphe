@@ -10,7 +10,7 @@ impl App {
     pub(super) fn ui_text_target(&self) -> Option<TextTarget> {
         self.document
             .engine
-            .selection_target(self.document.selection.into())
+            .selection_target(editor::to_core(self.document.selection))
             .ok()
             .map(Into::into)
     }

@@ -1,70 +1,72 @@
-//! buffer : détail interne de l’adaptateur egui.
+//! Types locaux à l’adaptateur : aucun trait egui n’est implémenté sur un type du cœur.
 use super::*;
-impl From<CCursorRange> for crate::session::Selection {
-    fn from(range: CCursorRange) -> Self {
-        let caret = |c: CCursor| crate::session::Caret {
-            index: c.index,
-            prefer_next_row: c.prefer_next_row,
-        };
-        Self {
-            primary: caret(range.primary),
-            secondary: caret(range.secondary),
-        }
+
+pub fn to_core(range: CCursorRange) -> crate::engine::Selection {
+    let caret = |c: CCursor| crate::engine::Caret {
+        index: c.index,
+        prefer_next_row: c.prefer_next_row,
+    };
+    crate::engine::Selection {
+        primary: caret(range.primary),
+        secondary: caret(range.secondary),
     }
 }
-impl From<crate::session::Selection> for CCursorRange {
-    fn from(range: crate::session::Selection) -> Self {
-        let caret = |c: crate::session::Caret| CCursor {
-            index: c.index,
-            prefer_next_row: c.prefer_next_row,
-        };
-        Self {
-            primary: caret(range.primary),
-            secondary: caret(range.secondary),
-            h_pos: None,
-        }
+pub fn to_editor(range: crate::engine::Selection) -> CCursorRange {
+    let caret = |c: crate::engine::Caret| CCursor {
+        index: c.index,
+        prefer_next_row: c.prefer_next_row,
+    };
+    CCursorRange {
+        primary: caret(range.primary),
+        secondary: caret(range.secondary),
+        h_pos: None,
     }
 }
 
-// Adaptateur de saisie : le document et ses opérations ne dépendent pas d’egui.
-impl TextBuffer for Projection {
+#[allow(
+    dead_code,
+    reason = "Tampon brut réservé au diagnostic de tableaux et aux tests de géométrie."
+)]
+pub struct ProjectionBuffer<'a>(pub &'a mut Projection);
+impl TextBuffer for ProjectionBuffer<'_> {
     fn type_id(&self) -> std::any::TypeId {
-        std::any::TypeId::of::<Self>()
+        std::any::TypeId::of::<Projection>()
     }
     fn is_mutable(&self) -> bool {
         true
     }
     fn as_str(&self) -> &str {
-        &self.text
+        &self.0.text
     }
     fn insert_text(&mut self, text: &str, at: usize) -> usize {
-        Projection::insert_text(self, text, at)
+        self.0.insert_text(text, at)
     }
     fn delete_char_range(&mut self, range: Range<usize>) {
-        Projection::delete_char_range(self, range);
+        self.0.delete_char_range(range);
     }
     fn replace_with(&mut self, text: &str) {
-        Projection::replace_with(self, text);
+        self.0.replace_with(text);
     }
 }
 
-impl TextBuffer for crate::document::edits::TextInput {
+pub struct InputBuffer<'a>(pub &'a mut crate::document::edits::TextInput);
+impl TextBuffer for InputBuffer<'_> {
     fn type_id(&self) -> std::any::TypeId {
-        std::any::TypeId::of::<Self>()
+        std::any::TypeId::of::<crate::document::edits::TextInput>()
     }
     fn is_mutable(&self) -> bool {
         true
     }
     fn as_str(&self) -> &str {
-        &self.view.text
+        &self.0.view.text
     }
     fn insert_text(&mut self, text: &str, at: usize) -> usize {
-        Self::insert_text(self, text, at)
+        self.0.insert_text(text, at)
     }
     fn delete_char_range(&mut self, range: Range<usize>) {
-        Self::delete_char_range(self, range);
+        self.0.delete_char_range(range);
     }
     fn replace_with(&mut self, text: &str) {
-        Self::replace_with(self, text);
+        self.0.replace_with(text);
     }
 }

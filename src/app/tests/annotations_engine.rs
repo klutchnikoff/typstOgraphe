@@ -18,7 +18,7 @@ pub(super) fn pair(source: &str, range: Range<usize>) -> (egui::Context, App, En
     )
     .into();
     engine
-        .set_adapter_selection(app.document.selection.into())
+        .set_adapter_selection(editor::to_core(app.document.selection))
         .unwrap();
     (ctx, app, engine)
 }
@@ -28,7 +28,7 @@ pub(super) fn equivalent(app: &App, engine: &Engine) {
     assert_eq!(app.document.engine.document().view, engine.document().view);
     assert_eq!(
         app.document.selection,
-        CCursorRange::from(engine.selection())
+        editor::to_editor(engine.selection())
     );
     assert_eq!(app.document.engine.revision(), engine.revision());
     assert_eq!(app.document.engine.undo().len(), engine.undo().len());

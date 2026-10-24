@@ -166,12 +166,7 @@ fn captured_spelling_actions_never_retarget_an_identical_word_in_another_documen
     let old = app.spelling.target.clone().unwrap();
     let mut stored = StoredDocument::blank(DocumentType::Courrier);
     stored.source = "courrrier".into();
-    app.install_document(
-        stored.clone(),
-        Document::from_source(&stored.source).unwrap(),
-        None,
-    )
-    .unwrap();
+    app.install_document(stored.clone(), None).unwrap();
     app.refresh_spelling(&ctx);
     app.spelling.checker.wait();
     app.apply(Command::NextSpelling);

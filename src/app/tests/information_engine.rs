@@ -108,7 +108,7 @@ fn custom_marker_drafts_remain_local_until_valid_then_match_guarded_json_and_und
     )
     .into();
     engine
-        .set_adapter_selection(app.document.selection.into())
+        .set_adapter_selection(editor::to_core(app.document.selection))
         .unwrap();
     app.dialogs.information_open = true;
     app.dialogs.information_group = InformationGroup::General;

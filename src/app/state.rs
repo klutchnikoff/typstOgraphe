@@ -25,7 +25,7 @@ pub(super) struct SpellingState {
 #[derive(Default)]
 pub(super) struct SearchState {
     pub(super) engine: crate::search::Search,
-    pub(super) guard: Option<crate::session::TargetGuard>,
+    pub(super) guard: Option<crate::engine::TargetGuard>,
     pub(super) occurrences: Vec<crate::engine::SearchOccurrence>,
     pub(super) open: bool,
     pub(super) replace_open: bool,
@@ -54,13 +54,13 @@ pub(super) struct FileState {
     pub(super) export_path: String,
     pub(super) export_format: crate::engine::ExportFormat,
     pub(super) export_page_images: bool,
-    pub(super) export_guard: Option<crate::session::TargetGuard>,
+    pub(super) export_guard: Option<crate::engine::TargetGuard>,
     pub(super) export_task:
         Option<std::sync::mpsc::Receiver<Result<serde_json::Value, crate::engine::CommandError>>>,
 }
 
 pub(super) struct DialogState {
-    pub(super) marker_draft: Option<(crate::session::TargetGuard, String)>,
+    pub(super) marker_draft: Option<(crate::engine::TargetGuard, String)>,
     pub(super) preferences_page: PreferencesPage,
     pub(super) preferences_open: bool,
     pub(super) new_document_open: bool,
@@ -78,7 +78,7 @@ pub(super) struct DialogState {
     pub(super) link_url: String,
     pub(super) link_error: Option<String>,
     pub(super) link_range: Range<usize>,
-    pub(super) link_target: Option<crate::session::SelectionTarget>,
+    pub(super) link_target: Option<crate::engine::SelectionTarget>,
     pub(super) message: Option<String>,
     pub(super) profile_error: Option<String>,
 }

@@ -23,14 +23,10 @@ fn batch_adapter_matches_json_execution_and_restores_the_whole_transaction_with_
     app.sync_published_selection();
     let stored = app.stored_document();
     let selection = app.document.selection;
-    let mut core: engine::Engine = Session::new(
-        stored.clone(),
-        Document::from_source(&stored.source).unwrap(),
-        None,
-        app.document.engine.revision(),
-    )
-    .into();
-    core.set_adapter_selection(selection.into()).unwrap();
+    let mut core: engine::Engine =
+        crate::engine::Engine::from_stored(stored.clone(), None).unwrap();
+    core.set_adapter_selection(editor::to_core(selection))
+        .unwrap();
     let steps = |guard| {
         vec![
             step(
@@ -56,7 +52,7 @@ fn batch_adapter_matches_json_execution_and_restores_the_whole_transaction_with_
     assert_eq!(app_outcome.changed, core_outcome.changed);
     assert_eq!(app_outcome.value, core_outcome.value);
     assert_eq!(app.document.engine.undo().len(), 1);
-    let core_selection: CCursorRange = core.selection().into();
+    let core_selection: CCursorRange = editor::to_editor(core.selection());
     assert_eq!(app.document.selection, core_selection);
     let final_state = app.stored_document();
     app.apply(Command::Undo);

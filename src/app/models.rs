@@ -10,7 +10,7 @@ impl App {
     }
     pub(super) fn install_model_input(
         &mut self,
-        guard: crate::session::TargetGuard,
+        guard: crate::engine::TargetGuard,
         model: crate::engine::ModelInput,
     ) -> Result<(), String> {
         self.execute_document_command(crate::engine::Command::SetModel(

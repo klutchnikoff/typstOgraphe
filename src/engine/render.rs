@@ -12,7 +12,7 @@ pub(super) struct RenderState {
 
 impl Engine {
     /// Instantané pour le worker ; son appelant conserve la garde avec la demande.
-    pub(crate) fn preview_request(&self) -> Result<RenderRequest, CommandError> {
+    pub fn preview_request(&self) -> Result<RenderRequest, CommandError> {
         if !self.open {
             return Err(CommandError::new(ErrorCode::Unavailable, "no_document"));
         }
@@ -29,7 +29,7 @@ impl Engine {
     }
     /// Point d’entrée réservé au worker natif. Les données Typst ne font pas
     /// partie des paramètres JSON et ne peuvent pas être injectées par un appel.
-    pub(crate) fn install_render(
+    pub fn install_render(
         &self,
         guard: TargetGuard,
         sync: RenderSync,

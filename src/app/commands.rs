@@ -4,7 +4,7 @@ impl App {
     pub(super) fn snapshot(&self) -> crate::engine::NativeEdit {
         self.document
             .engine
-            .begin_native_edit(self.document.selection.into())
+            .begin_native_edit(editor::to_core(self.document.selection))
     }
     pub(super) fn range(&self) -> Range<usize> {
         let range = self.document.selection.as_sorted_char_range();
@@ -13,20 +13,20 @@ impl App {
     }
     pub(super) fn accept_edit(
         &mut self,
-        result: Result<crate::session::Selection, crate::document::edits::EditError>,
-        previous: crate::session::Selection,
+        result: Result<crate::engine::Selection, crate::document::edits::EditError>,
+        previous: crate::engine::Selection,
     ) -> bool {
         let adjusted = match result {
             Ok(selection) => selection,
             Err(error) => {
-                self.document.selection = previous.into();
+                self.document.selection = editor::to_editor(previous);
                 self.document.force_selection = true;
                 self.dialogs.message = Some(Self::edit_error_text(error));
                 return false;
             }
         };
-        self.document.force_selection |= adjusted != self.document.selection.into();
-        self.document.selection = adjusted.into();
+        self.document.force_selection |= adjusted != editor::to_core(self.document.selection);
+        self.document.selection = editor::to_editor(adjusted);
         true
     }
     pub(super) fn edit_error_text(error: crate::document::edits::EditError) -> String {

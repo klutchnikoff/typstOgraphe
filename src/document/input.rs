@@ -117,6 +117,10 @@ impl Projection {
         self.styles.drain(start..end);
         self.clean_images();
     }
+    #[allow(
+        dead_code,
+        reason = "Réutilisé par le diagnostic isolé et les tests de structure."
+    )]
     pub fn replace_with(&mut self, text: &str) {
         let error = self.edit_error;
         *self = Self::default();

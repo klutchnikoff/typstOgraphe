@@ -4,8 +4,7 @@ impl App {
     pub(super) fn load_demo(&mut self) {
         let kind = self.dialogs.new_document_type;
         let stored = StoredDocument::demo(kind);
-        let document = Document::from_source(&stored.source).expect("démonstration valide");
-        self.install_document(stored, document, None)
+        self.install_document(stored, None)
             .expect("registre valide");
     }
     #[cfg(test)]
@@ -121,13 +120,10 @@ impl App {
     pub(super) fn install_document(
         &mut self,
         letter: StoredDocument,
-        _document: Document,
         path: Option<PathBuf>,
     ) -> Result<(), String> {
         self.keymap.for_document(letter.metadata.document_type())?;
-        self.document
-            .engine
-            .install_stored(letter, path, false)
+        self.document.engine = crate::engine::Engine::from_stored(letter, path)
             .map_err(|e| Self::command_error_text(&e))?;
         self.after_document_replaced();
         Ok(())

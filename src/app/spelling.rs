@@ -12,7 +12,7 @@ impl App {
         let result = self.document.engine.commit_native_edit(
             before.clone(),
             view,
-            self.document.selection.into(),
+            editor::to_core(self.document.selection),
             crate::engine::NativeInput::Composition,
         );
         self.accept_edit(result, before.selection());
@@ -60,7 +60,7 @@ impl App {
         let target = self
             .document
             .engine
-            .selection_target(editor::cursor(issue.range.clone()).into())
+            .selection_target(editor::to_core(editor::cursor(issue.range.clone())))
             .ok()?;
         let reference = SpellingIssue {
             target,

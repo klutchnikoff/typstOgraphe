@@ -73,7 +73,7 @@ impl Engine {
 
     /// L’adaptateur intercepte uniquement une frappe qui déclenche une règle.
     /// Les autres événements gardent le tampon natif et son regroupement de frappe.
-    pub(crate) fn transforms_input(&self, params: &InsertTextParams) -> bool {
+    pub fn transforms_input(&self, params: &InsertTextParams) -> bool {
         self.input_rule(params).is_ok_and(|rule| rule.is_some())
     }
 

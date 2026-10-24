@@ -423,13 +423,7 @@ fn render_responses_are_guarded_by_document_identity_even_at_the_same_revision()
     let output =
         crate::rendering::render(&mut crate::rendering::TypstWorld::default(), &request).unwrap();
     let stored = app.stored_document();
-    app.document.engine = Session::new(
-        stored.clone(),
-        Document::from_source(&stored.source).unwrap(),
-        None,
-        old_guard.revision,
-    )
-    .into();
+    app.document.engine = crate::engine::Engine::from_stored(stored.clone(), None).unwrap();
     assert_ne!(app.document.engine.target_guard(), old_guard);
     let (sender, _requests) = std::sync::mpsc::channel();
     let (responses, receiver) = std::sync::mpsc::channel();

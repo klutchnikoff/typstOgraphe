@@ -243,13 +243,14 @@ impl Table {
         let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, _width: f32| {
             table_layout(ui, text.as_str())
         };
-        let mut output = egui::TextEdit::multiline(&mut self.state.view)
-            .id(id)
-            .lock_focus(true)
-            .desired_width(COLUMN_WIDTH * self.state.columns as f32)
-            .desired_rows(8)
-            .layouter(&mut layouter)
-            .show(ui);
+        let mut output =
+            egui::TextEdit::multiline(&mut editor::ProjectionBuffer(&mut self.state.view))
+                .id(id)
+                .lock_focus(true)
+                .desired_width(COLUMN_WIDTH * self.state.columns as f32)
+                .desired_rows(8)
+                .layouter(&mut layouter)
+                .show(ui);
         if let Some(selection) = output.cursor_range {
             self.state.selection = selection;
         }

@@ -52,7 +52,7 @@ fn preedit_survives_frames_and_is_visible_without_publishing_any_session_state()
     let target = app
         .document
         .engine
-        .selection_target(selection.into())
+        .selection_target(editor::to_core(selection))
         .unwrap();
     let revision = app.document.engine.revision();
     let changed_at = app.document.engine.changed_at();
@@ -211,7 +211,7 @@ fn composition_keeps_zone_identity_and_uses_shared_boundary_validation() {
         let target = app
             .document
             .engine
-            .selection_target(app.document.selection.into())
+            .selection_target(editor::to_core(app.document.selection))
             .unwrap();
         start(&mut app, &ctx);
         ime(&mut app, &ctx, vec![ImeEvent::Commit("日本".into())]);
@@ -219,7 +219,7 @@ fn composition_keeps_zone_identity_and_uses_shared_boundary_validation() {
         let after = app
             .document
             .engine
-            .selection_target(app.document.selection.into())
+            .selection_target(editor::to_core(app.document.selection))
             .unwrap();
         let crate::document::structure::targets::Position::Text(before) = target.selection.anchor
         else {
@@ -298,7 +298,7 @@ fn focus_loss_and_stale_drafts_never_restore_over_a_newer_commit() {
     let target = app
         .document
         .engine
-        .selection_target(app.document.selection.into())
+        .selection_target(editor::to_core(app.document.selection))
         .unwrap();
     app.document
         .engine
@@ -311,7 +311,7 @@ fn focus_loss_and_stale_drafts_never_restore_over_a_newer_commit() {
         ))
         .unwrap();
     let selection = app.document.engine.selection();
-    app.document.selection = selection.into();
+    app.document.selection = editor::to_editor(selection);
     ime(&mut app, &ctx, vec![ImeEvent::Commit("Ancien".into())]);
     assert_eq!(app.document.engine.document().source(), "Récent");
     assert_eq!(app.document.engine.undo().len(), 1);
@@ -485,7 +485,9 @@ fn ime_commit_and_explicit_replacement_have_the_same_literal_source_styles_and_s
         app.document.selection = selection;
         app.document.force_selection = true;
         frame(&mut app, &ctx, vec![]);
-        let target = explicit.selection_target(selection.into()).unwrap();
+        let target = explicit
+            .selection_target(editor::to_core(selection))
+            .unwrap();
         let command = crate::engine::Command::from_call(
             "text.insert",
             serde_json::json!({
@@ -507,7 +509,7 @@ fn ime_commit_and_explicit_replacement_have_the_same_literal_source_styles_and_s
         );
         assert_eq!(
             app.document.selection,
-            CCursorRange::from(expected_selection)
+            editor::to_editor(expected_selection)
         );
         assert_eq!(app.document.engine.undo().len(), 1);
         app.apply(Command::Undo);

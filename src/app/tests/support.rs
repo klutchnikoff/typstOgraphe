@@ -93,7 +93,7 @@ impl App {
         let result = crate::engine::test_support::remember(
             &mut self.document.engine,
             before,
-            self.document.selection.into(),
+            editor::to_core(self.document.selection),
             typing,
         );
         self.accept_edit(result, previous);
@@ -101,10 +101,10 @@ impl App {
     pub(in crate::app) fn changed(&mut self) {
         let adjusted = crate::engine::test_support::changed(
             &mut self.document.engine,
-            self.document.selection.into(),
+            editor::to_core(self.document.selection),
         );
-        self.document.force_selection |= adjusted != self.document.selection.into();
-        self.document.selection = adjusted.into();
+        self.document.force_selection |= adjusted != editor::to_core(self.document.selection);
+        self.document.selection = editor::to_editor(adjusted);
     }
 }
 

@@ -244,7 +244,7 @@ impl App {
         let result = self.document.engine.commit_native_edit(
             before.clone(),
             view,
-            self.document.selection.into(),
+            editor::to_core(self.document.selection),
             crate::engine::NativeInput::Composition,
         );
         self.accept_edit(result, before.selection());

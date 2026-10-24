@@ -12,6 +12,17 @@ impl Engine {
         engine.open = false;
         engine
     }
+    /// Construit un moteur indépendant à partir de données déjà chargées.
+    /// Source, packages et ressources sont validés avant toute publication.
+    /// Aucun document existant n’est remplacé : utiliser OpenDocument pour ce parcours.
+    pub fn from_stored(
+        stored: StoredDocument,
+        path: Option<PathBuf>,
+    ) -> Result<Self, CommandError> {
+        let mut engine = Self::empty();
+        engine.install_stored(stored, path, false)?;
+        Ok(engine)
+    }
     pub fn is_open(&self) -> bool {
         self.open
     }
@@ -39,8 +50,8 @@ impl Engine {
         Ok(())
     }
     /// La préparation est entièrement terminée avant le remplacement de la session.
-    /// Sert aussi aux fixtures et au service de récupération, jamais à désérialiser du JSON arbitraire.
-    pub(crate) fn install_stored(
+    /// Interne au cycle de vie : les remplacements publics vérifient garde et abandon.
+    pub(super) fn install_stored(
         &mut self,
         stored: StoredDocument,
         path: Option<PathBuf>,

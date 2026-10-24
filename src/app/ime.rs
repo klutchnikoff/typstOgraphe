@@ -23,9 +23,7 @@ impl Composition {
     fn replace(&mut self, text: &str) {
         // Chaque prédiction remplace la sélection d’origine. Les ancres et le
         // style ne dépendent donc pas des prédictions intermédiaires.
-        let error = self.input.view.edit_error;
-        self.input.view = self.before.view().clone();
-        self.input.view.edit_error = error;
+        self.input.reset_projection(self.before.view().clone());
         let range = self.before.selection().range();
         self.input.delete_char_range(range.clone());
         let inserted = self.input.insert_text(text, range.start);
@@ -50,7 +48,7 @@ impl App {
     pub(super) fn guard_ime(&mut self, ctx: &egui::Context) {
         let invalid = self.document.ime.draft.as_ref().is_some_and(|draft| {
             draft.before.guard() != self.document.engine.target_guard()
-                || draft.before.selection() != self.document.selection.into()
+                || draft.before.selection() != editor::to_core(self.document.selection)
                 || self.document.force_selection
         });
         let interrupted = ctx.input(|input| {
@@ -172,7 +170,7 @@ impl App {
                     let result = self.document.engine.commit_native_edit(
                         draft.before.clone(),
                         draft.input.view,
-                        self.document.selection.into(),
+                        editor::to_core(self.document.selection),
                         crate::engine::NativeInput::Composition,
                     );
                     self.accept_edit(result, draft.before.selection());

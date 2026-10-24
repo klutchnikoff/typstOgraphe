@@ -42,7 +42,7 @@ impl ImageInput {
 
 impl Engine {
     /// Pont temporaire pour les identifiants de ressources du peintre egui.
-    pub(crate) fn image_target(&self, resource: u64) -> Option<BlockTarget> {
+    pub fn image_target(&self, resource: u64) -> Option<BlockTarget> {
         self.session
             .document
             .structure
@@ -57,7 +57,7 @@ impl Engine {
             })
     }
 
-    pub(crate) fn image_selection_target(&self, target: BlockTarget) -> TextTarget {
+    pub fn image_selection_target(&self, target: BlockTarget) -> TextTarget {
         SelectionTarget {
             guard: target.guard,
             selection: LogicalSelection {

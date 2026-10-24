@@ -37,9 +37,10 @@ mod types;
 mod typing;
 mod validation;
 mod validation_types;
+pub use crate::session::{Caret, Selection, SelectionTarget, TargetGuard};
 use crate::{
     document::{Projection, edits::EditError},
-    session::{EditGroup, Selection, SelectionTarget, Session, Snapshot, TargetGuard},
+    session::{EditGroup, Session, Snapshot},
 };
 pub use availability::CommandIntent;
 pub use batch_types::*;
@@ -48,7 +49,7 @@ pub use file_types::*;
 pub use image_types::*;
 pub use metadata_types::*;
 pub use model_types::*;
-pub(crate) use native::{NativeEdit, NativeInput};
+pub use native::{NativeEdit, NativeInput};
 pub use recovery_types::*;
 pub use registry::{AvailabilityRule, Call, CommandId, CommandSpec, Family, catalogue};
 pub use render_types::*;
@@ -118,10 +119,7 @@ impl Engine {
         self.selection
     }
     /// Cache validé du curseur graphique, jamais un indice JSON public.
-    pub(crate) fn set_adapter_selection(
-        &mut self,
-        selection: Selection,
-    ) -> Result<(), CommandError> {
+    pub fn set_adapter_selection(&mut self, selection: Selection) -> Result<(), CommandError> {
         if selection.range().end > self.session.document.view.len() {
             return Err(CommandError::new(ErrorCode::Document, "invalid_selection"));
         }

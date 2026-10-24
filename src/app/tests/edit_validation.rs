@@ -137,7 +137,7 @@ fn native_and_explicit_unicode_replacements_share_source_styles_normalization_an
                 app.document.engine.document().view.typing_style.clone();
         });
         let target = explicit
-            .selection_target(editor::cursor(range.clone()).into())
+            .selection_target(editor::to_core(editor::cursor(range.clone())))
             .unwrap();
         let command = crate::engine::Command::from_call(
             "text.insert",

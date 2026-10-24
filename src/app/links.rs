@@ -27,7 +27,7 @@ impl App {
         self.dialogs.link_target = self
             .document
             .engine
-            .selection_target(self.document.selection.into())
+            .selection_target(editor::to_core(self.document.selection))
             .ok();
         self.dialogs.link_error = None;
         self.dialogs.link_open = true;

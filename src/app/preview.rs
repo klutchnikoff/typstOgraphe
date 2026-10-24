@@ -82,7 +82,7 @@ impl App {
         let target = self
             .document
             .engine
-            .selection_target(self.document.selection.into())
+            .selection_target(editor::to_core(self.document.selection))
             .ok();
         let highlights = if current {
             self.preview
@@ -234,14 +234,14 @@ impl App {
     }
     pub(super) fn preview_location(&self, character: usize) -> Option<PagePoint> {
         let render = self.preview.render.as_ref()?.reference;
-        let caret = crate::session::Caret {
+        let caret = crate::engine::Caret {
             index: character,
             ..Default::default()
         };
         let target = self
             .document
             .engine
-            .selection_target(crate::session::Selection {
+            .selection_target(crate::engine::Selection {
                 primary: caret,
                 secondary: caret,
             })

@@ -11,7 +11,7 @@ impl App {
         let insertion = self
             .document
             .engine
-            .selection_target(self.document.selection.into())
+            .selection_target(editor::to_core(self.document.selection))
             .ok();
         if let Some(path) = rfd::FileDialog::new()
             .add_filter(crate::tr!("image-files"), &["png", "jpg", "jpeg", "svg"])

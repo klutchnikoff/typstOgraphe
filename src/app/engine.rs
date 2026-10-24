@@ -7,7 +7,7 @@ impl App {
         if let Ok(target) = self
             .document
             .engine
-            .selection_target(editor::cursor(at..at).into())
+            .selection_target(editor::to_core(editor::cursor(at..at)))
         {
             self.run_document_command(CoreCommand::SelectText(crate::engine::SelectTextParams {
                 target: target.into(),
@@ -21,7 +21,7 @@ impl App {
         let _ = self
             .document
             .engine
-            .set_adapter_selection(self.document.selection.into());
+            .set_adapter_selection(editor::to_core(self.document.selection));
     }
     pub(super) fn execute_document_command(
         &mut self,
@@ -51,7 +51,7 @@ impl App {
             );
         self.document
             .engine
-            .set_adapter_selection(self.document.selection.into())?;
+            .set_adapter_selection(editor::to_core(self.document.selection))?;
         let outcome = self.document.engine.run_call(command.to_call())?;
         if outcome
             .effects
@@ -63,7 +63,7 @@ impl App {
             self.recovery.recovered_name = None;
             self.clear_recovery();
         }
-        self.document.selection = self.document.engine.selection().into();
+        self.document.selection = editor::to_editor(self.document.engine.selection());
         if let Some(presentation) = outcome
             .value
             .as_ref()

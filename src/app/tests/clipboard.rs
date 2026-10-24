@@ -42,7 +42,7 @@ fn native_copy_and_cut_use_visible_unicode_text_and_cut_matches_guarded_delete()
     )
     .into();
     let target: TextTarget = expected
-        .selection_target(app.document.selection.into())
+        .selection_target(editor::to_core(app.document.selection))
         .unwrap()
         .into();
     expected
@@ -76,7 +76,7 @@ fn native_plain_paste_matches_literal_insert_and_keeps_one_complete_undo() {
     )
     .into();
     let target: TextTarget = expected
-        .selection_target(app.document.selection.into())
+        .selection_target(editor::to_core(app.document.selection))
         .unwrap()
         .into();
     let text = "_Noël_ 🙂";

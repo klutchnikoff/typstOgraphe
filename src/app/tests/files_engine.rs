@@ -36,13 +36,8 @@ fn file_adapter_and_json_preserve_history_on_save_and_reset_caches_only_after_su
     app.document.selection = editor::cursor(10..24);
     app.apply(Command::Bold);
     let stored = app.stored_document();
-    let mut core: engine::Engine = Session::new(
-        stored.clone(),
-        Document::from_source(&stored.source).unwrap(),
-        None,
-        0,
-    )
-    .into();
+    let mut core: engine::Engine =
+        crate::engine::Engine::from_stored(stored.clone(), None).unwrap();
     let selection = app.document.selection;
     app.document.force_selection = false;
     app.preview.forward_pending = false;

@@ -27,6 +27,11 @@ fn covers(range: &Range<usize>, block: &Range<usize>) -> bool {
 }
 
 impl Projection {
+    /// Première erreur du brouillon, conservée jusqu’à son abandon.
+    pub fn edit_error(&self) -> Option<EditError> {
+        self.edit_error
+    }
+
     pub fn validate_deletion(&self, range: &Range<usize>) -> Result<(), EditError> {
         self.validate_edit()?;
         if range.start > range.end || range.end > self.len() {
@@ -173,6 +178,13 @@ pub struct TextInput {
     pub view: Projection,
 }
 impl TextInput {
+    /// Repart de la projection initiale pour une nouvelle prédiction IME,
+    /// sans effacer une erreur déjà rencontrée par ce brouillon.
+    pub fn reset_projection(&mut self, mut view: Projection) {
+        view.edit_error = self.view.edit_error;
+        self.view = view;
+    }
+
     pub fn insert_text(&mut self, text: &str, at: usize) -> usize {
         if self.view.edit_error.is_some() {
             return 0;

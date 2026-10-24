@@ -123,3 +123,23 @@ fn native_cursor_moves_change_only_selection_and_typing_context_without_destroyi
     );
     assert_eq!(e.selection(), Selection::default());
 }
+
+#[test]
+fn validated_constructor_rejects_invalid_data_and_creates_independent_clean_sessions() {
+    let stored = StoredDocument::demo(DocumentType::Courrier);
+    let left = Engine::from_stored(stored.clone(), Some("courrier.typsto".into())).unwrap();
+    let right = Engine::from_stored(stored.clone(), None).unwrap();
+    assert!(left.stored_document() == stored);
+    assert!(left.is_open() && !left.is_dirty() && !left.can_undo() && !left.can_redo());
+    assert_eq!(
+        left.file_path(),
+        Some(std::path::Path::new("courrier.typsto"))
+    );
+    assert_ne!(
+        left.target_guard().document_id,
+        right.target_guard().document_id
+    );
+    let mut invalid = stored;
+    invalid.source = "#inconnue[texte]".into();
+    assert!(Engine::from_stored(invalid, None).is_err());
+}

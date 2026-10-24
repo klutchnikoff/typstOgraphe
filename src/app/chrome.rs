@@ -16,7 +16,7 @@ impl App {
         let target = self
             .document
             .engine
-            .selection_target(self.document.selection.into())
+            .selection_target(editor::to_core(self.document.selection))
             .expect("published editor selection");
         let counts = self
             .document

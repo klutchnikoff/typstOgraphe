@@ -40,7 +40,7 @@ impl Engine {
         }
         Ok(value)
     }
-    pub(crate) fn fixed_page(&self) -> Option<(PaperFormat, bool)> {
+    pub fn fixed_page(&self) -> Option<(PaperFormat, bool)> {
         crate::document_types::models::ALL
             .iter()
             .find(|m| {
