@@ -47,7 +47,7 @@ pub fn text(key: &str) -> String {
 }
 
 /// Les messages écrits dans le code et leurs arguments sont vérifiés à la
-/// compilation par i18n-embed-fl, contre le catalogue de repli français.
+/// compilation par i18n-embed-fl, contre le catalogue de repli anglais.
 #[macro_export]
 macro_rules! tr {
     ($id:literal $(, $name:ident = $value:expr)* $(,)?) => {
@@ -108,13 +108,13 @@ mod tests {
     }
 
     #[test]
-    fn negotiates_system_preferences_and_falls_back_to_french() {
+    fn negotiates_system_preferences_and_falls_back_to_english() {
         for (languages, expected, save) in [
             (vec!["en-US"], "en", "Save"),
             (vec!["fr-CA"], "fr", "Enregistrer"),
             (vec!["de-DE", "en-GB", "fr"], "en", "Save"),
-            (vec!["de-DE"], "fr", "Enregistrer"),
-            (vec![], "fr", "Enregistrer"),
+            (vec!["de-DE"], "en", "Save"),
+            (vec![], "en", "Save"),
         ] {
             let loader = requested(&languages);
             assert_eq!(loader.current_language().to_string(), expected);
@@ -123,16 +123,16 @@ mod tests {
     }
 
     #[test]
-    fn missing_english_message_uses_french_without_changing_selected_language() {
+    fn missing_french_message_uses_english_without_changing_selected_language() {
         use i18n_embed::I18nAssets;
         use std::borrow::Cow;
 
-        // Simule un catalogue anglais encore incomplet, avec le vrai repli embarqué.
+        // Simule un catalogue français encore incomplet, avec le vrai repli embarqué.
         struct PartialCatalogs;
         impl I18nAssets for PartialCatalogs {
             fn get_files(&self, path: &str) -> Vec<Cow<'_, [u8]>> {
-                if path == "en/typstographe.ftl" {
-                    vec![Cow::Borrowed(b"cmd-save = Save")]
+                if path == "fr/typstographe.ftl" {
+                    vec![Cow::Borrowed(b"cmd-save = Enregistrer")]
                 } else {
                     Catalogs.get_files(path)
                 }
@@ -142,10 +142,10 @@ mod tests {
             }
         }
         let loader = i18n_embed::fluent::fluent_language_loader!();
-        i18n_embed::select(&loader, &PartialCatalogs, &["en".parse().unwrap()]).unwrap();
-        assert_eq!(loader.get("cmd-save"), "Save");
-        assert_eq!(loader.get("field-recipient"), "Destinataire");
-        assert_eq!(loader.current_language().to_string(), "en");
+        i18n_embed::select(&loader, &PartialCatalogs, &["fr".parse().unwrap()]).unwrap();
+        assert_eq!(loader.get("cmd-save"), "Enregistrer");
+        assert_eq!(loader.get("field-recipient"), "Recipient");
+        assert_eq!(loader.current_language().to_string(), "fr");
     }
 
     fn variables<'a>(pattern: &ast::Pattern<&'a str>, found: &mut BTreeSet<&'a str>) {
