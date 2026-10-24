@@ -23,6 +23,52 @@ fn validator(schema: &Value) -> jsonschema::Validator {
 }
 
 #[test]
+fn batch_step_schema_advertises_the_object_params_required_by_the_adapter() {
+    let schema = json!(
+        catalogue::tools()
+            .iter()
+            .find(|tool| tool.name == "document.batch")
+            .unwrap()
+            .input_schema
+    );
+    let valid = validator(&schema);
+    let mut host = host::Host::new(false);
+    let doc = created(&mut host);
+    let before = call(&mut host, "document.inspect", json!({}));
+    let params = |value: Value| {
+        json!({"document":doc,"steps":[
+            {"id":"text.insert","params":{"text":"Do not publish"}},
+            {"id":"text.insert","params":value}
+        ]})
+    };
+    assert!(valid.is_valid(&params(json!({"text":"Valid object"}))));
+    for value in [
+        Value::Null,
+        json!(true),
+        json!(42),
+        json!("text"),
+        json!([]),
+    ] {
+        let args = params(value);
+        assert!(!valid.is_valid(&args));
+        assert!(
+            host.dispatch("document.batch", args.as_object().unwrap().clone())
+                .is_err()
+        );
+        assert_eq!(call(&mut host, "document.inspect", json!({})), before);
+    }
+    // L'adaptation MCP ne modifie pas le contrat gelé du cœur.
+    assert_eq!(
+        core_catalogue()
+            .iter()
+            .find(|spec| spec.id.as_str() == "document.batch")
+            .unwrap()
+            .params_schema["$defs"]["Call"]["properties"]["params"],
+        true
+    );
+}
+
+#[test]
 fn every_documented_tool_example_validates_with_current_bound_references() {
     let mut h = host::Host::new(false);
     let doc = created(&mut h);

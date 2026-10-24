@@ -11,6 +11,14 @@ pub fn tools() -> &'static [Tool] {
     TOOLS.get_or_init(|| {
         let mut tools: Vec<_> = catalogue().iter().filter(|s| policy::exposed(s)).map(|spec| {
             let mut schema = spec.params_schema.clone();
+            if spec.id.as_str() == "document.batch" {
+                // Le cœur garde Call.params ouvert (Value) ; MCP accepte déjà
+                // uniquement des objets, avant de résoudre les sélecteurs.
+                schema["$defs"]["Call"]["properties"]["params"] = json!({
+                    "type":"object", "additionalProperties":true,
+                    "description":"Parameters of the named editing tool, including its optional selector; omit document and guard inside steps. See capabilities.describe for that tool."
+                });
+            }
             schema.as_object_mut().expect("schema object").entry("properties").or_insert_with(|| json!({}));
             schema["properties"].as_object_mut().expect("properties").remove("guard");
             if let Some(required) = schema.get_mut("required").and_then(Value::as_array_mut) {
