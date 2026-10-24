@@ -1,6 +1,8 @@
 //! Adaptateur synchrone : aucune logique documentaire ni préférence graphique.
 pub mod args;
+mod creation;
 mod output;
+mod parameters;
 use args::{Action, CatalogueAction, Cli};
 use serde_json::{Value, json};
 use typstographe_core::engine::*;
@@ -14,6 +16,12 @@ pub struct Report {
 
 pub fn execute(cli: Cli) -> Result<Report, CommandError> {
     match cli.action {
+        Action::New {
+            document_type,
+            model,
+            output,
+            params,
+        } => creation::create(document_type, model, output, params),
         Action::Commands { action } => catalogue_report(action),
         Action::Inspect { file } => {
             let engine = open(file)?;
@@ -125,9 +133,7 @@ fn catalogue_report(action: CatalogueAction) -> Result<Report, CommandError> {
 }
 
 pub fn documentation() -> String {
-    let mut text = String::from(
-        "# CLI typstOgraphe\n\nDocument généré par `cargo run --locked -p typstographe-cli -- commands list --markdown`.\n\nLe premier lot permet de consulter le catalogue, inspecter, vérifier et exporter un fichier `.typsto`, sans fenêtre ni préférences personnelles implicites.\n\n```sh\ntypstographe-cli commands list --json\ntypstographe-cli commands describe metadata.set --json\ntypstographe-cli inspect courrier.typsto --json\ntypstographe-cli check courrier.typsto --for-export\ntypstographe-cli check courrier.typsto --spelling\ntypstographe-cli export courrier.typsto --format pdf --output export/\n```\n\nLes lectures utilisent la dernière version enregistrée, même si le document est ouvert dans l’application. L’export crée un répertoire ou utilise un répertoire vide, avec `--pages` pour ajouter des images PNG.\n\n`--lang fr|en` choisit la langue d’interface ; sinon langue système, repli anglais. La langue du document est indépendante. `--json` produit un objet `{\"version\":1,\"ok\":true,\"outcome\":…}` ou `{\"version\":1,\"ok\":false,\"error\":{\"code\",\"message\",\"params\"}}`. Aucun autre texte sur stdout en mode JSON.\n\nCodes de sortie : 0 succès, 1 contrôle négatif ou opération refusée, 2 arguments invalides, 3 entrée/sortie. Un contrôle négatif a `ok: true` (exécution réussie), `outcome.passed: false` et le code de sortie 1. L’orthographe est facultative ; avec `--spelling`, un dictionnaire indisponible ou une suspicion donne un contrôle négatif.\n\nCréation, `query`, `run`, scripts atomiques et images de pages dédiées : lots suivants. Les identités de session ne sont pas des références persistantes entre deux exécutions. MCP est prévu en phase 5.\n\n## Catalogue du moteur\n\nLe catalogue décrit les contrats du moteur, y compris les opérations qui ne disposent pas encore d’un déclencheur CLI. L’ouverture accepte l’option additive `read_only` (false par défaut).\n\n| Identifiant | Famille | Description |\n| --- | --- | --- |\n",
-    );
+    let mut text = String::from(include_str!("reference.md"));
     for spec in catalogue() {
         let family = serde_json::to_value(spec.family).expect("family");
         text.push_str(&format!(

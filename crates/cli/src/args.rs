@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 use typstographe_i18n::tr;
 
@@ -21,6 +21,17 @@ pub enum Language {
 
 #[derive(Subcommand)]
 pub enum Action {
+    #[command(about = tr!("cli-new-help"))]
+    New {
+        #[arg(long = "type", help = tr!("cli-type-help"))]
+        document_type: String,
+        #[arg(long, help = tr!("cli-model-help"))]
+        model: Option<String>,
+        #[arg(short, long, help = tr!("cli-document-output-help"))]
+        output: PathBuf,
+        #[command(flatten)]
+        params: Parameters,
+    },
     #[command(about = tr!("cli-commands-help"))]
     Commands {
         #[command(subcommand)]
@@ -46,6 +57,14 @@ pub enum Action {
         #[arg(long, help = tr!("cli-pages-help"))]
         pages: bool,
     },
+}
+
+#[derive(Args, Default)]
+pub struct Parameters {
+    #[arg(long, conflicts_with = "params_file", help = tr!("cli-params-help"))]
+    pub params: Option<String>,
+    #[arg(long, help = tr!("cli-params-file-help"))]
+    pub params_file: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
