@@ -25,4 +25,7 @@ Avec Rust **1.92 ou supérieur** :
 cargo run --locked
 ```
 
+La [CLI documentaire](docs/cli.md) s’utilise sans fenêtre :
+`cargo run --locked -p typstographe-cli -- --help`.
+
 Les prochaines étapes sont présentées dans la [feuille de route](ROADMAP.md).
