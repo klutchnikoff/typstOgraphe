@@ -8,7 +8,7 @@ pub const MAX_BATCH_BYTES: usize = 4 * 1024 * 1024;
 pub const MAX_BATCH_RESOURCE_BYTES: usize = crate::assets::MAX_DOCUMENT_BYTES as usize;
 
 /// Compter sans allouer une deuxième copie du JSON (notamment des images base64).
-struct ByteLimit(usize);
+pub(super) struct ByteLimit(pub(super) usize);
 impl Write for ByteLimit {
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         self.0 = self
@@ -34,7 +34,7 @@ fn step_error(index: usize, id: &str, error: CommandError) -> CommandError {
     error.at_batch_step(index, id)
 }
 impl Engine {
-    fn check_batch_header(&self, p: &BatchParams) -> Result<(), CommandError> {
+    pub(super) fn check_batch_header(&self, p: &BatchParams) -> Result<(), CommandError> {
         self.check_access("document.batch")?;
         self.check_guard(p.guard)?;
         if !self.open {
@@ -50,7 +50,7 @@ impl Engine {
             .map_err(|_| CommandError::new(ErrorCode::InvalidParams, "batch_size_limit"))?;
         Ok(())
     }
-    fn check_batch_ids(&self, p: &BatchParams) -> Result<(), CommandError> {
+    pub(super) fn check_batch_ids(&self, p: &BatchParams) -> Result<(), CommandError> {
         for (index, call) in p.steps.iter().enumerate() {
             let spec = catalogue()
                 .iter()
@@ -135,21 +135,40 @@ impl Engine {
         self.check_batch_header(&p)?;
         self.check_batch_ids(&p)?;
         let mut budget = ByteLimit(MAX_BATCH_BYTES);
-        self.execute_batch(p, |index, draft, call| {
+        let outcome = self.execute_batch(p, |index, draft, call| {
             let resolved = resolve(index, draft, call)?;
             serde_json::to_writer(&mut budget, &resolved.command)
                 .and_then(|_| serde_json::to_writer(&mut budget, &resolved.selection))
                 .map_err(|_| CommandError::new(ErrorCode::InvalidParams, "batch_size_limit"))?;
             Ok(resolved)
-        })
+        })?;
+        self.refresh_contexts();
+        Ok(outcome)
     }
     fn execute_batch(
         &mut self,
         p: BatchParams,
-        mut resolve: impl FnMut(usize, &Engine, &Call) -> Result<ResolvedBatchStep, CommandError>,
+        resolve: impl FnMut(usize, &Engine, &Call) -> Result<ResolvedBatchStep, CommandError>,
     ) -> Result<Outcome, CommandError> {
+        let (draft, reveal, edits) = self.stage_batch(&p, None, resolve)?;
+        self.finish_batch(p, draft, reveal, edits)
+    }
+    pub(super) fn stage_batch(
+        &self,
+        p: &BatchParams,
+        context: Option<&ContextSnapshot>,
+        mut resolve: impl FnMut(usize, &Engine, &Call) -> Result<ResolvedBatchStep, CommandError>,
+    ) -> Result<(Engine, bool, Vec<crate::position_map::Splice>), CommandError> {
         let mut draft: Engine = self.session.fork_for_batch().into();
-        draft.selection = self.selection;
+        if let Some(context) = context {
+            draft.selection = self.resolve(context.selection.into())?;
+            draft.session.document.view.typing_style = context.typing_style.clone();
+            // A proposal neither owns the published file lock nor has a save destination.
+            draft.session.file_binding = None;
+            draft.session.file_path = None;
+        } else {
+            draft.selection = self.selection;
+        }
         draft.spelling = self.spelling.fork();
         let mut reveal = false;
         let mut edits = Vec::new();
@@ -192,7 +211,7 @@ impl Engine {
             draft.session.redo.clear();
             draft.session.typing_group = false;
         }
-        self.finish_batch(p, draft, reveal, edits)
+        Ok((draft, reveal, edits))
     }
     fn finish_batch(
         &mut self,

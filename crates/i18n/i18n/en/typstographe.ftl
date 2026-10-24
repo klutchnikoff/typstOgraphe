@@ -400,6 +400,8 @@ file-already-exists = The file already exists. Confirm its replacement in Save A
 engine-batch-step-error = Step { $step }: { $error }
 engine-batch-step-limit = A batch must contain between 1 and 256 steps.
 engine-batch-size-limit = The batch exceeds the allowed size limit.
+engine-edit-context-closed = The editing context is no longer available.
+engine-proposal-files-forbidden = A proposal cannot save or export a file.
 engine-batch-step-forbidden = This action is not allowed in an editing batch.
 
 engine-batch-resource-limit = Resources imported by the batch exceed the allowed size limit.

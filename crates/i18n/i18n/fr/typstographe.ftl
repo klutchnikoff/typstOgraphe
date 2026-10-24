@@ -403,6 +403,8 @@ file-already-exists = Le fichier existe déjà. Confirmez son remplacement dans 
 engine-batch-step-error = Étape { $step } : { $error }
 engine-batch-step-limit = Un lot doit contenir entre 1 et 256 étapes.
 engine-batch-size-limit = Le lot dépasse la taille maximale autorisée.
+engine-edit-context-closed = Le contexte d’édition n’est plus disponible.
+engine-proposal-files-forbidden = Une proposition ne peut ni enregistrer ni exporter un fichier.
 engine-batch-step-forbidden = Cette action n’est pas autorisée dans un lot d’édition.
 
 engine-batch-resource-limit = Les ressources importées par le lot dépassent la taille maximale autorisée.

@@ -118,9 +118,14 @@ impl Engine {
     }
 
     pub fn run(&mut self, command: Command) -> Result<Outcome, CommandError> {
-        if let Command::Batch(p) = command {
-            return self.run_batch(p);
-        }
+        let outcome = match command {
+            Command::Batch(p) => self.run_batch(p),
+            other => self.run_single(other),
+        }?;
+        self.refresh_contexts();
+        Ok(outcome)
+    }
+    fn run_single(&mut self, command: Command) -> Result<Outcome, CommandError> {
         self.check(&command)?;
         let reveal = match &command {
             Command::InsertImage(_)

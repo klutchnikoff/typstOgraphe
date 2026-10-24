@@ -53,27 +53,31 @@ impl Engine {
     }
 
     pub(super) fn commands_query(&self) -> Value {
+        self.commands_query_at(TextTarget::Current {})
+    }
+    pub(super) fn commands_query_at(&self, target: TextTarget) -> Value {
         let entries: Vec<_> = catalogue()
             .iter()
             .map(|spec| {
                 let mut value = serde_json::to_value(spec).expect("serializable spec");
-                value["context_availability"] = self.catalogue_availability(spec);
+                value["context_availability"] = self.catalogue_availability_at(spec, target);
                 value
             })
             .collect();
         json!({"guard":self.open.then(|| self.target_guard()),
-            "selection": self.open.then(|| self.selection_target(self.selection).ok()).flatten(),
+            "selection": self.open.then(|| self.resolve(target).ok().and_then(|s|self.selection_target(s).ok())).flatten(),
             "entries":entries})
     }
 
-    fn catalogue_availability(&self, spec: &CommandSpec) -> Value {
+    fn catalogue_availability_at(&self, spec: &CommandSpec, target: TextTarget) -> Value {
         let id = spec.id.as_str();
         if let Err(reason) = self.check_access(id) {
             return serde_json::to_value(Availability::Disabled { reason }).expect("availability");
         }
         // Une commande valide avec ses seuls défauts est réellement vérifiable.
         // Aucun chemin, texte, garde ou ressource artificiel n’est fabriqué.
-        if let Ok(command) = Command::from_call(id, json!({})) {
+        if let Ok(mut command) = Command::from_call(id, json!({})) {
+            command.bind_current(target);
             return serde_json::to_value(self.available(&command)).expect("availability");
         }
         let intent = match id {
@@ -89,7 +93,7 @@ impl Engine {
             _ => None,
         };
         let availability = if let Some(intent) = intent {
-            self.available_intent(intent, TextTarget::default())
+            self.available_intent(intent, target)
         } else if matches!(
             id,
             "document.inspect"

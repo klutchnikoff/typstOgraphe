@@ -5,6 +5,8 @@ mod availability;
 mod batch;
 mod batch_types;
 mod blocks;
+mod contexts;
+pub use contexts::{ContextSnapshot, EditContext};
 mod discovery;
 mod documentation;
 mod documentation_examples;
@@ -20,6 +22,8 @@ mod metadata_types;
 mod model_types;
 mod models;
 mod native;
+mod proposals;
+pub use proposals::PreparedProposal;
 mod queries;
 mod recovery;
 mod recovery_types;
@@ -70,6 +74,7 @@ pub struct Engine {
     open: bool,
     recovery: recovery::RecoveryState,
     selection: Selection,
+    contexts: contexts::Contexts,
     spelling: spelling::SpellingState,
     search_cache: std::cell::RefCell<search::SearchCache>,
     render: std::cell::RefCell<Option<render::RenderState>>,
@@ -110,6 +115,7 @@ impl From<Session> for Engine {
             open: true,
             recovery: Default::default(),
             selection: Selection::default(),
+            contexts: Default::default(),
             spelling: Default::default(),
             search_cache: Default::default(),
             render: Default::default(),
@@ -152,6 +158,7 @@ impl Engine {
             .session
             .commit_projection(guard, before, view, selection, group)?;
         self.selection = selection;
+        self.refresh_contexts();
         Ok(selection)
     }
 }
