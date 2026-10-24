@@ -33,3 +33,4 @@ mod spelling_engine;
 mod support;
 mod text_input;
 mod toolbar;
+mod view_coordination;
