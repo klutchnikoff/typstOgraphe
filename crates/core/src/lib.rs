@@ -21,6 +21,7 @@ mod session;
 pub mod spelling;
 pub mod statistics;
 pub mod storage;
+pub mod view_sync;
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
