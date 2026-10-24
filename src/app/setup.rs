@@ -80,7 +80,7 @@ impl App {
         let preferences_tracker = crate::preferences::SaveTracker::new(&preferences);
         let spelling_ctx = ctx.clone();
         let spelling = crate::spelling::Checker::new(move || spelling_ctx.request_repaint());
-        let worker = RenderWorker::spawn(ctx);
+        let worker = RenderWorker::spawn(std::sync::Arc::new(move || ctx.request_repaint()));
         Self {
             document: DocumentState {
                 open: false,

@@ -2,7 +2,10 @@ use super::*;
 
 impl App {
     pub(super) fn start_recovery(&mut self, directory: PathBuf, ctx: egui::Context) {
-        match crate::recovery::Recovery::start(&directory, ctx) {
+        match crate::recovery::Recovery::start(
+            &directory,
+            std::sync::Arc::new(move || ctx.request_repaint()),
+        ) {
             Ok((recovery, entries)) => {
                 self.recovery.worker = Some(recovery);
                 self.recovery.open = !entries.is_empty();

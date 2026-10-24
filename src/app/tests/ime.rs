@@ -356,7 +356,11 @@ fn saving_and_recovery_only_contain_committed_text() {
         app.checkpoint_recovery();
         app.recovery.worker.as_mut().unwrap().wait();
         drop(app);
-        let (_worker, entries) = crate::recovery::Recovery::start(&root, ctx).unwrap();
+        let (_worker, entries) = crate::recovery::Recovery::start(
+            &root,
+            std::sync::Arc::new(move || ctx.request_repaint()),
+        )
+        .unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(
             entries[0].load().unwrap().source,

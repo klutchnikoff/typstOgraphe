@@ -135,7 +135,7 @@ pub fn decode_checked(data: &[u8], extension: &str) -> Result<Image, ImageError>
 
 /// La vignette utilise le même décodeur et le même moteur que l’aperçu,
 /// sans dépendre des règles graphiques du modèle.
-pub fn thumbnail(data: &[u8], extension: &str) -> Result<eframe::egui::ColorImage, String> {
+pub fn thumbnail(data: &[u8], extension: &str) -> Result<RgbaImage, String> {
     let image = decode(data, extension)?;
     let scale = (640.0 / image.width()).min(400.0 / image.height()).min(1.0);
     let size = Size::new(
@@ -156,10 +156,17 @@ pub fn thumbnail(data: &[u8], extension: &str) -> Result<eframe::egui::ColorImag
         number: 1,
     };
     let pixmap = typst_render::render(&page, &typst_render::RenderOptions::default());
-    Ok(eframe::egui::ColorImage::from_rgba_premultiplied(
-        [pixmap.width() as usize, pixmap.height() as usize],
-        pixmap.data(),
-    ))
+    Ok(RgbaImage {
+        size: [pixmap.width() as usize, pixmap.height() as usize],
+        rgba: pixmap.data().to_vec(),
+    })
+}
+
+/// Image raster indépendante de l'interface. Les octets sont RGBA sRGB, alpha
+/// prémultiplié, rangée par rangée, sans padding ; taille = largeur × hauteur × 4.
+pub struct RgbaImage {
+    pub size: [usize; 2],
+    pub rgba: Vec<u8>,
 }
 
 #[cfg(test)]
@@ -188,8 +195,12 @@ mod tests {
             let image = decode(data, extension).unwrap();
             assert!((image.width() / image.height() - ratio).abs() < 0.001);
             let thumbnail = thumbnail(data, extension).unwrap();
-            assert!((thumbnail.width() as f64 / thumbnail.height() as f64 - ratio).abs() < 0.01);
-            assert!(thumbnail.pixels.iter().any(|p| p.a() > 0));
+            assert!((thumbnail.size[0] as f64 / thumbnail.size[1] as f64 - ratio).abs() < 0.01);
+            assert_eq!(
+                thumbnail.rgba.len(),
+                thumbnail.size[0] * thumbnail.size[1] * 4
+            );
+            assert!(thumbnail.rgba.chunks_exact(4).any(|pixel| pixel[3] > 0));
         }
         assert!(decode(b"not an image", "png").is_err());
         assert!(decode(include_bytes!("../tests/fixtures/parc.svg"), "jpg").is_err());

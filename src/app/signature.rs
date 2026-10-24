@@ -72,7 +72,11 @@ impl App {
         {
             self.image_textures.insert(
                 key.into(),
-                ui.ctx().load_texture(key, thumbnail, Default::default()),
+                ui.ctx().load_texture(
+                    key,
+                    egui::ColorImage::from_rgba_premultiplied(thumbnail.size, &thumbnail.rgba),
+                    Default::default(),
+                ),
             );
         }
         if let Some(texture) = self.image_textures.get(key) {

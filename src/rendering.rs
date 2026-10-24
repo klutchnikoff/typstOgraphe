@@ -273,10 +273,7 @@ pub struct RenderRequest {
     pub template: String,
     pub export_dir: Option<PathBuf>,
 }
-pub struct PageImage {
-    pub size: [usize; 2],
-    pub rgba: Vec<u8>,
-}
+pub use crate::assets::RgbaImage as PageImage;
 pub struct Rendered {
     pub pages: Vec<PageImage>,
     pub sync: RenderSync,
@@ -443,7 +440,7 @@ pub struct RenderWorker {
     pub receiver: mpsc::Receiver<RenderResponse>,
 }
 impl RenderWorker {
-    pub fn spawn(context: eframe::egui::Context) -> Self {
+    pub fn spawn(wake: std::sync::Arc<dyn Fn() + Send + Sync>) -> Self {
         let (sender, requests) = mpsc::channel::<PreviewRequest>();
         let (results, receiver) = mpsc::channel();
         thread::Builder::new()
@@ -469,7 +466,7 @@ impl RenderWorker {
                         if results.send(response).is_err() {
                             return;
                         }
-                        context.request_repaint();
+                        wake();
                     }
                 }
             })
@@ -483,6 +480,46 @@ impl RenderWorker {
 mod asset_tests {
     use super::*;
     use crate::{assets::Assets, document_types::DocumentType};
+
+    #[test]
+    fn worker_wakes_a_non_graphical_caller_for_success_and_failure_with_the_request_guard() {
+        let (notify, notified) = mpsc::channel();
+        let worker = RenderWorker::spawn(std::sync::Arc::new(move || {
+            notify.send(()).unwrap();
+        }));
+        let stored = crate::storage::StoredDocument::blank(DocumentType::Courrier);
+        let document = crate::document::Document::from_source("Noël écrit.").unwrap();
+        let guard =
+            crate::session::Session::new(stored.clone(), document.clone(), None, 7).target_guard();
+        for valid in [true, false] {
+            worker
+                .sender
+                .send(PreviewRequest {
+                    guard,
+                    request: RenderRequest {
+                        revision: guard.revision,
+                        source: document.source().into(),
+                        source_map: document.source_map.clone(),
+                        metadata: stored.metadata.clone(),
+                        template: if valid {
+                            stored.template.clone()
+                        } else {
+                            "#let courrier(".into()
+                        },
+                        assets: stored.assets.clone(),
+                        dependencies: stored.dependencies.clone(),
+                        export_dir: None,
+                    },
+                })
+                .unwrap();
+            // Le réveil suit la publication de la réponse, que le calcul réussisse ou non.
+            notified.recv_timeout(StdDuration::from_secs(30)).unwrap();
+            let response = worker.receiver.try_recv().unwrap();
+            assert_eq!(response.guard, guard);
+            assert_eq!(response.result.is_ok(), valid);
+            assert!(!response.is_export);
+        }
+    }
 
     #[test]
     fn pruning_preserves_model_dependencies_computed_paths_and_shared_images() {

@@ -88,7 +88,9 @@ fn explicit_delete_and_discard_remove_recovery_but_cancelling_keeps_it() {
     recovery_click(&mut app, &ctx, &crate::tr!("discard"));
     assert!(app.file.allow_close);
     drop(app);
-    let (recovery, entries) = crate::recovery::Recovery::start(&root, ctx).unwrap();
+    let (recovery, entries) =
+        crate::recovery::Recovery::start(&root, std::sync::Arc::new(move || ctx.request_repaint()))
+            .unwrap();
     assert!(entries.is_empty());
     drop(recovery);
 }

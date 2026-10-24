@@ -209,7 +209,10 @@ pub struct Recovery {
     epoch: u64,
 }
 impl Recovery {
-    pub fn start(root: &Path, ctx: eframe::egui::Context) -> Result<(Self, Vec<Entry>), String> {
+    pub fn start(
+        root: &Path,
+        wake: std::sync::Arc<dyn Fn() + Send + Sync>,
+    ) -> Result<(Self, Vec<Entry>), String> {
         fs::create_dir_all(root).map_err(|e| e.to_string())?;
         let entries = scan(root)?;
         let mut slot = Slot::create(root)?;
@@ -251,7 +254,7 @@ impl Recovery {
                         }
                     };
                     let _ = results.send(Completed { epoch, result });
-                    ctx.request_repaint();
+                    wake();
                 }
             })
             .map_err(|e| e.to_string())?;
@@ -384,7 +387,11 @@ mod tests {
     #[test]
     fn checkpoints_are_periodic_and_keep_a_complete_untitled_document_without_rendering() {
         let dir = tempfile::tempdir().unwrap();
-        let ctx = eframe::egui::Context::default();
+        let wakes = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let count = wakes.clone();
+        let ctx: std::sync::Arc<dyn Fn() + Send + Sync> = std::sync::Arc::new(move || {
+            count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        });
         let (mut recovery, entries) = Recovery::start(dir.path(), ctx.clone()).unwrap();
         assert!(entries.is_empty());
         // Ni démarrage, ni document propre : aucune copie et aucune sérialisation.
@@ -409,6 +416,7 @@ mod tests {
         // Le modèle est syntaxiquement valide, mais ne compose pas : récupération indépendante.
         document.template = "#let exemple = 1".into();
         checkpoint(&mut recovery, 2, &document);
+        assert_eq!(wakes.load(std::sync::atomic::Ordering::SeqCst), 1);
         recovery.make_due();
         recovery
             .checkpoint(2, true, || panic!("révision déjà copiée"))
@@ -434,7 +442,7 @@ mod tests {
     #[test]
     fn failed_checkpoint_preserves_the_previous_copy_and_can_be_retried() {
         let dir = tempfile::tempdir().unwrap();
-        let (mut recovery, _) = Recovery::start(dir.path(), Default::default()).unwrap();
+        let (mut recovery, _) = Recovery::start(dir.path(), std::sync::Arc::new(|| {})).unwrap();
         let document = StoredDocument::demo(DocumentType::Courrier);
         checkpoint(&mut recovery, 1, &document);
         let mut invalid = document.clone();
@@ -448,7 +456,7 @@ mod tests {
         let mut entries = scan(dir.path()).unwrap();
         let entry = entries.pop().unwrap();
         assert_eq!(entry.load().unwrap(), document);
-        let (mut next, _) = Recovery::start(dir.path(), Default::default()).unwrap();
+        let (mut next, _) = Recovery::start(dir.path(), std::sync::Arc::new(|| {})).unwrap();
         next.adopt(entry).unwrap();
         let mut edited = document;
         edited.source = "Nouvelle version.".into();
@@ -462,7 +470,7 @@ mod tests {
     #[test]
     fn clear_is_ordered_after_pending_writes_and_corrupt_copies_remain_explicitly_deletable() {
         let dir = tempfile::tempdir().unwrap();
-        let (mut recovery, _) = Recovery::start(dir.path(), Default::default()).unwrap();
+        let (mut recovery, _) = Recovery::start(dir.path(), std::sync::Arc::new(|| {})).unwrap();
         recovery.make_due();
         recovery
             .checkpoint(1, true, || {
@@ -490,7 +498,8 @@ mod tests {
         let Some(root) = std::env::var_os("TYPSTOGRAPHE_TEST_CRASH_RECOVERY") else {
             return;
         };
-        let (mut recovery, _) = Recovery::start(Path::new(&root), Default::default()).unwrap();
+        let (mut recovery, _) =
+            Recovery::start(Path::new(&root), std::sync::Arc::new(|| {})).unwrap();
         checkpoint(
             &mut recovery,
             1,

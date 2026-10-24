@@ -65,7 +65,11 @@ impl App {
             {
                 self.image_textures.insert(
                     image.path.clone(),
-                    ctx.load_texture(&image.path, thumbnail, egui::TextureOptions::LINEAR),
+                    ctx.load_texture(
+                        &image.path,
+                        egui::ColorImage::from_rgba_premultiplied(thumbnail.size, &thumbnail.rgba),
+                        egui::TextureOptions::LINEAR,
+                    ),
                 );
             }
         }

@@ -39,7 +39,8 @@ pub(super) fn recovery_click(app: &mut App, ctx: &egui::Context, label: &str) {
 }
 
 pub(super) fn seed_recovery(root: &std::path::Path, letter: &StoredDocument, name: Option<String>) {
-    let (mut recovery, _) = crate::recovery::Recovery::start(root, Default::default()).unwrap();
+    let (mut recovery, _) =
+        crate::recovery::Recovery::start(root, std::sync::Arc::new(|| {})).unwrap();
     recovery.make_due();
     recovery
         .checkpoint(1, true, || (letter.clone(), name))

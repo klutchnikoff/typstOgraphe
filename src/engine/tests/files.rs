@@ -338,7 +338,8 @@ fn export_refuses_required_fields_stale_guards_and_invalid_models_without_writin
 }
 
 fn seed(root: &std::path::Path, stored: &StoredDocument) {
-    let (mut recovery, _) = crate::recovery::Recovery::start(root, Default::default()).unwrap();
+    let (mut recovery, _) =
+        crate::recovery::Recovery::start(root, std::sync::Arc::new(|| {})).unwrap();
     recovery.make_due();
     recovery
         .checkpoint(1, true, || (stored.clone(), Some("original.typsto".into())))
@@ -352,7 +353,7 @@ fn recovery_references_are_service_scoped_and_restoration_is_a_dirty_copy() {
     let stored = StoredDocument::demo(DocumentType::Courrier);
     seed(dir.path(), &stored);
     let (mut service, entries) =
-        crate::recovery::Recovery::start(dir.path(), Default::default()).unwrap();
+        crate::recovery::Recovery::start(dir.path(), std::sync::Arc::new(|| {})).unwrap();
     let mut e = engine("Brouillon");
     e.configure_recovery(entries);
     let listing = e
@@ -428,7 +429,7 @@ fn deleting_one_recovery_copy_preserves_document_history_and_invalid_refs_fail()
     let stored = StoredDocument::demo(DocumentType::Courrier);
     seed(dir.path(), &stored);
     let (_service, entries) =
-        crate::recovery::Recovery::start(dir.path(), Default::default()).unwrap();
+        crate::recovery::Recovery::start(dir.path(), std::sync::Arc::new(|| {})).unwrap();
     let mut e = engine("Brouillon");
     changed(&mut e);
     let before = e.stored_document();
@@ -510,7 +511,7 @@ fn corrupt_recovery_refuses_publication_and_stale_export_refuses_filesystem_effe
     let stored = StoredDocument::demo(DocumentType::Courrier);
     seed(dir.path(), &stored);
     let (_service, entries) =
-        crate::recovery::Recovery::start(dir.path(), Default::default()).unwrap();
+        crate::recovery::Recovery::start(dir.path(), std::sync::Arc::new(|| {})).unwrap();
     let mut e = engine("À conserver");
     e.configure_recovery(entries);
     let reference = e.recovery_items()[0].reference;
