@@ -658,7 +658,12 @@ contextuelle ; `document.inspect` le type, les capacités et le style de frappe.
 Le [contrat des lectures](docs/engine-queries.md) précise leurs réponses et limites.
 **Phase 2 terminée le 24 octobre 2026 :** les 68 identifiants et contrats d’entrée
 sont stabilisés, avec ajouts compatibles possibles et décision explicite pour tout
-changement incompatible. La suite technique est le découpage en crates de phase 3.
+changement incompatible. La phase 3 est engagée : réveils indépendants d’egui,
+images RGBA et présentations de types/modèles côté application sont en place.
+Le profil global reste avec les préférences (le cœur reçoit des valeurs explicites).
+Prochaine étape : erreurs typées sans Fluent, puis extraction des crates ; le repli
+anglais sera appliqué dans un commit distinct du lot i18n.
+Voir [le suivi de phase 3](docs/architecture-phase-3.md).
 
 **Objectif :** un cœur indépendant de l’interface, dont toute action est une
 commande à identifiant stable, pilotable par une ligne de commande et par MCP.

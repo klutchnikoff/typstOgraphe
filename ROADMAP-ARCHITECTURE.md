@@ -134,6 +134,7 @@ Fuites à traiter avant tout découpage en crates :
 | D19 | Captures comparables | **Validée après relecture.** Figer en mode capture la langue, le thème, le curseur, les animations et le temps de rendu affiché. Fixtures et dates fixes, attente des résultats asynchrones. Les empreintes PNG ne servent de contrôle qu’après répétition réussie sur le même environnement | 0 |
 | D20 | Granularité des changements | **Validée après relecture.** Un déplacement par commit, plusieurs commits cohérents possibles par PR. Les limites portent sur le code de production ; le découpage de `document.rs` et d’`editor.rs` est planifié avant leur application globale | 1, 3, 7 |
 | D21 | Périmètre de clôture et gel du catalogue | **Validée et mise en œuvre le 24 octobre 2026.** Ajouter les cinq lectures manquantes et enrichir disponibilité/inspection avant le gel : 49 commandes et 19 requêtes. Stabiliser leurs IDs et contrats d’entrée ; tout changement incompatible exige une décision explicite, les ajouts compatibles restent possibles. Les réponses documentées et les extensions restantes sont décrites dans [le bilan de sortie](docs/architecture-phase-2-review.md) et [le contrat des lectures](docs/engine-queries.md) | 2, 3, 4 |
+| D22 | Précisions de phase 3 | **Validées le 24 octobre 2026.** Gestion et persistance du profil personnel avec les préférences dans l’application ; le cœur ne reçoit que des valeurs et ressources explicites. Confirmer le repli anglais de D7, dans un commit distinct lors de l’extraction i18n. Trois crates livrées en phase 3 (`core`, `i18n`, application), CLI/MCP dans les phases 4/5, sans crate vide anticipée | 3, 4, 5 |
 
 
 ## 4. Vue d'ensemble
@@ -576,10 +577,19 @@ les signatures, les limites restantes et les preuves de validation.
 
 **But** : `typstographe-core` sans aucune dépendance à egui, eframe, winit, `rfd` ou `muda`.
 
-- [ ] **3.1** Corriger les fuites de la section 2.3 **dans le crate actuel** avant de
-  déplacer quoi que ce soit : rappel de réveil (D8), vignette en octets RGBA,
-  `preferences` et interface des champs côté application, séparation
-  `CommandSpec` / `Presentation`. Commits distincts, regroupés par responsabilité.
+**En cours :** lot 3.1 terminé dans le crate actuel. Les trois crates seront
+`crates/core`, `crates/i18n` et `crates/app` ; la CLI est développée en phase 4.
+Les types d’erreur indépendants de Fluent (3.2) précèdent les déplacements.
+Le [suivi de phase 3](docs/architecture-phase-3.md) distingue ce premier lot du
+workspace et du changement de repli linguistique, qui restent à réaliser.
+
+- [x] **3.1** Corriger les fuites graphiques **dans le crate actuel** avant les
+  déplacements : réveils de rendu/récupération par rappel (D8), images RGBA sans
+  egui et conversion dans l’application. Présentations des commandes de types et
+  modèles déplacées dans `commands/document_types.rs`, catalogue documentaire pur.
+  Les préférences et l’interface des champs sont déjà côté application ; la
+  gestion du profil les y rejoindra lors du découpage (D22). `CommandSpec` et
+  `Presentation` sont séparés. Voir [le suivi de phase 3](docs/architecture-phase-3.md).
 - [ ] **3.2** Internationalisation (D7) : remplacer les environ 90 appels à `tr!` du
   cœur par des erreurs typées (`SourceError`, `StorageError`, `RecoveryError`,
   `TemplateError`, etc.) avec codes et paramètres. Les libellés du cœur deviennent des
@@ -590,9 +600,10 @@ les signatures, les limites restantes et les preuves de validation.
   `resolver = "3"`, `[workspace.dependencies]` pour les versions épinglées
   (`typst =0.15.1`, etc.).
 - [ ] **3.4** Créer `crates/core` : y déplacer `document`, `annotations`, `search`,
-  `statistics`, `session`, `identity`, `storage`, `packages`, `profile`, `spelling`, `recovery`,
-  `rendering`, `navigation`, `assets`, `dates`, `document_types`, `engine` et
-  `src/tests.rs`. Déplacer avec eux `templates/`, `examples/` et `assets/dictionaries/` ;
+  `statistics`, `session`, `identity`, `storage`, `packages`, `spelling`, `recovery`,
+  `rendering`, `navigation`, `assets`, `fonts`, `exporting`, `dates`, `document_types`, `engine` et
+  `src/tests.rs`. Déplacer avec eux `templates/`, `examples/`, `assets/dictionaries/` et
+  `assets/fonts/` (secours communs éditeur/Typst) ;
   déplacer `tests/fixtures/` vers un dossier partagé `fixtures/` à la racine (D9) ;
   corriger les `include_*` et les `#[folder]`.
 - [ ] **3.4b** Créer `crates/i18n` (`typstographe-i18n`, dépend de `typstographe-core`) :
@@ -604,8 +615,8 @@ les signatures, les limites restantes et les preuves de validation.
   comportement visible (un système dont la langue n'est ni le français ni l'anglais passe
   de l'interface française à l'interface anglaise) : à faire dans un commit distinct et
   à signaler dans la PR : c'est un changement volontaire au sens de la section 1.
-- [ ] **3.5** Créer l'application (`typstographe`, dépend de `core` et de `i18n`) : `app/`,
-  `editor`, `toolbar`, `menus`, `icons`, `preferences`, `commands` (présentation), `main`.
+- [ ] **3.5** Créer `crates/app` (`typstographe`, dépend de `core` et de `i18n`) : `app/`,
+  `editor`, `toolbar`, `menus`, `icons`, `preferences`, `profile`, `commands` (présentation), `main`.
   Reproduire `#![cfg_attr(coverage_nightly, feature(coverage_attribute))]` dans chaque racine.
 - [ ] **3.6** CI : `cargo test --workspace`, `cargo clippy --workspace --all-targets`,
   couverture inchangée (`--workspace`). Ajouter une étape **bloquante** :
