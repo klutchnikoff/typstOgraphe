@@ -1,6 +1,6 @@
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-use typstographe::{app, document, document_types, engine, i18n, packages, rendering, tr};
+use typstographe::{app, engine, i18n, tr};
 
 use std::path::PathBuf;
 
@@ -28,35 +28,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 } else {
                     print!("{}", engine::registry::catalogue_markdown(&value));
                 }
-                return Ok(());
-            }
-            "--render-demo" => {
-                let dir = args.next().ok_or(crate::tr!("cli-usage-render"))?;
-                let mut world = rendering::TypstWorld::default();
-                let kind = document_types::DocumentType::Courrier;
-                let document = document::Document::from_source(kind.demo_source())?;
-                let request = rendering::RenderRequest {
-                    revision: 1,
-                    assets: Default::default(),
-                    source: document.source().into(),
-                    source_map: document.source_map.clone(),
-                    metadata: document_types::Metadata::demo(
-                        document_types::DocumentType::Courrier,
-                    ),
-                    dependencies: packages::for_template(&kind.default_model()),
-                    template: kind.default_model(),
-                    export_dir: Some(PathBuf::from(dir)),
-                };
-                let result = rendering::render(&mut world, &request)?;
-                println!(
-                    "{}",
-                    crate::tr!(
-                        "cli-render-result",
-                        pages = result.pages.len(),
-                        milliseconds = result.elapsed.as_millis() as f64,
-                        path = result.export_dir.unwrap().display().to_string()
-                    )
-                );
                 return Ok(());
             }
             "--capture" => {

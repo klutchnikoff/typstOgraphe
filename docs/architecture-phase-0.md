@@ -58,8 +58,12 @@ ne dispose ni de rustup ni de cargo-llvm-cov.
 ## Captures de référence
 
 Le script [capture-baseline.sh](../scripts/capture-baseline.sh) utilise Python 3
-et sa bibliothèque standard, sans paquet supplémentaire. Il compile le binaire
-avec `cargo build --locked --bin typstographe`, puis lance les huit scénarios :
+et sa bibliothèque standard, sans paquet supplémentaire. Depuis la phase 4, il
+compile les deux binaires avec `cargo build --locked --workspace --bins`. La CLI
+prépare le courrier de référence avec `new` et `export --format typst`, à partir
+des valeurs explicites de `fixtures/capture-letter-params.json` ; aucun profil
+personnel ni ancien diagnostic graphique n’est utilisé. L’application lance
+ensuite les huit scénarios :
 
 | Identifiant | Vue |
 | --- | --- |
@@ -88,6 +92,9 @@ scripts/capture-baseline.sh --compare
 
 # Autre environnement ou changement visuel décidé : créer un jeu distinct.
 scripts/capture-baseline.sh --record --output output/baseline-nouvelle-reference
+
+# Réutiliser des binaires déjà construits (CLI voisine de l’application par défaut).
+scripts/capture-baseline.sh --compare --binary target/debug/typstographe --cli-binary target/debug/typstographe-cli
 ```
 
 Les références et leur manifeste restent dans `output/baseline/reference/`.

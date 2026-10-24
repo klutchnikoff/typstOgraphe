@@ -70,9 +70,12 @@ def run(binary, arguments, log):
         raise RuntimeError(f"Command failed ({result.returncode}); see {log}")
 
 
-def fixtures(binary, work):
+def fixtures(cli_binary, work):
+    seed = work / "seed.typsto"
     exported = work / "export"
-    run(binary, ["--render-demo", exported], work / "render-demo.log")
+    run(cli_binary, ["new", "--type", "courrier", "--params-file",
+                    ROOT / "fixtures/capture-letter-params.json", "--output", seed], work / "create.log")
+    run(cli_binary, ["export", seed, "--format", "typst", "--output", exported], work / "export.log")
     files = {name: (exported / name).read_bytes() for name in
              ["main.typ", "modele.typ", "metadonnees.json", "dependencies.json"]}
     files["manifest.json"] = (ROOT / "fixtures/capture-manifest.json").read_bytes()
@@ -100,10 +103,10 @@ def fixtures(binary, work):
     return archive, recovery
 
 
-def capture(binary, destination):
+def capture(binary, cli_binary, destination):
     destination.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="fixtures-", dir=destination) as temporary:
-        archive, recovery = fixtures(binary, Path(temporary))
+        archive, recovery = fixtures(cli_binary, Path(temporary))
         for name in SCENARIOS:
             image = destination / f"{name}.png"
             arguments = {
@@ -128,6 +131,7 @@ def main():
     mode.add_argument("--compare", action="store_true", help="Capture and compare, preserving references")
     parser.add_argument("--output", type=Path, default=ROOT / "output/baseline")
     parser.add_argument("--binary", type=Path, help="Use an already built application instead of cargo build")
+    parser.add_argument("--cli-binary", type=Path, help="Use this CLI; defaults to typstographe-cli beside the application")
     args = parser.parse_args()
     output = args.output.resolve()
     reference = output / "reference"
@@ -138,13 +142,15 @@ def main():
     if args.binary:
         binary = args.binary.resolve()
     else:
-        subprocess.run(["cargo", "build", "--locked", "--bin", "typstographe"], cwd=ROOT, check=True)
+        subprocess.run(["cargo", "build", "--locked", "--workspace", "--bins"], cwd=ROOT, check=True)
         binary = ROOT / "target/debug" / ("typstographe.exe" if os.name == "nt" else "typstographe")
+    cli_binary = args.cli_binary.resolve() if args.cli_binary else binary.with_name(
+        "typstographe-cli.exe" if os.name == "nt" else "typstographe-cli")
     output.mkdir(parents=True, exist_ok=True)
     # A fresh directory avoids stale PNGs disguising a failed capture. A failure
     # keeps its logs and images, without ever replacing reference/manifest.json.
     current = Path(tempfile.mkdtemp(prefix="run-", dir=output))
-    capture(binary, current)
+    capture(binary, cli_binary, current)
     manifest = {
         "version": 1, "environment": environment(),
         "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),

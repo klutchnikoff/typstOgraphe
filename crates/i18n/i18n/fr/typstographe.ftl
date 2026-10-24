@@ -188,7 +188,6 @@ shortcut-unknown-key = Touche inconnue : { $key }
 shortcut-unknown-command = Commande inconnue : { $id }
 shortcut-duplicate = Raccourci défini plusieurs fois pour { $command }
 shortcut-conflict = Conflit de raccourcis : { $first } et { $second }
-cli-usage-render = Usage : --render-demo DOSSIER
 cli-render-help = Rendre une page d’un document enregistré en PNG
 cli-page-help = Numéro de page, à partir de 1
 cli-png-help = Nouveau fichier PNG ; les destinations existantes sont refusées
@@ -204,7 +203,6 @@ cli-help =
     typstOgraphe
       cargo run
       cargo run -- COURRIER.typsto
-      cargo run -- --render-demo DOSSIER
       cargo run -- --capture IMAGE.png
       cargo run -- --capture-new-document IMAGE.png
       cargo run -- --capture-recovery IMAGE.png DOSSIER_RECUPERATION
@@ -241,12 +239,6 @@ statistics-hint =
     Les signes comprennent les espaces ; les sauts de paragraphe, tabulations structurelles et objets images sont exclus.
     Mots : segmentation Unicode (l’été compte pour un mot, porte-monnaie pour deux).
     Périmètre : texte rédigé, titres, légendes et attributions, sans les métadonnées ni les ajouts du modèle.
-cli-render-result =
-    { $pages ->
-        [one] { $pages } page
-       *[other] { $pages } pages
-    }, { $milliseconds } ms, export : { $path }
-
 edit-menu = Édition
 view-menu = Affichage
 cmd-quit = Quitter typstOgraphe

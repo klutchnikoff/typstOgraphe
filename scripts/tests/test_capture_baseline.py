@@ -60,5 +60,5 @@ class ComparisonTests(unittest.TestCase):
             png(Path(arguments[1]), [255, 255, 255, 255])
             log.write_text("capture")
         with patch.object(baseline, "fixtures", return_value=(Path("editor.typsto"), Path("recovery"))), patch.object(baseline, "run", side_effect=fake_run):
-            baseline.capture(Path("application"), directory)
+            baseline.capture(Path("application"), Path("cli"), directory)
         self.assertEqual({path.stem for path in directory.glob("*.png")}, set(baseline.SCENARIOS))

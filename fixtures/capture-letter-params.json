@@ -1,0 +1,16 @@
+{
+  "initial_values": [
+    { "field": "sender.name", "value": "Camille Martin" },
+    { "field": "sender.role", "value": "Responsable de la vie associative" },
+    { "field": "sender.department", "value": "Vie associative" },
+    { "field": "sender.email", "value": "camille.martin@valmont.example" },
+    { "field": "sender.organisation", "value": "Ville de Valmont" },
+    { "field": "sender.address", "value": "1, place de la Mairie\n35000 Valmont" },
+    { "field": "recipient.name", "value": "Service des équipements" },
+    { "field": "recipient.address", "value": "12, place de la République\n35000 Valmont" },
+    { "field": "letter.subject", "value": "Demande de réservation d’une salle" },
+    { "field": "letter.reference", "value": "VA / 2026 / 042" },
+    { "field": "letter.place", "value": "Valmont" },
+    { "field": "letter.date", "value": "2026-10-19" }
+  ]
+}

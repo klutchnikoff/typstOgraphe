@@ -126,7 +126,6 @@ shortcut-unknown-key = Unknown key: { $key }
 shortcut-unknown-command = Unknown command: { $id }
 shortcut-duplicate = Shortcut defined more than once for { $command }
 shortcut-conflict = Shortcut conflict: { $first } and { $second }
-cli-usage-render = Usage: --render-demo FOLDER
 cli-render-help = Render one page of a saved document as PNG
 cli-page-help = Page number, starting at 1
 cli-png-help = New PNG file; existing destinations are refused
@@ -142,7 +141,6 @@ cli-help =
     typstOgraphe
       cargo run
       cargo run -- LETTER.typsto
-      cargo run -- --render-demo FOLDER
       cargo run -- --capture IMAGE.png
       cargo run -- --capture-new-document IMAGE.png
       cargo run -- --capture-recovery IMAGE.png RECOVERY_FOLDER
@@ -179,12 +177,6 @@ statistics-hint =
     Characters include spaces; paragraph breaks, structural tabs and image objects are excluded.
     Words use Unicode segmentation (can't counts as one word, well-being as two).
     Scope: authored text, headings, captions and attributions, excluding metadata and content added by the template.
-cli-render-result =
-    { $pages ->
-        [one] { $pages } page
-       *[other] { $pages } pages
-    }, { $milliseconds } ms, export: { $path }
-
 edit-menu = Edit
 view-menu = View
 cmd-quit = Quit typstOgraphe
