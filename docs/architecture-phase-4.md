@@ -204,6 +204,15 @@ extractions et exige une sortie identique sans CR ; les 29 tests de la CLI passe
 localement. macOS, Linux et couverture ont réussi sur la poussée du troisième lot ;
 le correctif fait l’objet d’une nouvelle vérification distante.
 
+Cette vérification a confirmé la réussite de Windows et Linux, puis révélé un
+échec intermittent macOS dans le test de changement de format : si le worker
+termine l’aperçu A3 avant la frame suivante, sa texture de 2381 pixels dépasse la
+limite de 2048 pixels du contexte egui sans fenêtre. L’adaptateur graphique borne
+désormais les textures d’aperçu à `max_texture_side`, avec rééchantillonnage bicubique
+par tiny-skia déjà disponible via resvg. Le document Typst, le PDF et les coordonnées
+de synchronisation restent intacts. Un test injecte un véritable rendu A3 terminé
+avant la frame pour vérifier cette limite, les proportions et la synchronisation.
+
 ## Suite
 
 Page PNG dédiée, retrait de `--render-demo` et adaptation des références visuelles,

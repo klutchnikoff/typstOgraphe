@@ -33,9 +33,7 @@ impl App {
                             .map(|(index, page)| {
                                 ctx.load_texture(
                                     format!("typst-{}-{index}", response.guard.revision),
-                                    egui::ColorImage::from_rgba_premultiplied(
-                                        page.size, &page.rgba,
-                                    ),
+                                    page_image(page, ctx.input(|i| i.max_texture_side)),
                                     egui::TextureOptions::LINEAR,
                                 )
                             })
@@ -286,4 +284,35 @@ impl App {
             ctx.request_repaint();
         }
     }
+}
+
+/// Seule la texture d’affichage dépend du GPU ; le rendu Typst et ses coordonnées
+/// restent à leur résolution d’origine. Une grande page ne doit pas faire paniquer egui.
+pub(super) fn page_image(page: crate::rendering::PageImage, max_side: usize) -> egui::ColorImage {
+    if page.size.into_iter().all(|side| side <= max_side) {
+        return egui::ColorImage::from_rgba_premultiplied(page.size, &page.rgba);
+    }
+    use resvg::tiny_skia::{FilterQuality, Pixmap, PixmapPaint, PixmapRef, Transform};
+    let scale = max_side as f64 / *page.size.iter().max().expect("two dimensions") as f64;
+    let size = page
+        .size
+        .map(|side| (side as f64 * scale).floor().max(1.0) as u32);
+    let source = PixmapRef::from_bytes(&page.rgba, page.size[0] as u32, page.size[1] as u32)
+        .expect("valid Typst raster");
+    let mut image = Pixmap::new(size[0], size[1]).expect("bounded preview raster");
+    image.draw_pixmap(
+        0,
+        0,
+        source,
+        &PixmapPaint {
+            quality: FilterQuality::Bicubic,
+            ..Default::default()
+        },
+        Transform::from_scale(
+            size[0] as f32 / page.size[0] as f32,
+            size[1] as f32 / page.size[1] as f32,
+        ),
+        None,
+    );
+    egui::ColorImage::from_rgba_premultiplied(size.map(|side| side as usize), image.data())
 }

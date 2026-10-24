@@ -1,6 +1,58 @@
 use super::*;
 
 #[test]
+fn large_page_textures_fit_the_context_limit_and_keep_typst_coordinates() {
+    let (ctx, mut app) = demo_app();
+    fixture(&mut app.document.engine, |data| {
+        data.template =
+            "#let courrier(..args, body) = { set page(paper: \"a3\", flipped: true); body }".into();
+    });
+    let rendered = crate::rendering::render(
+        &mut crate::rendering::TypstWorld::default(),
+        &app.document.engine.preview_request().unwrap(),
+    )
+    .unwrap();
+    assert!(rendered.pages[0].size.iter().any(|side| *side > 2048));
+    let page_size = rendered.sync.page_size(0).unwrap();
+    let location = rendered.sync.forward(10).unwrap();
+    let (sender, _requests) = std::sync::mpsc::channel();
+    let (responses, receiver) = std::sync::mpsc::channel();
+    app.preview.worker = crate::rendering::RenderWorker { sender, receiver };
+    responses
+        .send(crate::rendering::RenderResponse {
+            guard: app.document.engine.target_guard(),
+            result: Ok(rendered),
+            is_export: false,
+        })
+        .unwrap();
+    let _ = ctx.run(
+        egui::RawInput {
+            max_texture_side: Some(2048),
+            ..Default::default()
+        },
+        |ctx| app.rendering(ctx),
+    );
+    let texture = &app.preview.pages[0];
+    assert_eq!(texture.size()[0], 2048);
+    assert!(texture.size()[1] <= 2048);
+    assert!(
+        (texture.size()[0] as f32 / texture.size()[1] as f32 - page_size[0] / page_size[1]).abs()
+            < 0.002
+    );
+    assert_eq!(app.preview.render.as_ref().unwrap().pages[0], page_size);
+    assert_eq!(app.preview_location(10).unwrap().point, location.point);
+
+    // Les pages déjà compatibles gardent exactement leurs pixels prémultipliés.
+    let page = crate::rendering::PageImage {
+        size: [1, 1],
+        rgba: vec![80, 40, 20, 128],
+    };
+    let image = super::super::preview::page_image(page, 2048);
+    assert_eq!(image.size, [1, 1]);
+    assert_eq!(image.pixels[0].to_array(), [80, 40, 20, 128]);
+}
+
+#[test]
 fn column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_cap() {
     let (ctx, mut app) = demo_app();
     let mut time = 0.0;
