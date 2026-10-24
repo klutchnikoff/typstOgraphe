@@ -1,10 +1,32 @@
 # MCP local — début de phase 6
 
-Les choix D34/D35 et les lots sont consignés dans
+Les choix D34/D35/D36 et les lots sont consignés dans
 [ROADMAP-ARCHITECTURE.md](../ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).
 Ce premier lot livre **le rattachement en lecture seule**. L'édition partagée,
 l'enregistrement et l'export rattachés attendent les contextes séparés et les
-protections D32/D33 ; ils restent prévus en 6.3 à 6.5.
+protections D32/D33, ainsi que l’approbation préalable D36 ; ils restent prévus
+en 6.3 à 6.5.
+
+## Décision pour les futures modifications rattachées (D36)
+
+Validé le 25 octobre 2026 : l'agent soumettra un **lot proposé**, préparé et validé
+techniquement sur un brouillon isolé. Le document publié restera inchangé jusqu'à
+l'approbation explicite de l'utilisateur. L'agent ne pourra pas approuver son lot.
+
+L'utilisateur acceptera ou refusera **le lot entier**, sans acceptation partielle
+pour cette première version. Accepter publiera une seule transaction annulable ;
+refuser ne changera ni le document ni son historique documentaire. À l'acceptation,
+l'identité et la révision seront vérifiées à nouveau : une proposition périmée
+devra être recalculée puis soumise à une nouvelle approbation, sans fusion automatique.
+La sauvegarde et l'export resteront explicites et utiliseront uniquement le document
+publié, jamais le brouillon d'une proposition en attente.
+
+La présentation des modifications dans l'éditeur reste à concevoir ensemble avant
+la réalisation de 6.4. Le bouton « Voir » après une édition acceptée conserve son
+rôle de navigation ; il ne remplace pas l'approbation. Aucun mode de modification
+directe n'est autorisé à ce stade. Cette décision concerne le rattachement à
+l'application ; le fonctionnement du MCP autonome reste inchangé. Les identifiants
+et le protocole des futures propositions ne sont pas fixés par cette décision.
 
 ## Parcours
 

@@ -315,6 +315,16 @@ résultats d'une demande annulée. Les choix de transport/rattachement sont vali
 les opérations de fichiers rattachées restent à implémenter. Une donnée sérialisable
 de vue n'autorise pas à contourner ces contrôles.
 
+La décision D36 (25 octobre 2026) ajoute une approbation humaine obligatoire pour
+les futures éditions rattachées : préparer un lot isolé sans modifier le document
+publié, puis accepter ou refuser le lot entier dans l'application. L'agent ne peut
+pas l'approuver. L'acceptation revérifie identité et révision, puis publie une seule
+transaction annulable ; une proposition périmée doit être recalculée et présentée
+à nouveau. Le refus ne crée aucune édition ni étape d'annulation. Sauvegarde et
+export portent sur le document publié. La présentation des différences et le
+protocole des propositions restent à définir ; aucun mode direct n'est autorisé
+à ce stade. Le MCP autonome conserve son fonctionnement.
+
 ## Références et vérification
 
 Le guide est inclus dans la documentation du crate : ses deux exemples Rust sont

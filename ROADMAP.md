@@ -721,7 +721,9 @@ commande à identifiant stable, pilotable par une ligne de commande et par MCP.
   le moteur de l’application par un canal local contrôlé. Transport et permissions
   validés (D34/D35) ; [rattachement en lecture seule livré](docs/mcp-local.md).
   Une crate adaptateur MCP partagée complète les quatre crates initiales.
-  Prochaine étape : contextes d'édition séparés avant les écritures rattachées.
+  Approbation utilisateur obligatoire des propositions de lot entier (D36) avant
+  publication ; présentation des différences à concevoir ensemble.
+  Prochaine étape : contextes d'édition séparés avant les propositions rattachées.
 - **Phase 7 :** consolidation et documentation.
 
 **Ordre avec les autres chantiers :** ce chantier passe avant l’étape 5.

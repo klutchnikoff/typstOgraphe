@@ -155,6 +155,7 @@ Fuites à traiter avant tout découpage en crates :
 | D33 | Focus, navigation et interruptions de l'assistance | **Validés le 24 octobre 2026.** Une édition d'agent conserve le champ actif, le style utilisateur et sa navigation. Notification discrète et action volontaire « Voir » vers une cible gardée, avec repérage temporaire distinct de la sélection. Lectures du texte publié possibles pendant IME/modalité ; mutations temporairement refusées, sans application différée implicite. La saisie native est publiée avant examen de la demande. Ancienne session et résultat tardif d'une demande annulée sont refusés ; une édition déjà publiée relève de l'historique commun | 6 |
 | D34 | Transport et rattachement locaux | **Validés le 24 octobre 2026.** Passerelle CLI MCP stdio vers l'application par sockets locales `interprocess` (sockets Unix sous macOS/Linux, tubes nommés sous Windows). Réutiliser `rmcp`, le catalogue, les schémas et la documentation. Autorisation explicite par document en mémoire, lecture seule ou modification, identifiant opaque et jeton temporaire ; canal réservé au compte utilisateur. Un agent par document initialement. Fermeture/remplacement révoque le rattachement ; aucune reconnexion vers un autre document ni répétition automatique d'une édition | 6 |
 | D35 | Périmètre de l'assistance rattachée | **Validé le 24 octobre 2026.** Lectures, éditions, validation, rendu ; enregistrement explicite dans le fichier courant et export explicite vers un emplacement autorisé. Pas de fermeture/remplacement du document par l'agent, d'accès aux préférences globales ou aux autres documents. Autorisations vérifiées à chaque opération. Les étapes intermédiaires peuvent rester en lecture seule jusqu'à la livraison des contextes séparés et des protections D32/D33 | 6 |
+| D36 | Approbation des propositions d'agent | **Validée le 25 octobre 2026.** Dans le mode rattaché, l'agent prépare une proposition de lot isolée ; aucune modification du document publié avant acceptation explicite par l'utilisateur. Accepter/refuser le lot entier initialement, sans acceptation partielle. L'agent ne peut pas approuver ses propres propositions. Revalider identité et révision à l'acceptation ; si le document a changé, la proposition devient périmée et doit être recalculée puis présentée à nouveau, sans fusion automatique. Acceptation atomique, une étape annulable ; refus sans modification ni historique documentaire. Sauvegarde/export portent uniquement sur le document publié. Présentation des différences à concevoir ensemble ; aucun mode de modification directe autorisé à ce stade. Le MCP autonome reste inchangé | 6 |
 
 
 ## 4. Vue d'ensemble
@@ -887,8 +888,9 @@ liens résolus avant contrôle, enregistrement explicite). À notre manière :
 
 Objectif validé le 24 octobre 2026 : rattacher l’agent au document ouvert et au même
 moteur en mémoire, via un canal local contrôlé. Les révisions protègent la frappe
-de l’utilisateur ; les modifications sont visibles et annulables. Aucun deuxième
-écrivain ne contourne le verrou du fichier. La session MCP autonome de phase 5 et
+de l’utilisateur ; les modifications sont visibles et annulables. Depuis D36
+(25 octobre), un lot proposé doit être approuvé par l’utilisateur avant publication.
+Aucun deuxième écrivain ne contourne le verrou du fichier. La session MCP autonome de phase 5 et
 la session rattachée réutilisent les mêmes capacités et leur documentation.
 L'[inventaire K.1](docs/interface-interactions.md) est terminé. Les choix de
 contextes, concurrence et interactions sont validés (D32, D33) ; ils restent à
@@ -905,13 +907,20 @@ implémenter en phase 6. Le transport local et les modalités de rattachement so
   révocation, lectures du même moteur au point de publication de l'interface.
   Refuser toutes les mutations à ce stade ; tester les trois systèmes en CI.
 - [ ] **6.3 — Contextes et positions.** Contextes par participant, report des
-  positions utilisateur et du passage visible à travers les transactions.
-- [ ] **6.4 — Éditions rattachées.** Gardes strictes, interruptions et annulations,
-  historique commun, effets selon l'origine, notification et action « Voir ».
+  positions utilisateur et du passage visible à travers les transactions. Préparer
+  la séparation entre contexte de proposition et document publié (D36).
+- [ ] **6.4 — Propositions et éditions approuvées.** Préparation isolée d'un lot,
+  présentation des différences à valider ensemble, acceptation/refus du lot entier
+  par l'utilisateur. Revalidation de la garde à l'acceptation ; proposition périmée
+  à recalculer puis soumettre à nouveau. Publication atomique après accord seulement,
+  interruptions et annulations, historique commun, effets selon l'origine,
+  notification et action « Voir » après publication.
 - [ ] **6.5 — Enregistrement et export.** Fichier courant, destinations autorisées,
-  contrôle à l'exécution et décisions différées revalidées.
+  contrôle à l’exécution et décisions différées revalidées. Utiliser uniquement
+  le document publié, jamais une proposition en attente.
 - [ ] **6.6 — Recette.** Agent réel sans skill ni accès au dépôt, rédaction
-  simultanée, IME/modalité, coupure, sauvegarde/export et captures graphiques.
+  simultanée, acceptation/refus/péremption des propositions, IME/modalité, coupure,
+  sauvegarde/export et captures graphiques.
 
 La phase démarre par 6.1 et 6.2 : aucun accès en écriture n'est livré avant les
 protections des contextes. Le rattachement peut être matérialisé par une invitation
@@ -925,6 +934,13 @@ reste la décision initiale de phase 5, le cœur ne change pas de dépendances.
 
 ### Critères de sortie
 
+- [ ] Approbation humaine (D36) : une proposition ne modifie ni document publié,
+  ni historique documentaire et ne sauvegarde ni n’exporte le document. L’utilisateur
+  accepte/refuse le lot entier ; l'agent ne peut pas approuver à sa place. Revalider
+  la garde à l'acceptation, refuser une proposition périmée sans fusion automatique.
+  Publier un lot accepté atomiquement, avec une seule étape d'annulation. L'interface
+  de comparaison reste à décider avant sa réalisation ; « Voir » après publication
+  ne remplace pas l'approbation préalable.
 - [ ] Contextes d'édition séparés : sélection et style de frappe propres à
   l'utilisateur et à l'agent. Une sélection transmise est capturée à la demande,
   sans suivre ensuite les déplacements de l'utilisateur.
