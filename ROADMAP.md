@@ -82,7 +82,9 @@ persistante de modèles restent à développer.
   les huit captures restent strictement identiques. La phase suivante est MCP,
   dont les choix ont été validés : outils issus du registre, découverte documentée
   sans skill requis, modèles décrits par nom/description/mots-clés, session autonome
-  et éditions gardées. **Phase 5 en cours : prototype `rmcp` stdio.** La phase 6
+  et éditions gardées. **Phase 5 en cours : prototype `rmcp` stdio livré**, avec
+  découverte, éditions/lots et aperçu en mémoire ; accès aux fichiers, sauvegarde/export
+  et essai avec un agent restent à réaliser. La phase 6
   aura pour objectif l’assistance à la composition dans la session de l’application.
   Choix validés et état détaillé dans [le bilan](docs/architecture-phase-4.md).
 
@@ -695,7 +697,8 @@ commande à identifiant stable, pilotable par une ligne de commande et par MCP.
 - **Phase 4 :** CLI (commandes, lots d’édition atomiques d’un document, vérification,
   exports séparés). Les lots excluent les écritures intermédiaires et les effets globaux.
 - **Phase 5 :** serveur MCP, accès aux fichiers refusé par défaut.
-- **Phase 6 :** canal de contrôle de l’application en cours d’exécution, reporté.
+- **Phase 6 :** assistance à la composition dans le document ouvert, en rejoignant
+  le moteur de l’application par un canal local contrôlé.
 - **Phase 7 :** consolidation et documentation.
 
 **Ordre avec les autres chantiers :** ce chantier passe avant l’étape 5.

@@ -84,6 +84,10 @@ Avec `--json`, le résultat contient `path`, `page` et `pages` (numéros/nombre 
 
 ## Catalogue du moteur
 
+`typstographe-cli mcp` lance le prototype MCP sur stdio : découverte, éditions
+gardées, lots et aperçu PNG d’un document en mémoire. Aucun accès documentaire
+aux fichiers ni sauvegarde/export dans ce premier lot. Voir [docs/mcp.md](mcp.md).
+
 Le catalogue décrit les contrats du moteur, y compris les opérations qui ne disposent pas encore d’un déclencheur CLI. L’ouverture accepte l’option additive `read_only` (false par défaut).
 
 | Identifiant | Famille | Description |

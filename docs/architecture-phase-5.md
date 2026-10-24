@@ -40,6 +40,77 @@ Mesurer avant/après la taille du binaire CLI, le temps de compilation incrémen
 et le coût propre des nouvelles dépendances, sans nettoyer les rapports existants.
 Vérifier que les dépendances asynchrones du transport restent en aval du cœur.
 
+### Résultat du prototype — 24 octobre 2026
+
+**Faisabilité confirmée avec [rmcp 3.7.0](https://docs.rs/rmcp/3.7.0/rmcp/).**
+Le repli JSON-RPC manuel n’est pas nécessaire. La production active seulement
+`server` et `transport-io`, sans macros ni transport HTTP ; `client` et
+`transport-child-process` servent aux tests de processus. `tokio`, le SDK et les
+types MCP restent dans la crate CLI ; les dépendances normales du cœur ne
+contiennent ni Tokio, rmcp, Fluent ou dépendance graphique.
+Le garde-fou de dépendances interdit désormais aussi Tokio/rmcp et leurs sous-crates,
+avec les tests correspondants, pour maintenir cette frontière dans la CI.
+
+Le serveur expose **62 outils** : 59 opérations du registre et 3 outils de
+découverte/rendu. La liste est construite à partir des schémas du registre, triée,
+stable et indépendante du contexte. Le contrôle vérifie les références `$ref`
+après adaptation des schémas. Les images par chemin sont retirées des schémas
+du prototype et refusées à l’exécution. Les 68 contrats JSON du cœur sont conservés.
+
+`document_types.describe` et `capabilities.describe` appellent des API de
+documentation du cœur, construites depuis les champs et le registre existants.
+Les premiers exemples couvrent la rédaction ; compléter toutes les fiches reste
+à faire. Les fiches de modèle réutilisent `name`, `description`, `keywords` ajoutés
+au catalogue commun ; l’adaptateur MCP omet les contraintes visuelles techniques.
+La [documentation MCP](mcp.md) précise les schémas effectifs, la séquence d’usage
+et les opérations non exposées, sans skill obligatoire pour les découvrir.
+
+Un worker dédié possède le moteur, sérialise les demandes et garde la session
+hors du transport. Les appels portent un identifiant UUID propre au document MCP
+et la garde du moteur ; une référence étrangère ou périmée est refusée. Le même
+point d’aiguillage pourra être relié au moteur de l’application en phase 6.
+Les sélecteurs sont résolus par les helpers CLI et les lots utilisent le brouillon
+atomique existant ; une sélection de confort et son édition échouent ensemble.
+Les limites du moteur et une borne de 4 Mio sur les arguments JSON décodés sont
+réutilisées. Il n’y a pas de promesse d’annulation d’une commande déjà en cours.
+
+Contrôles locaux : **415 tests Rust du workspace réussis** (226 cœur, 139 UI,
+7 i18n, 43 CLI : 7 unitaires et 36 de processus), **14 tests Python**, formatage,
+Clippy sur toutes les cibles, gardes de dépendances et limite de 800 lignes.
+Les 6 tests du diagnostic de tableau passent séparément. Les nouveaux scénarios
+couvrent références étrangères/périmées, schémas et documentation, mutation
+concurrente sur la même révision, historique, échecs tardifs, limites et refus
+des fichiers, lecture seule, localisation, ressources, PNG et stdout propre.
+Les tests sont inclus dans la CI des trois systèmes ; exécution locale sur macOS.
+
+Les **huit captures natives restent strictement identiques** aux références :
+`output/baseline/run-k9acf2yt/` et `output/phase-5-captures.log`.
+Une trace JSON-RPC manuelle en 2025-11-25 crée un courrier avec image embarquée,
+légende, gras, P.-S./P.J., le valide et reçoit son PNG. Le serveur termine avec
+le code 0 après fermeture de stdin et n’a créé **aucun fichier** dans son répertoire
+de travail. Le client de test conserve la trace, le source et le PNG dans
+`output/phase-5-manual/` ; l’image a été inspectée. Il s’agit d’un essai protocolaire,
+pas encore du test final avec un agent/LLM sans skill.
+
+### Coût mesuré
+
+Mesures sur cette machine, profil `dev` avec `debug=0` et workspace déjà compilé,
+sans nettoyage ; ce ne sont pas des tailles de distribution optimisées.
+
+| Mesure | Résultat |
+| --- | --- |
+| Binaire CLI avant | 249 014 816 octets (237,48 Mio) |
+| Binaire CLI avec serveur | 259 268 032 octets (247,26 Mio) |
+| Variation | +10 253 216 octets, soit +9,78 Mio / +4,12 % |
+| Première construction du prototype avec ses nouvelles dépendances/features | 30,56 s |
+| Reconstruction après variation des features workspace/tests | 10,63 s |
+| Construction sans modification, cache chaud, avant/après | 0,61 s / 0,34 s |
+
+Les temps décrivent leurs conditions de cache ; ils ne constituent pas une
+comparaison de constructions propres. Mesures, journaux et chronogramme Cargo
+sont conservés dans `output/phase-5-measurements.json`,
+`output/phase-5-first-build.log` et `output/phase-5-build-timings.html`.
+
 ## Lots suivants
 
 1. Racines de lecture/écriture, ouverture sous verrou, copie et sauvegarde/export

@@ -29,7 +29,10 @@ fermée produit `no_document`. Aucun réancrage silencieux n’est effectué.
 
 `document_types.list` renvoie `types`, dans l’ordre du catalogue intégré. Chaque
 entrée fournit `id`, `can_create`, `models` et `capabilities`. Chaque modèle
-fournit `id` et `fixed_page` (`{ paper, landscape }` ou `null`). Le compte-rendu
+fournit `id`, `name`, `description`, `keywords` et `fixed_page` (`{ paper, landscape }`
+ou `null`). Les trois champs descriptifs sont un ajout compatible de la phase 5,
+également présent dans `models.list`. La fiche visuelle MCP omet `fixed_page` ;
+la présentation technique reste disponible au moteur et à l’interface. Le compte-rendu
 existe comme type mais reste sans modèle fourni : sa création est indisponible.
 Les identifiants sont techniques, sans dépendance à la langue de l’interface.
 
@@ -38,6 +41,11 @@ admissibles comme étapes de lot. Elle décrit son vocabulaire ; elle ne signifi
 pas que chaque commande est disponible à la position courante. Fichiers,
 historique, services globaux et requêtes n’en font pas partie. Le registre commun
 et les règles des commandes de Courrier sont la source de cette liste.
+
+Les API Rust `Engine::type_documentation` et `Engine::command_documentation`
+fournissent la documentation commune aux adaptateurs : champs existants du type,
+capacités, fiches des modèles, schémas et premiers exemples. Aucun nouvel
+identifiant ni changement de paramètres du catalogue JSON n’est introduit.
 
 `document.source` renvoie `{ guard, source }`. `source` est le corps documentaire
 Typst (`contenu.typ`), distinct du texte visible, du modèle et de la composition

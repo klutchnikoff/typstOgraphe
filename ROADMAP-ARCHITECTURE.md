@@ -756,16 +756,21 @@ validation de la faisabilité du SDK. Suivi : [bilan de phase 5](docs/architectu
 
 ### 5.1 Choix de la mise en œuvre (D11)
 
-- [ ] Prototype d'une journée avec `rmcp` (D11) : consulter d'abord la documentation de
+- [x] Prototype avec `rmcp` (D11) : consulter d'abord la documentation de
   la version courante ; vérifier qu'une liste d'outils **dynamique** (dérivée du registre)
   est possible, mesurer la taille du binaire et le temps de compilation, confirmer
   que `tokio` reste confiné à la CLI. Consigner le résultat ; en cas d'échec, repli sur
   un JSON-RPC minimal sur stdio.
+  **Livré le 24 octobre 2026 avec rmcp 3.7.0** : 62 outils générés, session en mémoire,
+  clients SDK 2025-11-25 et version courante, PNG sans disque ; mesures de compilation
+  et taille, limites et suite dans [le bilan](docs/architecture-phase-5.md).
 
 ### 5.2 Serveur
 
 - [ ] Sous-commande `typstographe-cli mcp [--read-root …] [--write-root …] [--read-only]`,
   transport **stdio**.
+- [x] Premier sous-ensemble : `typstographe-cli mcp [--read-only]`, stdio, sans
+  autorisation de fichiers. Racines, sauvegarde/export et ouverture restent au lot suivant.
 - [ ] Outils dérivés du registre plutôt que redéclarés à la main, plus un petit
   jeu d'outils de confort :
 
@@ -781,6 +786,8 @@ validation de la faisabilité du SDK. Suivi : [bilan de phase 5](docs/architectu
 | `list_models` | fiches visuelles : nom, description et mots-clés ; le contrat documentaire appartient au type |
 
 - [ ] Ressources : `typstographe://document`, `typstographe://commands`, `typstographe://models`.
+- [x] Ressources complémentaires initiales : guide, types et commandes ; mêmes
+  définitions que les outils. `docs/mcp.md` documente le prototype et ses limites.
 - [ ] Les erreurs MCP reprennent les codes de `CommandError`, lisibles et corrigeables
   par l'agent, avec un texte en anglais par défaut (option explicite pour une autre langue).
 
@@ -789,7 +796,8 @@ validation de la faisabilité du SDK. Suivi : [bilan de phase 5](docs/architectu
 Inspiré de ce que documente WordCraft (racines de lecture et d'écriture séparées,
 liens résolus avant contrôle, enregistrement explicite). À notre manière :
 
-- [ ] **Refus par défaut** : sans racine déclarée, aucun accès à un fichier.
+- [x] **Refus par défaut** : aucun accès documentaire aux fichiers dans le prototype,
+  même pour une image/signature ou une étape de lot. Les racines autorisées restent à développer.
 - [ ] Chemins canonicalisés ; échappement par lien symbolique ou `..` refusé.
 - [ ] Racines de lecture et d'écriture indépendantes ; `--read-only` interdit toute commande
   modifiante et tout `save`.
@@ -807,8 +815,10 @@ liens résolus avant contrôle, enregistrement explicite). À notre manière :
 
 ### 5.4 Tests
 
-- [ ] Conversation JSON-RPC de bout en bout par processus (initialisation, liste des outils,
+- [x] Conversation JSON-RPC de bout en bout par processus (initialisation, liste des outils,
   appels).
+  Client officiel rmcp contre le binaire sur stdio, en 2025-11-25 et version par défaut
+  du SDK ; trace manuelle avec courrier, image embarquée, P.-S./P.J. et rendu PNG.
 - [ ] Validation des schémas d'entrée de chaque outil.
 - [ ] Confinement : `..`, liens symboliques, chemins absolus hors racine, mode lecture seule.
 - [ ] **Test d'acceptation** : un courrier mis en forme écrit uniquement par appels MCP,

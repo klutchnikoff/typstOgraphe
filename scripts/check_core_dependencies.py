@@ -1,17 +1,17 @@
-"""Fail when the document core acquires a normal UI or localization dependency."""
+"""Keep UI, localization and MCP transport/runtime dependencies outside the core."""
 
 from pathlib import Path
 import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-FORBIDDEN = {"egui", "eframe", "winit", "rfd", "muda"}
+FORBIDDEN = {"egui", "eframe", "winit", "rfd", "muda", "tokio", "rmcp"}
 
 
 def forbidden_dependencies(tree):
     names = {line.split()[0] for line in tree.splitlines() if line.strip()}
     return sorted(name for name in names if name in FORBIDDEN
-                  or name.startswith(("fluent", "i18n-embed")))
+                  or name.startswith(("fluent", "i18n-embed", "tokio-", "rmcp-")))
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
     if blocked:
         print("Forbidden normal core dependencies: " + ", ".join(blocked), file=sys.stderr)
         return 1
-    print("Core normal dependencies contain no GUI or Fluent libraries.")
+    print("Core normal dependencies contain no GUI, Fluent, Tokio or MCP libraries.")
     return 0
 
 
