@@ -54,7 +54,8 @@ jobs:
       - name: Editor model experiment
         if: runner.os == 'Linux'
         run: cargo +stable test --locked --features editor-model-spike --example editor-model-spike model_spike
-      - run: cargo +stable test --locked --workspace
+      - name: Workspace tests and interface contract examples
+        run: cargo +stable test --locked --workspace
       - run: cargo +stable clippy --locked --workspace --all-targets -- -D warnings
       - name: Informative WASM compatibility check
         if: runner.os == 'Linux'

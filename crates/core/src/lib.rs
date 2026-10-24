@@ -1,4 +1,5 @@
 //! Moteur documentaire, ressources et rendu Typst indépendants de l’interface.
+#![doc = include_str!("../../../docs/interface-contract.md")]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 pub mod annotations;
