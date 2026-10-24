@@ -13,6 +13,7 @@ fn main() -> ExitCode {
     // Seulement les options de présentation : clap reste l’unique analyseur des commandes.
     let mut json_output = false;
     let mut requested = None;
+    let mut command = None;
     let mut values = arguments.iter().skip(1);
     while let Some(value) = values.next() {
         if value == "--" {
@@ -20,6 +21,9 @@ fn main() -> ExitCode {
         }
         if value == "--json" {
             json_output = true;
+        }
+        if command.is_none() && !value.to_string_lossy().starts_with('-') {
+            command = Some(value.clone());
         }
         let language = if value == "--lang" {
             values.next().and_then(|s| s.to_str())
@@ -30,7 +34,13 @@ fn main() -> ExitCode {
             requested = language.parse().ok();
         }
     }
-    if let Some(language) = requested {
+    // La construction de l'aide clap utilise déjà le chargeur. Choisir le
+    // défaut MCP avant cette construction, sans analyser ses paramètres :
+    // clap reste responsable de la validation et de l'exécution de la commande.
+    if let Some(language) = requested.or_else(|| {
+        (command.as_deref() == Some(std::ffi::OsStr::new("mcp")))
+            .then(|| "en".parse().expect("MCP default language"))
+    }) {
         i18n::initialize(&[language]);
     }
     let cli = match Cli::try_parse_from(arguments) {
@@ -59,13 +69,6 @@ fn main() -> ExitCode {
         write_roots,
     } = cli.action
     {
-        let language = cli.lang.unwrap_or(typstographe_cli::args::Language::En);
-        i18n::initialize(&[match language {
-            typstographe_cli::args::Language::Fr => "fr",
-            typstographe_cli::args::Language::En => "en",
-        }
-        .parse()
-        .expect("MCP language")]);
         return match typstographe_cli::mcp::serve(read_only, read_roots, write_roots) {
             Ok(()) => ExitCode::SUCCESS,
             Err(error) => {

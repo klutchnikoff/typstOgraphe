@@ -7,6 +7,28 @@ use serde_json::{Value, json};
 use std::{sync::Arc, time::Duration};
 
 #[test]
+fn mcp_language_is_chosen_before_clap_initializes_localized_help() {
+    runtime().block_on(async {
+        tokio::time::timeout(Duration::from_secs(45), async {
+            for (args, word) in [
+                (vec![], "completed"),
+                (vec!["--json"], "completed"),
+                (vec!["--lang", "fr"], "terminé"),
+                (vec!["--lang=en"], "completed"),
+            ] {
+                let dir = tempfile::tempdir().unwrap();
+                let client = start(dir.path(), ProtocolVersion::default(), &args).await;
+                let reply = call(&client, "document.inspect", json!({})).await;
+                assert!(reply["summary"].as_str().unwrap().contains(word));
+                client.cancel().await.unwrap();
+            }
+        })
+        .await
+        .unwrap();
+    });
+}
+
+#[test]
 fn official_sdk_clients_discover_edit_validate_undo_and_render_a_letter_over_stdio() {
     runtime().block_on(async {
         tokio::time::timeout(Duration::from_secs(90), async {
