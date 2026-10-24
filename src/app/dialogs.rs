@@ -79,7 +79,7 @@ impl App {
                     ui.radio_value(
                         &mut self.dialogs.new_document_model,
                         Some(entry.model),
-                        entry.command.command.short_label(),
+                        Command::Model(entry.model).short_label(),
                     );
                 }
                 ui.separator();

@@ -63,7 +63,7 @@ impl Engine {
         let model = p
             .document_type
             .models()
-            .find(|m| m.command.id == p.model)
+            .find(|m| m.model.id() == p.model)
             .ok_or_else(|| CommandError::new(ErrorCode::Unavailable, "creation_model"))?;
         let mut stored = StoredDocument::blank(p.document_type);
         stored.template = model.source.into();

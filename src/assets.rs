@@ -200,7 +200,14 @@ mod tests {
                 thumbnail.rgba.len(),
                 thumbnail.size[0] * thumbnail.size[1] * 4
             );
-            assert!(thumbnail.rgba.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            assert!(
+                thumbnail
+                    .rgba
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .any(|pixel| pixel[3] > 0)
+            );
         }
         assert!(decode(b"not an image", "png").is_err());
         assert!(decode(include_bytes!("../tests/fixtures/parc.svg"), "jpg").is_err());

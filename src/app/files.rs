@@ -272,7 +272,7 @@ impl App {
         let command = crate::engine::Command::NewDocument(crate::engine::NewDocumentParams {
             guard: self.document.engine.target_guard(),
             document_type: kind,
-            model: model.definition().command.id.into(),
+            model: model.id().into(),
             initial_values,
             signature,
             discard_changes: true,

@@ -81,23 +81,6 @@ macro_rules! field {
         }
     };
 }
-pub const COMMANDS: &[crate::commands::Presentation] = &[
-    crate::commands::define(
-        "letter.insert_postscript",
-        "cmd-insert-postscript",
-        crate::commands::UiCommand::InsertPostscript,
-        crate::commands::Scope::Editor,
-        &[],
-    ),
-    crate::commands::define(
-        "letter.insert_attachment",
-        "cmd-insert-attachment",
-        crate::commands::UiCommand::InsertAttachment,
-        crate::commands::Scope::Editor,
-        &[],
-    ),
-];
-
 pub const FIELDS: &[TextField<Metadata>] = &[
     field!(
         expediteur,

@@ -20,7 +20,7 @@ impl Engine {
     pub(super) fn document_types_query() -> Value {
         let types: Vec<_> = DocumentType::ALL.into_iter().map(|kind| {
             let models: Vec<_> = kind.models().map(|model| json!({
-                "id": model.command.id,
+                "id": model.model.id(),
                 "fixed_page": model.page.map(|(paper,landscape)| json!({"paper":paper,"landscape":landscape})),
             })).collect();
             json!({"id":kind,"can_create":kind.can_create(),"models":models,

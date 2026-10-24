@@ -152,7 +152,7 @@ fn invalid_import_keeps_presentation_and_published_state_then_a_valid_import_rec
     for kind in DocumentType::ALL {
         for model in kind.models() {
             assert!(
-                Core::from_call(model.command.id, json!({"guard":engine.target_guard()})).is_ok()
+                Core::from_call(model.model.id(), json!({"guard":engine.target_guard()})).is_ok()
             );
         }
     }

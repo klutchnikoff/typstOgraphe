@@ -67,7 +67,7 @@ impl Engine {
     pub(super) fn models_query(&self) -> Value {
         let kind = self.session.metadata.document_type();
         let models: Vec<_> = kind.models().map(|m| json!({
-            "id":m.command.id,"document_type":m.kind,"active":m.source == self.session.template,
+            "id":m.model.id(),"document_type":m.kind,"active":m.source == self.session.template,
             "fixed_page":m.page.map(|(paper,landscape)| json!({"paper":paper,"landscape":landscape})),
         })).collect();
         json!({"guard":self.session.target_guard(),"document_type":kind,"models":models})

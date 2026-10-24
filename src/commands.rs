@@ -9,8 +9,11 @@ use eframe::egui::{self, Key, KeyboardShortcut, Modifiers};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+#[path = "commands/document_types.rs"]
+mod document_types;
 #[path = "commands/presentation.rs"]
 mod presentation;
+use document_types::{model_presentation, type_commands};
 pub use presentation::Presentation;
 pub(crate) use presentation::Route;
 pub(crate) use presentation::{define, short};
@@ -450,8 +453,12 @@ impl Registry {
     pub fn definitions(self) -> impl Iterator<Item = &'static Presentation> + Clone {
         COMMON_COMMANDS
             .iter()
-            .chain(self.kind.commands().iter())
-            .chain(self.kind.models().map(|model| &model.command))
+            .chain(type_commands(self.kind).iter())
+            .chain(
+                self.kind
+                    .models()
+                    .map(|model| model_presentation(model.model)),
+            )
     }
     pub fn contains(self, command: UiCommand) -> bool {
         self.definitions()
@@ -768,8 +775,29 @@ mod tests {
         assert!(
             crate::document_types::models::ALL
                 .iter()
-                .all(|d| matches!(d.command.command, UiCommand::Model(_)))
+                .all(|d| matches!(model_presentation(d.model).command, UiCommand::Model(_)))
         );
+        for kind in DocumentType::ALL {
+            let models: Vec<_> = Registry::new(kind)
+                .definitions()
+                .filter(|p| p.in_model_menu())
+                .collect();
+            assert_eq!(models.len(), kind.models().count());
+            for model in kind.models() {
+                let presentation = model_presentation(model.model);
+                assert_eq!(presentation.id, model.model.id());
+                assert!(
+                    models
+                        .iter()
+                        .any(|p| p.command == UiCommand::Model(model.model))
+                );
+                assert!(
+                    crate::engine::catalogue()
+                        .iter()
+                        .any(|entry| entry.id.as_str() == presentation.id)
+                );
+            }
+        }
         assert!(
             Keymap::new(
                 Registry::new(DocumentType::Courrier),

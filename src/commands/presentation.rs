@@ -114,14 +114,14 @@ impl UiCommand {
     }
     pub fn definition(self) -> &'static Presentation {
         if let Self::Model(model) = self {
-            return &model.definition().command;
+            return model_presentation(model);
         }
         COMMON_COMMANDS
             .iter()
             .chain(
                 DocumentType::ALL
                     .iter()
-                    .flat_map(|kind| kind.commands().iter()),
+                    .flat_map(|kind| type_commands(*kind).iter()),
             )
             .find(|definition| definition.command == self)
             .expect("commande enregistrée")

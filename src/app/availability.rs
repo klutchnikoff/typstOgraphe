@@ -69,11 +69,9 @@ impl App {
         let target = self.ui_text_target()?;
         let guard = self.document.engine.target_guard();
         Some(match command {
-            Command::Model(model) => Core::from_call(
-                model.definition().command.id,
-                serde_json::json!({"guard":guard}),
-            )
-            .ok()?,
+            Command::Model(model) => {
+                Core::from_call(model.id(), serde_json::json!({"guard":guard})).ok()?
+            }
             Command::FindNext | Command::FindPrevious => {
                 let p = FindParams {
                     target,
