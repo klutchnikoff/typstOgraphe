@@ -11,6 +11,8 @@ pub fn command_error(error: &crate::engine::CommandError) -> String {
     command_error_with(loader(), error)
 }
 use i18n_embed::{fluent::FluentLanguageLoader, unic_langid::LanguageIdentifier};
+#[doc(hidden)]
+pub use i18n_embed_fl::fl as __fl;
 use rust_embed::RustEmbed;
 use std::sync::OnceLock;
 
@@ -51,7 +53,7 @@ pub fn text(key: &str) -> String {
 #[macro_export]
 macro_rules! tr {
     ($id:literal $(, $name:ident = $value:expr)* $(,)?) => {
-        i18n_embed_fl::fl!($crate::loader(), $id $(, $name = ($value))*)
+        $crate::__fl!($crate::loader(), $id $(, $name = ($value))*)
     };
 }
 

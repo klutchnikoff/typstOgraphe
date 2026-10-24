@@ -47,8 +47,18 @@ jobs:
           scripts/check-file-length.sh --root crates/core/src/engine
           scripts/check-file-length.sh --root crates/core/src/document
           scripts/check-file-length.sh --root crates/app/src/editor
+      - name: Core dependency boundary
+        run: |
+          python scripts/check_core_dependencies.py
+          cargo +stable check --locked -p typstographe-core
       - name: Editor model experiment
         if: runner.os == 'Linux'
         run: cargo +stable test --locked --features editor-model-spike --example editor-model-spike model_spike
       - run: cargo +stable test --locked --workspace
       - run: cargo +stable clippy --locked --workspace --all-targets -- -D warnings
+      - name: Informative WASM compatibility check
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo +stable check --locked -p typstographe-core --target wasm32-unknown-unknown

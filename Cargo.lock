@@ -5291,8 +5291,6 @@ dependencies = [
  "atomic-write-file",
  "base64 0.22.1",
  "eframe",
- "i18n-embed",
- "i18n-embed-fl",
  "muda",
  "png",
  "resvg",
