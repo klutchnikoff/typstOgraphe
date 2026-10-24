@@ -98,13 +98,13 @@ fn saved_batch_clears_recovery_only_on_success_and_keeps_preview_synchronization
         path: output.clone(),
         overwrite: false,
     });
-    app.preview.forward_pending = false;
+    app.view_selection_changed(ViewOrigin::Preview);
     app.document.force_selection = false;
     let outcome = app.execute_document_command(Core::Batch(p)).unwrap();
     app.recovery.worker.as_mut().unwrap().wait();
     assert!(outcome.effects.contains(&engine::Effect::Saved));
     assert!(!app.document.engine.is_recovered() && !app.is_dirty());
-    assert!(app.preview.forward_pending && app.document.force_selection);
+    assert!(app.preview.sync.preview_pending() && app.document.force_selection);
     assert_eq!(app.preferences, prefs);
     assert!(storage::read(&output).unwrap() == app.stored_document());
     assert_eq!(app.document.engine.history().undo, 1);

@@ -3,7 +3,7 @@
 
 pub use typstographe_core::{
     annotations, assets, dates, document, document_types, engine, errors, exporting, fonts,
-    navigation, packages, recovery, rendering, search, spelling, statistics, storage,
+    navigation, packages, recovery, rendering, search, spelling, statistics, storage, view_sync,
 };
 pub use typstographe_i18n as i18n;
 pub use typstographe_i18n::tr;

@@ -28,7 +28,7 @@ fn today_button_keeps_a_fixed_date_through_history_and_reopening() {
 #[test]
 fn general_settings_and_template_selection_preserve_letter_content() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.template = "#let courrier(..args, options: (:), body) = { set page(paper: options.paper, flipped: options.landscape); body }".into();
     });
     app.dialogs.information_open = true;

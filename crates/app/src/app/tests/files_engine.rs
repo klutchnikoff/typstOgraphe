@@ -86,7 +86,7 @@ fn file_adapter_and_json_preserve_history_on_save_and_reset_caches_only_after_su
         crate::engine::Engine::from_stored(stored.clone(), None).unwrap();
     let selection = app.document.selection;
     app.document.force_selection = false;
-    app.preview.forward_pending = false;
+    app.view_selection_changed(ViewOrigin::Preview);
     let undo = app.document.engine.history().undo;
     assert!(app.save_path(path.clone()));
     core.run_call(
@@ -100,7 +100,7 @@ fn file_adapter_and_json_preserve_history_on_save_and_reset_caches_only_after_su
     assert!(!app.is_dirty() && !core.is_dirty());
     assert_eq!(app.document.selection, selection);
     assert_eq!(app.document.engine.history().undo, undo);
-    assert!(!app.document.force_selection && !app.preview.forward_pending);
+    assert!(!app.document.force_selection && !app.preview.sync.preview_pending());
     assert!(app.stored_document() == core.stored_document());
     let guard = app.document.engine.target_guard();
     let bad = dir.path().join("bad.typsto");

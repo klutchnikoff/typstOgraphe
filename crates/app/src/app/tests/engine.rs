@@ -91,7 +91,7 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
         ),
     ] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |data| {
+        fixture(&mut app, |data| {
             data.document = Document::from_source(source).unwrap();
         });
         app.document.selection = editor::cursor(range);
@@ -147,7 +147,7 @@ fn formatting_blocks_and_letter_actions_match_json_calls_with_selection_and_hist
 #[test]
 fn native_typing_selection_and_preedit_keep_engine_queries_in_sync_with_the_published_document() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.document = Document::from_source("Texte").unwrap();
     });
     app.document.selection = editor::cursor(0..5);
@@ -205,7 +205,7 @@ fn native_typing_selection_and_preedit_keep_engine_queries_in_sync_with_the_publ
 fn link_dialog_uses_the_captured_selection_and_refuses_a_stale_revision() {
     for stale in [false, true] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |data| {
+        fixture(&mut app, |data| {
             data.document = Document::from_source("Avant après").unwrap();
         });
         app.document.selection = editor::cursor(0..5);

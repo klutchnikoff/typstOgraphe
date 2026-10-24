@@ -4,7 +4,7 @@ use super::*;
 fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
     let ctx = egui::Context::default();
     let mut app = App::with_demo_context(ctx, None);
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.document = Document::from_source("").unwrap();
     });
     let dir = tempfile::tempdir().unwrap();
@@ -87,13 +87,13 @@ fn saving_prunes_images_on_disk_without_changing_undo_redo_or_clean_state() {
 fn image_remove_button_deletes_the_selected_block_and_caption_with_undo() {
     for caption in ["", ", caption: [Le parc.]"] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |data| {
+        fixture(&mut app, |data| {
             data.document = Document::from_source(&format!(
                 "Avant.\n\n#figure(image(\"images/parc.svg\"){caption})\n\nAprès."
             ))
             .unwrap();
         });
-        fixture(&mut app.document.engine, |data| {
+        fixture(&mut app, |data| {
             data.document.assets.insert(
                 "images/parc.svg".into(),
                 include_bytes!("../../../../../fixtures/parc.svg")
@@ -177,7 +177,7 @@ fn image_remove_button_deletes_the_selected_block_and_caption_with_undo() {
 #[test]
 fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.document = Document::from_source("Avant.\n\nAprès.").unwrap();
     });
     app.document.selection = editor::cursor(6..6);
@@ -294,7 +294,7 @@ fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
 #[test]
 fn images_insert_edit_caption_replace_undo_and_reopen_without_original_file() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.document = Document::from_source("Avant.\n\nAprès.").unwrap();
     });
     app.document.selection = editor::cursor(6..6);

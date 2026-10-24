@@ -201,10 +201,18 @@ impl App {
             self.select_description_term(at);
         }
         self.editor_spelling(ui, &output, &frame.view);
-        if self.preview.editor_scroll_pending {
+        if self
+            .preview
+            .sync
+            .take_editor_action(&self.document.engine)
+            .is_some()
+        {
             if self.search_focus(ui.ctx()).is_none() {
                 output.response.request_focus();
             }
+            // Le placement du TextEdit emploie son curseur natif courant,
+            // y compris avant validation de la saisie de cette frame. La
+            // demande commune porte toujours sur la sélection publiée.
             let cursor = output
                 .galley
                 .pos_from_cursor(self.document.selection.primary);
@@ -212,7 +220,6 @@ impl App {
                 cursor.translate(output.galley_pos.to_vec2()),
                 Some(egui::Align::Center),
             );
-            self.preview.editor_scroll_pending = false;
         }
         let image_action = editor::paint_images(
             ui,
@@ -248,7 +255,7 @@ impl App {
                 .expect("native cursor in the published projection");
         }
         if self.document.selection != old_range {
-            self.preview.forward_pending = true;
+            self.view_selection_changed(ViewOrigin::User);
             ui.ctx().request_repaint();
         }
         image_action

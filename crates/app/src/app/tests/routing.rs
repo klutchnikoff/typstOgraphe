@@ -5,7 +5,7 @@ use crate::{
 };
 
 fn body(app: &mut App, source: &str, range: Range<usize>) {
-    fixture(&mut app.document.engine, |data| {
+    fixture(app, |data| {
         data.document = Document::from_source(source).unwrap();
     });
     app.document.selection = editor::cursor(range);

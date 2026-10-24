@@ -141,8 +141,7 @@ impl App {
                 error: None,
                 revision: None,
                 render: None,
-                forward_pending: true,
-                editor_scroll_pending: false,
+                sync: ViewSync::default(),
             },
             search: SearchState::default(),
             spelling: SpellingState {

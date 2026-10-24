@@ -2,7 +2,7 @@ use super::*;
 
 fn editing(source: &str, range: Range<usize>) -> (egui::Context, App) {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.document = Document::from_source(source).unwrap();
     });
     app.document

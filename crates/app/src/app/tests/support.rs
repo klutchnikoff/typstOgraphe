@@ -98,7 +98,8 @@ pub(super) struct Fixture {
     pub dependencies: crate::packages::Dependencies,
     pub file_path: Option<PathBuf>,
 }
-pub(super) fn fixture(engine: &mut crate::engine::Engine, setup: impl FnOnce(&mut Fixture)) {
+pub(super) fn fixture(app: &mut App, setup: impl FnOnce(&mut Fixture)) {
+    let engine = &app.document.engine;
     let mut data = Fixture {
         document: engine.document().clone(),
         metadata: engine.metadata().clone(),
@@ -120,7 +121,7 @@ pub(super) fn fixture(engine: &mut crate::engine::Engine, setup: impl FnOnce(&mu
                 });
         }
     }
-    *engine = crate::engine::Engine::from_stored(
+    app.document.engine = crate::engine::Engine::from_stored(
         StoredDocument {
             source: data.document.source().into(),
             metadata: data.metadata,
@@ -131,6 +132,48 @@ pub(super) fn fixture(engine: &mut crate::engine::Engine, setup: impl FnOnce(&mu
         data.file_path,
     )
     .unwrap();
+    // Construire une identité neuve doit aussi être signalé à la vue. Les tests
+    // peuvent encore préparer leur curseur natif après cette fixture.
+    let selection = app
+        .document
+        .engine
+        .selection_target(app.document.engine.selection())
+        .unwrap();
+    app.preview.sync.apply(ViewEvent::DocumentReplaced {
+        selection: Some(selection),
+    });
+}
+
+pub(super) fn preview_location(app: &App, index: usize) -> PagePoint {
+    let target = app
+        .document
+        .engine
+        .selection_target(editor::to_core(editor::cursor(index..index)))
+        .unwrap();
+    app.document
+        .engine
+        .locate(crate::engine::LocateParams {
+            render: app.preview.render.as_ref().unwrap().reference,
+            position: crate::engine::RenderPosition::ToPreview {
+                target: target.into(),
+            },
+        })
+        .unwrap()
+        .point
+        .unwrap()
+}
+
+pub(super) fn compile_preview(app: &mut App) {
+    let info = app
+        .document
+        .engine
+        .compile(crate::engine::GuardParams {
+            guard: app.document.engine.target_guard(),
+        })
+        .unwrap()
+        .render
+        .unwrap();
+    app.install_preview_render(info);
 }
 pub(super) fn insert_fixture_text(app: &mut App, text: &str) {
     let target = app

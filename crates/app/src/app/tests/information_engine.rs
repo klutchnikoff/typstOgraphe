@@ -95,6 +95,7 @@ fn custom_marker_drafts_remain_local_until_valid_then_match_guarded_json_and_und
     );
     app.install_model(template).unwrap();
     app.document.engine = Engine::from_stored(app.stored_document(), None).unwrap();
+    app.reset_view_sync();
     let mut engine: Engine =
         crate::engine::Engine::from_stored(app.stored_document(), None).unwrap();
     engine

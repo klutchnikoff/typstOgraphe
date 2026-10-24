@@ -4,7 +4,7 @@ use crate::engine::{Command as Core, InsertTextParams, TargetParams, TextTarget}
 
 fn editing() -> (egui::Context, App) {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.document = Document::from_source("Un *été*.").unwrap();
     });
     app.document.selection = editor::cursor(3..6);

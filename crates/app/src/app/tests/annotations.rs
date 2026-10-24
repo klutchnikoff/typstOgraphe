@@ -9,10 +9,10 @@ fn tab_places_the_native_caret_on_each_empty_annotation_placeholder() {
         let (ctx, mut app) = demo_app();
         // Vérifier la géométrie réellement peinte, indépendamment du clignotement.
         ctx.all_styles_mut(|style| style.visuals.text_cursor.blink = false);
-        fixture(&mut app.document.engine, |data| {
+        fixture(&mut app, |data| {
             data.document = Document::from_source(source).unwrap();
         });
-        fixture(&mut app.document.engine, |data| {
+        fixture(&mut app, |data| {
             data.document.assets.insert(
                 "images/parc.svg".into(),
                 include_bytes!("../../../../../fixtures/parc.svg")
@@ -115,7 +115,7 @@ fn annotation_navigation_and_exit_preserve_content_selection_and_undo() {
         "#quote(block: true, attribution: [Été *à Paris*.])[Une pensée.]\n\nSuite.",
     ] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |data| {
+        fixture(&mut app, |data| {
             data.document = Document::from_source(source).unwrap();
         });
         let annotation = app.document.engine.document().view.annotations().remove(0);
@@ -202,7 +202,7 @@ fn annotation_navigation_scrolls_to_the_target_in_both_structures() {
         format!("#quote(block: true)[{}]", "Une pensée.\n\n".repeat(80)),
     ] {
         let (ctx, mut app) = demo_app();
-        fixture(&mut app.document.engine, |data| {
+        fixture(&mut app, |data| {
             data.document = Document::from_source(&source).unwrap();
         });
         let annotation = app.document.engine.document().view.annotations().remove(0);

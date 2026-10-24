@@ -25,6 +25,7 @@ mod search;
 mod signature;
 mod spelling;
 mod text_input;
+mod view_coordination;
 use crate::{
     commands::{FileCommand, Keymap, Registry, ShortcutOverrides, UiCommand as Command},
     document::{BlockKind, Document, DocumentLanguage, PaperFormat, Projection},
@@ -34,6 +35,7 @@ use crate::{
     preferences::{Appearance, EditorFont, Preferences},
     rendering::RenderWorker,
     storage::{self, StoredDocument},
+    view_sync::{RevealDestination, ViewAction, ViewEvent, ViewOrigin, ViewSync},
 };
 use eframe::egui::{
     self, Color32, RichText,

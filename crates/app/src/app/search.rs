@@ -64,7 +64,7 @@ impl App {
                 part: None,
             }))
         {
-            self.preview.editor_scroll_pending = true;
+            self.request_view_reveal(RevealDestination::Editor);
         }
     }
     pub(super) fn navigate_search(&mut self, backward: bool) {

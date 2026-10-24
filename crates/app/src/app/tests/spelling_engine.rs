@@ -85,7 +85,7 @@ fn spelling_navigation_ignore_reset_and_history_match_json_commands() {
         app.apply(ui);
         run(&mut engine, id, json!({}));
         equivalent(&app, &engine);
-        assert!(app.preview.editor_scroll_pending);
+        assert!(app.preview.sync.editor_pending());
     }
     let personal = app.preferences.spelling.clone();
     let issue = selected(&engine);

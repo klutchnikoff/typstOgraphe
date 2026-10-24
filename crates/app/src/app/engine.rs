@@ -22,6 +22,7 @@ impl App {
             .document
             .engine
             .set_adapter_selection(editor::to_core(self.document.selection));
+        self.publish_view_selection();
     }
     pub(super) fn execute_document_command(
         &mut self,
@@ -78,17 +79,12 @@ impl App {
             preserve_focus = source == self.document.engine.document().source()
                 && selection == self.document.selection;
         }
-        if outcome
-            .effects
-            .contains(&crate::engine::Effect::RevealSelection)
-        {
-            self.preview.editor_scroll_pending = true;
-        }
+        self.preview.sync.apply(ViewEvent::CommandCompleted {
+            result: (&outcome).into(),
+            origin: ViewOrigin::User,
+        });
         if !preserve_focus {
             self.document.force_selection = true;
-        }
-        if outcome.changed || !outcome.effects.contains(&crate::engine::Effect::Saved) {
-            self.preview.forward_pending = true;
         }
         if self.search.open {
             self.refresh_search();
@@ -145,7 +141,7 @@ impl App {
             trigger,
             Command::InsertPostscript | Command::InsertAttachment
         ) {
-            self.preview.editor_scroll_pending = true;
+            self.request_view_reveal(RevealDestination::Editor);
         }
     }
 }

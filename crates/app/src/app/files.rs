@@ -134,6 +134,7 @@ impl App {
         self.document.engine = crate::engine::Engine::from_stored(letter, path)
             .map_err(|e| Self::command_error_text(&e))?;
         self.after_document_replaced();
+        self.reset_view_sync();
         Ok(())
     }
     pub(super) fn after_document_replaced(&mut self) {
@@ -163,8 +164,6 @@ impl App {
         self.document.presentation = ModelPresentation::default();
         self.document.selection = CCursorRange::one(CCursor::new(0));
         self.document.force_selection = true;
-        self.preview.editor_scroll_pending = true;
-        self.preview.forward_pending = true;
         self.preview.pages.clear();
         self.preview.render = None;
         self.preview.error = None;

@@ -66,7 +66,7 @@ fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
 fn egui_file_menu_exports_and_quit_preserves_unsaved_work_without_header_duplicates() {
     let (ctx, mut app) = demo_app();
     let dir = tempfile::tempdir().unwrap();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.file_path = Some(dir.path().join("exemple.typsto"));
     });
     let source = app.document.engine.document().source().to_owned();
@@ -174,10 +174,10 @@ fn save_reopen_restores_the_letter_and_failed_open_preserves_current_work() {
     app.apply(Command::Undo);
     assert!(!app.is_dirty());
     set_subject(&mut app, "Objet personnalisé");
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.template = Model::Personal.source();
     });
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.template.push_str("\n// Modèle embarqué personnalisé");
     });
     insert_fixture_text(&mut app, "Élodie : ");

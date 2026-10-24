@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn large_page_textures_fit_the_context_limit_and_keep_typst_coordinates() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.template =
             "#let courrier(..args, body) = { set page(paper: \"a3\", flipped: true); body }".into();
     });
@@ -40,7 +40,7 @@ fn large_page_textures_fit_the_context_limit_and_keep_typst_coordinates() {
             < 0.002
     );
     assert_eq!(app.preview.render.as_ref().unwrap().pages[0], page_size);
-    assert_eq!(app.preview_location(10).unwrap().point, location.point);
+    assert_eq!(preview_location(&app, 10).point, location.point);
 
     // Les pages déjà compatibles gardent exactement leurs pixels prémultipliés.
     let page = crate::rendering::PageImage {
@@ -144,7 +144,7 @@ fn column_drag_and_window_resize_keep_the_chosen_proportion_without_a_preview_ca
 #[test]
 fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.document =
             Document::from_source(&"Un paragraphe à retrouver.\n\n".repeat(100)).unwrap();
     });
@@ -163,23 +163,23 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
             egui::TextureOptions::LINEAR,
         ));
     }
-    app.preview.render = Some(
-        app.document
-            .engine
-            .install_render(
-                app.document.engine.target_guard(),
-                crate::navigation::RenderSync::new(
-                    app.document.engine.revision(),
-                    world,
-                    rendered,
-                    app.document.engine.document().source_map.clone(),
-                ),
-            )
-            .unwrap(),
-    );
-    let end = app.document.engine.document().view.len() - 12;
+    let info = app
+        .document
+        .engine
+        .install_render(
+            app.document.engine.target_guard(),
+            crate::navigation::RenderSync::new(
+                app.document.engine.revision(),
+                world,
+                rendered,
+                app.document.engine.document().source_map.clone(),
+            ),
+        )
+        .unwrap();
+    app.install_preview_render(info);
+    let mut end = app.document.engine.document().view.len() - 12;
     app.document.selection = editor::cursor(end..end);
-    let location = app.preview_location(end).unwrap();
+    let mut location = preview_location(&app, end);
 
     let mut draw_pane = |preview: bool, time: f64| {
         let mut offset = 0.0;
@@ -216,30 +216,22 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
     }
     assert!(offset > 1000.0, "preview offset {offset}");
 
+    // Une vraie édition périme le rendu ; la référence gardée reste intacte.
+    insert_fixture_text(&mut app, "Suite ");
     app.document.selection = editor::cursor(0..0);
-    app.preview
-        .render
-        .as_mut()
-        .unwrap()
-        .reference
-        .guard
-        .revision += 1;
     app.navigate_backward(location, &ctx);
     assert_eq!(app.document.selection.primary.index, 0);
-    app.preview
-        .render
-        .as_mut()
-        .unwrap()
-        .reference
-        .guard
-        .revision -= 1;
-    app.preview.error = Some("essai".into());
+    compile_preview(&mut app);
+    end = app.document.engine.document().view.len() - 12;
+    location = preview_location(&app, end);
+    app.preview_failed("essai".into());
     app.navigate_backward(location, &ctx);
     assert_eq!(app.document.selection.primary.index, 0);
-    app.preview.error = None;
+    let info = app.preview.render.clone().unwrap();
+    app.install_preview_render(info);
     app.navigate_backward(location, &ctx);
     assert!(app.document.selection.primary.index.abs_diff(end) <= 1);
-    assert!(!app.preview.forward_pending);
+    assert!(!app.preview.sync.preview_pending());
 
     for i in 10..20 {
         let _ = ctx.run(
@@ -263,8 +255,8 @@ fn synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders() {
     assert!(offset > 1000.0, "editor offset {offset}");
     assert!(ctx.memory(|m| m.has_focus(egui::Id::new(editor::EDITOR_ID))));
     assert!(app.document.selection.primary.index.abs_diff(end) <= 1);
-    assert!(!app.preview.editor_scroll_pending);
-    assert!(!app.preview.forward_pending);
+    assert!(!app.preview.sync.editor_pending());
+    assert!(!app.preview.sync.preview_pending());
 }
 
 #[test]
@@ -285,20 +277,20 @@ fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
     );
     let texture_id = texture.id();
     app.preview.pages = vec![texture];
-    app.preview.render = Some(
-        app.document
-            .engine
-            .install_render(
-                app.document.engine.target_guard(),
-                crate::navigation::RenderSync::new(
-                    app.document.engine.revision(),
-                    world,
-                    rendered,
-                    app.document.engine.document().source_map.clone(),
-                ),
-            )
-            .unwrap(),
-    );
+    let info = app
+        .document
+        .engine
+        .install_render(
+            app.document.engine.target_guard(),
+            crate::navigation::RenderSync::new(
+                app.document.engine.revision(),
+                world,
+                rendered,
+                app.document.engine.document().source_map.clone(),
+            ),
+        )
+        .unwrap();
+    app.install_preview_render(info);
     app.preview.submitted = app.document.engine.revision();
     app.preview.revision = Some(app.document.engine.revision());
     let index = app
@@ -314,7 +306,7 @@ fn double_click_on_the_scaled_preview_returns_focus_to_the_editor() {
                 .count()
         })
         .unwrap();
-    let location = app.preview_location(index).unwrap();
+    let location = preview_location(&app, index);
     let size = app.preview.render.as_ref().unwrap().pages[location.page];
     let draw = |app: &mut App, time, events| {
         ctx.run(
@@ -395,20 +387,20 @@ fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
         egui::ColorImage::new([2, 3], vec![Color32::WHITE; 6]),
         egui::TextureOptions::LINEAR,
     )];
-    app.preview.render = Some(
-        app.document
-            .engine
-            .install_render(
-                app.document.engine.target_guard(),
-                crate::navigation::RenderSync::new(
-                    app.document.engine.revision(),
-                    world,
-                    rendered,
-                    app.document.engine.document().source_map.clone(),
-                ),
-            )
-            .unwrap(),
-    );
+    let info = app
+        .document
+        .engine
+        .install_render(
+            app.document.engine.target_guard(),
+            crate::navigation::RenderSync::new(
+                app.document.engine.revision(),
+                world,
+                rendered,
+                app.document.engine.document().source_map.clone(),
+            ),
+        )
+        .unwrap();
+    app.install_preview_render(info);
     app.preview.submitted = app.document.engine.revision();
     app.preview.revision = Some(app.document.engine.revision());
     let byte = app
@@ -462,24 +454,14 @@ fn preview_paints_selection_at_page_scale_and_clears_it_when_unavailable() {
     app.document.selection = editor::cursor(index..index);
     assert!(draw(&mut app, 400.0).is_empty());
     app.document.selection = editor::cursor(index..index + 5);
-    app.preview
-        .render
-        .as_mut()
-        .unwrap()
-        .reference
-        .guard
-        .revision += 1;
+    insert_fixture_text(&mut app, "Suite ");
     assert!(draw(&mut app, 400.0).is_empty());
-    app.preview
-        .render
-        .as_mut()
-        .unwrap()
-        .reference
-        .guard
-        .revision -= 1;
-    app.preview.error = Some("essai".into());
+    compile_preview(&mut app);
+    app.document.selection = editor::cursor(index + 6..index + 11);
+    app.preview_failed("essai".into());
     assert!(draw(&mut app, 400.0).is_empty());
-    app.preview.error = None;
+    let info = app.preview.render.clone().unwrap();
+    app.install_preview_render(info);
     assert!(!draw(&mut app, 400.0).is_empty());
 }
 
@@ -492,6 +474,7 @@ fn render_responses_are_guarded_by_document_identity_even_at_the_same_revision()
         crate::rendering::render(&mut crate::rendering::TypstWorld::default(), &request).unwrap();
     let stored = app.stored_document();
     app.document.engine = crate::engine::Engine::from_stored(stored.clone(), None).unwrap();
+    app.reset_view_sync();
     assert_ne!(app.document.engine.target_guard(), old_guard);
     let (sender, _requests) = std::sync::mpsc::channel();
     let (responses, receiver) = std::sync::mpsc::channel();

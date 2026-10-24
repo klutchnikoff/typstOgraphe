@@ -6,6 +6,7 @@ impl App {
             while self.preview.worker.receiver.try_recv().is_ok() {}
             return;
         }
+        self.publish_view_selection();
         while let Ok(response) = self.preview.worker.receiver.try_recv() {
             match response.result {
                 Ok(rendered) => {
@@ -40,15 +41,13 @@ impl App {
                             .collect();
                         self.preview.elapsed = Some(rendered.elapsed);
                         self.document.presentation = rendered.presentation;
-                        self.preview.error = None;
                         self.preview.revision = Some(response.guard.revision);
-                        self.preview.render = Some(info);
-                        self.preview.forward_pending = true;
+                        self.install_preview_render(info);
                     }
                 }
                 Err(error) => {
                     if response.guard == self.document.engine.target_guard() || response.is_export {
-                        self.preview.error = Some(crate::i18n::error(&error));
+                        self.preview_failed(crate::i18n::error(&error));
                         self.preview.revision = Some(response.guard.revision);
                     }
                 }
@@ -67,7 +66,9 @@ impl App {
             };
             match self.preview.worker.sender.send(request) {
                 Ok(()) => self.preview.submitted = self.document.engine.revision(),
-                Err(_) => self.preview.error = Some(crate::tr!("renderer-stopped")),
+                Err(_) => {
+                    self.preview_failed(crate::tr!("renderer-stopped"));
+                }
             }
         }
         if self.preview.revision != Some(self.document.engine.revision()) {
@@ -76,37 +77,16 @@ impl App {
     }
     pub(super) fn preview_ui(&mut self, ui: &mut egui::Ui) {
         self.preview_header(ui);
-        let current = self.sync_is_current();
-        let target = self
-            .document
-            .engine
-            .selection_target(editor::to_core(self.document.selection))
-            .ok();
-        let highlights = if current {
-            self.preview
-                .render
-                .as_ref()
-                .zip(target)
-                .and_then(|(render, target)| {
-                    self.document
-                        .engine
-                        .selection_boxes(crate::engine::SelectionBoxesParams {
-                            render: render.reference,
-                            target: target.into(),
-                        })
-                        .ok()
-                })
-                .map(|result| result.boxes)
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-        let target = if self.preview.forward_pending && current {
-            self.preview.forward_pending = false;
-            self.preview_location(self.document.selection.primary.index)
-        } else {
-            None
-        };
+        self.publish_view_selection();
+        let mut highlights = vec![];
+        let mut target = None;
+        for action in self.preview.sync.preview_actions(&self.document.engine) {
+            match action {
+                ViewAction::Highlights { boxes, .. } => highlights = boxes,
+                ViewAction::RevealInPreview { point, .. } => target = Some(point),
+                ViewAction::RevealInEditor { .. } => unreachable!("preview actions only"),
+            }
+        }
         let mut clicked = None;
         egui::ScrollArea::vertical()
             .id_salt("preview-scroll")
@@ -172,8 +152,7 @@ impl App {
                                     ui.scroll_to_rect(passage, Some(egui::Align::Center));
                                 }
                             }
-                            if current
-                                && response.double_clicked()
+                            if response.double_clicked()
                                 && let Some(pointer) = response.interact_pointer_pos()
                             {
                                 let relative = pointer - response.rect.min;
@@ -222,55 +201,27 @@ impl App {
             });
         }
     }
-    fn sync_is_current(&self) -> bool {
-        self.preview.error.is_none()
-            && self
-                .preview
-                .render
-                .as_ref()
-                .is_some_and(|render| render.reference.guard == self.document.engine.target_guard())
+    pub(super) fn install_preview_render(&mut self, info: crate::engine::RenderInfo) {
+        self.publish_view_selection();
+        self.preview.sync.apply(ViewEvent::RenderInstalled {
+            render: info.reference,
+        });
+        self.preview.render = Some(info);
+        self.preview.error = None;
     }
-    pub(super) fn preview_location(&self, character: usize) -> Option<PagePoint> {
-        let render = self.preview.render.as_ref()?.reference;
-        let caret = crate::engine::Caret {
-            index: character,
-            ..Default::default()
-        };
-        let target = self
-            .document
-            .engine
-            .selection_target(crate::engine::Selection {
-                primary: caret,
-                secondary: caret,
-            })
-            .ok()?;
-        self.document
-            .engine
-            .locate(crate::engine::LocateParams {
-                render,
-                position: crate::engine::RenderPosition::ToPreview {
-                    target: target.into(),
-                },
-            })
-            .ok()?
-            .point
+    pub(super) fn preview_failed(&mut self, error: String) {
+        self.preview.error = Some(error);
+        // Même statut pour l'ancienne branche d'export : l'erreur affichée
+        // rendait la synchronisation indisponible, quelle que soit son origine.
+        self.preview.sync.apply(ViewEvent::RenderFailed {
+            guard: self.document.engine.target_guard(),
+        });
     }
     pub(super) fn navigate_backward(&mut self, location: PagePoint, ctx: &egui::Context) {
-        if !self.sync_is_current() {
-            return;
-        }
-        let Some(render) = self.preview.render.as_ref() else {
-            return;
-        };
         let target = self
-            .document
-            .engine
-            .locate(crate::engine::LocateParams {
-                render: render.reference,
-                position: crate::engine::RenderPosition::ToSource { point: location },
-            })
-            .ok()
-            .and_then(|result| result.target);
+            .preview
+            .sync
+            .preview_target(&self.document.engine, location);
         if let Some(target) = target {
             if self.run_document_command(crate::engine::Command::SelectText(
                 crate::engine::SelectTextParams {
@@ -278,8 +229,7 @@ impl App {
                     part: None,
                 },
             )) {
-                self.preview.editor_scroll_pending = true;
-                self.preview.forward_pending = false;
+                self.view_selection_changed(ViewOrigin::Preview);
             }
             ctx.request_repaint();
         }

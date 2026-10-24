@@ -46,7 +46,7 @@ fn creation_and_template_import_preserve_the_type_and_use_unified_history() {
 #[test]
 fn information_and_presentations_work_from_palette_and_custom_shortcuts() {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.template.push_str("\n// modèle embarqué");
     });
     let source = app.document.engine.document().source().to_owned();
@@ -141,7 +141,7 @@ fn information_and_presentations_work_from_palette_and_custom_shortcuts() {
 fn remove_link_keeps_other_styles_and_selection_and_can_be_undone() {
     let ctx = egui::Context::default();
     let mut app = App::with_demo_context(ctx, None);
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.document = Document::from_source(
             "Avant #link(\"https://example.org\")[*Élodie* et _Noël_] après.",
         )
@@ -258,11 +258,11 @@ fn cross_paragraph_formatting_undo_restores_source_and_selection() {
 fn changing_model_restores_automatic_markers_without_altering_the_body() {
     let ctx = egui::Context::default();
     let mut app = App::with_demo_context(ctx, None);
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.template.push_str("\n// modèle personnalisé");
     });
     let source = app.document.engine.document().source().to_owned();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.metadata.options_mut().bullet_marker = Some("◆".into());
     });
     app.document.presentation.custom_bullet_marker = true;

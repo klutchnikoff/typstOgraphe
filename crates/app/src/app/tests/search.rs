@@ -146,20 +146,20 @@ fn incremental_search_keeps_one_selection_and_clicking_another_result_updates_pr
             app.document.engine.template(),
         )
         .unwrap();
-    app.preview.render = Some(
-        app.document
-            .engine
-            .install_render(
-                app.document.engine.target_guard(),
-                crate::navigation::RenderSync::new(
-                    app.document.engine.revision(),
-                    world,
-                    compiled,
-                    app.document.engine.document().source_map.clone(),
-                ),
-            )
-            .unwrap(),
-    );
+    let info = app
+        .document
+        .engine
+        .install_render(
+            app.document.engine.target_guard(),
+            crate::navigation::RenderSync::new(
+                app.document.engine.revision(),
+                world,
+                compiled,
+                app.document.engine.document().source_map.clone(),
+            ),
+        )
+        .unwrap();
+    app.install_preview_render(info);
     app.preview.revision = Some(app.document.engine.revision());
     let _ = search_draw(&mut app, &ctx, vec![]);
     let key = |key, modifiers| egui::Event::Key {

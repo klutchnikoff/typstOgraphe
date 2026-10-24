@@ -175,7 +175,7 @@ impl App {
                     );
                     self.accept_edit(result, draft.before.selection());
                     self.document.ime.reset_cursor = true;
-                    self.preview.forward_pending = true;
+                    self.request_view_reveal(RevealDestination::Preview);
                     if self.search.open {
                         self.refresh_search();
                     }

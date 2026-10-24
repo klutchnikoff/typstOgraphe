@@ -27,6 +27,7 @@ impl App {
         };
         self.document.force_selection |= adjusted != editor::to_core(self.document.selection);
         self.document.selection = editor::to_editor(adjusted);
+        self.publish_view_selection();
         true
     }
     pub(super) fn edit_error_text(error: crate::document::edits::EditError) -> String {

@@ -40,8 +40,7 @@ pub(super) struct PreviewState {
     pub(super) error: Option<String>,
     pub(super) revision: Option<u64>,
     pub(super) render: Option<crate::engine::RenderInfo>,
-    pub(super) forward_pending: bool,
-    pub(super) editor_scroll_pending: bool,
+    pub(super) sync: ViewSync,
 }
 
 pub(super) struct FileState {

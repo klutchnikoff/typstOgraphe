@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 
 pub(super) fn pair(source: &str, range: Range<usize>) -> (egui::Context, App, Engine) {
     let (ctx, mut app) = demo_app();
-    fixture(&mut app.document.engine, |data| {
+    fixture(&mut app, |data| {
         data.document = Document::from_source(source).unwrap();
     });
     app.document.selection = editor::cursor(range);
