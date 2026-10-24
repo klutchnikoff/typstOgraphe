@@ -225,6 +225,9 @@ Le modèle conserve son rôle de présentation.
 `document.batch` reçoit `document` et des étapes `{ id, params }`. Les gardes des
 étapes sont calculées sur le brouillon courant ; `params.selector` permet de cibler
 un élément créé plus tôt. Une erreur ne publie rien ; un lot réussi s’annule une fois.
+Chaque `params` est un **objet JSON**, comme dans l'appel de l'outil correspondant,
+sans `document` ni `guard` extérieur. Le schéma MCP exprime cette contrainte ; la
+fiche de chaque outil décrit les champs de cet objet.
 
 Le champ `save` est facultatif. Pour une sauvegarde finale explicite :
 

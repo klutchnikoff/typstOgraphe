@@ -766,6 +766,10 @@ exports PDF/Typst et rendu PNG dédié, identique au PNG de la même page export
 
 ## Phase 5 — MCP (taille M)
 
+**Terminée le 24 octobre 2026.** [Recette finale](docs/mcp-acceptance.md) :
+inspecteur officiel et agent sans skill ni lecture du dépôt jusqu’à l’export,
+avec scénario de régression rejoué dans la CI.
+
 **But** : un assistant IA pilote le moteur par le même registre, avec des garde-fous.
 
 **Choix validés le 24 octobre 2026 : D25 à D28.** Premier lot : prototype `rmcp`
@@ -843,7 +847,7 @@ liens résolus avant contrôle, enregistrement explicite). À notre manière :
 - [x] Les éditions discrètes et lots d’agent passent par l’historique partagé :
   une transaction annulable lorsqu’ils modifient le document. La sélection et les
   lectures n’ajoutent pas d’édition ; les écritures disque ne sont pas annulées.
-  Le test avec un agent réel reste un critère d’acceptation distinct.
+  La recette avec un agent réel est consignée séparément dans [le bilan](docs/mcp-acceptance.md).
 
 ### 5.4 Tests
 
@@ -859,11 +863,15 @@ liens résolus avant contrôle, enregistrement explicite). À notre manière :
 - [x] **Parcours documentaire de bout en bout** : un courrier mis en forme uniquement
   par appels MCP, sauvegardé/réouvert et exporté en PDF et sources Typst autonomes.
   Tests SDK et trace protocolaire conservée.
-- [ ] **Test d’acceptation avec un agent/LLM**, sans skill ni lecture du dépôt,
-  jusqu’à l’export du courrier.
-- [ ] Essai manuel avec un client réel :
-  `claude mcp add typstographe -- typstographe-cli mcp --write-root ./sortie`
-  et avec l'inspecteur MCP.
+- [x] **Test d’acceptation avec un agent/LLM**, sans skill ni lecture du dépôt,
+  jusqu’à l’export du courrier : 27 appels d'outils sans erreur applicative,
+  aperçu, sauvegarde, PDF/Typst/PNG et réouverture. Consigne d'accès limitée à MCP,
+  pas de sandbox OS de l'agent. [Méthode et résultats](docs/mcp-acceptance.md).
+- [x] Essai avec un client réel : inspecteur officiel 2.12.0 en interface web
+  (types, création, ressources) et client persistant `mcpdo` pour l'agent.
+  Contrôle CLI strict sans erreur de schéma ; avertissements de nullabilité documentés.
+  Le scénario déterministe issu du courrier est inclus dans la CI des trois systèmes ;
+  l'essai LLM et l'inspecteur graphique ont été réalisés sur macOS.
 - [x] `docs/mcp.md` : outils, politique de fichiers, verrous/copies, sauvegardes,
   exports, ressources et exemples liés. Les 68 capacités et 3 helpers ont une fiche explicite.
 

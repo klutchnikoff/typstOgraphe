@@ -1,7 +1,9 @@
 # Phase 5 — MCP documentaire
 
 Décisions du 24 octobre 2026 : D11/D12, D25–D28 et complément D14 dans
-[la feuille de route](../ROADMAP-ARCHITECTURE.md). La phase est en cours.
+[la feuille de route](../ROADMAP-ARCHITECTURE.md). **Phase terminée le 24 octobre 2026.**
+La [recette finale](mcp-acceptance.md) distingue essai avec un agent, inspecteur
+et scénario automatisé rejoué dans la CI.
 
 ## Contrat validé
 
@@ -269,12 +271,49 @@ refusées ; le SDK adapte l’erreur de ressource inconnue à la version du prot
 
 Les journaux du lot sont conservés dans `output/phase-5-docs-*.log`.
 
-## Lots suivants
+## Quatrième lot — recette et clôture
 
-1. Relecture finale des critères et essai dans l’inspecteur MCP.
-2. Test d’acceptation avec un agent/LLM : découvrir les capacités, créer, rédiger,
-   vérifier et exporter un courrier sans skill ni consultation du dépôt. Consigner
-   les défauts éventuels et les corriger avant de clore la phase 5.
+Livré le 24 octobre 2026. L'inspecteur officiel **2.12.0**, en interface web,
+se connecte sur stdio en MCP 2025-11-25 : 67 outils, cinq ressources, découverte des
+types, création d'un courrier et lecture de son instantané. Son contrôle CLI strict
+passe sans erreur après correction du schéma des paramètres de `document.batch`.
+Les avertissements restants portent sur les unions de types avec `null`, valides
+mais inégalement acceptées par les fournisseurs de modèles.
+
+Un agent dans un contexte neuf a rédigé un courrier à partir d'une seule consigne
+métier, en découvrant ses outils et leur documentation **uniquement via MCP** :
+aucun skill ni lecture du dépôt. Il utilise une session autonome, via le client
+persistant officiel `mcpdo` et un mince relais d'invocation/journalisation.
+**27 appels d'outils, aucune erreur applicative**, validation prête pour l'export,
+aperçu inspecté, sauvegarde `.typsto`, export PDF/Typst/PNG et réouverture avec
+texte, source et métadonnées identiques. Il a repéré puis retiré le gras hérité
+dans le P.-S. et la mention de pièce jointe. Cette restriction d'accès de l'agent
+est une consigne d'essai, pas une sandbox du système d'exploitation.
+
+Deux défauts trouvés pendant la recette sont corrigés et couverts :
+
+- Schéma MCP de `document.batch` : les `params` d'étape sont annoncés comme des
+  objets, conformément au contrôle déjà appliqué à l'exécution. Le contrat gelé
+  du cœur reste inchangé ; les formes non objets et l'absence de publication
+  d'un lot invalide sont vérifiées.
+- Langue MCP par défaut : choisir l'anglais avant que la construction de l'aide
+  clap initialise le chargeur sur la langue du système. Les choix explicites
+  `--lang fr/en` sont conservés ; le test de processus vérifie les résumés.
+
+La fixture issue du courrier réel et `crates/cli/tests/mcp_acceptance.rs` rejouent
+le parcours sous les deux versions de protocole testées, avec des références
+obtenues par recherche, vérification des styles et annotations, PNG, export,
+sauvegarde et réouverture. Ce scénario déterministe s'exécute dans la CI sur les
+trois systèmes ; l'essai LLM et l'inspecteur graphique ont été réalisés sur macOS.
+Les sources exportées ont aussi été recompilées avec le CLI Typst 0.15.1, sans
+polices système, avec répertoires de packages/cache vides et sans téléchargement.
+
+Contrôles locaux : **435 tests Rust** (226 cœur, 139 application, 7 i18n,
+63 CLI), **14 tests Python**, formatage, Clippy toutes cibles, frontière du cœur et
+contrôle de taille passent. Pas de changement de l'interface graphique ni du cœur ;
+les huit captures de référence du troisième lot restent le dernier contrôle visuel
+de l'application. Les preuves de cette recette sont dans `output/phase-5-acceptance/` ;
+méthode, limites et commandes reproductibles dans [la recette](mcp-acceptance.md).
 
 ## Phase 6
 

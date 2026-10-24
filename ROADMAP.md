@@ -82,12 +82,16 @@ persistante de modèles restent à développer.
   les huit captures restent strictement identiques. La phase suivante est MCP,
   dont les choix ont été validés : outils issus du registre, découverte documentée
   sans skill requis, modèles décrits par nom/description/mots-clés, session autonome
-  et éditions gardées. **Phase 5 en cours : prototype `rmcp` stdio livré**, avec
+  et éditions gardées. **Phase 5 terminée le 24 octobre 2026 : serveur `rmcp` stdio livré**, avec
   découverte, éditions/lots et aperçu en mémoire. **Deuxième lot livré :** racines
   autorisées, ouvertures sous verrou, imports, sauvegarde explicite et export autonome.
   **Troisième lot livré :** fiches des capacités, exemples à références liées,
   schémas MCP vérifiés et cinq ressources, dont le document courant et les modèles.
-  L’essai dans l’inspecteur et avec un agent reste à réaliser. La phase 6
+  La [recette finale](docs/mcp-acceptance.md) valide l'inspecteur officiel et un agent
+  sans skill ni lecture du dépôt jusqu'à l'export du courrier et sa réouverture.
+  Deux corrections isolées portent sur le schéma des lots et la langue MCP par défaut ;
+  le courrier réel devient un scénario de régression. Prochaine étape : l'inventaire
+  K.1 du contrat d'interaction avant de préciser la phase 6. La phase 6
   aura pour objectif l’assistance à la composition dans la session de l’application.
   État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),
   décisions et lots MCP dans [celui de phase 5](docs/architecture-phase-5.md).
