@@ -136,12 +136,69 @@ affichés dans l’éditeur et le rendu. Les 14 tests Python d’architecture pa
 l’arbre des dépendances normales de la CLI ne contient ni egui, eframe, winit, muda
 ou rfd. Aucune dépendance supplémentaire n’a été ajoutée dans ce deuxième lot.
 
+## Troisième lot — scripts JSON atomiques
+
+Livré le **24 octobre 2026** :
+
+- `script job.json` ou `script -` lit une enveloppe stricte de version 1 : un document
+  à ouvrir ou créer, des étapes `{id, params, target?}` et une sauvegarde facultative.
+  Les champs inconnus sont refusés ; 1 à 256 étapes, 4 Mio maximum.
+- `document.kind: open` charge la dernière version enregistrée ; `new` utilise le
+  catalogue de types et modèles et les paramètres de création existants. Aucun
+  profil personnel n’est chargé implicitement.
+- Sans `save`, le résultat reste en mémoire et la réponse contient le source et les
+  métadonnées résultants avec `saved: false`. `save.kind: current` prend le verrou
+  avant la lecture ; `as` crée une nouvelle archive sans écraser une destination.
+  Une copie reste possible avec un écrivain actif sur l’original.
+- Les chemins des archives, modèles, images et signatures sont relatifs au dossier
+  canonique du script ; sur stdin, au répertoire courant. Le répertoire global de
+  travail ne change pas. Seuls les chemins des paramètres typés sont adaptés, jamais
+  les textes du document ou ses métadonnées.
+- Les sélecteurs facultatifs `target.select/occurrence` et `target.block` suivent les
+  règles de `run`. Ils sont résolus juste avant chaque étape, sur le brouillon
+  courant : une image ou du texte insérés plus tôt peuvent donc être ciblés ensuite.
+  Sans cible, la sélection courante continue entre les étapes, notamment pour
+  remplir un P.-S. ou une mention de P.J.
+- Le cœur expose `run_resolved_batch` pour préparer les cibles dans le véritable
+  brouillon privé. Il réutilise l’exécution, les contrôles de ressources et la
+  publication des lots existants : une seule transaction annulable, au plus une
+  sauvegarde finale, aucune sauvegarde intermédiaire. Les gardes sont calculées
+  dans le processus, sans références de session importées.
+- Les identifiants et leur éligibilité aux lots sont contrôlés avant le chargement
+  du document, puis les commandes résolues sont vérifiées dans le cœur. Fichiers,
+  export, historique, récupération, requêtes et lots imbriqués sont interdits dans
+  les étapes. Le budget couvre aussi les paramètres après résolution.
+- Une erreur tardive ou de sauvegarde conserve la session publiée et les octets du
+  fichier précédent. Les erreurs d’étape portent leur indice à partir de 0,
+  l’identifiant de commande et l’erreur d’origine ; les messages traduits numérotent
+  à partir de 1. Un compagnon de verrou vide peut subsister après l’échec.
+
+Le catalogue reste à **49 commandes et 19 requêtes**, avec les mêmes schémas :
+le résolveur est une API Rust pour les adaptateurs, l’enveloppe du script appartient
+à la CLI. `serde`, déjà utilisé dans le workspace, est réutilisé pour la décoder ;
+aucune nouvelle bibliothèque externe n’est introduite.
+
+Vérification locale : **396 tests Rust du workspace réussis** (223 cœur, 138 UI,
+7 i18n, 28 processus CLI). Les 3 nouveaux tests du cœur vérifient le brouillon évolutif,
+l’historique en une transaction, les échecs tardifs/finaux et la protection du
+résolveur. Les 8 nouveaux tests de processus couvrent le courrier complet, les modes
+aperçu/copie/sauvegarde, les verrous, les chemins depuis un autre répertoire, les
+images et leur nettoyage, la signature, stdin, l’enveloppe stricte et les limites.
+Formatage, Clippy sur toutes les cibles, 14 tests Python, frontière du cœur et
+limite de taille des fichiers de production passent. La CI distante reste à confirmer.
+
+Le script suivi dans `examples/cli/courrier.json` crée un courrier personnel avec
+expéditeur, destinataire, date fixe, objet, corps, gras, P.-S. et P.J. L’archive
+`output/courrier-script.typsto` est validée pour export, puis exportée séparément
+en PDF et Typst dans `output/courrier-script-export/`. Sa réouverture native et la
+capture `output/phase-4-script-courrier-gui.png` ont été inspectées. Les résultats
+JSON, captures et journaux du lot sont conservés dans `output/` (ignoré par Git).
+
 ## Suite
 
-1. Scripts versionnés : étapes `{id, params}`, chemins relatifs au script, limites
-   et atomicité du moteur réutilisées. Export distinct après enregistrement.
-2. Page PNG, retrait de `--render-demo` et adaptation des références visuelles,
-   puis scénario complet d’acceptation.
+Page PNG dédiée, retrait de `--render-demo` et adaptation des références visuelles,
+puis relecture finale des critères de sortie. Le scénario d’acceptation documentaire
+a été réalisé dans le troisième lot.
 
 Outils réutilisés : [clap](https://docs.rs/clap/4.6.7/clap/),
 [assert_cmd](https://docs.rs/assert_cmd/2.2.2/assert_cmd/),

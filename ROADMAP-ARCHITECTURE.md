@@ -664,7 +664,9 @@ Les vérifications Windows/Linux seront exécutées par la CI après la poussée
 validation et export réutilisent le moteur, avec verrou d’écriture et contrôle
 des modifications externes communs à l’UI. **Deuxième lot livré le même jour :**
 création depuis le catalogue, `query`/`run`, paramètres JSON bornés et cibles
-résolues dans la session ; aperçu, copie ou sauvegarde explicite. Détail et suite dans
+résolues dans la session ; aperçu, copie ou sauvegarde explicite. **Troisième lot
+livré le même jour :** scripts JSON versionnés, cibles résolues au fil du brouillon
+et une seule transaction avec sauvegarde finale facultative. Détail et suite dans
 [le bilan de phase 4](docs/architecture-phase-4.md).
 
 ### 4.1 Squelette
@@ -702,18 +704,21 @@ résolues dans la session ; aperçu, copie ou sauvegarde explicite. Détail et s
 - [x] Messages en français ou en anglais via `typstographe-i18n` (D7) : option `--lang fr|en`,
   les codes du JSON restent identiques. **Langue par défaut : celle du système, avec repli
   en anglais**, comme l'application (décidé le 21 octobre 2026).
-- [ ] Format du script (`job.json`) versionné : `{ "version": 1, "document": …, "steps": [ {"id": …, "params": …} ] }`.
+- [x] Format du script (`job.json`) versionné : `{ "version": 1, "document": …, "steps": [ {"id": …, "params": …} ], "save": … }`.
+  Cibles portables facultatives par étape (`target.select/occurrence` ou `target.block`),
+  résolues sur le brouillon courant ; chemins relatifs au script, limites de 4 Mio et
+  256 étapes. Aperçu sans `save`, sauvegarde courante ou nouvelle copie sans écrasement.
 
 ### 4.4 Tests
 
 - [x] Tests d'intégration par processus (`assert_cmd`), inclus dans la CI des trois systèmes ;
   exécutés localement sur macOS, résultats distants à confirmer après la poussée.
-- [ ] Atomicité : une erreur de validation ou d’exécution, même à la dernière étape,
+- [x] Atomicité : une erreur de validation ou d’exécution, même à la dernière étape,
   laisse intacts la session publiée et le fichier précédent. Refuser `save`, `export`
   et les effets globaux dans les étapes ; tester ces refus et l’échec d’écriture finale.
-- [ ] Parité : pour un échantillon de commandes, résultat CLI = résultat de l'interface
+- [x] Parité : pour un échantillon de commandes, résultat CLI = résultat de l'interface
   (même `Engine`, comparaison du source Typst produit).
-- [ ] Fichier créé en CLI ouvert dans l'application et inversement.
+- [x] Fichier créé en CLI ouvert dans l'application et inversement.
 - [x] `docs/cli.md` généré depuis le registre, vérifié dans les tests exécutés par la CI.
 - [x] Création depuis le catalogue et appels génériques : paramètres JSON argument/fichier/stdin,
   limite 4 Mio, gardes automatiques, sélection exacte ou numéro de bloc, refus des références
@@ -722,6 +727,9 @@ résolues dans la session ; aperçu, copie ou sauvegarde explicite. Détail et s
 **Scénario d'acceptation** : créer un courrier, renseigner les métadonnées, insérer
 un paragraphe et un post-scriptum dans un script JSON, enregistrer, puis exporter en PDF
 par une commande distincte, sans fenêtre. L’export est hors transaction (D16/D23).
+**Réussi le 24 octobre 2026** avec `examples/cli/courrier.json`, puis réouverture
+native et inspection de la capture. La page PNG dédiée et le retrait de
+`--render-demo` restent à réaliser avant de clore la phase.
 
 ---
 

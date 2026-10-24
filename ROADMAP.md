@@ -75,7 +75,10 @@ persistante de modèles restent à développer.
 - **Architecture — phase 4 en cours.** Premier lot CLI : catalogue, inspection,
   vérification et exports sans fenêtre, avec protection des écritures concurrentes
   commune à l’application. Deuxième lot : création, `query`/`run`, cibles résolues
-  dans la session et enregistrement explicite. Scripts atomiques à suivre.
+  dans la session et enregistrement explicite. Troisième lot : scripts JSON atomiques,
+  avec cibles portables et sauvegarde finale facultative ; parcours courrier/P.-S./P.J.,
+  exports puis réouverture native vérifiés. Restent la page PNG dédiée et le retrait
+  du diagnostic `--render-demo` avant clôture de la phase.
   Choix validés et état détaillé dans [le bilan](docs/architecture-phase-4.md).
 
 - **Étape 1 — Récupération : implémentée ; essai utilisateur fait.** Les choix

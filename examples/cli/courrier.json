@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "document": {
+    "kind": "new",
+    "type": "courrier",
+    "params": {
+      "initial_values": [
+        { "field": "sender.name", "value": "Camille Martin" },
+        { "field": "sender.address", "value": "12 rue des Fleurs\n35000 Rennes" },
+        { "field": "recipient.name", "value": "Service des équipements" },
+        { "field": "recipient.address", "value": "1 place de la Mairie\n35000 Rennes" },
+        { "field": "letter.place", "value": "Rennes" },
+        { "field": "letter.date", "value": "2026-10-24" }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "id": "metadata.set",
+      "params": { "field": "letter.subject", "value": "Demande de réservation" }
+    },
+    {
+      "id": "text.insert",
+      "params": {
+        "text": "Madame, Monsieur,\n\nJe souhaite connaître les modalités de réservation de votre salle.\n\nJe vous remercie pour votre retour."
+      }
+    },
+    { "id": "text.bold", "target": { "select": "réservation" } },
+    { "id": "letter.insert_postscript" },
+    { "id": "text.insert", "params": { "text": "Vous pouvez me répondre par courrier." } },
+    { "id": "letter.insert_attachment" },
+    { "id": "text.insert", "params": { "text": "Formulaire de demande" } }
+  ],
+  "save": { "kind": "as", "path": "../../output/courrier-script.typsto" }
+}
