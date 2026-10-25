@@ -940,6 +940,10 @@ d’approbation n’est pas livré.
   à recalculer puis soumettre à nouveau. Publication atomique après accord seulement,
   interruptions et annulations, historique commun, effets selon l'origine,
   notification et action « Voir » après publication.
+  Préparation du 25 octobre : socle Rust `accept_proposal` livré et testé
+  (publication unique, contexte utilisateur conservé, garde exacte, aucun fichier
+  écrit). La [maquette et le protocole proposés](docs/mcp-proposals.md) restent
+  à valider avant intégration. Aucun outil MCP d’édition ajouté à ce stade.
 - [ ] **6.5 — Enregistrement et export.** Fichier courant, destinations autorisées,
   contrôle à l’exécution et décisions différées revalidées. Utiliser uniquement
   le document publié, jamais une proposition en attente.

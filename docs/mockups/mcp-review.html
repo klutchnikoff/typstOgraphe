@@ -1,0 +1,128 @@
+<style>
+#tog-review { --tog-bg:light-dark(#fafafa,#202124); --tog-panel:light-dark(#ffffff,#27282b); --tog-text:light-dark(#22252a,#ededee); --tog-muted:light-dark(#5b626b,#b5bac3); --tog-border:light-dark(#d6d8dd,#454850); --tog-control:light-dark(#efeff1,#34363b); --tog-accent:light-dark(#29567e,#9bc9ef); --tog-active:light-dark(#30465c,#c1d4e5); --tog-active-text:light-dark(#ffffff,#192532); --tog-add:light-dark(#e4f0e8,#263e30); --tog-remove:light-dark(#f8e7e4,#4a302f); --tog-notice:light-dark(#f6efe0,#403824); --tog-space:24px; color:var(--tog-text); background:var(--tog-bg); font:14px/1.5 system-ui,sans-serif; border:1px solid var(--tog-border); border-radius:9px; overflow-wrap:anywhere; }
+#tog-review * { box-sizing:border-box; }
+#tog-review [hidden] { display:none !important; }
+#tog-review button { font:inherit; color:inherit; background:var(--tog-control); border:1px solid var(--tog-border); border-radius:5px; padding:5px 10px; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+#tog-review button:disabled { opacity:.5; }
+#tog-review button[aria-pressed=true], #tog-review .tog-primary { background:var(--tog-active); color:var(--tog-active-text); border-color:var(--tog-active); }
+#tog-review .tog-plain { background:transparent; border-color:transparent; }
+#tog-review .tog-title { padding:6px 16px; text-align:center; color:var(--tog-muted); font-size:12px; border-bottom:1px solid var(--tog-border); }
+#tog-review .tog-toolbar, #tog-review .tog-review-head, #tog-review .tog-tabs, #tog-review .tog-footer { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:9px 14px; }
+#tog-review .tog-toolbar { border-bottom:1px solid var(--tog-border); padding-right:105px; }
+#tog-review .tog-brand { font-weight:600; }
+#tog-review .tog-spacer { flex:1; }
+#tog-review .tog-muted { color:var(--tog-muted); }
+#tog-review .tog-review-head { justify-content:space-between; padding-top:14px; }
+#tog-review .tog-review-head strong { display:block; font-weight:600; }
+#tog-review .tog-review-head small { display:block; color:var(--tog-muted); font-size:12px; }
+#tog-review .tog-tabs { padding-top:0; border-bottom:1px solid var(--tog-border); }
+#tog-review .tog-columns { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); background:var(--tog-panel); }
+#tog-review .tog-column + .tog-column { border-left:1px solid var(--tog-border); }
+#tog-review .tog-col-label { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 16px; border-bottom:1px solid var(--tog-border); font-weight:500; }
+#tog-review .tog-legend { font-size:12px; font-weight:400; color:var(--tog-muted); }
+#tog-review .tog-copy { padding:var(--tog-space); font-size:16px; line-height:1.7; }
+#tog-review .tog-copy p { margin:0 0 20px; }
+#tog-review del { background:var(--tog-remove); text-decoration-thickness:1px; }
+#tog-review ins { background:var(--tog-add); text-decoration:underline; text-underline-offset:3px; }
+#tog-review .tog-notice { margin:0 14px 12px; padding:9px 12px; background:var(--tog-notice); border-radius:5px; }
+#tog-review .tog-footer { border-top:1px solid var(--tog-border); justify-content:flex-end; }
+#tog-review .tog-footer .tog-muted { margin-right:auto; font-size:12px; }
+#tog-review .tog-parameters { padding:16px 24px 24px; background:var(--tog-panel); }
+#tog-review table { border-collapse:collapse; width:100%; text-align:left; }
+#tog-review th, #tog-review td { padding:12px 10px; vertical-align:top; border-bottom:1px solid var(--tog-border); }
+#tog-review th { font-weight:500; }
+#tog-review .tog-info-label { margin:0 0 4px; color:var(--tog-muted); }
+#tog-review .tog-status { padding:6px 14px; font-size:12px; border-top:1px solid var(--tog-border); color:var(--tog-muted); }
+#tog-review textarea { font:16px/1.7 system-ui,sans-serif; width:100%; min-height:290px; padding:20px; color:var(--tog-text); background:var(--tog-panel); border:1px solid var(--tog-border); border-radius:5px; resize:vertical; }
+#tog-review .tog-writing { padding:18px; }
+#tog-review .tog-writing label { display:block; margin-bottom:8px; }
+#tog-review .tog-pending { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:10px 14px; background:var(--tog-notice); }
+@media(max-width:640px) { #tog-review .tog-columns { grid-template-columns:1fr; } #tog-review .tog-column + .tog-column { border-left:0; border-top:1px solid var(--tog-border); } #tog-review .tog-copy { padding:16px; } #tog-review .tog-parameters { padding:12px; } #tog-review .tog-footer button { flex:1; } #tog-review th,#tog-review td { padding:8px 5px; } }
+@media(pointer:coarse) { #tog-review button { min-height:44px; } }
+</style>
+<div id="tog-review" aria-label="typstOgraphe — relecture d’une proposition">
+  <div class="tog-title">Demande d’informations</div>
+  <div class="tog-toolbar"><span class="tog-brand">typstOgraphe</span><span class="tog-muted" id="tog-mode">Relecture</span><span class="tog-spacer"></span><button type="button" class="tog-plain cursor-interaction" id="tog-back"><i data-lucide="arrow-left" aria-hidden="true"></i>Rédaction</button></div>
+  <section id="tog-review-mode" aria-label="Comparaison du lot proposé">
+    <div class="tog-review-head"><div><strong>Proposition de l’agent</strong><small>3 passages modifiés · 1 information modifiée</small></div><span class="tog-muted" id="tog-freshness">En attente de votre décision</span></div>
+    <div class="tog-notice" id="tog-warning" role="status" hidden></div>
+    <div class="tog-tabs" role="group" aria-label="Changements à relire"><button type="button" class="cursor-interaction" id="tog-content-tab" aria-pressed="true">Contenu · 3</button><button type="button" class="cursor-interaction" id="tog-info-tab" aria-pressed="false">Informations · 1</button></div>
+    <div class="tog-columns" id="tog-content">
+      <section class="tog-column" aria-label="Version à l’origine de la proposition"><div class="tog-col-label"><span id="tog-base-label">Actuel</span><span class="tog-legend">Biffé : retiré</span></div><div class="tog-copy"><p><del>Cheres</del> collègues,</p><p><del>Je voudrais savoir si vous avez pu regarder le document, envoyé hier, par mes soins, qui concerne</del> la quantité de blé que la France <del>pourrai</del> produire l’année suivante<del>.</del></p><p><del>Il est important de noter que cette information pourra servir à être diffusée auprès des décideurs et qu’elle a donc un charactère particulièrement importnt.</del></p><p>J’espère que vous pourrez me transmettre les informations demandées assez rapidement.</p></div></section>
+      <section class="tog-column" aria-label="Texte proposé"><div class="tog-col-label">Proposition<span class="tog-legend">Souligné : ajouté</span></div><div class="tog-copy"><p><ins>Chères</ins> collègues,</p><p><ins>Avez-vous pu examiner le document que je vous ai envoyé hier sur</ins> la quantité de blé que la France <ins>pourrait</ins> produire l’année suivante<ins> ?</ins></p><p><ins>Cette information est particulièrement importante, car elle pourra être diffusée auprès des décideurs.</ins></p><p>J’espère que vous pourrez me transmettre les informations demandées assez rapidement.</p></div></section>
+    </div>
+    <section class="tog-parameters" id="tog-information" aria-label="Informations modifiées" hidden><p class="tog-info-label">Informations du courrier</p><table><thead><tr><th>Champ</th><th>Actuel</th><th>Proposition</th></tr></thead><tbody><tr><th>Objet</th><td class="tog-muted">Non renseigné</td><td><ins>Production de blé — demande d’informations</ins></td></tr></tbody></table></section>
+    <div class="tog-footer"><span class="tog-muted">Décision sur tout le lot</span><button type="button" class="cursor-interaction" id="tog-reject">Refuser le lot</button><button type="button" class="tog-primary cursor-interaction" id="tog-accept"><i data-lucide="check" aria-hidden="true"></i>Accepter le lot</button></div>
+  </section>
+  <section id="tog-writing-mode" aria-label="Rédaction du courrier" hidden><div class="tog-pending" id="tog-pending"><span id="tog-pending-label">Une proposition à relire</span><button type="button" class="cursor-interaction" id="tog-open">Voir la proposition</button></div><div class="tog-writing"><label for="tog-editor">Texte du courrier</label><textarea id="tog-editor" spellcheck="false"></textarea></div></section>
+  <div class="tog-status" role="status" aria-live="polite" id="tog-message">Document inchangé · proposition non publiée</div>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('tog-review');
+  const get = id => root.querySelector('#tog-' + id);
+  const original = 'Cheres collègues,\n\nJe voudrais savoir si vous avez pu regarder le document, envoyé hier, par mes soins, qui concerne la quantité de blé que la France pourrai produire l’année suivante.\n\nIl est important de noter que cette information pourra servir à être diffusée auprès des décideurs et qu’elle a donc un charactère particulièrement importnt.\n\nJ’espère que vous pourrez me transmettre les informations demandées assez rapidement.';
+  const proposed = 'Chères collègues,\n\nAvez-vous pu examiner le document que je vous ai envoyé hier sur la quantité de blé que la France pourrait produire l’année suivante ?\n\nCette information est particulièrement importante, car elle pourra être diffusée auprès des décideurs.\n\nJ’espère que vous pourrez me transmettre les informations demandées assez rapidement.';
+  const state = { view:'review', tab:'content', status:'pending', text:original, freshness:'fresh', density:24 };
+  function restore(saved) {
+    const data = saved && saved.privateContent;
+    if (!data || data.version !== 1) return;
+    for (const [key, allowed] of Object.entries({view:['review','writing'],tab:['content','info'],status:['pending','accepted','rejected'],freshness:['fresh','stale','busy']})) {
+      if (allowed.includes(data[key])) state[key] = data[key];
+    }
+    if (typeof data.text === 'string' && data.text.length < 8000) state.text = data.text;
+    if (typeof data.density === 'number' && data.density >= 12 && data.density <= 32) state.density = data.density;
+  }
+  function persist() {
+    window.openai?.setWidgetState?.({ modelContent:{presentation:'Actuel / Proposition',decision:state.status,condition:state.freshness}, privateContent:{version:1,...state} })?.catch(() => {});
+  }
+  function render() {
+    const reviewing = state.view === 'review' && state.status === 'pending';
+    const stale = state.freshness === 'stale';
+    const busy = state.freshness === 'busy';
+    get('review-mode').hidden = !reviewing;
+    get('writing-mode').hidden = reviewing;
+    get('mode').textContent = reviewing ? 'Relecture' : 'Courrier personnel';
+    get('back').hidden = !reviewing;
+    get('content').hidden = state.tab !== 'content';
+    get('information').hidden = state.tab !== 'info';
+    get('content-tab').setAttribute('aria-pressed', String(state.tab === 'content'));
+    get('info-tab').setAttribute('aria-pressed', String(state.tab === 'info'));
+    get('accept').disabled = stale || busy;
+    get('base-label').textContent = stale ? 'Version de départ' : 'Actuel';
+    get('warning').hidden = !stale && !busy;
+    get('warning').textContent = stale ? 'Le document a changé. L’agent doit préparer une nouvelle proposition.' : 'Une saisie est en cours. Terminez-la avant de décider.';
+    get('freshness').textContent = stale ? 'Proposition périmée' : 'En attente de votre décision';
+    get('pending-label').textContent = stale ? 'Proposition périmée' : 'Une proposition à relire';
+    get('pending').hidden = state.status !== 'pending';
+    if (get('editor').value !== state.text) get('editor').value = state.text;
+    get('message').textContent = state.status === 'accepted' ? 'Lot accepté · une étape d’annulation · document non enregistré' : state.status === 'rejected' ? 'Lot refusé · aucune modification du lot publiée' : stale ? 'Document modifié · ancienne proposition non applicable' : 'Document inchangé · proposition non publiée';
+    root.style.setProperty('--tog-space', state.density + 'px');
+  }
+  function change(fn) { fn(); render(); persist(); }
+  get('back').addEventListener('click', () => change(() => state.view = 'writing'));
+  get('open').addEventListener('click', () => change(() => state.view = 'review'));
+  get('content-tab').addEventListener('click', () => change(() => state.tab = 'content'));
+  get('info-tab').addEventListener('click', () => change(() => state.tab = 'info'));
+  get('accept').addEventListener('click', () => {
+    if (state.status !== 'pending' || state.freshness !== 'fresh') return;
+    change(() => { state.status = 'accepted'; state.text = proposed; state.view = 'writing'; });
+  });
+  get('reject').addEventListener('click', () => change(() => { state.status = 'rejected'; state.view = 'writing'; }));
+  get('editor').addEventListener('input', event => change(() => { state.text = event.target.value; if (state.status === 'pending') state.freshness = 'stale'; }));
+  root.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && state.view === 'review') { event.preventDefault(); change(() => state.view = 'writing'); }
+    // No global Enter handler: only explicit activation of the focused button.
+  });
+  restore(window.openai?.widgetState);
+  render();
+  window.addEventListener('openai:set_globals', event => {
+    if (event.detail?.globals && 'widgetState' in event.detail.globals) { restore(event.detail.globals.widgetState); render(); }
+  });
+  if (globalThis.Tweak) {
+    const tweak = new Tweak({container:root,onChange:render});
+    tweak.addSlider(state,'density',{label:'Marges de lecture',min:12,max:32,step:2,unit:'px'});
+    tweak.addSelect(state,'freshness',{label:'État de la proposition',options:[{label:'À jour',value:'fresh'},{label:'Périmée',value:'stale'},{label:'Saisie en cours',value:'busy'}]});
+  }
+})();
+</script>

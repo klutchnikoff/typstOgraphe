@@ -5,7 +5,9 @@ Les choix D34/D35/D36 et les lots sont consignés dans
 Le rattachement reste **en lecture seule**. Le lot 6.3 ajoute les contextes
 séparés, le report des positions et la préparation isolée des propositions dans
 le cœur. Leur exposition MCP, l'édition approuvée, l'enregistrement et l'export
-rattachés restent prévus en 6.4 et 6.5, avec les protections D32/D33/D36.
+rattachés restent prévus en 6.4 et 6.5, avec les protections D32/D33/D36. Le socle
+Rust d’acceptation atomique de 6.4b est désormais testé ; la [présentation et le
+protocole proposés](mcp-proposals.md) attendent validation avant leur intégration.
 
 ## Décision pour les futures modifications rattachées (D36)
 
@@ -21,8 +23,8 @@ devra être recalculée puis soumise à une nouvelle approbation, sans fusion au
 La sauvegarde et l'export resteront explicites et utiliseront uniquement le document
 publié, jamais le brouillon d'une proposition en attente.
 
-La présentation des modifications dans l'éditeur reste à concevoir ensemble avant
-la réalisation de 6.4. Le bouton « Voir » après une édition acceptée conserve son
+La présentation détaillée des modifications dans l'éditeur reste à valider ensemble
+avant son intégration en 6.4b. Le bouton « Voir » après une édition acceptée conserve son
 rôle de navigation ; il ne remplace pas l'approbation. Aucun mode de modification
 directe n'est autorisé à ce stade. Cette décision concerne le rattachement à
 l'application ; le fonctionnement du MCP autonome reste inchangé. Les identifiants
