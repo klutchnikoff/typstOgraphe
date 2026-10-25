@@ -235,6 +235,10 @@ conserve texte, métadonnées, modèle et ressources.
   brouillons, gardes, focus, IME, annulation, redimensionnement et thèmes sont
   vérifiés. Le rendu final reste défini par le modèle. L’imbrication des listes
   et de nouveaux paramètres documentaires restent des évolutions distinctes.
+- **P2 — à concevoir :** listes imbriquées. Seules les listes non imbriquées sont
+  prises en charge pour l’instant. Préciser ensemble la structure, les frontières,
+  l’indentation et les gestes clavier avant leur ajout ; conserver un widget unique
+  pour toute la liste.
 - **P2 :** déplacer et dupliquer des paragraphes ou des blocs, navigation par titres,
   affichage facultatif des caractères invisibles.
 - **P2 :** personnalisation persistante des raccourcis dans les préférences et

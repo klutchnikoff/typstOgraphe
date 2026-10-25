@@ -14,8 +14,11 @@ sa bordure gauche, l’image sa miniature et sa légende, la description ses zon
 terme/définition. Les annotations facultatives partagent leur comportement tout
 en conservant leur disposition spécifique.
 
-Une liste complète est un seul widget, y compris ses sous-listes. Les éléments
-et niveaux ne reçoivent pas d’enveloppes imbriquées ni de corbeilles individuelles.
+Une liste complète est un seul widget. Pour l’instant, seules les listes non
+imbriquées sont prises en charge, conformément au choix confirmé le 25 octobre.
+Si les sous-listes sont ajoutées ultérieurement, elles resteront dans cette
+enveloppe : les éléments et niveaux n’auront pas de cadres imbriqués ni de
+corbeilles individuelles.
 Le regroupement graphique ne change pas à lui seul le contrat documentaire des
 listes ni les paramètres pris en charge. Le moteur reste responsable des
 frontières et de la structure du document.
@@ -44,6 +47,17 @@ champ ne crée pas implicitement un nouveau paramètre Typst.
 - Appliquer vérifie la cible gardée, puis utilise la commande du moteur.
 - Annuler/Échap abandonne les réglages et restitue le contexte précédent.
 - Supprimer retire tout le widget ; l’historique permet de le rétablir.
+- `Ctrl+Retour arrière` supprime directement le widget entier depuis son corps
+  ou une annotation, en une étape d’annulation. Sur macOS, `Cmd+Retour arrière`
+  est également disponible. Le raccourci appartient au registre de commandes et
+  peut être remplacé par les mêmes préférences que les autres raccourcis.
+- `Entrée` valide le bandeau. Si un bouton a reçu le focus par `Tab`, il active
+  ce bouton ; sinon, il applique les paramètres, confirme la suppression ou
+  choisit la première suggestion orthographique disponible. Un champ invalide
+  ou une cible périmée reste ouvert avec son erreur.
+- La saisie native du champ est traitée avant la validation d’`Entrée`, y compris
+  si le dernier caractère et la touche arrivent dans la même frame. Cette touche
+  n’insère pas de nouvelle ligne dans le corps du document pendant un bandeau.
 - Une cible périmée est signalée, sans appliquer le réglage à un autre passage.
 - Pendant la composition IME, ses événements gardent la priorité. Aucun bandeau
   ne force la validation ou l’abandon de la composition.
@@ -121,3 +135,29 @@ La recette utilise `--capture-widgets image.png image|list|remove|spelling|link|
 de sortie propre. Les essais IME de ce lot injectent les événements natifs egui ;
 ils ne remplacent pas un essai manuel d’une méthode de saisie du système.
 Les vérifications Windows/Linux restent celles de la CI.
+
+## Suivi clavier et curseur — 25 octobre 2026
+
+Le retrait d’une liste est maintenant appliqué au paragraphe entier, et non à
+son premier caractère : le curseur d’un item vide apparaît au point où son texte
+sera saisi. Les lignes repliées gardent ce retrait. Aucun caractère factice n’est
+ajouté à la projection ou à la source.
+
+La corbeille et le raccourci utilisent le même constructeur de commande gardée
+(`widget_removal_command`) : commande d’image existante ou lot atomique
+normalisation/suppression. La nouvelle commande d’interface `edit.remove_widget`
+ne modifie pas le catalogue documentaire CLI/MCP. Hors d’un widget, le raccourci
+reste disponible pour la suppression native d’un mot ; dans un champ du bandeau,
+il édite ce champ sans supprimer son widget. Les événements de composition IME
+restent prioritaires sur `Entrée` et `Échap`.
+
+La recette de suivi couvre le curseur vide et le repli, les deux variantes de
+raccourci par système, les types de widgets et leurs annotations, l’annulation,
+les remplacements de raccourci, la saisie du dernier caractère, le choix d’un
+bouton par Tab et la priorité IME. Les captures du suivi sont conservées dans
+`output/phase6-4a-keyboard/` ; le scénario `list-empty` (avec suffixe `-dark`
+possible) permet d’inspecter le curseur d’un item vide dans l’application native.
+La suite complète atteint **501 tests Rust réussis**, avec **14 tests Python**,
+formatage, Clippy, frontière de dépendances et contrôle de taille réussis. Cinq
+captures de suivi ont été produites ; les huit captures de référence du lot
+6.4a sont restées strictement identiques (`baseline/run-gv1udg4k`).

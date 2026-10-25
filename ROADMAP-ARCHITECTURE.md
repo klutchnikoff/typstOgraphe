@@ -924,6 +924,9 @@ implémenter en phase 6. Le transport local et les modalités de rattachement so
   vérifiés. Les paramètres restent ceux du contrat actuel : ni imbrication de
   listes ni numéro de départ ajoutés par ce lot. Huit tests dédiés et captures
   natives clair/sombre ; références historiques conservées.
+  Suivi clavier : retrait conservé dans les items vides/repliés, suppression de
+  widget par raccourci enregistré (même transaction que la corbeille), validation
+  par Entrée et abandon par Échap, choix du bouton focalisé et priorité IME.
   Contrat : [widgets et bandeaux](docs/editor-widgets.md).
 - [ ] **6.4b — Propositions et éditions approuvées.** Préparation isolée d'un lot,
   présentation des différences à valider ensemble, acceptation/refus du lot entier
