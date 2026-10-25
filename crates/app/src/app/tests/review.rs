@@ -209,6 +209,58 @@ fn rendering_an_accepted_lot_does_not_follow_the_agent_or_reset_the_origin() {
 }
 
 #[test]
+fn deletion_navigation_maps_the_deleted_passage_and_metadata_only_does_not_jump_to_the_body() {
+    let (_, mut app) = prepared();
+    app.apply(Command::ReviewProposal);
+    app.apply(Command::RejectProposal);
+    let text = &app.document.engine.document().view.text;
+    let at = text[..text.find("Merci").unwrap()].chars().count();
+    let old = app
+        .document
+        .engine
+        .selection_target(editor::to_core(editor::cursor(at..at)))
+        .unwrap();
+    let step = crate::engine::Call {
+        id: "text.delete".to_owned().try_into().unwrap(),
+        params: serde_json::json!({"selector":{"select":"Merci pour votre retour."}}),
+    };
+    app.assistance
+        .session
+        .as_mut()
+        .unwrap()
+        .prepare_proposal(&app.document.engine, "delete", vec![step])
+        .unwrap();
+    app.poll_assistance();
+    app.apply(Command::ReviewProposal);
+    app.apply(Command::AcceptProposal);
+    let expected = app
+        .document
+        .engine
+        .position_map()
+        .unwrap()
+        .map_retained(old)
+        .unwrap();
+    assert_eq!(app.assistance.notice, Some(expected));
+    app.apply(Command::RevealAgentChange);
+    assert_eq!(app.preview.sync.reveal_target(), Some(expected));
+    let step = crate::engine::Call {
+        id: "metadata.set".to_owned().try_into().unwrap(),
+        params: serde_json::json!({"field":"letter.subject","value":"Nouveau sujet"}),
+    };
+    app.assistance
+        .session
+        .as_mut()
+        .unwrap()
+        .prepare_proposal(&app.document.engine, "metadata", vec![step])
+        .unwrap();
+    app.poll_assistance();
+    app.apply(Command::ReviewProposal);
+    app.apply(Command::AcceptProposal);
+    assert!(app.assistance.notice.is_none());
+    assert!(!app.command_enabled(Command::RevealAgentChange));
+}
+
+#[test]
 fn acceptance_preserves_the_scrolled_passage_after_an_insertion_above_it() {
     let ctx = egui::Context::default();
     let mut app = App::with_context(ctx.clone(), None);

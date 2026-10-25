@@ -192,12 +192,30 @@ impl App {
         }
         self.assistance.restore_visible = true;
         if let Some(r) = &self.assistance.review {
-            let range = r.changes.added.first().cloned().unwrap_or(0..0);
-            self.assistance.notice = self
-                .document
-                .engine
-                .selection_target(editor::to_core(editor::cursor(range)))
-                .ok();
+            self.assistance.notice = if let Some(range) = r.changes.added.first() {
+                self.document
+                    .engine
+                    .selection_target(editor::to_core(editor::cursor(range.clone())))
+                    .ok()
+            } else if let Some(range) = r.changes.removed.first() {
+                r.snapshot
+                    .original
+                    .structure
+                    .selection_at(range.start, range.start)
+                    .ok()
+                    .and_then(|selection| {
+                        self.document
+                            .engine
+                            .position_map()?
+                            .map_retained(crate::engine::SelectionTarget {
+                                guard: r.snapshot.guard,
+                                selection,
+                            })
+                            .ok()
+                    })
+            } else {
+                None
+            };
         }
     }
     pub(super) fn track_assistance_input(&mut self, ctx: &egui::Context) {

@@ -184,7 +184,7 @@ image/signature/métadonnées sans toucher au fichier enregistré.
 
 Les tests supplémentaires couvrent les quatre scénarios du stockage MCP
 (déduplication, états, budgets, refus et ressources), les outils sur une connexion
-rmcp locale réelle, les six parcours egui (accord/refus, interruptions, focus,
+rmcp locale réelle, les sept parcours egui (accord/refus, interruptions, focus,
 péremption, révocation, passage visible et rendu sans suivi), et deux comparaisons
 Unicode/formatage/liens. La recette agent LLM relève de 6.6.
 
@@ -201,7 +201,7 @@ target/debug/typstographe --capture-widgets output/phase6-4b/preview.png review-
 target/debug/typstographe --capture-widgets output/phase6-4b/stale.png review-stale
 ```
 
-Les 526 tests Rust, les deux doctests, les 14 tests Python, fmt et Clippy avec
+Les 527 tests Rust, les deux doctests, les 14 tests Python, fmt et Clippy avec
 `-D warnings` passent sur macOS ; la CI vérifie les trois systèmes. Les tests de sockets locales
 nécessitent une exécution hors bac à sable. Le cœur conserve ses dépendances sans
 GUI, Fluent, Tokio, MCP ni IPC.

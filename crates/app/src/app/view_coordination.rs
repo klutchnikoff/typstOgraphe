@@ -112,6 +112,18 @@ impl App {
         if let Some(target) = self.preview.sync.reveal_target()
             && let Ok((anchor, head)) = self.document.engine.resolve_target(target)
         {
+            if anchor == head {
+                let rect = output
+                    .galley
+                    .pos_from_cursor(CCursor::new(head))
+                    .translate(output.galley_pos.to_vec2())
+                    .expand(2.0);
+                ui.painter_at(output.text_clip_rect).rect_filled(
+                    rect,
+                    1.0,
+                    ui.visuals().selection.bg_fill,
+                );
+            }
             for (_, rect) in editor::range_rects(
                 &output.galley,
                 std::slice::from_ref(&(anchor.min(head)..anchor.max(head))),
