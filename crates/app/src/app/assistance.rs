@@ -6,6 +6,14 @@ use typstographe_mcp::local::LocalSession;
 pub(super) struct AssistanceState {
     pub session: Option<LocalSession>,
     error: Option<String>,
+    pub review: Option<super::review::ReviewState>,
+    pub notice: Option<crate::engine::SelectionTarget>,
+    pub return_focus: Option<egui::Id>,
+    pub return_pending: bool,
+    pub restore_visible: bool,
+    pub visible_offset: f32,
+    pub reveal_until: Option<Instant>,
+    pub native_ime: bool,
 }
 impl App {
     /// Reproducible capture of the authorization UI, without creating a channel.
@@ -16,14 +24,60 @@ impl App {
         self.apply(Command::Assistance);
     }
 
-    pub(super) fn poll_assistance(&mut self) {
+    pub(super) fn poll_assistance(&mut self) -> bool {
+        let before = (
+            self.assistance.session.is_some(),
+            self.assistance
+                .review
+                .as_ref()
+                .map(|r| (r.snapshot.id.clone(), r.status)),
+        );
+        let busy = self.assistance_busy();
+        let reviewing = self.review_open();
         let Some(session) = &mut self.assistance.session else {
-            return;
+            self.assistance.review = None;
+            self.assistance.return_pending |= reviewing;
+            return before.1.is_some();
         };
-        if !session.poll(&mut self.document.engine) || session.finished() {
+        if !session.poll_with_input(&mut self.document.engine, busy) || session.finished() {
             self.assistance.session = None;
+            self.assistance.review = None;
+            self.assistance.return_pending |= reviewing;
             self.dialogs.message = Some(crate::tr!("assistance-disconnected"));
+        } else {
+            if let Some(snapshot) = session.review()
+                && self
+                    .assistance
+                    .review
+                    .as_ref()
+                    .is_none_or(|r| !r.open && r.snapshot.id != snapshot.id)
+            {
+                self.assistance.review = Some(super::review::ReviewState::new(snapshot.clone()));
+            }
+            if let Some(review) = &mut self.assistance.review {
+                review.status = session
+                    .proposal_status(&review.snapshot.id)
+                    .unwrap_or(typstographe_mcp::ProposalStatus::Cancelled);
+            }
+            if self.assistance.review.as_ref().is_some_and(|r| {
+                !r.open
+                    && !matches!(
+                        r.status,
+                        typstographe_mcp::ProposalStatus::Pending
+                            | typstographe_mcp::ProposalStatus::Stale
+                    )
+            }) {
+                self.assistance.review = None;
+            }
         }
+        before
+            != (
+                self.assistance.session.is_some(),
+                self.assistance
+                    .review
+                    .as_ref()
+                    .map(|r| (r.snapshot.id.clone(), r.status)),
+            )
     }
     pub(super) fn start_assistance(&mut self, ctx: &egui::Context) {
         let repaint = ctx.clone();

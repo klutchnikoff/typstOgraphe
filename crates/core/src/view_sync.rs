@@ -14,6 +14,7 @@ pub use types::*;
 pub struct ViewSync {
     selection: Option<SelectionTarget>,
     visible_position: Option<SelectionTarget>,
+    reveal_target: Option<SelectionTarget>,
     render: Option<RenderReference>,
     render_failed: bool,
     forward_pending: bool,
@@ -26,6 +27,7 @@ impl Default for ViewSync {
         Self {
             selection: None,
             visible_position: None,
+            reveal_target: None,
             render: None,
             render_failed: false,
             forward_pending: true,
@@ -38,6 +40,34 @@ impl Default for ViewSync {
 impl ViewSync {
     pub fn selection(&self) -> Option<SelectionTarget> {
         self.selection
+    }
+    pub fn reveal_target(&self) -> Option<SelectionTarget> {
+        self.reveal_target
+    }
+    /// Voluntary navigation/highlight, independent from the user's selection.
+    pub fn reveal_at(
+        &mut self,
+        engine: &crate::engine::Engine,
+        target: SelectionTarget,
+        destination: RevealDestination,
+    ) -> bool {
+        if !engine.is_open()
+            || !self.matches_guard(target.guard)
+            || engine.target_guard() != target.guard
+            || engine.resolve_target(target).is_err()
+        {
+            return false;
+        }
+        self.reveal_target = Some(target);
+        self.editor_pending = destination != RevealDestination::Preview;
+        self.forward_pending = destination != RevealDestination::Editor;
+        true
+    }
+    pub fn clear_reveal(&mut self) {
+        if self.reveal_target.take().is_some() {
+            self.editor_pending = false;
+            self.forward_pending = false;
+        }
     }
     /// Logical anchor of the visible passage. Pixel offsets belong to the adapter.
     pub fn visible_position(&self) -> Option<SelectionTarget> {
@@ -71,6 +101,12 @@ impl ViewSync {
         };
         self.selection = Some(selection);
         self.visible_position = visible;
+        if self
+            .reveal_target
+            .is_some_and(|t| t.guard != positions.after)
+        {
+            self.clear_reveal();
+        }
         true
     }
 
@@ -102,6 +138,7 @@ impl ViewSync {
                 if origin == ViewOrigin::Agent || !self.matches_guard(selection.guard) {
                     return false;
                 }
+                self.clear_reveal();
                 self.selection = Some(selection);
                 self.forward_pending = origin != ViewOrigin::Preview;
                 if origin == ViewOrigin::Preview {
@@ -155,6 +192,12 @@ impl ViewSync {
             return false;
         }
         self.selection = Some(selection);
+        if self
+            .reveal_target
+            .is_some_and(|t| t.guard != selection.guard)
+        {
+            self.clear_reveal();
+        }
         if self
             .visible_position
             .is_some_and(|p| p.guard != selection.guard)

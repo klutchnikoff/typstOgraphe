@@ -17,6 +17,12 @@ impl App {
     /// Éligibilité hors modalités : la palette évalue les actions de sa propre fenêtre.
     /// Les hôtes de menus et le dispatch externe appliquent en plus modal_open().
     pub(super) fn command_enabled(&self, command: Command) -> bool {
+        if let Some(enabled) = self.review_command_enabled(command) {
+            return enabled;
+        }
+        if self.review_open() {
+            return false;
+        }
         if self.bands.field_focused
             && (matches!(command, Command::Undo | Command::Redo | Command::Clear)
                 || self

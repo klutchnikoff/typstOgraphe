@@ -6,6 +6,7 @@ mod calls;
 mod mcp;
 pub mod targets;
 pub use calls::compile_render;
+pub use mcp::proposals::{ProposalReview, ProposalStatus};
 pub use mcp::serve;
 
 pub mod local;

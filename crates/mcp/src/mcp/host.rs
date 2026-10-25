@@ -10,6 +10,8 @@ pub struct Host<'a> {
     id: Option<String>,
     policy: policy::Policy,
     context: Option<EditContext>,
+    proposals: Option<&'a mut super::proposals::Proposals>,
+    busy: bool,
 }
 impl<'a> Host<'a> {
     #[cfg(test)]
@@ -22,6 +24,8 @@ impl<'a> Host<'a> {
             id: None,
             policy,
             context: None,
+            proposals: None,
+            busy: false,
         }
     }
     /// Borrow the application's published engine; never open or clone its file.
@@ -36,7 +40,22 @@ impl<'a> Host<'a> {
             id: Some(id),
             policy: policy::Policy::attached_read_only()?,
             context: Some(context),
+            proposals: None,
+            busy: false,
         })
+    }
+    pub(crate) fn attached_proposals(
+        engine: &'a mut Engine,
+        id: String,
+        context: EditContext,
+        proposals: &'a mut super::proposals::Proposals,
+        busy: bool,
+    ) -> Result<Self, CommandError> {
+        let mut host = Self::attached(engine, id, context)?;
+        host.policy = policy::Policy::attached_proposals()?;
+        host.proposals = Some(proposals);
+        host.busy = busy;
+        Ok(host)
     }
     fn query(&self, query: Query) -> Result<Value, CommandError> {
         match &self.context {
@@ -92,6 +111,17 @@ impl<'a> Host<'a> {
             ));
         }
         let (outcome, png) = match name {
+            "proposals.submit" | "proposals.get" | "proposals.cancel" => {
+                let store = self.proposals.as_deref_mut().ok_or_else(|| {
+                    super::proposals::error("Proposals require an attached invitation")
+                })?;
+                let context = self.context.as_ref().expect("attached context");
+                let id = self.id.as_deref().expect("attached document");
+                (
+                    store.dispatch(&self.engine, context, id, name, arguments, self.busy)?,
+                    None,
+                )
+            }
             "document_types.describe" => {
                 let p: DescribeType = decode(arguments)?;
                 (Engine::type_documentation(p.document_type), None)
@@ -141,7 +171,7 @@ impl<'a> Host<'a> {
             }
             "typstographe://commands" => {
                 let context = self.query(Query::Commands(Empty {}))?;
-                let entries: Vec<_> = typstographe_core::engine::catalogue()
+                let mut entries: Vec<_> = typstographe_core::engine::catalogue()
                     .iter()
                     .map(|s| s.id.as_str())
                     .chain([
@@ -151,8 +181,13 @@ impl<'a> Host<'a> {
                     ])
                     .map(|id| super::documentation::describe(id, &context, &self.policy))
                     .collect::<Result<_, _>>()?;
-                json!({"entries":entries,"tools":catalogue::tools(),
-                    "extra_tools":"document_types.describe, capabilities.describe and render.page are MCP discovery/rasterization helpers; their schemas and descriptions are in tools."})
+                if self.proposals.is_some() {
+                    for id in ["proposals.submit", "proposals.get", "proposals.cancel"] {
+                        entries.push(super::documentation::describe(id, &context, &self.policy)?);
+                    }
+                }
+                json!({"entries":entries,"tools":catalogue::for_session(self.proposals.is_some()),
+                    "extra_tools":"Discovery/rasterization helpers and, for attached sessions, proposals.submit/get/cancel. No approval tool. Their schemas and descriptions are in tools."})
             }
             "typstographe://document" => {
                 let mut snapshot = json!({"state":self.query(Query::Inspect(Empty {}))?,
@@ -245,28 +280,8 @@ impl<'a> Host<'a> {
         let mut command = Command::from_call(name, Value::Object(params))?;
         self.policy.prepare(&self.engine, &mut command)?;
         let outcome = if let Command::Batch(p) = command {
-            self.engine.run_resolved_batch(p, |_, draft, call| {
-                let spec = typstographe_core::engine::catalogue()
-                    .iter()
-                    .find(|s| s.id == call.id)
-                    .expect("preflighted");
-                let mut params = call
-                    .params
-                    .as_object()
-                    .cloned()
-                    .ok_or_else(|| CommandError::invalid("step params must be an object"))?;
-                if params.contains_key("guard") {
-                    return Err(CommandError::new(
-                        ErrorCode::InvalidParams,
-                        "mcp_step_guard",
-                    ));
-                }
-                let selector = take_selector(spec, &mut params)?;
-                let selection = prepare(draft, spec, &mut params, selector)?;
-                let mut command = Command::from_call(call.id.as_str(), Value::Object(params))?;
-                self.policy.prepare(draft, &mut command)?;
-                Ok(ResolvedBatchStep { command, selection })
-            })?
+            self.engine
+                .run_resolved_batch(p, |_, draft, call| resolve_step(draft, call, &self.policy))?
         } else if selection.is_some() && command.batch_step_allowed() {
             // La sélection de confort et l’édition doivent échouer ensemble.
             let mut resolved = Some(ResolvedBatchStep { command, selection });
@@ -320,6 +335,32 @@ impl<'a> Host<'a> {
         }
         value
     }
+}
+pub(super) fn resolve_step(
+    draft: &Engine,
+    call: &Call,
+    policy: &policy::Policy,
+) -> Result<ResolvedBatchStep, CommandError> {
+    let spec = typstographe_core::engine::catalogue()
+        .iter()
+        .find(|s| s.id == call.id)
+        .expect("preflighted");
+    let mut params = call
+        .params
+        .as_object()
+        .cloned()
+        .ok_or_else(|| CommandError::invalid("step params must be an object"))?;
+    if params.contains_key("guard") || params.contains_key("document") {
+        return Err(CommandError::new(
+            ErrorCode::InvalidParams,
+            "mcp_step_guard",
+        ));
+    }
+    let selector = take_selector(spec, &mut params)?;
+    let selection = prepare(draft, spec, &mut params, selector)?;
+    let mut command = Command::from_call(call.id.as_str(), Value::Object(params))?;
+    policy.prepare(draft, &mut command)?;
+    Ok(ResolvedBatchStep { command, selection })
 }
 fn decode<P: serde::de::DeserializeOwned>(
     arguments: Map<String, Value>,

@@ -5,6 +5,7 @@ mod endpoint;
 mod tests;
 mod transport;
 
+use crate::mcp::proposals::Proposals;
 use crate::mcp::{Host, Operation, Request};
 use std::{
     io,
@@ -28,6 +29,7 @@ pub struct LocalSession {
     guard: TargetGuard,
     id: String,
     context: EditContext,
+    proposals: Proposals,
 }
 impl LocalSession {
     pub fn start(engine: &mut Engine, wake: Arc<dyn Fn() + Send + Sync>) -> io::Result<Self> {
@@ -74,6 +76,7 @@ impl LocalSession {
             guard: engine.target_guard(),
             id: uuid::Uuid::new_v4().to_string(),
             context,
+            proposals: Default::default(),
         })
     }
     pub fn invitation_path(&self) -> &Path {
@@ -88,6 +91,51 @@ impl LocalSession {
     /// Call after native text publication. Reads observe a single published revision.
     /// Returns false after disconnect/revoke or if the document was closed/replaced.
     pub fn poll(&mut self, engine: &mut Engine) -> bool {
+        self.poll_with_input(engine, false)
+    }
+    pub fn review(&self) -> Option<&crate::ProposalReview> {
+        self.proposals.review()
+    }
+    /// Native diagnostic/front-end preparation uses the same portable submission
+    /// path as MCP. This never approves or publishes a candidate.
+    pub fn prepare_proposal(
+        &mut self,
+        engine: &Engine,
+        request_id: &str,
+        steps: Vec<typstographe_core::engine::Call>,
+    ) -> Result<serde_json::Value, typstographe_core::engine::CommandError> {
+        if self.finished() {
+            return Err(crate::mcp::proposals::error("Invitation ended"));
+        }
+        let params = serde_json::json!({"document":{"id":self.id,"guard":engine.target_guard()},"request_id":request_id,"steps":steps});
+        self.proposals.dispatch(
+            engine,
+            &self.context,
+            &self.id,
+            "proposals.submit",
+            params.as_object().expect("object").clone(),
+            false,
+        )
+    }
+    pub fn proposal_status(&self, id: &str) -> Option<crate::ProposalStatus> {
+        self.proposals.status(id)
+    }
+    /// Trusted human-facing decision; never routed from incoming MCP operations.
+    pub fn decide(
+        &mut self,
+        engine: &mut Engine,
+        id: &str,
+        accept: bool,
+        busy: bool,
+    ) -> Result<Option<typstographe_core::engine::Outcome>, typstographe_core::engine::CommandError>
+    {
+        if self.finished() || engine.target_guard().document_id != self.guard.document_id {
+            return Err(crate::mcp::proposals::error("Invitation ended"));
+        }
+        self.proposals
+            .decide(engine, &self.context, id, accept, busy)
+    }
+    pub fn poll_with_input(&mut self, engine: &mut Engine, busy: bool) -> bool {
         if self.finished()
             || !engine.is_open()
             || engine.target_guard().document_id != self.guard.document_id
@@ -95,6 +143,7 @@ impl LocalSession {
             self.shutdown.cancel();
             return false;
         }
+        self.proposals.refresh(engine, &self.context);
         // Bounded work per frame; the transport also has bounded backpressure.
         for _ in 0..16 {
             let Ok(request) = self.receiver.try_recv() else {
@@ -103,12 +152,17 @@ impl LocalSession {
             if request.reply.is_closed() || self.shutdown.is_cancelled() {
                 continue;
             }
-            let result = Host::attached(engine, self.id.clone(), self.context.clone()).and_then(
-                |mut host| match request.operation {
-                    Operation::Tool { name, arguments } => host.dispatch(&name, arguments),
-                    Operation::Resource { uri } => host.resource(&uri),
-                },
-            );
+            let result = Host::attached_proposals(
+                engine,
+                self.id.clone(),
+                self.context.clone(),
+                &mut self.proposals,
+                busy,
+            )
+            .and_then(|mut host| match request.operation {
+                Operation::Tool { name, arguments } => host.dispatch(&name, arguments),
+                Operation::Resource { uri } => host.resource(&uri),
+            });
             let _ = request.reply.send(result);
         }
         true

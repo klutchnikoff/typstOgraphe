@@ -233,13 +233,11 @@ fn real_local_mcp_connection_reads_resources_rejects_writes_and_is_single_use() 
                 let connection = transport::connect(&endpoint).await.unwrap();
                 let client = ClientConfig::default().serve(connection).await.unwrap();
                 let info = client.peer_info().unwrap();
-                assert!(
-                    info.instructions
-                        .as_ref()
-                        .unwrap()
-                        .contains("explicitly attached")
-                );
-                assert_eq!(client.list_all_tools().await.unwrap().len(), 67);
+                assert!(info.instructions.as_ref().unwrap().contains("attached"));
+                let tools = client.list_all_tools().await.unwrap();
+                assert_eq!(tools.len(), 70);
+                assert!(tools.iter().any(|t| t.name == "proposals.submit"));
+                assert!(!tools.iter().any(|t| t.name == "proposals.accept"));
                 let inspect = client
                     .call_tool(CallToolRequestParams::new("document.inspect"))
                     .await
@@ -247,7 +245,8 @@ fn real_local_mcp_connection_reads_resources_rejects_writes_and_is_single_use() 
                     .structured_content
                     .unwrap();
                 assert_eq!(inspect["outcome"]["open"], true);
-                assert_eq!(inspect["permissions"]["read_only"], true);
+                assert_eq!(inspect["permissions"]["human_approval_required"], true);
+                assert_eq!(inspect["permissions"]["direct_edit_enabled"], false);
                 let resource = client
                     .read_resource(ReadResourceRequestParams::new("typstographe://document"))
                     .await
@@ -265,6 +264,16 @@ fn real_local_mcp_connection_reads_resources_rejects_writes_and_is_single_use() 
                     .await
                     .unwrap();
                 assert_eq!(denied.is_error, Some(true));
+                let proposal=client.call_tool(CallToolRequestParams::new("proposals.submit").with_arguments(
+                    json!({"document":inspect["document"],"request_id":"socket-proposal","steps":[{"id":"text.insert","params":{"text":"Proposé "}}]}).as_object().unwrap().clone()
+                )).await.unwrap().structured_content.unwrap();
+                assert_eq!(proposal["outcome"]["status"],"pending");
+                assert_eq!(proposal["outcome"]["published"],false);
+                let id=proposal["outcome"]["proposal"].clone();
+                for (tool,status) in [("proposals.get","pending"),("proposals.cancel","cancelled"),("proposals.get","cancelled")] {
+                    let reply=client.call_tool(CallToolRequestParams::new(tool).with_arguments(json!({"proposal":id}).as_object().unwrap().clone())).await.unwrap().structured_content.unwrap();
+                    assert_eq!(reply["outcome"]["status"],status);
+                }
                 assert!(transport::connect(&endpoint).await.is_err());
                 client.cancel().await.unwrap();
                 assert!(transport::connect(&endpoint).await.is_err());

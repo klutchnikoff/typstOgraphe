@@ -18,6 +18,7 @@ path = "../../experiments/editor-model/main.rs"
 required-features = ["editor-model-spike"]
 
 [dependencies]
+similar = { version = "3.2.0", features = ["unicode"] }
 typstographe-mcp.workspace = true
 typstographe-core.workspace = true
 typstographe-i18n.workspace = true

@@ -63,7 +63,19 @@ pub fn tools() -> &'static [Tool] {
 pub fn needs_document(spec: &CommandSpec) -> bool {
     spec.availability != AvailabilityRule::Always
 }
-fn extra<P: JsonSchema>(name: &'static str, description: &'static str) -> Tool {
+pub(super) fn for_session(attached: bool) -> &'static [Tool] {
+    if !attached {
+        return tools();
+    }
+    static ATTACHED: OnceLock<Vec<Tool>> = OnceLock::new();
+    ATTACHED.get_or_init(|| {
+        let mut result = tools().to_vec();
+        result.extend(super::proposals::tools());
+        result.sort_by(|a, b| a.name.cmp(&b.name));
+        result
+    })
+}
+pub(super) fn extra<P: JsonSchema>(name: &'static str, description: &'static str) -> Tool {
     let mut tool = Tool::new(
         name,
         description,

@@ -16,7 +16,9 @@ impl App {
     /// préédition ne modifie pas document.selection et n'entre donc pas ici.
     pub(super) fn publish_view_selection(&mut self) {
         self.map_view_positions();
-        if let Some(selection) = self.view_selection() {
+        if let Some(selection) = self.view_selection()
+            && self.preview.sync.selection() != Some(selection)
+        {
             self.preview.sync.apply(ViewEvent::DocumentPublished {
                 selection,
                 origin: ViewOrigin::User,
@@ -43,6 +45,8 @@ impl App {
         let cursor = output
             .galley
             .cursor_from_pos(egui::vec2(0.0, top - output.galley_pos.y));
+        self.assistance.visible_offset =
+            output.galley.pos_from_cursor(cursor).top() + output.galley_pos.y - top;
         let selection = crate::engine::Selection {
             primary: crate::engine::Caret {
                 index: cursor.index,
@@ -79,5 +83,45 @@ impl App {
         self.preview
             .sync
             .apply(ViewEvent::DocumentReplaced { selection });
+    }
+    pub(super) fn restore_review_view(
+        &mut self,
+        ui: &mut egui::Ui,
+        output: &egui::text_edit::TextEditOutput,
+    ) {
+        if !self.assistance.restore_visible {
+            return;
+        }
+        self.assistance.restore_visible = false;
+        if let Some(target) = self.preview.sync.visible_position()
+            && let Ok((_, head)) = self.document.engine.resolve_target(target)
+        {
+            let top = output.galley.pos_from_cursor(CCursor::new(head)).top() + output.galley_pos.y
+                - self.assistance.visible_offset;
+            ui.scroll_with_delta_animation(
+                egui::vec2(0.0, ui.clip_rect().top() - top),
+                egui::style::ScrollAnimation::none(),
+            );
+        }
+    }
+    pub(super) fn paint_agent_reveal(
+        &self,
+        ui: &egui::Ui,
+        output: &egui::text_edit::TextEditOutput,
+    ) {
+        if let Some(target) = self.preview.sync.reveal_target()
+            && let Ok((anchor, head)) = self.document.engine.resolve_target(target)
+        {
+            for (_, rect) in editor::range_rects(
+                &output.galley,
+                std::slice::from_ref(&(anchor.min(head)..anchor.max(head))),
+            ) {
+                ui.painter_at(output.text_clip_rect).rect_filled(
+                    rect.translate(output.galley_pos.to_vec2()),
+                    1.0,
+                    ui.visuals().selection.bg_fill.gamma_multiply(0.4),
+                );
+            }
+        }
     }
 }

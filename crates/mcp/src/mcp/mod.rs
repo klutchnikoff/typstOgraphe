@@ -4,6 +4,7 @@ mod documentation;
 mod engine_access;
 mod host;
 mod policy;
+pub(crate) mod proposals;
 mod resources;
 mod roots;
 pub(crate) mod types;
@@ -19,7 +20,7 @@ pub(crate) fn instructions(attached: bool) -> String {
     if !attached {
         return INSTRUCTIONS.into();
     }
-    "This connection is explicitly attached to the document open in typstOgraphe. Start with document.inspect. Read-only stage: all commands, including open/new/close/save/export, are refused. Use commands.list and capabilities.describe for effective permissions and schemas; the shared catalogue includes unavailable operations. No file roots or global preferences are accessible. Supply the outer document reference from the latest response to documentary tools. Refresh document.inspect after stale-reference errors: the user can keep editing. Resources are published snapshots; read them again after changes. render.page returns an inline PNG. Closing/replacing the document, disconnecting, or revoking the invitation terminates this attachment; never retry mutations automatically. No skill or repository access is needed.".into()
+    "This connection is attached to the document open in typstOgraphe. Start with document.inspect. Reads see published content only. Submit editing steps with proposals.submit: the isolated lot is pending, NOT published, until the human explicitly accepts the entire lot in the application. No tool can approve. Use a unique request_id per lot; an identical retry returns the same status. One pending lot at a time. Return control to the human after submission, do not poll in a loop. proposals.get/cancel use the proposal ID without a current document revision. Any user edit makes the lot stale: read again and submit a new lot, never merge or retry edits automatically. Direct editing commands, open/new/close/save/export are refused. Discover capabilities.describe, document_types.describe and commands.list for params/selectors and proposal support. Bold/italic persist within a lot: on, insert, off; use literal text, not Typst markup. No file roots or preferences are accessible. Supply the latest outer document reference to documentary calls. Closing/replacing the document, disconnection or revocation terminates this invitation and drops pending candidates. No skill or repository access is needed.".into()
 }
 
 pub(crate) enum Operation {
@@ -140,12 +141,15 @@ impl ServerHandler for Server {
             ));
         }
         Ok(ListToolsResult {
-            tools: catalogue::tools().to_vec(),
+            tools: catalogue::for_session(self.attached).to_vec(),
             ..Default::default()
         })
     }
     fn get_tool(&self, name: &str) -> Option<Tool> {
-        catalogue::tools().iter().find(|t| t.name == name).cloned()
+        catalogue::for_session(self.attached)
+            .iter()
+            .find(|t| t.name == name)
+            .cloned()
     }
     async fn call_tool(
         &self,

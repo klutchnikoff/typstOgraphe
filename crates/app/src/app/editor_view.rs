@@ -24,6 +24,7 @@ impl App {
         let mut image_action = None;
         egui::ScrollArea::vertical()
             .id_salt("editor-scroll")
+            .animated(!self.assistance.restore_visible)
             .show(ui, |ui| {
                 egui::Frame::NONE
                     .inner_margin(egui::Margin::symmetric(
@@ -167,6 +168,7 @@ impl App {
         let editor_style = frame.style;
         let before = &frame.before;
         let old_range = frame.old_range;
+        self.restore_review_view(ui, &output);
         self.remember_visible_editor_position(ui, &output);
         let clicked_term =
             editor::paint_decorations(ui, &draft.view, &output, editor_style, background);
@@ -211,11 +213,8 @@ impl App {
             self.select_description_term(at);
         }
         self.editor_spelling(ui, &output, &frame.view);
-        if self
-            .preview
-            .sync
-            .take_editor_action(&self.document.engine)
-            .is_some()
+        if let Some(ViewAction::RevealInEditor { target }) =
+            self.preview.sync.take_editor_action(&self.document.engine)
         {
             if self.search_focus(ui.ctx()).is_none() {
                 output.response.request_focus();
@@ -223,9 +222,17 @@ impl App {
             // Le placement du TextEdit emploie son curseur natif courant,
             // y compris avant validation de la saisie de cette frame. La
             // demande commune porte toujours sur la sélection publiée.
-            let cursor = output
-                .galley
-                .pos_from_cursor(self.document.selection.primary);
+            let position = if output.galley.text() == self.document.engine.document().view.text {
+                self.document
+                    .engine
+                    .resolve_target(target)
+                    .ok()
+                    .map(|(_, head)| CCursor::new(head))
+                    .unwrap_or(self.document.selection.primary)
+            } else {
+                self.document.selection.primary
+            };
+            let cursor = output.galley.pos_from_cursor(position);
             ui.scroll_to_rect(
                 cursor.translate(output.galley_pos.to_vec2()),
                 Some(egui::Align::Center),
@@ -240,6 +247,7 @@ impl App {
             editor_style,
         )
         .map(|(id, action)| super::bands::EditorAction::Image(id, action));
+        self.paint_agent_reveal(ui, &output);
         let widget_action = self.widget_controls(ui, &draft.view, &output);
         let band_action = self.paint_band(ui, &draft.view, &output);
         let changed = output.response.changed() || draft.view.edit_error().is_some();

@@ -10,6 +10,7 @@ description = "Adaptateur MCP partagé et rattachement local pour typstOgraphe"
 workspace = true
 
 [dependencies]
+sha2.workspace = true
 typstographe-core.workspace = true
 typstographe-i18n.workspace = true
 clap.workspace = true

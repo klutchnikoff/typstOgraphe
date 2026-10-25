@@ -2,6 +2,10 @@
 use super::*;
 impl App {
     pub fn capture_widgets(&mut self, ctx: &egui::Context, scenario: &str) {
+        if scenario.starts_with("review") {
+            self.capture_review(ctx, scenario);
+            return;
+        }
         let mut stored = StoredDocument::demo(DocumentType::Courrier);
         stored.source="Madame, Monsieur,\n\nNous souhaitons confirmer la réservvation de la salle des Tilleuls pour notre prochaine rencontre.\n\n- Accueil des participants\n- Installation de la salle\n- Trente places assises\n- Un vidéoprojecteur\n\n#figure(image(\"images/parc.svg\", alt: \"Allée arborée et bancs du parc.\"), caption: [Le parc des Tilleuls, à proximité de la salle.])\n\n#quote(block: true, attribution: [Projet associatif])[Un lieu accessible à toutes et à tous, propice aux échanges.]\n\nJe vous remercie pour votre retour.".into();
         stored.assets.insert(

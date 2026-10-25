@@ -74,6 +74,7 @@ pub fn command_error_with(loader: &FluentLanguageLoader, error: &CommandError) -
     }
     loader.get(match error.reason() {
         "mcp_attached_read_only" => "mcp-attached-read-only",
+        "mcp_proposal" => "mcp-proposal-error",
         "edit_context_closed" => "engine-edit-context-closed",
         "proposal_files_forbidden" => "engine-proposal-files-forbidden",
         "image_too_large" => "image-too-large",

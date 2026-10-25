@@ -43,6 +43,11 @@ pub enum UiCommand {
     Palette,
     Preferences,
     Assistance,
+    ReviewProposal,
+    CloseReview,
+    AcceptProposal,
+    RejectProposal,
+    RevealAgentChange,
     Information,
     Model(Model),
     Bold,
@@ -93,6 +98,41 @@ const fn primary_shift(key: Key) -> KeyboardShortcut {
 }
 /// Chaque commande, y compris sans raccourci, est définie une seule fois ici.
 pub const COMMON_COMMANDS: &[Presentation] = &[
+    define(
+        "assistance.review",
+        "cmd-review-proposal",
+        UiCommand::ReviewProposal,
+        Scope::Global,
+        &[],
+    ),
+    define(
+        "assistance.close_review",
+        "cmd-close-review",
+        UiCommand::CloseReview,
+        Scope::Global,
+        &[],
+    ),
+    define(
+        "assistance.accept",
+        "cmd-accept-proposal",
+        UiCommand::AcceptProposal,
+        Scope::Global,
+        &[],
+    ),
+    define(
+        "assistance.reject",
+        "cmd-reject-proposal",
+        UiCommand::RejectProposal,
+        Scope::Global,
+        &[],
+    ),
+    define(
+        "assistance.reveal",
+        "cmd-reveal-agent-change",
+        UiCommand::RevealAgentChange,
+        Scope::Global,
+        &[],
+    ),
     define(
         "spelling.suggestions",
         "cmd-spelling-suggestions",

@@ -139,7 +139,7 @@ impl App {
     }
     pub(super) fn after_document_replaced(&mut self) {
         self.bands.open = None;
-        self.assistance.session = None;
+        self.assistance = Default::default();
         self.dialogs.assistance_open = false;
         let keymap = self
             .keymap

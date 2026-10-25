@@ -29,8 +29,16 @@ impl Policy {
         policy.attached = true;
         Ok(policy)
     }
+    pub(crate) fn attached_proposals() -> Result<Self, CommandError> {
+        let mut policy = Self::new(vec![], vec![], false)?;
+        policy.attached = true;
+        Ok(policy)
+    }
     pub(crate) fn is_attached(&self) -> bool {
         self.attached
+    }
+    pub(crate) fn allows_proposals(&self) -> bool {
+        self.attached && !self.read_only
     }
     pub fn describe(&self) -> Value {
         let mut value = self.roots.describe();
@@ -41,6 +49,9 @@ impl Policy {
         });
         value["read_only"] = json!(self.read_only);
         value["write_enabled"] = json!(!self.read_only && self.roots.can_write());
+        value["proposal_enabled"] = json!(self.allows_proposals());
+        value["human_approval_required"] = json!(self.allows_proposals());
+        value["direct_edit_enabled"] = json!(!self.attached && !self.read_only);
         value
     }
     pub fn support(&self, spec: &CommandSpec) -> Value {
@@ -54,7 +65,7 @@ impl Policy {
                 "document.close" => true,
                 _ => !self.read_only || spec.family == Family::Query,
             };
-        json!({"exposed":exposed(spec),"authorized":authorized,"read_only":self.read_only,
+        json!({"exposed":exposed(spec),"authorized":authorized,"proposal_supported":self.allows_proposals() && spec.batch_step,"read_only":self.read_only,
             "filesystem":self.roots.can_read() || (!self.read_only && self.roots.can_write())})
     }
     pub fn prepare(&self, engine: &Engine, command: &mut Command) -> Result<(), CommandError> {

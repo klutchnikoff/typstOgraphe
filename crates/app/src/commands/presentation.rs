@@ -98,6 +98,11 @@ impl UiCommand {
             | Self::SpellingSuggestions
             | Self::LearnSpelling => return Route::Interface,
             Self::RemoveWidget | Self::ContextualAction => return Route::Interface,
+            Self::ReviewProposal
+            | Self::CloseReview
+            | Self::AcceptProposal
+            | Self::RejectProposal
+            | Self::RevealAgentChange => return Route::Interface,
         };
         Route::Document(command)
     }

@@ -117,6 +117,11 @@ fn every_registered_ui_action_has_an_explicit_route_and_documentary_routes_are_r
                         | Command::Palette
                         | Command::Preferences
                         | Command::Assistance
+                        | Command::ReviewProposal
+                        | Command::CloseReview
+                        | Command::AcceptProposal
+                        | Command::RejectProposal
+                        | Command::RevealAgentChange
                         | Command::Information
                         | Command::RecoverDocuments
                         | Command::Find

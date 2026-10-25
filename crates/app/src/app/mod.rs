@@ -26,6 +26,7 @@ mod models;
 mod preferences;
 mod preview;
 mod recovery;
+mod review;
 mod search;
 mod signature;
 mod spelling;
@@ -103,6 +104,7 @@ pub struct App {
 
 impl App {
     pub fn ui_frame(&mut self, ctx: &egui::Context) {
+        self.track_assistance_input(ctx);
         if self.capture.path.is_some() {
             // Le pointeur réel ne doit pas modifier les survols des captures de référence.
             ctx.input_mut(|input| input.pointer = Default::default());
@@ -186,7 +188,15 @@ impl App {
                     ui.disable();
                 }
                 if self.document.open {
-                    self.columns_ui(ui, modal);
+                    if self.review_open() {
+                        egui::Frame::central_panel(ui.style()).show(ui, |ui| {
+                            ui.set_min_size(ui.available_size());
+                            self.review_ui(ui);
+                        });
+                    } else {
+                        self.proposal_notification(ui);
+                        self.columns_ui(ui, modal);
+                    }
                 } else {
                     self.welcome_ui(ui);
                 }
@@ -205,7 +215,9 @@ impl App {
         }
         self.track_history_focus(ctx);
         self.sync_published_selection();
-        self.poll_assistance();
+        if self.poll_assistance() {
+            ctx.request_repaint();
+        }
         self.assistance_ui(ctx);
         #[cfg(target_os = "macos")]
         self.refresh_native_menus(ctx);
@@ -247,6 +259,9 @@ impl App {
     }
     fn capture(&mut self, ctx: &egui::Context) {
         if self.capture.path.is_none() {
+            return;
+        }
+        if !self.review_capture_ready() {
             return;
         }
         if self.spelling.capture_active {

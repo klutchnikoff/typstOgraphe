@@ -53,6 +53,11 @@ impl App {
             return;
         }
         match command {
+            Command::ReviewProposal
+            | Command::CloseReview
+            | Command::AcceptProposal
+            | Command::RejectProposal
+            | Command::RevealAgentChange => self.apply_review_command(command),
             Command::ToggleSpelling
             | Command::SpellingSuggestions
             | Command::NextSpelling

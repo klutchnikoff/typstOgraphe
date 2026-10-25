@@ -28,6 +28,10 @@ impl PreparedProposal {
     pub fn document(&self) -> &StoredDocument {
         &self.document
     }
+    /// Read-only structured candidate, for a human-facing review without reparsing.
+    pub fn candidate_document(&self) -> &crate::document::Document {
+        &self.candidate.document
+    }
     pub fn selection(&self) -> LogicalSelection {
         self.candidate
             .document

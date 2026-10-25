@@ -19,7 +19,7 @@ impl ViewSync {
     /// une localisation sans point la consomme, comme le parcours egui existant.
     pub fn preview_actions(&mut self, engine: &Engine) -> Vec<ViewAction> {
         let render = self.current_render(engine);
-        let target = self.selection;
+        let target = self.reveal_target.or(self.selection);
         let boxes = render
             .zip(target)
             .and_then(|(render, target)| {
@@ -63,7 +63,7 @@ impl ViewSync {
     /// À consommer lorsque le placement de l'éditeur est prêt. Le choix du focus
     /// et le défilement restent à l'adaptateur, notamment si la recherche est active.
     pub fn take_editor_action(&mut self, engine: &Engine) -> Option<ViewAction> {
-        let target = self.selection?;
+        let target = self.reveal_target.or(self.selection)?;
         if !self.editor_pending
             || !engine.is_open()
             || target.guard != engine.target_guard()
