@@ -1240,9 +1240,15 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
   `crates/app/assets/fonts/inter/`), famille semi-grasse `theme::semibold()` pour les
   titres. Le texte de l'interface étant plus large, deux détails ajustés : marge des
   boutons de rubrique du panneau d'informations resserrée ; le test de redimensionnement
-  des bandeaux tolère une frame de mesure après un changement de largeur. À faire
-  ensuite : palette, accueil, recherche, informations, barre d'outils, barre d'état,
-  aperçu, relecture MCP.
+  des bandeaux tolère une frame de mesure après un changement de largeur.
+  **Barre d'outils et panneau d'informations livrés le 25 octobre 2026** : marque
+  retirée, icônes `ui_kit` à état actif en accent doux, un seul bouton-menu « fin de
+  lettre » (post-scriptum, pièces jointes ; commandes et raccourcis inchangés), annuler et
+  rétablir calés à droite ; rubriques d'informations en contrôle segmenté (clic sur la
+  rubrique active = fermeture), champs à bordure lisible. Icônes `paperclip`, `pen-line`,
+  `undo-2` et `redo-2` recopiées à la main d'après Lucide (à remplacer par les fichiers
+  officiels). À faire ensuite : palette, accueil, recherche, barre d'état, aperçu,
+  relecture MCP.
 - [ ] **L.4 — Bandeaux et pointe (D37, D40).** Variante B pour les paramètres de bloc ;
   pointe vers le mot pour l'orthographe ; bandeau d'une faute dans un bloc inséré entre
   deux lignes, à la largeur du bloc. Passer la plage horizontale du bloc au placement

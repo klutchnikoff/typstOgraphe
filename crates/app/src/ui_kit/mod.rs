@@ -14,12 +14,12 @@ mod side_rail;
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
 
-pub use button::{ButtonKind, button, button_enabled, icon_button};
+pub use button::{ButtonKind, button, button_enabled, icon_button, icon_style, icon_toggle};
 pub use dialog::{Dialog, footer};
-pub use field::{text_area, text_field};
+pub use field::{field_style, text_area, text_field};
 pub use gallery::{Gallery, Orientation, gallery};
 pub use notice::{NoticeKind, keycap, notice};
-pub use segmented::segmented;
+pub use segmented::{segmented, segmented_toggle};
 pub use side_rail::{DRAWER_MIN, RAIL_WIDTH, RailLayout, SidePanel, SideRail, reserve};
 
 use crate::theme::Tokens;

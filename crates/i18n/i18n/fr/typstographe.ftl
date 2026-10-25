@@ -325,6 +325,8 @@ bullet-marker-restore-automatic = Revenir au choix du modèle
 list-menu = Listes
 heading-menu = Titres
 heading-menu-hint = Titres et retour au texte courant
+end-menu = Fin de lettre
+end-menu-hint = Post-scriptum et pièces jointes
 description-placeholder = Description
 
 cmd-quote = Citation en bloc

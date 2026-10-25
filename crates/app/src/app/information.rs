@@ -31,42 +31,29 @@ impl App {
                     .x
             })
         };
+        // Segments : texte, marges de 11 points de chaque côté, 2 points entre segments.
         let controls_width: f32 = groups
             .iter()
-            .map(|(_, label)| label_width(label) + 2.0 * ui.spacing().button_padding.x)
-            .sum();
-        let heading = if label_width(&full_heading)
-            + controls_width
-            + groups.len() as f32 * ui.spacing().item_spacing.x
+            .map(|(_, label)| label_width(label) + 22.0 + 2.0)
+            .sum::<f32>()
+            + 4.0;
+        let heading = if label_width(&full_heading) + controls_width + ui.spacing().item_spacing.x
             <= ui.available_width()
         {
             full_heading.clone()
         } else {
             crate::tr!("document-settings-short")
         };
+        let options: Vec<(InformationGroup, String)> = groups;
+        let selected = self
+            .dialogs
+            .information_open
+            .then_some(self.dialogs.information_group);
         let mut clicked = None;
-        ui.scope(|ui| {
-            crate::toolbar::neutral_selection(ui);
-            ui.spacing_mut().button_padding = egui::vec2(6.0, 0.0);
-            ui.horizontal_wrapped(|ui| {
-                ui.add(egui::Label::new(heading).truncate())
-                    .on_hover_text(&full_heading);
-                for (group, label) in groups {
-                    let active =
-                        self.dialogs.information_open && self.dialogs.information_group == group;
-                    if ui
-                        .add(egui::Button::selectable(active, label.clone()).small())
-                        .on_hover_text(if active {
-                            crate::tr!("document-settings-close")
-                        } else {
-                            label
-                        })
-                        .clicked()
-                    {
-                        clicked = Some(group);
-                    }
-                }
-            });
+        ui.horizontal_wrapped(|ui| {
+            ui.add(egui::Label::new(heading).truncate())
+                .on_hover_text(&full_heading);
+            clicked = crate::ui_kit::segmented_toggle(ui, selected, &options);
         });
         if let Some(group) = clicked {
             let close = self.dialogs.information_open && self.dialogs.information_group == group;
@@ -89,6 +76,7 @@ impl App {
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
                     ui.add_enabled_ui(!self.document.engine.is_read_only(), |ui| {
+                        crate::ui_kit::field_style(ui);
                         match self.dialogs.information_group {
                             InformationGroup::General => self.general_information_ui(ui),
                             InformationGroup::Fields(group) => {

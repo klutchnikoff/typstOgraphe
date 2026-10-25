@@ -41,10 +41,13 @@ impl App {
         let mut output = if is_date {
             ui.horizontal_wrapped(|ui| {
                 let output = edit(ui, &mut value, (width - 100.0).max(80.0));
-                today = ui
-                    .button(crate::tr!("date-today"))
-                    .on_hover_text(crate::tr!("date-today-help"))
-                    .clicked();
+                today = crate::ui_kit::button(
+                    ui,
+                    crate::ui_kit::ButtonKind::Secondary,
+                    crate::tr!("date-today"),
+                )
+                .on_hover_text(crate::tr!("date-today-help"))
+                .clicked();
                 output
             })
             .inner

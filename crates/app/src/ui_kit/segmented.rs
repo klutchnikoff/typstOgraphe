@@ -9,6 +9,30 @@ pub fn segmented<T: Copy + PartialEq>(
     value: &mut T,
     options: &[(T, String)],
 ) -> Response {
+    let current = *value;
+    let (mut response, clicked) = segments(ui, options, |option| *option == current);
+    if let Some(option) = clicked.filter(|option| *option != current) {
+        *value = option;
+        response.mark_changed();
+    }
+    response
+}
+
+/// Variante où le segment actif peut être cliqué de nouveau (ouvrir/fermer une
+/// rubrique) : retourne le segment cliqué, qu’il soit actif ou non.
+pub fn segmented_toggle<T: Copy + PartialEq>(
+    ui: &mut egui::Ui,
+    selected: Option<T>,
+    options: &[(T, String)],
+) -> Option<T> {
+    segments(ui, options, |option| selected == Some(*option)).1
+}
+
+fn segments<T: Copy>(
+    ui: &mut egui::Ui,
+    options: &[(T, String)],
+    is_selected: impl Fn(&T) -> bool,
+) -> (Response, Option<T>) {
     let t = tokens(ui);
     // Le segment actif ressort du fond du groupe : plus clair en sombre, surélevé en clair.
     let raised = if ui.visuals().dark_mode {
@@ -16,8 +40,8 @@ pub fn segmented<T: Copy + PartialEq>(
     } else {
         t.raised
     };
-    let mut changed = false;
-    let mut response = egui::Frame::new()
+    let mut clicked = None;
+    let response = egui::Frame::new()
         .fill(t.hover)
         .corner_radius(radius(scale::RADIUS_CARD))
         .inner_margin(egui::Margin::same(2))
@@ -26,7 +50,7 @@ pub fn segmented<T: Copy + PartialEq>(
                 ui.spacing_mut().item_spacing.x = 2.0;
                 ui.spacing_mut().button_padding = egui::vec2(11.0, 3.0);
                 for (option, label) in options {
-                    let selected = *value == *option;
+                    let selected = is_selected(option);
                     let segment = ui.scope(|ui| {
                         let widgets = &mut ui.visuals_mut().widgets;
                         let (rest, text) = if selected {
@@ -34,17 +58,14 @@ pub fn segmented<T: Copy + PartialEq>(
                         } else {
                             (Color32::TRANSPARENT, t.muted)
                         };
+                        let hover = if selected {
+                            raised
+                        } else {
+                            theme::mix(t.hover, t.text, 0.06)
+                        };
                         for (state, fill, color) in [
                             (&mut widgets.inactive, rest, text),
-                            (
-                                &mut widgets.hovered,
-                                if selected {
-                                    raised
-                                } else {
-                                    theme::mix(t.hover, t.text, 0.06)
-                                },
-                                t.text,
-                            ),
+                            (&mut widgets.hovered, hover, t.text),
                             (&mut widgets.active, raised, t.text),
                         ] {
                             state.weak_bg_fill = fill;
@@ -53,13 +74,13 @@ pub fn segmented<T: Copy + PartialEq>(
                             state.corner_radius = radius(scale::RADIUS_CONTROL);
                             state.expansion = 0.0;
                         }
+                        let text = if selected {
+                            RichText::new(label).family(theme::semibold())
+                        } else {
+                            RichText::new(label)
+                        };
                         ui.add(
-                            egui::Button::new(if selected {
-                                RichText::new(label).family(theme::semibold())
-                            } else {
-                                RichText::new(label)
-                            })
-                            .min_size(egui::vec2(0.0, CONTROL_HEIGHT - 6.0)),
+                            egui::Button::new(text).min_size(egui::vec2(0.0, CONTROL_HEIGHT - 6.0)),
                         )
                     });
                     let segment = segment.inner;
@@ -71,16 +92,12 @@ pub fn segmented<T: Copy + PartialEq>(
                             label,
                         )
                     });
-                    if segment.clicked() && !selected {
-                        *value = *option;
-                        changed = true;
+                    if segment.clicked() {
+                        clicked = Some(*option);
                     }
                 }
             });
         })
         .response;
-    if changed {
-        response.mark_changed();
-    }
-    response
+    (response, clicked)
 }

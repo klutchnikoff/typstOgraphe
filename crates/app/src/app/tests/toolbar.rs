@@ -41,14 +41,22 @@ fn compact_toolbar_and_status_show_unicode_totals_selection_and_tooltips() {
     };
     draw(&mut app, vec![]);
     let output = draw(&mut app, vec![]);
-    let brand = text_rect(&output, "typstOgraphe").unwrap();
+    // D40 : la marque quitte la barre d'outils (le titre de la fenêtre la porte).
+    assert!(text_rect(&output, "typstOgraphe").is_none());
     let heading = icon_rect(&output, &ctx, crate::icons::Icon::Heading);
-    assert!(brand.right() < heading.left());
     assert!(
-        (brand.center().y - heading.center().y).abs() < 2.0,
-        "nom {brand:?}, titres {heading:?}"
+        heading.left() < 60.0,
+        "menu des titres en tête de barre : {heading:?}"
     );
-    assert_eq!(output.shapes.iter().filter(|shape| matches!(&shape.shape, egui::Shape::Text(text) if text.galley.text() == "typstOgraphe")).count(), 1);
+    // Annuler et rétablir sont à droite de la barre, après les commandes de rédaction.
+    let undo = icon_rect(&output, &ctx, crate::icons::Icon::Undo);
+    let redo = icon_rect(&output, &ctx, crate::icons::Icon::Redo);
+    let quote = icon_rect(&output, &ctx, crate::icons::Icon::Quote);
+    assert!(quote.right() < undo.left() && undo.right() < redo.left());
+    assert!(
+        (undo.center().y - heading.center().y).abs() < 2.0,
+        "{undo:?} {heading:?}"
+    );
     let total = crate::tr!("document-stats", words = 1, signs = 3);
     assert!(text_rect(&output, &total).is_some());
     assert!(text_rect(&output, "Point d’insertion").is_none());
@@ -199,8 +207,7 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
                     _ => None,
                 })
                 .expect("icône active peinte");
-            assert_eq!(tint.r(), tint.g());
-            assert_eq!(tint.g(), tint.b());
+            assert_eq!(tint, crate::theme::Tokens::new(dark).accent, "dark={dark}");
         }
         let mut heading_icon = Icon::Heading;
         for (kind, next_icon) in [

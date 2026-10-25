@@ -263,6 +263,8 @@ bullet-marker-restore-automatic = Restore template choice
 list-menu = Lists
 heading-menu = Headings
 heading-menu-hint = Headings and return to body text
+end-menu = Letter ending
+end-menu-hint = Postscript and attachments
 description-placeholder = Description
 
 cmd-quote = Block quote

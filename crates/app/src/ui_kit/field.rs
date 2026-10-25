@@ -3,7 +3,9 @@ use crate::theme::scale;
 use eframe::egui::{self, Response, Stroke, StrokeKind};
 use std::hash::Hash;
 
-fn style(ui: &mut egui::Ui) {
+/// Style des champs de saisie (fond, bordure forte, bordure d'accent au focus) pour les
+/// `TextEdit` dont le code reste propre à l'écran. À appliquer dans un `ui.scope`.
+pub fn field_style(ui: &mut egui::Ui) {
     let t = tokens(ui);
     let visuals = ui.visuals_mut();
     visuals.extreme_bg_color = t.field;
@@ -34,7 +36,7 @@ fn focus_ring(ui: &egui::Ui, response: &Response) {
 
 fn show(ui: &mut egui::Ui, edit: impl FnOnce(&mut egui::Ui) -> Response) -> Response {
     ui.scope(|ui| {
-        style(ui);
+        field_style(ui);
         let response = edit(ui);
         focus_ring(ui, &response);
         response

@@ -87,26 +87,32 @@ pub fn button_enabled(
     .inner
 }
 
-/// Bouton carré à icône monochrome ; `active` marque un état (gras, lien…).
-/// `label` nourrit l’info-bulle et l’accessibilité.
-pub fn icon_button(ui: &mut egui::Ui, icon: Icon, active: bool, label: &str) -> Response {
+/// Style des boutons de barre d'outils : transparents au repos, fond doux au survol,
+/// état actif en accent doux. À appliquer dans un `ui.scope` autour des boutons.
+pub fn icon_style(ui: &mut egui::Ui) {
+    let t = tokens(ui);
+    let visuals = ui.visuals_mut();
+    visuals.selection.bg_fill = t.accent_soft;
+    visuals.selection.stroke = Stroke::new(1.0_f32, t.accent);
+    let widgets = &mut visuals.widgets;
+    for (state, fill) in [
+        (&mut widgets.inactive, Color32::TRANSPARENT),
+        (&mut widgets.hovered, t.hover),
+        (&mut widgets.active, theme::mix(t.hover, t.text, 0.08)),
+        (&mut widgets.open, t.hover),
+    ] {
+        state.weak_bg_fill = fill;
+        state.bg_stroke = Stroke::NONE;
+        state.corner_radius = radius(scale::RADIUS_CONTROL);
+        state.expansion = 0.0;
+    }
+}
+
+/// Bouton carré à icône monochrome, sans info-bulle : l'appelant décrit l'action.
+pub fn icon_toggle(ui: &mut egui::Ui, icon: Icon, active: bool, label: &str) -> Response {
     let response = ui
         .scope(|ui| {
-            let t = tokens(ui);
-            let visuals = ui.visuals_mut();
-            visuals.selection.bg_fill = t.accent_soft;
-            visuals.selection.stroke = Stroke::new(1.0_f32, t.accent);
-            let widgets = &mut visuals.widgets;
-            for (state, fill) in [
-                (&mut widgets.inactive, Color32::TRANSPARENT),
-                (&mut widgets.hovered, t.hover),
-                (&mut widgets.active, theme::mix(t.hover, t.text, 0.08)),
-            ] {
-                state.weak_bg_fill = fill;
-                state.bg_stroke = Stroke::NONE;
-                state.corner_radius = radius(scale::RADIUS_CONTROL);
-                state.expansion = 0.0;
-            }
+            icon_style(ui);
             ui.add(
                 egui::Button::new(icon.image(ui.ctx(), crate::toolbar::ICON_SIZE))
                     .image_tint_follows_text_color(true)
@@ -119,5 +125,11 @@ pub fn icon_button(ui: &mut egui::Ui, icon: Icon, active: bool, label: &str) -> 
     response.widget_info(|| {
         WidgetInfo::selected(WidgetType::Button, response.enabled(), active, label)
     });
-    response.on_hover_text(label)
+    response
+}
+
+/// Bouton carré à icône monochrome ; `active` marque un état (gras, lien…).
+/// `label` nourrit l'info-bulle et l'accessibilité.
+pub fn icon_button(ui: &mut egui::Ui, icon: Icon, active: bool, label: &str) -> Response {
+    icon_toggle(ui, icon, active, label).on_hover_text(label)
 }

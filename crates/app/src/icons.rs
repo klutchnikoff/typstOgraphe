@@ -20,6 +20,10 @@ pub enum Icon {
     Settings,
     Trash,
     Close,
+    Paperclip,
+    PenLine,
+    Undo,
+    Redo,
 }
 
 impl Icon {
@@ -42,6 +46,10 @@ impl Icon {
             Self::Settings => include_str!("../assets/icons/lucide/settings-2.svg"),
             Self::Trash => include_str!("../assets/icons/lucide/trash-2.svg"),
             Self::Close => include_str!("../assets/icons/lucide/x.svg"),
+            Self::Paperclip => include_str!("../assets/icons/lucide/paperclip.svg"),
+            Self::PenLine => include_str!("../assets/icons/lucide/pen-line.svg"),
+            Self::Undo => include_str!("../assets/icons/lucide/undo-2.svg"),
+            Self::Redo => include_str!("../assets/icons/lucide/redo-2.svg"),
         }
     }
 
@@ -124,6 +132,10 @@ mod tests {
             Icon::Settings,
             Icon::Trash,
             Icon::Close,
+            Icon::Paperclip,
+            Icon::PenLine,
+            Icon::Undo,
+            Icon::Redo,
         ] {
             for pixels in [18, 36, 54] {
                 let image = icon.raster(pixels);
