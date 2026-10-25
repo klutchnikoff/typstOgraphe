@@ -124,9 +124,11 @@ Le contexte agent demeure séparé. Les étapes d’un lot s’y enchaînent, ma
 sélection et son style finaux ne deviennent courants qu’après acceptation.
 Refuser/annuler laisse ce contexte inchangé, hors report des positions imposé par
 la rédaction humaine. Le transfert d’une sélection utilisateur reste volontaire.
-La navigation propre à l’agent pourra réutiliser `text.select` dans son contexte,
-sans navigation graphique ; cette autorisation doit être déclarée séparément et
-ne confère aucune édition directe. Les lectures continuent à voir le publié.
+La navigation directe `text.select` réutilise uniquement son contexte, sans
+navigation graphique ; `permissions.agent_navigation_enabled` déclare cette
+autorisation, qui ne confère aucune édition directe. Une interruption ou un lot
+en attente bloque cette navigation. La commande graphique **Confier la sélection
+à l’agent** assure le transfert explicite (menu Édition et palette). Les lectures continuent à voir le publié.
 
 Exemple de soumission, en remplaçant la référence par celle fournie par `document.inspect` :
 
@@ -169,10 +171,10 @@ révèle les deux panneaux et la repère pendant deux secondes. Un mouvement de
 sélection ou une nouvelle publication retire ce repérage. Une cible périmée n’est
 pas réancrée ; une nouvelle identité documentaire efface les états d’assistance.
 
-La suite est 6.6 pour la recette complète avec agent réel et rédaction simultanée.
 L’enregistrement/export MCP rattaché du lot 6.5 porte uniquement sur le publié,
-sous permissions propres à l’invitation. La navigation agent directe et le transfert graphique d’une sélection
-restent à compléter ; les sélecteurs des étapes permettent déjà de cibler les lots.
+sous permissions propres à l’invitation. La navigation agent directe et le
+transfert graphique volontaire sont complétés en 6.6 ; les sélecteurs des étapes
+permettent aussi de cibler les lots.
 
 ## Contrôles du socle livré
 

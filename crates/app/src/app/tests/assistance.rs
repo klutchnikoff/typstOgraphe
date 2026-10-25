@@ -1,6 +1,30 @@
 use super::*;
 
 #[test]
+fn sharing_is_explicit_palette_available_and_does_not_follow_later_user_navigation() {
+    let (ctx, mut app) = demo_app();
+    app.document.selection = editor::cursor(0..6);
+    app.sync_published_selection();
+    assert!(!app.command_enabled(Command::ShareSelection));
+    app.start_assistance(&ctx);
+    let before = app.stored_document();
+    let user = app.document.engine.primary_context();
+    app.dialogs.palette_open = true;
+    assert!(app.command_enabled(Command::ShareSelection));
+    app.dialogs.palette_open = false;
+    app.apply(Command::ShareSelection);
+    assert_eq!(app.document.engine.primary_context(), user);
+    assert_eq!(app.stored_document(), before);
+    assert_eq!(app.document.engine.history().undo, 0);
+    app.assistance.native_ime = true;
+    assert!(!app.command_enabled(Command::ShareSelection));
+    app.assistance.native_ime = false;
+    app.document.selection = editor::cursor(8..8);
+    app.sync_published_selection();
+    assert!(!app.command_enabled(Command::ShareSelection));
+}
+
+#[test]
 fn file_grants_are_visible_and_save_effects_clear_recovery_without_taking_focus() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("recovery");

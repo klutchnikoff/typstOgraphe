@@ -41,11 +41,14 @@ impl ReviewState {
 }
 impl App {
     pub(super) fn assistance_busy(&self) -> bool {
+        self.dialogs.palette_open || self.assistance_busy_without_palette()
+    }
+    pub(super) fn assistance_busy_without_palette(&self) -> bool {
         self.document.ime.active()
             || self.assistance.native_ime
             || self.bands.parameter_ime
             || self.bands.open.is_some()
-            || self.modal_open()
+            || self.modal_without_palette()
             || self.file.export_task.is_some()
     }
     pub(super) fn review_open(&self) -> bool {
@@ -63,7 +66,7 @@ impl App {
                         .session
                         .as_ref()
                         .is_some_and(|s| !s.finished())
-                    && !self.assistance_busy()
+                    && !self.assistance_busy_without_palette()
             }
             Command::CloseReview => self.review_open(),
             Command::AcceptProposal | Command::RejectProposal => {
@@ -82,10 +85,12 @@ impl App {
                         || r.is_some_and(|r| {
                             r.snapshot.guard == self.document.engine.target_guard()
                         }) && !self.document.engine.is_read_only())
-                    && !self.assistance_busy()
+                    && !self.assistance_busy_without_palette()
             }
             Command::RevealAgentChange => {
-                self.assistance.notice.is_some() && !self.review_open() && !self.assistance_busy()
+                self.assistance.notice.is_some()
+                    && !self.review_open()
+                    && !self.assistance_busy_without_palette()
             }
             _ => return None,
         })

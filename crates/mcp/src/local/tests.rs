@@ -11,6 +11,109 @@ use typstographe_core::{document_types::DocumentType, engine::*, storage::Stored
 fn engine() -> Engine {
     Engine::from_stored(StoredDocument::demo(DocumentType::Courrier), None).unwrap()
 }
+
+#[test]
+fn trusted_selection_handoff_is_guarded_independent_and_not_an_mcp_approval_or_edit() {
+    let mut engine = engine();
+    let mut session = LocalSession::start(&mut engine, Arc::new(|| {})).unwrap();
+    let target = engine.document().structure.selection_at(0, 6).unwrap();
+    let target = SelectionTarget {
+        guard: engine.target_guard(),
+        selection: target,
+    };
+    let user = engine.primary_context();
+    let before = engine.stored_document();
+    session
+        .capture_selection(&mut engine, target, false)
+        .unwrap();
+    engine
+        .run(Command::SelectText(SelectTextParams {
+            target: TextTarget::All {},
+            part: None,
+        }))
+        .unwrap();
+    let host = Host::attached(&mut engine, session.id.clone(), session.context.clone()).unwrap();
+    let text = host.resource("typstographe://document").unwrap();
+    assert_eq!(text.value["outcome"]["state"]["selection"], json!(target));
+    drop(host);
+    assert_eq!(engine.stored_document(), before);
+    assert_eq!(engine.history().undo, 0);
+    assert_ne!(engine.primary_context(), user);
+    assert!(
+        session
+            .capture_selection(&mut engine, target, true)
+            .is_err()
+    );
+    session
+        .prepare_proposal(
+            &engine,
+            "pending",
+            vec![Call {
+                id: "text.insert".to_owned().try_into().unwrap(),
+                params: json!({"text":"Proposé"}),
+            }],
+        )
+        .unwrap();
+    assert!(
+        session
+            .capture_selection(&mut engine, target, false)
+            .is_err()
+    );
+}
+
+#[test]
+fn attached_navigation_changes_only_the_agent_context_and_current_never_uses_the_human_caret() {
+    let mut engine = engine();
+    engine
+        .run(Command::Bold(StyleParams {
+            target: Default::default(),
+            value: StyleValue::On,
+        }))
+        .unwrap();
+    let user = engine.primary_context();
+    let before = engine.stored_document();
+    let context = engine
+        .create_edit_context(engine.target_guard(), None)
+        .unwrap();
+    let mut proposals = Proposals::default();
+    let mut host = Host::attached_proposals(
+        &mut engine,
+        "agent-nav".into(),
+        context.clone(),
+        &mut proposals,
+        false,
+    )
+    .unwrap();
+    let reference =
+        run(&mut host, "document.inspect", json!({})).unwrap().value["document"].clone();
+    let selected = run(
+        &mut host,
+        "text.select",
+        json!({"document":reference,"target":{"kind":"all"}}),
+    )
+    .unwrap();
+    assert_eq!(selected.value["outcome"]["changed"], false);
+    assert_eq!(selected.value["outcome"]["effects"], json!([]));
+    let retained = selected.value["outcome"]["selection"].clone();
+    let current = run(
+        &mut host,
+        "text.select",
+        json!({"document":reference,"target":{"kind":"current"}}),
+    )
+    .unwrap();
+    assert_eq!(current.value["outcome"]["selection"], retained);
+    assert!(run(&mut host,"text.select",json!({"document":{"id":"agent-nav","guard":{"document_id":0,"revision":0}},"target":{"kind":"all"}})).is_err());
+    drop(host);
+    assert_eq!(engine.primary_context(), user);
+    assert_eq!(engine.stored_document(), before);
+    assert_eq!(engine.history().undo, 0);
+    assert_eq!(
+        engine
+            .resolve_target(engine.editing_context(&context).unwrap().selection)
+            .unwrap(),
+        (0, engine.document().view.len())
+    );
+}
 fn run(host: &mut Host<'_>, name: &str, params: Value) -> Result<Reply, CommandError> {
     host.dispatch(name, params.as_object().unwrap().clone())
 }

@@ -112,6 +112,25 @@ impl Engine {
             .state = state.clone();
         Ok(state)
     }
+    /// Navigate a participant without replacing the primary editor's selection/style.
+    pub fn navigate_context(
+        &mut self,
+        context: &EditContext,
+        mut params: SelectTextParams,
+    ) -> Result<ContextSnapshot, CommandError> {
+        let current = self.editing_context(context)?;
+        if matches!(params.target, TextTarget::Current {}) {
+            params.target = current.selection.into();
+        }
+        self.check_rule(AvailabilityRule::Read)?;
+        let selection = if let Some(part) = params.part {
+            self.relative_destination(params.target, part)?
+        } else {
+            self.resolve(params.target)?
+        };
+        let target = self.selection_target(selection)?;
+        self.select_in_context(context, target)
+    }
     fn context_state_at(&self, target: SelectionTarget) -> Result<ContextSnapshot, CommandError> {
         let selection = self.resolve(target.into())?;
         let range = selection.range();

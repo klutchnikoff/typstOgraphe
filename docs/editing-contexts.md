@@ -18,6 +18,7 @@ lecture ou préparer une proposition.
 | `create_edit_context(guard, Some(selection))` | Capture explicite d’une sélection courante et de son style environnant. |
 | `primary_context()` / `editing_context(handle)` | Lire un état de contexte. |
 | `select_in_context(handle, selection)` | Déplacer uniquement ce participant, avec garde vérifiée ; recalculer son style au déplacement. |
+| `navigate_context(handle, params)` | Résoudre `Current` et la destination relative dans ce contexte, puis y déplacer seulement ce participant. |
 | `query_in_context(handle, query)` | Résoudre `Current` dans ce contexte ; adapter sélection/style d’`inspect` et disponibilité de `commands.list`. |
 | `accept_proposal(handle, candidate)` | Publication atomique après accord humain recueilli par l’adaptateur ; garde revérifiée, contexte utilisateur conservé. Aucun outil MCP correspondant. |
 
@@ -34,10 +35,15 @@ référence faible à son contexte, aucun verrou de fichier.
 
 Le rattachement local garde un handle pour toute l’invitation. Chaque requête
 emprunte le moteur et ce même contexte, après publication des entrées natives.
-Toutes les commandes MCP rattachées restent refusées en 6.3, y compris la sélection.
-Depuis 6.4b, les lots passent par `proposals.submit` et une décision humaine dans
-l’application. Le transfert graphique volontaire d’une sélection reste à compléter ;
-les sélecteurs permettent de cibler les lots sans suivi implicite du curseur.
+Depuis 6.4b, les éditions passent par `proposals.submit` et une décision humaine
+dans l’application. Le lot 6.6 complète le transfert : **Édition → Confier la
+sélection à l’agent**, également dans la palette, capture la sélection non vide
+courante sans la suivre ensuite. Cette action ne dispose pas de raccourci par
+défaut et reste indisponible pendant une interruption ou une proposition en attente.
+L’agent peut appeler directement `text.select` pour sa propre navigation ;
+`Current` désigne toujours son contexte. Cette navigation ne prend ni focus ni
+sélection utilisateur et n’ajoute aucun historique. Les interruptions et les
+propositions en attente la bloquent. Les sélecteurs restent disponibles dans les lots.
 
 ## Report exact des positions
 

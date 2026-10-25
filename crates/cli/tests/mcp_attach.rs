@@ -131,9 +131,19 @@ fn stdio_bridge_reads_the_same_unsaved_document_while_its_owner_keeps_editing() 
                     .unwrap()
                     .iter()
                     .all(|entry| {
-                        entry["family"] == "query" || entry["mcp_support"]["authorized"] == false
+                        entry["family"] == "query"
+                            || entry["id"] == "text.select"
+                            || entry["mcp_support"]["authorized"] == false
                     })
             );
+            let navigation = call(
+                &client,
+                "text.select",
+                json!({"document":inspect["document"],"target":{"kind":"all"}}),
+            )
+            .await;
+            assert_eq!(navigation["outcome"]["changed"], false);
+            assert_eq!(navigation["outcome"]["effects"], json!([]));
             for name in [
                 "text.insert",
                 "document.new",

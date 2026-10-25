@@ -309,6 +309,28 @@ impl<'a> Host<'a> {
         }
         let mut command = Command::from_call(name, Value::Object(params))?;
         self.policy.prepare(&self.engine, &mut command)?;
+        if let Some(context) = &self.context
+            && let Command::SelectText(params) = command
+        {
+            if self
+                .proposals
+                .as_ref()
+                .is_some_and(|s| s.review().is_some())
+            {
+                return Err(CommandError::new(
+                    ErrorCode::Unavailable,
+                    "mcp_attached_busy",
+                ));
+            }
+            let state = self.engine.navigate_context(context, params)?;
+            return Ok(json!(Outcome {
+                changed: false,
+                guard: self.engine.target_guard(),
+                selection: Some(state.selection),
+                effects: vec![],
+                value: None
+            }));
+        }
         let mut outcome = if let Command::Batch(p) = command {
             self.engine
                 .run_resolved_batch(p, |_, draft, call| resolve_step(draft, call, &self.policy))?

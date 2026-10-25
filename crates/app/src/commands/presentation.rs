@@ -90,6 +90,7 @@ impl UiCommand {
             Self::Palette
             | Self::Preferences
             | Self::Assistance
+            | Self::ShareSelection
             | Self::Information
             | Self::RecoverDocuments
             | Self::Find
@@ -181,6 +182,7 @@ impl Presentation {
             UiCommand::Palette => (MenuGroup::Edit, 30),
             UiCommand::Preferences => (MenuGroup::Edit, 40),
             UiCommand::Assistance => (MenuGroup::Edit, 41),
+            UiCommand::ShareSelection => (MenuGroup::Edit, 42),
             UiCommand::ToggleSpelling => (MenuGroup::Edit, 50),
             UiCommand::NextSpelling => (MenuGroup::Edit, 51),
             UiCommand::PreviousSpelling => (MenuGroup::Edit, 52),

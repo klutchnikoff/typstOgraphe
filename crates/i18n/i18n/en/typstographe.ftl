@@ -490,6 +490,8 @@ mcp-root = MCP roots must be existing, accessible directories.
 
 # Local assistance — phase 6
 cmd-assistance = Agent assistance…
+cmd-share-selection = Share selection with the agent
+assistance-selection-shared = Selection shared with the agent. Your subsequent movements remain independent.
 cli-mcp-attach-help = Connect MCP to the document authorized by an application invitation, without opening a document file.
 mcp-attached-read-only = This direct command is not authorized by the invitation. Edits require proposals.submit; saving and export require explicit permission.
 mcp-attached-busy = Operation temporarily unavailable during input, a dialog or another export. Retry explicitly after it closes.

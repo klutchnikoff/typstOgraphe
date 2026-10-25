@@ -2,11 +2,13 @@ use super::*;
 
 impl App {
     pub(super) fn modal_open(&self) -> bool {
+        self.dialogs.palette_open || self.modal_without_palette()
+    }
+    pub(super) fn modal_without_palette(&self) -> bool {
         self.recovery.open
             || self.dialogs.assistance_open
             || self.dialogs.new_document_open
             || self.dialogs.preferences_open
-            || self.dialogs.palette_open
             || self.file.export_open
             || self.file.pending_action.is_some()
             || self.file.read_only_offer.is_some()

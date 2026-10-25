@@ -89,6 +89,7 @@ impl App {
             Command::ContextualAction => self.activate_contextual_action(),
             Command::Preferences => self.dialogs.preferences_open = true,
             Command::Assistance => self.dialogs.assistance_open = true,
+            Command::ShareSelection => self.share_selection(),
             Command::File(command) => self.file.command = Some(command),
             Command::Palette => {
                 self.dialogs.palette_open = !self.dialogs.palette_open;

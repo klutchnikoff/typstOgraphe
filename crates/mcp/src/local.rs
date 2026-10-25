@@ -142,6 +142,25 @@ impl LocalSession {
     pub fn proposal_status(&self, id: &str) -> Option<crate::ProposalStatus> {
         self.proposals.status(id)
     }
+    /// Explicit trusted UI handoff. No MCP call can capture the human selection.
+    pub fn capture_selection(
+        &mut self,
+        engine: &mut Engine,
+        selection: typstographe_core::engine::SelectionTarget,
+        busy: bool,
+    ) -> Result<(), typstographe_core::engine::CommandError> {
+        if self.finished()
+            || busy
+            || self.proposals.review().is_some()
+            || engine.target_guard().document_id != self.guard.document_id
+        {
+            return Err(crate::mcp::proposals::error(
+                "Selection cannot be handed off now",
+            ));
+        }
+        engine.select_in_context(&self.context, selection)?;
+        Ok(())
+    }
     /// Trusted human-facing decision; never routed from incoming MCP operations.
     pub fn decide(
         &mut self,

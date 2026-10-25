@@ -27,6 +27,9 @@ fn notification_and_review_never_change_the_document_and_escape_only_returns_to_
     let guard = app.document.engine.target_guard();
     assert!(!app.review_open());
     assert!(app.command_enabled(Command::ReviewProposal));
+    app.dialogs.palette_open = true;
+    assert!(app.command_enabled(Command::ReviewProposal));
+    app.dialogs.palette_open = false;
     recovery_click(&mut app, &ctx, &Command::ReviewProposal.label());
     assert!(app.review_open());
     assert!(!app.command_enabled(Command::Bold));

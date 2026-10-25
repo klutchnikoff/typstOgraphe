@@ -493,6 +493,8 @@ mcp-root = Les racines MCP doivent être des répertoires existants et accessibl
 
 # Assistance locale — phase 6
 cmd-assistance = Assistance par un agent…
+cmd-share-selection = Confier la sélection à l’agent
+assistance-selection-shared = Sélection confiée à l’agent. Vos déplacements suivants restent indépendants.
 cli-mcp-attach-help = Relier MCP au document autorisé par une invitation de l’application, sans ouvrir de fichier documentaire.
 mcp-attached-read-only = Cette commande directe n’est pas autorisée par l’invitation. Les éditions passent par proposals.submit ; sauvegarde et export exigent un droit explicite.
 mcp-attached-busy = Opération momentanément indisponible pendant une saisie, un dialogue ou un export. Réessayez explicitement après sa fermeture.

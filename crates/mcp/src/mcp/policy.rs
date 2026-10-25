@@ -51,6 +51,9 @@ impl Policy {
         self
     }
     pub(crate) fn allows_attached_command(&self, name: &str) -> bool {
+        if name == "text.select" {
+            return self.allows_proposals();
+        }
         !self.read_only
             && self.files.is_some()
             && match name {
@@ -76,6 +79,7 @@ impl Policy {
         value["proposal_enabled"] = json!(self.allows_proposals());
         value["human_approval_required"] = json!(self.allows_proposals());
         value["direct_edit_enabled"] = json!(!self.attached && !self.read_only);
+        value["agent_navigation_enabled"] = json!(self.allows_proposals());
         if self.attached {
             value["attached_files"] = self.file_permissions.clone();
             value["write_enabled"] = json!(
@@ -101,7 +105,7 @@ impl Policy {
                 _ => !self.read_only || spec.family == Family::Query,
             };
         json!({"exposed":exposed(spec),"authorized":authorized,"proposal_supported":self.allows_proposals() && spec.batch_step,"read_only":self.read_only,
-            "filesystem":self.roots.can_read() || (!self.read_only && self.roots.can_write()) || self.allows_attached_command(spec.id.as_str())})
+            "filesystem":self.roots.can_read() || (!self.read_only && self.roots.can_write()) || (matches!(spec.id.as_str(),"document.save"|"document.export") && self.allows_attached_command(spec.id.as_str()))})
     }
     pub fn prepare(&self, engine: &Engine, command: &mut Command) -> Result<(), CommandError> {
         if self.attached && matches!(command, Command::SaveDocument(_) | Command::Export(_)) {

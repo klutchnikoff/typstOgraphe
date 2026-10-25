@@ -72,6 +72,7 @@ pub(super) fn for_session(attached: bool) -> &'static [Tool] {
         let mut result = tools().to_vec();
         for tool in &mut result {
             let attached = match tool.name.as_ref() {
+                "text.select"=>Some("Attached mode: navigate only the agent's editing context, without changing the human selection, focus, document or history. Current means the agent's own selection. Requires a current document reference. Refused during input/dialogues or while a proposal awaits review; selectors remain available inside proposals."),
                 "document.save" => Some("Attached mode: save only the current file explicitly authorized in permissions.attached_files.current_file. Omit path. No Save As or GUI dialog. Saves published content only, not a pending proposal. Requires a fresh document reference; denied during IME/dialogues."),
                 "document.export" => Some("Attached mode: export published content only to a new/empty directory below permissions.attached_files.export_roots. Preparation runs in the background; revision, authorization and interruption are rechecked before writing. No automatic retry. The response identifies the exported snapshot; refresh document.inspect afterwards. Never marks the document saved."),
                 _ => None,

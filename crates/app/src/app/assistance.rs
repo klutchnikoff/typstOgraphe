@@ -18,6 +18,27 @@ pub(super) struct AssistanceState {
     pub export_root: Option<PathBuf>,
 }
 impl App {
+    pub(super) fn share_selection(&mut self) {
+        let busy = self.assistance_busy();
+        let selection = self
+            .document
+            .engine
+            .selection_target(editor::to_core(self.document.selection));
+        let result = selection
+            .map_err(|_| crate::tr!("edit-stale-draft"))
+            .and_then(|selection| {
+                self.assistance
+                    .session
+                    .as_mut()
+                    .ok_or_else(|| crate::tr!("engine-unavailable"))?
+                    .capture_selection(&mut self.document.engine, selection, busy)
+                    .map_err(|e| Self::command_error_text(&e))
+            });
+        self.dialogs.message = Some(match result {
+            Ok(()) => crate::tr!("assistance-selection-shared"),
+            Err(error) => error,
+        });
+    }
     /// Reproducible capture of the authorization UI, without creating a channel.
     pub fn capture_assistance(&mut self) {
         if !self.document.open {

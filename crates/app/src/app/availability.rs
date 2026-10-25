@@ -67,6 +67,15 @@ impl App {
             ),
             Route::Contextual => self.context_document_command(command).is_some_and(enabled),
             Route::Interface => match command {
+                Command::ShareSelection => {
+                    !self.range().is_empty()
+                        && !self.assistance_busy_without_palette()
+                        && self
+                            .assistance
+                            .session
+                            .as_ref()
+                            .is_some_and(|s| !s.finished() && s.review().is_none())
+                }
                 Command::ContextualAction => self.contextual_action().is_some(),
                 Command::RemoveWidget => {
                     self.document.ime.draft.is_none()

@@ -62,6 +62,11 @@ pub fn describe(id: &str, context: &Value, policy: &Policy) -> Result<Value, Com
                 "Only document.save and document.export may execute directly when explicitly granted by the user for this invitation. Inspect permissions.attached_files: current_file is an exact file grant, export_roots authorize only exports into a new/empty folder, not document saves or imports. Omit path for document.save; Save As, GUI file dialogs and file steps/final save in proposals remain refused. Use the latest document reference. Only published content is written; accepting a proposal does not save or export. IME/dialogues cause an immediate failure without retry. Background exports revalidate before write; once writing begins, the identified snapshot is independent of later typing. Refresh document.inspect afterwards."
             );
         }
+        if id == "text.select" {
+            info["attached_usage"] = json!(
+                "This direct command navigates the agent context only; it never captures or changes the human selection, focus, document or history. Current is the agent selection. The human can explicitly hand off a selection in the application; it does not follow subsequent human navigation. Requires a fresh reference and no IME/dialogue or pending proposal. Other edits still require proposals.submit. Selectors may also target steps inside a proposal."
+            );
+        }
     }
     info["context_availability"] = spec.map(|_| context["entries"].as_array().expect("entries").iter()
         .find(|e| e["id"]==id).expect("registered entry")["context_availability"].clone())

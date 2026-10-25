@@ -125,8 +125,13 @@ trois helpers de proposition portent le catalogue rattaché à 70 outils. Cette 
 reste stable ; `commands.list`, `capabilities.describe` et `permissions` précisent
 les autorisations propres au rattachement. `session_mode` vaut `attached`.
 
-Les éditions directes, sélection, annulation, lots, création, ouverture, fermeture
-et Enregistrer sous restent refusés **avant résolution et exécution**. Les étapes
+Les éditions directes, annulation, lots, création, ouverture, fermeture
+et Enregistrer sous restent refusés **avant résolution et exécution**. La navigation
+directe `text.select` déplace seulement le contexte agent, sans effet graphique
+ni historique ; `Current` ne désigne jamais le curseur humain. La commande
+**Édition → Confier la sélection à l’agent** transmet explicitement une sélection
+non vide. Ces navigations exigent une garde courante et l’absence d’interruption
+ou de proposition en attente. Les étapes
 de propositions suivent leur contrat d’approbation. `document.save` et
 `document.export` sont les deux exceptions explicites, sous droits de l’invitation.
 Les requêtes documentaires, la découverte et le PNG de page restent disponibles.
