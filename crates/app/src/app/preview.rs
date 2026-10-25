@@ -195,7 +195,7 @@ impl App {
         });
         ui.separator();
         if let Some(error) = &self.preview.error {
-            ui.colored_label(Color32::from_rgb(183, 69, 57), crate::tr!("preview-failed"));
+            ui.colored_label(crate::theme::ERROR_INLINE, crate::tr!("preview-failed"));
             ui.collapsing(crate::tr!("error-details"), |ui| {
                 ui.label(error);
             });

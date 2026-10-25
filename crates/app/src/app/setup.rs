@@ -176,18 +176,8 @@ fn configure_context(ctx: &egui::Context) {
     editor::install_fonts(ctx);
     ctx.all_styles_mut(|style| {
         style.spacing.item_spacing = egui::vec2(8.0, 8.0);
-        style.visuals.selection.bg_fill = if style.visuals.dark_mode {
-            Color32::from_rgb(40, 80, 108)
-        } else {
-            Color32::from_rgb(174, 211, 235)
-        };
-        style.visuals.selection.stroke = egui::Stroke::new(
-            1.0_f32,
-            if style.visuals.dark_mode {
-                Color32::LIGHT_BLUE
-            } else {
-                ACCENT
-            },
-        );
+        let dark = style.visuals.dark_mode;
+        style.visuals.selection.bg_fill = crate::theme::selection_fill(dark);
+        style.visuals.selection.stroke = crate::theme::selection_stroke(dark);
     });
 }

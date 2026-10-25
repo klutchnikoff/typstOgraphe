@@ -56,8 +56,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-const ACCENT: Color32 = Color32::from_rgb(40, 92, 119);
-const PREVIEW_SELECTION: Color32 = Color32::from_rgba_premultiplied(16, 33, 59, 65);
+use crate::theme::PREVIEW_SELECTION;
 const SEARCH_ID: &str = "document-search";
 const REPLACE_ID: &str = "document-replacement";
 #[derive(Clone, Copy)]

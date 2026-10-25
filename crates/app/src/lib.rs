@@ -15,6 +15,7 @@ pub mod icons;
 pub mod menus;
 pub mod preferences;
 pub mod profile;
+pub mod theme;
 pub mod toolbar;
 
 mod screenshot;

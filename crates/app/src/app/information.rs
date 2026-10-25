@@ -259,7 +259,7 @@ impl App {
                     *value = input.clone();
                 } else {
                     ui.colored_label(
-                        Color32::from_rgb(183, 69, 57),
+                        crate::theme::ERROR_INLINE,
                         crate::tr!("bullet-marker-invalid"),
                     );
                 }
