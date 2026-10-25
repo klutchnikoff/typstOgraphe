@@ -45,6 +45,16 @@ L’agent peut appeler directement `text.select` pour sa propre navigation ;
 sélection utilisateur et n’ajoute aucun historique. Les interruptions et les
 propositions en attente la bloquent. Les sélecteurs restent disponibles dans les lots.
 
+## Lectures de rendu différées
+
+`prepare_render(guard)` capture les entrées publiées pour une compilation hors UI ;
+`RenderTask::compile()` ne connaît pas le moteur. `complete_render(compiled)`
+revérifie la garde avant d’installer ce cache dérivé et conserve un éventuel rendu
+natif déjà courant. `prepare_page_image(reference, page)` conserve un rendu
+immuable partagé ; `PageImageTask::execute()` peut rasteriser sur un autre thread,
+même si le document évolue ensuite. C’est à l’adaptateur de refuser alors la réponse
+périmée. Aucun de ces calculs ne modifie contenu, historique ou contextes.
+
 ## Report exact des positions
 
 Chaque transaction publiée enregistre ses insertions et suppressions réelles dans

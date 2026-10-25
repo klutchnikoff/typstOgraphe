@@ -30,6 +30,7 @@ mod recovery;
 mod recovery_types;
 pub mod registry;
 mod render;
+pub use render::{CompiledRender, PageImageTask, RenderTask};
 mod render_types;
 mod resources;
 mod run;

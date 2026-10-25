@@ -92,9 +92,20 @@ ni protocole documentaire n'est créé.
 éditions natives et les actions de la frame. Les lectures voient le texte publié,
 y compris pendant une préédition IME ou un dialogue. La préédition reste locale.
 Les lectures peuvent alimenter des caches dérivés, sans modifier sélection,
-contenu, style ni historique. Les calculs synchrones du cœur restent exécutés à
-ce point ; leur coût et la préparation asynchrone des lectures coûteuses devront
-être traités avant la recette de composition simultanée (6.6).
+contenu, style ni historique. Depuis 6.6, une compilation absente du cache et la
+rasterisation PNG MCP s’exécutent hors du thread graphique. Les requêtes de
+rendu qui nécessitent une compilation automatique suivent la même voie.
+Le worker reçoit un `RenderTask` ou un `PageImageTask` immuable, jamais le moteur
+vivant. Le propriétaire revalide identité, révision, invitation et annulation au
+retour ; un résultat devenu périmé est refusé, sans répétition automatique.
+Un rendu natif déjà courant conserve sa référence lors de la fin d’une compilation
+MCP. Les cibles `Current` différées sont capturées dans le contexte agent au départ.
+
+Une seule lecture coûteuse peut être en vol par invitation ; les lectures légères
+restent disponibles, y compris pendant IME/dialogue. Une annulation garde le slot
+occupé jusqu’à la fin du calcul, pour borner les workers. Aucun PNG ni cache tardif
+n’est publié après coupure ou changement de révision. Le protocole autonome
+conserve ses appels synchrones sur son propre thread, sans thread graphique.
 
 ## Autorisation et durée de vie
 

@@ -29,7 +29,7 @@ pub(super) struct PendingExport {
 fn failure(error: impl std::fmt::Display) -> CommandError {
     CommandError::detail(ErrorCode::Io, "mcp_file_access", error)
 }
-fn background<T: Send + 'static>(
+pub(super) fn background<T: Send + 'static>(
     name: &str,
     wake: Arc<dyn Fn() + Send + Sync>,
     work: impl FnOnce() -> Result<T, CommandError> + Send + 'static,

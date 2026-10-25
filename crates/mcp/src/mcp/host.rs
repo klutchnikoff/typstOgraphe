@@ -1,4 +1,5 @@
 //! Hôte documentaire autonome ou rattaché : identité indépendante du chemin.
+mod render;
 use super::engine_access::EngineAccess;
 use super::{catalogue, policy, types::*};
 use crate::{args::Target, calls};

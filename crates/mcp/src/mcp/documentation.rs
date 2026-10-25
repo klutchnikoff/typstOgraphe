@@ -62,6 +62,14 @@ pub fn describe(id: &str, context: &Value, policy: &Policy) -> Result<Value, Com
                 "Only document.save and document.export may execute directly when explicitly granted by the user for this invitation. Inspect permissions.attached_files: current_file is an exact file grant, export_roots authorize only exports into a new/empty folder, not document saves or imports. Omit path for document.save; Save As, GUI file dialogs and file steps/final save in proposals remain refused. Use the latest document reference. Only published content is written; accepting a proposal does not save or export. IME/dialogues cause an immediate failure without retry. Background exports revalidate before write; once writing begins, the identified snapshot is independent of later typing. Refresh document.inspect afterwards."
             );
         }
+        if matches!(
+            id,
+            "render.compile" | "render.page" | "render.locate" | "render.selection_boxes"
+        ) {
+            info["attached_usage"] = json!(
+                "Reads use published content, including during IME/dialogues. Cache-miss compilation and PNG rasterization run in the background, with one expensive read in flight per invitation. Current geometry targets are captured in the agent context at dispatch. A changed revision or cancelled/ended request discards the late result; refresh before any explicit new attempt, never retry in a loop. A render read neither edits nor saves nor exports."
+            );
+        }
         if id == "text.select" {
             info["attached_usage"] = json!(
                 "This direct command navigates the agent context only; it never captures or changes the human selection, focus, document or history. Current is the agent selection. The human can explicitly hand off a selection in the application; it does not follow subsequent human navigation. Requires a fresh reference and no IME/dialogue or pending proposal. Other edits still require proposals.submit. Selectors may also target steps inside a proposal."

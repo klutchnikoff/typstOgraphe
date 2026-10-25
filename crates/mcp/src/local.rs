@@ -1,6 +1,7 @@
 //! Local attachment. IO threads exchange requests; only the UI thread borrows Engine.
 mod endpoint;
 mod files;
+mod render;
 pub use files::FileEvent;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
@@ -35,6 +36,7 @@ pub struct LocalSession {
     proposals: Proposals,
     files: crate::mcp::file_grant::FileGrant,
     export: Option<files::PendingExport>,
+    render_read: Option<render::PendingRead>,
     file_events: Vec<FileEvent>,
     wake: Arc<dyn Fn() + Send + Sync>,
 }
@@ -97,6 +99,7 @@ impl LocalSession {
             proposals: Default::default(),
             files,
             export: None,
+            render_read: None,
             file_events: Vec::new(),
             wake,
         })
@@ -186,6 +189,7 @@ impl LocalSession {
         }
         self.proposals.refresh(engine, &self.context);
         self.poll_file_export(engine, busy);
+        self.poll_render_read(engine);
         // Bounded work per frame; the transport also has bounded backpressure.
         for _ in 0..16 {
             let Ok(request) = self.receiver.try_recv() else {
@@ -195,6 +199,15 @@ impl LocalSession {
                 || request.cancel.is_cancelled()
                 || self.shutdown.is_cancelled()
             {
+                continue;
+            }
+            if let Operation::Tool { name, .. } = &request.operation
+                && render::handles(name)
+            {
+                let Operation::Tool { name, arguments } = request.operation else {
+                    unreachable!()
+                };
+                self.begin_render_read(engine, name, arguments, request.reply, request.cancel);
                 continue;
             }
             if let Operation::Tool { name, .. } = &request.operation

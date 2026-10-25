@@ -25,6 +25,63 @@ fn word(e: &Engine, text: &str) -> std::ops::Range<usize> {
 }
 
 #[test]
+fn worker_compilation_is_guarded_and_preserves_a_newer_native_cache() {
+    let mut e = engine("Noël écrit.");
+    let task = e
+        .prepare_render(GuardParams {
+            guard: e.target_guard(),
+        })
+        .unwrap();
+    let compiled = std::thread::spawn(move || task.compile()).join().unwrap();
+    let native = e
+        .compile(GuardParams {
+            guard: e.target_guard(),
+        })
+        .unwrap();
+    let before = e.stored_document();
+    let completed = e.complete_render(compiled).unwrap();
+    assert_eq!(
+        completed.render.unwrap().reference,
+        native.render.unwrap().reference
+    );
+    assert_eq!(e.stored_document(), before);
+    assert_eq!(e.history().undo, 0);
+    let late = e
+        .prepare_render(GuardParams {
+            guard: e.target_guard(),
+        })
+        .unwrap()
+        .compile();
+    call(&mut e, "text.insert", json!({"text":"Suite "})).unwrap();
+    assert_eq!(
+        e.complete_render(late).unwrap_err().reason(),
+        "stale_revision"
+    );
+    assert!(e.render_info().is_none());
+}
+
+#[test]
+fn page_worker_retains_its_immutable_render_after_live_edits_and_engine_drop() {
+    let mut e = engine("Page conservée.");
+    let info = e
+        .compile(GuardParams {
+            guard: e.target_guard(),
+        })
+        .unwrap()
+        .render
+        .unwrap();
+    let expected = e.render_page_png(info.reference, 0).unwrap();
+    let task = e.prepare_page_image(info.reference, 0).unwrap();
+    call(&mut e, "text.insert", json!({"text":"Nouveau "})).unwrap();
+    drop(e);
+    let png = std::thread::spawn(move || task.execute())
+        .join()
+        .unwrap()
+        .unwrap();
+    assert_eq!(png, expected);
+}
+
+#[test]
 fn one_page_png_uses_the_guarded_cache_without_editing_or_creating_files() {
     let mut e = engine("Première page.");
     e.session.template = "#let courrier(..args, body) = { set page(width: 120pt, height: 80pt, margin: 5pt); body; pagebreak(); [Seconde page.] }".into();

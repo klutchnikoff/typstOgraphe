@@ -4,6 +4,9 @@ pub fn compile_render(engine: &Engine) -> Result<RenderInfo, CommandError> {
     let compiled = engine.compile(GuardParams {
         guard: engine.target_guard(),
     })?;
+    render_from_result(compiled)
+}
+pub(crate) fn render_from_result(compiled: CompileResult) -> Result<RenderInfo, CommandError> {
     compiled.render.ok_or_else(|| {
         compiled
             .diagnostics
