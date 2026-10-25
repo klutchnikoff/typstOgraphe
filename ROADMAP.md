@@ -313,6 +313,18 @@ indépendamment de la langue de l’interface.
 
 **Objectif :** proposer des structures simples à éditer, composées par le modèle.
 
+**Inventaire complété le 26 octobre 2026 :** voir
+[l'inventaire des capacités documentaires](docs/capabilities-inventory.md), qui
+rassemble la comparaison avec Docs (DINUM), les fonctions natives de Typst et un
+premier repérage de packages Universe. Ce document distingue l'existant, les
+capacités prévues et les pistes à étudier ; aucun paquet supplémentaire ni contrat
+public n'est choisi à ce stade. **Les tableaux simples puis les notes de bas de
+page restent les deux premières priorités documentaires.** Les compléments hors
+P1 sont des orientations dont le périmètre et l'ordre précis seront validés ensemble.
+Après cette mise à jour documentaire, reprendre la discussion sur l'assistance ACP
+(chantier M de [ROADMAP-ARCHITECTURE.md](ROADMAP-ARCHITECTURE.md)), sans engager ici
+l'implémentation de ces capacités.
+
 - **P1 :** tableaux simples : en-tête, lignes et colonnes, édition au clavier,
   ajout/suppression, alignement et légende facultative.
 - **P1 :** notes de bas de page : insertion, édition, suppression et navigation
@@ -322,10 +334,28 @@ indépendamment de la langue de l’interface.
 - **P2 :** renvois internes vers titres, figures, tableaux et autres éléments
   identifiables ; numérotation calculée sans saisie manuelle.
 - **P2 :** table des matières et, selon les types, listes des figures et tableaux.
+- **P2 — à instruire :** listes de tâches avec état coché/non coché, séparateur
+  thématique et alertes sémantiques (`note`, `tip`, `warning`, `caution`, `important`)
+  dont le modèle définit la présentation.
+- **P2 — à instruire :** barré, souligné, exposants et indices ; accès simple sans
+  multiplier les boutons permanents. Les listes imbriquées restent au chantier B,
+  avec un seul widget pour la liste entière.
+- **P2 — à instruire :** annexes, avec titres, numérotation et renvois cohérents
+  pour les types de documents longs.
 - **P2/P3 :** saut de page explicite et autres contrôles de composition réellement
-  nécessaires, à exposer avec parcimonie.
-- **P3 :** équations en ligne et en bloc, blocs de code et structures spécialisées
-  selon les besoins des types scientifiques ou techniques.
+  nécessaires, à exposer avec parcimonie ; multicolonne à étudier en distinguant
+  les règles du modèle et les passages éditables en colonnes.
+- **P3 :** équations en ligne et en bloc, code en ligne et blocs de code, selon les
+  besoins des types scientifiques ou techniques. Pour les équations, examiner une
+  saisie Typst avec aperçu avant une éventuelle interface visuelle spécialisée.
+- **P3 — à instruire :** diagrammes et graphiques de données comme deux capacités
+  distinctes ; glossaire, acronymes et index selon les besoins des documents longs.
+
+Les paragraphes et citations en bloc sont déjà présents. Les citations
+bibliographiques sont distinctes ; la numérotation et les renvois doivent étendre
+les images/légendes existantes et les nouveaux objets sans multiplier les
+mécanismes d'annotation. Les packages repérés dans l'inventaire sont des candidats
+à évaluer, pas des dépendances retenues.
 
 ### Décision sur le modèle d’édition — validée le 22 octobre 2026
 
