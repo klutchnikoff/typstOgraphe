@@ -225,20 +225,16 @@ conserve texte, métadonnées, modèle et ressources.
   mots ignorés et dictionnaire personnel.
 - **P1/P2 :** copier/coller structuré pour les styles et blocs pris en charge,
   avec une option pour coller du texte seul ; collage d’images.
-- **P2 — en cours, lot 6.4a :** harmoniser la présentation des citations, images, P.-S. et P.J. dans
-  l’éditeur : cadres, fonds, bordures, espacements, libellés et textes indicatifs.
-  Factoriser les composants de présentation et les comportements réellement
-  communs (focus, navigation, défilement et annotations facultatives), en
-  conservant les dispositions et interactions propres à chaque bloc. **Choix validés
-  le 25 octobre :** [widgets et bandeaux interlignes](docs/editor-widgets.md),
-  une liste complète par widget, une interaction contextuelle ouverte à la fois. Réutiliser
-  la gestion commune des annotations déjà présente. Valider les choix visuels
-  ensemble avant l’implémentation ; vérifier les thèmes clair/sombre, les curseurs,
-  les sélections et les lignes repliées. Le rendu final reste défini par le modèle.
-  **À entreprendre après la phase 2 du chantier J** (commandes strictes) : elle
-  migre vers des commandes les annotations, le focus, la navigation et les images,
-  que cette harmonisation touche aussi ; les mener ensemble obligerait à refaire
-  l’un des deux travaux.
+- **P2 — livré le 25 octobre 2026, lot 6.4a :** présentation commune des listes,
+  descriptions, citations, images, P.-S. et P.J. : cadres, fonds, bordures,
+  espacements, libellés et boutons monochromes. Les dispositions spécifiques et
+  la navigation commune des annotations sont conservées. Les paramètres,
+  suppressions, liens et suggestions orthographiques partagent un
+  [bandeau interligne unique](docs/editor-widgets.md), sans texte factice dans
+  le document. Les actions rejoignent les commandes strictes du moteur ; les
+  brouillons, gardes, focus, IME, annulation, redimensionnement et thèmes sont
+  vérifiés. Le rendu final reste défini par le modèle. L’imbrication des listes
+  et de nouveaux paramètres documentaires restent des évolutions distinctes.
 - **P2 :** déplacer et dupliquer des paragraphes ou des blocs, navigation par titres,
   affichage facultatif des caractères invisibles.
 - **P2 :** personnalisation persistante des raccourcis dans les préférences et

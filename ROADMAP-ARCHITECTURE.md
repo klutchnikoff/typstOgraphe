@@ -915,10 +915,15 @@ implémenter en phase 6. Le transport local et les modalités de rattachement so
   ancre visible dans `ViewSync`/egui, préparation de candidats isolés sans écriture
   ni publication. Aucun outil MCP d’édition/approbation ajouté ; le parcours de
   validation humaine reste en 6.4. Voir [le contrat](docs/editing-contexts.md).
-- [ ] **6.4a — Harmonisation des widgets et bandeaux (D37).** Choix validés ;
-  enveloppe et actions communes, bandeaux interlignes sans caractères ajoutés,
-  paramètres d’image/liste/lien, suppression complète et suggestions orthographiques.
-  Gardes, focus, IME, navigation, annulation, thèmes et captures à vérifier.
+- [x] **6.4a — Harmonisation des widgets et bandeaux (D37).** Livrée le
+  25 octobre 2026 : enveloppe et actions communes pour listes, descriptions,
+  citations, images, P.-S. et P.J. ; bandeau unique pleine largeur pour paramètres
+  d’image/liste/lien, suppression et orthographe. Aucun caractère de présentation
+  ajouté au document. Gardes strictes, brouillons de paramètres, retour du focus,
+  priorité IME, suppression complète annulable, défilement et redimensionnement
+  vérifiés. Les paramètres restent ceux du contrat actuel : ni imbrication de
+  listes ni numéro de départ ajoutés par ce lot. Huit tests dédiés et captures
+  natives clair/sombre ; références historiques conservées.
   Contrat : [widgets et bandeaux](docs/editor-widgets.md).
 - [ ] **6.4b — Propositions et éditions approuvées.** Préparation isolée d'un lot,
   présentation des différences à valider ensemble, acceptation/refus du lot entier

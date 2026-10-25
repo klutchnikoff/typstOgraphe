@@ -75,3 +75,49 @@ composition IME, liens, orthographe, recherche et sélection traversant des widg
 Vérifier les thèmes clair/sombre, lignes repliées et colonnes étroites. Les captures
 antérieures restent conservées ; les changements visuels intentionnels auront une
 recette propre, sans écraser les références historiques.
+
+## Livraison du lot 6.4a — 25 octobre 2026
+
+L’enveloppe visuelle est centralisée dans `editor/widgets.rs`, les interactions
+dans `app/bands.rs` et ses modules de peinture/actions. Les anciens dialogues
+d’image et de lien et le menu flottant d’orthographe sont retirés. Les en-têtes
+communs ont des boutons monochromes, libellés accessibles et info-bulles. Le
+bandeau réutilise le tampon egui natif pour ses champs provisoires et réserve
+sa place dans le placement des lignes, y compris après repli ou redimensionnement.
+Son ouverture demande le défilement nécessaire ; les contrôles restent coupés
+aux limites de la colonne.
+
+La suppression d’un widget normalise sa première ligne puis efface son contenu
+par un lot atomique du moteur, ou utilise la commande d’image existante. Une
+annulation restitue l’ensemble. Les réglages d’image modifient le texte alternatif
+ou remplacent le fichier ; la légende reste éditable dans le widget. Le réglage
+de liste change son type pour l’ensemble du groupe. Un remplacement d’image
+annulé dans le sélecteur conserve le bandeau. Un réglage périmé est refusé.
+Le focus d’un champ bloque les commandes documentaires dans les menus natifs,
+la palette, la barre et les raccourcis, tout en conservant la saisie native du
+champ. L’IME garde notamment la priorité sur Échap.
+
+Ce lot ne crée pas de nouvelles capacités : les listes du moteur sont encore
+plates. Le principe d’une enveloppe unique pour une liste avec sous-listes reste
+le contrat de leur future prise en charge ; aucun niveau ou numéro de départ
+factice n’est proposé. La relecture des lots MCP reste à réaliser en 6.4b.
+
+Vérifications locales sur macOS :
+
+- Suite Rust complète : **493 tests**, dont **8 tests dédiés** aux bandeaux et
+  widgets (suppression/annulation, brouillons, péremption, focus, IME, compteurs,
+  recherche et redimensionnement de 1 240 à 600 pixels avec lignes repliées).
+- **14 tests Python**, `cargo fmt`, Clippy avec avertissements refusés, frontière
+  de dépendances du cœur et limite de taille des fichiers : réussis.
+- **7 captures natives** de widgets : image, liste sombre, suppression,
+  orthographe, lien, descriptions/citation sombre et P.-S./P.J. ; inspection
+  visuelle en clair et sombre avec véritable aperçu Typst.
+- **8 nouvelles références natives**, puis seconde passe identique octet pour
+  octet. Les références précédentes restent intactes. Résultats et journaux dans
+  `output/phase6-4a/`, références de ce lot dans `output/phase6-4a/baseline/`.
+
+La recette utilise `--capture-widgets image.png image|list|remove|spelling|link|quote|notes`
+(suffixe `-dark` possible), puis `scripts/capture-baseline.sh` avec un dossier
+de sortie propre. Les essais IME de ce lot injectent les événements natifs egui ;
+ils ne remplacent pas un essai manuel d’une méthode de saisie du système.
+Les vérifications Windows/Linux restent celles de la CI.
