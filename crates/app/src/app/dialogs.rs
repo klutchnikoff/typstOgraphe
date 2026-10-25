@@ -56,46 +56,57 @@ impl App {
         }
     }
     fn new_document_dialog(&mut self, ctx: &egui::Context) {
+        use crate::ui_kit::{ButtonKind, Dialog, button, button_enabled};
         if self.dialogs.new_document_open {
             let mut create = false;
             let mut cancel = false;
-            let modal = egui::Modal::new(egui::Id::new("new-document")).show(ctx, |ui| {
-                ui.set_min_width(320.0);
-                ui.heading(crate::tr!("new-document-title"));
-                ui.label(crate::tr!("field-document-type"));
-                for kind in DocumentType::ALL {
-                    ui.add_enabled_ui(kind.can_create(), |ui| {
-                        if ui
-                            .radio_value(&mut self.dialogs.new_document_type, kind, kind.label())
-                            .changed()
-                        {
-                            self.dialogs.new_document_model =
-                                kind.models().next().map(|entry| entry.model);
-                        }
-                    })
-                    .response
-                    .on_disabled_hover_text(crate::tr!("type-no-model"));
-                }
-                ui.add_space(8.0);
-                ui.label(crate::tr!("field-template"));
-                for entry in self.dialogs.new_document_type.models() {
-                    ui.radio_value(
-                        &mut self.dialogs.new_document_model,
-                        Some(entry.model),
-                        Command::Model(entry.model).short_label(),
-                    );
-                }
-                ui.separator();
-                ui.horizontal(|ui| {
-                    cancel = ui.button(crate::tr!("cancel")).clicked();
-                    let valid = self.dialogs.new_document_model.is_some_and(|model| {
-                        model.definition().kind == self.dialogs.new_document_type
-                    });
-                    create = ui
-                        .add_enabled(valid, egui::Button::new(crate::tr!("new-document-create")))
-                        .clicked();
-                });
-            });
+            let valid = self
+                .dialogs
+                .new_document_model
+                .is_some_and(|model| model.definition().kind == self.dialogs.new_document_type);
+            let title = crate::tr!("new-document-title");
+            let modal = Dialog::new("new-document", &title).width(440.0).show(
+                ctx,
+                |ui| {
+                    ui.label(crate::tr!("field-document-type"));
+                    for kind in DocumentType::ALL {
+                        ui.add_enabled_ui(kind.can_create(), |ui| {
+                            if ui
+                                .radio_value(
+                                    &mut self.dialogs.new_document_type,
+                                    kind,
+                                    kind.label(),
+                                )
+                                .changed()
+                            {
+                                self.dialogs.new_document_model =
+                                    kind.models().next().map(|entry| entry.model);
+                            }
+                        })
+                        .response
+                        .on_disabled_hover_text(crate::tr!("type-no-model"));
+                    }
+                    ui.add_space(8.0);
+                    ui.label(crate::tr!("field-template"));
+                    for entry in self.dialogs.new_document_type.models() {
+                        ui.radio_value(
+                            &mut self.dialogs.new_document_model,
+                            Some(entry.model),
+                            Command::Model(entry.model).short_label(),
+                        );
+                    }
+                },
+                |ui| {
+                    create = button_enabled(
+                        ui,
+                        ButtonKind::Primary,
+                        valid,
+                        crate::tr!("new-document-create"),
+                    )
+                    .clicked();
+                    cancel = button(ui, ButtonKind::Ghost, crate::tr!("cancel")).clicked();
+                },
+            );
             if create {
                 self.create_document(self.dialogs.new_document_type);
             } else if cancel || modal.should_close() {
@@ -182,42 +193,38 @@ impl App {
         }
     }
     fn export_dialog(&mut self, ctx: &egui::Context) {
+        use crate::ui_kit::{ButtonKind, Dialog, button, segmented, text_field};
         if self.file.export_open {
-            let mut open = true;
             let mut export = false;
-            egui::Window::new(crate::tr!("export-title"))
-                .open(&mut open)
-                .collapsible(false)
-                .resizable(false)
-                .default_width(470.0)
-                .show(ctx, |ui| {
+            let mut cancel = false;
+            let title = crate::tr!("export-title");
+            let formats = [
+                (crate::engine::ExportFormat::Pdf, "export-pdf"),
+                (crate::engine::ExportFormat::Typst, "export-typst"),
+                (crate::engine::ExportFormat::Both, "export-both"),
+            ]
+            .map(|(format, key)| (format, crate::i18n::text(key)));
+            let modal = Dialog::new("export-document", &title).width(480.0).show(
+                ctx,
+                |ui| {
                     ui.label(crate::tr!("export-folder"));
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.file.export_path)
-                            .desired_width(f32::INFINITY),
-                    );
-                    ui.horizontal(|ui| {
-                        ui.label(crate::tr!("export-format"));
-                        for (format, key) in [
-                            (crate::engine::ExportFormat::Pdf, "export-pdf"),
-                            (crate::engine::ExportFormat::Typst, "export-typst"),
-                            (crate::engine::ExportFormat::Both, "export-both"),
-                        ] {
-                            ui.selectable_value(
-                                &mut self.file.export_format,
-                                format,
-                                crate::i18n::text(key),
-                            );
-                        }
-                    });
+                    text_field(ui, "export-folder", &mut self.file.export_path);
+                    ui.label(crate::tr!("export-format"));
+                    segmented(ui, &mut self.file.export_format, &formats);
                     ui.checkbox(
                         &mut self.file.export_page_images,
                         crate::tr!("export-page-images"),
                     );
                     ui.weak(crate::tr!("export-help"));
-                    export = ui.button(crate::tr!("export-button")).clicked();
-                });
-            self.file.export_open &= open;
+                },
+                |ui| {
+                    export = button(ui, ButtonKind::Primary, crate::tr!("export-button")).clicked();
+                    cancel = button(ui, ButtonKind::Ghost, crate::tr!("cancel")).clicked();
+                },
+            );
+            if cancel || modal.should_close() {
+                self.file.export_open = false;
+            }
             if export && let Some(guard) = self.file.export_guard {
                 self.export_document(
                     crate::engine::ExportParams {

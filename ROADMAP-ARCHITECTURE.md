@@ -1229,11 +1229,15 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
   2026** : palette appliquée au style global d'egui (`theme::apply_to` : fonds, filets,
   rayons, ombres, boutons, tailles de texte, espacement des boutons) ; l'écran d'accueil
   reçoit enfin un fond de panneau (il restait sur le fond de fenêtre). Premier changement
-  d'apparence : captures avant/après dans `output/phase-l3/`. À faire ensuite : dialogues
-  (nouveau document, export, enregistrer, erreurs, lecture seule, récupération,
-  assistance), préférences, palette, accueil, recherche, informations, barre d'outils,
-  barre d'état, aperçu, relecture MCP, et la police d'interface embarquée (téléchargement
-  de la police à autoriser).
+  d'apparence : captures avant/après dans `output/phase-l3/`. **L.3b livrée le 25 octobre
+  2026** : les dialogues (nouveau document, export, enregistrer, erreurs, lecture seule,
+  récupération, assistance, préférences) passent tous par l'enveloppe `ui_kit::Dialog`
+  (modale unique, pied d'actions à droite, bouton principal, action destructive à
+  gauche), avec contrôle segmenté, champs à anneau de focus et notifications ; les
+  boutons et la logique de fermeture (Échap, état des dialogues) sont inchangés. À faire
+  ensuite : palette, accueil, recherche, informations, barre d'outils, barre d'état,
+  aperçu, relecture MCP, et la police d'interface embarquée (téléchargement de la police
+  à autoriser).
 - [ ] **L.4 — Bandeaux et pointe (D37, D40).** Variante B pour les paramètres de bloc ;
   pointe vers le mot pour l'orthographe ; bandeau d'une faute dans un bloc inséré entre
   deux lignes, à la largeur du bloc. Passer la plage horizontale du bloc au placement

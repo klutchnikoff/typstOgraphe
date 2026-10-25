@@ -103,71 +103,91 @@ impl App {
         if !self.recovery.open || self.file.pending_action.is_some() || self.file.error.is_some() {
             return;
         }
-        let mut open = true;
+        use crate::ui_kit::{ButtonKind, Dialog, button, button_enabled};
         let mut choice = None;
         let mut later = false;
-        egui::Window::new(crate::tr!("recovery-title"))
-            .id(egui::Id::new("recovery-documents"))
-            .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-            .open(&mut open)
-            .collapsible(false)
-            .resizable(false)
-            .default_width(560.0)
-            .show(ctx, |ui| {
-                ui.label(crate::tr!("recovery-help"));
-                egui::ScrollArea::vertical()
-                    .max_height(340.0)
-                    .show(ui, |ui| {
-                        for (index, entry) in self.recovery.entries.iter().enumerate() {
-                            ui.separator();
-                            ui.strong(
-                                entry
-                                    .name
-                                    .clone()
-                                    .unwrap_or_else(|| crate::tr!("untitled-letter")),
-                            );
-                            if let Some(error) = &entry.error {
-                                ui.colored_label(
-                                    Color32::LIGHT_RED,
-                                    crate::tr!(
-                                        "recovery-load-failed",
-                                        error = entry
-                                            .cause
-                                            .as_ref()
-                                            .map(crate::i18n::error)
-                                            .unwrap_or_else(|| error.clone())
-                                    ),
-                                );
-                            } else if let Some(date) = entry.saved_at {
-                                let date = time::OffsetDateTime::from_unix_timestamp(date)
-                                    .ok()
-                                    .and_then(|d| {
-                                        d.format(&time::format_description::well_known::Rfc3339)
-                                            .ok()
-                                    })
-                                    .unwrap_or_default();
-                                ui.weak(crate::tr!("recovery-date", date = date));
+        let (title, help) = (crate::tr!("recovery-title"), crate::tr!("recovery-help"));
+        let response = Dialog::new("recovery-documents", &title)
+            .description(&help)
+            .width(540.0)
+            .show(
+                ctx,
+                |ui| {
+                    egui::ScrollArea::vertical()
+                        .max_height(340.0)
+                        .show(ui, |ui| {
+                            for (index, entry) in self.recovery.entries.iter().enumerate() {
+                                egui::Frame::new()
+                                    .stroke(egui::Stroke::new(
+                                        1.0_f32,
+                                        ui.visuals().widgets.noninteractive.bg_stroke.color,
+                                    ))
+                                    .corner_radius(crate::theme::scale::RADIUS_CARD)
+                                    .inner_margin(egui::Margin::same(10))
+                                    .show(ui, |ui| {
+                                        ui.set_width(ui.available_width());
+                                        ui.strong(
+                                            entry
+                                                .name
+                                                .clone()
+                                                .unwrap_or_else(|| crate::tr!("untitled-letter")),
+                                        );
+                                        if let Some(error) = &entry.error {
+                                            ui.colored_label(
+                                                ui.visuals().error_fg_color,
+                                                crate::tr!(
+                                                    "recovery-load-failed",
+                                                    error = entry
+                                                        .cause
+                                                        .as_ref()
+                                                        .map(crate::i18n::error)
+                                                        .unwrap_or_else(|| error.clone())
+                                                ),
+                                            );
+                                        } else if let Some(date) = entry.saved_at {
+                                            let date =
+                                                time::OffsetDateTime::from_unix_timestamp(date)
+                                                    .ok()
+                                                    .and_then(|d| {
+                                                        d.format(
+                                                    &time::format_description::well_known::Rfc3339,
+                                                )
+                                                .ok()
+                                                    })
+                                                    .unwrap_or_default();
+                                            ui.weak(crate::tr!("recovery-date", date = date));
+                                        }
+                                        ui.horizontal(|ui| {
+                                            if button_enabled(
+                                                ui,
+                                                ButtonKind::Primary,
+                                                entry.error.is_none(),
+                                                crate::tr!("recovery-restore"),
+                                            )
+                                            .clicked()
+                                            {
+                                                choice = Some((index, true));
+                                            }
+                                            if button(
+                                                ui,
+                                                ButtonKind::Ghost,
+                                                crate::tr!("recovery-delete"),
+                                            )
+                                            .clicked()
+                                            {
+                                                choice = Some((index, false));
+                                            }
+                                        });
+                                    });
                             }
-                            ui.horizontal(|ui| {
-                                if ui
-                                    .add_enabled(
-                                        entry.error.is_none(),
-                                        egui::Button::new(crate::tr!("recovery-restore")),
-                                    )
-                                    .clicked()
-                                {
-                                    choice = Some((index, true));
-                                }
-                                if ui.button(crate::tr!("recovery-delete")).clicked() {
-                                    choice = Some((index, false));
-                                }
-                            });
-                        }
-                    });
-                ui.separator();
-                later = ui.button(crate::tr!("recovery-later")).clicked();
-            });
-        self.recovery.open = open && !later;
+                        });
+                },
+                |ui| {
+                    later =
+                        button(ui, ButtonKind::Secondary, crate::tr!("recovery-later")).clicked();
+                },
+            );
+        self.recovery.open = !later && !response.should_close();
         if let Some((index, restore)) = choice {
             if restore {
                 self.request_action(PendingAction::Recover(index), ctx);

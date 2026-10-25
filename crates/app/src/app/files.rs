@@ -317,24 +317,27 @@ impl App {
         ctx.request_repaint();
     }
     pub(super) fn file_dialogs(&mut self, ctx: &egui::Context) {
+        use crate::ui_kit::{ButtonKind, Dialog, NoticeKind, button, notice};
         if self.file.read_only_offer.is_some() {
             let mut choice = None;
-            egui::Window::new(crate::tr!("file-locked-title"))
-                .id(egui::Id::new("read-only-offer"))
-                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-                .collapsible(false)
-                .resizable(false)
-                .show(ctx, |ui| {
-                    ui.label(crate::tr!("file-locked"));
-                    ui.horizontal(|ui| {
-                        if ui.button(crate::tr!("file-open-read-only")).clicked() {
+            let (title, message) = (crate::tr!("file-locked-title"), crate::tr!("file-locked"));
+            Dialog::new("read-only-offer", &title)
+                .description(&message)
+                .width(440.0)
+                .show(
+                    ctx,
+                    |_| {},
+                    |ui| {
+                        if button(ui, ButtonKind::Primary, crate::tr!("file-open-read-only"))
+                            .clicked()
+                        {
                             choice = Some(true);
                         }
-                        if ui.button(crate::tr!("cancel")).clicked() {
+                        if button(ui, ButtonKind::Ghost, crate::tr!("cancel")).clicked() {
                             choice = Some(false);
                         }
-                    });
-                });
+                    },
+                );
             if let Some(read_only) = choice {
                 let path = self.file.read_only_offer.take().expect("pending path");
                 if read_only {
@@ -344,28 +347,33 @@ impl App {
         }
         if self.file.pending_action.is_some() {
             let mut choice = None;
-            egui::Window::new(crate::tr!("unsaved-title"))
-                .id(egui::Id::new("unsaved-letter"))
-                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-                .collapsible(false)
-                .resizable(false)
-                .show(ctx, |ui| {
-                    ui.label(crate::tr!("unsaved-message"));
-                    if let Some(error) = &self.file.error {
-                        ui.colored_label(Color32::LIGHT_RED, error);
-                    }
-                    ui.horizontal(|ui| {
-                        if ui.button(crate::tr!("save")).clicked() {
+            let (title, message) = (crate::tr!("unsaved-title"), crate::tr!("unsaved-message"));
+            let error = self.file.error.clone();
+            Dialog::new("unsaved-letter", &title)
+                .description(&message)
+                .width(420.0)
+                .show(
+                    ctx,
+                    |ui| {
+                        if let Some(error) = error {
+                            notice(ui, NoticeKind::Error, error);
+                        }
+                    },
+                    |ui| {
+                        if button(ui, ButtonKind::Primary, crate::tr!("save")).clicked() {
                             choice = Some(0);
                         }
-                        if ui.button(crate::tr!("discard")).clicked() {
-                            choice = Some(1);
-                        }
-                        if ui.button(crate::tr!("cancel")).clicked() {
+                        if button(ui, ButtonKind::Ghost, crate::tr!("cancel")).clicked() {
                             choice = Some(2);
                         }
-                    });
-                });
+                        // L'action destructive reste à gauche, loin du bouton principal.
+                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                            if button(ui, ButtonKind::Danger, crate::tr!("discard")).clicked() {
+                                choice = Some(1);
+                            }
+                        });
+                    },
+                );
             match choice {
                 Some(0) if self.save_document(false) => {
                     if let Some(action) = self.file.pending_action.take() {
@@ -386,18 +394,19 @@ impl App {
                 }
                 _ => {}
             }
-        } else if self.file.error.is_some() {
-            let mut open = true;
+        } else if let Some(error) = self.file.error.clone() {
             let mut close = false;
-            egui::Window::new(crate::tr!("file-error-title"))
-                .open(&mut open)
-                .collapsible(false)
-                .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
-                .show(ctx, |ui| {
-                    ui.label(self.file.error.as_deref().unwrap_or_default());
-                    close = ui.button(crate::tr!("close")).clicked();
-                });
-            if close || !open {
+            let title = crate::tr!("file-error-title");
+            let response = Dialog::new("file-error", &title).width(440.0).show(
+                ctx,
+                |ui| {
+                    notice(ui, NoticeKind::Error, error);
+                },
+                |ui| {
+                    close = button(ui, ButtonKind::Primary, crate::tr!("close")).clicked();
+                },
+            );
+            if close || response.should_close() {
                 self.file.error = None;
                 self.document.force_selection = true;
             }

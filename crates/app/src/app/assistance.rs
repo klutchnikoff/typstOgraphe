@@ -212,94 +212,118 @@ impl App {
         if !self.dialogs.assistance_open {
             return;
         }
-        let response = egui::Modal::new(egui::Id::new("agent-assistance")).show(ctx, |ui| {
-            ui.set_width(480.0);
-            ui.heading(crate::tr!("assistance-title"));
-            ui.label(crate::tr!("assistance-help"));
-            ui.add_space(8.0);
-            ui.label(crate::tr!("assistance-read-only"));
-            if let Some(session) = &self.assistance.session {
-                ui.separator();
-                if self.assistance.discovery_directory.is_some() {
-                    ui.label(crate::tr!("assistance-fixed-configuration"));
-                }
-                ui.label(if session.connected() {
-                    crate::tr!("assistance-connected")
-                } else {
-                    crate::tr!("assistance-ready")
-                });
-                let permissions = session.file_permissions(&self.document.engine);
-                if let Some(path) = permissions["current_file"].as_str() {
-                    ui.label(crate::tr!("assistance-save-granted", path = path));
-                }
-                if let Some(roots) = permissions["export_roots"].as_array() {
-                    for root in roots.iter().filter_map(serde_json::Value::as_str) {
-                        ui.label(crate::tr!("assistance-export-granted", path = root));
+        use crate::ui_kit::{
+            ButtonKind, Dialog, NoticeKind, button, button_enabled, footer, notice,
+        };
+        let (title, help) = (
+            crate::tr!("assistance-title"),
+            crate::tr!("assistance-help"),
+        );
+        let (mut authorize, mut close) = (false, false);
+        let response = Dialog::new("agent-assistance", &title)
+            .description(&help)
+            .width(480.0)
+            .show_with(ctx, |ui| {
+                ui.label(crate::tr!("assistance-read-only"));
+                if let Some(session) = &self.assistance.session {
+                    ui.separator();
+                    if self.assistance.discovery_directory.is_some() {
+                        ui.label(crate::tr!("assistance-fixed-configuration"));
                     }
-                }
-                if ui.button(crate::tr!("assistance-copy")).clicked() {
-                    let configuration = self.assistance_configuration(session);
-                    ctx.copy_text(
-                        serde_json::to_string_pretty(&configuration).expect("MCP configuration"),
-                    );
-                }
-                if ui.button(crate::tr!("assistance-revoke")).clicked() {
-                    self.assistance.session = None;
-                }
-            } else {
-                ui.separator();
-                let can_save = self.document.engine.file_path().is_some()
-                    && !self.document.engine.is_read_only();
-                if !can_save {
-                    self.assistance.save_current = false;
-                }
-                ui.add_enabled(
-                    can_save,
-                    egui::Checkbox::new(
-                        &mut self.assistance.save_current,
-                        crate::tr!("assistance-save-allow"),
-                    ),
-                )
-                .on_disabled_hover_text(crate::tr!("assistance-save-first"));
-                if let Some(root) = &self.assistance.export_root {
-                    ui.label(crate::tr!(
-                        "assistance-export-granted",
-                        path = root.display().to_string()
-                    ));
-                }
-                ui.horizontal(|ui| {
-                    if ui.button(crate::tr!("assistance-export-choose")).clicked() {
-                        let dialog = rfd::FileDialog::new()
-                            .set_title(crate::tr!("assistance-export-choose"));
-                        if let Some(path) = self.pick_folder(dialog) {
-                            self.assistance.export_root = Some(path);
+                    ui.label(if session.connected() {
+                        crate::tr!("assistance-connected")
+                    } else {
+                        crate::tr!("assistance-ready")
+                    });
+                    let permissions = session.file_permissions(&self.document.engine);
+                    if let Some(path) = permissions["current_file"].as_str() {
+                        ui.label(crate::tr!("assistance-save-granted", path = path));
+                    }
+                    if let Some(roots) = permissions["export_roots"].as_array() {
+                        for root in roots.iter().filter_map(serde_json::Value::as_str) {
+                            ui.label(crate::tr!("assistance-export-granted", path = root));
                         }
                     }
-                    if self.assistance.export_root.is_some()
-                        && ui.button(crate::tr!("assistance-export-remove")).clicked()
-                    {
-                        self.assistance.export_root = None;
+                    if button(ui, ButtonKind::Secondary, crate::tr!("assistance-copy")).clicked() {
+                        let configuration = self.assistance_configuration(session);
+                        ctx.copy_text(
+                            serde_json::to_string_pretty(&configuration)
+                                .expect("MCP configuration"),
+                        );
+                    }
+                    if button(ui, ButtonKind::Danger, crate::tr!("assistance-revoke")).clicked() {
+                        self.assistance.session = None;
+                    }
+                } else {
+                    ui.separator();
+                    let can_save = self.document.engine.file_path().is_some()
+                        && !self.document.engine.is_read_only();
+                    if !can_save {
+                        self.assistance.save_current = false;
+                    }
+                    ui.add_enabled(
+                        can_save,
+                        egui::Checkbox::new(
+                            &mut self.assistance.save_current,
+                            crate::tr!("assistance-save-allow"),
+                        ),
+                    )
+                    .on_disabled_hover_text(crate::tr!("assistance-save-first"));
+                    if let Some(root) = &self.assistance.export_root {
+                        ui.label(crate::tr!(
+                            "assistance-export-granted",
+                            path = root.display().to_string()
+                        ));
+                    }
+                    ui.horizontal(|ui| {
+                        if button(
+                            ui,
+                            ButtonKind::Secondary,
+                            crate::tr!("assistance-export-choose"),
+                        )
+                        .clicked()
+                        {
+                            let dialog = rfd::FileDialog::new()
+                                .set_title(crate::tr!("assistance-export-choose"));
+                            if let Some(path) = self.pick_folder(dialog) {
+                                self.assistance.export_root = Some(path);
+                            }
+                        }
+                        if self.assistance.export_root.is_some()
+                            && button(
+                                ui,
+                                ButtonKind::Secondary,
+                                crate::tr!("assistance-export-remove"),
+                            )
+                            .clicked()
+                        {
+                            self.assistance.export_root = None;
+                        }
+                    });
+                }
+                if let Some(error) = &self.assistance.error {
+                    notice(ui, NoticeKind::Error, error.clone());
+                }
+                ui.add_space(14.0);
+                footer(ui, |ui| {
+                    if self.assistance.session.is_none() {
+                        authorize = button_enabled(
+                            ui,
+                            ButtonKind::Primary,
+                            self.document.open,
+                            crate::tr!("assistance-authorize"),
+                        )
+                        .clicked();
+                        close = button(ui, ButtonKind::Ghost, crate::tr!("close")).clicked();
+                    } else {
+                        close = button(ui, ButtonKind::Primary, crate::tr!("close")).clicked();
                     }
                 });
-                if ui
-                    .add_enabled(
-                        self.document.open,
-                        egui::Button::new(crate::tr!("assistance-authorize")),
-                    )
-                    .clicked()
-                {
-                    self.start_assistance(ctx);
-                }
-            }
-            if let Some(error) = &self.assistance.error {
-                ui.colored_label(ui.visuals().error_fg_color, error);
-            }
-            ui.add_space(8.0);
-            if ui.button(crate::tr!("close")).clicked() {
-                self.dialogs.assistance_open = false;
-            }
-        });
-        if response.should_close() {
+            });
+        if authorize {
+            self.start_assistance(ctx);
+        }
+        if close || response.should_close() {
             self.dialogs.assistance_open = false;
         }
         if !self.dialogs.assistance_open {

@@ -5,11 +5,13 @@ impl App {
         if !self.dialogs.preferences_open {
             return;
         }
-        let response = egui::Modal::new(egui::Id::new("preferences")).show(ctx, |ui| {
-            ui.set_width(480.0);
-            ui.heading(crate::tr!("preferences-title"));
-            ui.horizontal(|ui| {
-                for (page, label) in [
+        use crate::ui_kit::{ButtonKind, Dialog, button, footer, segmented};
+        let title = crate::tr!("preferences-title");
+        let mut close = false;
+        let response = Dialog::new("preferences", &title)
+            .width(520.0)
+            .show_with(ctx, |ui| {
+                let tabs = [
                     (PreferencesPage::Profile, crate::tr!("preferences-profile")),
                     (
                         PreferencesPage::Appearance,
@@ -19,24 +21,25 @@ impl App {
                         PreferencesPage::Spelling,
                         crate::tr!("preferences-spelling"),
                     ),
-                ] {
-                    ui.selectable_value(&mut self.dialogs.preferences_page, page, label);
-                }
-            });
-            ui.separator();
-            egui::ScrollArea::vertical()
-                .id_salt("preferences-content")
-                .max_height((ctx.content_rect().height() - 180.0).max(160.0))
-                .show(ui, |ui| match self.dialogs.preferences_page {
-                    PreferencesPage::Profile => self.profile_preferences_ui(ui),
-                    PreferencesPage::Appearance => self.appearance_preferences_ui(ui),
-                    PreferencesPage::Spelling => self.spelling_preferences_ui(ui),
+                ];
+                segmented(ui, &mut self.dialogs.preferences_page, &tabs);
+                ui.add_space(4.0);
+                egui::ScrollArea::vertical()
+                    .id_salt("preferences-content")
+                    .max_height((ctx.content_rect().height() - 220.0).max(160.0))
+                    .show(ui, |ui| match self.dialogs.preferences_page {
+                        PreferencesPage::Profile => self.profile_preferences_ui(ui),
+                        PreferencesPage::Appearance => self.appearance_preferences_ui(ui),
+                        PreferencesPage::Spelling => self.spelling_preferences_ui(ui),
+                    });
+                ui.add_space(14.0);
+                footer(ui, |ui| {
+                    close = button(ui, ButtonKind::Primary, crate::tr!("close")).clicked();
                 });
-            ui.add_space(8.0);
-            if ui.button(crate::tr!("close")).clicked() {
-                self.dialogs.preferences_open = false;
-            }
-        });
+            });
+        if close {
+            self.dialogs.preferences_open = false;
+        }
         ctx.set_theme(self.preferences.appearance.theme());
         if response.should_close() {
             self.dialogs.preferences_open = false;
@@ -68,17 +71,8 @@ impl App {
                 );
                 ui.end_row();
                 ui.label(crate::tr!("appearance"));
-                egui::ComboBox::from_id_salt("appearance")
-                    .selected_text(self.preferences.appearance.label())
-                    .show_ui(ui, |ui| {
-                        for appearance in Appearance::ALL {
-                            ui.selectable_value(
-                                &mut self.preferences.appearance,
-                                appearance,
-                                appearance.label(),
-                            );
-                        }
-                    });
+                let choices = Appearance::ALL.map(|appearance| (appearance, appearance.label()));
+                crate::ui_kit::segmented(ui, &mut self.preferences.appearance, &choices);
                 ui.end_row();
             });
         ui.add_space(8.0);
@@ -136,31 +130,41 @@ impl App {
                     ("field-phone", &mut profile.phone, false),
                 ] {
                     let label = ui.label(crate::i18n::text(key));
-                    let edit = if multiline {
-                        egui::TextEdit::multiline(value).desired_rows(3)
-                    } else {
-                        egui::TextEdit::singleline(value)
-                    };
-                    ui.add(edit.id_salt(("profile", key)).desired_width(310.0))
+                    ui.scope(|ui| {
+                        ui.set_max_width(310.0);
+                        if multiline {
+                            crate::ui_kit::text_area(ui, ("profile", key), value, 3)
+                        } else {
+                            crate::ui_kit::text_field(ui, ("profile", key), value)
+                        }
                         .labelled_by(label.id);
+                    });
                     ui.end_row();
                 }
             });
         ui.separator();
         ui.horizontal(|ui| {
             ui.label(crate::tr!("signature-label"));
-            if ui
-                .button(if self.preferences.profile.signature.is_some() {
+            if crate::ui_kit::button(
+                ui,
+                crate::ui_kit::ButtonKind::Secondary,
+                if self.preferences.profile.signature.is_some() {
                     crate::tr!("image-replace")
                 } else {
                     crate::tr!("signature-choose")
-                })
-                .clicked()
+                },
+            )
+            .clicked()
             {
                 self.choose_signature(true);
             }
             if self.preferences.profile.signature.is_some()
-                && ui.button(crate::tr!("image-remove")).clicked()
+                && crate::ui_kit::button(
+                    ui,
+                    crate::ui_kit::ButtonKind::Secondary,
+                    crate::tr!("image-remove"),
+                )
+                .clicked()
             {
                 self.preferences.profile.signature = None;
                 self.profile_signature = None;

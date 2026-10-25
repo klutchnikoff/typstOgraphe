@@ -15,7 +15,7 @@ mod side_rail;
 mod tests;
 
 pub use button::{ButtonKind, button, button_enabled, icon_button};
-pub use dialog::Dialog;
+pub use dialog::{Dialog, footer};
 pub use field::{text_area, text_field};
 pub use gallery::{Gallery, Orientation, gallery};
 pub use notice::{NoticeKind, keycap, notice};
