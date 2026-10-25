@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maquette — polissage de l’interface</title>
+<style>
+:root{
+  --bg:#f4f4f1; --panel:#ffffff; --field:#ffffff; --border:#dcdcd5; --text:#1f2328; --muted:#6b7078;
+  --accent:#285c77; --accent-soft:#e8f0f4; --ctl:#ececE8; --danger:#a53a32; --mark:#fbe3e0;
+  --now-band:#eaf0f5; --now-ctl:#e3e3e0; --shadow:0 1px 2px rgba(0,0,0,.06),0 4px 14px rgba(0,0,0,.06);
+  --page:#e9e9e5;
+}
+:root[data-theme=dark]{
+  --bg:#1b1c1e; --panel:#232427; --field:#2b2d31; --border:#3a3d42; --text:#e6e7e9; --muted:#9aa0a8;
+  --accent:#8cc3e0; --accent-soft:#26343d; --ctl:#2f3236; --danger:#e58b82; --mark:#4a2f2d;
+  --now-band:#2b3238; --now-ctl:#3a3a3a; --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.35);
+  --page:#141517;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:20px;margin:0 0 4px}
+.lead{color:var(--muted);margin:0 0 16px;max-width:70ch}
+.controls{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;padding:12px 14px;background:var(--panel);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;position:sticky;top:8px;z-index:5;box-shadow:var(--shadow)}
+.group{display:flex;align-items:center;gap:8px}
+.group>span{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{all:unset;cursor:pointer;padding:5px 12px;font-size:13px;border-right:1px solid var(--border)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--panel);}
+:root[data-theme=dark] .seg button[aria-pressed=true]{color:#10222c}
+input[type=range]{width:160px}
+.stage{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.desc{flex:1 1 260px;min-width:240px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.desc h2{font-size:14px;margin:0 0 6px}
+.desc p,.desc li{color:var(--muted);margin:4px 0}
+.desc ul{padding-left:18px;margin:6px 0}
+.desc b{color:var(--text)}
+
+/* ---------- Colonne de l’éditeur ---------- */
+.col{width:var(--w,560px);max-width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;container-type:inline-size;--gut:28px}
+.tb{display:flex;align-items:center;gap:4px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--panel);overflow:hidden}
+.tb .brand{font-weight:600;margin-right:8px;white-space:nowrap}
+.tb button{all:unset;cursor:pointer;width:30px;height:28px;display:inline-grid;place-items:center;border-radius:6px;color:var(--text);font-size:14px;flex:none}
+.tb button:hover{background:var(--ctl)}
+.tb .sep{width:1px;height:18px;background:var(--border);margin:0 6px;flex:none}
+.tb .sel{all:unset;padding:3px 8px;border-radius:6px;display:inline-flex;gap:6px;align-items:center;cursor:pointer;flex:none}
+.tb .sel:hover{background:var(--ctl)}
+.doc{padding:14px 0 18px;font-family:"Libertinus Serif","Iowan Old Style",Georgia,serif;font-size:17px;line-height:1.6}
+.doc p{margin:0 var(--gut) 10px;color:var(--text)}
+.pil{color:var(--muted);font:12px system-ui;margin:0 var(--gut) 2px;opacity:.7}
+.miss{background:var(--mark);border-bottom:2px solid var(--danger);border-radius:2px}
+.blockwrap{margin:0 var(--gut) 12px;position:relative}
+.block{border:1px solid var(--border);background:var(--panel);border-radius:8px;padding:6px 14px 10px;position:relative}
+.block .lab{font:11px system-ui;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:2px 0 4px;display:flex;justify-content:space-between;align-items:center}
+.block .acts{display:flex;gap:2px}
+.block .acts i{width:24px;height:22px;display:inline-grid;place-items:center;border-radius:5px;font-style:normal;color:var(--muted);cursor:default;font-size:13px}
+.block ul{margin:0;padding-left:22px}
+.block li{padding:1px 0}
+.img{height:84px;border-radius:5px;background:linear-gradient(#dfe9e4 0 55%,#a8c1ad 55%);position:relative;margin:4px 0 6px;overflow:hidden}
+.img:before{content:"";position:absolute;left:12%;top:24%;width:34px;height:34px;border-radius:50%;background:#356b53;box-shadow:120px 8px 0 4px #356b53}
+.cap{font-style:italic;color:#2b6ea3;font-size:15px}
+:root[data-theme=dark] .cap{color:#8cc3e0}
+
+/* ---------- Bandeau : contenu commun ---------- */
+.band{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.4;color:var(--text)}
+.band .hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.band .hd b{font-weight:600}
+.band .x{all:unset;cursor:pointer;width:24px;height:24px;display:grid;place-items:center;border-radius:5px;color:var(--muted)}
+.band .x:hover{background:var(--ctl)}
+.band label.f{display:block;color:var(--muted);font-size:12px;margin-bottom:3px}
+.band .in{width:100%;background:var(--field);border:1px solid var(--accent);border-radius:6px;padding:6px 9px;font:inherit;color:var(--text)}
+.band .hint{color:var(--muted);font-size:12.5px}
+.band .opts{display:flex;gap:6px;flex-wrap:wrap}
+.band .opt{display:inline-flex;gap:7px;align-items:center;padding:5px 11px;border:1px solid var(--border);border-radius:999px;background:var(--panel);cursor:pointer}
+.band .opt[aria-checked=true]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:500}
+.band .opt .dot{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--muted)}
+.band .opt[aria-checked=true] .dot{border-color:var(--accent);background:radial-gradient(var(--accent) 0 45%,transparent 50%)}
+.band .sugg{display:flex;gap:6px;flex-wrap:wrap}
+.band .sugg button{all:unset;cursor:pointer;padding:4px 11px;border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.band .sugg button:first-child{border-color:var(--accent);color:var(--accent);font-weight:500}
+.band .sugg button:hover{background:var(--accent-soft)}
+.band .btn{all:unset;cursor:pointer;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--panel);text-align:center}
+.band .btn.pri{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:500}
+:root[data-theme=dark] .band .btn.pri{color:#10222c}
+.band .btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.band .btn.ghost:hover{background:var(--ctl)}
+
+/* ---------- Variante ACTUEL : pleine largeur, tout empilé à gauche ---------- */
+.v-now .band{margin:0 calc(var(--gut) * -1) 6px;background:var(--now-band);border-top:1px solid var(--border);padding:10px 20px 12px;display:flex;flex-direction:column;gap:12px}
+.v-now .band .body{display:flex;flex-direction:column;gap:10px}
+.v-now .band .ft{display:flex;gap:8px}
+.v-now .band .btn{background:var(--now-ctl);border:0;border-radius:3px;padding:3px 8px}
+.v-now .band .btn.pri{background:var(--now-ctl);color:var(--text);font-weight:400}
+.v-now .band .in{border-radius:2px}
+.v-now .band .opt{border:0;background:none;border-radius:0;padding:2px 6px 2px 0}
+.v-now .band .opt[aria-checked=true]{background:none;color:var(--text);font-weight:400}
+.v-now .band .sugg button{border:0;background:var(--now-ctl);border-radius:3px;color:var(--text);font-weight:400}
+
+/* ---------- Variante A : bandeau aligné sur la colonne des blocs ---------- */
+.v-a .band{margin:0 0 8px;background:var(--panel);border:1px solid var(--accent);border-radius:8px;box-shadow:var(--shadow);padding:10px 12px;display:grid;gap:10px}
+.v-a .band .body{display:grid;gap:10px}
+.v-a .band .ft{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+
+/* ---------- Variante B : bandeau intégré au cadre du bloc ---------- */
+.v-b .blockwrap.has-block{border:1px solid var(--accent);border-radius:8px;background:var(--panel);box-shadow:var(--shadow);overflow:hidden}
+.v-b .blockwrap.has-block .block{border:0;border-radius:0;background:transparent}
+.v-b .band{background:var(--accent-soft);padding:10px 14px;display:grid;gap:10px;border-bottom:1px solid var(--border)}
+.v-b .band .body{display:grid;gap:10px}
+.v-b .band .ft{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.v-b .blockwrap.no-block .band{border:1px solid var(--accent);border-radius:8px;background:var(--panel);box-shadow:var(--shadow)}
+
+/* Pointe vers le mot concerné (orthographe, grammaire…) */
+.blockwrap.no-block .band{position:relative;overflow:visible}
+.caret{position:absolute;bottom:-7px;left:var(--cx,40px);width:12px;height:12px;background:var(--panel);border-right:1px solid var(--accent);border-bottom:1px solid var(--accent);transform:translateX(-50%) rotate(45deg);pointer-events:none}
+.v-now .caret{display:none}
+.kind{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--danger);margin-right:6px}
+/* Orthographe dans un bloc : bandeau inséré entre deux lignes, aux bords du cadre */
+.band.inline{position:relative;margin:6px -14px 8px;padding:10px 14px;background:var(--accent-soft);border-top:1px solid var(--accent);border-bottom:1px solid var(--accent);border-radius:0;box-shadow:none;display:grid;gap:10px}
+.band.inline .caret{background:var(--accent-soft)}
+.v-now .band.inline{margin:6px -14px 8px}
+@container (max-width:460px){.band.inline{margin-left:-12px;margin-right:-12px;padding:9px 12px}}
+/* Adaptation à la largeur : colonne étroite */
+@container (max-width:460px){
+  .col{--gut:14px}
+  .v-a .band .ft,.v-b .band .ft{justify-content:stretch}
+  .v-a .band .ft .btn,.v-b .band .ft .btn{flex:1}
+  .tb .hide-n{display:none}
+}
+@container (max-width:380px){
+  .band .opt{padding:4px 9px}
+  .doc{font-size:16px}
+}
+.scene{display:none}
+.scene.on{display:block}
+.tokens{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
+.tokens span{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--panel)}
+.tokens i{width:14px;height:14px;border-radius:4px;border:1px solid var(--border);display:inline-block}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Interface — bandeaux contextuels et cohérence de la colonne</h1>
+  <p class="lead">Les trois variantes montrent le même bandeau (paramètres de liste, d’image, correction orthographique). Faites glisser la largeur pour vérifier l’adaptation. Rien n’est implémenté : cette page sert uniquement à choisir une direction.</p>
+
+  <div class="controls">
+    <div class="group"><span>Variante</span>
+      <div class="seg" id="seg-v">
+        <button data-v="now" aria-pressed="false">Actuel</button>
+        <button data-v="a" aria-pressed="true">A · Aligné</button>
+        <button data-v="b" aria-pressed="false">B · Intégré</button>
+      </div></div>
+    <div class="group"><span>Scène</span>
+      <div class="seg" id="seg-s">
+        <button data-s="list" aria-pressed="true">Liste</button>
+        <button data-s="image" aria-pressed="false">Image</button>
+        <button data-s="spell" aria-pressed="false">Orthographe</button>
+        <button data-s="spellblock" aria-pressed="false">Orthographe en bloc</button>
+      </div></div>
+    <div class="group"><span>Thème</span>
+      <div class="seg" id="seg-t">
+        <button data-t="light" aria-pressed="true">Clair</button>
+        <button data-t="dark" aria-pressed="false">Sombre</button>
+      </div></div>
+    <div class="group"><span>Largeur</span><input id="w" type="range" min="340" max="760" value="560"><output id="wo">560 px</output></div>
+  </div>
+
+  <div class="stage">
+    <div id="col" class="col v-a">
+      <div class="tb">
+        <span class="brand">typstOgraphe</span><span class="sel">H ▾</span><span class="sep"></span>
+        <button title="Gras"><b>B</b></button><button title="Italique"><i>I</i></button><button title="Lien">⛓</button>
+        <span class="sep hide-n"></span><button class="hide-n" title="Liste">☰</button><button class="hide-n" title="Citation">❝</button><button class="hide-n" title="Image">▣</button>
+      </div>
+      <div class="doc">
+        <!-- Scène liste -->
+        <div class="scene on" data-scene="list">
+          <p>Nous sollicitons la mise à disposition de la salle des Tilleuls.</p>
+          <div class="blockwrap has-block">
+            <div class="band">
+              <div class="hd"><b>Paramètres de la liste</b><button class="x" aria-label="Fermer">✕</button></div>
+              <div class="body">
+                <div class="opts" role="radiogroup">
+                  <span class="opt" role="radio" aria-checked="true"><span class="dot"></span>À puces</span>
+                  <span class="opt" role="radio" aria-checked="false"><span class="dot"></span>Numérotée</span>
+                  <span class="opt" role="radio" aria-checked="false"><span class="dot"></span>Descriptions</span>
+                </div>
+                <div class="hint">Ces paramètres concernent la liste entière.</div>
+              </div>
+              <div class="ft"><button class="btn ghost">Annuler</button><button class="btn pri">Appliquer</button></div>
+            </div>
+            <div class="block"><div class="lab"><span>Liste</span><span class="acts"><i>⚙</i><i>🗑</i></span></div>
+              <ul><li>Accueil des participants</li><li>Installation de la salle</li><li>Trente places assises</li></ul></div>
+          </div>
+          <p>Je vous remercie pour votre retour.</p>
+        </div>
+        <!-- Scène image -->
+        <div class="scene" data-scene="image">
+          <p>Nous joignons une vue du parc.</p>
+          <div class="blockwrap has-block">
+            <div class="band">
+              <div class="hd"><b>Paramètres de l’image</b><button class="x" aria-label="Fermer">✕</button></div>
+              <div class="body">
+                <div><label class="f">Texte alternatif</label><input class="in" value="Allée arborée et bancs du parc"></div>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn">Remplacer…</button><span class="hint">La légende se modifie directement dans le bloc.</span></div>
+              </div>
+              <div class="ft"><button class="btn ghost">Annuler</button><button class="btn pri">Appliquer</button></div>
+            </div>
+            <div class="block"><div class="lab"><span>Image</span><span class="acts"><i>⚙</i><i>🗑</i></span></div>
+              <div class="img"></div><div class="cap">Le parc des Tilleuls, à proximité de la salle.</div></div>
+          </div>
+          <p>Je vous remercie pour votre retour.</p>
+        </div>
+        <!-- Scène orthographe -->
+        <div class="scene" data-scene="spell">
+          <div class="blockwrap no-block">
+            <div class="band">
+              <div class="hd"><span><span class="kind">Orthographe</span><b>« courrrier »</b></span><button class="x" aria-label="Fermer">✕</button></div>
+              <div class="body">
+                <div class="sugg"><button>courrier</button><button>courrières</button><button>couriers</button></div>
+              </div>
+              <div class="ft"><button class="btn ghost">Ignorer</button><button class="btn">Ajouter au dictionnaire</button></div>
+              <span class="caret" id="caret"></span>
+            </div>
+          </div>
+          <p>Merci de confirmer la réception de ce <span class="miss">courrrier</span> avant vendredi, afin de préparer la rencontre.</p>
+          <p>Je vous prie d’agréer, Madame, Monsieur, mes salutations distinguées.</p>
+        </div>
+        <!-- Scène orthographe dans un bloc -->
+        <div class="scene" data-scene="spellblock">
+          <p>Nous aurons besoin des équipements suivants :</p>
+          <div class="blockwrap has-block">
+            <div class="block"><div class="lab"><span>Liste</span><span class="acts"><i>⚙</i><i>🗑</i></span></div>
+              <ul><li>Accueil des participants</li>
+              <li style="list-style:none;margin-left:-22px">
+                <div class="band inline">
+                  <div class="hd"><span><span class="kind">Orthographe</span><b>« vidéoprojecteure »</b></span><button class="x" aria-label="Fermer">✕</button></div>
+                  <div class="sugg"><button>vidéoprojecteur</button><button>vidéoprojecteurs</button></div>
+                  <div class="ft"><button class="btn ghost">Ignorer</button><button class="btn">Ajouter au dictionnaire</button></div>
+                  <span class="caret"></span>
+                </div>
+              </li>
+              <li>Un <span class="miss">vidéoprojecteure</span></li><li>Trente places assises</li></ul></div>
+          </div>
+          <p>Je vous remercie pour votre retour.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="desc" id="desc"></div>
+  </div>
+
+  <div class="tokens" id="tokens"></div>
+</div>
+
+<script>
+const descs={
+ now:`<h2>Actuel</h2><ul>
+  <li>Le bandeau déborde sur toute la largeur de la colonne, <b>marges du texte comprises</b>, alors que les blocs sont en retrait : trois bords différents (colonne, bloc, contenu).</li>
+  <li>Le contenu s’empile à gauche : boutons « Annuler / Appliquer » sous le texte, grands vides à droite, aucun regroupement.</li>
+  <li>Aucun lien visuel entre le bandeau et le bloc qu’il règle.</li></ul>`,
+ a:`<h2>A · Aligné</h2><ul>
+  <li>Même retrait que les blocs : <b>un seul bord gauche et droit</b> pour tout le contenu.</li>
+  <li>Carte à bordure d’accent, juste au-dessus de son bloc. Le contenu suit la même règle qu’une fiche : en-tête, corps, pied d’actions à droite.</li>
+  <li>Choix en pastilles qui reviennent à la ligne ; champs pleine largeur ; boutons étirés sous 460 px.</li>
+  <li>Reste proche de D37 (bandeau au-dessus du déclencheur, repousse le contenu), mais n’est plus « pleine largeur de colonne ».</li></ul>`,
+ b:`<h2>B · Intégré au bloc</h2><ul>
+  <li>Le bandeau devient <b>l’en-tête déplié du bloc</b> : un seul cadre, une seule bordure d’accent, fond d’accent léger.</li>
+  <li>On voit immédiatement ce qui est réglé ; le réglage et le bloc ne peuvent plus être confondus.</li>
+  <li>Orthographe <b>dans un bloc</b> : le bandeau s’insère entre deux lignes, aux bords du cadre du bloc, sa largeur et ses marges suivent le bloc, et la pointe désigne le mot sur la ligne suivante.</li>
+  <li>Pour l’orthographe (pas de bloc), le bandeau reste une carte alignée comme en A, avec une pointe qui désigne le mot concerné.</li>
+  <li>Écart avec D37 : le bandeau n’est plus indépendant du bloc ; à valider.</li></ul>`
+};
+const toks=[["fond","--bg"],["panneau","--panel"],["champ","--field"],["bordure","--border"],["texte","--text"],["secondaire","--muted"],["accent","--accent"],["accent doux","--accent-soft"],["erreur","--danger"]];
+const col=document.getElementById('col'),root=document.documentElement;
+function setV(v){col.classList.remove('v-now','v-a','v-b');col.classList.add('v-'+v);
+  document.querySelectorAll('#seg-v button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v));
+  document.getElementById('desc').innerHTML=descs[v];}
+function setS(s){document.querySelectorAll('.scene').forEach(e=>e.classList.toggle('on',e.dataset.scene===s));
+  document.querySelectorAll('#seg-s button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===s));}
+function setT(t){root.dataset.theme=t;
+  document.querySelectorAll('#seg-t button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));drawTokens();}
+function drawTokens(){const cs=getComputedStyle(root);
+  document.getElementById('tokens').innerHTML=toks.map(([n,v])=>`<span><i style="background:${cs.getPropertyValue(v)}"></i>${n} <code>${cs.getPropertyValue(v).trim()}</code></span>`).join('');}
+document.getElementById('seg-v').onclick=e=>e.target.dataset.v&&setV(e.target.dataset.v);
+document.getElementById('seg-s').onclick=e=>e.target.dataset.s&&setS(e.target.dataset.s);
+document.getElementById('seg-t').onclick=e=>e.target.dataset.t&&setT(e.target.dataset.t);
+const w=document.getElementById('w');
+w.oninput=()=>{col.style.setProperty('--w',w.value+'px');document.getElementById('wo').textContent=w.value+' px'};
+document.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{o.parentNode.querySelectorAll('.opt').forEach(x=>x.setAttribute('aria-checked',x===o));});
+function placeCaret(){document.querySelectorAll('.caret').forEach(c=>{
+  const sc=c.closest('.scene'),m=sc&&sc.querySelector('.miss');if(!m)return;
+  const band=c.parentNode.getBoundingClientRect(),r=m.getBoundingClientRect();if(!band.width)return;
+  let x=r.left+r.width/2-band.left;x=Math.max(18,Math.min(band.width-18,x));c.style.setProperty('--cx',x+'px');});}
+new ResizeObserver(placeCaret).observe(col);
+document.getElementById('seg-s').addEventListener('click',()=>setTimeout(placeCaret,0));
+document.getElementById('seg-v').addEventListener('click',()=>setTimeout(placeCaret,0));
+if(matchMedia('(prefers-color-scheme: dark)').matches)setT('dark');else setT('light');
+setV('b');setTimeout(placeCaret,0);
+</script>
+</body>
+</html>

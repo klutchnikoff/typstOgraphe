@@ -159,6 +159,7 @@ Fuites à traiter avant tout découpage en crates :
 | D37 | Widgets et bandeaux de l’éditeur | **Validés le 25 octobre 2026 après maquette interactive.** Enveloppe commune pour les widgets structurés, présentation propre à chaque capacité, zones secondaires directement éditables, corbeille et paramètres monochromes. Une liste entière, sous-listes comprises, forme un seul widget. Paramètres, suppression, orthographe et liens utilisent un bandeau interligne pleine largeur de la colonne de gauche, au-dessus du déclencheur, qui repousse le contenu ; un seul ouvert à la fois. Fermer/annuler ne publie rien ; les actions réutilisent les commandes et gardes du moteur. Les paramètres déjà accessibles dans le bloc ne sont pas dupliqués. Gras/italique/liens restent en ligne. La relecture MCP conserve sa présentation spécifique et suit cette harmonisation | 6.4a, B |
 | D38 | Commande contextuelle au clavier | **Validée le 25 octobre 2026.** Ctrl/Cmd+Entrée ouvre une correction au curseur, sinon les paramètres du widget s’il en possède ; aucun panneau vide ni préférence globale en repli. Un bandeau déjà ouvert reprend le focus en conservant son brouillon. Ce raccourci n’applique rien : Entrée valide, Échap annule, IME prioritaire. Une seule résolution pour disponibilité, activation et libellé spécifique dans la palette/info-bulles. Commande d’interface enregistrée et personnalisable comme les autres ; grammaire future, sans ajout au catalogue documentaire MCP | 6.4a, B |
 | D39 | Relecture et protocole des propositions | **Validée le 25 octobre 2026.** Maquette Actuel / Proposition, informations modifiées dans un onglet, ouverture volontaire, décision sur le lot entier et péremption stricte. Un seul candidat en attente ; helpers MCP `proposals.submit/get/cancel`, soumission idempotente et réponse immédiate sans publication. Aucun outil d’approbation agent ; accord exclusivement dans l’application, avec conservation du contexte utilisateur. Contrat détaillé : `docs/mcp-proposals.md` | 6.4b |
+| D40 | Polissage de l’interface | **Cadrée le 25 octobre 2026 ; direction visuelle validée, choix d’ouverture à valider.** Validés : chantier L distinct, engagé **après 6.6 et avant la phase 7** ; bandeaux de la variante B (en-tête déplié du bloc, un seul cadre, bordure et fond d’accent) ; pointe de 12 px vers le mot pour l’orthographe, et plus tard la grammaire, avec étiquette du type d’anomalie ; **aucune pointe** pour les paramètres d’un bloc ; faute dans un bloc : bandeau inséré entre deux lignes, aux bords du cadre du bloc, dont la largeur et les marges suivent le bloc. Proposés, à confirmer au début du chantier : jetons clair et sombre dans un module `theme` unique, enveloppe de dialogue et composants communs (`ui_kit`), contrôle segmenté, hiérarchie des boutons. **L.0 validé le 25 octobre 2026** : police d’interface sans-empattement embarquée (deux graisses, licence libre), marque retirée de la barre d’outils, annuler/rétablir ajoutés à droite de la barre, durée de rendu déplacée dans l’info-bulle ; accent actuel conservé et icône du bouton « fin de lettre » (trombone) par défaut, sauf objection. Décidé le 25 octobre 2026 : un seul bouton-menu pour P.-S. et P.J. (commandes et raccourcis inchangés ; icône à confirmer). Mécanisme de barre latérale droite posé sans contenu (barre étroite d’icônes carrées, tiroir recouvrant l’aperçu sur au plus 2/3 de sa colonne, invisible tant qu’aucun panneau n’est déclaré). Pas d'épinglage : interactions courtes seulement. Largeurs relatives, sans supposer deux colonnes seulement, en vue du chantier G de `ROADMAP.md`. Aucun changement du moteur, de l’IME, du focus ni des raccourcis. Analyse : `docs/interface-design-audit.md` et maquettes `docs/mockups/` | L |
 
 
 ## 4. Vue d'ensemble
@@ -172,6 +173,7 @@ Phase 4  CLI                                       │ première exposition
 Phase 5  MCP                                       │ deuxième exposition
 Phase 6  assistance à la composition              │
 Chantier K  contrat d'interaction des interfaces   │ inventaire avant 6, avant 7
+Chantier L  polissage de l'interface (D40)         │ après 6.6, avant 7
 Phase 7  consolidation, documentation, ROADMAP.md ─┘
 ```
 
@@ -1164,6 +1166,73 @@ de K.2/K.3 restent valables ; aucune nouvelle capture n'est nécessaire pour ce 
 documentaire. À l’issue de K.4, l’édition rattachée restait à implémenter : un
 `ViewSync` par vue ne fournit pas à lui seul les contextes séparés, le report des
 positions ni le canal. Ces éléments ont ensuite été livrés et validés en phase 6.
+
+---
+
+## Chantier L — Polissage de l'interface (taille M, D40) — à engager après 6.6
+
+**Objectif.** Une interface élégante et cohérente, sans toucher au comportement :
+un seul thème (jetons clair et sombre), des composants communs et des bandeaux alignés
+sur les blocs. L'inventaire, les constats et la proposition sont dans
+[docs/interface-design-audit.md](docs/interface-design-audit.md) ; les maquettes
+interactives dans [docs/mockups/interface-system.html](docs/mockups/interface-system.html)
+et [docs/mockups/interface-polish.html](docs/mockups/interface-polish.html).
+
+**Règles.** Les changements visuels sont des changements de comportement *volontaires* :
+commits séparés des déplacements (assouplissement du 21 octobre), captures de référence
+régénérées et comparées clair/sombre (D19), un commit par étape (D20). Le moteur, le
+`TextEdit` maître, l'IME, le focus, les raccourcis et les gardes ne changent pas ; les
+`WidgetInfo` d'accessibilité sont conservés. Aucune dépendance nouvelle, hormis les
+fichiers de police si une police d'interface est embarquée (décision ouverte).
+
+- [x] **L.0 — Valider les choix ouverts** (section 7 de l'audit). Validé le 25 octobre 2026 :
+  police d'interface embarquée (sans-empattement, deux graisses, licence libre) ; marque
+  retirée de la barre d'outils ; annuler/rétablir à droite de la barre ; durée de rendu
+  dans l'info-bulle de l'aperçu ; bouton-menu unique P.-S./P.J. ; accent actuel conservé
+  et trombone pour le bouton, sauf objection. Jetons, échelles et contrôle des contrastes
+  confirmés.
+- [x] **L.1 — Thème.** Module `theme` côté application (`crates/app/src/theme.rs`) : jetons
+  `Tokens::LIGHT/DARK`, échelles, rapport de contraste WCAG, constantes unifiées (`ACCENT`,
+  `PREVIEW_SELECTION`, `ERROR_INLINE`, sélection). Les valeurs existantes sont reprises
+  à l'identique : **aucune apparence nouvelle**. Trois tests de contraste verrouillent la
+  palette (texte ≥ 4,5:1, bordure forte ≥ 3:1). Les `error_fg_color` d'egui, `LIGHT_RED`, les
+  couleurs de la relecture et de l'éditeur seront reprises pendant L.2 et L.3, avec
+  l'application de la palette au style global, en commits d'apparence séparés.
+- [ ] **L.2 — Composants communs (`ui_kit`).** Boutons (principal, secondaire, discret,
+  destructif, icône), champs avec anneau de focus, contrôle segmenté, enveloppe de
+  dialogue, notification, touche de raccourci. Tests de présentation et d'accessibilité.
+- [ ] **L.2 bis — Mécanisme de barre latérale droite, sans contenu (D40).** Composant
+  `SideRail` de `ui_kit` : barre étroite d'icônes carrées à droite et tiroir qui recouvre
+  l'aperçu sans déplacer l'éditeur, au plus 2/3 de la colonne d'aperçu (repli sur l'espace
+  disponible si elle est étroite ou masquée). État (ouvert, panneau actif, largeur) et
+  liste de panneaux déclarés (identifiant, icône, libellé, dessin) ; **liste vide en
+  production : ni barre, ni largeur réservée, aucune capture modifiée**. Ouverture et
+  fermeture par commandes d'interface du registre (D5), donc palette et raccourcis
+  personnalisables, hors catalogue CLI et MCP. Zone enregistrée comme zone d'interface
+  (aucun clic traversant), Échap sauf pendant l'IME, focus de l'éditeur conservé, menus,
+  palette et modales au-dessus, synchronisation de l'aperçu inchangée. Tests avec un
+  panneau factice compilé sous `cfg(test)` et scénario de capture, animations coupées en
+  mode capture. **Décidé le 25 octobre 2026 : pas d'épinglage.** Le tiroir ne sert qu'à des
+  interactions simples, qui n'exigent pas de le garder ouvert ; tout panneau qui demanderait
+  une présence durable relève d'une autre conception. Les panneaux réels (plan, assistance,
+  récents) relèvent du chantier G.
+- [ ] **L.3 — Migration des surfaces**, par risque croissant : dialogues (nouveau document,
+  export, enregistrer, erreurs, lecture seule, récupération, assistance), préférences,
+  palette, accueil, recherche, informations, barre d'outils, barre d'état, aperçu,
+  relecture MCP.
+- [ ] **L.4 — Bandeaux et pointe (D37, D40).** Variante B pour les paramètres de bloc ;
+  pointe vers le mot pour l'orthographe ; bandeau d'une faute dans un bloc inséré entre
+  deux lignes, à la largeur du bloc. Passer la plage horizontale du bloc au placement
+  (`BandInset`) et le rectangle du mot à la pointe ; disparition de la pointe quand le mot
+  sort de la zone visible. Tests de 6.4a adaptés : focus, IME, redimensionnement, thèmes.
+- [ ] **L.5 — Recette.** Captures natives clair et sombre de tous les écrans, comparaison
+  avant/après, essais IME et clavier, contrôle automatisé des contrastes des jetons,
+  bilan dans `docs/`.
+
+**Critères de sortie.** Aucun écran sans jetons ; une seule enveloppe de dialogue ; un
+seul style de contrôle segmenté ; contrastes de texte ≥ 4,5:1 et de contrôle ≥ 3:1 dans
+les deux thèmes ; tests, `clippy`, formatage et contrôle de taille de fichiers verts ;
+comportement documentaire et clavier inchangé.
 
 ---
 

@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maquette — système d’interface</title>
+<style>
+:root{
+  --bg:#f4f4f1; --panel:#fff; --raised:#fff; --field:#fff; --canvas:#e6e6e1;
+  --text:#1f2328; --muted:#5f656c; --border:#d9d9d2; --border-strong:#80858c;
+  --accent:#285c77; --on-accent:#fff; --accent-soft:#e8f0f4; --hover:#ecece8;
+  --danger:#a53a32; --danger-soft:#fbe7e4; --ok:#2f6b4a; --ok-soft:#e3f0e8; --warn-soft:#f6efe0;
+  --shadow:0 1px 2px rgba(0,0,0,.06),0 6px 20px rgba(0,0,0,.08); --scrim:rgba(20,22,25,.38);
+  --ui:system-ui,-apple-system,"Segoe UI",sans-serif; --serif:"Libertinus Serif","Iowan Old Style",Georgia,serif;
+}
+:root[data-theme=dark]{
+  --bg:#1b1c1e; --panel:#232427; --raised:#2a2b2f; --field:#2b2d31; --canvas:#141517;
+  --text:#e6e7e9; --muted:#9aa0a8; --border:#35373c; --border-strong:#7d838b;
+  --accent:#8cc3e0; --on-accent:#10222c; --accent-soft:#26343d; --hover:#303236;
+  --danger:#e58b82; --danger-soft:#4a2f2d; --ok:#7fc59d; --ok-soft:#24382d; --warn-soft:#403824;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.45); --scrim:rgba(0,0,0,.55);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--text);font:13.5px/1.45 var(--ui)}
+.page{max-width:1180px;margin:0 auto;padding:18px 16px 60px}
+h1{font-size:20px;margin:0 0 4px} .lead{color:var(--muted);margin:0 0 14px;max-width:80ch}
+.bar{display:flex;gap:10px 20px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:var(--panel);border:1px solid var(--border);border-radius:10px;position:sticky;top:8px;z-index:20;box-shadow:var(--shadow);margin-bottom:14px}
+.seg{display:inline-flex;background:var(--hover);border-radius:8px;padding:2px;gap:2px}
+.seg button{all:unset;cursor:pointer;padding:4px 11px;border-radius:6px;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed=true],.seg .on{background:var(--raised);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.12);font-weight:500}
+.view{display:none}.view.on{display:block}
+.note{color:var(--muted);font-size:12.5px;margin:8px 2px 18px;max-width:90ch}
+.note b{color:var(--text)}
+
+/* ===== primitives ===== */
+.btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:6px 14px;border-radius:6px;border:1px solid var(--border-strong);background:transparent;color:var(--text);font:inherit;min-height:30px}
+.btn:hover{background:var(--hover)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:500}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.ghost{border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--text)}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn.sm{padding:3px 10px;min-height:26px;font-size:12.5px}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn:focus-visible,.ibtn:focus-visible,.in:focus-visible,.sel:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.ibtn{all:unset;cursor:pointer;width:30px;height:30px;display:inline-grid;place-items:center;border-radius:6px;color:var(--text);flex:none}
+.ibtn:hover{background:var(--hover)} .ibtn.on{background:var(--accent-soft);color:var(--accent)} .ibtn.mut{color:var(--muted)}
+.ibtn svg,.btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.in{width:100%;background:var(--field);border:1px solid var(--border-strong);border-radius:6px;padding:6px 9px;font:inherit;color:var(--text);min-height:32px}
+.in:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);outline:0}
+textarea.in{resize:none;font-family:inherit}
+.sel{all:unset;box-sizing:border-box;min-height:32px;display:inline-flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 10px;border:1px solid var(--border-strong);border-radius:6px;background:var(--field);min-width:150px;cursor:pointer}
+.sel:after{content:"";width:6px;height:6px;border-right:1.6px solid var(--muted);border-bottom:1.6px solid var(--muted);transform:rotate(45deg) translateY(-2px)}
+.lab{color:var(--muted);font-size:12.5px}
+.kbd{font:11.5px ui-monospace,Menlo,monospace;color:var(--muted);border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--panel)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;background:var(--hover);color:var(--muted)}
+.chip i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.chip.ok{background:var(--ok-soft);color:var(--ok)} .chip.err{background:var(--danger-soft);color:var(--danger)} .chip.acc{background:var(--accent-soft);color:var(--accent)}
+.sw{width:34px;height:20px;border-radius:999px;background:var(--border-strong);position:relative;display:inline-block;flex:none}
+.sw:after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
+.sw.on{background:var(--accent)} .sw.on:after{left:16px}
+.row{display:flex;align-items:center;gap:10px}.sp{flex:1}
+hr.h{border:0;border-top:1px solid var(--border);margin:0}
+
+/* ===== fenêtre ===== */
+.win{background:var(--bg);border:1px solid var(--border-strong);border-radius:10px;overflow:hidden;box-shadow:var(--shadow);position:relative}
+.menubar{display:flex;gap:2px;padding:3px 8px;border-bottom:1px solid var(--border);background:var(--panel);font-size:13px}
+.menubar span{padding:2px 9px;border-radius:5px;color:var(--text)} .menubar span:hover{background:var(--hover)}
+.split{display:grid;grid-template-columns:1fr 1fr;min-height:560px}
+.edcol{background:var(--bg);border-right:1px solid var(--border);min-width:0;overflow:hidden}
+.pvcol{background:var(--canvas);min-width:0}
+.tb{display:flex;align-items:center;gap:2px;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tb .sep{width:1px;height:18px;background:var(--border);margin:0 6px}
+.tb .txt{font-size:12.5px;font-weight:500;width:auto;padding:0 8px}
+.info{background:var(--panel);border-bottom:1px solid var(--border);padding:8px 14px 10px}
+.info .tabs{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.info .tabs b{font-weight:600;margin-right:4px}
+.grid{display:grid;grid-template-columns:140px 1fr;gap:8px 12px;align-items:center;margin-top:10px;max-width:520px}
+.find{display:flex;align-items:center;gap:6px;padding:6px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.find .in{max-width:240px}
+.find .cnt{font-size:12.5px;color:var(--muted);min-width:70px;text-align:center}
+.doc{padding:18px 28px 24px;font-family:var(--serif);font-size:17px;line-height:1.6}
+.doc p{margin:0 0 10px}
+.miss{border-bottom:2px dotted var(--danger)}
+.block{border:1px solid var(--border);background:var(--panel);border-radius:8px;padding:4px 14px 10px;margin:0 0 12px}
+.block .hd{display:flex;align-items:center;gap:6px;color:var(--muted);font:12px var(--ui);height:28px}
+.block .hd svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+.block ul{margin:0;padding-left:20px}
+.status{display:flex;align-items:center;gap:14px;padding:5px 14px;border-top:1px solid var(--border);background:var(--panel);font-size:12.5px;color:var(--muted)}
+.status b{color:var(--text);font-weight:500}
+.pvhd{display:flex;align-items:center;gap:8px;padding:8px 14px;color:var(--muted);font-size:12.5px}
+.sheet{background:#fff;margin:6px auto 20px;width:78%;aspect-ratio:210/297;box-shadow:0 1px 3px rgba(0,0,0,.25),0 10px 30px rgba(0,0,0,.18);padding:9% 8%;color:#222;font:9px/1.5 var(--serif);position:relative}
+.sheet h6{margin:0 0 3px;font-size:13px;color:#285c77;letter-spacing:.02em}
+.sheet i{display:block;height:5px;background:#d9d9d4;margin:5px 0;border-radius:2px}
+.notice{margin:10px 14px 0;padding:8px 12px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;display:flex;align-items:center;gap:10px}
+
+/* ===== dialogues ===== */
+.stage{position:relative;background:var(--scrim);border-radius:10px;min-height:420px;display:grid;place-items:center;padding:28px 16px;overflow:hidden}
+.stage:before{content:"";position:absolute;inset:0;background:var(--bg);opacity:.0;z-index:-1}
+.dlg{background:var(--raised);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);width:min(100%,var(--dw,460px));padding:20px 22px 16px}
+.dlg h2{margin:0 0 4px;font-size:17px;font-weight:600}
+.dlg .desc{color:var(--muted);margin:0 0 14px}
+.dlg .ft{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.field{display:grid;gap:4px;margin-bottom:12px}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:6px;background:var(--panel)}
+.opt.on{border-color:var(--accent);background:var(--accent-soft)}
+.opt b{display:block;font-weight:500}.opt small{color:var(--muted)}
+.opt .dot{width:14px;height:14px;border-radius:50%;border:1.6px solid var(--border-strong);margin-top:3px;flex:none}
+.opt.on .dot{border-color:var(--accent);background:radial-gradient(var(--accent) 0 42%,transparent 46%)}
+.mi{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;font:13.5px var(--ui);white-space:nowrap}
+.mi:hover{background:var(--accent-soft);color:var(--accent)}
+.mi svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8}
+.pal{width:min(100%,560px);background:var(--raised);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;align-self:start;margin-top:10px}
+.pal .q{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center}
+.pal .q input{all:unset;flex:1;font-size:15px}
+.pal .g{padding:8px 14px 2px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.pal .it{display:flex;align-items:center;gap:10px;padding:7px 14px;margin:0 6px;border-radius:6px}
+.pal .it.on{background:var(--accent-soft);color:var(--accent)}
+.pal .it svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;flex:none}
+.toast{display:flex;gap:10px;align-items:center;padding:9px 14px;background:var(--raised);border:1px solid var(--border);border-left:3px solid var(--ok);border-radius:8px;box-shadow:var(--shadow);width:max-content;max-width:100%}
+.err{display:flex;gap:8px;align-items:flex-start;padding:8px 12px;background:var(--danger-soft);color:var(--danger);border-radius:8px;margin-top:10px}
+
+/* ===== relecture ===== */
+.rv{background:var(--bg)}
+.rvhd{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.rvcols{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px}
+.rvcol{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.rvcol h4{margin:0;padding:9px 14px;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between}
+.rvcol .tx{padding:14px;font:16px/1.7 var(--serif)}
+del{background:var(--danger-soft);color:var(--text);text-decoration-color:var(--danger)} ins{background:var(--ok-soft);text-decoration:underline;text-decoration-color:var(--ok);text-underline-offset:3px}
+
+/* ===== feuille de composants ===== */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.card h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.sw2{display:flex;flex-wrap:wrap;gap:6px}.sw2 span{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:var(--panel)}
+.sw2 i{width:14px;height:14px;border-radius:4px;border:1px solid var(--border-strong)}
+.ty div{margin:5px 0}
+@media (max-width:760px){.split,.rvcols{grid-template-columns:1fr}.pvcol{display:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="i-bold" viewBox="0 0 24 24"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/></symbol>
+<symbol id="i-ital" viewBox="0 0 24 24"><path d="M19 4h-9M14 20H5M15 4 9 20"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><path d="M3 5h.01M3 12h.01M3 19h.01M8 5h13M8 12h13M8 19h13"/></symbol>
+<symbol id="i-quote" viewBox="0 0 24 24"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/></symbol>
+<symbol id="i-img" viewBox="0 0 24 24"><path d="M16 5h6M19 2v6M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/><circle cx="9" cy="9" r="2"/></symbol>
+<symbol id="i-head" viewBox="0 0 24 24"><path d="M6 12h12M6 20V4M18 20V4"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+<symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></symbol>
+<symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24"><path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/></symbol>
+<symbol id="i-penline" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></symbol>
+<symbol id="i-note" viewBox="0 0 24 24"><path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/><path d="M15 3v6h6"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+</defs></svg>
+
+<div class="page">
+  <h1>Système d’interface — maquette de travail</h1>
+  <p class="lead">Proposition pour le chantier de polissage (après le lot 6). Elle repose sur la lecture du code : chaque écran existant y a son équivalent. Rien n’est implémenté ; cette page sert à discuter. Les jetons clair et sombre ont été contrôlés en contraste (voir l’onglet « Composants »).</p>
+  <div class="bar">
+    <div class="seg" id="tabs"></div>
+    <div class="seg" id="th"><button data-t="light" aria-pressed="true">Clair</button><button data-t="dark" aria-pressed="false">Sombre</button></div>
+  </div>
+
+  <!-- ================= FENETRE ================= -->
+  <section class="view on" data-title="Fenêtre">
+    <div class="win">
+      <div class="menubar"><span>Fichier</span><span>Édition</span><span>Insertion</span><span>Affichage</span></div>
+      <div class="split">
+        <div class="edcol">
+          <div class="tb">
+            <button class="sel" style="min-width:0;border-color:transparent;min-height:30px;gap:6px"><svg width="17" height="17" style="stroke:currentColor;fill:none;stroke-width:1.8"><use href="#i-head"/></svg></button>
+            <span class="sep"></span>
+            <button class="ibtn" title="Gras"><svg><use href="#i-bold"/></svg></button>
+            <button class="ibtn" title="Italique"><svg><use href="#i-ital"/></svg></button>
+            <button class="ibtn on" title="Lien"><svg><use href="#i-link"/></svg></button>
+            <span class="sep"></span>
+            <button class="ibtn"><svg><use href="#i-list"/></svg></button>
+            <button class="ibtn"><svg><use href="#i-quote"/></svg></button>
+            <button class="ibtn"><svg><use href="#i-img"/></svg></button>
+            <span class="sep"></span>
+            <span style="position:relative;display:inline-flex">
+              <button class="ibtn" id="endbtn" style="width:auto;padding:0 6px;gap:2px;display:inline-flex;align-items:center" title="Fin de lettre : post-scriptum, pièces jointes" aria-haspopup="menu"><svg><use href="#i-clip"/></svg><svg style="width:12px;height:12px"><use href="#i-down"/></svg></button>
+              <div id="endmenu" hidden style="position:absolute;top:34px;left:0;z-index:6;min-width:210px;background:var(--raised);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);padding:4px">
+                <div class="mi"><svg><use href="#i-penline"/></svg>Post-scriptum<span class="sp"></span><span class="kbd">⌘⇧P</span></div>
+                <div class="mi"><svg><use href="#i-clip"/></svg>Pièces jointes<span class="sp"></span><span class="kbd">⌘⇧J</span></div>
+              </div>
+            </span>
+            <span class="sp"></span>
+            <button class="ibtn mut" title="Annuler"><svg><use href="#i-undo"/></svg></button>
+            <button class="ibtn mut" title="Rétablir"><svg><use href="#i-redo"/></svg></button>
+          </div>
+          <div class="info">
+            <div class="tabs"><b>Courrier</b><div class="seg"><button aria-pressed="false">Général</button><button aria-pressed="true">Destinataire</button><button aria-pressed="false">Informations</button><button aria-pressed="false">Expéditeur</button></div></div>
+            <div class="grid">
+              <span class="lab">Destinataire</span><input class="in" value="Service des équipements">
+              <span class="lab">Adresse</span><textarea class="in" rows="2">12, place de la République
+35000 Valmont</textarea>
+              <span class="lab">Objet</span><input class="in" value="Demande de réservation d’une salle">
+            </div>
+          </div>
+          <div class="find">
+            <svg width="16" height="16" style="stroke:var(--muted);fill:none;stroke-width:1.8"><use href="#i-search"/></svg>
+            <input class="in" value="salle" aria-label="Rechercher">
+            <span class="cnt">2 sur 5</span>
+            <button class="ibtn"><svg><use href="#i-up"/></svg></button><button class="ibtn"><svg><use href="#i-down"/></svg></button>
+            <button class="ibtn mut" title="Respecter la casse" style="font:600 12.5px var(--ui)">Aa</button>
+            <span class="sp"></span><button class="ibtn mut"><svg><use href="#i-x"/></svg></button>
+          </div>
+          <div class="doc">
+            <p>Nous souhaitons confirmer la réservation de la <mark style="background:var(--accent-soft);color:inherit;outline:1px solid var(--accent);border-radius:2px">salle</mark> des Tilleuls pour notre prochaine rencontre.</p>
+            <div class="block"><div class="hd"><svg><use href="#i-list"/></svg>Liste<span class="sp"></span><button class="ibtn mut" style="width:26px;height:26px"><svg style="width:15px;height:15px"><use href="#i-gear"/></svg></button><button class="ibtn mut" style="width:26px;height:26px"><svg style="width:15px;height:15px"><use href="#i-trash"/></svg></button></div>
+              <ul><li>Accueil des participants</li><li>Installation de la <mark style="background:var(--accent-soft);color:inherit;border-radius:2px">salle</mark></li><li>Un vidéoprojecteur</li></ul></div>
+            <p>Je vous remercie pour votre retour et reste à votre disposition.</p>
+          </div>
+        </div>
+        <div class="pvcol">
+          <div class="pvhd"><b style="color:var(--text);font-weight:500">Aperçu</b><span>1 page</span><span class="sp"></span><span class="chip ok"><i></i>À jour</span></div>
+          <div class="sheet"><h6>VILLE DE VALMONT</h6><i style="width:60%"></i><i style="width:35%;margin-left:65%"></i><i style="width:50%;margin-left:50%"></i><br><i style="width:90%"></i><i style="width:96%"></i><i style="width:80%"></i><i style="width:40%"></i></div>
+        </div>
+      </div>
+      <div class="status"><span><b>56</b> mots · 360 signes</span><span class="chip err"><i></i>Orthographe : 1</span><span class="chip acc"><svg width="13" height="13" style="stroke:currentColor;fill:none;stroke-width:2"><use href="#i-bot"/></svg>Agent : invitation prête</span><span class="sp"></span><span>Enregistré</span></div>
+    </div>
+    <p class="note"><b>Ce qui change</b> : le nom « typstOgraphe » quitte la barre d’outils (il est déjà dans le titre de la fenêtre) ; barre d’outils à regroupements nets, annuler/rétablir rendus accessibles ; rubriques du panneau d’informations en contrôle segmenté ; champs avec bordure lisible (contraste ≥ 3:1) et anneau de focus ; recherche avec icône, compteur muet et boutons-icônes cohérents ; aperçu posé sur un fond « table » avec feuille ombrée ; temps de rendu retiré de l’en-tête (info-bulle) au profit d’un indicateur d’état ; barre d’état avec pastilles d’état au lieu de séparateurs verticaux.</p>
+  </section>
+
+  <!-- ================= DIALOGUES ================= -->
+  <section class="view" data-title="Dialogues">
+    <div class="note"><b>Une seule enveloppe modale</b> pour tous les dialogues (aujourd’hui un mélange de <code>Modal</code> et de <code>Window</code> avec barre de titre) : titre, description facultative, corps, pied avec actions à droite, Échap pour annuler. Un seul bouton principal par dialogue.</div>
+    <div class="seg" id="dsel" style="margin-bottom:10px"></div>
+    <div class="stage" id="dstage"></div>
+  </section>
+
+  <!-- ================= PALETTE / BANDEAUX ================= -->
+  <section class="view" data-title="Palette & bandeaux">
+    <div class="note"><b>Palette de commandes</b> avec groupes, icônes et raccourcis en touches. <b>Bandeaux contextuels</b> : variante B validée (en-tête déplié du bloc, pointe vers le mot pour l’orthographe, aucune pointe pour les paramètres de bloc) ; détail et largeur ajustable dans <code>interface-polish.html</code>.</div>
+    <div class="stage" style="min-height:360px">
+      <div class="pal"><div class="q"><svg width="17" height="17" style="stroke:var(--muted);fill:none;stroke-width:1.8"><use href="#i-search"/></svg><input value="lis" aria-label="Commande"><span class="kbd">Échap</span></div>
+        <div class="g">Insertion</div>
+        <div class="it on"><svg><use href="#i-list"/></svg>Liste à puces<span class="sp"></span><span class="kbd">⌘⇧8</span></div>
+        <div class="it"><svg><use href="#i-list"/></svg>Liste numérotée<span class="sp"></span><span class="kbd">⌘⇧7</span></div>
+        <div class="g">Édition</div>
+        <div class="it"><svg><use href="#i-gear"/></svg>Paramètres de la liste<span class="sp"></span><span class="kbd">⌘↩</span></div>
+        <div style="height:8px"></div></div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="cards">
+      <div class="card"><h3>Bandeau de paramètres (bloc, variante B)</h3>
+        <div style="border:1px solid var(--accent);border-radius:8px;overflow:hidden;background:var(--panel);box-shadow:var(--shadow)">
+          <div style="background:var(--accent-soft);padding:10px 14px;display:grid;gap:10px;border-bottom:1px solid var(--border)">
+            <div class="row"><b>Paramètres de la liste</b><span class="sp"></span><button class="ibtn mut" style="width:24px;height:24px"><svg><use href="#i-x"/></svg></button></div>
+            <div class="seg" style="width:max-content"><button aria-pressed="true">À puces</button><button aria-pressed="false">Numérotée</button><button aria-pressed="false">Descriptions</button></div>
+            <div class="row"><span class="lab">Concerne la liste entière.</span><span class="sp"></span><button class="btn ghost sm">Annuler</button><button class="btn pri sm">Appliquer</button></div></div>
+          <div style="padding:8px 14px 12px;font:16px var(--serif)">• Accueil des participants<br>• Installation de la salle</div></div></div>
+      <div class="card"><h3>Orthographe (pointe vers le mot)</h3>
+        <div style="position:relative;border:1px solid var(--accent);border-radius:8px;background:var(--accent-soft);padding:10px 14px;display:grid;gap:10px;margin-bottom:12px">
+          <div class="row"><span class="chip err" style="padding:0 8px">Orthographe</span><b>« courrrier »</b><span class="sp"></span><button class="ibtn mut" style="width:24px;height:24px"><svg><use href="#i-x"/></svg></button></div>
+          <div class="row" style="flex-wrap:wrap"><button class="btn sm" style="border-color:var(--accent);color:var(--accent)">courrier</button><button class="btn sm">courriers</button><button class="btn sm">courrières</button></div>
+          <div class="row"><button class="btn ghost sm">Ignorer</button><button class="btn sm">Ajouter au dictionnaire</button></div>
+          <span style="position:absolute;bottom:-7px;left:70px;width:12px;height:12px;background:var(--accent-soft);border-right:1px solid var(--accent);border-bottom:1px solid var(--accent);transform:rotate(45deg)"></span></div>
+        <div style="font:16px var(--serif)">Merci de confirmer ce <span class="miss">courrrier</span> avant vendredi.</div></div>
+    </div>
+  </section>
+
+  <!-- ================= TIROIR ================= -->
+  <section class="view" data-title="Barre latérale">
+    <div class="note"><b>Mécanisme seulement</b> : barre étroite d’icônes carrées à droite, tiroir qui <b>recouvre</b> l’aperçu (au plus 2/3 de sa colonne) sans déplacer l’éditeur. Les panneaux ci-dessous sont des exemples fictifs ; dans l’application, la barre n’apparaît que si au moins un panneau est déclaré. Cliquez une icône pour ouvrir ou fermer.</div>
+    <div class="bar" style="position:static;margin-bottom:10px"><div class="row"><span class="lab">Largeur du tiroir</span><input id="dw" type="range" min="25" max="66" value="55" style="accent-color:var(--accent)"><output id="dwo">55 % de l’aperçu</output></div></div>
+    <div class="win">
+      <div class="split">
+        <div class="edcol"><div class="tb"><button class="ibtn"><svg><use href="#i-bold"/></svg></button><button class="ibtn"><svg><use href="#i-ital"/></svg></button><button class="ibtn"><svg><use href="#i-link"/></svg></button></div>
+          <div class="doc"><p>Nous souhaitons confirmer la réservation de la salle des Tilleuls pour notre prochaine rencontre.</p><p>Je vous remercie pour votre retour et reste à votre disposition.</p></div></div>
+        <div class="pvcol" id="pvc" style="position:relative;overflow:hidden">
+          <div class="pvhd"><b style="color:var(--text);font-weight:500">Aperçu</b><span>1 page</span></div>
+          <div class="sheet" style="margin-right:60px"><h6>VILLE DE VALMONT</h6><i style="width:60%"></i><i style="width:40%;margin-left:60%"></i><br><i style="width:92%"></i><i style="width:96%"></i><i style="width:70%"></i></div>
+          <div id="drawer" hidden style="position:absolute;top:0;bottom:0;right:44px;width:55%;background:var(--panel);border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(0,0,0,.18);display:flex;flex-direction:column">
+            <div class="row" style="padding:8px 12px;border-bottom:1px solid var(--border)"><b id="dtitle">Plan du document</b><span class="sp"></span><button class="ibtn mut" id="dclose" style="width:26px;height:26px"><svg><use href="#i-x"/></svg></button></div>
+            <div id="dbody" style="padding:12px;overflow:auto;flex:1"></div>
+            <div style="position:absolute;left:-4px;top:0;bottom:0;width:8px;cursor:ew-resize" title="Redimensionner"></div>
+          </div>
+          <div style="position:absolute;top:0;bottom:0;right:0;width:44px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0" id="rail">
+            <button class="ibtn" data-p="plan" title="Plan du document"><svg><use href="#i-list"/></svg></button>
+            <button class="ibtn" data-p="agent" title="Assistance"><svg><use href="#i-bot"/></svg></button>
+            <button class="ibtn" data-p="notes" title="Notes"><svg><use href="#i-note"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>Règles</b> : le tiroir enregistre sa zone comme zone d’interface (pas de clic à travers) ; Échap le ferme, sauf pendant une composition IME ; l’ouverture ne déplace pas le focus de l’éditeur ; menus, palette et modales restent au-dessus ; le clic dans la partie visible de l’aperçu continue de retrouver le texte source.</p>
+  </section>
+
+  <!-- ================= RELECTURE ================= -->
+  <section class="view" data-title="Relecture MCP">
+    <div class="win rv">
+      <div class="rvhd"><button class="btn sm"><svg style="width:15px;height:15px"><use href="#i-undo"/></svg>Revenir à la rédaction</button><b>Relecture de la proposition</b><span class="chip">14 passages · 3 informations</span><span class="sp"></span>
+        <button class="btn danger">Refuser le lot</button><button class="btn pri"><svg style="width:15px;height:15px"><use href="#i-check"/></svg>Accepter le lot</button></div>
+      <div style="padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--border)"><div class="seg"><button aria-pressed="true">Contenu</button><button aria-pressed="false">Informations</button><button aria-pressed="false">Aperçu proposé</button></div></div>
+      <div class="rvcols">
+        <div class="rvcol"><h4>Actuel <span class="lab">Biffé : retiré ou modifié</span></h4><div class="tx"><del>Cheres</del> collègues,<br><br><del>Je voudrais savoir si</del> vous <del>avez</del> pu <del>regarder</del> le document.</div></div>
+        <div class="rvcol"><h4>Proposition <span class="lab">Souligné : ajouté ou modifié</span></h4><div class="tx"><ins>Chères</ins> collègues,<br><br><ins>Avez</ins>-vous pu <ins>examiner</ins> le document.</div></div>
+      </div>
+    </div>
+    <p class="note"><b>Ce qui change</b> : la décision est portée dans l’en-tête (toujours visible), avec un bouton principal « Accepter » et un bouton à contour rouge « Refuser » ; deux colonnes en cartes ; couleurs de différences tirées des jetons (rouge/vert doux + soulignement, donc lisibles sans la couleur seule).</p>
+  </section>
+
+  <!-- ================= ACCUEIL ================= -->
+  <section class="view" data-title="Accueil & états">
+    <div class="cards">
+      <div class="card" style="min-height:320px;display:grid;place-items:center;text-align:center;background:var(--bg)">
+        <div><div style="font:600 26px var(--ui);letter-spacing:-.01em">typstOgraphe</div><p class="lab" style="margin:6px 0 18px">Rédigez des documents soignés, sans écrire de code.</p>
+          <div style="display:grid;gap:8px;width:260px;margin:auto"><button class="btn pri" style="min-height:36px">Nouveau document</button><button class="btn" style="min-height:36px">Ouvrir…</button><button class="btn ghost">Préférences</button></div>
+          <div style="margin-top:18px;text-align:left"><div class="lab" style="margin-bottom:4px">Récents</div><div class="row"><svg style="width:15px;height:15px;stroke:var(--muted);fill:none;stroke-width:1.8"><use href="#i-file"/></svg>courrier-mairie.typsto<span class="sp"></span><span class="lab">hier</span></div></div></div></div>
+      <div class="card"><h3>Retours</h3>
+        <div class="toast"><svg width="16" height="16" style="stroke:var(--ok);fill:none;stroke-width:2"><use href="#i-check"/></svg>Document enregistré<button class="btn ghost sm">Afficher</button></div>
+        <div class="err">Impossible d’écrire dans ce dossier : accès refusé.</div>
+        <div class="notice" style="margin:12px 0 0"><svg width="16" height="16" style="stroke:var(--accent);fill:none;stroke-width:1.8"><use href="#i-bot"/></svg><span>Une proposition de l’agent est prête.</span><span class="sp"></span><button class="btn sm pri">Relire</button></div>
+        <h3 style="margin-top:16px">États vides</h3><div class="lab">Aucune faute d’orthographe — « Aucun résultat pour “salle2” » — « Composition de l’aperçu… » (avec indicateur de chargement discret).</div></div>
+    </div>
+  </section>
+
+  <!-- ================= COMPOSANTS ================= -->
+  <section class="view" data-title="Composants">
+    <div class="cards">
+      <div class="card"><h3>Boutons</h3><div class="row" style="flex-wrap:wrap"><button class="btn pri">Principal</button><button class="btn">Secondaire</button><button class="btn ghost">Discret</button><button class="btn danger">Destructif</button><button class="btn" disabled>Désactivé</button></div>
+        <div class="row" style="margin-top:10px"><button class="ibtn"><svg><use href="#i-bold"/></svg></button><button class="ibtn on"><svg><use href="#i-link"/></svg></button><button class="ibtn mut"><svg><use href="#i-gear"/></svg></button><button class="btn sm">Petit</button></div></div>
+      <div class="card"><h3>Champs et choix</h3><div class="field"><span class="lab">Texte</span><input class="in" value="Valeur"></div><div class="row" style="flex-wrap:wrap"><span class="sel">A4</span><div class="seg"><button aria-pressed="true">Portrait</button><button aria-pressed="false">Paysage</button></div><span class="sw on"></span><span class="sw"></span></div></div>
+      <div class="card"><h3>Bouton « fin de lettre » : icônes candidates</h3>
+        <div class="row" style="gap:18px;flex-wrap:wrap;margin-bottom:8px"><span style="text-align:center"><button class="ibtn"><svg><use href="#i-clip"/></svg></button><div class="lab">paperclip</div></span><span style="text-align:center"><button class="ibtn"><svg><use href="#i-penline"/></svg></button><div class="lab">pen-line</div></span><span style="text-align:center"><button class="ibtn"><svg><use href="#i-note"/></svg></button><div class="lab">note</div></span><span style="text-align:center"><button class="ibtn txt" style="width:auto;padding:0 8px;font-weight:500">P.-S. / P.J. ▾</button><div class="lab">texte</div></span></div>
+        <div class="lab">Dans le menu, chaque entrée garde sa propre icône (stylo, trombone). Le bouton porte le trombone, repère familier pour les annexes ; le menu précise le reste.</div></div>
+      <div class="card"><h3>Typographie de l’interface</h3><div class="ty"><div style="font:600 20px var(--ui)">Titre de dialogue 20</div><div style="font:600 15px var(--ui)">Titre de section 15</div><div>Corps 13,5 — libellés, boutons, champs</div><div class="lab">Légende 12,5 — aides, valeurs secondaires</div><div style="font:11px var(--ui);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Étiquette 11</div></div></div>
+      <div class="card"><h3>Jetons (thème actuel)</h3><div class="sw2" id="tok"></div></div>
+      <div class="card"><h3>Contrastes mesurés (WCAG)</h3><div class="lab" style="line-height:1.7">Clair : texte/fond 14,3 · secondaire/fond 5,4 · accent/panneau 7,3 · erreur/panneau 6,5 · bordure de champ/champ 3,7.<br>Sombre : texte/fond 13,8 · secondaire/fond 6,5 · accent/panneau 8,1 · erreur/panneau 6,2 · bordure de champ/champ 3,6.<br>Textes sur bouton principal : 7,3 (clair) et 8,5 (sombre). Les filets de séparation (≈1,5:1) restent décoratifs ; les contrôles utilisent la bordure forte.</div></div>
+      <div class="card"><h3>Espacements et rayons</h3><div class="lab" style="line-height:1.7">Échelle 4 · 8 · 12 · 16 · 24.<br>Rayons : contrôles 6 · cartes et bandeaux 8 · dialogues 12.<br>Cibles tactiles/pointeur : 30 px minimum (barre d’outils), 32 px pour les champs.</div></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const views=[...document.querySelectorAll('.view')],tabs=document.getElementById('tabs');
+views.forEach((v,i)=>{const b=document.createElement('button');b.textContent=v.dataset.title;b.setAttribute('aria-pressed',i==0);b.onclick=()=>{views.forEach((x,j)=>x.classList.toggle('on',i==j));[...tabs.children].forEach((x,j)=>x.setAttribute('aria-pressed',i==j))};tabs.appendChild(b)});
+document.getElementById('th').onclick=e=>{const t=e.target.dataset.t;if(!t)return;document.documentElement.dataset.theme=t;[...e.currentTarget.children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.t==t));tok()};
+const eb=document.getElementById('endbtn'),em=document.getElementById('endmenu');
+eb.onclick=e=>{e.stopPropagation();em.hidden=!em.hidden;eb.classList.toggle('on',!em.hidden)};
+document.addEventListener('click',()=>{em.hidden=true;eb.classList.remove('on')});
+const P={plan:["Plan du document",'<div class="mi"><b>Objet : demande de réservation</b></div><div class="mi" style="padding-left:24px">Madame, Monsieur</div><div class="mi" style="padding-left:24px">Équipements demandés</div><div class="mi" style="padding-left:24px">Formule de politesse</div><p class="lab">Exemple fictif.</p>'],agent:["Assistance",'<div class="row"><span class="chip acc"><i></i>Invitation prête</span></div><p class="lab">Exemple fictif : l’actuelle fenêtre d’assistance pourrait un jour s’y loger.</p>'],notes:["Notes",'<p class="lab">Exemple fictif.</p>']};
+const dr=document.getElementById('drawer'),rl=document.getElementById('rail');let cur=null;
+rl.onclick=e=>{const b=e.target.closest('[data-p]');if(!b)return;const id=b.dataset.p;if(cur===id){cur=null;dr.hidden=true}else{cur=id;dr.hidden=false;document.getElementById('dtitle').textContent=P[id][0];document.getElementById('dbody').innerHTML=P[id][1]}rl.querySelectorAll('[data-p]').forEach(x=>x.classList.toggle('on',x.dataset.p===cur))};
+document.getElementById('dclose').onclick=()=>{cur=null;dr.hidden=true;rl.querySelectorAll('.on').forEach(x=>x.classList.remove('on'))};
+document.getElementById('dw').oninput=e=>{dr.style.width=e.target.value+'%';document.getElementById('dwo').textContent=e.target.value+' % de l’aperçu'};
+function tok(){const cs=getComputedStyle(document.documentElement);document.getElementById('tok').innerHTML=['bg','panel','field','text','muted','border','border-strong','accent','accent-soft','danger','ok'].map(n=>{const v=cs.getPropertyValue('--'+n).trim();return `<span><i style="background:${v}"></i>${n} <code>${v}</code></span>`}).join('')}
+const D={
+ 'Nouveau document':`<div class="dlg" style="--dw:440px"><h2>Nouveau document</h2><p class="desc">Choisissez un type, puis un modèle.</p>
+  <div class="lab" style="margin-bottom:6px">Type</div><div class="opt on"><span class="dot"></span><div><b>Courrier</b><small>Lettre avec expéditeur, destinataire et objet</small></div></div><div class="opt"><span class="dot"></span><div><b>Compte-rendu de réunion</b><small>Ordre du jour, décisions, actions</small></div></div>
+  <div class="lab" style="margin:12px 0 6px">Modèle</div><div class="seg"><button aria-pressed="true">Institutionnel</button><button aria-pressed="false">Personnel</button></div>
+  <div class="ft"><button class="btn ghost">Annuler</button><button class="btn pri">Créer</button></div></div>`,
+ 'Préférences':`<div class="dlg" style="--dw:520px"><h2>Préférences</h2><div class="seg" style="margin:8px 0 14px"><button aria-pressed="false">Profil</button><button aria-pressed="true">Apparence</button><button aria-pressed="false">Orthographe</button></div>
+  <div class="field"><span class="lab">Police de l’éditeur</span><span class="sel">Libertinus Serif</span></div>
+  <div class="field"><span class="lab">Taille — 18</span><input type="range" min="10" max="36" value="18" style="width:100%;accent-color:var(--accent)"></div>
+  <div class="field"><span class="lab">Apparence</span><div class="seg" style="width:max-content"><button aria-pressed="false">Système</button><button aria-pressed="true">Clair</button><button aria-pressed="false">Sombre</button></div></div>
+  <div class="ft"><button class="btn pri">Terminé</button></div></div>`,
+ 'Exporter':`<div class="dlg" style="--dw:480px"><h2>Exporter</h2><p class="desc">Le dossier doit être nouveau ou vide.</p>
+  <div class="field"><span class="lab">Dossier</span><div class="row"><input class="in" value="~/Documents/courrier-mairie"><button class="btn">Choisir…</button></div></div>
+  <div class="field"><span class="lab">Format</span><div class="seg" style="width:max-content"><button aria-pressed="false">PDF</button><button aria-pressed="false">Typst</button><button aria-pressed="true">Les deux</button></div></div>
+  <div class="row"><span class="sw on"></span>Joindre une image PNG par page</div>
+  <div class="ft"><button class="btn ghost">Annuler</button><button class="btn pri">Exporter</button></div></div>`,
+ 'Modifications non enregistrées':`<div class="dlg" style="--dw:420px"><h2>Enregistrer les modifications ?</h2><p class="desc">« courrier-mairie » a été modifié. Sans enregistrement, les changements seront perdus.</p>
+  <div class="ft" style="justify-content:space-between"><button class="btn danger">Ne pas enregistrer</button><span class="row"><button class="btn ghost">Annuler</button><button class="btn pri">Enregistrer</button></span></div></div>`,
+ 'Récupération':`<div class="dlg" style="--dw:540px"><h2>Documents récupérés</h2><p class="desc">L’application s’est arrêtée avant l’enregistrement de ces documents.</p>
+  <div class="opt" style="cursor:default"><svg width="18" height="18" style="stroke:var(--muted);fill:none;stroke-width:1.8;margin-top:2px;flex:none"><use href="#i-file"/></svg><div><b>courrier-mairie</b><small>Sauvegardé le 21 octobre 2026, 14 h 02</small></div><span class="sp"></span><button class="btn sm pri">Restaurer</button><button class="btn sm ghost">Supprimer</button></div>
+  <div class="opt" style="cursor:default"><svg width="18" height="18" style="stroke:var(--danger);fill:none;stroke-width:1.8;margin-top:2px;flex:none"><use href="#i-file"/></svg><div><b>Sans titre</b><small style="color:var(--danger)">Illisible : fichier incomplet</small></div><span class="sp"></span><button class="btn sm ghost">Supprimer</button></div>
+  <div class="ft"><button class="btn">Plus tard</button></div></div>`,
+ 'Assistance':`<div class="dlg" style="--dw:500px"><h2>Assistance à la rédaction</h2><p class="desc">Autorisez un agent à relire ce document. Il ne peut rien publier sans votre accord.</p>
+  <div class="row" style="margin-bottom:12px"><span class="chip acc"><i></i>Invitation prête</span><span class="lab">en attente de connexion</span></div>
+  <div class="opt" style="cursor:default"><span class="sw on"></span><div><b>Enregistrer dans le fichier courant</b><small>~/Documents/courrier-mairie.typsto</small></div></div>
+  <div class="opt" style="cursor:default"><span class="sw"></span><div><b>Exporter vers un dossier</b><small>Aucun dossier choisi</small></div></div>
+  <div class="ft" style="justify-content:space-between"><button class="btn danger">Révoquer</button><span class="row"><button class="btn">Copier la configuration</button><button class="btn pri">Terminé</button></span></div></div>`,
+ 'Fichier verrouillé':`<div class="dlg" style="--dw:440px"><h2>Fichier déjà ouvert</h2><p class="desc">Un autre processus modifie ce document. Vous pouvez l’ouvrir en lecture seule ou en enregistrer une copie.</p>
+  <div class="err" style="margin-top:0">Verrou détenu par « typstographe-cli ».</div><div class="ft"><button class="btn ghost">Annuler</button><button class="btn pri">Ouvrir en lecture seule</button></div></div>`
+};
+const ds=document.getElementById('dsel'),st=document.getElementById('dstage');
+Object.keys(D).forEach((k,i)=>{const b=document.createElement('button');b.textContent=k;b.setAttribute('aria-pressed',i==0);b.onclick=()=>{st.innerHTML=D[k];[...ds.children].forEach(x=>x.setAttribute('aria-pressed',x===b));wire()};ds.appendChild(b)});
+function wire(){st.querySelectorAll('.seg').forEach(s=>s.onclick=e=>{if(e.target.tagName!=='BUTTON')return;[...s.children].forEach(b=>b.setAttribute('aria-pressed',b===e.target))});st.querySelectorAll('.opt').forEach(o=>{if(o.style.cursor==='default')return;o.onclick=()=>{o.parentNode.querySelectorAll(':scope>.opt').forEach(x=>x.classList.toggle('on',x===o))}});st.querySelectorAll('.sw').forEach(w=>w.onclick=()=>w.classList.toggle('on'))}
+st.innerHTML=D['Nouveau document'];wire();
+document.querySelectorAll('.seg:not(#tabs):not(#th):not(#dsel)').forEach(s=>s.addEventListener('click',e=>{if(e.target.tagName!=='BUTTON')return;[...s.children].forEach(b=>b.setAttribute('aria-pressed',b===e.target))}));
+if(matchMedia('(prefers-color-scheme: dark)').matches)document.querySelector('[data-t=dark]').click();else tok();
+</script>
+</body>
+</html>
