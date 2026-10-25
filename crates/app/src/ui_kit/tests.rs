@@ -349,3 +349,51 @@ fn segmented_shrinks_in_a_narrow_container_and_can_take_the_keyboard_focus() {
     }
     assert!(focused.get(), "le segment demandé reçoit le focus");
 }
+
+#[test]
+fn segmented_keyboard_focus_is_visible_on_selected_and_unselected_options() {
+    for dark in [false, true] {
+        let ctx = context(dark);
+        let options = [(0, "Portrait".into()), (1, "Paysage".into())];
+        let mut value = 0;
+        let mut run = |ctx: &egui::Context| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                segmented(ui, &mut value, &options);
+            });
+        };
+        let ring = |output: &egui::FullOutput| {
+            output
+                .shapes
+                .iter()
+                .find_map(|clipped| match &clipped.shape {
+                    egui::Shape::Rect(shape)
+                        if shape.stroke.width > 0.0
+                            && shape.stroke.color == Tokens::new(dark).accent =>
+                    {
+                        Some(shape.rect)
+                    }
+                    _ => None,
+                })
+        };
+        let _ = ctx.run(input(vec![]), &mut run);
+        assert!(ring(&ctx.run(input(vec![]), &mut run)).is_none());
+        let mut rings = vec![];
+        for key in [egui::Key::Tab, egui::Key::Tab, egui::Key::Enter] {
+            let events = [true, false]
+                .into_iter()
+                .map(|pressed| egui::Event::Key {
+                    key,
+                    physical_key: None,
+                    pressed,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                })
+                .collect();
+            let _ = ctx.run(input(events), &mut run);
+            rings.push(ring(&ctx.run(input(vec![]), &mut run)).expect("focus visible"));
+        }
+        assert!(rings[0].right() < rings[1].left());
+        assert!((rings[2].center().x - rings[1].center().x).abs() < 5.0);
+        assert_eq!(value, 1, "Entrée active l'option atteinte avec Tab");
+    }
+}

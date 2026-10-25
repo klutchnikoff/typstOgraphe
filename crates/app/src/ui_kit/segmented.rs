@@ -1,6 +1,6 @@
 use super::{CONTROL_HEIGHT, radius, tokens};
 use crate::theme::{self, scale};
-use eframe::egui::{self, Color32, Response, RichText, Stroke, WidgetInfo, WidgetType};
+use eframe::egui::{self, Color32, Response, RichText, Stroke, StrokeKind, WidgetInfo, WidgetType};
 
 /// Contrôle segmenté pour 2 à 4 choix exclusifs. `response.changed()` indique un
 /// changement de valeur ; chaque segment est un bouton radio pour l’accessibilité.
@@ -115,6 +115,15 @@ fn segments<T: Copy + PartialEq>(
                     let segment = segment.inner;
                     if focus == Some(*option) {
                         segment.request_focus();
+                    }
+                    // Le focus reste distinct de la valeur active, sans changer la géométrie.
+                    if segment.has_focus() {
+                        ui.painter().rect_stroke(
+                            segment.rect,
+                            radius(scale::RADIUS_CONTROL),
+                            Stroke::new(1.5_f32, t.accent),
+                            StrokeKind::Inside,
+                        );
                     }
                     segment.widget_info(|| {
                         WidgetInfo::selected(

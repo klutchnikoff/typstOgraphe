@@ -100,6 +100,21 @@ nouveau style (commit `d280053`) ; les autres des boutons et des marges (commit 
 
 Références ré-enregistrées (20 scénarios, seconde passe identique) ; 584 tests réussis.
 
+## Navigation clavier — corrections après la revue du design
+
+- **Palette de commandes** : la sélection reste visible avec les flèches, y compris
+  au passage entre la fin et le début du catalogue. Le défilement est immédiat et
+  intervient à la navigation clavier, à une nouvelle recherche ou à la prise de focus
+  du champ ; il ne ramène pas la liste en arrière pendant l'usage de la molette.
+- **Contrôles segmentés** : un contour d'accent distingue le focus clavier de la
+  valeur sélectionnée, dans les thèmes clair et sombre, sans changer leur géométrie.
+- Quatre tests de régression couvrent le parcours du catalogue dans les deux sens,
+  le défilement manuel puis la recherche, la réouverture de la palette et la
+  navigation Tab/Entrée sur les segments sélectionnés ou non.
+- Vérification : 588 tests Rust (doctests compris), 14 tests Python, Clippy sans
+  avertissement, formatage et contrôles d'architecture réussis. Les 20 captures
+  natives restent strictement identiques aux références de `output/phase-l5`.
+
 ## Limites connues et suite
 
 - Sous environ 900 points de large, le contenu de l'éditeur déborde déjà de sa colonne
