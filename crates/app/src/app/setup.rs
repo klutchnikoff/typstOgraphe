@@ -82,6 +82,8 @@ impl App {
         let spelling = crate::spelling::Checker::new(move || spelling_ctx.request_repaint());
         let worker = RenderWorker::spawn(std::sync::Arc::new(move || ctx.request_repaint()));
         Self {
+            #[cfg(feature = "mcp-acceptance")]
+            acceptance: None,
             bands: Default::default(),
             document: DocumentState {
                 open: false,

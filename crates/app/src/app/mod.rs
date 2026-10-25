@@ -1,5 +1,7 @@
 #![warn(clippy::too_many_lines)]
 
+#[cfg(feature = "mcp-acceptance")]
+mod acceptance;
 mod assistance;
 mod availability;
 mod bands;
@@ -83,6 +85,8 @@ enum PreferencesPage {
 }
 
 pub struct App {
+    #[cfg(feature = "mcp-acceptance")]
+    acceptance: Option<acceptance::State>,
     bands: bands::EditorBands,
     document: DocumentState,
     assistance: assistance::AssistanceState,
@@ -105,6 +109,8 @@ pub struct App {
 
 impl App {
     pub fn ui_frame(&mut self, ctx: &egui::Context) {
+        #[cfg(feature = "mcp-acceptance")]
+        self.acceptance_begin_frame();
         self.track_assistance_input(ctx);
         if self.capture.path.is_some() {
             // Le pointeur réel ne doit pas modifier les survols des captures de référence.
@@ -216,9 +222,7 @@ impl App {
         }
         self.track_history_focus(ctx);
         self.sync_published_selection();
-        if self.poll_assistance() {
-            ctx.request_repaint();
-        }
+        self.poll_assistance_frame(ctx);
         self.assistance_ui(ctx);
         #[cfg(target_os = "macos")]
         self.refresh_native_menus(ctx);
@@ -259,6 +263,11 @@ impl App {
         }
     }
     fn capture(&mut self, ctx: &egui::Context) {
+        #[cfg(feature = "mcp-acceptance")]
+        if self.acceptance.is_some() {
+            self.acceptance_after_frame(ctx);
+            return;
+        }
         if self.capture.path.is_none() {
             return;
         }
@@ -330,6 +339,10 @@ impl eframe::App for App {
             for viewport in input.viewports.values_mut() {
                 viewport.focused = Some(true);
             }
+        }
+        #[cfg(feature = "mcp-acceptance")]
+        if self.acceptance.is_some() {
+            self.acceptance_input(_ctx, input);
         }
     }
     fn save(&mut self, storage: &mut dyn eframe::Storage) {

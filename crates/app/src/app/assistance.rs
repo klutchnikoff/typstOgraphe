@@ -47,6 +47,17 @@ impl App {
         self.apply(Command::Assistance);
     }
 
+    pub(super) fn poll_assistance_frame(&mut self, ctx: &egui::Context) {
+        #[cfg(feature = "mcp-acceptance")]
+        let started = Instant::now();
+        if self.poll_assistance() {
+            ctx.request_repaint();
+        }
+        #[cfg(feature = "mcp-acceptance")]
+        if let Some(state) = &mut self.acceptance {
+            state.record_poll(started.elapsed());
+        }
+    }
     pub(super) fn poll_assistance(&mut self) -> bool {
         let before = (
             self.assistance.session.is_some(),
