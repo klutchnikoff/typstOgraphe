@@ -30,6 +30,15 @@ struct Entry {
     state: ContextSnapshot,
 }
 impl Contexts {
+    pub(super) fn set(&mut self, context: &EditContext, state: ContextSnapshot) {
+        self.entries.insert(
+            context.id,
+            Entry {
+                lifetime: Arc::downgrade(&context.lifetime),
+                state,
+            },
+        );
+    }
     pub fn advance(&mut self, guard: TargetGuard, map: Option<&PositionMap>) {
         self.entries.retain(|_, entry| {
             if entry.lifetime.strong_count() == 0
@@ -74,13 +83,7 @@ impl Engine {
             document: guard.document_id,
             lifetime: Arc::new(()),
         };
-        self.contexts.entries.insert(
-            context.id,
-            Entry {
-                lifetime: Arc::downgrade(&context.lifetime),
-                state,
-            },
-        );
+        self.contexts.set(&context, state);
         Ok(context)
     }
     pub fn primary_context(&self) -> Option<ContextSnapshot> {

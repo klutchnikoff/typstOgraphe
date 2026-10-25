@@ -1,4 +1,4 @@
-# Contextes d’édition, positions et propositions — lot 6.3
+# Contextes d’édition, positions et propositions — lots 6.3 et 6.4b
 
 ## Un document, plusieurs contextes
 
@@ -19,6 +19,7 @@ lecture ou préparer une proposition.
 | `primary_context()` / `editing_context(handle)` | Lire un état de contexte. |
 | `select_in_context(handle, selection)` | Déplacer uniquement ce participant, avec garde vérifiée ; recalculer son style au déplacement. |
 | `query_in_context(handle, query)` | Résoudre `Current` dans ce contexte ; adapter sélection/style d’`inspect` et disponibilité de `commands.list`. |
+| `accept_proposal(handle, candidate)` | Publication atomique après accord humain recueilli par l’adaptateur ; garde revérifiée, contexte utilisateur conservé. Aucun outil MCP correspondant. |
 
 Créer, consulter ou déplacer un contexte n’ajoute ni révision ni étape d’annulation,
 et ne change pas le contenu ou le style utilisateur. Les déplacements ultérieurs
@@ -84,7 +85,7 @@ restent interdites dans les étapes. Un échec tardif abandonne tout le candidat
 
 `PreparedProposal` expose le document candidat pour relecture, sa sélection logique
 et son style final ; il garde aussi son instantané structuré et ses identités pour
-la future acceptation. `map_for_review` donne une position logique dans le candidat,
+l’acceptation. `map_for_review` donne une position logique dans le candidat,
 sans faire sortir une référence gardée à une révision spéculative.
 
 La préparation, même réussie, laisse document publié, contextes utilisateur/agent,
@@ -94,20 +95,44 @@ restent privés au candidat. Abandonner l’objet ne fait rien au document.
 du curseur n’invalide pas la proposition ; toute édition publiée l’invalide, même
 si ses positions sont reportables. Une autre invitation ne peut pas la reprendre.
 
-## Limites avant 6.4
+## Publication après accord — socle de 6.4b
 
-Ce lot ne définit aucun outil MCP de proposition ou d’approbation, ni fonction de
-publication d’un candidat. Les 49 commandes et 19 requêtes du cœur, les 67 outils
-et les cinq ressources MCP conservent leurs schémas. Le serveur autonome continue
-à appliquer ses commandes habituelles.
+`Engine::accept_proposal` est une API Rust destinée à l’adaptateur qui a recueilli
+l’accord humain. Elle ne constitue pas une collecte de consentement et ne doit pas
+être exposée à l’agent. Elle revérifie le droit d’écriture, le contexte, l’identité
+du document et la révision exacte avant de publier quoi que ce soit.
 
-En 6.4, il faudra valider ensemble la présentation des différences, puis intégrer
-le stockage des propositions en attente, l’acceptation/refus explicites du lot
-entier, la revalidation à l’acceptation et une unique étape d’annulation. Le report
-de la sélection et du passage visible utilisateur utilisera alors la carte cumulée
-du candidat ; son style et son focus devront être conservés. Une vérification de
-fraîcheur technique ne vaut jamais accord humain.
+La validation du candidat complet, de ses positions et, si nécessaire, de la
+politique du modèle est faite sur une session de préparation. Aucune opération
+faillible ne suit son adoption. Le contenu, les métadonnées, le modèle et les
+ressources sont publiés ensemble, avec une seule révision et une seule étape
+d’annulation. Aucun fichier n’est enregistré ni exporté.
+
+La sélection utilisateur **au moment de l’accord**, même déplacée pendant la
+relecture, est reportée avec la carte cumulée du lot. Son style de frappe reste
+inchangé. Le participant proposant reçoit sa sélection et son style finaux ; les
+autres participants sont reportés normalement. L’issue demande seulement un rendu,
+sans déplacement implicite vers le passage modifié. Le focus et la restauration
+du défilement resteront à assurer par l’interface lors de son intégration.
+
+Un lot sans changement documentaire peut faire évoluer le seul contexte agent,
+sans révision, document sale, annulation ni perte de la pile de rétablissement.
+L’adaptateur doit retirer le lot en attente après succès ; abandonner un candidat
+reste sans effet. Un échec de garde, un autre contexte ou une session en lecture
+seule ne publie aucun changement, même après retour au même texte par annulation.
+
+## Intégration encore à valider
+
+Le socle Rust ne définit aucun outil MCP de proposition ou d’approbation. Les
+49 commandes et 19 requêtes du cœur, les 67 outils et les cinq ressources MCP
+conservent leurs schémas. Le serveur autonome applique ses commandes habituelles ;
+le rattachement demeure en lecture seule.
+
+La [proposition de parcours 6.4b](mcp-proposals.md) décrit la comparaison, le
+stockage des propositions en attente et leur protocole **à valider ensemble avant
+intégration**. Une vérification de fraîcheur technique ne vaut jamais accord humain.
 
 Les tests se trouvent dans `engine/tests/positions.rs`, `contexts.rs`, `proposals.rs`,
+`engine/tests/proposals/acceptance.rs`,
 `view_sync/tests/positions.rs` et `mcp/src/local/tests.rs`. La recette globale est
 consignée dans [le bilan MCP local](mcp-local.md).

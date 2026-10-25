@@ -1,4 +1,5 @@
-//! Preparation only: no approval, publication or file-writing API in this phase.
+//! Isolated candidates and guarded publication by a trusted human-facing adapter.
+mod acceptance;
 use super::*;
 use crate::{
     document::InlineStyle, document::structure::LogicalSelection, storage::StoredDocument,
@@ -11,7 +12,7 @@ pub struct PreparedProposal {
     base: TargetGuard,
     context: EditContextIdentity,
     document: StoredDocument,
-    // Preserve block/zone identities and resources for the future approval path;
+    // Preserve block/zone identities and resources for the approval path;
     // reparsing the serialized source at acceptance would lose those identities.
     candidate: Snapshot,
     positions: PositionMap,
