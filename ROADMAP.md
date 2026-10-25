@@ -102,9 +102,9 @@ persistante de modèles restent à développer.
   réussis et huit captures strictement identiques. **Chantier K terminé :**
   le [contrat général des interfaces](docs/interface-contract.md) est livré en K.4,
   avec deux exemples Rust exécutés par les tests de documentation et le contrôle
-  du cœur seul sans dépendance graphique. Prochaine étape : préciser le transport
-  et le rattachement de phase 6 à partir des interactions déjà validées. Cette phase
-  réalisera l'assistance à la composition dans la session de l'application.
+  du cœur seul sans dépendance graphique. La phase 6 livre maintenant le transport,
+  les propositions approuvées et les [fichiers rattachés](docs/mcp-files-attached.md).
+  La recette complète avec agent réel reste à effectuer en 6.6.
   État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),
   décisions et lots MCP dans [celui de phase 5](docs/architecture-phase-5.md).
 
@@ -732,7 +732,8 @@ commande à identifiant stable, pilotable par une ligne de commande et par MCP.
   Approbation utilisateur obligatoire des propositions de lot entier (D36) avant
   publication ; relecture et protocole validés en D39 et livrés en 6.4b.
   Contextes séparés, positions, focus et défilement sont conservés.
-  Prochaines étapes : fichiers rattachés (6.5), puis recette agent réelle (6.6).
+  Sauvegarde/export sous droits propres à l’invitation livrés en
+  [6.5](docs/mcp-files-attached.md). Prochaine étape : recette agent réelle (6.6).
 - **Phase 7 :** consolidation et documentation.
 
 **Ordre avec les autres chantiers :** ce chantier passe avant l’étape 5.

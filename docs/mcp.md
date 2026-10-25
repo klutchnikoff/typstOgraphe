@@ -4,7 +4,9 @@ Le [contrat général des interfaces](interface-contract.md) décrit le moteur c
 Ce guide précise l'enveloppe MCP, sa découverte et ses règles de session/fichiers.
 
 Le [mode rattaché à l'application](mcp-local.md) est maintenant disponible en
-lecture et propositions soumises à approbation (`mcp --attach`). Ce guide décrit le mode autonome.
+lecture et propositions soumises à approbation (`mcp --attach`), avec sauvegarde
+et export facultatifs sous [autorisations propres à l’invitation](mcp-files-attached.md).
+Ce guide décrit le mode autonome.
 
 Construire avec `cargo build --locked -p typstographe-cli`, puis lancer :
 

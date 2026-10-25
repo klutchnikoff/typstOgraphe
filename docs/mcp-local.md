@@ -5,8 +5,9 @@ Les choix D34/D35/D36 et les lots sont consignés dans
 Le rattachement propose désormais les **lots soumis à approbation humaine** de
 6.4b (D39), avec les contextes séparés et positions de 6.3. Le [contrat des
 propositions](mcp-proposals.md) précise `proposals.submit/get/cancel`, la comparaison
-native, l’accord/refus et la péremption. Les commandes directes restent refusées ;
-l’enregistrement et l’export rattachés restent prévus en 6.5.
+native, l’accord/refus et la péremption. Les éditions directes restent refusées ;
+l’enregistrement et l’export publiés sont livrés en [6.5](mcp-files-attached.md),
+sous droits facultatifs distincts propres à l’invitation.
 
 ## Décision pour les futures modifications rattachées (D36)
 
@@ -42,6 +43,11 @@ approuver un lot. Le fonctionnement du MCP autonome reste inchangé.
    le statut sans référence documentaire courante.
 7. Le panneau et la barre d'état indiquent l'invitation prête ou l'agent connecté.
    Le bouton de révocation coupe la connexion et supprime l'invitation.
+
+Avant la création, le panneau permet aussi d’autoriser la sauvegarde du fichier
+courant et de choisir une racine d’export. Ces droits sont désactivés initialement ;
+ils ne donnent pas accès aux autres documents ni aux imports locaux. Leur détail
+et la revalidation des exports différés sont dans le [contrat de fichiers](mcp-files-attached.md).
 
 La commande générée équivaut à :
 
@@ -114,15 +120,17 @@ ce point ; leur coût et la préparation asynchrone des lectures coûteuses devr
 
 ## Catalogue et restrictions de ce lot
 
-Les 67 outils et cinq ressources sont partagés avec le serveur autonome. La liste
+Les 67 outils communs et cinq ressources sont partagés avec le serveur autonome ;
+trois helpers de proposition portent le catalogue rattaché à 70 outils. Cette liste
 reste stable ; `commands.list`, `capabilities.describe` et `permissions` précisent
 les autorisations propres au rattachement. `session_mode` vaut `attached`.
 
-Toutes les commandes sont refusées **avant résolution et exécution**, notamment
-sélection, mise en forme, annulation, lots, création, ouverture, fermeture,
-enregistrement et export. Aucun chemin documentaire n'est autorisé. Les requêtes
-documentaires, la découverte et le PNG de page restent disponibles. Les informations
-sur le document et le rendu proviennent du même moteur que l'interface.
+Les éditions directes, sélection, annulation, lots, création, ouverture, fermeture
+et Enregistrer sous restent refusés **avant résolution et exécution**. Les étapes
+de propositions suivent leur contrat d’approbation. `document.save` et
+`document.export` sont les deux exceptions explicites, sous droits de l’invitation.
+Les requêtes documentaires, la découverte et le PNG de page restent disponibles.
+Les informations sur le document et le rendu proviennent du même moteur que l’interface.
 
 ## Vérifications
 

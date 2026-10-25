@@ -2,7 +2,8 @@
 
 Statut au 25 octobre 2026 : **parcours et protocole livrés en 6.4b (D36/D39)**.
 Le MCP rattaché peut préparer des lots privés ; seule une acceptation explicite dans
-egui publie leurs modifications. Sauvegarde et export rattachés restent en 6.5.
+egui publie leurs modifications. Sauvegarde et export publiés sont livrés en
+[6.5](mcp-files-attached.md), sous autorisations distinctes.
 
 ## Présentation
 
@@ -53,7 +54,7 @@ Après accord, retour à la rédaction avec sélection et passage visible report
 style de frappe conservé et une seule étape d’annulation. Une confirmation discrète
 propose « Voir » pour naviguer volontairement vers une modification. Refuser
 retire le lot sans modifier le document ni son historique. L’accord ne sauvegarde
-pas et n’exporte pas : ces opérations restent dans le lot 6.5.
+pas et n’exporte pas : ces opérations explicites suivent le contrat du lot 6.5.
 
 La maquette validée est conservée dans `docs/mockups/mcp-review.html`. Le parcours
 natif réutilise les polices, blocs, images et annotations de l’éditeur en lecture
@@ -168,9 +169,9 @@ révèle les deux panneaux et la repère pendant deux secondes. Un mouvement de
 sélection ou une nouvelle publication retire ce repérage. Une cible périmée n’est
 pas réancrée ; une nouvelle identité documentaire efface les états d’assistance.
 
-La suite est 6.5 pour les fichiers, puis 6.6 pour la recette complète avec agent
-réel et rédaction simultanée. Aucun enregistrement/export MCP rattaché n’est livré
-par 6.4b. La navigation agent directe et le transfert graphique d’une sélection
+La suite est 6.6 pour la recette complète avec agent réel et rédaction simultanée.
+L’enregistrement/export MCP rattaché du lot 6.5 porte uniquement sur le publié,
+sous permissions propres à l’invitation. La navigation agent directe et le transfert graphique d’une sélection
 restent à compléter ; les sélecteurs des étapes permettent déjà de cibler les lots.
 
 ## Contrôles du socle livré

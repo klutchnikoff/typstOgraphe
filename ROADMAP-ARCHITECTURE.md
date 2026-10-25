@@ -898,9 +898,9 @@ la session rattachée réutilisent les mêmes capacités et leur documentation.
 L'[inventaire K.1](docs/interface-interactions.md) est terminé. Les contextes et
 le report des positions sont livrés en 6.3 (D32, D33), le transport local et le
 rattachement en lecture en 6.2 (D34/D35). **La phase 6 reste en cours : 6.1,
-6.2, 6.3, 6.4a et 6.4b sont livrés ; 6.5 et 6.6 restent à réaliser.** Le MCP
+6.2, 6.3, 6.4a, 6.4b et 6.5 sont livrés ; 6.6 reste à réaliser.** Le MCP
 rattaché accepte des propositions privées, publiées seulement après accord humain ;
-les opérations de fichiers rattachées restent indisponibles.
+les sauvegardes et exports publiés exigent leurs autorisations distinctes par invitation.
 
 ### Lots d'implémentation
 
@@ -948,9 +948,14 @@ les opérations de fichiers rattachées restent indisponibles.
   conservés, repérage volontaire sans modification de la sélection. Gardes strictes,
   aucune écriture de fichier, une seule annulation. Tests MCP, egui et captures
   natives clair/sombre ; [contrat et recette](docs/mcp-proposals.md).
-- [ ] **6.5 — Enregistrement et export.** Fichier courant, destinations autorisées,
-  contrôle à l’exécution et décisions différées revalidées. Utiliser uniquement
-  le document publié, jamais une proposition en attente.
+- [x] **6.5 — Enregistrement et export.** Livré le 25 octobre 2026 : droits
+  facultatifs par invitation pour le fichier courant et une racine d’export,
+  sans transfert vers un autre fichier après Enregistrer sous. Contrôle au point
+  d’exécution, verrou/fingerprint existants, effets de sauvegarde communs à egui.
+  Export en arrière-plan, compilation sans écriture puis revalidation de la garde,
+  des interruptions, de la demande et de la destination avant l’écriture. Utiliser
+  uniquement le document publié, jamais une proposition en attente. SDK rmcp réel,
+  tests egui et tests de refus/coupure/concurrence ; [contrat](docs/mcp-files-attached.md).
 - [ ] **6.6 — Recette.** Agent réel sans skill ni accès au dépôt, rédaction
   simultanée, acceptation/refus/péremption des propositions, IME/modalité, coupure,
   sauvegarde/export et captures graphiques.
