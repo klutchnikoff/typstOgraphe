@@ -152,3 +152,60 @@ fn replacing_or_closing_the_document_revokes_the_invitation_without_following_th
     assert!(app.assistance.session.is_none());
     assert!(!path.exists());
 }
+
+#[test]
+fn discoverable_invitations_copy_the_same_configuration_and_revoke_only_their_own_publication() {
+    use typstographe_mcp::local::discovery;
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("discovery");
+    let (ctx, mut app) = demo_app();
+    app.assistance.discovery_directory = Some(Ok(root.clone()));
+    let before = app.stored_document();
+    let mut configuration = None;
+    let mut previous = None;
+    for _ in 0..2 {
+        app.start_assistance(&ctx);
+        let session = app.assistance.session.as_ref().unwrap();
+        let path = discovery::resolve(&root).unwrap();
+        assert_eq!(path, session.invitation_path());
+        if let Some(old) = &previous {
+            assert_ne!(&path, old);
+        }
+        let current = app.assistance_configuration(session);
+        assert_eq!(
+            current["mcpServers"]["typstographe"]["args"],
+            serde_json::json!(["mcp", "--attach-active"])
+        );
+        assert_eq!(
+            current["mcpServers"]["typstographe"]["env"][discovery::DIRECTORY_ENV],
+            serde_json::json!(root)
+        );
+        assert!(!current.to_string().contains(path.to_str().unwrap()));
+        if let Some(old) = &configuration {
+            assert_eq!(&current, old);
+        }
+        configuration = Some(current);
+        previous = Some(path.clone());
+        app.apply(Command::Assistance);
+        recovery_click(&mut app, &ctx, &crate::tr!("assistance-revoke"));
+        assert!(discovery::resolve(&root).is_err());
+        assert!(!path.exists());
+        app.dialogs.assistance_open = false;
+    }
+    assert_eq!(app.stored_document(), before);
+    assert_eq!(app.document.engine.history().undo, 0);
+}
+#[test]
+fn failed_discovery_publication_does_not_leave_an_authorized_channel_or_touch_the_document() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("not-a-directory");
+    std::fs::write(&path, "unchanged").unwrap();
+    let (ctx, mut app) = demo_app();
+    app.assistance.discovery_directory = Some(Ok(path.clone()));
+    let before = app.stored_document();
+    app.start_assistance(&ctx);
+    assert!(app.assistance.session.is_none());
+    assert_eq!(app.stored_document(), before);
+    assert_eq!(std::fs::read_to_string(path).unwrap(), "unchanged");
+    assert_eq!(app.document.engine.history().undo, 0);
+}

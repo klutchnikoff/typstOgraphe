@@ -5,6 +5,8 @@ use typstographe_mcp::local::LocalSession;
 #[derive(Default)]
 pub(super) struct AssistanceState {
     pub session: Option<LocalSession>,
+    // None for tests/captures; normal startup supplies the shared private location.
+    pub discovery_directory: Option<Result<PathBuf, String>>,
     error: Option<String>,
     pub review: Option<super::review::ReviewState>,
     pub notice: Option<crate::engine::SelectionTarget>,
@@ -151,12 +153,23 @@ impl App {
         let save_current = self.assistance.save_current
             && self.document.engine.file_path().is_some()
             && !self.document.engine.is_read_only();
-        match LocalSession::start_with_files(
+        let result = LocalSession::start_with_files(
             &mut self.document.engine,
             std::sync::Arc::new(move || repaint.request_repaint()),
             save_current,
             self.assistance.export_root.clone(),
-        ) {
+        )
+        .and_then(|mut session| {
+            if let Some(directory) = &self.assistance.discovery_directory {
+                session.advertise(
+                    directory
+                        .as_ref()
+                        .map_err(|e| std::io::Error::other(e.clone()))?,
+                )?;
+            }
+            Ok(session)
+        });
+        match result {
             Ok(session) => {
                 self.assistance.session = Some(session);
                 self.assistance.error = None;
@@ -166,6 +179,34 @@ impl App {
                     Some(crate::tr!("assistance-error", error = error.to_string()))
             }
         }
+    }
+    pub(super) fn assistance_configuration(&self, session: &LocalSession) -> serde_json::Value {
+        let executable = std::env::current_exe()
+            .ok()
+            .and_then(|p| {
+                p.parent().map(|p| {
+                    p.join(if cfg!(windows) {
+                        "typstographe-cli.exe"
+                    } else {
+                        "typstographe-cli"
+                    })
+                })
+            })
+            .filter(|p| p.is_file())
+            .unwrap_or_else(|| PathBuf::from("typstographe-cli"));
+        let args = if self.assistance.discovery_directory.is_some() {
+            serde_json::json!(["mcp", "--attach-active"])
+        } else {
+            serde_json::json!(["mcp", "--attach", session.invitation_path()])
+        };
+        let mut configuration =
+            serde_json::json!({"mcpServers":{"typstographe":{"command":executable,"args":args}}});
+        if let Some(Ok(directory)) = &self.assistance.discovery_directory {
+            configuration["mcpServers"]["typstographe"]["env"] = serde_json::json!({
+                typstographe_mcp::local::discovery::DIRECTORY_ENV: directory
+            });
+        }
+        configuration
     }
     pub(super) fn assistance_ui(&mut self, ctx: &egui::Context) {
         if !self.dialogs.assistance_open {
@@ -179,8 +220,14 @@ impl App {
             ui.label(crate::tr!("assistance-read-only"));
             if let Some(session) = &self.assistance.session {
                 ui.separator();
-                ui.label(if session.connected() { crate::tr!("assistance-connected") }
-                    else { crate::tr!("assistance-ready") });
+                if self.assistance.discovery_directory.is_some() {
+                    ui.label(crate::tr!("assistance-fixed-configuration"));
+                }
+                ui.label(if session.connected() {
+                    crate::tr!("assistance-connected")
+                } else {
+                    crate::tr!("assistance-ready")
+                });
                 let permissions = session.file_permissions(&self.document.engine);
                 if let Some(path) = permissions["current_file"].as_str() {
                     ui.label(crate::tr!("assistance-save-granted", path = path));
@@ -191,37 +238,66 @@ impl App {
                     }
                 }
                 if ui.button(crate::tr!("assistance-copy")).clicked() {
-                    let configuration = serde_json::json!({"mcpServers":{"typstographe":{
-                        "command":"typstographe-cli", "args":["mcp","--attach",session.invitation_path()]
-                    }}});
-                    ctx.copy_text(serde_json::to_string_pretty(&configuration).expect("MCP configuration"));
+                    let configuration = self.assistance_configuration(session);
+                    ctx.copy_text(
+                        serde_json::to_string_pretty(&configuration).expect("MCP configuration"),
+                    );
                 }
-                if ui.button(crate::tr!("assistance-revoke")).clicked() { self.assistance.session = None; }
+                if ui.button(crate::tr!("assistance-revoke")).clicked() {
+                    self.assistance.session = None;
+                }
             } else {
                 ui.separator();
-                let can_save = self.document.engine.file_path().is_some() && !self.document.engine.is_read_only();
-                if !can_save { self.assistance.save_current = false; }
-                ui.add_enabled(can_save, egui::Checkbox::new(&mut self.assistance.save_current, crate::tr!("assistance-save-allow")))
-                    .on_disabled_hover_text(crate::tr!("assistance-save-first"));
+                let can_save = self.document.engine.file_path().is_some()
+                    && !self.document.engine.is_read_only();
+                if !can_save {
+                    self.assistance.save_current = false;
+                }
+                ui.add_enabled(
+                    can_save,
+                    egui::Checkbox::new(
+                        &mut self.assistance.save_current,
+                        crate::tr!("assistance-save-allow"),
+                    ),
+                )
+                .on_disabled_hover_text(crate::tr!("assistance-save-first"));
                 if let Some(root) = &self.assistance.export_root {
-                    ui.label(crate::tr!("assistance-export-granted", path = root.display().to_string()));
+                    ui.label(crate::tr!(
+                        "assistance-export-granted",
+                        path = root.display().to_string()
+                    ));
                 }
                 ui.horizontal(|ui| {
                     if ui.button(crate::tr!("assistance-export-choose")).clicked() {
-                        let dialog = rfd::FileDialog::new().set_title(crate::tr!("assistance-export-choose"));
-                        if let Some(path) = self.pick_folder(dialog) { self.assistance.export_root = Some(path); }
+                        let dialog = rfd::FileDialog::new()
+                            .set_title(crate::tr!("assistance-export-choose"));
+                        if let Some(path) = self.pick_folder(dialog) {
+                            self.assistance.export_root = Some(path);
+                        }
                     }
-                    if self.assistance.export_root.is_some() && ui.button(crate::tr!("assistance-export-remove")).clicked() {
+                    if self.assistance.export_root.is_some()
+                        && ui.button(crate::tr!("assistance-export-remove")).clicked()
+                    {
                         self.assistance.export_root = None;
                     }
                 });
-                if ui.add_enabled(self.document.open, egui::Button::new(crate::tr!("assistance-authorize"))).clicked() {
+                if ui
+                    .add_enabled(
+                        self.document.open,
+                        egui::Button::new(crate::tr!("assistance-authorize")),
+                    )
+                    .clicked()
+                {
                     self.start_assistance(ctx);
                 }
             }
-            if let Some(error) = &self.assistance.error { ui.colored_label(ui.visuals().error_fg_color, error); }
+            if let Some(error) = &self.assistance.error {
+                ui.colored_label(ui.visuals().error_fg_color, error);
+            }
             ui.add_space(8.0);
-            if ui.button(crate::tr!("close")).clicked() { self.dialogs.assistance_open = false; }
+            if ui.button(crate::tr!("close")).clicked() {
+                self.dialogs.assistance_open = false;
+            }
         });
         if response.should_close() {
             self.dialogs.assistance_open = false;

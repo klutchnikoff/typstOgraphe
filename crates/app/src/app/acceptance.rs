@@ -76,11 +76,12 @@ impl App {
         app.start_recovery(root.join("recovery"), cc.egui_ctx.clone());
         app.assistance.save_current = true;
         app.assistance.export_root = Some(root.join("exports"));
+        app.assistance.discovery_directory = Some(Ok(root.join("discovery")));
         app.start_assistance(&cc.egui_ctx);
         let session = app.assistance.session.as_ref().ok_or("no invitation")?;
         write_json(
             &root.join("ready.json"),
-            &json!({"invitation":session.invitation_path(),"document":root.join("courrier.typsto"),"exports":root.join("exports")}),
+            &json!({"invitation":session.invitation_path(),"document":root.join("courrier.typsto"),"exports":root.join("exports"),"discovery_directory":root.join("discovery")}),
         )?;
         app.acceptance = Some(State {
             root,
@@ -160,6 +161,7 @@ impl App {
             }
             Action::Command { name } => {
                 let command = match name.as_str() {
+                    "assistance" => Some(Command::Assistance),
                     "review" => Some(Command::ReviewProposal),
                     "share_selection" => Some(Command::ShareSelection),
                     "return" => Some(Command::CloseReview),

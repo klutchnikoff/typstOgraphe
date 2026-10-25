@@ -17,6 +17,8 @@ impl App {
         }
         let mut app = Self::with_context(cc.egui_ctx.clone(), capture);
         if app.capture.path.is_none() {
+            app.assistance.discovery_directory =
+                Some(typstographe_mcp::local::discovery::directory().map_err(|e| e.to_string()));
             app.preferences = Preferences::load(cc.storage);
             app.preferences_directory = eframe::storage_dir("typstOgraphe");
             if let Some(directory) = &app.preferences_directory {
