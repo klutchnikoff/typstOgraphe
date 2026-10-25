@@ -35,8 +35,9 @@ référence faible à son contexte, aucun verrou de fichier.
 Le rattachement local garde un handle pour toute l’invitation. Chaque requête
 emprunte le moteur et ce même contexte, après publication des entrées natives.
 Toutes les commandes MCP rattachées restent refusées en 6.3, y compris la sélection.
-Le transfert volontaire d’une sélection depuis l’interface viendra avec le parcours
-de proposition ; aucun suivi implicite du curseur n’est introduit.
+Depuis 6.4b, les lots passent par `proposals.submit` et une décision humaine dans
+l’application. Le transfert graphique volontaire d’une sélection reste à compléter ;
+les sélecteurs permettent de cibler les lots sans suivi implicite du curseur.
 
 ## Report exact des positions
 
@@ -67,7 +68,7 @@ refusés par les commandes, même si un contexte interne a été reporté depuis
 pas aux demandes de révélation ni au focus. egui capture cette ancre dans le texte
 publié, hors préédition IME, puis appelle le report avant d’adapter une publication.
 Les pixels, le décalage dans la ligne visible et la restauration effective du
-défilement lors d’une future acceptation restent dans l’adaptateur, en 6.4.
+défilement à l’acceptation sont gérés par l’adaptateur egui de 6.4b.
 
 ## Candidats sans publication
 
@@ -112,8 +113,8 @@ La sélection utilisateur **au moment de l’accord**, même déplacée pendant 
 relecture, est reportée avec la carte cumulée du lot. Son style de frappe reste
 inchangé. Le participant proposant reçoit sa sélection et son style finaux ; les
 autres participants sont reportés normalement. L’issue demande seulement un rendu,
-sans déplacement implicite vers le passage modifié. Le focus et la restauration
-du défilement resteront à assurer par l’interface lors de son intégration.
+sans déplacement implicite vers le passage modifié. L’interface egui conserve
+le focus et restaure le défilement lors de l’intégration 6.4b.
 
 Un lot sans changement documentaire peut faire évoluer le seul contexte agent,
 sans révision, document sale, annulation ni perte de la pile de rétablissement.
@@ -121,16 +122,20 @@ L’adaptateur doit retirer le lot en attente après succès ; abandonner un can
 reste sans effet. Un échec de garde, un autre contexte ou une session en lecture
 seule ne publie aucun changement, même après retour au même texte par annulation.
 
-## Intégration encore à valider
+## Intégration 6.4b
 
-Le socle Rust ne définit aucun outil MCP de proposition ou d’approbation. Les
-49 commandes et 19 requêtes du cœur, les 67 outils et les cinq ressources MCP
-conservent leurs schémas. Le serveur autonome applique ses commandes habituelles ;
-le rattachement demeure en lecture seule.
+Le cœur garde ses 49 commandes et 19 requêtes, sans transport. L’adaptateur MCP
+ajoute `proposals.submit/get/cancel` uniquement en mode rattaché (70 outils contre
+67 en autonome). Aucune approbation n’est exposée à l’agent. Le [contrat des
+propositions](mcp-proposals.md) décrit la relecture native et les états bornés,
+validés en D39 et livrés le 25 octobre 2026. Le serveur autonome conserve ses règles.
 
-La [proposition de parcours 6.4b](mcp-proposals.md) décrit la comparaison, le
-stockage des propositions en attente et leur protocole **à valider ensemble avant
-intégration**. Une vérification de fraîcheur technique ne vaut jamais accord humain.
+`ViewSync::reveal_at` valide une cible de navigation distincte de la sélection
+utilisateur. Le repérage temporaire cesse lors d’un mouvement de sélection ou d’une
+publication qui périme sa cible. L’interface restaure l’ancre visible et le focus,
+sans changer la sélection quand l’utilisateur choisit « Voir ». Une vérification
+de fraîcheur technique ne vaut jamais accord humain. Fichiers et recette agent
+réelle restent en 6.5/6.6.
 
 Les tests se trouvent dans `engine/tests/positions.rs`, `contexts.rs`, `proposals.rs`,
 `engine/tests/proposals/acceptance.rs`,

@@ -62,7 +62,7 @@ rendu : une installation ultérieure peut remplacer une référence à révision
 une sélection pendant un dialogue ou un travail différé, capturer une cible
 explicite et sa garde. Les commandes qui portent une garde la vérifient ; le
 catalogue actuel n'impose pas une garde extérieure à toutes les commandes utilisant
-`Current`. La protection stricte des interventions rattachées sera ajoutée en phase 6.
+`Current`. Les propositions rattachées utilisent une garde stricte et une approbation humaine depuis 6.4b.
 Une référence périmée est refusée sans réancrage approximatif.
 
 Une édition validée est une transaction. Déplacer une sélection, rechercher ou
@@ -293,7 +293,7 @@ planifié/configuré par l'hôte.
 
 La CLI autonome n'a pas besoin de coordinateur de vue. Le mode MCP autonome possède
 sa session indépendante. Le mode rattaché de phase 6 rejoint maintenant le moteur
-d'une fenêtre par un canal local autorisé, en lecture seule dans le premier lot ;
+d'une fenêtre par un canal local autorisé, avec propositions privées et accord humain ;
 il n'ouvre pas le document par son chemin. Une interface web pourra réutiliser ce
 contrat, avec cœur côté client ou serveur à décider ; K ne choisit ni WASM ni
 protocole de placement/édition web.
@@ -315,7 +315,8 @@ référence de commande. Les contextes sont avancés automatiquement ; l'adaptat
 appelle `ViewSync::map_retained_positions` avant de publier sa sélection native ou
 son résultat de commande. Cette opération ne crée aucune intention de navigation.
 egui capture l'ancre logique du passage visible sur le texte publié ; l'ancre est
-reportée, sans décision de focus ni restauration du défilement en pixels à ce stade.
+reportée ; l’adaptateur egui conserve son décalage en pixels et restaure le passage
+visible lors d’une acceptation, sans navigation implicite vers le contexte agent.
 
 L'origine `Agent` attend la position utilisateur ainsi reportée, jamais le curseur
 agent. La conversion directe depuis `Outcome` convient au parcours local ; elle
@@ -327,21 +328,21 @@ représenter un accord humain ni publier quoi que ce soit.
 
 Le [contrat des contextes et propositions](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/editing-contexts.md)
 précise ces API et les affinités aux frontières. Le MCP rattaché utilise son propre
-contexte en lecture seule ; les outils de proposition/approbation ne sont pas
-encore exposés. Restent en 6.4–6.6 : présentation et acceptation du lot entier,
-publication approuvée, maintien du focus/défilement à cette publication,
-interruptions/IME/modalité, indication « Voir », opérations de fichiers autorisées
-et recette simultanée. Une donnée de vue n'autorise pas à contourner ces contrôles.
+contexte ; `proposals.submit/get/cancel` préparent et suivent des candidats privés.
+La relecture native, l’accord/refus du lot entier et la publication atomique passent
+par les actions graphiques enregistrées. `accept_proposal` n’est jamais exposé à
+l’agent. Les opérations de fichiers autorisées et la recette simultanée complète
+restent en 6.5/6.6. Une donnée de vue n’autorise pas à contourner ces contrôles.
 
 La décision D36 (25 octobre 2026) ajoute une approbation humaine obligatoire pour
-les futures éditions rattachées : préparer un lot isolé sans modifier le document
+les éditions rattachées : préparer un lot isolé sans modifier le document
 publié, puis accepter ou refuser le lot entier dans l'application. L'agent ne peut
 pas l'approuver. L'acceptation revérifie identité et révision, puis publie une seule
 transaction annulable ; une proposition périmée doit être recalculée et présentée
 à nouveau. Le refus ne crée aucune édition ni étape d'annulation. Sauvegarde et
-export portent sur le document publié. La présentation des différences et le
-protocole des propositions restent à définir ; aucun mode direct n'est autorisé
-à ce stade. Le MCP autonome conserve son fonctionnement.
+export porteront sur le document publié en 6.5. La présentation et le protocole
+sont validés en D39 et livrés en 6.4b ; aucun mode direct n’est autorisé. Le MCP
+autonome conserve son fonctionnement.
 
 ## Références et vérification
 

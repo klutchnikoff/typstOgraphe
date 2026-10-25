@@ -2,12 +2,11 @@
 
 Les choix D34/D35/D36 et les lots sont consignés dans
 [ROADMAP-ARCHITECTURE.md](../ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).
-Le rattachement reste **en lecture seule**. Le lot 6.3 ajoute les contextes
-séparés, le report des positions et la préparation isolée des propositions dans
-le cœur. Leur exposition MCP, l'édition approuvée, l'enregistrement et l'export
-rattachés restent prévus en 6.4 et 6.5, avec les protections D32/D33/D36. Le socle
-Rust d’acceptation atomique de 6.4b est désormais testé ; la [présentation et le
-protocole proposés](mcp-proposals.md) attendent validation avant leur intégration.
+Le rattachement propose désormais les **lots soumis à approbation humaine** de
+6.4b (D39), avec les contextes séparés et positions de 6.3. Le [contrat des
+propositions](mcp-proposals.md) précise `proposals.submit/get/cancel`, la comparaison
+native, l’accord/refus et la péremption. Les commandes directes restent refusées ;
+l’enregistrement et l’export rattachés restent prévus en 6.5.
 
 ## Décision pour les futures modifications rattachées (D36)
 
@@ -23,12 +22,11 @@ devra être recalculée puis soumise à une nouvelle approbation, sans fusion au
 La sauvegarde et l'export resteront explicites et utiliseront uniquement le document
 publié, jamais le brouillon d'une proposition en attente.
 
-La présentation détaillée des modifications dans l'éditeur reste à valider ensemble
-avant son intégration en 6.4b. Le bouton « Voir » après une édition acceptée conserve son
-rôle de navigation ; il ne remplace pas l'approbation. Aucun mode de modification
-directe n'est autorisé à ce stade. Cette décision concerne le rattachement à
-l'application ; le fonctionnement du MCP autonome reste inchangé. Les identifiants
-et le protocole des futures propositions ne sont pas fixés par cette décision.
+La présentation et le protocole sont validés en D39 et livrés en 6.4b : contenu
+Actuel / Proposition, informations modifiées, aperçu candidat isolé et décision
+explicite dans egui. Le bouton « Voir » après publication reste une navigation
+volontaire qui conserve la sélection utilisateur. Aucun outil agent ne peut
+approuver un lot. Le fonctionnement du MCP autonome reste inchangé.
 
 ## Parcours
 
@@ -39,7 +37,10 @@ et le protocole des futures propositions ne sont pas fixés par cette décision.
    `PATH`, ou remplacer `command` par le chemin absolu du binaire construit.
 5. L'agent commence par `document.inspect`, découvre les capacités et leurs
    autorisations, puis lit le document ou son rendu.
-6. Le panneau et la barre d'état indiquent l'invitation prête ou l'agent connecté.
+6. Soumettre un lot avec `proposals.submit` : il reste privé jusqu’à la décision
+   dans l’application. L’agent rend la main ; `proposals.get` peut consulter ensuite
+   le statut sans référence documentaire courante.
+7. Le panneau et la barre d'état indiquent l'invitation prête ou l'agent connecté.
    Le bouton de révocation coupe la connexion et supprime l'invitation.
 
 La commande générée équivaut à :
@@ -222,3 +223,11 @@ Journaux conservés dans `output/phase6-3/` (ignoré par Git) : `tests.log`,
 Les captures intermédiaires restent dans `output/baseline/run-e77nqmip` et
 `run-kf018kr8`. Vérification locale macOS ; Linux et Windows restent à confirmer
 par la CI. Le lot 6.3 ne clôt pas la phase 6 et n'active aucune édition rattachée.
+
+## Livraison 6.4b
+
+Le catalogue autonome conserve 67 outils ; le catalogue rattaché en compte 70,
+avec les trois helpers de proposition. Les permissions et fiches indiquent
+`proposal_supported` sans autoriser les appels d’édition directs. Aucun chemin
+local arbitraire, préférence globale, opération de fichier ou historique n’est
+admis dans un lot. `proposals.get/cancel` sont limités à leur invitation.

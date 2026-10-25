@@ -4,7 +4,7 @@ Le [contrat général des interfaces](interface-contract.md) décrit le moteur c
 Ce guide précise l'enveloppe MCP, sa découverte et ses règles de session/fichiers.
 
 Le [mode rattaché à l'application](mcp-local.md) est maintenant disponible en
-lecture seule (`mcp --attach`). Ce guide décrit le mode autonome.
+lecture et propositions soumises à approbation (`mcp --attach`). Ce guide décrit le mode autonome.
 
 Construire avec `cargo build --locked -p typstographe-cli`, puis lancer :
 
@@ -28,8 +28,8 @@ technique restent en anglais ; la langue du document est une donnée distincte.
 Une session possède **un document en mémoire par processus**, indépendant de celui
 ouvert dans l’application. Rien n’est enregistré automatiquement : fermer le
 serveur perd les modifications non sauvegardées. Le mode rattaché de phase 6 rejoint
-le moteur ouvert dans l’application ; les modifications rattachées restent à
-implémenter.
+le moteur ouvert dans l’application ; les lots rattachés restent privés jusqu’à
+l’accord humain, sans sauvegarde ni export rattachés pour le moment.
 
 ## Découverte
 

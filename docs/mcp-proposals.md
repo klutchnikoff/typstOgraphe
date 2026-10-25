@@ -1,12 +1,10 @@
 # Propositions MCP — préparation de 6.4b
 
-Statut au 25 octobre 2026 : **parcours et protocole validés par l’utilisateur (D39),
-intégration en cours**. D36 valide l’accord humain sur un lot entier. Le socle Rust
-d’acceptation atomique est implémenté et testé ; le rattachement reste en lecture
-seule jusqu’à la livraison du parcours complet. Ce contrat distingue les outils
-à intégrer des fonctionnalités déjà disponibles.
+Statut au 25 octobre 2026 : **parcours et protocole livrés en 6.4b (D36/D39)**.
+Le MCP rattaché peut préparer des lots privés ; seule une acceptation explicite dans
+egui publie leurs modifications. Sauvegarde et export rattachés restent en 6.5.
 
-## Présentation proposée
+## Présentation
 
 Une notification discrète annonce « Une proposition à relire », avec une action
 « Voir la proposition ». Elle ne prend ni focus ni sélection et ne coupe pas la
@@ -57,19 +55,26 @@ propose « Voir » pour naviguer volontairement vers une modification. Refuser
 retire le lot sans modifier le document ni son historique. L’accord ne sauvegarde
 pas et n’exporte pas : ces opérations restent dans le lot 6.5.
 
-La maquette interactive est conservée dans `docs/mockups/mcp-review.html`. Elle
-illustre contenu, informations, acceptation/refus et péremption ; elle simule
-localement ces actions. Elle ne représente pas une fonction déjà livrée dans egui,
-ni une comparaison structurée calculée par le moteur. Les interactions ont été
-contrôlées dans un DOM simulé ; le contrôle visuel appartient à cette validation.
+La maquette validée est conservée dans `docs/mockups/mcp-review.html`. Le parcours
+natif réutilise les polices, blocs, images et annotations de l’éditeur en lecture
+seule. [similar](https://docs.rs/similar/latest/similar/) compare les mots Unicode
+avec un temps de calcul borné ; le formatage, les liens, la structure, les
+métadonnées et les ressources sont aussi comparés. Ce calcul ne sert jamais à
+réancrer une commande périmée : la publication garde ses traces exactes du moteur.
 
-## Protocole proposé
+L’aperçu candidat utilise un worker Typst distinct et les ressources du candidat,
+sans installer son rendu dans le moteur publié. Les vignettes avant/après ont des
+caches distincts, même si une ressource conserve son chemin. Les actions Voir,
+Revenir, Accepter, Refuser et Voir le passage sont dans le registre graphique,
+sans raccourci d’acceptation par défaut.
 
-Ajouter trois helpers à l’adaptateur MCP, documentés et signalés comme disponibles
+## Protocole rattaché
+
+Trois helpers de l’adaptateur MCP sont documentés et disponibles
 uniquement en mode rattaché. Ils réutilisent les étapes du registre et les sélecteurs
 existants ; ils ne dupliquent pas les commandes documentaires du cœur.
 
-| Outil proposé | Entrée | Effet |
+| Outil | Entrée | Effet |
 | --- | --- | --- |
 | `proposals.submit` | Référence documentaire gardée, `request_id`, étapes du lot, résumé facultatif | Préparer un candidat privé, puis renvoyer immédiatement son identifiant et l’état `pending`. Aucun changement publié. |
 | `proposals.get` | Identifiant opaque du lot | Lire son état dans cette invitation, y compris après une nouvelle révision documentaire. |
@@ -122,7 +127,7 @@ La navigation propre à l’agent pourra réutiliser `text.select` dans son cont
 sans navigation graphique ; cette autorisation doit être déclarée séparément et
 ne confère aucune édition directe. Les lectures continuent à voir le publié.
 
-Exemple de forme proposée, avec une référence fournie par `document.inspect` :
+Exemple de soumission, en remplaçant la référence par celle fournie par `document.inspect` :
 
 ```json
 {
@@ -138,24 +143,35 @@ Exemple de forme proposée, avec une référence fournie par `document.inspect` 
 }
 ```
 
-Les noms et la forme ci-dessus restent une proposition, pas un schéma disponible.
-La réponse devra dire explicitement `pending` et `published: false`. L’agent rend
+Les schémas de `tools/list` font autorité. La réponse indique explicitement
+`pending` et `published: false`. L’agent rend
 la main à l’utilisateur ; il ne prétend pas que l’édition a eu lieu et ne lance pas
 une boucle de consultation. Un prochain échange peut interroger `get`, qui
-renverra notamment la garde publiée après acceptation. Aucun appel ne reste
+renvoie notamment la garde publiée après acceptation. Aucun appel ne reste
 suspendu indéfiniment en attendant une décision humaine.
 
-## Ordre d’intégration après validation
+## Intégration livrée
 
-1. Stockage borné des lots et transitions d’états dans l’adaptateur local ; tests
-   de déduplication, fermeture, déconnexion et péremption.
-2. Soumission isolée depuis MCP, disponibilité et documentation générées ; tester
-   qu’aucun appel agent ne rejoint `accept_proposal`.
-3. Relecture egui, comparaison de toutes les modifications, rendu du candidat,
-   accord/refus explicites et protection IME/modalités.
-4. Publication via le socle commun, report de sélection/ancre visible et retour
-   du focus, annulation/rétablissement, notification et navigation volontaire.
-5. Recette intégrée avec captures, puis 6.5 et 6.6. Le lot 6.4b reste ouvert jusque-là.
+Le stockage et les transitions sont dans l’adaptateur MCP ; le cœur reste sans
+transport. `LocalSession::poll_with_input` reçoit l’état d’interruption natif et
+traite les requêtes après publication de la saisie. `LocalSession::decide` est une
+entrée Rust réservée à la décision humaine, absente du dispatch et du catalogue MCP.
+
+La sélection et l’ancre visible sont reportées à l’acceptation. La restauration
+utilise les réglages publics egui pour un défilement immédiat, sans animation qui
+pourrait être annulée par un reliquat de molette. Le focus et le style utilisateur
+sont conservés. Une publication de vue identique ne réétiquette pas un résultat
+Agent comme User ; installer son rendu ne provoque donc pas de suivi implicite.
+
+« Voir le passage modifié » emploie une cible gardée distincte de la sélection,
+révèle les deux panneaux et la repère pendant deux secondes. Un mouvement de
+sélection ou une nouvelle publication retire ce repérage. Une cible périmée n’est
+pas réancrée ; une nouvelle identité documentaire efface les états d’assistance.
+
+La suite est 6.5 pour les fichiers, puis 6.6 pour la recette complète avec agent
+réel et rédaction simultanée. Aucun enregistrement/export MCP rattaché n’est livré
+par 6.4b. La navigation agent directe et le transfert graphique d’une sélection
+restent à compléter ; les sélecteurs des étapes permettent déjà de cibler les lots.
 
 ## Contrôles du socle livré
 
@@ -166,7 +182,26 @@ rétablissement, refus des gardes anciennes/autres contextes/lecture seule,
 lot limité au style sans perte du rétablissement, et publication groupée
 image/signature/métadonnées sans toucher au fichier enregistré.
 
-La suite Rust complète et Clippy avec `-D warnings` passent sur macOS. Les tests
-de sockets locales nécessitent une exécution hors bac à sable. Le cœur conserve
-ses dépendances sans GUI, Fluent, Tokio, MCP ni IPC. Aucun parcours graphique
-d’acceptation n’est encore intégré ou annoncé comme testé.
+Les tests supplémentaires couvrent les quatre scénarios du stockage MCP
+(déduplication, états, budgets, refus et ressources), les outils sur une connexion
+rmcp locale réelle, les six parcours egui (accord/refus, interruptions, focus,
+péremption, révocation, passage visible et rendu sans suivi), et deux comparaisons
+Unicode/formatage/liens. La recette agent LLM relève de 6.6.
+
+Captures natives conservées dans `output/phase6-4b/` : contenu clair/sombre,
+informations avec vignette, aperçu candidat et proposition périmée. Reproduction :
+
+```sh
+cargo build --locked -p typstographe
+mkdir -p output/phase6-4b
+target/debug/typstographe --capture-widgets output/phase6-4b/review-light.png review
+target/debug/typstographe --capture-widgets output/phase6-4b/review-dark.png review-dark
+target/debug/typstographe --capture-widgets output/phase6-4b/information.png review-information
+target/debug/typstographe --capture-widgets output/phase6-4b/preview.png review-preview
+target/debug/typstographe --capture-widgets output/phase6-4b/stale.png review-stale
+```
+
+Les 526 tests Rust, les deux doctests, les 14 tests Python, fmt et Clippy avec
+`-D warnings` passent sur macOS ; la CI vérifie les trois systèmes. Les tests de sockets locales
+nécessitent une exécution hors bac à sable. Le cœur conserve ses dépendances sans
+GUI, Fluent, Tokio, MCP ni IPC.

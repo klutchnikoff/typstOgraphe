@@ -725,11 +725,12 @@ commande à identifiant stable, pilotable par une ligne de commande et par MCP.
 - **Phase 5 :** serveur MCP, accès aux fichiers refusé par défaut.
 - **Phase 6 :** assistance à la composition dans le document ouvert, en rejoignant
   le moteur de l’application par un canal local contrôlé. Transport et permissions
-  validés (D34/D35) ; [rattachement en lecture seule livré](docs/mcp-local.md).
+  validés (D34/D35) ; [rattachement et propositions approuvées livrés](docs/mcp-local.md).
   Une crate adaptateur MCP partagée complète les quatre crates initiales.
   Approbation utilisateur obligatoire des propositions de lot entier (D36) avant
-  publication ; présentation des différences à concevoir ensemble.
-  Prochaine étape : contextes d'édition séparés avant les propositions rattachées.
+  publication ; relecture et protocole validés en D39 et livrés en 6.4b.
+  Contextes séparés, positions, focus et défilement sont conservés.
+  Prochaines étapes : fichiers rattachés (6.5), puis recette agent réelle (6.6).
 - **Phase 7 :** consolidation et documentation.
 
 **Ordre avec les autres chantiers :** ce chantier passe avant l’étape 5.

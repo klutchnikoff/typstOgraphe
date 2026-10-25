@@ -898,9 +898,9 @@ la session rattachée réutilisent les mêmes capacités et leur documentation.
 L'[inventaire K.1](docs/interface-interactions.md) est terminé. Les contextes et
 le report des positions sont livrés en 6.3 (D32, D33), le transport local et le
 rattachement en lecture en 6.2 (D34/D35). **La phase 6 reste en cours : 6.1,
-6.2, 6.3 et 6.4a sont livrés ; 6.4b, 6.5 et 6.6 restent à réaliser.** Le MCP
-rattaché demeure en lecture seule tant que le parcours de proposition et
-d’approbation n’est pas livré.
+6.2, 6.3, 6.4a et 6.4b sont livrés ; 6.5 et 6.6 restent à réaliser.** Le MCP
+rattaché accepte des propositions privées, publiées seulement après accord humain ;
+les opérations de fichiers rattachées restent indisponibles.
 
 ### Lots d'implémentation
 
@@ -935,16 +935,19 @@ d’approbation n’est pas livré.
   Commande contextuelle D38 : correction prioritaire, sinon paramètres du widget,
   reprise de focus du bandeau existant sans validation ni perte du brouillon.
   Contrat : [widgets et bandeaux](docs/editor-widgets.md).
-- [ ] **6.4b — Propositions et éditions approuvées.** Préparation isolée d'un lot,
-  présentation des différences à valider ensemble, acceptation/refus du lot entier
+- [x] **6.4b — Propositions et éditions approuvées.** Livré le 25 octobre 2026
+  après validation de la maquette et du protocole D39. Préparation isolée d’un lot,
+  comparaison native, acceptation/refus du lot entier
   par l'utilisateur. Revalidation de la garde à l'acceptation ; proposition périmée
   à recalculer puis soumettre à nouveau. Publication atomique après accord seulement,
   interruptions et annulations, historique commun, effets selon l'origine,
   notification et action « Voir » après publication.
-  Préparation du 25 octobre : socle Rust `accept_proposal` livré et testé
-  (publication unique, contexte utilisateur conservé, garde exacte, aucun fichier
-  écrit). La [maquette et le protocole proposés](docs/mcp-proposals.md) restent
-  à valider avant intégration. Aucun outil MCP d’édition ajouté à ce stade.
+  Helpers rattachés `proposals.submit/get/cancel`, un candidat en attente,
+  déduplication et états terminaux bornés. Relecture Contenu / Informations /
+  Aperçu candidat ; actions dans le registre graphique, focus et défilement
+  conservés, repérage volontaire sans modification de la sélection. Gardes strictes,
+  aucune écriture de fichier, une seule annulation. Tests MCP, egui et captures
+  natives clair/sombre ; [contrat et recette](docs/mcp-proposals.md).
 - [ ] **6.5 — Enregistrement et export.** Fichier courant, destinations autorisées,
   contrôle à l’exécution et décisions différées revalidées. Utiliser uniquement
   le document publié, jamais une proposition en attente.
@@ -964,12 +967,12 @@ reste la décision initiale de phase 5, le cœur ne change pas de dépendances.
 
 ### Critères de sortie
 
-- [ ] Approbation humaine (D36) : une proposition ne modifie ni document publié,
+- [x] Approbation humaine (D36/D39) : une proposition ne modifie ni document publié,
   ni historique documentaire et ne sauvegarde ni n’exporte le document. L’utilisateur
   accepte/refuse le lot entier ; l'agent ne peut pas approuver à sa place. Revalider
   la garde à l'acceptation, refuser une proposition périmée sans fusion automatique.
   Publier un lot accepté atomiquement, avec une seule étape d'annulation. L'interface
-  de comparaison reste à décider avant sa réalisation ; « Voir » après publication
+  de comparaison est validée en D39 et livrée ; « Voir » après publication
   ne remplace pas l'approbation préalable.
 - [ ] Contextes d'édition séparés : sélection et style de frappe propres à
   l'utilisateur et à l'agent. Une sélection transmise est capturée à la demande,
