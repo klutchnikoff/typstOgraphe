@@ -170,8 +170,14 @@ impl App {
         let old_range = frame.old_range;
         self.restore_review_view(ui, &output);
         self.remember_visible_editor_position(ui, &output);
-        let clicked_term =
-            editor::paint_decorations(ui, &draft.view, &output, editor_style, background);
+        let clicked_term = editor::paint_decorations_with_band(
+            ui,
+            &draft.view,
+            &output,
+            editor_style,
+            background,
+            frame.band,
+        );
         self.scroll_ime(ui, &output);
         if self.document.ime.draft.is_some() {
             // La sélection native matérialise la préédition. La sélection

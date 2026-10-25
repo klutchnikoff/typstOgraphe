@@ -18,6 +18,9 @@ impl App {
         if mode == "list-empty" {
             stored.source = "Madame, Monsieur,\n\n- Un premier élément suffisamment long pour se replier et vérifier le retrait du texte dans la colonne de gauche.\n- ".into();
         }
+        if mode == "spelling-block" {
+            stored.source = "Madame, Monsieur,\n\nNous aurons besoin des équipements suivants :\n\n- Accueil des participants\n- Installation de la salle\n- Un vidéoprojecteure\n- Trente places assises\n\nJe vous remercie pour votre retour.".into();
+        }
         if mode == "quote" {
             stored.source="Madame, Monsieur,\n\n/ Accueil: Un temps d’échange avec les associations.\n/ Équipement: Une salle accessible et un vidéoprojecteur.\n\n#quote(block: true, attribution: [Projet associatif])[Un lieu accessible à toutes et à tous, propice aux échanges.\n\nLa participation des habitants est au cœur de notre démarche.]\n\nJe vous remercie pour votre retour.".into();
         }
@@ -74,7 +77,7 @@ impl App {
                 self.document.selection = editor::cursor(at..at);
                 self.document.force_selection = true;
             }
-            "spelling" => self.spelling.capture_active = true,
+            "spelling" | "spelling-block" => self.spelling.capture_active = true,
             "link" => {
                 self.document.selection = editor::cursor(0..7);
                 self.open_link();

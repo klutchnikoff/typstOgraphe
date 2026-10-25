@@ -90,7 +90,14 @@ pub fn button_sized(
 ) -> Response {
     ui.scope(|ui| {
         style(ui, kind);
-        ui.add_enabled(enabled, egui::Button::new(label).min_size(min_size))
+        // Un bouton est atomique : dans une rangée qui se replie, il passe à la ligne
+        // entière au lieu de replier son propre texte.
+        ui.add_enabled(
+            enabled,
+            egui::Button::new(label)
+                .wrap_mode(egui::TextWrapMode::Extend)
+                .min_size(min_size),
+        )
     })
     .inner
 }

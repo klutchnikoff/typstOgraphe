@@ -201,15 +201,24 @@ impl App {
                 .and_then(|p| p.map_retained(band.target).ok())
                 .unwrap_or(band.target)
         };
-        let start = self
+        let (start, end) = self
             .document
             .engine
             .resolve_target(target)
-            .map(|(start, _)| start)
-            .unwrap_or(0);
+            .unwrap_or((0, 0));
+        let placement = match band.content {
+            BandContent::Image { .. } | BandContent::List { .. } | BandContent::Remove { .. } => {
+                editor::BandPlacement::AfterHeader
+            }
+            BandContent::Link { .. } | BandContent::Spelling { .. } => {
+                editor::BandPlacement::AboveRow
+            }
+        };
         Some(editor::BandInset {
             anchor: start,
+            end,
             height: band.height,
+            placement,
         })
     }
     pub(super) fn dispatch_editor_action(&mut self, action: EditorAction, ctx: &egui::Context) {

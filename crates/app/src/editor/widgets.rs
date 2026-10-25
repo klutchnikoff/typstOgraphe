@@ -31,10 +31,20 @@ pub struct Widget {
     pub lines: Range<usize>,
     pub range: Range<usize>,
 }
+/// Où s'insère le bandeau : sous l'en-tête d'un widget (paramètres, suppression) ou
+/// au-dessus de la ligne visuelle qui contient l'ancre (orthographe, lien).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BandPlacement {
+    AfterHeader,
+    AboveRow,
+}
 #[derive(Clone, Copy)]
 pub struct BandInset {
     pub anchor: usize,
+    /// Fin de la cible (mot, passage) : sert à la pointe de l'orthographe.
+    pub end: usize,
     pub height: f32,
+    pub placement: BandPlacement,
 }
 
 pub fn widgets(view: &Projection) -> Vec<Widget> {
@@ -78,6 +88,10 @@ pub fn widgets(view: &Projection) -> Vec<Widget> {
     result
 }
 pub fn widget_rect(galley: &Galley, widget: &Widget) -> egui::Rect {
+    widget_rect_with(galley, widget, 0.0)
+}
+/// Rectangle du cadre ; `extra_top` ajoute la hauteur d'un bandeau inséré sous l'en-tête.
+pub fn widget_rect_with(galley: &Galley, widget: &Widget, extra_top: f32) -> egui::Rect {
     let mut first = CCursor::new(widget.range.start);
     first.prefer_next_row = true;
     let mut last = CCursor::new(widget.range.end);
@@ -88,12 +102,40 @@ pub fn widget_rect(galley: &Galley, widget: &Widget) -> egui::Rect {
         top -= IMAGE_HEIGHT + IMAGE_CAPTION_GAP;
     }
     egui::Rect::from_min_max(
-        egui::pos2(0.0, top - WIDGET_HEADER),
+        egui::pos2(0.0, top - WIDGET_HEADER - extra_top),
         egui::pos2(
             galley.job.wrap.max_width,
             galley.pos_from_cursor(last).bottom() + FOOTER,
         ),
     )
+}
+/// Hauteur du bandeau à ajouter en haut du cadre : le bandeau est dans le cadre quand
+/// il se trouve sous l'en-tête, avant la première ligne du widget.
+pub fn band_extra(galley: &Galley, widget: &Widget, band: Option<BandInset>) -> f32 {
+    let Some(band) = band else { return 0.0 };
+    if band.anchor < widget.range.start || band.anchor > widget.range.end {
+        return 0.0;
+    }
+    match band.placement {
+        BandPlacement::AfterHeader => band.height,
+        BandPlacement::AboveRow => {
+            let mut first = CCursor::new(widget.range.start);
+            first.prefer_next_row = true;
+            let mut at = CCursor::new(band.anchor);
+            at.prefer_next_row = true;
+            let same = (galley.pos_from_cursor(first).top() - galley.pos_from_cursor(at).top())
+                .abs()
+                < 0.5;
+            if same { band.height } else { 0.0 }
+        }
+    }
+}
+/// Le widget qui contient l'ancre du bandeau, s'il y en a un.
+pub fn band_host(view: &Projection, band: BandInset) -> Option<Widget> {
+    let anchor = band.anchor.min(view.len());
+    widgets(view)
+        .into_iter()
+        .find(|w| w.range.start <= anchor && anchor <= w.range.end)
 }
 pub(super) fn reserve(
     mut galley: Arc<Galley>,
@@ -104,14 +146,31 @@ pub(super) fn reserve(
     if groups.is_empty() && band.is_none() {
         return galley;
     }
-    let band_line = band.map(|b| view.line_at(b.anchor.min(view.len())));
+    let band_line = band
+        .filter(|b| b.placement == BandPlacement::AfterHeader)
+        .map(|b| view.line_at(b.anchor.min(view.len())));
     let composed = Arc::make_mut(&mut galley);
+    let band_row = band
+        .filter(|b| b.placement == BandPlacement::AboveRow)
+        .map(|b| {
+            let (mut chars, last) = (0, composed.rows.len().saturating_sub(1));
+            for (index, row) in composed.rows.iter().enumerate() {
+                chars += row.glyphs.len() + usize::from(row.ends_with_newline);
+                if b.anchor < chars || index == last {
+                    return index;
+                }
+            }
+            0
+        });
     let mut line = 0;
     let mut first = true;
     let mut offset = 0.0;
     let mut bounds = egui::Rect::NOTHING;
     let last = composed.rows.len().saturating_sub(1);
     for (index, row) in composed.rows.iter_mut().enumerate() {
+        if band_row == Some(index) {
+            offset += band.expect("band row").height;
+        }
         if first {
             if band_line == Some(line) {
                 offset += band.expect("band line").height;

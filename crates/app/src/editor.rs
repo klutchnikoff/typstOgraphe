@@ -37,7 +37,7 @@ mod widgets;
 pub use buffer::{InputBuffer, ProjectionBuffer, to_core, to_editor};
 #[cfg(test)]
 use decorations::link_underlines;
-pub use decorations::paint_decorations;
+pub use decorations::{paint_decorations, paint_decorations_with_band};
 use descriptions::*;
 pub use fonts::install_fonts;
 pub use geometry::{cursor, paint_spelling, range_rects, restore_cursor, store_cursor};
@@ -45,7 +45,10 @@ pub use images::{ImageAction, paint_images};
 use layout::*;
 pub use layout::{LayoutContext, layout_with_context};
 pub use layout::{layout, layout_with_search};
-pub use widgets::{BandInset, WIDGET_HEADER, Widget, WidgetKind, widget_rect, widgets};
+pub use widgets::{
+    BandInset, BandPlacement, WIDGET_HEADER, Widget, WidgetKind, band_extra, band_host,
+    widget_rect, widget_rect_with, widgets,
+};
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 #[path = "editor/tests.rs"]

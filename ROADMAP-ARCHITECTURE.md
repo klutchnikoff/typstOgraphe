@@ -1258,11 +1258,19 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
   durée de rendu en info-bulle) et la relecture MCP (décision Refuser/Accepter dans
   l'en-tête, rubriques en contrôle segmenté, marque retirée). Reste pour L.4 le
   bandeau variante B avec la pointe, puis la recette L.5.
-- [ ] **L.4 — Bandeaux et pointe (D37, D40).** Variante B pour les paramètres de bloc ;
-  pointe vers le mot pour l'orthographe ; bandeau d'une faute dans un bloc inséré entre
-  deux lignes, à la largeur du bloc. Passer la plage horizontale du bloc au placement
-  (`BandInset`) et le rectangle du mot à la pointe ; disparition de la pointe quand le mot
-  sort de la zone visible. Tests de 6.4a adaptés : focus, IME, redimensionnement, thèmes.
+- [x] **L.4 — Bandeaux et pointe (D37, D40).** Livré le 25 octobre 2026. `BandInset`
+  porte une position (`BandPlacement::AfterHeader` ou `AboveRow`) et la fin de la cible.
+  Paramètres d'image/liste et suppression d'un widget : le bandeau s'insère sous
+  l'en-tête dans le cadre du widget, qui grandit et prend la bordure d'accent (variante
+  B). Orthographe et lien : le bandeau se place au-dessus de la ligne **visuelle**
+  du mot, en bande pleine largeur entre deux lignes d'un bloc, ou en carte alignée sur
+  la colonne des blocs hors bloc ; pointe de 12 points vers le mot pour l'orthographe
+  uniquement. Le bandeau est dessiné dans un enfant détaché pour qu'il n'élargisse pas la
+  colonne ; actions alignées à droite dans l'ordre de tabulation ; suggestions et actions
+  qui passent à la ligne par boutons entiers (`ui_kit` : boutons atomiques). Scénarios de
+  capture `--capture-widgets <fichier> spelling-block` (suffixe `-dark` possible). Reste :
+  les trois options de liste sont encore des boutons radio (le contrôle segmenté
+  demanderait de reprendre le focus clavier par option).
 - [ ] **L.5 — Recette.** Captures natives clair et sombre de tous les écrans, comparaison
   avant/après, essais IME et clavier, contrôle automatisé des contrastes des jetons,
   bilan dans `docs/`.

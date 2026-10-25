@@ -48,6 +48,19 @@ pub fn paint_decorations(
     editor: EditorStyle,
     background: egui::layers::ShapeIdx,
 ) -> Option<usize> {
+    paint_decorations_with_band(ui, view, output, editor, background, None)
+}
+
+/// Comme `paint_decorations`, avec le bandeau ouvert : son widget grandit de la hauteur
+/// du bandeau qu'il contient et prend la bordure d'accent.
+pub fn paint_decorations_with_band(
+    ui: &egui::Ui,
+    view: &Projection,
+    output: &egui::text_edit::TextEditOutput,
+    editor: EditorStyle,
+    background: egui::layers::ShapeIdx,
+    band: Option<BandInset>,
+) -> Option<usize> {
     let painter = ui.painter_at(output.text_clip_rect);
     let colors = EditorColors::from_visuals(ui.visuals());
     let placeholder = description_placeholder(ui, editor);
@@ -56,7 +69,11 @@ pub fn paint_decorations(
     let mut clicked_term = None;
     let ranges = view.line_ranges();
     for widget in widgets(view) {
-        let rect = widget_rect(&output.galley, &widget).translate(output.galley_pos.to_vec2());
+        let extra = band_extra(&output.galley, &widget, band);
+        let rect =
+            widget_rect_with(&output.galley, &widget, extra).translate(output.galley_pos.to_vec2());
+        let holds_band =
+            band.is_some_and(|b| widget.range.start <= b.anchor && b.anchor <= widget.range.end);
         backgrounds.push(egui::Shape::rect_filled(
             rect,
             5.0,
@@ -65,10 +82,17 @@ pub fn paint_decorations(
         backgrounds.push(egui::Shape::rect_stroke(
             rect,
             5.0,
-            Stroke::new(
-                0.75_f32,
-                ui.visuals().widgets.noninteractive.bg_stroke.color,
-            ),
+            if holds_band {
+                Stroke::new(
+                    1.0_f32,
+                    crate::theme::Tokens::new(ui.visuals().dark_mode).accent,
+                )
+            } else {
+                Stroke::new(
+                    0.75_f32,
+                    ui.visuals().widgets.noninteractive.bg_stroke.color,
+                )
+            },
             egui::StrokeKind::Inside,
         ));
     }
