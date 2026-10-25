@@ -13,7 +13,16 @@ pub fn runtime() -> tokio::runtime::Runtime {
         .unwrap()
 }
 pub async fn start(path: &Path, version: ProtocolVersion, args: &[&str]) -> Client {
+    start_with_env(path, version, args, &[]).await
+}
+pub async fn start_with_env(
+    path: &Path,
+    version: ProtocolVersion,
+    args: &[&str],
+    environment: &[(&str, &Path)],
+) -> Client {
     let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_typstographe-cli"));
+    command.envs(environment.iter().copied());
     command
         .arg("mcp")
         .args(args)

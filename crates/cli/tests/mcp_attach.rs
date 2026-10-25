@@ -25,6 +25,9 @@ struct Owner {
 }
 impl Owner {
     fn start() -> Self {
+        Self::with_discovery(None)
+    }
+    fn with_discovery(directory: Option<PathBuf>) -> Self {
         let stop = Arc::new(AtomicBool::new(false));
         let stopped = stop.clone();
         let (ready, path) = mpsc::sync_channel(1);
@@ -36,6 +39,9 @@ impl Owner {
                     Engine::from_stored(StoredDocument::demo(DocumentType::Courrier), None)
                         .unwrap();
                 let mut session = LocalSession::start(&mut engine, Arc::new(|| {})).unwrap();
+                if let Some(directory) = directory {
+                    session.advertise(&directory).unwrap();
+                }
                 ready.send(session.invitation_path().to_path_buf()).unwrap();
                 while !stopped.load(Ordering::Acquire) {
                     // Same publication order as egui: native input before attached requests.
@@ -221,4 +227,87 @@ fn revoking_the_owner_ends_stdio_even_when_the_agent_keeps_stdin_open() {
             .expect("bridge waited for stdin instead of closing stdout")
             .unwrap();
     });
+}
+
+#[test]
+fn fixed_stdio_configuration_connects_new_invitations_without_rebinding_an_existing_client() {
+    use typstographe_mcp::local::discovery;
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("discovery");
+    let first = Owner::with_discovery(Some(root.clone()));
+    runtime().block_on(async {
+        tokio::time::timeout(Duration::from_secs(30), async {
+            let config = ["--attach-active"];
+            let environment = [(discovery::DIRECTORY_ENV, root.as_path())];
+            let client = start_with_env(
+                temp.path(),
+                ProtocolVersion::default(),
+                &config,
+                &environment,
+            )
+            .await;
+            let initial = call(&client, "document.inspect", json!({})).await;
+            assert!(discovery::resolve(&root).is_err());
+            let second = Owner::with_discovery(Some(root.clone()));
+            assert_ne!(first.invitation, second.invitation);
+            let still_first = call(&client, "document.inspect", json!({})).await;
+            assert_eq!(initial["document"], still_first["document"]);
+            client.cancel().await.unwrap();
+            drop(first);
+            let reconnected = start_with_env(
+                temp.path(),
+                ProtocolVersion::default(),
+                &config,
+                &environment,
+            )
+            .await;
+            let current = call(&reconnected, "document.inspect", json!({})).await;
+            assert_ne!(initial["document"]["id"], current["document"]["id"]);
+            assert!(discovery::resolve(&root).is_err());
+            reconnected.cancel().await.unwrap();
+            drop(second);
+        })
+        .await
+        .unwrap();
+    });
+}
+
+#[test]
+fn active_attachment_never_falls_back_to_standalone_or_accepts_mixed_permissions() {
+    use typstographe_mcp::local::discovery;
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("discovery");
+    let command = || {
+        let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_typstographe-cli"));
+        cmd.args(["mcp", "--attach-active"])
+            .env(discovery::DIRECTORY_ENV, &root);
+        cmd
+    };
+    let output = command().output().unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("No invitation"));
+    let relative = command()
+        .env(discovery::DIRECTORY_ENV, "relative")
+        .output()
+        .unwrap();
+    assert_eq!(relative.status.code(), Some(3));
+    assert!(relative.stdout.is_empty());
+    for args in [
+        vec!["--read-only"],
+        vec!["--read-root", "."],
+        vec!["--write-root", "."],
+        vec!["--attach", "anything.json"],
+    ] {
+        let output = command().args(args).output().unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output.stdout.is_empty());
+    }
+    let first = Owner::with_discovery(Some(root.clone()));
+    let second = Owner::with_discovery(Some(root.clone()));
+    let output = command().output().unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Several invitations"));
+    drop((first, second));
 }

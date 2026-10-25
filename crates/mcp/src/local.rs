@@ -1,4 +1,5 @@
 //! Local attachment. IO threads exchange requests; only the UI thread borrows Engine.
+pub mod discovery;
 mod endpoint;
 mod files;
 mod render;
@@ -26,6 +27,7 @@ use typstographe_core::engine::{EditContext, Engine, TargetGuard};
 /// Optional exact-file saving and export roots are fixed at creation for one client.
 /// Dropping it revokes the channel and removes its private invitation file.
 pub struct LocalSession {
+    advertisement: Option<discovery::Advertisement>,
     invitation: endpoint::Invitation,
     receiver: mpsc::Receiver<Request>,
     shutdown: CancellationToken,
@@ -89,6 +91,7 @@ impl LocalSession {
             .create_edit_context(engine.target_guard(), None)
             .map_err(io::Error::other)?;
         Ok(Self {
+            advertisement: None,
             invitation,
             receiver,
             shutdown,
@@ -106,6 +109,18 @@ impl LocalSession {
     }
     pub fn invitation_path(&self) -> &Path {
         self.invitation.path()
+    }
+    /// Called only by an explicitly authorized GUI invitation. Tests and explicit
+    /// --attach owners remain isolated unless they deliberately publish here.
+    pub fn advertise(&mut self, directory: &Path) -> io::Result<()> {
+        if self.finished() || self.connected() || self.advertisement.is_some() {
+            return Err(io::Error::other("Invitation cannot be advertised now"));
+        }
+        self.advertisement = Some(discovery::Advertisement::publish(
+            directory,
+            self.invitation_path(),
+        )?);
+        Ok(())
     }
     pub fn connected(&self) -> bool {
         self.status.load(Ordering::Acquire) == 1
@@ -184,8 +199,12 @@ impl LocalSession {
             || !engine.is_open()
             || engine.target_guard().document_id != self.guard.document_id
         {
+            self.advertisement = None;
             self.shutdown.cancel();
             return false;
+        }
+        if self.connected() {
+            self.advertisement = None;
         }
         self.proposals.refresh(engine, &self.context);
         self.poll_file_export(engine, busy);
@@ -243,6 +262,7 @@ impl LocalSession {
 }
 impl Drop for LocalSession {
     fn drop(&mut self) {
+        self.advertisement = None;
         self.shutdown.cancel();
     }
 }
@@ -260,4 +280,9 @@ pub fn bridge(path: &Path) -> io::Result<()> {
     // This runtime belongs exclusively to the short-lived CLI bridge process.
     runtime.shutdown_background();
     result
+}
+
+/// One resolution and one connection. Never follow a later invitation or retry.
+pub fn bridge_active() -> io::Result<()> {
+    bridge(&discovery::resolve(&discovery::directory()?)?)
 }

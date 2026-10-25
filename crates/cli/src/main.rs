@@ -65,14 +65,16 @@ fn main() -> ExitCode {
     let json_output = cli.json;
     if let typstographe_cli::args::Action::Mcp {
         attach,
+        attach_active,
         read_only,
         read_roots,
         write_roots,
     } = cli.action
     {
-        let result: Result<(), Box<dyn std::error::Error>> = match attach {
-            Some(path) => typstographe_cli::mcp::local::bridge(&path).map_err(Into::into),
-            None => typstographe_cli::mcp::serve(read_only, read_roots, write_roots),
+        let result: Result<(), Box<dyn std::error::Error>> = match (attach_active, attach) {
+            (true, _) => typstographe_cli::mcp::local::bridge_active().map_err(Into::into),
+            (false, Some(path)) => typstographe_cli::mcp::local::bridge(&path).map_err(Into::into),
+            (false, None) => typstographe_cli::mcp::serve(read_only, read_roots, write_roots),
         };
         return match result {
             Ok(()) => ExitCode::SUCCESS,

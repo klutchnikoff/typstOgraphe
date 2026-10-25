@@ -5954,8 +5954,10 @@ dependencies = [
 name = "typstographe-mcp"
 version = "0.1.0"
 dependencies = [
+ "atomic-write-file",
  "base64 0.22.1",
  "clap",
+ "home",
  "interprocess",
  "jsonschema",
  "rmcp",
