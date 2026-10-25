@@ -37,11 +37,10 @@ impl App {
     }
     pub(super) fn import_model(&mut self) {
         let guard = self.document.engine.target_guard();
-        let Some(path) = rfd::FileDialog::new()
+        let dialog = rfd::FileDialog::new()
             .set_title(Command::ImportModel.label())
-            .add_filter(crate::tr!("model-file-filter"), &["typ"])
-            .pick_file()
-        else {
+            .add_filter(crate::tr!("model-file-filter"), &["typ"]);
+        let Some(path) = self.pick_file(dialog) else {
             return;
         };
         if let Err(error) =

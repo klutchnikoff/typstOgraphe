@@ -63,6 +63,7 @@ recovery-load-failed = Impossible de récupérer cette copie : { $error }
 recovery-delete-failed = Impossible de supprimer cette copie : { $error }
 
 save-dialog = Enregistrer le document
+file-dialog-unavailable = Le système n’a pas pu ouvrir le sélecteur de fichiers. Aucun fichier n’a été ouvert ni enregistré. Réessayez.
 letter-filter = Document typstOgraphe
 default-filename = Document.typsto
 replace-title = Remplacer le document ?

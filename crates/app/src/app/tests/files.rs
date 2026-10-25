@@ -1,6 +1,26 @@
 use super::*;
 
 #[test]
+fn failed_save_as_keeps_the_existing_file_binding_and_allows_an_ordinary_save() {
+    let dir = tempfile::tempdir().unwrap();
+    let original = dir.path().join("original.typsto");
+    let (_, mut app) = demo_app();
+    assert!(app.save_path(original.clone()));
+    let saved = storage::read(&original).unwrap();
+    insert_fixture_text(&mut app, "Modification à conserver. ");
+    let draft = app.stored_document();
+    assert!(!app.save_document_using(true, |_| {
+        Err(super::super::native_files::FileDialogUnavailable)
+    }));
+    assert_eq!(storage::read(&original).unwrap(), saved);
+    assert_eq!(app.document.engine.file_path(), Some(original.as_path()));
+    assert!(app.is_dirty());
+    assert!(app.save_document_using(false, |_| panic!("no dialog for an existing file")));
+    assert_eq!(storage::read(&original).unwrap(), draft);
+    assert!(!app.is_dirty() && app.file.error.is_none());
+}
+
+#[test]
 fn welcome_creation_and_close_use_the_catalog_without_an_implicit_document() {
     let ctx = egui::Context::default();
     let mut app = App::with_context(ctx.clone(), None);

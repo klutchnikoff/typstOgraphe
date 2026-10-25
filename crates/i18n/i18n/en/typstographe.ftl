@@ -1,6 +1,7 @@
 # Interface typstOgraphe. Ne pas traduire les données des courriers.
 
 save-dialog = Save document
+file-dialog-unavailable = The system could not open the file dialog. No file was opened or saved. Please try again.
 letter-filter = typstOgraphe document
 default-filename = Document.typsto
 replace-title = Replace the document?

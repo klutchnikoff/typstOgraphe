@@ -1,6 +1,44 @@
 use super::*;
 
 #[test]
+fn unavailable_save_panel_preserves_the_draft_and_its_recovery_until_a_retry() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("recovery");
+    let (ctx, mut app) = demo_app();
+    app.start_recovery(root.clone(), ctx.clone());
+    insert_fixture_text(&mut app, "Texte à conserver après le refus du panneau. ");
+    app.recovery.worker.as_mut().unwrap().make_due();
+    app.checkpoint_recovery();
+    app.recovery.worker.as_mut().unwrap().wait();
+    let draft = app.stored_document();
+    let guard = app.document.engine.target_guard();
+    let selection = app.document.selection;
+    app.request_action(PendingAction::CloseDocument, &ctx);
+    assert!(!app.save_document_using(false, |_| {
+        Err(super::super::native_files::FileDialogUnavailable)
+    }));
+    assert_eq!(app.file.error, Some(crate::tr!("file-dialog-unavailable")));
+    assert!(app.document.open && app.is_dirty() && app.document.engine.can_undo());
+    assert!(app.file.pending_action.is_some() && !app.file.allow_close);
+    assert_eq!(app.document.engine.target_guard(), guard);
+    assert_eq!(app.document.selection, selection);
+    assert_eq!(app.stored_document(), draft);
+    assert!(app.document.engine.file_path().is_none());
+    drop(app);
+
+    let mut app = App::with_demo_context(ctx.clone(), None);
+    app.start_recovery(root, ctx);
+    assert_eq!(app.recovery.entries.len(), 1);
+    app.recover_document(0);
+    assert_eq!(app.stored_document(), draft);
+    let copy = dir.path().join("recupere.typsto");
+    assert!(app.save_document_using(false, |_| Ok(Some(copy.clone()))));
+    app.recovery.worker.as_mut().unwrap().wait();
+    assert_eq!(storage::read(&copy).unwrap(), draft);
+    assert!(!app.is_dirty() && app.file.error.is_none());
+}
+
+#[test]
 fn recovery_dialog_defers_restores_and_saves_a_copy_without_overwriting_the_original() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().join("recovery");

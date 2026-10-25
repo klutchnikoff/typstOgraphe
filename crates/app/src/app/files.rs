@@ -40,6 +40,13 @@ impl App {
         }
     }
     fn save_document(&mut self, save_as: bool) -> bool {
+        self.save_document_using(save_as, native_files::save_file)
+    }
+    pub(super) fn save_document_using(
+        &mut self,
+        save_as: bool,
+        choose: impl FnOnce(rfd::FileDialog) -> native_files::FileDialogResult,
+    ) -> bool {
         if !self.document.open {
             return false;
         }
@@ -70,7 +77,7 @@ impl App {
         {
             dialog = dialog.set_directory(parent);
         }
-        if let Some(mut path) = dialog.save_file() {
+        if let Some(mut path) = self.file_dialog_result(choose(dialog)) {
             if path.extension().is_none() {
                 path.set_extension(storage::EXTENSION);
                 if path.exists()
@@ -220,7 +227,7 @@ impl App {
                 {
                     dialog = dialog.set_directory(parent);
                 }
-                if let Some(path) = dialog.pick_file() {
+                if let Some(path) = self.pick_file(dialog) {
                     self.open_path(path);
                 }
             }

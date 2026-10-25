@@ -23,6 +23,7 @@ mod information;
 mod information_fields;
 mod links;
 mod models;
+mod native_files;
 mod preferences;
 mod preview;
 mod recovery;

@@ -23,11 +23,10 @@ impl App {
     }
     pub(super) fn choose_signature(&mut self, profile: bool) {
         let guard = self.document.engine.target_guard();
-        let Some(path) = rfd::FileDialog::new()
+        let dialog = rfd::FileDialog::new()
             .set_title(crate::tr!("signature-choose"))
-            .add_filter(crate::tr!("image-files"), &["png", "jpg", "jpeg", "svg"])
-            .pick_file()
-        else {
+            .add_filter(crate::tr!("image-files"), &["png", "jpg", "jpeg", "svg"]);
+        let Some(path) = self.pick_file(dialog) else {
             return;
         };
         if profile {
