@@ -25,6 +25,7 @@ mod ime;
 mod information;
 mod information_engine;
 mod models_engine;
+mod palette;
 mod preview;
 mod profile;
 mod recovery;

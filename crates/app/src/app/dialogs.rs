@@ -156,6 +156,7 @@ impl App {
                 if !response.has_focus() {
                     response.request_focus();
                 }
+                let mut reveal_selection = response.changed() || response.gained_focus();
                 if response.changed() {
                     self.dialogs.palette_index = 0;
                 }
@@ -169,17 +170,19 @@ impl App {
                     && !filtered.is_empty()
                 {
                     self.dialogs.palette_index = (self.dialogs.palette_index + 1) % filtered.len();
+                    reveal_selection = true;
                 }
                 if ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp))
                     && !filtered.is_empty()
                 {
                     self.dialogs.palette_index =
                         (self.dialogs.palette_index + filtered.len() - 1) % filtered.len();
+                    reveal_selection = true;
                 }
                 if ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
                     choice = filtered.get(self.dialogs.palette_index).map(|(_, c)| *c);
                 }
-                self.palette_rows(ui, filtered, &mut choice);
+                self.palette_rows(ui, filtered, reveal_selection, &mut choice);
             });
         });
         let outside = ctx.input(|i| {
@@ -233,6 +236,7 @@ impl App {
         &self,
         ui: &mut egui::Ui,
         entries: Vec<(Option<crate::commands::MenuGroup>, Command)>,
+        reveal_selection: bool,
         choice: &mut Option<Command>,
     ) {
         let muted = crate::theme::Tokens::new(ui.visuals().dark_mode).muted;
@@ -242,6 +246,7 @@ impl App {
             .show(ui, |ui| {
                 egui::ScrollArea::vertical()
                     .max_height(360.0)
+                    .animated(false)
                     .show(ui, |ui| {
                         ui.spacing_mut().item_spacing.y = 2.0;
                         let mut heading = None;
@@ -269,7 +274,12 @@ impl App {
                             .selected(index == self.dialogs.palette_index)
                             .min_size(egui::vec2(ui.available_width(), 30.0))
                             .shortcut_text(self.keymap.shortcut_text(ui.ctx(), command));
-                            if ui.add(button).clicked() {
+                            let response = ui.add(button);
+                            // Suivre le clavier sans ramener la liste après un défilement manuel.
+                            if reveal_selection && index == self.dialogs.palette_index {
+                                response.scroll_to_me(None);
+                            }
+                            if response.clicked() {
                                 *choice = Some(command);
                             }
                         }
