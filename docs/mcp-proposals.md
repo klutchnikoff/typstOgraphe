@@ -1,9 +1,10 @@
 # Propositions MCP — préparation de 6.4b
 
-Statut au 25 octobre 2026 : **parcours et protocole proposés, à valider avant leur
-intégration**. D36 valide déjà l’accord humain sur un lot entier. Le socle Rust
-d’acceptation atomique est implémenté et testé ; le MCP rattaché reste en lecture
-seule. Ce document ne vaut pas décision D39 et n’annonce aucun nouvel outil livré.
+Statut au 25 octobre 2026 : **parcours et protocole validés par l’utilisateur (D39),
+intégration en cours**. D36 valide l’accord humain sur un lot entier. Le socle Rust
+d’acceptation atomique est implémenté et testé ; le rattachement reste en lecture
+seule jusqu’à la livraison du parcours complet. Ce contrat distingue les outils
+à intégrer des fonctionnalités déjà disponibles.
 
 ## Présentation proposée
 
