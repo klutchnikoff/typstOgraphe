@@ -262,20 +262,55 @@ pub fn paint_decorations_with_band(
                 ),
             );
         }
+        // Les descriptions n'ont pas de puce : le terme encadré en tient lieu.
         let text = match kind {
-            BlockKind::Bullet | BlockKind::Description => "•".to_owned(),
+            BlockKind::Bullet => "•".to_owned(),
             BlockKind::Numbered => format!("{number}."),
             _ => continue,
         };
-        let position = output.galley.pos_from_cursor(CCursor::new(range.start));
-        let point = output.galley_pos + egui::vec2(3.0, position.center().y);
-        ui.painter_at(output.text_clip_rect).text(
-            point,
-            egui::Align2::LEFT_CENTER,
-            text,
-            editor.font.font_id(editor.size * 8.0 / 9.0, 0),
-            ui.visuals().text_color(),
-        );
+        paint_marker(ui, output, editor, range.start, text);
     }
     clicked_term
+}
+
+/// Peint une puce ou un numéro sur la ligne de base du texte de la ligne ; une ligne
+/// vide n'a pas de ligne de base : le marqueur se centre alors sur la ligne.
+fn paint_marker(
+    ui: &egui::Ui,
+    output: &egui::text_edit::TextEditOutput,
+    editor: EditorStyle,
+    start: usize,
+    text: String,
+) {
+    let painter = ui.painter_at(output.text_clip_rect);
+    let color = ui.visuals().text_color();
+    let galley =
+        painter.layout_no_wrap(text, editor.font.font_id(editor.size * 8.0 / 9.0, 0), color);
+    let mut character = 0;
+    let mut baseline = None;
+    for row in &output.galley.rows {
+        let row_end = character + row.glyphs.len();
+        if (character..row_end).contains(&start) {
+            baseline = Some(row.pos.y + row.glyphs[start - character].pos.y);
+            break;
+        }
+        character = row_end + usize::from(row.ends_with_newline);
+    }
+    let y = match baseline {
+        Some(baseline) => {
+            let own = galley
+                .rows
+                .first()
+                .and_then(|row| row.glyphs.first())
+                .map_or(0.0, |glyph| glyph.pos.y);
+            output.galley_pos.y + baseline - own
+        }
+        None => {
+            let mut cursor = CCursor::new(start);
+            cursor.prefer_next_row = true;
+            output.galley_pos.y + output.galley.pos_from_cursor(cursor).center().y
+                - galley.size().y / 2.0
+        }
+    };
+    painter.galley(egui::pos2(output.galley_pos.x + 3.0, y), galley, color);
 }

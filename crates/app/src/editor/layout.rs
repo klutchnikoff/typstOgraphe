@@ -2,6 +2,10 @@
 use super::*;
 // Ces couleurs décrivent le sens du texte dans l’éditeur. Elles ne dépendent
 // ni du type de document ni du modèle qui le compose dans Typst.
+/// Hauteur de ligne de l'éditeur, en multiple de la taille du texte. Le curseur prend
+/// la hauteur de la ligne entière : une valeur trop grande le rend disproportionné.
+pub(super) const LINE_HEIGHT: f32 = 1.35;
+
 pub(super) struct EditorColors {
     pub(super) text: Color32,
     pub(super) accent: Color32,
@@ -65,7 +69,7 @@ pub(super) fn text_format(
         } else {
             colors.text
         },
-        line_height: Some(size * 1.55),
+        line_height: Some(size * LINE_HEIGHT),
         ..Default::default()
     }
 }
@@ -178,6 +182,12 @@ pub fn layout_with_context(
         }
         if kind == BlockKind::Description && in_term {
             format.font_id.size *= DESCRIPTION_LABEL_SCALE;
+            // egui cale chaque section sur le bas de sa propre ligne : le terme, composé
+            // plus petit, remonterait. On raccourcit sa ligne de la différence des
+            // ascendantes pour que sa ligne de base soit celle du texte qui suit.
+            let reference = editor.font.font_id(editor.size, 0);
+            let shift = ascent(ui, &reference) - ascent(ui, &format.font_id);
+            format.line_height = format.line_height.map(|height| height - shift);
         }
         let mut leading = 0.0;
         if at_line_start && kind == BlockKind::Description && character == '\t' {
@@ -391,4 +401,16 @@ pub(super) fn space_blocks(
     spaced.rect.max.y += (offset * spaced.pixels_per_point).round() / spaced.pixels_per_point;
     spaced.mesh_bounds = mesh_bounds;
     galley
+}
+
+/// Ascendante d'une police : ordonnée de la ligne de base d'une ligne composée seule.
+fn ascent(ui: &egui::Ui, font: &egui::FontId) -> f32 {
+    ui.fonts_mut(|fonts| {
+        fonts
+            .layout_no_wrap("x".into(), font.clone(), Color32::WHITE)
+            .rows
+            .first()
+            .and_then(|row| row.glyphs.first())
+            .map_or(0.0, |glyph| glyph.pos.y)
+    })
 }

@@ -133,7 +133,7 @@ fn paragraph_marker_is_visual_only_and_keeps_native_blank_line_cursors() {
                 cursor.prefer_next_row = true;
                 let blank = output.galley.pos_from_cursor(cursor);
                 let next = output.galley.pos_from_cursor(CCursor::new(9));
-                assert!((next.top() - blank.top() - editor.size * 1.55).abs() < 1.0);
+                assert!((next.top() - blank.top() - editor.size * layout::LINE_HEIGHT).abs() < 1.0);
                 assert_eq!(
                     output
                         .galley
