@@ -43,33 +43,8 @@ impl App {
                     target: band.target.into(),
                 }))
             }
-            (
-                BandContent::Remove {
-                    image: Some(reference),
-                    ..
-                },
-                BandAction::Remove,
-            ) => Some(Core::RemoveImage(crate::engine::ImageTargetParams {
-                target: *reference,
-            })),
-            (BandContent::Remove { .. }, BandAction::Remove) => {
-                // Normalise the now-empty first row as an ordinary paragraph too.
-                // Both steps are one transaction and use the existing public commands.
-                let guard = band.target.guard;
-                Some(Core::Batch(crate::engine::BatchParams {
-                    guard,
-                    save: None,
-                    steps: vec![
-                        Core::Paragraph(TargetParams {
-                            target: band.target.into(),
-                        })
-                        .to_call(),
-                        Core::DeleteText(TargetParams {
-                            target: TextTarget::Current {},
-                        })
-                        .to_call(),
-                    ],
-                }))
+            (BandContent::Remove { image, .. }, BandAction::Remove) => {
+                Some(Self::widget_removal_command(band.target, *image))
             }
             (BandContent::Spelling { issue }, BandAction::Correct(text)) => Some(
                 Core::CorrectSpelling(crate::engine::SpellingCorrectionParams {
@@ -124,5 +99,29 @@ impl App {
                 self.dialogs.message = Some(error);
             }
         }
+    }
+
+    pub(in crate::app) fn widget_removal_command(
+        target: SelectionTarget,
+        image: Option<BlockTarget>,
+    ) -> Core {
+        if let Some(target) = image {
+            return Core::RemoveImage(crate::engine::ImageTargetParams { target });
+        }
+        // The keyboard and confirmation band use the same guarded transaction.
+        Core::Batch(crate::engine::BatchParams {
+            guard: target.guard,
+            save: None,
+            steps: vec![
+                Core::Paragraph(TargetParams {
+                    target: target.into(),
+                })
+                .to_call(),
+                Core::DeleteText(TargetParams {
+                    target: TextTarget::Current {},
+                })
+                .to_call(),
+            ],
+        })
     }
 }

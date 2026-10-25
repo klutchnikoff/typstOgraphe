@@ -61,6 +61,10 @@ impl App {
             ),
             Route::Contextual => self.context_document_command(command).is_some_and(enabled),
             Route::Interface => match command {
+                Command::RemoveWidget => {
+                    self.document.ime.draft.is_none()
+                        && self.current_widget_removal().is_some_and(enabled)
+                }
                 Command::RecoverDocuments => !self.recovery.entries.is_empty(),
                 Command::SpellingSuggestions | Command::LearnSpelling => {
                     self.current_spelling_reference().is_some()

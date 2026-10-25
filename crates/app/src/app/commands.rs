@@ -74,6 +74,13 @@ impl App {
             Command::RecoverDocuments => self.recovery.open = !self.recovery.entries.is_empty(),
             Command::ImportModel => self.import_model(),
             Command::InsertImage => self.choose_image(None),
+            Command::RemoveWidget => {
+                if let Some(core) = self.current_widget_removal()
+                    && self.run_document_command(core)
+                {
+                    self.bands.open = None;
+                }
+            }
             Command::Preferences => self.dialogs.preferences_open = true,
             Command::Assistance => self.dialogs.assistance_open = true,
             Command::File(command) => self.file.command = Some(command),
@@ -130,12 +137,7 @@ impl App {
         if self.modal_open() {
             return;
         }
-        if self.bands.open.is_some()
-            && !self.composing_input(ctx)
-            && !self.bands.parameter_ime
-            && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
-        {
-            self.close_band(ctx);
+        if self.band_shortcuts(ctx) {
             return;
         }
         if self.bands.open.is_some()
@@ -157,7 +159,10 @@ impl App {
             .map_or_else(Vec::new, |menus| menus.shortcuts());
         #[cfg(not(target_os = "macos"))]
         let reserved = Vec::new();
-        let commands = ctx.input_mut(|input| self.keymap.consume(input, focused, &reserved));
+        let commands = ctx.input_mut(|input| {
+            self.keymap
+                .consume(input, focused, &reserved, |c| self.command_enabled(c))
+        });
         for command in commands {
             if self.modal_open() {
                 break;

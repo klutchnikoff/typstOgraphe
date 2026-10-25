@@ -42,6 +42,7 @@ pub(super) struct EditorBands {
     pub pointer_capture: bool,
     pub field_focused: bool,
     pub parameter_ime: bool,
+    pub submit_pending: bool,
 }
 pub(super) enum BandAction {
     Close,
@@ -71,6 +72,38 @@ impl Band {
     }
 }
 impl App {
+    pub(super) fn band_shortcuts(&mut self, ctx: &egui::Context) -> bool {
+        if self.bands.open.is_none() || self.composing_input(ctx) || self.bands.parameter_ime {
+            return false;
+        }
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+            self.close_band(ctx);
+            return true;
+        }
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter)) {
+            // Paint the native fields first, so text committed in the same frame
+            // is included. The document TextEdit must not receive this Enter.
+            self.bands.submit_pending = true;
+            return true;
+        }
+        false
+    }
+    pub(super) fn current_widget_removal(&self) -> Option<crate::engine::Command> {
+        let range = self.range();
+        let widget = editor::widgets(&self.document.engine.document().view)
+            .into_iter()
+            .find(|w| w.range.start <= range.start && range.end <= w.range.end)?;
+        let target = self
+            .document
+            .engine
+            .selection_target(editor::to_core(editor::cursor(widget.range)))
+            .ok()?;
+        let image = match widget.kind {
+            WidgetKind::Image(id) => Some(self.document.engine.image_target(id)?),
+            _ => None,
+        };
+        Some(Self::widget_removal_command(target, image))
+    }
     pub(super) fn track_band_input(&mut self, ctx: &egui::Context) {
         self.bands.field_focused = self.bands.open.is_some()
             && ctx.memory(|m| m.has_focus(egui::Id::new("editor-band-input")));
@@ -114,6 +147,7 @@ impl App {
         });
         self.bands.parameter_ime = false;
         self.bands.field_focused = false;
+        self.bands.submit_pending = false;
         self.document.history_field = None;
     }
     pub(super) fn close_band(&mut self, ctx: &egui::Context) {
@@ -122,6 +156,7 @@ impl App {
         };
         self.bands.parameter_ime = false;
         self.bands.field_focused = false;
+        self.bands.submit_pending = false;
         let retained = if band.return_selection.guard == self.document.engine.target_guard() {
             Some(band.return_selection)
         } else {

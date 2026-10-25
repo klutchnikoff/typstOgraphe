@@ -91,6 +91,7 @@ impl App {
             return None;
         }
         self.bands.hit_regions.push(rect.intersect(ui.clip_rect()));
+        let submit = ui.is_enabled() && std::mem::take(&mut self.bands.submit_pending);
         let band = self.bands.open.as_mut()?;
         if self.document.engine.resolve_target(band.target).is_err() {
             band.error = Some(crate::tr!("edit-stale-draft"));
@@ -115,13 +116,13 @@ impl App {
                 ui.horizontal(|ui| {
                     ui.strong(band.title());
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if icon_button(ui, Icon::Close, true, &crate::tr!("widget-close")).clicked()
-                        {
+                        let close = icon_button(ui, Icon::Close, true, &crate::tr!("widget-close"));
+                        if close.clicked() || (submit && close.has_focus()) {
                             action = Some(BandAction::Close);
                         }
                     });
                 });
-                if let Some(next) = band_body(
+                let body_action = band_body(
                     ui,
                     band,
                     self.spelling
@@ -129,8 +130,10 @@ impl App {
                         .suggestions
                         .as_ref()
                         .and_then(|(_, values)| values.as_deref()),
-                ) {
-                    action = Some(next);
+                    submit,
+                );
+                if action.is_none() {
+                    action = body_action;
                 }
                 measured = ui.min_rect().height() + 16.0;
             },
@@ -162,6 +165,7 @@ fn band_body(
     ui: &mut egui::Ui,
     band: &mut Band,
     suggestions: Option<&[String]>,
+    submit: bool,
 ) -> Option<BandAction> {
     let mut action = None;
     let mut apply = false;
@@ -177,7 +181,7 @@ fn band_body(
                 response.request_focus();
             }
             ui.horizontal_wrapped(|ui| {
-                if ui.button(crate::tr!("image-replace")).clicked() {
+                if band_button(ui, crate::tr!("image-replace"), submit) {
                     action = Some(BandAction::ReplaceImage);
                 }
                 ui.weak(crate::tr!("widget-caption-direct"));
@@ -208,7 +212,7 @@ fn band_body(
             if band.focus_pending {
                 response.request_focus();
             }
-            if ui.small_button(Command::RemoveLink.short_label()).clicked() {
+            if band_button(ui, Command::RemoveLink.short_label(), submit) {
                 action = Some(BandAction::Remove);
             }
             apply = true;
@@ -220,10 +224,10 @@ fn band_body(
                 "widget-delete-help"
             }));
             ui.horizontal(|ui| {
-                if ui.button(crate::tr!("cancel")).clicked() {
+                if band_button(ui, crate::tr!("cancel"), submit) {
                     action = Some(BandAction::Close);
                 }
-                if ui.button(crate::tr!("widget-delete")).clicked() {
+                if band_button(ui, crate::tr!("widget-delete"), submit) {
                     action = Some(BandAction::Remove);
                 }
             });
@@ -236,7 +240,7 @@ fn band_body(
                         ui.weak(crate::tr!("spelling-no-suggestions"));
                     }
                     for suggestion in suggestions {
-                        if ui.button(suggestion).clicked() {
+                        if band_button(ui, suggestion, submit) {
                             action = Some(BandAction::Correct(suggestion.clone()));
                         }
                     }
@@ -246,7 +250,7 @@ fn band_body(
             }
             ui.horizontal_wrapped(|ui| {
                 for command in [Command::IgnoreSpelling, Command::LearnSpelling] {
-                    if ui.button(command.label()).clicked() {
+                    if band_button(ui, command.label(), submit) {
                         action = Some(BandAction::Spelling(command));
                     }
                 }
@@ -258,13 +262,32 @@ fn band_body(
     }
     if apply {
         ui.horizontal(|ui| {
-            if ui.button(crate::tr!("cancel")).clicked() {
+            if band_button(ui, crate::tr!("cancel"), submit) {
                 action = Some(BandAction::Close);
             }
-            if ui.button(crate::tr!("apply")).clicked() {
+            if band_button(ui, crate::tr!("apply"), submit) {
                 action = Some(BandAction::Apply);
             }
         });
     }
-    action
+    action.or_else(|| {
+        if !submit {
+            return None;
+        }
+        match &band.content {
+            BandContent::Image { .. } | BandContent::List { .. } | BandContent::Link { .. } => {
+                Some(BandAction::Apply)
+            }
+            BandContent::Remove { .. } => Some(BandAction::Remove),
+            BandContent::Spelling { .. } => suggestions
+                .and_then(|s| s.first())
+                .cloned()
+                .map(BandAction::Correct),
+        }
+    })
+}
+
+fn band_button(ui: &mut egui::Ui, label: impl Into<egui::WidgetText>, submit: bool) -> bool {
+    let response = ui.button(label);
+    response.clicked() || (submit && response.has_focus())
 }

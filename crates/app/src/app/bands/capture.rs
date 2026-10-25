@@ -11,6 +11,9 @@ impl App {
                 .into(),
         );
         let mode = scenario.strip_suffix("-dark").unwrap_or(scenario);
+        if mode == "list-empty" {
+            stored.source = "Madame, Monsieur,\n\n- Un premier élément suffisamment long pour se replier et vérifier le retrait du texte dans la colonne de gauche.\n- ".into();
+        }
         if mode == "quote" {
             stored.source="Madame, Monsieur,\n\n/ Accueil: Un temps d’échange avec les associations.\n/ Équipement: Une salle accessible et un vidéoprojecteur.\n\n#quote(block: true, attribution: [Projet associatif])[Un lieu accessible à toutes et à tous, propice aux échanges.\n\nLa participation des habitants est au cœur de notre démarche.]\n\nJe vous remercie pour votre retour.".into();
         }
@@ -40,6 +43,11 @@ impl App {
                 self.open_widget_band(widget, scenario == "remove");
             }
             "quote" | "notes" => {}
+            "list-empty" => {
+                let at = self.document.engine.document().view.len();
+                self.document.selection = editor::cursor(at..at);
+                self.document.force_selection = true;
+            }
             "spelling" => self.spelling.capture_active = true,
             "link" => {
                 self.document.selection = editor::cursor(0..7);

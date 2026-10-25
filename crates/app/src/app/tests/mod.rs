@@ -35,5 +35,6 @@ mod text_input;
 mod toolbar;
 mod view_coordination;
 mod widget_bands;
+mod widget_keyboard;
 
 mod assistance;

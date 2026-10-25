@@ -51,6 +51,7 @@ pub enum UiCommand {
     Block(BlockKind),
     Link,
     RemoveLink,
+    RemoveWidget,
     InsertImage,
     InsertPostscript,
     InsertAttachment,
@@ -338,6 +339,19 @@ pub const COMMON_COMMANDS: &[Presentation] = &[
         Scope::Editor,
         &[],
     ),
+    Presentation {
+        macos: Some(&[
+            primary(Key::Backspace),
+            KeyboardShortcut::new(Modifiers::CTRL, Key::Backspace),
+        ]),
+        ..define(
+            "edit.remove_widget",
+            "cmd-remove-widget",
+            UiCommand::RemoveWidget,
+            Scope::Editor,
+            &[primary(Key::Backspace)],
+        )
+    },
     define(
         "text.clear",
         "cmd-clear",
@@ -638,6 +652,7 @@ impl Keymap {
         input: &mut egui::InputState,
         editor_focused: bool,
         native_shortcuts: &[KeyboardShortcut],
+        enabled: impl Fn(UiCommand) -> bool,
     ) -> Vec<UiCommand> {
         let mut commands = Vec::new();
         input.events.retain(|event| {
@@ -659,6 +674,9 @@ impl Keymap {
                 }
                 for entry in &self.commands {
                     if entry.definition.scope == Scope::Editor && !editor_focused {
+                        continue;
+                    }
+                    if !enabled(entry.definition.command) {
                         continue;
                     }
                     if entry.shortcuts.iter().any(|shortcut| {
@@ -717,7 +735,7 @@ mod tests {
                 ..Default::default()
             },
             |ctx| {
-                commands = ctx.input_mut(|input| keymap.consume(input, editor, &[]));
+                commands = ctx.input_mut(|input| keymap.consume(input, editor, &[], |_| true));
                 retained = ctx.input(|input| {
                     input
                         .events
@@ -730,6 +748,28 @@ mod tests {
     }
     fn overrides(json: &str) -> ShortcutOverrides {
         serde_json::from_str(json).unwrap()
+    }
+
+    #[test]
+    fn remove_widget_uses_control_everywhere_and_command_on_macos_too() {
+        for is_mac in [false, true] {
+            let map = Keymap::new(
+                Registry::new(DocumentType::Courrier),
+                is_mac,
+                &ShortcutOverrides::default(),
+            )
+            .unwrap();
+            for modifiers in [Modifiers::CTRL, Modifiers::COMMAND] {
+                assert_eq!(
+                    dispatch(&map, Key::Backspace, modifiers, true),
+                    (vec![UiCommand::RemoveWidget], false)
+                );
+                assert_eq!(
+                    dispatch(&map, Key::Backspace, modifiers, false),
+                    (vec![], true)
+                );
+            }
+        }
     }
 
     #[test]
@@ -758,7 +798,7 @@ mod tests {
                 ..Default::default()
             },
             |ctx| {
-                commands = ctx.input_mut(|input| map.consume(input, true, &reserved));
+                commands = ctx.input_mut(|input| map.consume(input, true, &reserved, |_| true));
                 assert!(ctx.input(|input| input.events.is_empty()));
             },
         );
