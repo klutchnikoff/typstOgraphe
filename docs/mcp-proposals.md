@@ -189,7 +189,8 @@ Les tests supplémentaires couvrent les quatre scénarios du stockage MCP
 (déduplication, états, budgets, refus et ressources), les outils sur une connexion
 rmcp locale réelle, les sept parcours egui (accord/refus, interruptions, focus,
 péremption, révocation, passage visible et rendu sans suivi), et deux comparaisons
-Unicode/formatage/liens. La recette agent LLM relève de 6.6.
+Unicode/formatage/liens. La [recette agent LLM de 6.6](mcp-attached-acceptance.md)
+confirme le parcours natif, les refus, les accords et les fichiers.
 
 Captures natives conservées dans `output/phase6-4b/` : contenu clair/sombre,
 informations avec vignette, aperçu candidat et proposition périmée. Reproduction :

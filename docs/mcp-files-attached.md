@@ -114,8 +114,8 @@ remplacée par un lien. Un client **SDK rmcp réel** exécute sauvegarde et expo
 avec une lecture concurrente sur la session possédée par l’interface.
 
 Le test egui active le droit par sa case à cocher et vérifie récupération, focus,
-sélection et style après l’effet de sauvegarde. La recette avec agent LLM,
-rédaction simultanée et captures du parcours complet reste le lot **6.6**.
+sélection et style après l’effet de sauvegarde. La [recette 6.6 avec agent LLM](mcp-attached-acceptance.md) confirme maintenant
+la rédaction simultanée et le parcours graphique jusqu’aux fichiers.
 
 Validation locale macOS : **542 tests Rust et deux doctests**, 14 tests Python,
 Clippy workspace/toutes cibles avec `-D warnings`, formatage, frontières du cœur,

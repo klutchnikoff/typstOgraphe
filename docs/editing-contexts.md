@@ -150,8 +150,8 @@ validés en D39 et livrés le 25 octobre 2026. Le serveur autonome conserve ses 
 utilisateur. Le repérage temporaire cesse lors d’un mouvement de sélection ou d’une
 publication qui périme sa cible. L’interface restaure l’ancre visible et le focus,
 sans changer la sélection quand l’utilisateur choisit « Voir ». Une vérification
-de fraîcheur technique ne vaut jamais accord humain. Fichiers et recette agent
-réelle restent en 6.5/6.6.
+de fraîcheur technique ne vaut jamais accord humain. Les fichiers sont livrés en 6.5 ; la
+[recette agent réelle](mcp-attached-acceptance.md) est terminée en 6.6.
 
 Les tests se trouvent dans `engine/tests/positions.rs`, `contexts.rs`, `proposals.rs`,
 `engine/tests/proposals/acceptance.rs`,

@@ -1,4 +1,4 @@
-# MCP local — début de phase 6
+# MCP local — assistance à la composition (phase 6)
 
 Les choix D34/D35/D36 et les lots sont consignés dans
 [ROADMAP-ARCHITECTURE.md](../ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).
@@ -7,7 +7,8 @@ Le rattachement propose désormais les **lots soumis à approbation humaine** de
 propositions](mcp-proposals.md) précise `proposals.submit/get/cancel`, la comparaison
 native, l’accord/refus et la péremption. Les éditions directes restent refusées ;
 l’enregistrement et l’export publiés sont livrés en [6.5](mcp-files-attached.md),
-sous droits facultatifs distincts propres à l’invitation.
+sous droits facultatifs distincts propres à l’invitation. La
+[recette native avec agent réel](mcp-attached-acceptance.md) clôt la phase 6.
 
 ## Décision pour les futures modifications rattachées (D36)
 

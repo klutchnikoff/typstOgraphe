@@ -897,8 +897,9 @@ Aucun deuxième écrivain ne contourne le verrou du fichier. La session MCP auto
 la session rattachée réutilisent les mêmes capacités et leur documentation.
 L'[inventaire K.1](docs/interface-interactions.md) est terminé. Les contextes et
 le report des positions sont livrés en 6.3 (D32, D33), le transport local et le
-rattachement en lecture en 6.2 (D34/D35). **La phase 6 reste en cours : 6.1,
-6.2, 6.3, 6.4a, 6.4b et 6.5 sont livrés ; 6.6 reste à réaliser.** Le MCP
+rattachement en lecture en 6.2 (D34/D35). **La phase 6 est terminée le
+25 octobre 2026 : les lots 6.1 à 6.6 sont livrés et la recette native avec agent
+réel est validée.** Le MCP
 rattaché accepte des propositions privées, publiées seulement après accord humain ;
 les sauvegardes et exports publiés exigent leurs autorisations distinctes par invitation.
 
@@ -956,11 +957,17 @@ les sauvegardes et exports publiés exigent leurs autorisations distinctes par i
   des interruptions, de la demande et de la destination avant l’écriture. Utiliser
   uniquement le document publié, jamais une proposition en attente. SDK rmcp réel,
   tests egui et tests de refus/coupure/concurrence ; [contrat](docs/mcp-files-attached.md).
-- [ ] **6.6 — Recette.** Agent réel sans skill ni accès au dépôt, rédaction
-  simultanée, acceptation/refus/péremption des propositions, IME/modalité, coupure,
-  sauvegarde/export et captures graphiques.
+- [x] **6.6 — Recette.** Livrée le 25 octobre 2026 : agent réel sans skill ni
+  lecture du dépôt, rédaction simultanée, acceptation/refus/péremption des lots,
+  IME et modalité, coupure, sauvegarde/export et captures natives clair/sombre.
+  Transfert explicite de sélection dans le registre graphique et navigation
+  propre à l’agent ; correction du blocage PNG par compilation/rasterisation
+  en arrière-plan, gardes revalidées au retour. 553 tests Rust, deux doctests,
+  14 tests Python ; [bilan, mesures et limites](docs/mcp-attached-acceptance.md).
+  La préédition est injectée par événements egui : aucun nouvel essai physique
+  d’IME macOS ni graphique Linux/Windows n’est revendiqué.
 
-La phase démarre par 6.1 et 6.2 : aucun accès en écriture n'est livré avant les
+La phase a démarré par 6.1 et 6.2 : aucun accès en écriture n’a été livré avant les
 protections des contextes. Le rattachement peut être matérialisé par une invitation
 créée volontairement dans l'application pour son document courant ; cette
 invitation ne confère aucun accès aux autres documents.
@@ -979,31 +986,31 @@ reste la décision initiale de phase 5, le cœur ne change pas de dépendances.
   Publier un lot accepté atomiquement, avec une seule étape d'annulation. L'interface
   de comparaison est validée en D39 et livrée ; « Voir » après publication
   ne remplace pas l'approbation préalable.
-- [ ] Contextes d'édition séparés : sélection et style de frappe propres à
+- [x] Contextes d'édition séparés : sélection et style de frappe propres à
   l'utilisateur et à l'agent. Une sélection transmise est capturée à la demande,
   sans suivre ensuite les déplacements de l'utilisateur.
-- [ ] Concurrence stricte : garde d'identité et de révision vérifiée pour chaque
+- [x] Concurrence stricte : garde d'identité et de révision vérifiée pour chaque
   commande/lot ; état périmé refusé, avec relecture avant une nouvelle tentative.
   Les commandes rejoignent un point d'exécution commun, après publication des
   entrées natives, et leurs effets sont adaptés une seule fois selon leur origine.
-- [ ] Reporter les positions utilisateur à travers les transactions, y compris
+- [x] Reporter les positions utilisateur à travers les transactions, y compris
   celles utilisées pour conserver le passage visible. Si le passage contenant
   le curseur est supprimé, le replacer à la fin du remplacement.
-- [ ] Conserver focus, style de frappe et navigation utilisateur pendant une
+- [x] Conserver focus, style de frappe et navigation utilisateur pendant une
   intervention ; actualiser le rendu sans défiler vers la sélection de l'agent.
   Notification discrète et bouton « Voir » volontaire : révéler dans les deux
   panneaux, focaliser l'éditeur, repérer temporairement sans modifier la sélection.
   Revalider la cible au clic ; une cible périmée est signalée sans approximation.
-- [ ] Pendant préédition IME ou dialogue modal, autoriser les lectures du texte
+- [x] Pendant préédition IME ou dialogue modal, autoriser les lectures du texte
   publié et refuser temporairement les mutations. Pas de file d'attente qui
   appliquerait silencieusement la demande à la levée de l'interruption.
-- [ ] Refuser les demandes visant un document fermé/remplacé ; ignorer les
+- [x] Refuser les demandes visant un document fermé/remplacé ; ignorer les
   résultats tardifs d'une demande annulée. Une édition déjà publiée s'annule par
   l'historique, pas par l'annulation rétroactive de la demande.
-- [ ] Historique chronologique commun : un lot cohérent d'agent forme une étape,
+- [x] Historique chronologique commun : un lot cohérent d'agent forme une étape,
   séparée des groupes de frappe. Les frappes ultérieures de l'utilisateur se
   défont avant ce lot. Identifier l'origine de l'intervention.
-- [ ] Préciser puis implémenter le rattachement local à la session et la
+- [x] Préciser puis implémenter le rattachement local à la session et la
   revalidation des décisions différées, notamment une confirmation d'abandon.
 
 Ces choix demandent un travail propre au moteur : un coordinateur par vue ne
@@ -1142,8 +1149,9 @@ identiques ; le contrat est documenté et vérifié par la CI.
 a livré le coordinateur pur et ses tests ; K.3 l'a branché dans egui avec parcours
 et captures identiques ; K.4 documente et exerce la frontière générale. Les preuves
 de K.2/K.3 restent valables ; aucune nouvelle capture n'est nécessaire pour ce lot
-documentaire. L’édition rattachée de phase 6 reste à implémenter : un `ViewSync`
-par vue n’ajoute ni contexte d'édition séparé, ni report des positions, ni canal de rattachement.
+documentaire. À l’issue de K.4, l’édition rattachée restait à implémenter : un
+`ViewSync` par vue ne fournit pas à lui seul les contextes séparés, le report des
+positions ni le canal. Ces éléments ont ensuite été livrés et validés en phase 6.
 
 ---
 

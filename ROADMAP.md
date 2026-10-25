@@ -104,7 +104,9 @@ persistante de modèles restent à développer.
   avec deux exemples Rust exécutés par les tests de documentation et le contrôle
   du cœur seul sans dépendance graphique. La phase 6 livre maintenant le transport,
   les propositions approuvées et les [fichiers rattachés](docs/mcp-files-attached.md).
-  La recette complète avec agent réel reste à effectuer en 6.6.
+  La [recette 6.6](docs/mcp-attached-acceptance.md) avec agent réel est terminée :
+  propositions acceptées/refusées/périmées, interruptions, sauvegarde/export et
+  captures. Le PNG MCP est calculé en arrière-plan. La phase 6 est close.
   État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),
   décisions et lots MCP dans [celui de phase 5](docs/architecture-phase-5.md).
 
@@ -733,7 +735,8 @@ commande à identifiant stable, pilotable par une ligne de commande et par MCP.
   publication ; relecture et protocole validés en D39 et livrés en 6.4b.
   Contextes séparés, positions, focus et défilement sont conservés.
   Sauvegarde/export sous droits propres à l’invitation livrés en
-  [6.5](docs/mcp-files-attached.md). Prochaine étape : recette agent réelle (6.6).
+  [6.5](docs/mcp-files-attached.md), puis validés par la
+  [recette réelle 6.6](docs/mcp-attached-acceptance.md), terminée le 25 octobre 2026.
 - **Phase 7 :** consolidation et documentation.
 
 **Ordre avec les autres chantiers :** ce chantier passe avant l’étape 5.
