@@ -129,7 +129,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eframe::run_native(
         "ui-kit",
         options,
-        Box::new(move |_| {
+        Box::new(move |cc| {
+            typstographe::editor::install_fonts(&cc.egui_ctx);
+            typstographe::theme::install(&cc.egui_ctx);
             Ok(Box::new(Sheet {
                 out,
                 dark,

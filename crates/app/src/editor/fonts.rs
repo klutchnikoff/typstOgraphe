@@ -10,6 +10,29 @@ pub fn install_fonts(ctx: &egui::Context) {
             egui::FontData::from_static(font.data).into(),
         );
     }
+    // Police d'interface : Inter normal et semi-gras (licence OFL, `assets/fonts/inter`).
+    for (name, data) in [
+        (
+            "Inter-Regular",
+            include_bytes!("../../assets/fonts/inter/Inter-Regular.ttf").as_slice(),
+        ),
+        (
+            "Inter-SemiBold",
+            include_bytes!("../../assets/fonts/inter/Inter-SemiBold.ttf").as_slice(),
+        ),
+    ] {
+        fonts
+            .font_data
+            .insert(name.into(), egui::FontData::from_static(data).into());
+    }
+    fonts
+        .families
+        .get_mut(&FontFamily::Proportional)
+        .expect("famille proportionnelle")
+        .insert(0, "Inter-Regular".into());
+    let mut semibold = vec!["Inter-SemiBold".to_owned()];
+    semibold.extend(ordinary_fallback.clone());
+    fonts.families.insert(crate::theme::semibold(), semibold);
     // Dernier recours seulement : les glyphes latins et leurs métriques gardent
     // leurs polices actuelles. Les champs de l’interface ont le même secours.
     for family in fonts.families.values_mut() {

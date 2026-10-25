@@ -47,6 +47,7 @@ impl App {
         let mut clicked = None;
         ui.scope(|ui| {
             crate::toolbar::neutral_selection(ui);
+            ui.spacing_mut().button_padding = egui::vec2(6.0, 0.0);
             ui.horizontal_wrapped(|ui| {
                 ui.add(egui::Label::new(heading).truncate())
                     .on_hover_text(&full_heading);

@@ -21,6 +21,7 @@ fn context(dark: bool) -> egui::Context {
     } else {
         egui::ThemePreference::Light
     });
+    crate::editor::install_fonts(&ctx);
     ctx.all_styles_mut(|style| style.animation_time = 0.0);
     ctx
 }

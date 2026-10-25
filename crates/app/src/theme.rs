@@ -4,7 +4,12 @@
 //! Les valeurs de `ACCENT`, `PREVIEW_SELECTION`, `ERROR_INLINE` et de la sélection
 //! reprennent celles qui étaient dispersées dans l’application. `Tokens` décrit la
 //! palette clair/sombre validée ; les surfaces la reprendront pendant leur migration.
-use eframe::egui::{self, Color32, Stroke};
+use eframe::egui::{self, Color32, FontFamily, Stroke};
+
+/// Famille semi-grasse de l'interface (titres, segment actif).
+pub fn semibold() -> FontFamily {
+    FontFamily::Name("ui-semibold".into())
+}
 
 pub const ACCENT: Color32 = Color32::from_rgb(40, 92, 119);
 pub const PREVIEW_SELECTION: Color32 = Color32::from_rgba_premultiplied(16, 33, 59, 65);
@@ -44,6 +49,11 @@ pub mod scale {
     pub const RADIUS_CARD: u8 = 8;
     pub const RADIUS_DIALOG: u8 = 12;
     pub const TEXT: [f32; 5] = [11.0, 12.5, 13.5, 15.0, 20.0];
+}
+
+/// Installe la palette sur les styles clair et sombre d'un contexte.
+pub fn install(ctx: &egui::Context) {
+    ctx.all_styles_mut(apply_to);
 }
 
 /// Applique la palette et les échelles au style egui d'un thème. Le thème clair ou
@@ -103,6 +113,9 @@ pub fn apply_to(style: &mut egui::Style) {
     ] {
         if let Some(font) = style.text_styles.get_mut(&text_style) {
             font.size = size;
+            if text_style == egui::TextStyle::Heading {
+                font.family = semibold();
+            }
         }
     }
 }

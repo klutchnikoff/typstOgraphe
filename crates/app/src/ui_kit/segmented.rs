@@ -54,8 +54,12 @@ pub fn segmented<T: Copy + PartialEq>(
                             state.expansion = 0.0;
                         }
                         ui.add(
-                            egui::Button::new(RichText::new(label).strong_if(selected))
-                                .min_size(egui::vec2(0.0, CONTROL_HEIGHT - 6.0)),
+                            egui::Button::new(if selected {
+                                RichText::new(label).family(theme::semibold())
+                            } else {
+                                RichText::new(label)
+                            })
+                            .min_size(egui::vec2(0.0, CONTROL_HEIGHT - 6.0)),
                         )
                     });
                     let segment = segment.inner;
@@ -79,13 +83,4 @@ pub fn segmented<T: Copy + PartialEq>(
         response.mark_changed();
     }
     response
-}
-
-trait StrongIf {
-    fn strong_if(self, condition: bool) -> Self;
-}
-impl StrongIf for RichText {
-    fn strong_if(self, condition: bool) -> Self {
-        if condition { self.strong() } else { self }
-    }
 }

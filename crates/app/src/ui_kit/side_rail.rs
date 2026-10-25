@@ -197,7 +197,9 @@ impl SideRail {
                         ui.set_max_size(rect.size() - egui::vec2(25.0, 17.0));
                         ui.horizontal(|ui| {
                             ui.set_min_height(super::CONTROL_HEIGHT);
-                            ui.label(egui::RichText::new(&panel.label).strong());
+                            ui.label(
+                                egui::RichText::new(&panel.label).family(crate::theme::semibold()),
+                            );
                             ui.with_layout(
                                 egui::Layout::right_to_left(egui::Align::Center),
                                 |ui| {

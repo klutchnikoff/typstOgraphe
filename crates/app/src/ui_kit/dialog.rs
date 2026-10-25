@@ -67,7 +67,11 @@ impl<'a> Dialog<'a> {
             .frame(frame)
             .show(ctx, |ui| {
                 ui.set_width(self.width);
-                ui.label(RichText::new(self.title).size(17.0).strong());
+                ui.label(
+                    RichText::new(self.title)
+                        .size(17.0)
+                        .family(theme::semibold()),
+                );
                 if let Some(description) = self.description {
                     ui.label(RichText::new(description).color(tokens(ui).muted));
                 }

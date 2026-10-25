@@ -1234,10 +1234,15 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
   récupération, assistance, préférences) passent tous par l'enveloppe `ui_kit::Dialog`
   (modale unique, pied d'actions à droite, bouton principal, action destructive à
   gauche), avec contrôle segmenté, champs à anneau de focus et notifications ; les
-  boutons et la logique de fermeture (Échap, état des dialogues) sont inchangés. À faire
+  boutons et la logique de fermeture (Échap, état des dialogues) sont inchangés.
+  **Police d'interface livrée le 25 octobre 2026** : Inter 4.0 normal et semi-gras
+  (SIL OFL 1.1, source officielle rsms/inter, empreintes SHA-256 et licence dans
+  `crates/app/assets/fonts/inter/`), famille semi-grasse `theme::semibold()` pour les
+  titres. Le texte de l'interface étant plus large, deux détails ajustés : marge des
+  boutons de rubrique du panneau d'informations resserrée ; le test de redimensionnement
+  des bandeaux tolère une frame de mesure après un changement de largeur. À faire
   ensuite : palette, accueil, recherche, informations, barre d'outils, barre d'état,
-  aperçu, relecture MCP, et la police d'interface embarquée (téléchargement de la police
-  à autoriser).
+  aperçu, relecture MCP.
 - [ ] **L.4 — Bandeaux et pointe (D37, D40).** Variante B pour les paramètres de bloc ;
   pointe vers le mot pour l'orthographe ; bandeau d'une faute dans un bloc inséré entre
   deux lignes, à la largeur du bloc. Passer la plage horizontale du bloc au placement
