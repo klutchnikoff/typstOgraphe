@@ -70,6 +70,14 @@ pub(super) fn for_session(attached: bool) -> &'static [Tool] {
     static ATTACHED: OnceLock<Vec<Tool>> = OnceLock::new();
     ATTACHED.get_or_init(|| {
         let mut result = tools().to_vec();
+        for tool in &mut result {
+            let attached = match tool.name.as_ref() {
+                "document.save" => Some("Attached mode: save only the current file explicitly authorized in permissions.attached_files.current_file. Omit path. No Save As or GUI dialog. Saves published content only, not a pending proposal. Requires a fresh document reference; denied during IME/dialogues."),
+                "document.export" => Some("Attached mode: export published content only to a new/empty directory below permissions.attached_files.export_roots. Preparation runs in the background; revision, authorization and interruption are rechecked before writing. No automatic retry. The response identifies the exported snapshot; refresh document.inspect afterwards. Never marks the document saved."),
+                _ => None,
+            };
+            if let Some(description) = attached { tool.description = Some(description.into()); }
+        }
         result.extend(super::proposals::tools());
         result.sort_by(|a, b| a.name.cmp(&b.name));
         result

@@ -57,6 +57,11 @@ pub fn describe(id: &str, context: &Value, policy: &Policy) -> Result<Value, Com
         info["attached_usage"] = json!(
             "Editing tools and document.batch are not callable directly. Put their allowed editing steps and selectors into proposals.submit with a unique request_id and current document reference. For batch_examples reuse only params.steps, never the optional save. The result is pending/published=false, not an edit. Only the human can accept the whole lot in the application. Return control after submission; no polling loop."
         );
+        if matches!(id, "document.save" | "document.export" | "document.save_as") {
+            info["attached_usage"] = json!(
+                "Only document.save and document.export may execute directly when explicitly granted by the user for this invitation. Inspect permissions.attached_files: current_file is an exact file grant, export_roots authorize only exports into a new/empty folder, not document saves or imports. Omit path for document.save; Save As, GUI file dialogs and file steps/final save in proposals remain refused. Use the latest document reference. Only published content is written; accepting a proposal does not save or export. IME/dialogues cause an immediate failure without retry. Background exports revalidate before write; once writing begins, the identified snapshot is independent of later typing. Refresh document.inspect afterwards."
+            );
+        }
     }
     info["context_availability"] = spec.map(|_| context["entries"].as_array().expect("entries").iter()
         .find(|e| e["id"]==id).expect("registered entry")["context_availability"].clone())

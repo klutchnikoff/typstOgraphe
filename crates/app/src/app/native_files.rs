@@ -14,6 +14,9 @@ impl App {
     pub(super) fn pick_file(&mut self, dialog: rfd::FileDialog) -> Option<PathBuf> {
         self.file_dialog_result(run_dialog(move || dialog.pick_file()))
     }
+    pub(super) fn pick_folder(&mut self, dialog: rfd::FileDialog) -> Option<PathBuf> {
+        self.file_dialog_result(run_dialog(move || dialog.pick_folder()))
+    }
 
     pub(super) fn file_dialog_result(&mut self, result: FileDialogResult) -> Option<PathBuf> {
         match result {

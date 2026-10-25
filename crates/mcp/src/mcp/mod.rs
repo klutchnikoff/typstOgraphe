@@ -2,6 +2,7 @@
 mod catalogue;
 mod documentation;
 mod engine_access;
+pub(crate) mod file_grant;
 mod host;
 mod policy;
 pub(crate) mod proposals;
@@ -20,7 +21,7 @@ pub(crate) fn instructions(attached: bool) -> String {
     if !attached {
         return INSTRUCTIONS.into();
     }
-    "This connection is attached to the document open in typstOgraphe. Start with document.inspect. Reads see published content only. Submit editing steps with proposals.submit: the isolated lot is pending, NOT published, until the human explicitly accepts the entire lot in the application. No tool can approve. Use a unique request_id per lot; an identical retry returns the same status. One pending lot at a time. Return control to the human after submission, do not poll in a loop. proposals.get/cancel use the proposal ID without a current document revision. Any user edit makes the lot stale: read again and submit a new lot, never merge or retry edits automatically. Direct editing commands, open/new/close/save/export are refused. Discover capabilities.describe, document_types.describe and commands.list for params/selectors and proposal support. Bold/italic persist within a lot: on, insert, off; use literal text, not Typst markup. No file roots or preferences are accessible. Supply the latest outer document reference to documentary calls. Closing/replacing the document, disconnection or revocation terminates this invitation and drops pending candidates. No skill or repository access is needed.".into()
+    "This connection is attached to the document open in typstOgraphe. Start with document.inspect. Reads see published content only. Submit editing steps with proposals.submit: the isolated lot is pending, NOT published, until the human explicitly accepts the entire lot in the application. No tool can approve. Use a unique request_id per lot; an identical retry returns the same status. One pending lot at a time. Return control to the human after submission, do not poll in a loop. proposals.get/cancel use the proposal ID without a current document revision. Any user edit makes the lot stale: read again and submit a new lot, never merge or retry edits automatically. Direct editing, open/new/close/save_as are refused. document.save may save only the explicitly authorized current file; document.export may write only below the explicitly authorized export root into a new or empty directory. Read permissions.attached_files in document.inspect; no permission is implied. These operations use published content, never a pending proposal. Export compiles in the background and revalidates the revision and permission before writing; stale or busy requests fail without delayed retry. Once writing starts, subsequent user edits do not change that exported snapshot; refresh document.inspect after export. Discover capabilities.describe, document_types.describe and commands.list for params/selectors and proposal support. Bold/italic persist within a lot: on, insert, off; use literal text, not Typst markup. No arbitrary read roots, local imports or preferences are accessible. File permissions belong to this invitation and do not follow Save As to another file. Supply the latest outer document reference to documentary calls. Closing/replacing the document, disconnection or revocation terminates this invitation and drops pending candidates. No skill or repository access is needed.".into()
 }
 
 pub(crate) enum Operation {
@@ -35,6 +36,7 @@ pub(crate) enum Operation {
 pub(crate) struct Request {
     pub(crate) operation: Operation,
     pub(crate) reply: oneshot::Sender<Result<types::Reply, CommandError>>,
+    pub(crate) cancel: tokio_util::sync::CancellationToken,
 }
 #[derive(Clone)]
 pub(crate) struct Server {
@@ -52,7 +54,7 @@ impl Server {
                 let mut host = host::Host::with_policy(policy);
                 while let Some(request) = receiver.blocking_recv() {
                     // Un appel annulé avant son exécution n’a aucun effet.
-                    if !request.reply.is_closed() {
+                    if !request.reply.is_closed() && !request.cancel.is_cancelled() {
                         let result = match request.operation {
                             Operation::Tool { name, arguments } => host.dispatch(&name, arguments),
                             Operation::Resource { uri } => host.resource(&uri),
@@ -81,8 +83,11 @@ impl Server {
         &self,
         name: String,
         arguments: Map<String, Value>,
+        cancel: tokio_util::sync::CancellationToken,
     ) -> Result<CallToolResult, ErrorData> {
-        let result = self.request(Operation::Tool { name, arguments }).await?;
+        let result = self
+            .request(Operation::Tool { name, arguments }, cancel)
+            .await?;
         Ok(match result {
             Ok(reply) => {
                 let mut result = CallToolResult::structured(reply.value);
@@ -103,10 +108,15 @@ impl Server {
     async fn request(
         &self,
         operation: Operation,
+        cancel: tokio_util::sync::CancellationToken,
     ) -> Result<Result<types::Reply, CommandError>, ErrorData> {
         let (reply, response) = oneshot::channel();
         self.sender
-            .send(Request { operation, reply })
+            .send(Request {
+                operation,
+                reply,
+                cancel,
+            })
             .await
             .map_err(|_| internal())?;
         if let Some(wake) = &self.wake {
@@ -154,7 +164,7 @@ impl ServerHandler for Server {
     async fn call_tool(
         &self,
         request: CallToolRequestParams,
-        _: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
         if self.get_tool(&request.name).is_none() {
             return Err(ErrorData::invalid_params(
@@ -162,13 +172,16 @@ impl ServerHandler for Server {
                 None,
             ));
         }
-        Ok(self
-            .dispatch(
-                request.name.into_owned(),
-                request.arguments.unwrap_or_default(),
-            )
-            .await?
-            .into())
+        let pending = self.dispatch(
+            request.name.into_owned(),
+            request.arguments.unwrap_or_default(),
+            context.ct.clone(),
+        );
+        tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => Err(ErrorData::internal_error("Request cancelled", None)),
+            result = pending => Ok(result?.into()),
+        }
     }
     async fn list_resources(
         &self,
@@ -189,7 +202,7 @@ impl ServerHandler for Server {
     async fn read_resource(
         &self,
         request: ReadResourceRequestParams,
-        _: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResponse, ErrorData> {
         if !resources::known(&request.uri) {
             return Err(ErrorData::resource_not_found(
@@ -197,11 +210,17 @@ impl ServerHandler for Server {
                 Some(json!({"uri":request.uri})),
             ));
         }
-        let reply = self
-            .request(Operation::Resource {
+        let pending = self.request(
+            Operation::Resource {
                 uri: request.uri.clone(),
-            })
-            .await?
+            },
+            context.ct.clone(),
+        );
+        let reply = tokio::select! {
+            biased;
+            _ = context.ct.cancelled() => return Err(ErrorData::internal_error("Request cancelled", None)),
+            result = pending => result?,
+        }
             .map_err(|error| {
                 ErrorData::internal_error(
                     typstographe_i18n::command_error(&error),

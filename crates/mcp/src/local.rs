@@ -1,5 +1,7 @@
 //! Local attachment. IO threads exchange requests; only the UI thread borrows Engine.
 mod endpoint;
+mod files;
+pub use files::FileEvent;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
@@ -19,7 +21,8 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use typstographe_core::engine::{EditContext, Engine, TargetGuard};
 
-/// Explicit read-only invitation for one in-memory document, consumed by one client.
+/// Explicit invitation for published reads and human-reviewed proposals on one document.
+/// Optional exact-file saving and export roots are fixed at creation for one client.
 /// Dropping it revokes the channel and removes its private invitation file.
 pub struct LocalSession {
     invitation: endpoint::Invitation,
@@ -30,12 +33,26 @@ pub struct LocalSession {
     id: String,
     context: EditContext,
     proposals: Proposals,
+    files: crate::mcp::file_grant::FileGrant,
+    export: Option<files::PendingExport>,
+    file_events: Vec<FileEvent>,
+    wake: Arc<dyn Fn() + Send + Sync>,
 }
 impl LocalSession {
     pub fn start(engine: &mut Engine, wake: Arc<dyn Fn() + Send + Sync>) -> io::Result<Self> {
+        Self::start_with_files(engine, wake, false, None)
+    }
+    pub fn start_with_files(
+        engine: &mut Engine,
+        wake: Arc<dyn Fn() + Send + Sync>,
+        save_current: bool,
+        export_root: Option<std::path::PathBuf>,
+    ) -> io::Result<Self> {
         if !engine.is_open() {
             return Err(io::Error::other("No document open"));
         }
+        let files = crate::mcp::file_grant::FileGrant::new(engine, save_current, export_root)
+            .map_err(io::Error::other)?;
         let invitation = endpoint::Invitation::new()?;
         let (sender, receiver) = mpsc::channel(16);
         let shutdown = CancellationToken::new();
@@ -44,6 +61,7 @@ impl LocalSession {
         let endpoint = invitation.data.clone();
         let stop = shutdown.clone();
         let state = status.clone();
+        let repaint = wake.clone();
         std::thread::Builder::new()
             .name("mcp-attachment".into())
             .spawn(move || {
@@ -52,12 +70,12 @@ impl LocalSession {
                     sender,
                     stop.clone(),
                     state.clone(),
-                    wake.clone(),
+                    repaint.clone(),
                     ready.clone(),
                 );
                 state.store(2, Ordering::Release);
                 stop.cancel();
-                wake();
+                repaint();
                 if let Err(error) = result {
                     let _ = ready.send(Err(error));
                 }
@@ -77,6 +95,10 @@ impl LocalSession {
             id: uuid::Uuid::new_v4().to_string(),
             context,
             proposals: Default::default(),
+            files,
+            export: None,
+            file_events: Vec::new(),
+            wake,
         })
     }
     pub fn invitation_path(&self) -> &Path {
@@ -144,12 +166,25 @@ impl LocalSession {
             return false;
         }
         self.proposals.refresh(engine, &self.context);
+        self.poll_file_export(engine, busy);
         // Bounded work per frame; the transport also has bounded backpressure.
         for _ in 0..16 {
             let Ok(request) = self.receiver.try_recv() else {
                 break;
             };
-            if request.reply.is_closed() || self.shutdown.is_cancelled() {
+            if request.reply.is_closed()
+                || request.cancel.is_cancelled()
+                || self.shutdown.is_cancelled()
+            {
+                continue;
+            }
+            if let Operation::Tool { name, .. } = &request.operation
+                && name == "document.export"
+            {
+                let Operation::Tool { arguments, .. } = request.operation else {
+                    unreachable!()
+                };
+                self.begin_file_export(engine, arguments, request.reply, request.cancel, busy);
                 continue;
             }
             let result = Host::attached_proposals(
@@ -159,9 +194,15 @@ impl LocalSession {
                 &mut self.proposals,
                 busy,
             )
-            .and_then(|mut host| match request.operation {
-                Operation::Tool { name, arguments } => host.dispatch(&name, arguments),
-                Operation::Resource { uri } => host.resource(&uri),
+            .and_then(|host| {
+                let mut host = host.with_files(self.files.clone());
+                let result = match request.operation {
+                    Operation::Tool { name, arguments } => host.dispatch(&name, arguments),
+                    Operation::Resource { uri } => host.resource(&uri),
+                };
+                self.file_events
+                    .extend(host.take_saved().into_iter().map(FileEvent::Saved));
+                result
             });
             let _ = request.reply.send(result);
         }

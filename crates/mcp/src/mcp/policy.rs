@@ -11,6 +11,8 @@ pub struct Policy {
     roots: Roots,
     read_only: bool,
     attached: bool,
+    files: Option<super::file_grant::FileGrant>,
+    file_permissions: Value,
 }
 impl Policy {
     pub fn new(
@@ -22,6 +24,8 @@ impl Policy {
             roots: Roots::new(read, write)?,
             read_only,
             attached: false,
+            files: None,
+            file_permissions: Value::Null,
         })
     }
     pub(crate) fn attached_read_only() -> Result<Self, CommandError> {
@@ -36,6 +40,26 @@ impl Policy {
     }
     pub(crate) fn is_attached(&self) -> bool {
         self.attached
+    }
+    pub(crate) fn with_files(
+        mut self,
+        engine: &Engine,
+        files: super::file_grant::FileGrant,
+    ) -> Self {
+        self.file_permissions = files.describe(engine);
+        self.files = Some(files);
+        self
+    }
+    pub(crate) fn allows_attached_command(&self, name: &str) -> bool {
+        !self.read_only
+            && self.files.is_some()
+            && match name {
+                "document.save" => !self.file_permissions["current_file"].is_null(),
+                "document.export" => self.file_permissions["export_roots"]
+                    .as_array()
+                    .is_some_and(|a| !a.is_empty()),
+                _ => false,
+            }
     }
     pub(crate) fn allows_proposals(&self) -> bool {
         self.attached && !self.read_only
@@ -52,23 +76,41 @@ impl Policy {
         value["proposal_enabled"] = json!(self.allows_proposals());
         value["human_approval_required"] = json!(self.allows_proposals());
         value["direct_edit_enabled"] = json!(!self.attached && !self.read_only);
+        if self.attached {
+            value["attached_files"] = self.file_permissions.clone();
+            value["write_enabled"] = json!(
+                self.allows_attached_command("document.save")
+                    || self.allows_attached_command("document.export")
+            );
+        }
         value
     }
     pub fn support(&self, spec: &CommandSpec) -> Value {
         let authorized = exposed(spec)
-            && (!self.attached || spec.family == Family::Query)
+            && (!self.attached
+                || spec.family == Family::Query
+                || self.allows_attached_command(spec.id.as_str()))
             && match spec.id.as_str() {
                 "document.open" => self.roots.can_read(),
                 "document.save" | "document.save_as" | "document.export" => {
-                    !self.read_only && self.roots.can_write()
+                    !self.read_only
+                        && (self.roots.can_write()
+                            || self.allows_attached_command(spec.id.as_str()))
                 }
                 "document.close" => true,
                 _ => !self.read_only || spec.family == Family::Query,
             };
         json!({"exposed":exposed(spec),"authorized":authorized,"proposal_supported":self.allows_proposals() && spec.batch_step,"read_only":self.read_only,
-            "filesystem":self.roots.can_read() || (!self.read_only && self.roots.can_write())})
+            "filesystem":self.roots.can_read() || (!self.read_only && self.roots.can_write()) || self.allows_attached_command(spec.id.as_str())})
     }
     pub fn prepare(&self, engine: &Engine, command: &mut Command) -> Result<(), CommandError> {
+        if self.attached && matches!(command, Command::SaveDocument(_) | Command::Export(_)) {
+            return self
+                .files
+                .as_ref()
+                .ok_or_else(|| CommandError::new(ErrorCode::Unavailable, "mcp_file_access"))?
+                .prepare(engine, command);
+        }
         if !exposed(
             catalogue()
                 .iter()

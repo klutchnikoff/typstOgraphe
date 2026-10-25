@@ -1,4 +1,36 @@
 use super::*;
+
+#[tokio::test]
+async fn protocol_cancellation_closes_the_queued_reply_before_any_owner_dispatch() {
+    use std::{sync::Arc, time::Duration};
+    let (sender, mut receiver) = mpsc::channel(16);
+    let (client_io, server_io) = tokio::io::duplex(65536);
+    let (server, client) = tokio::join!(
+        Server::attached(sender, Arc::new(|| {})).serve(server_io),
+        ClientConfig::default().serve(client_io)
+    );
+    let server = server.unwrap();
+    let client = client.unwrap();
+    let peer = client.peer().clone();
+    let pending = tokio::spawn(async move {
+        peer.call_tool_once(CallToolRequestParams::new("document.save"))
+            .await
+    });
+    let mut request = tokio::time::timeout(Duration::from_secs(5), receiver.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!request.reply.is_closed());
+    pending.abort(); // rmcp's client guard sends notifications/cancelled when the future is dropped.
+    assert!(pending.await.unwrap_err().is_cancelled());
+    tokio::time::timeout(Duration::from_secs(5), request.reply.closed())
+        .await
+        .unwrap();
+    assert!(request.reply.is_closed());
+    assert!(request.cancel.is_cancelled());
+    client.cancel().await.unwrap();
+    server.cancel().await.unwrap();
+}
 use serde_json::json;
 use typstographe_core::engine::{Engine, ErrorCode};
 

@@ -62,8 +62,7 @@ impl App {
             self.after_document_replaced();
         }
         if outcome.effects.contains(&crate::engine::Effect::Saved) {
-            self.recovery.recovered_name = None;
-            self.clear_recovery();
+            self.after_document_saved();
         }
         self.document.selection = editor::to_editor(self.document.engine.selection());
         if let Some(presentation) = outcome
@@ -91,6 +90,10 @@ impl App {
             self.refresh_search();
         }
         Ok(outcome)
+    }
+    pub(super) fn after_document_saved(&mut self) {
+        self.recovery.recovered_name = None;
+        self.clear_recovery();
     }
     pub(super) fn run_document_command(&mut self, command: CoreCommand) -> bool {
         let preserve_focus = matches!(

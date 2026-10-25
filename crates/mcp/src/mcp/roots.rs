@@ -3,6 +3,7 @@ use serde_json::{Value, json};
 use std::path::{Component, Path, PathBuf};
 use typstographe_core::engine::{CommandError, ErrorCode};
 
+#[derive(Clone)]
 pub struct Roots {
     cwd: PathBuf,
     read: Vec<PathBuf>,

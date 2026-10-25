@@ -12,6 +12,7 @@ pub struct Host<'a> {
     context: Option<EditContext>,
     proposals: Option<&'a mut super::proposals::Proposals>,
     busy: bool,
+    saved: Vec<Outcome>,
 }
 impl<'a> Host<'a> {
     #[cfg(test)]
@@ -26,6 +27,7 @@ impl<'a> Host<'a> {
             context: None,
             proposals: None,
             busy: false,
+            saved: Vec::new(),
         }
     }
     /// Borrow the application's published engine; never open or clone its file.
@@ -42,6 +44,7 @@ impl<'a> Host<'a> {
             context: Some(context),
             proposals: None,
             busy: false,
+            saved: Vec::new(),
         })
     }
     pub(crate) fn attached_proposals(
@@ -56,6 +59,60 @@ impl<'a> Host<'a> {
         host.proposals = Some(proposals);
         host.busy = busy;
         Ok(host)
+    }
+    pub(crate) fn with_files(mut self, files: super::file_grant::FileGrant) -> Self {
+        self.policy = self.policy.with_files(&self.engine, files);
+        self
+    }
+    pub(crate) fn take_saved(&mut self) -> Vec<Outcome> {
+        std::mem::take(&mut self.saved)
+    }
+    pub(crate) fn begin_export(
+        &self,
+        mut params: Map<String, Value>,
+    ) -> Result<(ExportTask, Reply, std::path::PathBuf), CommandError> {
+        if serde_json::to_vec(&params)
+            .map_err(CommandError::invalid)?
+            .len()
+            > MAX_BATCH_BYTES
+        {
+            return Err(CommandError::new(
+                ErrorCode::InvalidParams,
+                "batch_size_limit",
+            ));
+        }
+        self.prepare_registered("document.export", &mut params)?;
+        let mut command = Command::from_call("document.export", Value::Object(params))?;
+        self.policy.prepare(&self.engine, &mut command)?;
+        let Command::Export(params) = command else {
+            unreachable!()
+        };
+        let directory = params.directory.clone();
+        let task = self.engine.prepare_export(params)?;
+        let outcome = Outcome {
+            changed: false,
+            guard: self.engine.target_guard(),
+            selection: self
+                .context
+                .as_ref()
+                .map(|context| {
+                    self.engine
+                        .editing_context(context)
+                        .map(|state| state.selection)
+                })
+                .transpose()?,
+            effects: vec![],
+            value: None,
+        };
+        Ok((
+            task,
+            self.reply(
+                "document.export",
+                serde_json::to_value(outcome).expect("outcome"),
+                None,
+            ),
+            directory,
+        ))
     }
     fn query(&self, query: Query) -> Result<Value, CommandError> {
         match &self.context {
@@ -151,10 +208,13 @@ impl<'a> Host<'a> {
             }
             _ => (self.registered(name, arguments)?, None),
         };
-        Ok(Reply {
+        Ok(self.reply(name, outcome, png))
+    }
+    fn reply(&self, name: &str, outcome: Value, png: Option<Vec<u8>>) -> Reply {
+        Reply {
             value: json!({"version":1,"ok":true,"document":self.reference(),"outcome":outcome,"summary":typstographe_i18n::tr!("mcp-completed", id=name),"permissions":self.policy.describe()}),
             png,
-        })
+        }
     }
     fn describe_capability(&self, id: &str) -> Result<Value, CommandError> {
         super::documentation::describe(id, &self.query(Query::Commands(Empty {}))?, &self.policy)
@@ -242,44 +302,14 @@ impl<'a> Host<'a> {
         name: &str,
         mut params: Map<String, Value>,
     ) -> Result<Value, CommandError> {
-        let spec = typstographe_core::engine::catalogue()
-            .iter()
-            .find(|s| s.id.as_str() == name)
-            .ok_or_else(|| CommandError::new(ErrorCode::NotFound, "unknown_command"))?;
-        if !policy::exposed(spec) {
-            return super::roots::denied();
-        }
-        if self.policy.is_attached() && spec.family != Family::Query {
-            return Err(CommandError::new(
-                ErrorCode::Unavailable,
-                "mcp_attached_read_only",
-            ));
-        }
-        let reference = params
-            .remove("document")
-            .map(serde_json::from_value)
-            .transpose()
-            .map_err(CommandError::invalid)?;
-        self.check_document(
-            reference,
-            catalogue::needs_document(spec)
-                || (matches!(name, "document.new" | "document.open") && self.engine.is_open()),
-        )?;
-        let selector = take_selector(spec, &mut params)?;
-        if params.contains_key("guard") {
-            return Err(CommandError::new(
-                ErrorCode::InvalidParams,
-                "mcp_step_guard",
-            ));
-        }
-        let selection = prepare(&self.engine, spec, &mut params, selector)?;
+        let (spec, selection) = self.prepare_registered(name, &mut params)?;
         if spec.family == Family::Query {
             let value = self.query(Query::from_call(name, Value::Object(params))?)?;
             return Ok(self.query_response(name, value));
         }
         let mut command = Command::from_call(name, Value::Object(params))?;
         self.policy.prepare(&self.engine, &mut command)?;
-        let outcome = if let Command::Batch(p) = command {
+        let mut outcome = if let Command::Batch(p) = command {
             self.engine
                 .run_resolved_batch(p, |_, draft, call| resolve_step(draft, call, &self.policy))?
         } else if selection.is_some() && command.batch_step_allowed() {
@@ -298,6 +328,14 @@ impl<'a> Host<'a> {
         } else {
             self.engine.run(command)?
         };
+        if self.policy.is_attached() && outcome.effects.contains(&Effect::Saved) {
+            self.saved.push(outcome.clone());
+        }
+        if let Some(context) = &self.context {
+            // File operations leave both participants in place. Their MCP response
+            // must not implicitly transfer the human's selection to the agent.
+            outcome.selection = Some(self.engine.editing_context(context)?.selection);
+        }
         if outcome.effects.contains(&Effect::DocumentReplaced) {
             self.id = self
                 .engine
@@ -305,6 +343,52 @@ impl<'a> Host<'a> {
                 .then(|| uuid::Uuid::new_v4().to_string());
         }
         Ok(serde_json::to_value(outcome).expect("outcome"))
+    }
+    fn prepare_registered(
+        &self,
+        name: &str,
+        params: &mut Map<String, Value>,
+    ) -> Result<(&'static CommandSpec, Option<SelectionTarget>), CommandError> {
+        let spec = typstographe_core::engine::catalogue()
+            .iter()
+            .find(|s| s.id.as_str() == name)
+            .ok_or_else(|| CommandError::new(ErrorCode::NotFound, "unknown_command"))?;
+        if !policy::exposed(spec) {
+            return super::roots::denied();
+        }
+        if self.policy.is_attached() && spec.family != Family::Query {
+            if !self.policy.allows_attached_command(name) {
+                return Err(CommandError::new(
+                    ErrorCode::Unavailable,
+                    "mcp_attached_read_only",
+                ));
+            }
+            if self.busy {
+                return Err(CommandError::new(
+                    ErrorCode::Unavailable,
+                    "mcp_attached_busy",
+                ));
+            }
+        }
+        let reference = params
+            .remove("document")
+            .map(serde_json::from_value)
+            .transpose()
+            .map_err(CommandError::invalid)?;
+        self.check_document(
+            reference,
+            catalogue::needs_document(spec)
+                || (matches!(name, "document.new" | "document.open") && self.engine.is_open()),
+        )?;
+        let selector = take_selector(spec, params)?;
+        if params.contains_key("guard") {
+            return Err(CommandError::new(
+                ErrorCode::InvalidParams,
+                "mcp_step_guard",
+            ));
+        }
+        let selection = prepare(&self.engine, spec, params, selector)?;
+        Ok((spec, selection))
     }
     fn query_response(&self, name: &str, mut value: Value) -> Value {
         if name == "commands.list" {
