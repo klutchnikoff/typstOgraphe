@@ -112,9 +112,14 @@ persistante de modèles restent à développer.
   **Extension ACP validée le 25 octobre 2026, à implémenter :** interface d'assistance
   commune aux agents, client Rust ACP, Codex via `codex-acp` d'abord, puis recette
   avec un second agent. MCP reste le contrat documentaire et la validation des
-  propositions reste dans l'application. L'invitation privée pourrait être créée
-  et transmise par typstOgraphe, sans manipulation de configuration par l'utilisateur ;
-  parcours à valider. Voir D41 et le chantier M dans
+  propositions reste dans l'application. **Orientations fonctionnelles M.1 consignées :**
+  démarrage volontaire, invitation privée créée et transmise par typstOgraphe,
+  document/sélection explicites, conversation par document et agent, interruption
+  distincte de la déconnexion, outils documentaires seuls pour le prototype.
+  **Conception graphique différée jusqu'à l'implémentation complète des modifications
+  de design du chantier L**, puis maquettes et choix à valider ensemble avant M.4.
+  Le panneau à droite reste une piste, sans emplacement ni comportement acquis.
+  Voir D41 et le chantier M dans
   [la feuille de route d'architecture](ROADMAP-ARCHITECTURE.md#chantier-m--assistance-intégrée-multi-agent-via-acp-d41--planifié).
   État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),
   décisions et lots MCP dans [celui de phase 5](docs/architecture-phase-5.md).
@@ -576,6 +581,10 @@ au moins deux usages réels permettant de justifier une conversion.
   [ROADMAP-ARCHITECTURE.md](ROADMAP-ARCHITECTURE.md)) : panneau commun et accès
   au document par le MCP existant. Emplacement, taille et comportement à valider ;
   le tiroir temporaire posé en L.2 bis n'impose pas le parcours d'une conversation.
+  **Attendre l'implémentation complète des modifications de design du chantier L
+  avant de reprendre ensemble cette conception**, avec maquettes puis validation
+  avant de coder l'interface d'assistance. La proposition d'un panneau à droite
+  n'est pas une décision acquise.
 
 **Choix ensemble :** sens de « projet », regroupement des documents, distinction
 entre navigation globale et plan du document, maquette et comportement sur petite

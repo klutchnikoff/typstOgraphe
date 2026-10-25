@@ -1277,6 +1277,12 @@ n'est introduit dans `typstographe-core`.
 
 Ce chantier est une extension de l'assistance livrée en phase 6, qui reste close.
 Son ordre d'engagement sera validé ensemble ; il n'interrompt pas le chantier L.
+**Précision validée le 25 octobre 2026 : la conception visuelle de l'assistance
+attend l'implémentation complète des modifications de design du chantier L.**
+Nous reprendrons alors ensemble le parcours graphique sur l'interface obtenue,
+avec une maquette avant l'intégration. La qualité de cette conception est une
+condition de l'intégration, pas un ajustement à faire après coup. Aucun panneau
+à droite, ancrage, recouvrement ou partage de largeur n'est validé à ce stade.
 
 **Rattachement au document.** ACP pilote la conversation, mais ne confère pas
 d'accès documentaire. Conserver une session autorisée par document, son canal
@@ -1284,20 +1290,23 @@ privé, ses droits de sauvegarde/export et sa révocation à la fermeture ou au
 remplacement. Les propositions restent isolées jusqu'à l'acceptation du lot
 entier dans typstOgraphe ; une permission d'outil ACP ne vaut pas acceptation.
 
-**Parcours proposé, à préciser avant de coder.** Au démarrage volontaire de
-l'assistance, l'application pourrait créer l'invitation et fournir directement
+**Parcours fonctionnel retenu en M.1, à implémenter.** Au démarrage volontaire de
+l'assistance, l'application créera l'invitation et fournira directement
 la commande MCP STDIO `mcp --attach INVITATION` à la session ACP. L'utilisateur
-n'aurait plus à copier une configuration ni à reconnecter un client externe.
+n'aura plus à copier une configuration ni à reconnecter un client externe.
 La découverte `--attach-active` n'est alors pas nécessaire pour cet agent lancé
 par l'application ; elle reste disponible pour les clients externes. Dans le
 premier prototype, réutiliser le fichier d'invitation privé existant ; sa
 suppression éventuelle relève d'un autre choix de transport. Une coupure ne
 doit ni rattacher silencieusement l'agent à un autre document, ni répéter une
-édition ; préciser ensemble le parcours de reprise.
+édition. Le parcours visuel de reprise reste à concevoir ensemble.
 
-- [ ] **M.1 — Valider le parcours et les limites.** Démarrage, arrêt, changement de
-  document, reprise, connexion au compte et présentation ; position du panneau
-  à décider avec le chantier G, sans déduire son comportement de la barre L.2 bis.
+- [ ] **M.1 — Parcours et limites : choix fonctionnels consignés, design en attente.**
+  Les orientations ci-dessous sont retenues le 25 octobre 2026. M.1 reste ouverte
+  pour la conception de l'interface, à reprendre seulement après l'implémentation
+  complète des modifications de design du chantier L, en lien avec le chantier G.
+  Ne pas engager M.4 avant la validation de cette conception ; ne pas déduire le
+  comportement d'une conversation de la barre L.2 bis.
 - [ ] **M.2 — Prototype ACP isolé avec Codex.** Versions compatibles figées du
   client Rust, de l'adaptateur et de Codex ; connexion ChatGPT, réponses progressives,
   contexte/sélection, modèle/raisonnement, MCP documentaire, interruption et reprise.
@@ -1308,10 +1317,67 @@ doit ni rattacher silencieusement l'agent à un autre document, ni répéter une
   et coupure. Vérifier les possibilités annoncées par chaque agent ; ne pas supposer
   que modèles, quotas, historique ou forfaits sont identiques. Claude reste soumis
   à la clarification des conditions d'intégration de son forfait.
-- [ ] **M.4 — Intégration graphique.** Après les recettes, brancher le panneau
-  commun sans déplacer le focus de rédaction ; préciser erreurs, permissions et
+- [ ] **M.4 — Intégration graphique.** Après les recettes et la validation du design
+  de M.1 sur l'interface issue du chantier L, brancher l'interface d'assistance commune
+  sans déplacer le focus de rédaction ; préciser erreurs, permissions et
   interruptions. Pas de connecteur app-server direct tant qu'aucun manque important
   pour notre usage ne le justifie.
+
+### M.1 — Orientations fonctionnelles et conception différée
+
+**Consignées à la demande de l'utilisateur le 25 octobre 2026.** L'assistance vise
+la rédaction structurée ; l'agent utilise les capacités du type documentaire
+et laisse le modèle Typst produire la présentation.
+
+1. **Présentation : décision différée.** La proposition d'un panneau à droite,
+   repliable et redimensionnable, réservant sa largeur, reste une piste seulement.
+   Attendre que toutes les modifications de design du chantier L soient implémentées
+   avant de rediscuter emplacement, dimensions, coexistence avec l'éditeur et
+   l'aperçu, petits écrans, focus, clavier et états de l'assistance. Concevoir et
+   comparer les maquettes ensemble ; aucune disposition n'est figée par le prototype.
+2. **Démarrage et connexion.** Choix de l'agent dans les préférences globales.
+   Premier prototype avec Codex et son adaptateur installés, état de disponibilité
+   clairement indiqué. Une action volontaire démarre l'assistance pour le document
+   courant et crée son raccordement privé. L'outil de l'agent prend en charge la
+   connexion au compte si nécessaire. Aucun lancement automatique de l'assistance
+   à l'ouverture de l'application, ni bascule silencieuse vers une API facturée.
+3. **Contexte de travail.** Demande libre sur le document courant, ou action
+   volontaire d'aide sur une sélection, capturée avec sa révision. La sélection
+   délimite le passage à travailler sans retirer à l'agent la possibilité de lire
+   le document autorisé pour le comprendre. Montrer clairement document et passage
+   confiés ; ne pas suivre ensuite le curseur. Aucun accès aux préférences globales
+   ou aux autres documents ; les données déjà incorporées au document font partie
+   de son contenu accessible.
+4. **Conversations et conservation.** Une conversation par document et par agent
+   initialement ; changer d'agent en commence une nouvelle. Aucun historique ajouté
+   au `.typsto` pour le prototype. Pendant la séance, conserver le rattachement à
+   la conversation ; après coupure, reprise volontaire si l'agent le permet, sur
+   le même document et après revalidation/relecture de son état. L'agent peut conserver
+   son propre historique : ne promettre ni absence de trace ni effacement implicite.
+   Une bibliothèque persistante de conversations dans typstOgraphe viendra plus tard.
+5. **Dialogue et propositions.** L'agent peut demander les informations manquantes
+   avant de préparer un lot, sans inventer les réponses. Un seul lot en attente ;
+   continuer à discuter ne le remplace pas silencieusement. La relecture existante
+   reste le lieu de l'acceptation/refus du lot entier, avec péremption stricte et
+   publication par le moteur seulement après accord.
+6. **Interruption et fin.** Distinguer interrompre le travail en cours, masquer
+   l'interface d'assistance et terminer l'assistance. Une interruption conserve
+   une proposition déjà reçue tant que le canal reste ouvert. Masquer conserve la
+   connexion et le travail éventuel, avec activité signalée discrètement. Terminer
+   révoque l'accès et abandonne les propositions en attente, comme la fermeture ou
+   le remplacement du document. Une reprise ne renvoie jamais automatiquement la
+   dernière demande. Les contrôles et leur présentation seront conçus après L.
+7. **Moyens d'action.** Pour le prototype, seuls les outils documentaires du MCP
+   sont autorisés : pas de terminal, d'exploration des dossiers ni de recherche web.
+   Vérifier cette restriction effective dans M.2, y compris face à la configuration
+   héritée de l'agent. Sauvegarde et export exigent leurs droits distincts, désactivés
+   initialement ; les lots portent toujours sur des propositions, pas sur des
+   écritures directes du document.
+
+**Deux parcours de recette prioritaires :** reformuler une sélection en conservant
+son sens et son ton ; construire un courrier à partir de notes en demandant les
+précisions nécessaires. Vérifier les échanges, les propositions et leur validation,
+sans installer une disposition graphique provisoire comme design définitif.
 
 ---
 
