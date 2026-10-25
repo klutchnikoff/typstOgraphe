@@ -160,7 +160,7 @@ Fuites à traiter avant tout découpage en crates :
 | D38 | Commande contextuelle au clavier | **Validée le 25 octobre 2026.** Ctrl/Cmd+Entrée ouvre une correction au curseur, sinon les paramètres du widget s’il en possède ; aucun panneau vide ni préférence globale en repli. Un bandeau déjà ouvert reprend le focus en conservant son brouillon. Ce raccourci n’applique rien : Entrée valide, Échap annule, IME prioritaire. Une seule résolution pour disponibilité, activation et libellé spécifique dans la palette/info-bulles. Commande d’interface enregistrée et personnalisable comme les autres ; grammaire future, sans ajout au catalogue documentaire MCP | 6.4a, B |
 | D39 | Relecture et protocole des propositions | **Validée le 25 octobre 2026.** Maquette Actuel / Proposition, informations modifiées dans un onglet, ouverture volontaire, décision sur le lot entier et péremption stricte. Un seul candidat en attente ; helpers MCP `proposals.submit/get/cancel`, soumission idempotente et réponse immédiate sans publication. Aucun outil d’approbation agent ; accord exclusivement dans l’application, avec conservation du contexte utilisateur. Contrat détaillé : `docs/mcp-proposals.md` | 6.4b |
 | D40 | Polissage de l’interface | **Cadrée le 25 octobre 2026 ; direction visuelle validée, choix d’ouverture à valider.** Validés : chantier L distinct, engagé **après 6.6 et avant la phase 7** ; bandeaux de la variante B (en-tête déplié du bloc, un seul cadre, bordure et fond d’accent) ; pointe de 12 px vers le mot pour l’orthographe, et plus tard la grammaire, avec étiquette du type d’anomalie ; **aucune pointe** pour les paramètres d’un bloc ; faute dans un bloc : bandeau inséré entre deux lignes, aux bords du cadre du bloc, dont la largeur et les marges suivent le bloc. Proposés, à confirmer au début du chantier : jetons clair et sombre dans un module `theme` unique, enveloppe de dialogue et composants communs (`ui_kit`), contrôle segmenté, hiérarchie des boutons. **L.0 validé le 25 octobre 2026** : police d’interface sans-empattement embarquée (deux graisses, licence libre), marque retirée de la barre d’outils, annuler/rétablir ajoutés à droite de la barre, durée de rendu déplacée dans l’info-bulle ; accent actuel conservé et icône du bouton « fin de lettre » (trombone) par défaut, sauf objection. Décidé le 25 octobre 2026 : un seul bouton-menu pour P.-S. et P.J. (commandes et raccourcis inchangés ; icône à confirmer). Mécanisme de barre latérale droite posé sans contenu (barre étroite d’icônes carrées, tiroir recouvrant l’aperçu sur au plus 2/3 de sa colonne, invisible tant qu’aucun panneau n’est déclaré). Pas d'épinglage : interactions courtes seulement. Largeurs relatives, sans supposer deux colonnes seulement, en vue du chantier G de `ROADMAP.md`. Aucun changement du moteur, de l’IME, du focus ni des raccourcis. Analyse : `docs/interface-design-audit.md` et maquettes `docs/mockups/` | L |
-
+| D41 | Assistance intégrée multi-agent | **Validée le 25 octobre 2026.** Client ACP commun dans typstOgraphe, avec la crate Rust `agent-client-protocol` ; premier agent Codex via `codex-acp`, qui pilote lui-même app-server. MCP reste le contrat des capacités et propositions documentaires. Pas de connecteur app-server direct initialement ; réexaminer seulement si un besoin important manque après recette. Authentification et droits du forfait propres à chaque agent, sans garantie commune. L'autorisation documentaire et l'acceptation des lots restent distinctes. Extension planifiée, sans rouvrir la phase 6 ni interrompre le chantier L ; ordre d'engagement à valider | M |
 
 ## 4. Vue d'ensemble
 
@@ -175,6 +175,7 @@ Phase 6  assistance à la composition              │
 Chantier K  contrat d'interaction des interfaces   │ inventaire avant 6, avant 7
 Chantier L  polissage de l'interface (D40)         │ après 6.6, avant 7
 Phase 7  consolidation, documentation, ROADMAP.md ─┘
+Chantier M  assistance intégrée via ACP (D41)       extension planifiée ; ordre à valider
 ```
 
 Dépendances : 1 avant 2 (on range avant de réformer) ; 2 avant 3 (le moteur est le
@@ -1246,6 +1247,56 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
 seul style de contrôle segmenté ; contrastes de texte ≥ 4,5:1 et de contrôle ≥ 3:1 dans
 les deux thèmes ; tests, `clippy`, formatage et contrôle de taille de fichiers verts ;
 comportement documentaire et clavier inchangé.
+
+---
+
+## Chantier M — Assistance intégrée multi-agent via ACP (D41) — planifié
+
+**Choix validé le 25 octobre 2026.** Une interface d'assistance commune, pilotée
+par un client ACP côté application. Réutiliser la crate Rust
+[`agent-client-protocol`](https://agentclientprotocol.com/libraries/rust).
+Commencer par Codex via [`codex-acp`](https://github.com/agentclientprotocol/codex-acp),
+qui démarre app-server et traduit ses échanges en ACP. Le moteur et l'adaptateur
+MCP documentaire existants restent communs aux agents. Aucun accès ACP ou Codex
+n'est introduit dans `typstographe-core`.
+
+Ce chantier est une extension de l'assistance livrée en phase 6, qui reste close.
+Son ordre d'engagement sera validé ensemble ; il n'interrompt pas le chantier L.
+
+**Rattachement au document.** ACP pilote la conversation, mais ne confère pas
+d'accès documentaire. Conserver une session autorisée par document, son canal
+privé, ses droits de sauvegarde/export et sa révocation à la fermeture ou au
+remplacement. Les propositions restent isolées jusqu'à l'acceptation du lot
+entier dans typstOgraphe ; une permission d'outil ACP ne vaut pas acceptation.
+
+**Parcours proposé, à préciser avant de coder.** Au démarrage volontaire de
+l'assistance, l'application pourrait créer l'invitation et fournir directement
+la commande MCP STDIO `mcp --attach INVITATION` à la session ACP. L'utilisateur
+n'aurait plus à copier une configuration ni à reconnecter un client externe.
+La découverte `--attach-active` n'est alors pas nécessaire pour cet agent lancé
+par l'application ; elle reste disponible pour les clients externes. Dans le
+premier prototype, réutiliser le fichier d'invitation privé existant ; sa
+suppression éventuelle relève d'un autre choix de transport. Une coupure ne
+doit ni rattacher silencieusement l'agent à un autre document, ni répéter une
+édition ; préciser ensemble le parcours de reprise.
+
+- [ ] **M.1 — Valider le parcours et les limites.** Démarrage, arrêt, changement de
+  document, reprise, connexion au compte et présentation ; position du panneau
+  à décider avec le chantier G, sans déduire son comportement de la barre L.2 bis.
+- [ ] **M.2 — Prototype ACP isolé avec Codex.** Versions compatibles figées du
+  client Rust, de l'adaptateur et de Codex ; connexion ChatGPT, réponses progressives,
+  contexte/sélection, modèle/raisonnement, MCP documentaire, interruption et reprise.
+  Vérifier les outils autorisés et l'isolation du document, y compris la configuration
+  héritée. Examiner le packaging des processus avant leur distribution.
+- [ ] **M.3 — Recette commune avec un second agent.** Gemini CLI ou Kimi Code via
+  ACP ; vérifier lecture, proposition, acceptation/refus, péremption, révocation
+  et coupure. Vérifier les possibilités annoncées par chaque agent ; ne pas supposer
+  que modèles, quotas, historique ou forfaits sont identiques. Claude reste soumis
+  à la clarification des conditions d'intégration de son forfait.
+- [ ] **M.4 — Intégration graphique.** Après les recettes, brancher le panneau
+  commun sans déplacer le focus de rédaction ; préciser erreurs, permissions et
+  interruptions. Pas de connecteur app-server direct tant qu'aucun manque important
+  pour notre usage ne le justifie.
 
 ---
 

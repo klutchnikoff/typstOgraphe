@@ -109,6 +109,13 @@ persistante de modèles restent à développer.
   captures. Le PNG MCP est calculé en arrière-plan. La phase 6 est close.
   Le [raccordement fixe](docs/mcp-connection.md) permet désormais de réutiliser
   la même configuration MCP, avec reconnexion explicite après chaque invitation.
+  **Extension ACP validée le 25 octobre 2026, à implémenter :** interface d'assistance
+  commune aux agents, client Rust ACP, Codex via `codex-acp` d'abord, puis recette
+  avec un second agent. MCP reste le contrat documentaire et la validation des
+  propositions reste dans l'application. L'invitation privée pourrait être créée
+  et transmise par typstOgraphe, sans manipulation de configuration par l'utilisateur ;
+  parcours à valider. Voir D41 et le chantier M dans
+  [la feuille de route d'architecture](ROADMAP-ARCHITECTURE.md#chantier-m--assistance-intégrée-multi-agent-via-acp-d41--planifié).
   État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),
   décisions et lots MCP dans [celui de phase 5](docs/architecture-phase-5.md).
 
@@ -565,6 +572,10 @@ au moins deux usages réels permettant de justifier une conversion.
 - Accès à la bibliothèque de modèles, aux profils et aux préférences globales.
 - Plan du document et navigation par titres, dans un contexte clairement identifiable.
 - Panneau repliable pour préserver la place de rédaction et d’aperçu.
+- Assistance intégrée multi-agent via ACP (D41, chantier M de
+  [ROADMAP-ARCHITECTURE.md](ROADMAP-ARCHITECTURE.md)) : panneau commun et accès
+  au document par le MCP existant. Emplacement, taille et comportement à valider ;
+  le tiroir temporaire posé en L.2 bis n'impose pas le parcours d'une conversation.
 
 **Choix ensemble :** sens de « projet », regroupement des documents, distinction
 entre navigation globale et plan du document, maquette et comportement sur petite
