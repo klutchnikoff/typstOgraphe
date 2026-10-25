@@ -157,6 +157,7 @@ Fuites à traiter avant tout découpage en crates :
 | D35 | Périmètre de l'assistance rattachée | **Validé le 24 octobre 2026.** Lectures, éditions, validation, rendu ; enregistrement explicite dans le fichier courant et export explicite vers un emplacement autorisé. Pas de fermeture/remplacement du document par l'agent, d'accès aux préférences globales ou aux autres documents. Autorisations vérifiées à chaque opération. Les étapes intermédiaires peuvent rester en lecture seule jusqu'à la livraison des contextes séparés et des protections D32/D33 | 6 |
 | D36 | Approbation des propositions d'agent | **Validée le 25 octobre 2026.** Dans le mode rattaché, l'agent prépare une proposition de lot isolée ; aucune modification du document publié avant acceptation explicite par l'utilisateur. Accepter/refuser le lot entier initialement, sans acceptation partielle. L'agent ne peut pas approuver ses propres propositions. Revalider identité et révision à l'acceptation ; si le document a changé, la proposition devient périmée et doit être recalculée puis présentée à nouveau, sans fusion automatique. Acceptation atomique, une étape annulable ; refus sans modification ni historique documentaire. Sauvegarde/export portent uniquement sur le document publié. Présentation des différences à concevoir ensemble ; aucun mode de modification directe autorisé à ce stade. Le MCP autonome reste inchangé | 6 |
 | D37 | Widgets et bandeaux de l’éditeur | **Validés le 25 octobre 2026 après maquette interactive.** Enveloppe commune pour les widgets structurés, présentation propre à chaque capacité, zones secondaires directement éditables, corbeille et paramètres monochromes. Une liste entière, sous-listes comprises, forme un seul widget. Paramètres, suppression, orthographe et liens utilisent un bandeau interligne pleine largeur de la colonne de gauche, au-dessus du déclencheur, qui repousse le contenu ; un seul ouvert à la fois. Fermer/annuler ne publie rien ; les actions réutilisent les commandes et gardes du moteur. Les paramètres déjà accessibles dans le bloc ne sont pas dupliqués. Gras/italique/liens restent en ligne. La relecture MCP conserve sa présentation spécifique et suit cette harmonisation | 6.4a, B |
+| D38 | Commande contextuelle au clavier | **Validée le 25 octobre 2026.** Ctrl/Cmd+Entrée ouvre une correction au curseur, sinon les paramètres du widget s’il en possède ; aucun panneau vide ni préférence globale en repli. Un bandeau déjà ouvert reprend le focus en conservant son brouillon. Ce raccourci n’applique rien : Entrée valide, Échap annule, IME prioritaire. Une seule résolution pour disponibilité, activation et libellé spécifique dans la palette/info-bulles. Commande d’interface enregistrée et personnalisable comme les autres ; grammaire future, sans ajout au catalogue documentaire MCP | 6.4a, B |
 
 
 ## 4. Vue d'ensemble
@@ -893,9 +894,12 @@ de l’utilisateur ; les modifications sont visibles et annulables. Depuis D36
 (25 octobre), un lot proposé doit être approuvé par l’utilisateur avant publication.
 Aucun deuxième écrivain ne contourne le verrou du fichier. La session MCP autonome de phase 5 et
 la session rattachée réutilisent les mêmes capacités et leur documentation.
-L'[inventaire K.1](docs/interface-interactions.md) est terminé. Les choix de
-contextes, concurrence et interactions sont validés (D32, D33) ; ils restent à
-implémenter en phase 6. Le transport local et les modalités de rattachement sont validés (D34/D35). Aucun accès au moteur de l'application n'est livré par K.2.
+L'[inventaire K.1](docs/interface-interactions.md) est terminé. Les contextes et
+le report des positions sont livrés en 6.3 (D32, D33), le transport local et le
+rattachement en lecture en 6.2 (D34/D35). **La phase 6 reste en cours : 6.1,
+6.2, 6.3 et 6.4a sont livrés ; 6.4b, 6.5 et 6.6 restent à réaliser.** Le MCP
+rattaché demeure en lecture seule tant que le parcours de proposition et
+d’approbation n’est pas livré.
 
 ### Lots d'implémentation
 
@@ -927,6 +931,8 @@ implémenter en phase 6. Le transport local et les modalités de rattachement so
   Suivi clavier : retrait conservé dans les items vides/repliés, suppression de
   widget par raccourci enregistré (même transaction que la corbeille), validation
   par Entrée et abandon par Échap, choix du bouton focalisé et priorité IME.
+  Commande contextuelle D38 : correction prioritaire, sinon paramètres du widget,
+  reprise de focus du bandeau existant sans validation ni perte du brouillon.
   Contrat : [widgets et bandeaux](docs/editor-widgets.md).
 - [ ] **6.4b — Propositions et éditions approuvées.** Préparation isolée d'un lot,
   présentation des différences à valider ensemble, acceptation/refus du lot entier

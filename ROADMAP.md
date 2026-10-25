@@ -235,6 +235,10 @@ conserve texte, métadonnées, modèle et ressources.
   brouillons, gardes, focus, IME, annulation, redimensionnement et thèmes sont
   vérifiés. Le rendu final reste défini par le modèle. L’imbrication des listes
   et de nouveaux paramètres documentaires restent des évolutions distinctes.
+  **Complément clavier D38 :** Ctrl/Cmd+Entrée ouvre la correction au curseur,
+  sinon les paramètres du widget ; un bandeau ouvert reprend le focus sans
+  appliquer son brouillon. Libellé spécifique dans la palette et les info-bulles,
+  aucune action en l’absence de contexte, IME prioritaire.
 - **P2 — à concevoir :** listes imbriquées. Seules les listes non imbriquées sont
   prises en charge pour l’instant. Préciser ensemble la structure, les frontières,
   l’indentation et les gestes clavier avant leur ajout ; conserver un widget unique

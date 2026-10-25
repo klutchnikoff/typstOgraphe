@@ -161,3 +161,65 @@ La suite complète atteint **501 tests Rust réussis**, avec **14 tests Python**
 formatage, Clippy, frontière de dépendances et contrôle de taille réussis. Cinq
 captures de suivi ont été produites ; les huit captures de référence du lot
 6.4a sont restées strictement identiques (`baseline/run-gv1udg4k`).
+
+## Commande contextuelle D38 — 25 octobre 2026
+
+La commande d’interface `edit.contextual_action` est enregistrée dans le registre
+central, avec `Ctrl+Entrée` sur les trois systèmes et `Cmd+Entrée` sur macOS.
+Elle peut être remplacée par les mécanismes de personnalisation existants et
+figure dans la palette. Elle n’ajoute aucune opération au catalogue documentaire
+CLI/MCP et ne clôture pas la phase 6.
+
+Résolution, sans mutation du contenu :
+
+1. Si un bandeau est déjà ouvert, lui redonner le focus et le rendre visible,
+   en conservant sa cible, ses erreurs et ses réglages provisoires. Même un bandeau
+   de suppression ne se valide pas par ce raccourci.
+2. Sinon, proposer la correction de l’anomalie située à l’extrémité active de la
+   sélection, avant les paramètres d’un éventuel widget englobant. Seule
+   l’orthographe est prise en charge actuellement ; la grammaire reste à ajouter.
+3. Sinon, ouvrir les paramètres publics du widget courant s’il en possède
+   (actuellement liste ou image, y compris depuis sa légende).
+4. Sinon, aucune action : pas de panneau vide, de préférences globales ou de
+   retour à la ligne ajouté par inadvertance.
+
+Une résolution commune dans `app/contextual.rs` sert à la disponibilité, à
+l’activation et à la présentation. La palette affiche l’action concrète :
+« Corriger “courrrier” », « Paramètres de la liste » ou « Revenir au bandeau… ».
+La recherche trouve également le nom générique « Action contextuelle ». Les
+info-bulles du passage et des paramètres indiquent le raccourci lorsqu’il
+correspond réellement à l’action courante.
+
+Les compositions IME du corps et des champs restent prioritaires, y compris
+entre deux frames. Les modales gardent leur contexte clavier ; en l’absence de
+bandeau ouvert, la recherche et les champs de métadonnées le gardent également.
+En lecture seule, aucun nouveau bandeau d’édition
+n’est proposé. Le raccourci de reprise d’un bandeau ne remplace ni `Entrée` pour
+appliquer, ni `Échap` pour annuler. Les gardes continuent de refuser une cible
+périmée à l’application.
+
+Le focus revient au document lorsque le bandeau provient de la palette, plutôt
+qu’au champ disparu de cette dernière. Les champs d’image/lien conservent leur
+brouillon et leur curseur natif ; les autres bandeaux disposent d’un contrôle
+approprié pour reprendre la navigation par Tab.
+
+Vérification locale : **512 tests Rust**, **14 tests Python**, formatage,
+Clippy avec avertissements refusés, frontière du cœur et limite de taille des
+fichiers réussis. Les nouveaux scénarios couvrent les priorités, le bord d’un
+mot sélectionné, la reprise des brouillons/confirmations, la palette, les
+raccourcis personnalisés, l’absence d’action, la lecture seule et les contextes
+IME/recherche/modales.
+
+Trois captures natives finales (paramètres de liste et correction clair/sombre)
+sont dans `output/phase6-4a-contextual/ready/`. Les huit captures de référence
+restent strictement identiques (`baseline/run-3gw45nyi`). La recette utilise les
+scénarios `context-list` et `context-spelling` de `--capture-widgets`, avec le
+suffixe `-dark` facultatif. La capture de correction attend les suggestions et
+vérifie que leur requête survit à la première frame du scénario.
+
+Le mode de capture natif filtre maintenant les entrées extérieures avec le
+`raw_input_hook` d’eframe, avant leur traitement par egui : les frappes, IME,
+déplacements de pointeur et fichiers déposés n’altèrent plus les fixtures. Les
+événements d’image du backend sont conservés et le focus de diagnostic est fixé.
+Un test distingue explicitement ce mode de la saisie normale, qui reste intacte.
+Les premières comparaisons perturbées sont conservées avec leurs journaux.
