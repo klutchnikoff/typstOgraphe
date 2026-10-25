@@ -253,6 +253,34 @@ mod tests {
         }
     }
     #[test]
+    fn interactive_states_keep_their_text_readable() {
+        for (name, t) in [("clair", Tokens::LIGHT), ("sombre", Tokens::DARK)] {
+            let segment = if t == Tokens::DARK {
+                mix(t.hover, Color32::WHITE, 0.12)
+            } else {
+                t.raised
+            };
+            let pairs = [
+                // Notifications et bandeaux : texte courant sur fonds doux.
+                (t.text, t.accent_soft),
+                (t.text, t.ok_soft),
+                (t.text, t.danger_soft),
+                // Bouton principal au survol et à l'appui (le destructif garde son fond doux).
+                (t.on_accent, mix(t.accent, Color32::WHITE, 0.1)),
+                (t.on_accent, mix(t.accent, Color32::BLACK, 0.12)),
+                // Segment actif et survol des segments.
+                (t.text, segment),
+                (t.text, mix(t.hover, t.text, 0.06)),
+                (t.muted, t.hover),
+                // Puces de la barre d'état et suggestions.
+                (t.accent, t.field),
+            ];
+            for (fg, bg) in pairs {
+                assert!(contrast_ratio(fg, bg) >= 4.5, "{name}: {fg:?} sur {bg:?}");
+            }
+        }
+    }
+    #[test]
     fn shared_constants_keep_their_original_values() {
         assert_eq!(Tokens::LIGHT.accent, Color32::from_rgb(40, 92, 119));
         assert_eq!(ERROR_INLINE, Color32::from_rgb(183, 69, 57));

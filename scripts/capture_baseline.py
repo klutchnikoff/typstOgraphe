@@ -14,8 +14,15 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILE = "native-light-fr-v1"
-SCENARIOS = ("welcome", "editor", "creation", "search", "spelling", "profile", "profile-letter", "recovery")
+PROFILE = "native-fr-v2"
+WIDGET_SCENARIOS = (
+    "list", "list-dark", "image", "image-dark", "remove", "link",
+    "spelling-block", "spelling-block-dark", "palette", "palette-dark", "review", "review-dark",
+)
+SCENARIOS = (
+    "welcome", "editor", "creation", "search", "spelling", "profile", "profile-letter", "recovery",
+    *(f"widgets-{name}" for name in WIDGET_SCENARIOS),
+)
 
 
 def environment():
@@ -118,7 +125,7 @@ def capture(binary, cli_binary, destination):
                 "profile": ["--capture-profile", image],
                 "profile-letter": ["--capture-profile-letter", image],
                 "recovery": ["--capture-recovery", image, recovery],
-            }[name]
+            }.get(name) or ["--capture-widgets", image, name.removeprefix("widgets-")]
             print(f"Capture: {name}", flush=True)
             run(binary, arguments, destination / f"{name}.log")
             image_record(image)

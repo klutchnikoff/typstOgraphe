@@ -24,7 +24,7 @@ impl EditorColors {
                 text: visuals.text_color(),
                 accent: Color32::from_rgb(25, 110, 180),
                 bold: Color32::from_rgb(186, 78, 33),
-                italic: Color32::from_rgb(22, 128, 91),
+                italic: Color32::from_rgb(18, 118, 83),
                 term_fill: Color32::from_rgb(251, 237, 224),
             }
         }

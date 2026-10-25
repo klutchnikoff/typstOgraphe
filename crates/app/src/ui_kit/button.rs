@@ -45,7 +45,7 @@ fn style(ui: &mut egui::Ui, kind: ButtonKind) {
         ButtonKind::Danger => (
             Color32::TRANSPARENT,
             t.danger_soft,
-            theme::mix(t.danger_soft, t.danger, 0.2),
+            t.danger_soft,
             Stroke::new(1.0_f32, t.danger),
             t.danger,
             t.danger,

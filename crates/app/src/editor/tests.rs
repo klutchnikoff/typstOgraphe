@@ -618,3 +618,30 @@ fn native_buffer_and_ime_reset_cannot_erase_a_protected_boundary_error() {
     // Abandonner le brouillon suffit : la projection publiée reste intacte.
     assert!(original.view.validate_edit().is_ok());
 }
+
+#[test]
+fn semantic_editor_colors_stay_readable_on_the_interface_surfaces() {
+    use crate::theme::{Tokens, contrast_ratio};
+    for dark in [false, true] {
+        let visuals = if dark {
+            egui::Visuals::dark()
+        } else {
+            egui::Visuals::light()
+        };
+        let colors = layout::EditorColors::from_visuals(&visuals);
+        let tokens = Tokens::new(dark);
+        for (name, color) in [
+            ("accent", colors.accent),
+            ("gras", colors.bold),
+            ("italique", colors.italic),
+        ] {
+            for (surface, ground) in [("fond", tokens.bg), ("panneau", tokens.panel)] {
+                let ratio = contrast_ratio(color, ground);
+                assert!(
+                    ratio >= 4.5,
+                    "dark={dark} : {name} sur {surface} = {ratio:.2}"
+                );
+            }
+        }
+    }
+}
