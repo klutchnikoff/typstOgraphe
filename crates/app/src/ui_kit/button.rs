@@ -77,12 +77,20 @@ pub fn button_enabled(
     enabled: bool,
     label: impl Into<WidgetText>,
 ) -> Response {
+    button_sized(ui, kind, enabled, egui::vec2(0.0, CONTROL_HEIGHT), label)
+}
+
+/// Bouton à taille minimale imposée (écran d'accueil, actions larges).
+pub fn button_sized(
+    ui: &mut egui::Ui,
+    kind: ButtonKind,
+    enabled: bool,
+    min_size: egui::Vec2,
+    label: impl Into<WidgetText>,
+) -> Response {
     ui.scope(|ui| {
         style(ui, kind);
-        ui.add_enabled(
-            enabled,
-            egui::Button::new(label).min_size(egui::vec2(0.0, CONTROL_HEIGHT)),
-        )
+        ui.add_enabled(enabled, egui::Button::new(label).min_size(min_size))
     })
     .inner
 }

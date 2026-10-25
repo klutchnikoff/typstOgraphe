@@ -24,6 +24,9 @@ pub enum Icon {
     PenLine,
     Undo,
     Redo,
+    Search,
+    ChevronUp,
+    ChevronRight,
 }
 
 impl Icon {
@@ -50,6 +53,9 @@ impl Icon {
             Self::PenLine => include_str!("../assets/icons/lucide/pen-line.svg"),
             Self::Undo => include_str!("../assets/icons/lucide/undo-2.svg"),
             Self::Redo => include_str!("../assets/icons/lucide/redo-2.svg"),
+            Self::Search => include_str!("../assets/icons/lucide/search.svg"),
+            Self::ChevronUp => include_str!("../assets/icons/lucide/chevron-up.svg"),
+            Self::ChevronRight => include_str!("../assets/icons/lucide/chevron-right.svg"),
         }
     }
 
@@ -136,6 +142,9 @@ mod tests {
             Icon::PenLine,
             Icon::Undo,
             Icon::Redo,
+            Icon::Search,
+            Icon::ChevronUp,
+            Icon::ChevronRight,
         ] {
             for pixels in [18, 36, 54] {
                 let image = icon.raster(pixels);

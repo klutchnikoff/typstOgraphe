@@ -65,6 +65,10 @@ impl App {
                 self.open_widget_band(widget, scenario == "remove");
             }
             "quote" | "notes" => {}
+            "palette" => {
+                self.dialogs.palette_open = true;
+                self.dialogs.palette_query = "li".into();
+            }
             "list-empty" => {
                 let at = self.document.engine.document().view.len();
                 self.document.selection = editor::cursor(at..at);

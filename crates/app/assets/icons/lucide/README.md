@@ -8,7 +8,7 @@ Les icônes `settings-2`, `trash-2` et `x` ont été ajoutées pour les widgets 
 bandeaux depuis la distribution locale officielle Lucide 1.8.0 (licence ISC).
 Leurs éléments vectoriels sont conservés ; ils utilisent le même masque monochrome.
 
-Les icônes `paperclip`, `pen-line`, `undo-2` et `redo-2` (barre d’outils : fin de
-lettre, annuler, rétablir) reprennent les tracés Lucide (licence ISC) recopiés à la main,
+Les icônes `paperclip`, `pen-line`, `undo-2`, `redo-2`, `search`, `chevron-up` et
+`chevron-right` (barre d’outils et recherche) reprennent les tracés Lucide (licence ISC) recopiés à la main,
 faute de distribution locale ; à remplacer par les fichiers officiels de la version
 embarquée dès qu’ils sont disponibles.

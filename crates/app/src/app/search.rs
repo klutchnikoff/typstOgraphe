@@ -155,35 +155,39 @@ impl App {
         ui.separator();
     }
     fn search_query_row(&mut self, ui: &mut egui::Ui) -> (Option<Command>, bool) {
+        use crate::{icons::Icon, ui_kit};
         let mut action = None;
         let mut close = false;
         ui.horizontal_wrapped(|ui| {
-            let toggle = ui
-                .add(search_chevron(
-                    ui,
-                    if self.search.replace_open {
-                        0.0
-                    } else {
-                        -std::f32::consts::FRAC_PI_2
-                    },
-                ))
-                .on_hover_text(crate::tr!("search-toggle-replace"));
-            toggle.widget_info(|| {
-                egui::WidgetInfo::labeled(
-                    egui::WidgetType::Button,
-                    ui.is_enabled(),
-                    crate::tr!("search-toggle-replace"),
-                )
-            });
+            let label = crate::tr!("search-toggle-replace");
+            let toggle = ui_kit::icon_toggle(
+                ui,
+                if self.search.replace_open {
+                    Icon::ChevronDown
+                } else {
+                    Icon::ChevronRight
+                },
+                false,
+                &label,
+            )
+            .on_hover_text(&label);
             if toggle.clicked() {
                 self.search.replace_open = !self.search.replace_open;
             }
-            let width = (ui.available_width() - 260.0).max(60.0);
-            let mut output = egui::TextEdit::singleline(&mut self.search.engine.query)
-                .id(egui::Id::new(SEARCH_ID))
-                .hint_text(crate::tr!("search-placeholder"))
-                .desired_width(width)
-                .show(ui);
+            let muted = crate::theme::Tokens::new(ui.visuals().dark_mode).muted;
+            ui.add(Icon::Search.image(ui.ctx(), 16.0).tint(muted));
+            let width = (ui.available_width() - 380.0).max(60.0);
+            let mut output = ui
+                .scope(|ui| {
+                    ui_kit::field_style(ui);
+                    egui::TextEdit::singleline(&mut self.search.engine.query)
+                        .id(egui::Id::new(SEARCH_ID))
+                        .hint_text(crate::tr!("search-placeholder"))
+                        .desired_width(width)
+                        .margin(egui::Margin::symmetric(8, 5))
+                        .show(ui)
+                })
+                .inner;
             if self.search.focus_pending && ui.is_enabled() {
                 output.response.request_focus();
                 output.state.cursor.set_char_range(Some(editor::cursor(
@@ -194,14 +198,13 @@ impl App {
             }
             self.refresh_search();
             self.search_result_controls(ui, &mut action);
-            close = ui
-                .small_button("×")
-                .on_hover_text(crate::tr!("search-close"))
-                .clicked();
+            close =
+                ui_kit::icon_button(ui, Icon::Close, false, &crate::tr!("search-close")).clicked();
         });
         (action, close)
     }
     fn search_result_controls(&mut self, ui: &mut egui::Ui, action: &mut Option<Command>) {
+        use crate::{icons::Icon, ui_kit};
         let counter = match self.search.engine.selected(&self.range()) {
             Some(index) => crate::tr!(
                 "search-active-result",
@@ -210,39 +213,46 @@ impl App {
             ),
             None => crate::tr!("search-results", count = self.search.engine.matches.len()),
         };
+        let muted = crate::theme::Tokens::new(ui.visuals().dark_mode).muted;
         // Largeur stable : choisir un résultat ne doit pas déplacer le texte
         // sous le pointeur en repliant la barre sur une ligne supplémentaire.
         ui.add_sized(
             [90.0, ui.spacing().interact_size.y],
-            egui::Label::new(counter).truncate(),
+            egui::Label::new(egui::RichText::new(counter).color(muted)).truncate(),
         );
-        for (rotation, command) in [
-            (std::f32::consts::PI, Command::FindPrevious),
-            (0.0, Command::FindNext),
+        for (icon, command) in [
+            (Icon::ChevronUp, Command::FindPrevious),
+            (Icon::ChevronDown, Command::FindNext),
         ] {
             let enabled = self.command_enabled(command);
             let response = ui
-                .add_enabled(enabled, search_chevron(ui, rotation))
+                .add_enabled_ui(enabled, |ui| {
+                    ui_kit::icon_toggle(ui, icon, false, &command.label())
+                })
+                .inner
                 .on_hover_text(self.keymap.hint(ui.ctx(), command));
-            response.widget_info(|| {
-                egui::WidgetInfo::labeled(
-                    egui::WidgetType::Button,
-                    enabled && ui.is_enabled(),
-                    command.label(),
-                )
-            });
             if response.clicked() {
                 *action = Some(command);
             }
         }
+        let active = self.search.engine.case_sensitive;
         let case = ui
-            .selectable_label(self.search.engine.case_sensitive, "Aa")
+            .scope(|ui| {
+                ui_kit::icon_style(ui);
+                ui.add(
+                    egui::Button::new(egui::RichText::new("Aa").family(crate::theme::semibold()))
+                        .min_size(egui::vec2(ui_kit::CONTROL_HEIGHT, ui_kit::CONTROL_HEIGHT))
+                        .frame_when_inactive(false)
+                        .selected(active),
+                )
+            })
+            .inner
             .on_hover_text(crate::tr!("search-match-case"));
         case.widget_info(|| {
             egui::WidgetInfo::selected(
                 egui::WidgetType::Checkbox,
                 ui.is_enabled(),
-                self.search.engine.case_sensitive,
+                active,
                 crate::tr!("search-match-case"),
             )
         });
@@ -252,24 +262,30 @@ impl App {
         }
     }
     fn search_replacement_row(&mut self, ui: &mut egui::Ui) -> Option<Command> {
+        use crate::ui_kit::{self, ButtonKind};
         let mut action = None;
         if self.search.replace_open {
             ui.horizontal_wrapped(|ui| {
                 ui.add_space(20.0);
-                let width = (ui.available_width() - 230.0).max(80.0);
-                ui.add(
-                    egui::TextEdit::singleline(&mut self.search.engine.replacement)
-                        .id(egui::Id::new(REPLACE_ID))
-                        .hint_text(crate::tr!("search-replacement-placeholder"))
-                        .desired_width(width),
-                );
+                let width = (ui.available_width() - 320.0).max(80.0);
+                ui.scope(|ui| {
+                    ui_kit::field_style(ui);
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.search.engine.replacement)
+                            .id(egui::Id::new(REPLACE_ID))
+                            .hint_text(crate::tr!("search-replacement-placeholder"))
+                            .desired_width(width)
+                            .margin(egui::Margin::symmetric(8, 5)),
+                    );
+                });
                 for command in [Command::ReplaceCurrent, Command::ReplaceAll] {
-                    if ui
-                        .add_enabled(
-                            self.command_enabled(command),
-                            egui::Button::new(command.label()).small(),
-                        )
-                        .clicked()
+                    if ui_kit::button_enabled(
+                        ui,
+                        ButtonKind::Secondary,
+                        self.command_enabled(command),
+                        command.label(),
+                    )
+                    .clicked()
                     {
                         action = Some(command);
                     }
@@ -281,14 +297,4 @@ impl App {
         }
         action
     }
-}
-
-fn search_chevron(ui: &egui::Ui, rotation: f32) -> egui::Button<'static> {
-    egui::Button::new(
-        crate::icons::Icon::ChevronDown
-            .image(ui.ctx(), 12.0)
-            .rotate(rotation, egui::vec2(0.5, 0.5)),
-    )
-    .image_tint_follows_text_color(true)
-    .small()
 }

@@ -14,7 +14,9 @@ mod side_rail;
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
 
-pub use button::{ButtonKind, button, button_enabled, icon_button, icon_style, icon_toggle};
+pub use button::{
+    ButtonKind, button, button_enabled, button_sized, icon_button, icon_style, icon_toggle,
+};
 pub use dialog::{Dialog, footer};
 pub use field::{field_style, text_area, text_field};
 pub use gallery::{Gallery, Orientation, gallery};
