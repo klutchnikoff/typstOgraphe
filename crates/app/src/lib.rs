@@ -17,6 +17,7 @@ pub mod preferences;
 pub mod profile;
 pub mod theme;
 pub mod toolbar;
+pub mod ui_kit;
 
 mod screenshot;
-pub(crate) use screenshot::write_screenshot;
+pub use screenshot::write_screenshot;

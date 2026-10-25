@@ -22,6 +22,21 @@ pub fn selection_stroke(dark: bool) -> Stroke {
     Stroke::new(1.0_f32, if dark { Color32::LIGHT_BLUE } else { ACCENT })
 }
 
+/// Voile derrière les dialogues.
+pub fn scrim(dark: bool) -> Color32 {
+    Color32::from_black_alpha(if dark { 140 } else { 97 })
+}
+/// Mélange linéaire de deux couleurs opaques (`amount` de 0 à 1 vers `to`).
+pub fn mix(from: Color32, to: Color32, amount: f32) -> Color32 {
+    let channel =
+        |a: u8, b: u8| (f32::from(a) + (f32::from(b) - f32::from(a)) * amount).round() as u8;
+    Color32::from_rgb(
+        channel(from.r(), to.r()),
+        channel(from.g(), to.g()),
+        channel(from.b(), to.b()),
+    )
+}
+
 /// Échelles communes (points egui).
 pub mod scale {
     pub const SPACE: [f32; 5] = [4.0, 8.0, 12.0, 16.0, 24.0];
@@ -41,7 +56,9 @@ const fn hex(rgb: u32) -> Color32 {
 pub struct Tokens {
     pub bg: Color32,
     pub panel: Color32,
+    pub raised: Color32,
     pub field: Color32,
+    pub hover: Color32,
     pub text: Color32,
     pub muted: Color32,
     pub border: Color32,
@@ -58,7 +75,9 @@ impl Tokens {
     pub const LIGHT: Self = Self {
         bg: hex(0xf4f4f1),
         panel: hex(0xffffff),
+        raised: hex(0xffffff),
         field: hex(0xffffff),
+        hover: hex(0xecece8),
         text: hex(0x1f2328),
         muted: hex(0x5f656c),
         border: hex(0xd9d9d2),
@@ -74,7 +93,9 @@ impl Tokens {
     pub const DARK: Self = Self {
         bg: hex(0x1b1c1e),
         panel: hex(0x232427),
+        raised: hex(0x2a2b2f),
         field: hex(0x2b2d31),
+        hover: hex(0x303236),
         text: hex(0xe6e7e9),
         muted: hex(0x9aa0a8),
         border: hex(0x35373c),
@@ -126,6 +147,8 @@ mod tests {
                 (t.text, t.bg),
                 (t.text, t.panel),
                 (t.text, t.field),
+                (t.text, t.hover),
+                (t.muted, t.hover),
                 (t.muted, t.bg),
                 (t.muted, t.panel),
                 (t.muted, t.field),

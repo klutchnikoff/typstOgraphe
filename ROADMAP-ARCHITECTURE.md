@@ -1198,9 +1198,17 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
   palette (texte ≥ 4,5:1, bordure forte ≥ 3:1). Les `error_fg_color` d'egui, `LIGHT_RED`, les
   couleurs de la relecture et de l'éditeur seront reprises pendant L.2 et L.3, avec
   l'application de la palette au style global, en commits d'apparence séparés.
-- [ ] **L.2 — Composants communs (`ui_kit`).** Boutons (principal, secondaire, discret,
-  destructif, icône), champs avec anneau de focus, contrôle segmenté, enveloppe de
-  dialogue, notification, touche de raccourci. Tests de présentation et d'accessibilité.
+- [x] **L.2 — Composants communs (`ui_kit`).** Livré le 25 octobre 2026 dans
+  `crates/app/src/ui_kit/` : boutons (principal, secondaire, discret, destructif, icône),
+  champs sur une ligne et multiligne avec anneau de focus, contrôle segmenté (boutons
+  radio pour l'accessibilité), enveloppe de dialogue (`Dialog` : titre, description,
+  corps, pied à droite), notifications et touche de raccourci. Les composants lisent les
+  jetons du thème et ne sont encore utilisés par aucun écran : **aucune apparence de
+  l'application ne change**. Six tests de présentation (tailles, désactivation, sélection,
+  anneau de focus, ordre du pied, deux thèmes) ; capture de revue par
+  `cargo run -p typstographe --example ui-kit-gallery -- sortie.png [light|dark] [gallery|dialog]`.
+  La police d'interface embarquée et l'application de la palette au style global
+  d'egui arrivent avec L.3, dans des commits d'apparence séparés.
 - [ ] **L.2 bis — Mécanisme de barre latérale droite, sans contenu (D40).** Composant
   `SideRail` de `ui_kit` : barre étroite d'icônes carrées à droite et tiroir qui recouvre
   l'aperçu sans déplacer l'éditeur, au plus 2/3 de la colonne d'aperçu (repli sur l'espace

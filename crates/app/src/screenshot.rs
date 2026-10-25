@@ -1,7 +1,7 @@
 //! Écriture des captures natives de développement.
 use std::path::Path;
 
-pub(crate) fn write_screenshot(
+pub fn write_screenshot(
     path: &Path,
     image: &eframe::egui::ColorImage,
 ) -> Result<(), Box<dyn std::error::Error>> {
