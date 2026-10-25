@@ -85,3 +85,16 @@ impl<'a> Dialog<'a> {
 pub fn footer(ui: &mut egui::Ui, contents: impl FnOnce(&mut egui::Ui)) {
     ui.with_layout(Layout::right_to_left(Align::Center), contents);
 }
+
+/// Pied avec une action à part, tout à gauche (destructive, comme « Ne pas enregistrer »),
+/// et les autres à droite : l'action principale en premier appel, donc tout à droite.
+pub fn footer_split(
+    ui: &mut egui::Ui,
+    aside: impl FnOnce(&mut egui::Ui),
+    actions: impl FnOnce(&mut egui::Ui),
+) {
+    ui.horizontal(|ui| {
+        aside(ui);
+        ui.with_layout(Layout::right_to_left(Align::Center), actions);
+    });
+}

@@ -17,7 +17,7 @@ mod tests;
 pub use button::{
     ButtonKind, button, button_enabled, button_sized, icon_button, icon_style, icon_toggle,
 };
-pub use dialog::{Dialog, footer};
+pub use dialog::{Dialog, footer, footer_split};
 pub use field::{field_style, text_area, text_field};
 pub use gallery::{Gallery, Orientation, gallery};
 pub use notice::{NoticeKind, chip, keycap, notice};

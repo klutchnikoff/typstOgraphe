@@ -74,6 +74,32 @@ dans [interface-design-audit.md](interface-design-audit.md) et
 - Références ré-enregistrées (`output/phase-l5`, 20 scénarios, seconde passe identique) ;
   584 tests réussis sur l'espace de travail.
 
+## Finitions du 25 octobre 2026 (relecture)
+
+À la relecture, six défauts de présentation ont été corrigés. Les trois premiers
+relevaient du rendu de l'éditeur, antérieur au chantier L mais mis en évidence par le
+nouveau style (commit `d280053`) ; les autres des boutons et des marges (commit suivant).
+
+- **Interligne** : de 1,55 à 1,35 (`LINE_HEIGHT`). Le curseur d'egui prend la hauteur de
+  la ligne entière : il était disproportionné par rapport au texte.
+- **Puces et numéros** : alignés sur la ligne de base du texte (ils étaient centrés sur la
+  ligne, donc trop bas) ; les descriptions n'ont plus de puce.
+- **Termes des descriptions** : egui cale chaque section sur le bas de sa propre ligne ;
+  la ligne du terme, plus petit, est raccourcie de la différence des ascendantes pour que
+  sa ligne de base soit celle du texte suivant.
+- **Boutons** : règle unique — l'action principale tout à droite, les autres actions à
+  droite ; l'action destructive **secondaire** (Ne pas enregistrer, Révoquer, Supprimer la
+  copie, Retirer le lien) à part, tout à gauche (`footer_split`). Quand l'action
+  destructive est la confirmation (Supprimer un widget) ou l'une des deux décisions
+  (Refuser/Accepter le lot), elle reste à droite avec son style destructif.
+- **Aération des bandeaux** : marge basse de 12 points et 8 points réservés sous le
+  bandeau, pour que la pointe et la bordure n'effleurent pas le texte, hors bloc comme
+  dans le cadre d'un bloc.
+- Les fonctions devenues trop longues ont été découpées (`apply_footer`,
+  `assistance_footer`, `recovery_entry`) pour rester sous le seuil de 120 lignes.
+
+Références ré-enregistrées (20 scénarios, seconde passe identique) ; 584 tests réussis.
+
 ## Limites connues et suite
 
 - Sous environ 900 points de large, le contenu de l'éditeur déborde déjà de sa colonne

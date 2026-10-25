@@ -19,6 +19,13 @@ pub(super) struct AssistanceState {
     pub save_current: bool,
     pub export_root: Option<PathBuf>,
 }
+#[derive(Default)]
+struct AssistanceActions {
+    authorize: bool,
+    close: bool,
+    revoke: bool,
+    copy: bool,
+}
 impl App {
     pub(super) fn share_selection(&mut self) {
         let busy = self.assistance_busy();
@@ -208,18 +215,47 @@ impl App {
         }
         configuration
     }
+    /// Pied du dialogue : sans invitation, Autoriser (principal) et Fermer ; avec une
+    /// invitation, Révoquer — destructif — à part à gauche, le reste à droite.
+    fn assistance_footer(&self, ui: &mut egui::Ui, actions: &mut AssistanceActions) {
+        use crate::ui_kit::{ButtonKind, button, button_enabled, footer, footer_split};
+        if self.assistance.session.is_none() {
+            footer(ui, |ui| {
+                actions.authorize = button_enabled(
+                    ui,
+                    ButtonKind::Primary,
+                    self.document.open,
+                    crate::tr!("assistance-authorize"),
+                )
+                .clicked();
+                actions.close = button(ui, ButtonKind::Ghost, crate::tr!("close")).clicked();
+            });
+        } else {
+            // Révoquer, destructif, est à part à gauche ; le reste à droite.
+            footer_split(
+                ui,
+                |ui| {
+                    actions.revoke =
+                        button(ui, ButtonKind::Danger, crate::tr!("assistance-revoke")).clicked();
+                },
+                |ui| {
+                    actions.close = button(ui, ButtonKind::Primary, crate::tr!("close")).clicked();
+                    actions.copy =
+                        button(ui, ButtonKind::Secondary, crate::tr!("assistance-copy")).clicked();
+                },
+            );
+        }
+    }
     pub(super) fn assistance_ui(&mut self, ctx: &egui::Context) {
         if !self.dialogs.assistance_open {
             return;
         }
-        use crate::ui_kit::{
-            ButtonKind, Dialog, NoticeKind, button, button_enabled, footer, notice,
-        };
+        use crate::ui_kit::{ButtonKind, Dialog, NoticeKind, button, notice};
         let (title, help) = (
             crate::tr!("assistance-title"),
             crate::tr!("assistance-help"),
         );
-        let (mut authorize, mut close) = (false, false);
+        let mut actions = AssistanceActions::default();
         let response = Dialog::new("agent-assistance", &title)
             .description(&help)
             .width(480.0)
@@ -243,16 +279,6 @@ impl App {
                         for root in roots.iter().filter_map(serde_json::Value::as_str) {
                             ui.label(crate::tr!("assistance-export-granted", path = root));
                         }
-                    }
-                    if button(ui, ButtonKind::Secondary, crate::tr!("assistance-copy")).clicked() {
-                        let configuration = self.assistance_configuration(session);
-                        ctx.copy_text(
-                            serde_json::to_string_pretty(&configuration)
-                                .expect("MCP configuration"),
-                        );
-                    }
-                    if button(ui, ButtonKind::Danger, crate::tr!("assistance-revoke")).clicked() {
-                        self.assistance.session = None;
                     }
                 } else {
                     ui.separator();
@@ -305,21 +331,21 @@ impl App {
                     notice(ui, NoticeKind::Error, error.clone());
                 }
                 ui.add_space(14.0);
-                footer(ui, |ui| {
-                    if self.assistance.session.is_none() {
-                        authorize = button_enabled(
-                            ui,
-                            ButtonKind::Primary,
-                            self.document.open,
-                            crate::tr!("assistance-authorize"),
-                        )
-                        .clicked();
-                        close = button(ui, ButtonKind::Ghost, crate::tr!("close")).clicked();
-                    } else {
-                        close = button(ui, ButtonKind::Primary, crate::tr!("close")).clicked();
-                    }
-                });
+                self.assistance_footer(ui, &mut actions);
             });
+        let AssistanceActions {
+            authorize,
+            close,
+            revoke,
+            copy,
+        } = actions;
+        if revoke {
+            self.assistance.session = None;
+        }
+        if copy && let Some(session) = &self.assistance.session {
+            let configuration = self.assistance_configuration(session);
+            ctx.copy_text(serde_json::to_string_pretty(&configuration).expect("MCP configuration"));
+        }
         if authorize {
             self.start_assistance(ctx);
         }

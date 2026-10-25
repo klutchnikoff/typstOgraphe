@@ -1,6 +1,11 @@
 use super::*;
 use crate::{icons::Icon, ui_kit::ButtonKind};
 
+/// Espace réservé sous le bandeau : la pointe et la bordure n'effleurent pas le texte.
+const BAND_GAP: f32 = 8.0;
+/// Marges intérieures du bandeau : côtés, haut, bas.
+const BAND_PAD: [f32; 3] = [12.0, 8.0, 12.0];
+
 impl App {
     pub(in crate::app) fn widget_controls(
         &mut self,
@@ -99,14 +104,15 @@ impl App {
         let mut measured = 0.0;
         // Enfant détaché : sa largeur ne doit pas élargir la colonne de l'éditeur, dont
         // dépend justement la largeur du bandeau.
-        let mut child = ui.new_child(
-            egui::UiBuilder::new()
-                .id_salt("editor-band")
-                .max_rect(rect.shrink2(egui::vec2(12.0, 8.0))),
-        );
+        let mut child = ui.new_child(egui::UiBuilder::new().id_salt("editor-band").max_rect(
+            egui::Rect::from_min_max(
+                rect.min + egui::vec2(BAND_PAD[0], BAND_PAD[1]),
+                rect.max - egui::vec2(BAND_PAD[0], BAND_PAD[2]),
+            ),
+        ));
         let mut paint = |ui: &mut egui::Ui| {
             ui.set_clip_rect(rect.intersect(ui.clip_rect()));
-            ui.set_min_width((rect.width() - 24.0).max(1.0));
+            ui.set_min_width((rect.width() - 2.0 * BAND_PAD[0]).max(1.0));
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new(band.title()).family(crate::theme::semibold()));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -127,7 +133,7 @@ impl App {
             if action.is_none() {
                 action = body_action;
             }
-            measured = ui.min_rect().height() + 16.0;
+            measured = ui.min_rect().height() + BAND_PAD[1] + BAND_PAD[2] + BAND_GAP;
         };
         paint(&mut child);
         band.focus_pending = band.keyboard_focus
@@ -178,7 +184,10 @@ impl App {
         let right = right.min(ui.clip_rect().right() - 2.0).max(left + 120.0);
         let top = output.galley_pos.y + y - inset.height;
         (
-            egui::Rect::from_min_max(egui::pos2(left, top), egui::pos2(right, top + inset.height)),
+            egui::Rect::from_min_max(
+                egui::pos2(left, top),
+                egui::pos2(right, top + inset.height - BAND_GAP),
+            ),
             host.is_some(),
         )
     }
@@ -287,12 +296,7 @@ fn band_body(
             if band.focus_pending {
                 response.request_focus();
             }
-            ui.horizontal_wrapped(|ui| {
-                if band_button(ui, crate::tr!("image-replace"), submit) {
-                    action = Some(BandAction::ReplaceImage);
-                }
-                ui.weak(crate::tr!("widget-caption-direct"));
-            });
+            ui.weak(crate::tr!("widget-caption-direct"));
             apply = true;
         }
         BandContent::List { kind } => {
@@ -318,9 +322,6 @@ fn band_body(
             );
             if band.focus_pending {
                 response.request_focus();
-            }
-            if band_button(ui, Command::RemoveLink.short_label(), submit) {
-                action = Some(BandAction::Remove);
             }
             apply = true;
         }
@@ -361,15 +362,7 @@ fn band_body(
         ui.colored_label(ui.visuals().error_fg_color, error);
     }
     if apply {
-        let labels = [crate::tr!("cancel"), crate::tr!("apply")];
-        band_footer(ui, &labels, |ui| {
-            if kinded_band_button(ui, ButtonKind::Ghost, crate::tr!("cancel"), submit, false) {
-                action = Some(BandAction::Close);
-            }
-            if kinded_band_button(ui, ButtonKind::Primary, crate::tr!("apply"), submit, false) {
-                action = Some(BandAction::Apply);
-            }
-        });
+        apply_footer(ui, &band.content, submit, &mut action);
     }
     action.or_else(|| {
         if !submit {
@@ -412,9 +405,11 @@ fn spelling_controls(
     }
     let commands = [Command::IgnoreSpelling, Command::LearnSpelling];
     let labels = commands.map(|command| command.label());
-    wrapped_buttons(ui, &labels, |ui, index| {
-        if band_button(ui, labels[index].clone(), submit) {
-            action = Some(BandAction::Spelling(commands[index]));
+    band_footer(ui, &labels, |ui| {
+        for (index, command) in commands.iter().enumerate() {
+            if band_button(ui, labels[index].clone(), submit) {
+                action = Some(BandAction::Spelling(*command));
+            }
         }
     });
     action
@@ -486,5 +481,85 @@ fn wrapped_buttons(
                 button(ui, index);
             }
         });
+    }
+}
+
+/// Pied de bandeau avec une action à part à gauche, les autres alignées à droite.
+fn band_footer_split(
+    ui: &mut egui::Ui,
+    actions: &[String],
+    aside_contents: impl FnOnce(&mut egui::Ui),
+    contents: impl FnOnce(&mut egui::Ui),
+) {
+    ui.horizontal(|ui| {
+        let gap = ui.spacing().item_spacing.x;
+        let right: f32 = actions
+            .iter()
+            .map(|label| button_width(ui, label))
+            .sum::<f32>()
+            + gap * actions.len().saturating_sub(1) as f32;
+        aside_contents(ui);
+        ui.add_space((ui.available_width() - right).max(0.0));
+        contents(ui);
+    });
+}
+
+/// Pied des bandeaux à paramètres : toutes les actions à droite, l'action principale en
+/// dernier ; l'action destructive d'un lien reste à part, à gauche.
+fn apply_footer(
+    ui: &mut egui::Ui,
+    content: &BandContent,
+    submit: bool,
+    action: &mut Option<BandAction>,
+) {
+    let (cancel, ok) = (crate::tr!("cancel"), crate::tr!("apply"));
+    // Toutes les actions à droite, l'action principale en dernier ; l'action
+    // destructive d'un lien reste à part, à gauche.
+    match content {
+        BandContent::Link { .. } => {
+            let remove = Command::RemoveLink.short_label();
+            let mut removed = false;
+            band_footer_split(
+                ui,
+                &[cancel.clone(), ok.clone()],
+                |ui| {
+                    removed =
+                        kinded_band_button(ui, ButtonKind::Danger, remove.clone(), submit, false);
+                },
+                |ui| {
+                    if kinded_band_button(ui, ButtonKind::Ghost, cancel.clone(), submit, false) {
+                        *action = Some(BandAction::Close);
+                    }
+                    if kinded_band_button(ui, ButtonKind::Primary, ok.clone(), submit, false) {
+                        *action = Some(BandAction::Apply);
+                    }
+                },
+            );
+            if removed {
+                *action = Some(BandAction::Remove);
+            }
+        }
+        content => {
+            let replace =
+                matches!(content, BandContent::Image { .. }).then(|| crate::tr!("image-replace"));
+            let labels: Vec<String> = replace
+                .iter()
+                .cloned()
+                .chain([cancel.clone(), ok.clone()])
+                .collect();
+            band_footer(ui, &labels, |ui| {
+                if let Some(replace) = &replace
+                    && kinded_band_button(ui, ButtonKind::Secondary, replace.clone(), submit, false)
+                {
+                    *action = Some(BandAction::ReplaceImage);
+                }
+                if kinded_band_button(ui, ButtonKind::Ghost, cancel.clone(), submit, false) {
+                    *action = Some(BandAction::Close);
+                }
+                if kinded_band_button(ui, ButtonKind::Primary, ok.clone(), submit, false) {
+                    *action = Some(BandAction::Apply);
+                }
+            });
+        }
     }
 }

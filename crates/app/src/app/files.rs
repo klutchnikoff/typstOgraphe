@@ -317,7 +317,7 @@ impl App {
         ctx.request_repaint();
     }
     pub(super) fn file_dialogs(&mut self, ctx: &egui::Context) {
-        use crate::ui_kit::{ButtonKind, Dialog, NoticeKind, button, notice};
+        use crate::ui_kit::{ButtonKind, Dialog, NoticeKind, button, footer_split, notice};
         if self.file.read_only_offer.is_some() {
             let mut choice = None;
             let (title, message) = (crate::tr!("file-locked-title"), crate::tr!("file-locked"));
@@ -346,35 +346,36 @@ impl App {
             }
         }
         if self.file.pending_action.is_some() {
-            let mut choice = None;
+            let choice = std::cell::Cell::new(None);
             let (title, message) = (crate::tr!("unsaved-title"), crate::tr!("unsaved-message"));
             let error = self.file.error.clone();
             Dialog::new("unsaved-letter", &title)
                 .description(&message)
                 .width(420.0)
-                .show(
-                    ctx,
-                    |ui| {
-                        if let Some(error) = error {
-                            notice(ui, NoticeKind::Error, error);
-                        }
-                    },
-                    |ui| {
-                        if button(ui, ButtonKind::Primary, crate::tr!("save")).clicked() {
-                            choice = Some(0);
-                        }
-                        if button(ui, ButtonKind::Ghost, crate::tr!("cancel")).clicked() {
-                            choice = Some(2);
-                        }
-                        // L'action destructive reste à gauche, loin du bouton principal.
-                        ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                .show_with(ctx, |ui| {
+                    if let Some(error) = error {
+                        notice(ui, NoticeKind::Error, error);
+                    }
+                    ui.add_space(14.0);
+                    // L'action destructive est à part, à gauche ; les autres à droite.
+                    footer_split(
+                        ui,
+                        |ui| {
                             if button(ui, ButtonKind::Danger, crate::tr!("discard")).clicked() {
-                                choice = Some(1);
+                                choice.set(Some(1));
                             }
-                        });
-                    },
-                );
-            match choice {
+                        },
+                        |ui| {
+                            if button(ui, ButtonKind::Primary, crate::tr!("save")).clicked() {
+                                choice.set(Some(0));
+                            }
+                            if button(ui, ButtonKind::Ghost, crate::tr!("cancel")).clicked() {
+                                choice.set(Some(2));
+                            }
+                        },
+                    );
+                });
+            match choice.get() {
                 Some(0) if self.save_document(false) => {
                     if let Some(action) = self.file.pending_action.take() {
                         self.perform_action(action, ctx);
