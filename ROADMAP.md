@@ -118,7 +118,12 @@ persistante de modèles restent à développer.
   distincte de la déconnexion, outils documentaires seuls pour le prototype.
   **Conception graphique différée jusqu'à l'implémentation complète des modifications
   de design du chantier L**, puis maquettes et choix à valider ensemble avant M.4.
-  Le panneau à droite reste une piste, sans emplacement ni comportement acquis.
+  **Piste principale à maquetter :** conversation dans un panneau ouvert depuis la
+  barre latérale, question de hauteur adaptative, réponse dessous et actions dans
+  un pied stable. Échap masque, Tab conserve la navigation et Entrée suit le focus ;
+  l'acceptation des modifications reste dans la relecture. Présentation à valider
+  après la fin de toutes les modifications de design, y compris les ajustements
+  en cours ; aucun emplacement ni partage de largeur n'est acquis.
   Voir D41 et le chantier M dans
   [la feuille de route d'architecture](ROADMAP-ARCHITECTURE.md#chantier-m--assistance-intégrée-multi-agent-via-acp-d41--planifié).
   État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),
@@ -583,8 +588,11 @@ au moins deux usages réels permettant de justifier une conversion.
   le tiroir temporaire posé en L.2 bis n'impose pas le parcours d'une conversation.
   **Attendre l'implémentation complète des modifications de design du chantier L
   avant de reprendre ensemble cette conception**, avec maquettes puis validation
-  avant de coder l'interface d'assistance. La proposition d'un panneau à droite
-  n'est pas une décision acquise.
+  avant de coder l'interface d'assistance. La conversation regroupée dans un panneau
+  ouvert depuis la barre latérale devient la piste principale à maquetter : question
+  adaptative, réponse dessous, historique conservé et actions en pied de panneau.
+  Sa présentation reste à valider ; les ajustements de design en cours doivent être
+  terminés avant cette validation.
 
 **Choix ensemble :** sens de « projet », regroupement des documents, distinction
 entre navigation globale et plan du document, maquette et comportement sur petite

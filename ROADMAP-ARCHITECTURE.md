@@ -1301,8 +1301,12 @@ Son ordre d'engagement sera validé ensemble ; il n'interrompt pas le chantier L
 attend l'implémentation complète des modifications de design du chantier L.**
 Nous reprendrons alors ensemble le parcours graphique sur l'interface obtenue,
 avec une maquette avant l'intégration. La qualité de cette conception est une
-condition de l'intégration, pas un ajustement à faire après coup. Aucun panneau
-à droite, ancrage, recouvrement ou partage de largeur n'est validé à ce stade.
+condition de l'intégration, pas un ajustement à faire après coup. **Piste principale
+retenue pour la maquette : une conversation regroupée dans un panneau ouvert
+depuis la barre latérale**, avec question, réponse puis actions. Sa présentation,
+son emplacement exact, ses dimensions et son effet sur l'éditeur et l'aperçu
+restent à valider après la fin de l'ensemble des modifications de design, y compris
+les ajustements en cours ; la clôture des lots L ne valide pas implicitement M.1.
 
 **Rattachement au document.** ACP pilote la conversation, mais ne confère pas
 d'accès documentaire. Conserver une session autorisée par document, son canal
@@ -1349,12 +1353,17 @@ doit ni rattacher silencieusement l'agent à un autre document, ni répéter une
 la rédaction structurée ; l'agent utilise les capacités du type documentaire
 et laisse le modèle Typst produire la présentation.
 
-1. **Présentation : décision différée.** La proposition d'un panneau à droite,
-   repliable et redimensionnable, réservant sa largeur, reste une piste seulement.
-   Attendre que toutes les modifications de design du chantier L soient implémentées
-   avant de rediscuter emplacement, dimensions, coexistence avec l'éditeur et
-   l'aperçu, petits écrans, focus, clavier et états de l'assistance. Concevoir et
-   comparer les maquettes ensemble ; aucune disposition n'est figée par le prototype.
+1. **Présentation : piste principale à maquetter, décision visuelle différée.**
+   Conversation dans un panneau ouvert depuis la barre latérale : question dans
+   un champ qui grandit avec son contenu jusqu'à une hauteur maximale, réponse
+   dessous et actions dans un pied de panneau stable. Une nouvelle question fait
+   remonter l'échange précédent dans l'historique, qui reste consultable. Voir le
+   détail ci-dessous. Attendre la fin de toutes les modifications de design, y
+   compris les ajustements en cours, avant de valider ensemble les maquettes,
+   l'emplacement, les dimensions, la coexistence avec l'éditeur et l'aperçu, les
+   petits écrans et le focus. Le tiroir L.2 bis ne fixe pas ces choix. Les variantes
+   à deux zones séparées et à champ flottant deviennent des pistes secondaires ;
+   aucune disposition n'est figée par le prototype.
 2. **Démarrage et connexion.** Choix de l'agent dans les préférences globales.
    Premier prototype avec Codex et son adaptateur installés, état de disponibilité
    clairement indiqué. Une action volontaire démarre l'assistance pour le document
@@ -1398,6 +1407,41 @@ et laisse le modèle Typst produire la présentation.
 son sens et son ton ; construire un courrier à partir de notes en demandant les
 précisions nécessaires. Vérifier les échanges, les propositions et leur validation,
 sans installer une disposition graphique provisoire comme design définitif.
+
+### M.1 — Piste principale de maquette : conversation dans le panneau latéral
+
+**Orientation retenue le 25 octobre 2026 ; présentation à valider après les
+modifications de design.** L'objectif est une interaction légère et une conversation
+libre, sans sélecteur obligatoire « discuter / modifier ». L'agent donne des conseils,
+pose une question en cas d'ambiguïté et prépare un lot lorsqu'une modification est
+demandée. Lui demander des réponses synthétiques, sans tronquer silencieusement leur
+contenu dans l'interface.
+
+- **Composition.** Question en haut, réponse dessous, actions dans un pied stable du
+  panneau. Le champ grandit jusqu'à un plafond puis devient défilant. Définir par
+  maquette les limites de hauteur, le défilement et la place laissée au document.
+- **Poursuite.** L'échange précédent remonte hors de la zone visible pour laisser
+  place au nouveau champ de question. Il reste dans l'historique et peut être relu
+  en remontant ; conserver le brouillon pendant la navigation.
+- **Actions.** « Préparer une proposition » lorsque la discussion a produit des
+  idées à transformer en modifications ; « Voir la proposition » si un lot est déjà
+  préparé. Une demande explicite de modification peut produire directement un lot,
+  sans étape de conversation forcée. Aucune de ces actions n'accepte le lot.
+- **Échap.** Fermer/masquer le panneau en conservant conversation et brouillon,
+  sans interrompre automatiquement l'agent ni révoquer son accès. Respecter les
+  priorités des menus, bandeaux et de l'IME.
+- **Tab.** Conserver la navigation standard entre contrôles ; organiser le parcours
+  pour atteindre facilement la question suivante après une réponse. Ne pas détourner
+  globalement Tab en commande d'envoi ou de poursuite.
+- **Entrée.** Dans la question, envoyer la demande ; sur une action focalisée,
+  déclencher cette action. La saisie multiligne et la composition IME seront précisées
+  avec la maquette. Aucune Entrée globale n'accepte les modifications : l'accord final
+  reste explicite dans la relecture existante (D39).
+
+La maquette devra vérifier le parcours au clavier, la relecture de l'historique,
+la conservation du focus et du brouillon, ainsi que la place du rendu sur petit
+écran. Il s'agit d'une priorité de conception, pas d'une autorisation d'implémenter
+le panneau avant validation de sa présentation.
 
 ---
 
