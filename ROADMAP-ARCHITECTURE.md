@@ -1444,6 +1444,21 @@ le panneau avant validation de sa présentation.
 
 ---
 
+## Prototype isolé d'éditeur web — ouvert le 26 octobre 2026
+
+**Choix validés :** Tauri, Tiptap/ProseMirror et Yjs, avec réutilisation du cœur
+Rust. Diagnostic sur `codex/spike-tauri-editor`, hors de l'application egui et des
+builds habituels. Voir les [décisions et critères de bilan](docs/architecture-web-editor-spike.md).
+
+L'état partagé et l'historique d'édition sont confiés à Yjs pendant la session ;
+le cœur valide les instantanés et produit le Typst. Deux fenêtres indépendantes
+échangent par un relais local. Le diagnostic couvre notamment tableaux, notes,
+annotations, sauvegarde/reprise et une modification initiée depuis Rust.
+Ce choix expérimental ne décide pas une migration générale ni une modification
+du format `.typsto`. Les tableaux et notes restent les premières priorités
+documentaires du chantier C. La conception ACP reprend après le bilan de ce
+prototype ; les décisions M.1 restent consignées.
+
 ## Phase 7 — Consolidation (taille S)
 
 - [ ] Rendre bloquants `clippy::too_many_lines` (seuil 120) et le script de taille de
