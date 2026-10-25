@@ -18,6 +18,7 @@ impl UiCommand {
             Self::Link => Icon::Link,
             Self::InsertImage => Icon::Image,
             Self::RemoveWidget => Icon::Trash,
+            Self::ContextualAction => Icon::Settings,
             Self::Block(kind) => Icon::for_block(kind),
             _ => return None,
         })
@@ -96,7 +97,7 @@ impl UiCommand {
             | Self::ToggleSpelling
             | Self::SpellingSuggestions
             | Self::LearnSpelling => return Route::Interface,
-            Self::RemoveWidget => return Route::Interface,
+            Self::RemoveWidget | Self::ContextualAction => return Route::Interface,
         };
         Route::Document(command)
     }

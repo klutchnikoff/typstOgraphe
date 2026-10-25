@@ -33,6 +33,7 @@ pub(super) struct Band {
     pub error: Option<String>,
     pub height: f32,
     pub focus_pending: bool,
+    pub keyboard_focus: bool,
 }
 #[derive(Default)]
 pub(super) struct EditorBands {
@@ -89,10 +90,7 @@ impl App {
         false
     }
     pub(super) fn current_widget_removal(&self) -> Option<crate::engine::Command> {
-        let range = self.range();
-        let widget = editor::widgets(&self.document.engine.document().view)
-            .into_iter()
-            .find(|w| w.range.start <= range.start && range.end <= w.range.end)?;
+        let widget = self.current_widget()?;
         let target = self
             .document
             .engine
@@ -104,12 +102,20 @@ impl App {
         };
         Some(Self::widget_removal_command(target, image))
     }
+    pub(super) fn current_widget(&self) -> Option<Widget> {
+        let range = self.range();
+        editor::widgets(&self.document.engine.document().view)
+            .into_iter()
+            .find(|w| w.range.start <= range.start && range.end <= w.range.end)
+    }
     pub(super) fn track_band_input(&mut self, ctx: &egui::Context) {
         self.bands.field_focused = self.bands.open.is_some()
             && ctx.memory(|m| m.has_focus(egui::Id::new("editor-band-input")));
         if self.bands.open.is_none() {
             self.bands.parameter_ime = false;
-            self.bands.last_focus = ctx.memory(|m| m.focused());
+            if !self.modal_open() {
+                self.bands.last_focus = ctx.memory(|m| m.focused());
+            }
         } else if self.bands.field_focused || self.bands.parameter_ime {
             ctx.input(|input| {
                 for event in &input.events {
@@ -144,6 +150,7 @@ impl App {
             error: None,
             height: 150.0,
             focus_pending: true,
+            keyboard_focus: false,
         });
         self.bands.parameter_ime = false;
         self.bands.field_focused = false;
@@ -220,7 +227,7 @@ impl App {
             EditorAction::Band(action) => self.apply_band_action(action, ctx),
         }
     }
-    fn open_widget_band(&mut self, widget: Widget, remove: bool) {
+    pub(in crate::app) fn open_widget_band(&mut self, widget: Widget, remove: bool) {
         let Ok(target) = self
             .document
             .engine

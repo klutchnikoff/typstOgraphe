@@ -35,6 +35,24 @@ impl App {
         ctx.set_theme(self.preferences.appearance.theme());
         let scenario = scenario.strip_suffix("-dark").unwrap_or(scenario);
         match scenario {
+            "context-list" | "context-spelling" => {
+                let text = &self.document.engine.document().view.text;
+                let needle = if scenario == "context-list" {
+                    "Accueil"
+                } else {
+                    "réservvation"
+                };
+                let at = text[..text.find(needle).expect("context fixture")]
+                    .chars()
+                    .count();
+                self.document.selection = editor::cursor(at..at);
+                self.document.force_selection = true;
+                // Synchronize the fixture before requesting suggestions so the
+                // first frame does not invalidate their worker generation.
+                self.refresh_spelling(ctx);
+                self.apply(Command::ContextualAction);
+                self.spelling.capture_active = scenario == "context-spelling";
+            }
             "list" | "remove" => {
                 let widget = editor::widgets(&self.document.engine.document().view)
                     .into_iter()

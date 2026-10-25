@@ -61,6 +61,7 @@ impl App {
             ),
             Route::Contextual => self.context_document_command(command).is_some_and(enabled),
             Route::Interface => match command {
+                Command::ContextualAction => self.contextual_action().is_some(),
                 Command::RemoveWidget => {
                     self.document.ime.draft.is_none()
                         && self.current_widget_removal().is_some_and(enabled)
@@ -124,6 +125,9 @@ impl App {
     }
     /// Le soulignement peut attendre le worker ; la disponibilité lit le document publié.
     pub(super) fn current_spelling_reference(&self) -> Option<crate::engine::SpellingIssue> {
+        self.spelling_reference_at(self.range().start)
+    }
+    pub(super) fn spelling_reference_at(&self, at: usize) -> Option<crate::engine::SpellingIssue> {
         use crate::engine::{Empty, Query, SpellingIssues};
         if !self.preferences.spelling.enabled || !self.document.open {
             return None;
@@ -135,13 +139,13 @@ impl App {
                 .ok()?,
         )
         .ok()?;
-        let at = self.range().start;
         issues.issues.into_iter().find(|issue| {
             self.document
                 .engine
                 .resolve_target(issue.target)
                 .is_ok_and(|(start, end)| {
-                    (start..end).contains(&at) || (self.range().is_empty() && at == end)
+                    (start..end).contains(&at)
+                        || (at == end && (self.range().is_empty() || self.range() == (start..end)))
                 })
         })
     }

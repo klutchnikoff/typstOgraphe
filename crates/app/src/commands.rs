@@ -52,6 +52,7 @@ pub enum UiCommand {
     Link,
     RemoveLink,
     RemoveWidget,
+    ContextualAction,
     InsertImage,
     InsertPostscript,
     InsertAttachment,
@@ -350,6 +351,19 @@ pub const COMMON_COMMANDS: &[Presentation] = &[
             UiCommand::RemoveWidget,
             Scope::Editor,
             &[primary(Key::Backspace)],
+        )
+    },
+    Presentation {
+        macos: Some(&[
+            primary(Key::Enter),
+            KeyboardShortcut::new(Modifiers::CTRL, Key::Enter),
+        ]),
+        ..define(
+            "edit.contextual_action",
+            "cmd-contextual-action",
+            UiCommand::ContextualAction,
+            Scope::Global,
+            &[primary(Key::Enter)],
         )
     },
     define(
@@ -767,6 +781,24 @@ mod tests {
                 assert_eq!(
                     dispatch(&map, Key::Backspace, modifiers, false),
                     (vec![], true)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn contextual_action_supports_control_and_platform_primary_enter() {
+        for is_mac in [false, true] {
+            let map = Keymap::new(
+                Registry::new(DocumentType::Courrier),
+                is_mac,
+                &ShortcutOverrides::default(),
+            )
+            .unwrap();
+            for modifiers in [Modifiers::CTRL, Modifiers::COMMAND] {
+                assert_eq!(
+                    dispatch(&map, Key::Enter, modifiers, true),
+                    (vec![UiCommand::ContextualAction], false)
                 );
             }
         }

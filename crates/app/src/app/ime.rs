@@ -19,6 +19,12 @@ pub(super) struct Composition {
     pub(super) selection: CCursorRange,
 }
 
+impl Ime {
+    pub(super) fn active(&self) -> bool {
+        self.enabled || self.draft.is_some()
+    }
+}
+
 impl Composition {
     fn replace(&mut self, text: &str) {
         // Chaque prédiction remplace la sélection d’origine. Les ancres et le

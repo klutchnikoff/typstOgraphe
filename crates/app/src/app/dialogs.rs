@@ -133,7 +133,10 @@ impl App {
                     let query = self.dialogs.palette_query.to_lowercase();
                     let filtered: Vec<_> = commands
                         .into_iter()
-                        .filter(|c| c.label().to_lowercase().contains(&query))
+                        .filter(|c| {
+                            c.label().to_lowercase().contains(&query)
+                                || self.ui_command_label(*c).to_lowercase().contains(&query)
+                        })
                         .collect();
                     self.dialogs.palette_index = self
                         .dialogs
@@ -157,7 +160,7 @@ impl App {
                     for (index, command) in filtered.into_iter().enumerate() {
                         if ui
                             .add(
-                                egui::Button::new(command.label())
+                                egui::Button::new(self.ui_command_label(command))
                                     .frame(false)
                                     .selected(index == self.dialogs.palette_index)
                                     .shortcut_text(self.keymap.shortcut_text(ui.ctx(), command)),

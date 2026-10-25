@@ -11,6 +11,7 @@ use crate::i18n::LocalizedLabel;
 use state::*;
 mod chrome;
 mod commands;
+mod contextual;
 mod dialogs;
 mod editor_view;
 mod engine;
@@ -299,6 +300,22 @@ impl App {
     }
 }
 impl eframe::App for App {
+    fn raw_input_hook(&mut self, _ctx: &egui::Context, input: &mut egui::RawInput) {
+        if self.capture.path.is_some() {
+            // Native diagnostics must not capture live keystrokes, IME, drops
+            // or focus changes intended for another window. Keep backend images.
+            input
+                .events
+                .retain(|e| matches!(e, egui::Event::Screenshot { .. }));
+            input.focused = true;
+            input.modifiers = egui::Modifiers::NONE;
+            input.hovered_files.clear();
+            input.dropped_files.clear();
+            for viewport in input.viewports.values_mut() {
+                viewport.focused = Some(true);
+            }
+        }
+    }
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         if self.capture.path.is_some() {
             return;

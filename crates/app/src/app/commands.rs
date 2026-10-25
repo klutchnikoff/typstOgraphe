@@ -81,6 +81,7 @@ impl App {
                     self.bands.open = None;
                 }
             }
+            Command::ContextualAction => self.activate_contextual_action(),
             Command::Preferences => self.dialogs.preferences_open = true,
             Command::Assistance => self.dialogs.assistance_open = true,
             Command::File(command) => self.file.command = Some(command),
@@ -140,11 +141,8 @@ impl App {
         if self.band_shortcuts(ctx) {
             return;
         }
-        if self.bands.open.is_some()
-            && ctx.memory(|m| m.has_focus(egui::Id::new("editor-band-input")))
-        {
-            return;
-        }
+        let band_field = self.bands.open.is_some()
+            && ctx.memory(|m| m.has_focus(egui::Id::new("editor-band-input")));
         if self.search.open
             && ctx.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
         {
@@ -152,6 +150,8 @@ impl App {
             return;
         }
         let focused = ctx.memory(|memory| memory.has_focus(egui::Id::new(editor::EDITOR_ID)));
+        let composing =
+            self.composing_input(ctx) || self.document.ime.active() || self.bands.parameter_ime;
         #[cfg(target_os = "macos")]
         let reserved = self
             .native_menus
@@ -160,8 +160,15 @@ impl App {
         #[cfg(not(target_os = "macos"))]
         let reserved = Vec::new();
         let commands = ctx.input_mut(|input| {
-            self.keymap
-                .consume(input, focused, &reserved, |c| self.command_enabled(c))
+            self.keymap.consume(input, focused, &reserved, |c| {
+                if c == Command::ContextualAction {
+                    // Reserve the binding in the editor even without an action:
+                    // a contextual Enter must never become an ordinary newline.
+                    !composing && (focused || self.bands.open.is_some())
+                } else {
+                    !band_field && self.command_enabled(c)
+                }
+            })
         });
         for command in commands {
             if self.modal_open() {
@@ -169,7 +176,7 @@ impl App {
             }
             self.apply(command);
         }
-        if self.document.open && focused && !self.modal_open() {
+        if self.document.open && focused && !band_field && !self.modal_open() {
             self.text_shortcuts(ctx);
         }
     }
@@ -215,7 +222,8 @@ impl App {
             .collect()
     }
     pub(super) fn dispatch_action(&mut self, command: Command, ctx: &egui::Context) {
-        if self.modal_open() {
+        if self.modal_open() || (command == Command::ContextualAction && self.composing_input(ctx))
+        {
             return;
         }
         self.apply(command);

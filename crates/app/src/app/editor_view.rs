@@ -296,6 +296,7 @@ impl App {
                 .map(|issue| issue.range.clone())
                 .collect();
             editor::paint_spelling(ui, output, &ranges);
+            self.contextual_spelling_hint(ui, output);
             self.spelling_context_menu(output);
             if editing {
                 ui.ctx().request_repaint_after(

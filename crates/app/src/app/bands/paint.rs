@@ -10,6 +10,7 @@ impl App {
     ) -> Option<EditorAction> {
         let mut action = None;
         let clip = ui.clip_rect().intersect(output.text_clip_rect);
+        let contextual = self.contextual_action();
         for widget in editor::widgets(view) {
             let rect =
                 editor::widget_rect(&output.galley, &widget).translate(output.galley_pos.to_vec2());
@@ -42,11 +43,7 @@ impl App {
                                 ui,
                                 Icon::Settings,
                                 enabled && widget.kind.configurable(),
-                                &crate::i18n::text(if widget.kind.configurable() {
-                                    "widget-settings"
-                                } else {
-                                    "widget-direct-parameters"
-                                }),
+                                &self.widget_settings_hint(ui.ctx(), &widget, contextual.as_ref()),
                             )
                             .clicked()
                             {
@@ -92,6 +89,12 @@ impl App {
         }
         self.bands.hit_regions.push(rect.intersect(ui.clip_rect()));
         let submit = ui.is_enabled() && std::mem::take(&mut self.bands.submit_pending);
+        let suggestions = self
+            .spelling
+            .checker
+            .suggestions
+            .as_ref()
+            .and_then(|(_, s)| s.as_deref());
         let band = self.bands.open.as_mut()?;
         if self.document.engine.resolve_target(band.target).is_err() {
             band.error = Some(crate::tr!("edit-stale-draft"));
@@ -117,28 +120,31 @@ impl App {
                     ui.strong(band.title());
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let close = icon_button(ui, Icon::Close, true, &crate::tr!("widget-close"));
+                        if band.keyboard_focus
+                            && band.focus_pending
+                            && matches!(band.content, BandContent::Spelling { .. })
+                            && suggestions.is_some_and(|s| s.is_empty())
+                        {
+                            close.request_focus();
+                        }
                         if close.clicked() || (submit && close.has_focus()) {
                             action = Some(BandAction::Close);
                         }
                     });
                 });
-                let body_action = band_body(
-                    ui,
-                    band,
-                    self.spelling
-                        .checker
-                        .suggestions
-                        .as_ref()
-                        .and_then(|(_, values)| values.as_deref()),
-                    submit,
-                );
+                let body_action = band_body(ui, band, suggestions, submit);
                 if action.is_none() {
                     action = body_action;
                 }
                 measured = ui.min_rect().height() + 16.0;
             },
         );
-        band.focus_pending = false;
+        band.focus_pending = band.keyboard_focus
+            && matches!(band.content, BandContent::Spelling { .. })
+            && suggestions.is_none();
+        if !band.focus_pending {
+            band.keyboard_focus = false;
+        }
         if (measured - band.height).abs() > 1.0 {
             band.height = measured;
             ui.ctx().request_repaint();
@@ -195,7 +201,10 @@ fn band_body(
                     (BlockKind::Numbered, "widget-numbered"),
                     (BlockKind::Description, "widget-descriptions"),
                 ] {
-                    ui.radio_value(kind, value, crate::i18n::text(key));
+                    let response = ui.radio_value(kind, value, crate::i18n::text(key));
+                    if band.keyboard_focus && band.focus_pending && *kind == value {
+                        response.request_focus();
+                    }
                 }
             });
             ui.weak(crate::tr!("widget-list-scope"));
@@ -227,34 +236,24 @@ fn band_body(
                 if band_button(ui, crate::tr!("cancel"), submit) {
                     action = Some(BandAction::Close);
                 }
-                if band_button(ui, crate::tr!("widget-delete"), submit) {
+                if focused_band_button(
+                    ui,
+                    crate::tr!("widget-delete"),
+                    submit,
+                    band.keyboard_focus && band.focus_pending,
+                ) {
                     action = Some(BandAction::Remove);
                 }
             });
         }
         BandContent::Spelling { issue } => {
-            ui.label(&issue.word);
-            if let Some(suggestions) = suggestions {
-                ui.horizontal_wrapped(|ui| {
-                    if suggestions.is_empty() {
-                        ui.weak(crate::tr!("spelling-no-suggestions"));
-                    }
-                    for suggestion in suggestions {
-                        if band_button(ui, suggestion, submit) {
-                            action = Some(BandAction::Correct(suggestion.clone()));
-                        }
-                    }
-                });
-            } else {
-                ui.weak(crate::tr!("spelling-loading-suggestions"));
-            }
-            ui.horizontal_wrapped(|ui| {
-                for command in [Command::IgnoreSpelling, Command::LearnSpelling] {
-                    if band_button(ui, command.label(), submit) {
-                        action = Some(BandAction::Spelling(command));
-                    }
-                }
-            });
+            action = spelling_controls(
+                ui,
+                &issue.word,
+                suggestions,
+                submit,
+                band.keyboard_focus && band.focus_pending,
+            );
         }
     }
     if let Some(error) = &band.error {
@@ -287,7 +286,51 @@ fn band_body(
     })
 }
 
+fn spelling_controls(
+    ui: &mut egui::Ui,
+    word: &str,
+    suggestions: Option<&[String]>,
+    submit: bool,
+    focus: bool,
+) -> Option<BandAction> {
+    let mut action = None;
+    ui.label(word);
+    if let Some(suggestions) = suggestions {
+        ui.horizontal_wrapped(|ui| {
+            if suggestions.is_empty() {
+                ui.weak(crate::tr!("spelling-no-suggestions"));
+            }
+            for (index, suggestion) in suggestions.iter().enumerate() {
+                if focused_band_button(ui, suggestion, submit, index == 0 && focus) {
+                    action = Some(BandAction::Correct(suggestion.clone()));
+                }
+            }
+        });
+    } else {
+        ui.weak(crate::tr!("spelling-loading-suggestions"));
+    }
+    ui.horizontal_wrapped(|ui| {
+        for command in [Command::IgnoreSpelling, Command::LearnSpelling] {
+            if band_button(ui, command.label(), submit) {
+                action = Some(BandAction::Spelling(command));
+            }
+        }
+    });
+    action
+}
+
 fn band_button(ui: &mut egui::Ui, label: impl Into<egui::WidgetText>, submit: bool) -> bool {
+    focused_band_button(ui, label, submit, false)
+}
+fn focused_band_button(
+    ui: &mut egui::Ui,
+    label: impl Into<egui::WidgetText>,
+    submit: bool,
+    focus: bool,
+) -> bool {
     let response = ui.button(label);
+    if focus {
+        response.request_focus();
+    }
     response.clicked() || (submit && response.has_focus())
 }
