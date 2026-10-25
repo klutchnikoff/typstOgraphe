@@ -7,8 +7,17 @@ pub struct ExportTask {
     request: RenderRequest,
     params: ExportParams,
 }
+/// Compiled immutable snapshot. No output files exist until `write` is called.
+pub struct CompiledExport {
+    document: typst_layout::PagedDocument,
+    request: RenderRequest,
+    params: ExportParams,
+}
 impl ExportTask {
     pub fn execute(self) -> Result<Value, CommandError> {
+        self.compile()?.write()
+    }
+    pub fn compile(self) -> Result<CompiledExport, CommandError> {
         let mut world = TypstWorld::default();
         world.set_assets(&self.request.assets);
         world.set_dependencies(&self.request.dependencies);
@@ -19,8 +28,17 @@ impl ExportTask {
                 &self.request.template,
             )
             .map_err(|e| CommandError::with_cause(ErrorCode::Template, "export_compile", e))?;
+        Ok(CompiledExport {
+            document,
+            request: self.request,
+            params: self.params,
+        })
+    }
+}
+impl CompiledExport {
+    pub fn write(self) -> Result<Value, CommandError> {
         crate::exporting::write_document(
-            &document,
+            &self.document,
             &self.request,
             &self.params.directory,
             self.params.format,

@@ -13,6 +13,7 @@ mod documentation_examples;
 mod documentation_guides;
 mod error;
 mod exports;
+pub use exports::{CompiledExport, ExportTask};
 mod file_types;
 mod files;
 mod image_types;
