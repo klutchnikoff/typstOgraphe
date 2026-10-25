@@ -130,25 +130,30 @@ fn style_batch_examples_are_the_same_in_fiches_resources_and_the_mcp_guide() {
         );
     }
     let guide = include_str!("../../../../docs/mcp.md");
-    let section = guide
-        .split("## Gras et italique : délimiter les insertions")
-        .nth(1)
-        .unwrap()
-        .split("\n## ")
-        .next()
-        .unwrap();
-    let snippets: Vec<Value> = section
-        .split("```json\n")
-        .skip(1)
-        .map(|s| serde_json::from_str(s.split("\n```").next().unwrap()).unwrap())
-        .collect();
     let params: Vec<_> = examples
         .as_array()
         .unwrap()
         .iter()
         .map(|e| e["params"].clone())
         .collect();
-    assert_eq!(snippets, params);
+    let lf = guide.replace("\r\n", "\n");
+    // Exercise both checkout formats on every OS, regardless of core.autocrlf.
+    for (format, guide) in [("LF", lf.clone()), ("CRLF", lf.replace('\n', "\r\n"))] {
+        let guide = guide.replace("\r\n", "\n");
+        let section = guide
+            .split("## Gras et italique : délimiter les insertions")
+            .nth(1)
+            .unwrap()
+            .split("\n## ")
+            .next()
+            .unwrap();
+        let snippets: Vec<Value> = section
+            .split("```json\n")
+            .skip(1)
+            .map(|s| serde_json::from_str(s.split("\n```").next().unwrap()).unwrap())
+            .collect();
+        assert_eq!(snippets, params, "Markdown {format}");
+    }
     let guide = host.resource("typstographe://guide").unwrap().value;
     let instructions = guide["outcome"]["instructions"].as_str().unwrap();
     assert!(instructions.contains("on/insert/off"));
