@@ -156,6 +156,7 @@ Fuites à traiter avant tout découpage en crates :
 | D34 | Transport et rattachement locaux | **Validés le 24 octobre 2026.** Passerelle CLI MCP stdio vers l'application par sockets locales `interprocess` (sockets Unix sous macOS/Linux, tubes nommés sous Windows). Réutiliser `rmcp`, le catalogue, les schémas et la documentation. Autorisation explicite par document en mémoire, lecture seule ou modification, identifiant opaque et jeton temporaire ; canal réservé au compte utilisateur. Un agent par document initialement. Fermeture/remplacement révoque le rattachement ; aucune reconnexion vers un autre document ni répétition automatique d'une édition | 6 |
 | D35 | Périmètre de l'assistance rattachée | **Validé le 24 octobre 2026.** Lectures, éditions, validation, rendu ; enregistrement explicite dans le fichier courant et export explicite vers un emplacement autorisé. Pas de fermeture/remplacement du document par l'agent, d'accès aux préférences globales ou aux autres documents. Autorisations vérifiées à chaque opération. Les étapes intermédiaires peuvent rester en lecture seule jusqu'à la livraison des contextes séparés et des protections D32/D33 | 6 |
 | D36 | Approbation des propositions d'agent | **Validée le 25 octobre 2026.** Dans le mode rattaché, l'agent prépare une proposition de lot isolée ; aucune modification du document publié avant acceptation explicite par l'utilisateur. Accepter/refuser le lot entier initialement, sans acceptation partielle. L'agent ne peut pas approuver ses propres propositions. Revalider identité et révision à l'acceptation ; si le document a changé, la proposition devient périmée et doit être recalculée puis présentée à nouveau, sans fusion automatique. Acceptation atomique, une étape annulable ; refus sans modification ni historique documentaire. Sauvegarde/export portent uniquement sur le document publié. Présentation des différences à concevoir ensemble ; aucun mode de modification directe autorisé à ce stade. Le MCP autonome reste inchangé | 6 |
+| D37 | Widgets et bandeaux de l’éditeur | **Validés le 25 octobre 2026 après maquette interactive.** Enveloppe commune pour les widgets structurés, présentation propre à chaque capacité, zones secondaires directement éditables, corbeille et paramètres monochromes. Une liste entière, sous-listes comprises, forme un seul widget. Paramètres, suppression, orthographe et liens utilisent un bandeau interligne pleine largeur de la colonne de gauche, au-dessus du déclencheur, qui repousse le contenu ; un seul ouvert à la fois. Fermer/annuler ne publie rien ; les actions réutilisent les commandes et gardes du moteur. Les paramètres déjà accessibles dans le bloc ne sont pas dupliqués. Gras/italique/liens restent en ligne. La relecture MCP conserve sa présentation spécifique et suit cette harmonisation | 6.4a, B |
 
 
 ## 4. Vue d'ensemble
@@ -914,7 +915,12 @@ implémenter en phase 6. Le transport local et les modalités de rattachement so
   ancre visible dans `ViewSync`/egui, préparation de candidats isolés sans écriture
   ni publication. Aucun outil MCP d’édition/approbation ajouté ; le parcours de
   validation humaine reste en 6.4. Voir [le contrat](docs/editing-contexts.md).
-- [ ] **6.4 — Propositions et éditions approuvées.** Préparation isolée d'un lot,
+- [ ] **6.4a — Harmonisation des widgets et bandeaux (D37).** Choix validés ;
+  enveloppe et actions communes, bandeaux interlignes sans caractères ajoutés,
+  paramètres d’image/liste/lien, suppression complète et suggestions orthographiques.
+  Gardes, focus, IME, navigation, annulation, thèmes et captures à vérifier.
+  Contrat : [widgets et bandeaux](docs/editor-widgets.md).
+- [ ] **6.4b — Propositions et éditions approuvées.** Préparation isolée d'un lot,
   présentation des différences à valider ensemble, acceptation/refus du lot entier
   par l'utilisateur. Revalidation de la garde à l'acceptation ; proposition périmée
   à recalculer puis soumettre à nouveau. Publication atomique après accord seulement,

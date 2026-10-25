@@ -225,11 +225,13 @@ conserve texte, métadonnées, modèle et ressources.
   mots ignorés et dictionnaire personnel.
 - **P1/P2 :** copier/coller structuré pour les styles et blocs pris en charge,
   avec une option pour coller du texte seul ; collage d’images.
-- **P2 :** harmoniser la présentation des citations, images, P.-S. et P.J. dans
+- **P2 — en cours, lot 6.4a :** harmoniser la présentation des citations, images, P.-S. et P.J. dans
   l’éditeur : cadres, fonds, bordures, espacements, libellés et textes indicatifs.
   Factoriser les composants de présentation et les comportements réellement
   communs (focus, navigation, défilement et annotations facultatives), en
-  conservant les dispositions et interactions propres à chaque bloc. Réutiliser
+  conservant les dispositions et interactions propres à chaque bloc. **Choix validés
+  le 25 octobre :** [widgets et bandeaux interlignes](docs/editor-widgets.md),
+  une liste complète par widget, une interaction contextuelle ouverte à la fois. Réutiliser
   la gestion commune des annotations déjà présente. Valider les choix visuels
   ensemble avant l’implémentation ; vérifier les thèmes clair/sombre, les curseurs,
   les sélections et les lignes repliées. Le rendu final reste défini par le modèle.
