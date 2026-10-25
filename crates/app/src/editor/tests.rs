@@ -1,6 +1,45 @@
 //! tests : détail interne de l’adaptateur egui.
 
 use super::*;
+
+#[test]
+fn empty_and_wrapped_list_items_keep_the_caret_at_the_text_indent() {
+    let ctx = egui::Context::default();
+    install_fonts(&ctx);
+    for source in [
+        "- Premier élément suffisamment long pour se replier dans une colonne étroite\n- ",
+        "+ Premier élément suffisamment long pour se replier dans une colonne étroite\n+ ",
+        "/ Terme: Définition\n/ : ",
+    ] {
+        let document = Document::from_source(source).unwrap();
+        for width in [160.0, 600.0] {
+            let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    let editor = EditorStyle::default();
+                    let galley = layout(ui, &document.view, &document.view.text, width, editor);
+                    assert_eq!(galley.text(), document.view.text);
+                    for row in &galley.rows {
+                        if let Some(first) = row.glyphs.first() {
+                            assert!(row.pos.x + first.pos.x >= editor.size * 22.0 / 18.0 - 1.0);
+                        }
+                    }
+                    for range in document.view.line_ranges() {
+                        let at = CCursor::new(range.start);
+                        let position = galley.pos_from_cursor(at);
+                        assert!(
+                            position.left() >= editor.size * 22.0 / 18.0 - 1.0,
+                            "{source:?}: cursor {at:?} at {position:?}"
+                        );
+                        assert_eq!(
+                            galley.cursor_from_pos(position.center().to_vec2()).index,
+                            range.start
+                        );
+                    }
+                });
+            });
+        }
+    }
+}
 #[test]
 fn search_backgrounds_cover_all_results_without_changing_layout_in_either_theme() {
     let ctx = egui::Context::default();

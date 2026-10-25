@@ -179,11 +179,7 @@ pub fn layout_with_context(
         if kind == BlockKind::Description && in_term {
             format.font_id.size *= DESCRIPTION_LABEL_SCALE;
         }
-        let mut leading = if at_line_start && kind.is_list() {
-            editor.size * 22.0 / 18.0
-        } else {
-            0.0
-        };
+        let mut leading = 0.0;
         if at_line_start && kind == BlockKind::Description && character == '\t' {
             // Réserver l’espace du texte indicatif sans l’insérer dans le texte
             // éditable. Le séparateur garde un seul indice de caractère.
@@ -207,12 +203,10 @@ pub fn layout_with_context(
             text_format(aligned.blocks[0], &aligned.typing_style, &colors, editor),
         );
     }
-    let mut galley = if aligned
-        .blocks
-        .iter()
-        .any(|k| matches!(k, BlockKind::Quote | BlockKind::Image(_)) || k.is_letter_note())
-    {
-        layout_quote_paragraphs(ui, job, &aligned, editor)
+    let mut galley = if aligned.blocks.iter().any(|k| {
+        matches!(k, BlockKind::Quote | BlockKind::Image(_)) || k.is_letter_note() || k.is_list()
+    }) {
+        layout_paragraphs(ui, job, &aligned, editor)
     } else {
         ui.fonts_mut(|fonts| fonts.layout_job(job))
     };
@@ -236,8 +230,8 @@ pub fn layout_with_context(
 }
 
 /// Chaque paragraphe est composé avec sa largeur disponible, puis assemblé avec
-/// l’API egui. Les lignes repliées des citations gardent ainsi le même retrait.
-pub(super) fn layout_quote_paragraphs(
+/// l’API egui. Même vide ou repliée, une ligne garde le retrait de son bloc.
+pub(super) fn layout_paragraphs(
     ui: &egui::Ui,
     job: LayoutJob,
     view: &Projection,
@@ -251,6 +245,8 @@ pub(super) fn layout_quote_paragraphs(
         let kind = view.blocks[line];
         let indent = if kind.is_letter_note() {
             editor.size * 4.0
+        } else if kind.is_list() {
+            editor.size * 22.0 / 18.0
         } else if matches!(kind, BlockKind::Quote | BlockKind::QuoteAttribution) {
             editor.size * 1.2
         } else {
