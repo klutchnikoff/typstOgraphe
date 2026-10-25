@@ -311,3 +311,41 @@ mod side_rail {
         assert_eq!(rail.borrow().open, None);
     }
 }
+
+#[test]
+fn segmented_shrinks_in_a_narrow_container_and_can_take_the_keyboard_focus() {
+    #[derive(Clone, Copy, PartialEq)]
+    enum Kind {
+        Bullets,
+        Numbered,
+        Descriptions,
+    }
+    let options = [
+        (Kind::Bullets, "À puces".to_owned()),
+        (Kind::Numbered, "Numérotée".to_owned()),
+        (Kind::Descriptions, "Descriptions".to_owned()),
+    ];
+    let ctx = context(false);
+    let value = Cell::new(Kind::Numbered);
+    let widths = std::cell::RefCell::new(vec![]);
+    let focused = Cell::new(false);
+    let mut run = |ctx: &egui::Context| {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            for width in [420.0, 250.0] {
+                ui.allocate_ui(egui::vec2(width, 40.0), |ui| {
+                    let mut current = value.get();
+                    let response =
+                        segmented_focused(ui, &mut current, &options, Some(Kind::Numbered));
+                    widths.borrow_mut().push((width, response.rect.width()));
+                });
+            }
+            focused.set(ctx.memory(|m| m.focused()).is_some());
+        });
+    };
+    let _ = ctx.run(input(vec![]), &mut run);
+    let _ = ctx.run(input(vec![]), &mut run);
+    for (limit, actual) in widths.borrow().iter() {
+        assert!(actual <= limit, "groupe de {actual} dans {limit}");
+    }
+    assert!(focused.get(), "le segment demandé reçoit le focus");
+}

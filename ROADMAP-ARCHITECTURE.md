@@ -1246,8 +1246,7 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
   lettre » (post-scriptum, pièces jointes ; commandes et raccourcis inchangés), annuler et
   rétablir calés à droite ; rubriques d'informations en contrôle segmenté (clic sur la
   rubrique active = fermeture), champs à bordure lisible. Icônes `paperclip`, `pen-line`,
-  `undo-2` et `redo-2` recopiées à la main d'après Lucide (à remplacer par les fichiers
-  officiels). **Recherche, palette et accueil livrés le 25 octobre 2026** : barre de
+  `undo-2` et `redo-2` (Lucide 0.468.0, fichiers officiels). **Recherche, palette et accueil livrés le 25 octobre 2026** : barre de
   recherche à icônes (`search`, `chevron-up/right`), champs à bordure lisible, compteur
   atténué, remplacement en boutons secondaires ; palette en calque non modal (groupes
   de menu, icônes, raccourcis, fermeture au clic extérieur ; la version modale
@@ -1268,9 +1267,9 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
   uniquement. Le bandeau est dessiné dans un enfant détaché pour qu'il n'élargisse pas la
   colonne ; actions alignées à droite dans l'ordre de tabulation ; suggestions et actions
   qui passent à la ligne par boutons entiers (`ui_kit` : boutons atomiques). Scénarios de
-  capture `--capture-widgets <fichier> spelling-block` (suffixe `-dark` possible). Reste :
-  les trois options de liste sont encore des boutons radio (le contrôle segmenté
-  demanderait de reprendre le focus clavier par option).
+  capture `--capture-widgets <fichier> spelling-block` (suffixe `-dark` possible).
+  Compléments : pointe aussi pour le lien, options de liste en contrôle segmenté
+  (focus clavier conservé par `segmented_focused`), icônes Lucide officielles.
 - [x] **L.5 — Recette.** Livrée le 25 octobre 2026 : 20 captures natives (clair et
   sombre) enregistrées dans `output/phase-l5` et seconde passe identique octet pour
   octet ; 583 tests réussis sur l'espace de travail ; contrôle automatisé des contrastes

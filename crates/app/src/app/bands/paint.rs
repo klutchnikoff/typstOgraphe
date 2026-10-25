@@ -83,7 +83,11 @@ impl App {
         if self.document.engine.resolve_target(band.target).is_err() {
             band.error = Some(crate::tr!("edit-stale-draft"));
         }
-        let spelling = matches!(band.content, BandContent::Spelling { .. });
+        // La pointe désigne le passage visé : mot à corriger ou texte du lien.
+        let spelling = matches!(
+            band.content,
+            BandContent::Spelling { .. } | BandContent::Link { .. }
+        );
         paint_band_background(
             ui,
             rect,
@@ -292,18 +296,15 @@ fn band_body(
             apply = true;
         }
         BandContent::List { kind } => {
-            ui.horizontal_wrapped(|ui| {
-                for (value, key) in [
-                    (BlockKind::Bullet, "widget-bullets"),
-                    (BlockKind::Numbered, "widget-numbered"),
-                    (BlockKind::Description, "widget-descriptions"),
-                ] {
-                    let response = ui.radio_value(kind, value, crate::i18n::text(key));
-                    if band.keyboard_focus && band.focus_pending && *kind == value {
-                        response.request_focus();
-                    }
-                }
-            });
+            let options = [
+                (BlockKind::Bullet, "widget-bullets"),
+                (BlockKind::Numbered, "widget-numbered"),
+                (BlockKind::Description, "widget-descriptions"),
+            ]
+            .map(|(value, key)| (value, crate::i18n::text(key)));
+            // Ouvert au clavier, le bandeau place le focus sur le type actuel.
+            let focus = (band.keyboard_focus && band.focus_pending).then_some(*kind);
+            crate::ui_kit::segmented_focused(ui, kind, &options, focus);
             ui.weak(crate::tr!("widget-list-scope"));
             apply = true;
         }

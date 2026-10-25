@@ -24,7 +24,7 @@ dans [interface-design-audit.md](interface-design-audit.md) et
 
 ## Vérifications
 
-- **Tests** : 583 tests réussis et aucun échec sur l'ensemble de l'espace de travail
+- **Tests** : 583 tests réussis lors de la recette (584 après les compléments) et aucun échec sur l'ensemble de l'espace de travail
   (`cargo test --locked --workspace`) ; 208 pour le crate `typstographe` ; 14 tests
   Python des scripts ; `clippy -D warnings`, `cargo fmt --check`, limite de taille des
   fichiers de production et frontière de dépendances du cœur réussis.
@@ -60,14 +60,22 @@ dans [interface-design-audit.md](interface-design-audit.md) et
    est légèrement assombrie (18, 118, 83).
 3. Des tests verrouillent ces deux points et la palette des états interactifs.
 
+## Compléments du 25 octobre 2026 (après la recette)
+
+- **Pointe du lien** : le bandeau de lien pointe désormais vers le texte sélectionné,
+  comme celui de l'orthographe ; les paramètres de bloc restent sans pointe.
+- **Options de liste** : les trois types (à puces, numérotée, descriptions) sont en
+  contrôle segmenté, comme les autres choix de l'application. `segmented_focused` donne
+  le focus clavier au segment du type actuel à l'ouverture, ce qui conserve le
+  comportement testé ; les marges des segments se réduisent en colonne étroite.
+  Aucun test n'a dû être supprimé : tous les scénarios clavier passent tels quels.
+- **Icônes Lucide** : les sept icônes recopiées à la main sont remplacées par les fichiers
+  officiels de Lucide 0.468.0, téléchargés depuis le dépôt du projet (README des icônes).
+- Références ré-enregistrées (`output/phase-l5`, 20 scénarios, seconde passe identique) ;
+  584 tests réussis sur l'espace de travail.
+
 ## Limites connues et suite
 
-- Les trois options de liste dans le bandeau sont encore des **boutons radio** : un
-  contrôle segmenté demanderait de reprendre le focus clavier par option.
-- Le **lien** n'a pas de pointe ; seule l'orthographe en a une (et la grammaire plus tard).
-- Les icônes `paperclip`, `pen-line`, `undo-2`, `redo-2`, `search`, `chevron-up` et
-  `chevron-right` sont **recopiées à la main** d'après Lucide : à remplacer par les
-  fichiers officiels.
 - Sous environ 900 points de large, le contenu de l'éditeur déborde déjà de sa colonne
   (constaté pendant L.4, indépendant du chantier) ; le minimum de fenêtre est 960.
 - La barre latérale (`SideRail`) est posée sans panneau ni commande d'ouverture : les

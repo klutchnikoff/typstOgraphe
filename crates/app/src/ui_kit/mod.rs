@@ -21,7 +21,7 @@ pub use dialog::{Dialog, footer};
 pub use field::{field_style, text_area, text_field};
 pub use gallery::{Gallery, Orientation, gallery};
 pub use notice::{NoticeKind, chip, keycap, notice};
-pub use segmented::{segmented, segmented_toggle};
+pub use segmented::{segmented, segmented_focused, segmented_toggle};
 pub use side_rail::{DRAWER_MIN, RAIL_WIDTH, RailLayout, SidePanel, SideRail, reserve};
 
 use crate::theme::Tokens;

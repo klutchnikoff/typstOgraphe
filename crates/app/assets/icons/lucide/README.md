@@ -9,6 +9,7 @@ bandeaux depuis la distribution locale officielle Lucide 1.8.0 (licence ISC).
 Leurs éléments vectoriels sont conservés ; ils utilisent le même masque monochrome.
 
 Les icônes `paperclip`, `pen-line`, `undo-2`, `redo-2`, `search`, `chevron-up` et
-`chevron-right` (barre d’outils et recherche) reprennent les tracés Lucide (licence ISC) recopiés à la main,
-faute de distribution locale ; à remplacer par les fichiers officiels de la version
-embarquée dès qu’ils sont disponibles.
+`chevron-right` (barre d’outils, menu « fin de lettre », recherche) ont été ajoutées le
+25 octobre 2026 depuis les fichiers officiels de Lucide 0.468.0
+(`https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/<nom>.svg`),
+sans modification. Même masque monochrome que les autres.
