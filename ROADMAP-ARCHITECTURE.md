@@ -1247,8 +1247,13 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
   rétablir calés à droite ; rubriques d'informations en contrôle segmenté (clic sur la
   rubrique active = fermeture), champs à bordure lisible. Icônes `paperclip`, `pen-line`,
   `undo-2` et `redo-2` recopiées à la main d'après Lucide (à remplacer par les fichiers
-  officiels). À faire ensuite : palette, accueil, recherche, barre d'état, aperçu,
-  relecture MCP.
+  officiels). **Recherche, palette et accueil livrés le 25 octobre 2026** : barre de
+  recherche à icônes (`search`, `chevron-up/right`), champs à bordure lisible, compteur
+  atténué, remplacement en boutons secondaires ; palette en calque non modal (groupes
+  de menu, icônes, raccourcis, fermeture au clic extérieur ; la version modale
+  d'egui bloquait le focus d'une frame) ; accueil avec bouton principal. Scénario de
+  capture `--capture-widgets <fichier> palette`. À faire ensuite : barre d'état,
+  aperçu, relecture MCP.
 - [ ] **L.4 — Bandeaux et pointe (D37, D40).** Variante B pour les paramètres de bloc ;
   pointe vers le mot pour l'orthographe ; bandeau d'une faute dans un bloc inséré entre
   deux lignes, à la largeur du bloc. Passer la plage horizontale du bloc au placement
