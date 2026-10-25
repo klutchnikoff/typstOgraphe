@@ -37,7 +37,7 @@ Cela vérifie l’intégration événement → moteur, pas le clavier/IME physiq
 
 `command` utilise la disponibilité et le dispatch de l’interface : `review`,
 `return`, `accept`, `reject`, `see`, `undo`, `redo`, `bold`, `italic`, `preferences`,
-`share_selection`. `close_dialog` et `revoke` pilotent directement l’état de ces
+`share_selection`, `assistance`. `close_dialog` et `revoke` pilotent directement l’état de ces
 contrôles pour la recette. `stop` ferme la fenêtre de test.
 `reset_frames` recommence les mesures. Une seule requête de contrôle à la fois.
 Les réponses et `control.jsonl` donnent source publiée, garde, sélection/style,
@@ -47,8 +47,10 @@ murales de `ui_frame`, hors rendu GPU et capture/écriture du diagnostic, pas de
 
 ## Rôle agent
 
-Le client utilise la configuration d’invitation de `ready.json`, par la passerelle
-`typstographe-cli mcp --attach …`. L’agent ne reçoit que le relais de transport
+`ready.json` contient l’invitation explicite et le répertoire privé de découverte.
+Le client peut utiliser `typstographe-cli mcp --attach …`, ou la configuration fixe
+`typstographe-cli mcp --attach-active` avec l’environnement
+`TYPSTOGRAPHE_MCP_DIRECTORY` fixé au champ `discovery_directory` de `ready.json`. L’agent ne reçoit que le relais de transport
 et une consigne métier ; pas ce README, les contrôles utilisateur ou le dépôt.
 
 `relay.py` est une adaptation du relais mcpdo de phase 5 : copier le script dans

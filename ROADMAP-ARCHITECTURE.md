@@ -967,6 +967,18 @@ les sauvegardes et exports publiés exigent leurs autorisations distinctes par i
   La préédition est injectée par événements egui : aucun nouvel essai physique
   d’IME macOS ni graphique Linux/Windows n’est revendiqué.
 
+### Complément — Raccordement fixe (25 octobre 2026)
+
+Choix validé : **configuration fixe, reconnexion explicite**, sans passerelle
+persistante. Livré : `typstographe-cli mcp --attach-active` et configuration copiée
+par l’application. Une découverte privée, atomique et protégée par verrou OS
+résout l’unique invitation volontaire disponible ; elle refuse les invitations
+absentes, périmées ou ambiguës, sans rediriger une connexion existante ni démarrer
+un serveur autonome. Après déconnexion, créer une invitation et reconnecter le
+client avec la même configuration. L’autorisation, les propositions et les droits
+de fichiers restent documentaires. 563 tests Rust, deux doctests, 14 tests Python,
+Clippy et recette native avec Inspector ; [contrat et utilisation](docs/mcp-connection.md).
+
 La phase a démarré par 6.1 et 6.2 : aucun accès en écriture n’a été livré avant les
 protections des contextes. Le rattachement peut être matérialisé par une invitation
 créée volontairement dans l'application pour son document courant ; cette

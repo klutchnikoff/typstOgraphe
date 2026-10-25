@@ -34,9 +34,10 @@ approuver un lot. Le fonctionnement du MCP autonome reste inchangé.
 
 1. Ouvrir ou créer un document dans typstOgraphe ; il peut rester non enregistré.
 2. Choisir **Édition → Assistance par un agent…** (également dans la palette).
-3. Créer l'invitation pour ce document, puis copier la configuration MCP.
-4. Ajouter cette configuration au client MCP. `typstographe-cli` doit être dans son
-   `PATH`, ou remplacer `command` par le chemin absolu du binaire construit.
+3. Créer l'invitation pour ce document. Lors du premier raccordement seulement,
+   copier la configuration MCP fixe et l’ajouter au client.
+4. Démarrer ou reconnecter le serveur MCP du client, sans changer sa configuration.
+   `typstographe-cli` doit être accessible par le chemin copié ou dans son `PATH`.
 5. L'agent commence par `document.inspect`, découvre les capacités et leurs
    autorisations, puis lit le document ou son rendu.
 6. Soumettre un lot avec `proposals.submit` : il reste privé jusqu’à la décision
@@ -50,16 +51,20 @@ courant et de choisir une racine d’export. Ces droits sont désactivés initia
 ils ne donnent pas accès aux autres documents ni aux imports locaux. Leur détail
 et la revalidation des exports différés sont dans le [contrat de fichiers](mcp-files-attached.md).
 
-La commande générée équivaut à :
+Le [raccordement fixe](mcp-connection.md), validé après la recette 6.6,
+conserve le programme et les arguments entre les invitations. La commande générée
+équivaut à :
 
 ```sh
-typstographe-cli mcp --attach /chemin/prive/invitation.json
+typstographe-cli mcp --attach-active
 ```
 
-`--attach` est incompatible avec `--read-only`, `--read-root` et `--write-root` :
+`--attach-active` est incompatible avec `--attach`, `--read-only`, `--read-root`
+et `--write-root` :
 l'autorisation vient de l'application et concerne son document. Le jeton secret
 reste dans le fichier privé, pas dans les arguments ni dans la configuration MCP.
-La configuration contient son chemin et doit rester locale. Chaque invitation
+Le raccordement explicite `--attach INVITATION` reste disponible pour les
+clients qui gèrent volontairement cette sélection de document. Chaque invitation
 accepte **une seule connexion authentifiée**, sans réutilisation après déconnexion.
 Créer une nouvelle invitation pour reconnecter l'agent.
 

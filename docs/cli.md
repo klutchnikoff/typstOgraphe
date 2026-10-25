@@ -71,7 +71,9 @@ typstographe-cli export output/courrier-script.typsto --output output/courrier-s
 ```
 
 L’export est une opération distincte après la réussite du script. MCP utilise aussi le moteur commun ; voir les modes [autonome](mcp.md) et
-[rattaché en lecture](mcp-local.md).
+[rattaché à l’application](mcp-local.md).
+
+Pour une configuration client fixe : `typstographe-cli mcp --attach-active`. Créer une invitation dans l’application avant de connecter le client, puis reconnecter explicitement après chaque nouvelle invitation. La découverte refuse zéro ou plusieurs invitations disponibles, sans repli vers le mode autonome. `--attach INVITATION` conserve le choix explicite d’une invitation. Voir le [raccordement fixe](mcp-connection.md).
 
 ## Rendu d’une page en PNG
 

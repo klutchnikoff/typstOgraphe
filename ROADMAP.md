@@ -107,6 +107,8 @@ persistante de modèles restent à développer.
   La [recette 6.6](docs/mcp-attached-acceptance.md) avec agent réel est terminée :
   propositions acceptées/refusées/périmées, interruptions, sauvegarde/export et
   captures. Le PNG MCP est calculé en arrière-plan. La phase 6 est close.
+  Le [raccordement fixe](docs/mcp-connection.md) permet désormais de réutiliser
+  la même configuration MCP, avec reconnexion explicite après chaque invitation.
   État de la CLI dans [le bilan de phase 4](docs/architecture-phase-4.md),
   décisions et lots MCP dans [celui de phase 5](docs/architecture-phase-5.md).
 
