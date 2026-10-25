@@ -160,6 +160,8 @@ multiplateformes accompagnent chaque étape ; elles ne sont pas reportées en bl
 - Vérifications locales : sortie brutale d’un processus, session encore ouverte,
   copie illisible, erreurs d’écriture et parcours d’interface. L’essai utilisateur
   et les essais natifs Windows/Linux sont faits.
+- Refus des sélecteurs natifs macOS : protection ciblée contre les paniques de
+  création de panneau, sans perdre le brouillon ; [diagnostic et limites](docs/native-file-dialogs.md).
 
 **Objectif :** conserver le travail, reprendre un document et comprendre les
 éventuels incidents.
