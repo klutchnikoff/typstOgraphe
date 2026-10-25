@@ -5,10 +5,8 @@ impl App {
         self.recovery.open
             || self.dialogs.assistance_open
             || self.dialogs.new_document_open
-            || self.dialogs.image_info.is_some()
             || self.dialogs.preferences_open
             || self.dialogs.palette_open
-            || self.dialogs.link_open
             || self.file.export_open
             || self.file.pending_action.is_some()
             || self.file.read_only_offer.is_some()
@@ -39,15 +37,14 @@ impl App {
     }
     pub(super) fn dialogs(&mut self, ctx: &egui::Context) {
         self.new_document_dialog(ctx);
-        self.image_dialog(ctx);
-        self.link_dialog(ctx);
         self.palette_dialog(ctx);
         self.export_dialog(ctx);
-        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
+        if !self.bands.parameter_ime
+            && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
+        {
             self.recovery.open = false;
             self.dialogs.assistance_open = false;
             self.dialogs.palette_open = false;
-            self.dialogs.link_open = false;
             self.dialogs.information_open = false;
             self.file.export_open = false;
             self.file.pending_action = None;
@@ -100,141 +97,6 @@ impl App {
                 self.create_document(self.dialogs.new_document_type);
             } else if cancel || modal.should_close() {
                 self.dialogs.new_document_open = false;
-            }
-        }
-    }
-    fn image_dialog(&mut self, ctx: &egui::Context) {
-        if self.dialogs.image_info.is_some() {
-            let mut open = true;
-            let mut apply = false;
-            let mut cancel = false;
-            egui::Window::new(crate::tr!("image-information"))
-                .open(&mut open)
-                .collapsible(false)
-                .default_width(420.0)
-                .show(ctx, |ui| {
-                    ui.label(crate::tr!("image-alt-label"));
-                    ui.add(
-                        egui::TextEdit::multiline(&mut self.dialogs.image_alt)
-                            .desired_width(f32::INFINITY)
-                            .desired_rows(3),
-                    );
-                    ui.label(
-                        egui::RichText::new(crate::tr!("image-alt-help"))
-                            .small()
-                            .weak(),
-                    );
-                    ui.horizontal(|ui| {
-                        apply = ui.button(crate::tr!("image-apply")).clicked();
-                        cancel = ui.button(crate::tr!("image-cancel")).clicked();
-                    });
-                });
-            if cancel {
-                open = false;
-            }
-            if apply {
-                if let Some(target) = self.dialogs.image_target {
-                    let result = self.execute_document_command(
-                        crate::engine::Command::SetImageAlt(crate::engine::ImageAltParams {
-                            target,
-                            alt: self.dialogs.image_alt.clone(),
-                        }),
-                    );
-                    match result {
-                        Ok(outcome) => {
-                            self.dialogs.image_target = Some(crate::engine::BlockTarget {
-                                guard: outcome.guard,
-                                ..target
-                            });
-                            open = false;
-                        }
-                        Err(error) => self.dialogs.message = Some(Self::command_error_text(&error)),
-                    }
-                } else {
-                    self.dialogs.message = Some(crate::tr!("edit-stale-draft"));
-                }
-            }
-            if !open {
-                self.dialogs.image_info = None;
-                // Une cible périmée ne doit pas sélectionner un autre bloc après fermeture.
-                if let Some(target) = self.dialogs.image_target.take() {
-                    let command =
-                        crate::engine::Command::SelectText(crate::engine::SelectTextParams {
-                            target: self.document.engine.image_selection_target(target),
-                            part: Some(crate::engine::SelectionPart::Annotation),
-                        });
-                    if matches!(
-                        self.document.engine.available(&command),
-                        crate::engine::Availability::Enabled
-                    ) {
-                        self.run_document_command(command);
-                    }
-                }
-            }
-        }
-    }
-    fn link_dialog(&mut self, ctx: &egui::Context) {
-        if self.dialogs.link_open {
-            let mut open = true;
-            let mut apply = false;
-            let mut remove = false;
-            egui::Window::new(crate::tr!("link-title"))
-                .open(&mut open)
-                .collapsible(false)
-                .resizable(false)
-                .default_width(400.0)
-                .show(ctx, |ui| {
-                    ui.label(crate::tr!(
-                        "link-selected-text",
-                        text = self
-                            .document
-                            .engine
-                            .document()
-                            .view
-                            .text
-                            .chars()
-                            .skip(self.dialogs.link_range.start)
-                            .take(self.dialogs.link_range.len())
-                            .collect::<String>()
-                    ));
-                    ui.label(crate::tr!("field-address"));
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.dialogs.link_url)
-                            .desired_width(f32::INFINITY)
-                            .hint_text("https://…"),
-                    );
-                    if let Some(error) = &self.dialogs.link_error {
-                        ui.colored_label(Color32::from_rgb(183, 69, 57), error);
-                    }
-                    ui.horizontal(|ui| {
-                        apply = ui.button(crate::tr!("apply")).clicked();
-                        remove = ui
-                            .button(Command::RemoveLink.short_label())
-                            .on_hover_text(self.keymap.hint(ui.ctx(), Command::RemoveLink))
-                            .clicked();
-                    });
-                });
-            self.dialogs.link_open &= open;
-            if remove || apply {
-                if let Some(target) = self.dialogs.link_target {
-                    let command = if remove {
-                        crate::engine::Command::RemoveLink(crate::engine::TargetParams {
-                            target: target.into(),
-                        })
-                    } else {
-                        crate::engine::Command::SetLink(crate::engine::LinkParams {
-                            target: target.into(),
-                            url: self.dialogs.link_url.clone(),
-                        })
-                    };
-                    if self.run_document_command(command) {
-                        self.dialogs.link_open = false;
-                    } else {
-                        self.dialogs.link_error.clone_from(&self.dialogs.message);
-                    }
-                } else {
-                    self.dialogs.link_error = Some(crate::tr!("edit-stale-draft"));
-                }
             }
         }
     }

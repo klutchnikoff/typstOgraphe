@@ -89,6 +89,38 @@ pub fn layout_with_search(
     matches: &[Range<usize>],
     active: Option<usize>,
 ) -> Arc<Galley> {
+    layout_with_context(
+        ui,
+        view,
+        text,
+        width,
+        editor,
+        LayoutContext {
+            matches,
+            active,
+            band: None,
+        },
+    )
+}
+#[derive(Default)]
+pub struct LayoutContext<'a> {
+    pub matches: &'a [Range<usize>],
+    pub active: Option<usize>,
+    pub band: Option<BandInset>,
+}
+pub fn layout_with_context(
+    ui: &egui::Ui,
+    view: &Projection,
+    text: &str,
+    width: f32,
+    editor: EditorStyle,
+    context: LayoutContext<'_>,
+) -> Arc<Galley> {
+    let LayoutContext {
+        matches,
+        active,
+        band,
+    } = context;
     // Le TextEdit relance le layouter après ses mutations. Réaligner la copie
     // des styles sur le nouveau texte évite un décalage visuel pendant la saisie.
     let mut aligned = view.clone();
@@ -199,7 +231,8 @@ pub fn layout_with_search(
             character += usize::from(row.ends_with_newline);
         }
     }
-    space_blocks(galley, &aligned.blocks, editor.size)
+    let galley = space_blocks(galley, &aligned.blocks, editor.size);
+    widgets::reserve(galley, &aligned, band)
 }
 
 /// Chaque paragraphe est composé avec sa largeur disponible, puis assemblé avec

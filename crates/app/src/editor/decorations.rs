@@ -55,6 +55,23 @@ pub fn paint_decorations(
     let mut backgrounds = Vec::new();
     let mut clicked_term = None;
     let ranges = view.line_ranges();
+    for widget in widgets(view) {
+        let rect = widget_rect(&output.galley, &widget).translate(output.galley_pos.to_vec2());
+        backgrounds.push(egui::Shape::rect_filled(
+            rect,
+            5.0,
+            ui.visuals().faint_bg_color,
+        ));
+        backgrounds.push(egui::Shape::rect_stroke(
+            rect,
+            5.0,
+            Stroke::new(
+                0.75_f32,
+                ui.visuals().widgets.noninteractive.bg_stroke.color,
+            ),
+            egui::StrokeKind::Inside,
+        ));
+    }
     for (line, range) in ranges.iter().enumerate() {
         if range.is_empty()
             && line > 0
@@ -78,41 +95,8 @@ pub fn paint_decorations(
                 ui.visuals().weak_text_color(),
             ));
         }
-        if matches!(view.blocks[line], BlockKind::Image(_)) {
-            let rect =
-                image_frame(&output.galley, range.clone()).translate(output.galley_pos.to_vec2());
-            backgrounds.push(egui::Shape::rect_filled(
-                rect,
-                5.0,
-                ui.visuals().faint_bg_color,
-            ));
-        }
     }
     for (kind, group) in view.letter_note_groups() {
-        let first = output
-            .galley
-            .pos_from_cursor(CCursor::new(ranges[group.start].start));
-        let last = output
-            .galley
-            .pos_from_cursor(CCursor::new(ranges[group.end - 1].end));
-        let rect = egui::Rect::from_min_max(
-            output.galley_pos + egui::vec2(0.0, first.top() - 2.0),
-            output.galley_pos + egui::vec2(output.galley.job.wrap.max_width, last.bottom() + 2.0),
-        );
-        backgrounds.push(egui::Shape::rect_filled(
-            rect,
-            5.0,
-            ui.visuals().faint_bg_color,
-        ));
-        backgrounds.push(egui::Shape::rect_stroke(
-            rect,
-            5.0,
-            Stroke::new(
-                0.75_f32,
-                ui.visuals().widgets.noninteractive.bg_stroke.color,
-            ),
-            egui::StrokeKind::Inside,
-        ));
         for line in group.clone() {
             let mut cursor = CCursor::new(ranges[line].start);
             cursor.prefer_next_row = true;

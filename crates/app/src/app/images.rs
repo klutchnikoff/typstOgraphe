@@ -78,12 +78,18 @@ impl App {
         }
     }
     pub(super) fn open_image_info(&mut self, id: u64) {
-        self.dialogs.image_target = self.document.engine.image_target(id);
-        if self.dialogs.image_target.is_some() {
-            self.dialogs
-                .image_alt
-                .clone_from(&self.document.engine.document().view.images[&id].alt);
-            self.dialogs.image_info = Some(id);
-        }
+        let Some(reference) = self.document.engine.image_target(id) else {
+            return;
+        };
+        let alt = self.document.engine.document().view.images[&id].alt.clone();
+        let crate::engine::TextTarget::Selection { guard, selection } =
+            self.document.engine.image_selection_target(reference)
+        else {
+            return;
+        };
+        self.show_band(
+            crate::engine::SelectionTarget { guard, selection },
+            super::bands::BandContent::Image { reference, alt },
+        );
     }
 }

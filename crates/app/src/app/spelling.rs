@@ -1,7 +1,6 @@
 use super::*;
 use crate::engine::{
-    Availability, Command as Core, SelectTextParams, SpellingCorrectionParams, SpellingIssue,
-    SpellingIssueParams,
+    Availability, Command as Core, SelectTextParams, SpellingIssue, SpellingIssueParams,
 };
 
 impl App {
@@ -77,12 +76,15 @@ impl App {
                 Availability::Enabled
             )
     }
+    #[cfg(test)]
     pub(super) fn correct_spelling(&mut self, issue: &SpellingIssue, replacement: &str) {
         self.document.history_field = None;
-        if self.run_document_command(Core::CorrectSpelling(SpellingCorrectionParams {
-            issue: issue.clone(),
-            replacement: replacement.into(),
-        })) {
+        if self.run_document_command(Core::CorrectSpelling(
+            crate::engine::SpellingCorrectionParams {
+                issue: issue.clone(),
+                replacement: replacement.into(),
+            },
+        )) {
             self.spelling.target = None;
         }
     }
@@ -128,93 +130,37 @@ impl App {
             .checker
             .request_suggestions(reference.language, &reference.word);
         self.document.history_field = None;
-        self.spelling.target = Some(reference);
+        self.spelling.target = Some(reference.clone());
+        self.show_band(
+            reference.target,
+            super::bands::BandContent::Spelling { issue: reference },
+        );
     }
     pub(super) fn spelling_context_menu(&mut self, output: &egui::text_edit::TextEditOutput) {
-        if output.response.secondary_clicked() {
-            self.spelling.target = None;
-            self.spelling.menu_position = None;
-            if self
+        if (output.response.secondary_clicked() || output.response.clicked())
+            && self
                 .spelling
                 .checker
                 .is_current(self.document.engine.revision())
-                && let Some(pointer) = output.response.interact_pointer_pos()
-            {
-                let ranges: Vec<_> = self
-                    .spelling
-                    .checker
-                    .issues
-                    .iter()
-                    .map(|issue| issue.range.clone())
-                    .collect();
-                if let Some((index, _)) =
-                    editor::range_rects(&output.galley, &ranges)
-                        .iter()
-                        .find(|(_, rect)| {
-                            rect.translate(output.galley_pos.to_vec2())
-                                .contains(pointer)
-                        })
-                {
-                    let issue = self.spelling.checker.issues[*index].clone();
-                    self.open_spelling_target(issue);
-                }
-            }
-        }
-        let mut popup = egui::Popup::context_menu(&output.response);
-        if self.spelling.menu_pending {
-            self.spelling.menu_pending = false;
-            if let Some(issue) = &self.spelling.target {
-                let Ok((start, _)) = self.document.engine.resolve_target(issue.target) else {
-                    return;
-                };
-                self.spelling.menu_position = Some(
-                    output.galley_pos
-                        + output
-                            .galley
-                            .pos_from_cursor(CCursor::new(start))
-                            .left_bottom()
-                            .to_vec2(),
-                );
-                egui::Popup::open_id(&output.response.ctx, popup.get_id());
-            }
-        }
-        if let Some(position) = self.spelling.menu_position {
-            popup = popup.at_position(position);
-        }
-        popup.show(|ui| {
-            let Some(issue) = self
+            && let Some(pointer) = output.response.interact_pointer_pos()
+        {
+            let ranges: Vec<_> = self
                 .spelling
-                .target
-                .clone()
-                .filter(|issue| self.valid_spelling_target(issue))
-            else {
-                ui.weak(crate::tr!("spelling-no-issue-here"));
-                return;
-            };
-            ui.label(egui::RichText::new(&issue.word).strong());
-            if let Some((_, Some(suggestions))) = &self.spelling.checker.suggestions {
-                let suggestions = suggestions.clone();
-                if suggestions.is_empty() {
-                    ui.weak(crate::tr!("spelling-no-suggestions"));
-                }
-                for suggestion in suggestions {
-                    if ui.button(&suggestion).clicked() {
-                        self.correct_spelling(&issue, &suggestion);
-                        ui.close();
-                    }
-                }
-            } else {
-                ui.weak(crate::tr!("spelling-loading-suggestions"));
+                .checker
+                .issues
+                .iter()
+                .map(|i| i.range.clone())
+                .collect();
+            if let Some((index, _)) =
+                editor::range_rects(&output.galley, &ranges)
+                    .iter()
+                    .find(|(_, rect)| {
+                        rect.translate(output.galley_pos.to_vec2())
+                            .contains(pointer)
+                    })
+            {
+                self.open_spelling_target(self.spelling.checker.issues[*index].clone());
             }
-            ui.separator();
-            for command in [Command::IgnoreSpelling, Command::LearnSpelling] {
-                if ui.button(command.label()).clicked() {
-                    self.apply_spelling_issue(command, issue.clone());
-                    self.spelling.target = None;
-                    self.document.force_selection = true;
-                    ui.close();
-                }
-            }
-        });
+        }
     }
 }

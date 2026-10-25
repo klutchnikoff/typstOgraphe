@@ -17,6 +17,16 @@ impl App {
     /// Éligibilité hors modalités : la palette évalue les actions de sa propre fenêtre.
     /// Les hôtes de menus et le dispatch externe appliquent en plus modal_open().
     pub(super) fn command_enabled(&self, command: Command) -> bool {
+        if self.bands.field_focused
+            && (matches!(command, Command::Undo | Command::Redo | Command::Clear)
+                || self
+                    .keymap
+                    .registry()
+                    .definitions()
+                    .any(|d| d.command == command && d.scope == crate::commands::Scope::Editor))
+        {
+            return false;
+        }
         if !self.keymap.registry().contains(command)
             || (!self.document.open && !command.available_without_document())
         {

@@ -17,6 +17,9 @@ pub enum Icon {
     Quote,
     Image,
     ChevronDown,
+    Settings,
+    Trash,
+    Close,
 }
 
 impl Icon {
@@ -36,6 +39,9 @@ impl Icon {
             Self::Quote => include_str!("../assets/icons/lucide/quote.svg"),
             Self::Image => include_str!("../assets/icons/lucide/image-plus.svg"),
             Self::ChevronDown => include_str!("../assets/icons/lucide/chevron-down.svg"),
+            Self::Settings => include_str!("../assets/icons/lucide/settings-2.svg"),
+            Self::Trash => include_str!("../assets/icons/lucide/trash-2.svg"),
+            Self::Close => include_str!("../assets/icons/lucide/x.svg"),
         }
     }
 
@@ -115,6 +121,9 @@ mod tests {
             Icon::Quote,
             Icon::Image,
             Icon::ChevronDown,
+            Icon::Settings,
+            Icon::Trash,
+            Icon::Close,
         ] {
             for pixels in [18, 36, 54] {
                 let image = icon.raster(pixels);

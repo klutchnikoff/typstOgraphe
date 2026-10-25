@@ -2,6 +2,7 @@
 
 mod assistance;
 mod availability;
+mod bands;
 mod setup;
 mod state;
 #[cfg(test)]
@@ -79,6 +80,7 @@ enum PreferencesPage {
 }
 
 pub struct App {
+    bands: bands::EditorBands,
     document: DocumentState,
     assistance: assistance::AssistanceState,
     dialogs: DialogState,
@@ -105,6 +107,7 @@ impl App {
             ctx.input_mut(|input| input.pointer = Default::default());
         }
         self.guard_ime(ctx);
+        self.track_band_input(ctx);
         if ctx.input(|input| input.viewport().close_requested())
             && !self.file.allow_close
             && self.is_dirty()
@@ -114,7 +117,7 @@ impl App {
             self.dialogs.preferences_open = false;
             self.dialogs.assistance_open = false;
             self.dialogs.palette_open = false;
-            self.dialogs.link_open = false;
+            self.bands.open = None;
             self.file.export_open = false;
             self.dialogs.information_open = false;
             self.file.pending_action = Some(PendingAction::Close);

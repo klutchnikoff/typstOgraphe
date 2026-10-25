@@ -25,8 +25,8 @@ pub fn paint_images(
     view: &Projection,
     output: &egui::text_edit::TextEditOutput,
     textures: &std::collections::HashMap<String, egui::TextureHandle>,
-    selection: Range<usize>,
-    editor: EditorStyle,
+    _selection: Range<usize>,
+    _editor: EditorStyle,
 ) -> Option<(u64, ImageAction)> {
     let mut action = None;
     let painter = ui.painter_at(output.text_clip_rect);
@@ -44,20 +44,6 @@ pub fn paint_images(
         if !rect.intersects(output.text_clip_rect) {
             continue;
         }
-        let selected = selection.start <= range.end && selection.end >= range.start;
-        painter.rect_stroke(
-            rect,
-            5.0,
-            Stroke::new(
-                if selected { 1.5_f32 } else { 0.75 },
-                if selected {
-                    ui.visuals().selection.stroke.color
-                } else {
-                    ui.visuals().widgets.noninteractive.bg_stroke.color
-                },
-            ),
-            egui::StrokeKind::Inside,
-        );
         let inset = rect.width() * 0.1;
         painter.hline(
             rect.left() + inset..=rect.right() - inset,
@@ -69,7 +55,7 @@ pub fn paint_images(
         );
         if let Some(texture) = textures.get(&image.path) {
             let available = egui::Rect::from_min_max(
-                image_area.min + egui::vec2(IMAGE_PADDING, 34.0),
+                image_area.min + egui::vec2(IMAGE_PADDING, 10.0),
                 image_area.max - egui::vec2(IMAGE_PADDING, 14.0),
             );
             let native = texture.size_vec2();
@@ -102,37 +88,6 @@ pub fn paint_images(
         });
         if response.clicked() {
             action = Some((id, ImageAction::Select));
-        }
-        if selected {
-            let mut x = rect.left() + 7.0;
-            for (label, kind, width) in [
-                (crate::tr!("image-replace"), ImageAction::Replace, 90.0),
-                (
-                    crate::tr!("image-information"),
-                    ImageAction::Information,
-                    112.0,
-                ),
-                (crate::tr!("image-remove"), ImageAction::Remove, 90.0),
-            ] {
-                let button = egui::Rect::from_min_size(
-                    egui::pos2(x, rect.top() + 5.0),
-                    egui::vec2(width, 24.0),
-                );
-                if button.intersects(output.text_clip_rect)
-                    && ui.put(button, egui::Button::new(label).small()).clicked()
-                {
-                    action = Some((id, kind));
-                }
-                x += width + 5.0;
-            }
-        } else {
-            painter.text(
-                rect.min + egui::vec2(10.0, 8.0),
-                egui::Align2::LEFT_TOP,
-                crate::tr!("image-label"),
-                editor.font.font_id(editor.size * 0.8, 0),
-                ui.visuals().weak_text_color(),
-            );
         }
     }
     action

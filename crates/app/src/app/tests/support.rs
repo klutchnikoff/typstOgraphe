@@ -237,3 +237,17 @@ impl LetterFixture for crate::document_types::Metadata {
         data
     }
 }
+
+pub(super) fn band_is_link(app: &App) -> bool {
+    matches!(
+        app.bands.open.as_ref().map(|b| &b.content),
+        Some(super::super::bands::BandContent::Link { .. })
+    )
+}
+pub(super) fn set_band_text(app: &mut App, text: &str) {
+    match &mut app.bands.open.as_mut().expect("open band").content {
+        super::super::bands::BandContent::Link { url } => *url = text.into(),
+        super::super::bands::BandContent::Image { alt, .. } => *alt = text.into(),
+        _ => panic!("text parameter band"),
+    }
+}

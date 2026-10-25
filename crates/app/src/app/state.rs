@@ -17,8 +17,6 @@ pub(super) struct RecoveryState {
 pub(super) struct SpellingState {
     pub(super) checker: crate::spelling::Checker,
     pub(super) target: Option<crate::engine::SpellingIssue>,
-    pub(super) menu_pending: bool,
-    pub(super) menu_position: Option<egui::Pos2>,
     pub(super) capture_active: bool,
 }
 
@@ -72,14 +70,6 @@ pub(super) struct DialogState {
     pub(super) palette_open: bool,
     pub(super) palette_query: String,
     pub(super) palette_index: usize,
-    pub(super) image_info: Option<u64>,
-    pub(super) image_alt: String,
-    pub(super) image_target: Option<crate::engine::BlockTarget>,
-    pub(super) link_open: bool,
-    pub(super) link_url: String,
-    pub(super) link_error: Option<String>,
-    pub(super) link_range: Range<usize>,
-    pub(super) link_target: Option<crate::engine::SelectionTarget>,
     pub(super) message: Option<String>,
     pub(super) profile_error: Option<String>,
 }

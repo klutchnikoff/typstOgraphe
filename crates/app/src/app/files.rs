@@ -138,6 +138,7 @@ impl App {
         Ok(())
     }
     pub(super) fn after_document_replaced(&mut self) {
+        self.bands.open = None;
         self.assistance.session = None;
         self.dialogs.assistance_open = false;
         let keymap = self
@@ -150,18 +151,12 @@ impl App {
         self.search = SearchState::default();
         self.dialogs.marker_draft = None;
         self.spelling.target = None;
-        self.spelling.menu_pending = false;
-        self.spelling.menu_position = None;
         self.keymap = keymap;
         self.document.history_field = None;
         self.document.open = self.document.engine.is_open();
         self.image_textures.clear();
         self.dialogs.information_open = false;
-        self.dialogs.link_open = false;
         self.file.export_open = false;
-        self.dialogs.image_info = None;
-        self.dialogs.image_target = None;
-        self.dialogs.link_target = None;
         self.dialogs.information_group = InformationGroup::General;
         self.document.presentation = ModelPresentation::default();
         self.document.selection = CCursorRange::one(CCursor::new(0));

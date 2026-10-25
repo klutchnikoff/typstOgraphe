@@ -105,7 +105,6 @@ impl App {
             Command::SpellingSuggestions => {
                 if let Some(issue) = self.current_spelling_reference() {
                     self.open_spelling_reference(issue);
-                    self.spelling.menu_pending = self.spelling.target.is_some();
                 }
             }
             Command::NextSpelling | Command::PreviousSpelling => {
@@ -129,6 +128,19 @@ impl App {
     }
     pub(super) fn shortcuts(&mut self, ctx: &egui::Context) {
         if self.modal_open() {
+            return;
+        }
+        if self.bands.open.is_some()
+            && !self.composing_input(ctx)
+            && !self.bands.parameter_ime
+            && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
+        {
+            self.close_band(ctx);
+            return;
+        }
+        if self.bands.open.is_some()
+            && ctx.memory(|m| m.has_focus(egui::Id::new("editor-band-input")))
+        {
             return;
         }
         if self.search.open

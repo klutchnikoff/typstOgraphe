@@ -82,6 +82,7 @@ impl App {
         let spelling = crate::spelling::Checker::new(move || spelling_ctx.request_repaint());
         let worker = RenderWorker::spawn(std::sync::Arc::new(move || ctx.request_repaint()));
         Self {
+            bands: Default::default(),
             document: DocumentState {
                 open: false,
                 engine: crate::engine::Engine::empty(),
@@ -104,14 +105,6 @@ impl App {
                 palette_open: false,
                 palette_query: String::new(),
                 palette_index: 0,
-                image_info: None,
-                image_target: None,
-                image_alt: String::new(),
-                link_open: false,
-                link_url: String::new(),
-                link_error: None,
-                link_range: 0..0,
-                link_target: None,
                 message: None,
                 profile_error: None,
             },
@@ -148,8 +141,6 @@ impl App {
             spelling: SpellingState {
                 checker: spelling,
                 target: None,
-                menu_pending: false,
-                menu_position: None,
                 capture_active: false,
             },
             recovery: RecoveryState {

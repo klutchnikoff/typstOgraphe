@@ -8,6 +8,8 @@ struct EditorFrame {
     style: crate::preferences::EditorStyle,
     matches: Vec<Range<usize>>,
     active: Option<usize>,
+    band: Option<editor::BandInset>,
+    chrome_pointer: bool,
 }
 
 impl App {
@@ -32,15 +34,8 @@ impl App {
                         image_action = self.editor_text(ui, &frame);
                     });
             });
-        if let Some((id, action)) = image_action {
-            match action {
-                editor::ImageAction::Select => {
-                    self.select_image_part(id, crate::engine::SelectionPart::Body)
-                }
-                editor::ImageAction::Replace => self.choose_image(Some(id)),
-                editor::ImageAction::Information => self.open_image_info(id),
-                editor::ImageAction::Remove => self.remove_image(id),
-            }
+        if let Some(action) = image_action {
+            self.dispatch_editor_action(action, ui.ctx());
         }
     }
     fn editor_frame(&mut self, ctx: &egui::Context) -> EditorFrame {
@@ -89,6 +84,19 @@ impl App {
             vec![]
         };
         let active = self.search.engine.selected(&self.range());
+        if ctx.input(|i| {
+            i.pointer.any_pressed()
+                && i.pointer
+                    .interact_pos()
+                    .is_some_and(|p| self.bands.hit_regions.iter().any(|r| r.contains(p)))
+        }) {
+            self.bands.pointer_capture = true;
+        }
+        let chrome_pointer = self.bands.pointer_capture;
+        if ctx.input(|i| i.pointer.any_released()) {
+            self.bands.pointer_capture = false;
+        }
+        self.bands.hit_regions.clear();
         EditorFrame {
             before,
             old_range,
@@ -97,32 +105,33 @@ impl App {
             style: editor_style,
             matches,
             active,
+            band: self.band_inset(),
+            chrome_pointer,
         }
     }
     fn editor_text(
         &mut self,
         ui: &mut egui::Ui,
         frame: &EditorFrame,
-    ) -> Option<(u64, editor::ImageAction)> {
+    ) -> Option<super::bands::EditorAction> {
         let view = &frame.view;
         let matches = &frame.matches;
         let active = frame.active;
         let editor_style = frame.style;
         let lock_tab = frame.lock_tab;
         let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, width: f32| {
-            if matches.is_empty() {
-                editor::layout(ui, view, text.as_str(), width, editor_style)
-            } else {
-                editor::layout_with_search(
-                    ui,
-                    view,
-                    text.as_str(),
-                    width,
-                    editor_style,
+            editor::layout_with_context(
+                ui,
+                view,
+                text.as_str(),
+                width,
+                editor_style,
+                editor::LayoutContext {
                     matches,
                     active,
-                )
-            }
+                    band: frame.band,
+                },
+            )
         };
         let background = ui.painter().add(egui::Shape::Noop);
         let mut draft = crate::document::edits::TextInput {
@@ -153,7 +162,7 @@ impl App {
         frame: &EditorFrame,
         background: egui::layers::ShapeIdx,
         draft: crate::document::edits::TextInput,
-    ) -> Option<(u64, editor::ImageAction)> {
+    ) -> Option<super::bands::EditorAction> {
         let matches = &frame.matches;
         let editor_style = frame.style;
         let before = &frame.before;
@@ -182,7 +191,7 @@ impl App {
             state.store(ui.ctx(), output.response.id);
             return None;
         }
-        if let Some(range) = output.cursor_range {
+        if let Some(range) = output.cursor_range.filter(|_| !frame.chrome_pointer) {
             self.document.selection = range;
         }
         if self.search.open
@@ -229,10 +238,13 @@ impl App {
             &self.image_textures,
             self.range(),
             editor_style,
-        );
+        )
+        .map(|(id, action)| super::bands::EditorAction::Image(id, action));
+        let widget_action = self.widget_controls(ui, &draft.view, &output);
+        let band_action = self.paint_band(ui, &draft.view, &output);
         let changed = output.response.changed() || draft.view.edit_error().is_some();
         let mut state = output.state;
-        if self.document.force_selection {
+        if self.document.force_selection || frame.chrome_pointer {
             state.cursor.set_char_range(Some(self.document.selection));
         }
         state.clear_undoer();
@@ -259,7 +271,7 @@ impl App {
             self.view_selection_changed(ViewOrigin::User);
             ui.ctx().request_repaint();
         }
-        image_action
+        band_action.or(widget_action).or(image_action)
     }
     fn editor_spelling(
         &mut self,

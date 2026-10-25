@@ -38,27 +38,20 @@ fn image_import_replace_alt_and_remove_match_json_with_shared_history_and_archiv
     equivalent(&app, &engine);
     frame(&mut app, &ctx, vec![]);
     app.open_image_info(1);
-    app.dialogs.image_alt = "日本 : des arbres".into();
+    set_band_text(&mut app, "日本 : des arbres");
     let target = engine.image_target(1).unwrap();
     engine
         .run_call(
             Core::from_call(
                 "image.set_alt",
-                json!({"target":target,"alt":app.dialogs.image_alt}),
+                json!({"target":target,"alt":"日本 : des arbres"}),
             )
             .unwrap()
             .to_call(),
         )
         .unwrap();
-    engine
-        .run_call(
-            Core::from_call("text.select", json!({"part":"annotation"}))
-                .unwrap()
-                .to_call(),
-        )
-        .unwrap();
     recovery_click(&mut app, &ctx, &crate::tr!("image-apply"));
-    assert!(app.dialogs.image_info.is_none());
+    assert!(app.bands.open.is_none());
     equivalent(&app, &engine);
     let target = engine.image_target(1).unwrap();
     engine
@@ -138,7 +131,7 @@ fn stale_image_dialog_refuses_its_edit_without_retargeting_the_current_image() {
     app.import_image(&file, None).unwrap();
     frame(&mut app, &ctx, vec![]);
     app.open_image_info(1);
-    app.dialogs.image_alt = "Texte devenu périmé".into();
+    set_band_text(&mut app, "Texte devenu périmé");
     let target = app.document.engine.image_target(1).unwrap();
     app.document
         .engine
@@ -160,6 +153,6 @@ fn stale_image_dialog_refuses_its_edit_without_retargeting_the_current_image() {
         app.document.engine.document().view.images[&1].alt,
         "Modification plus récente"
     );
-    assert!(app.dialogs.image_info.is_some());
+    assert!(app.bands.open.is_some());
     assert_eq!(app.dialogs.message, Some(crate::tr!("edit-stale-draft")));
 }

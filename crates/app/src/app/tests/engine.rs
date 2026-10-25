@@ -210,16 +210,16 @@ fn link_dialog_uses_the_captured_selection_and_refuses_a_stale_revision() {
         });
         app.document.selection = editor::cursor(0..5);
         app.apply(Command::Link);
-        app.dialogs.link_url = "https://example.org".into();
+        set_band_text(&mut app, "https://example.org");
         app.document.selection = editor::cursor(6..11);
         if stale {
             set_subject(&mut app, "Autre objet");
         }
         recovery_click(&mut app, &ctx, &crate::tr!("apply"));
         if stale {
-            assert!(app.dialogs.link_open);
+            assert!(band_is_link(&app));
             assert_eq!(
-                app.dialogs.link_error.as_deref(),
+                app.bands.open.as_ref().and_then(|b| b.error.as_deref()),
                 Some(crate::tr!("edit-stale-draft").as_str())
             );
             assert!(
@@ -232,7 +232,7 @@ fn link_dialog_uses_the_captured_selection_and_refuses_a_stale_revision() {
                     .all(|style| style.link.is_none())
             );
         } else {
-            assert!(!app.dialogs.link_open);
+            assert!(!band_is_link(&app));
             assert!(
                 app.document.engine.document().view.styles[..5]
                     .iter()

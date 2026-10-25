@@ -235,9 +235,16 @@ fn toolbar_icons_dispatch_commands_and_keep_headings_separate_from_quotes() {
         let (output, _) = draw(&mut app, &ctx, vec![]);
         let pos = icon_rect(&output, &ctx, Icon::Link).center();
         assert_eq!(click(&mut app, &ctx, pos), Some(Command::Link));
-        assert!(app.dialogs.link_open);
-        assert_eq!(app.dialogs.link_range, 0..3);
-        app.dialogs.link_open = false;
+        assert!(band_is_link(&app));
+        assert_eq!(
+            app.document
+                .engine
+                .resolve_target(app.bands.open.as_ref().unwrap().target)
+                .map(|(a, b)| a..b)
+                .unwrap(),
+            0..3
+        );
+        app.bands.open = None;
         let (output, _) = draw(&mut app, &ctx, vec![]);
         let pos = icon_rect(&output, &ctx, Icon::Image).center();
         assert_eq!(click(&mut app, &ctx, pos), Some(Command::InsertImage));

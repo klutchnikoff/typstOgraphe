@@ -14,22 +14,21 @@ impl App {
             self.dialogs.message = Some(Self::command_error_text(&reason));
             return;
         }
-        self.dialogs.link_url = self
+        let url = self
             .document
             .engine
             .document()
             .view
             .styles
             .get(range.start)
-            .and_then(|s| s.link.clone())
+            .and_then(|style| style.link.clone())
             .unwrap_or_default();
-        self.dialogs.link_range = range;
-        self.dialogs.link_target = self
+        if let Ok(target) = self
             .document
             .engine
             .selection_target(editor::to_core(self.document.selection))
-            .ok();
-        self.dialogs.link_error = None;
-        self.dialogs.link_open = true;
+        {
+            self.show_band(target, super::bands::BandContent::Link { url });
+        }
     }
 }

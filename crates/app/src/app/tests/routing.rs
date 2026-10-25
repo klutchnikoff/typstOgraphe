@@ -242,19 +242,19 @@ fn disabled_link_stays_disabled_for_toolbar_palette_shortcut_and_direct_dispatch
         true,
         icon_rect(&output, &ctx, crate::icons::Icon::Link).center(),
     );
-    assert!(!app.dialogs.link_open);
+    assert!(!band_is_link(&app));
     app.apply(Command::Palette);
     app.dialogs.palette_query = Command::Link.label();
     let output = search_draw(&mut app, &ctx, vec![]);
     assert!(text_point(&output, &Command::Link.label()).is_none());
     frame(&mut app, &ctx, vec![key(egui::Key::Enter)]);
-    assert!(app.dialogs.palette_open && !app.dialogs.link_open);
+    assert!(app.dialogs.palette_open && !band_is_link(&app));
     app.dialogs.palette_open = false;
     binding(&mut app, &ctx, Command::Link);
     frame(&mut app, &ctx, vec![]);
     frame(&mut app, &ctx, vec![key(egui::Key::F6)]);
     app.dispatch_action(Command::Link, &ctx);
-    assert!(!app.dialogs.link_open);
+    assert!(!band_is_link(&app));
     assert_eq!(app.stored_document(), before);
     assert!(!app.document.engine.can_undo());
 }

@@ -120,19 +120,7 @@ fn image_remove_button_deletes_the_selected_block_and_caption_with_undo() {
         app.document.force_selection = true;
         frame(&mut app, &ctx, vec![]);
         let output = ctx.run(egui::RawInput::default(), |ctx| app.ui_frame(ctx));
-        let pos = output
-            .shapes
-            .iter()
-            .find_map(|shape| {
-                if let egui::Shape::Text(text) = &shape.shape
-                    && text.galley.text() == crate::tr!("image-remove")
-                {
-                    Some(text.pos + text.galley.rect.center().to_vec2())
-                } else {
-                    None
-                }
-            })
-            .expect("bouton Supprimer de l’image sélectionnée");
+        let pos = icon_rect(&output, &ctx, crate::icons::Icon::Trash).center();
         for pressed in [true, false] {
             frame(
                 &mut app,
@@ -155,6 +143,11 @@ fn image_remove_button_deletes_the_selected_block_and_caption_with_undo() {
                 );
             }
         }
+        assert!(
+            !app.document.engine.document().view.images.is_empty(),
+            "confirmation before deletion"
+        );
+        recovery_click(&mut app, &ctx, &crate::tr!("widget-delete"));
         assert!(
             app.document.engine.document().view.images.is_empty(),
             "le clic doit supprimer l’image entière"
@@ -230,13 +223,16 @@ fn image_controls_edit_alt_and_keyboard_deletes_the_whole_block_with_undo() {
     };
     click(
         &mut app,
-        text_point(&output, &crate::tr!("image-information")),
+        icon_rect(&output, &ctx, crate::icons::Icon::Settings).center(),
     );
-    assert_eq!(app.dialogs.image_info, Some(1));
-    app.dialogs.image_alt = "Des arbres et un chemin".into();
+    assert!(matches!(
+        app.bands.open.as_ref().map(|b| &b.content),
+        Some(super::super::bands::BandContent::Image { .. })
+    ));
+    set_band_text(&mut app, "Des arbres et un chemin");
     let output = ctx.run(egui::RawInput::default(), |ctx| app.ui_frame(ctx));
     click(&mut app, text_point(&output, &crate::tr!("image-apply")));
-    assert!(app.dialogs.image_info.is_none());
+    assert!(app.bands.open.is_none());
     assert!(
         app.document
             .engine
