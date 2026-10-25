@@ -205,7 +205,10 @@ impl App {
                         self.columns_ui(ui, modal);
                     }
                 } else {
-                    self.welcome_ui(ui);
+                    egui::Frame::central_panel(ui.style()).show(ui, |ui| {
+                        ui.set_min_size(ui.available_size());
+                        self.welcome_ui(ui);
+                    });
                 }
             });
         self.preferences_ui(ctx);

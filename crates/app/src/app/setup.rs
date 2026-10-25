@@ -177,7 +177,7 @@ impl App {
 fn configure_context(ctx: &egui::Context) {
     editor::install_fonts(ctx);
     ctx.all_styles_mut(|style| {
-        style.spacing.item_spacing = egui::vec2(8.0, 8.0);
+        crate::theme::apply_to(style);
         let dark = style.visuals.dark_mode;
         style.visuals.selection.bg_fill = crate::theme::selection_fill(dark);
         style.visuals.selection.stroke = crate::theme::selection_stroke(dark);

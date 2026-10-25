@@ -4,7 +4,7 @@
 //! Les valeurs de `ACCENT`, `PREVIEW_SELECTION`, `ERROR_INLINE` et de la sélection
 //! reprennent celles qui étaient dispersées dans l’application. `Tokens` décrit la
 //! palette clair/sombre validée ; les surfaces la reprendront pendant leur migration.
-use eframe::egui::{Color32, Stroke};
+use eframe::egui::{self, Color32, Stroke};
 
 pub const ACCENT: Color32 = Color32::from_rgb(40, 92, 119);
 pub const PREVIEW_SELECTION: Color32 = Color32::from_rgba_premultiplied(16, 33, 59, 65);
@@ -44,6 +44,67 @@ pub mod scale {
     pub const RADIUS_CARD: u8 = 8;
     pub const RADIUS_DIALOG: u8 = 12;
     pub const TEXT: [f32; 5] = [11.0, 12.5, 13.5, 15.0, 20.0];
+}
+
+/// Applique la palette et les échelles au style egui d'un thème. Le thème clair ou
+/// sombre est lu dans `style.visuals.dark_mode` ; les réglages propres à un composant
+/// (boutons à variantes, champs, dialogues) restent dans `ui_kit`.
+pub fn apply_to(style: &mut egui::Style) {
+    let dark = style.visuals.dark_mode;
+    let t = Tokens::new(dark);
+    let control = egui::CornerRadius::same(scale::RADIUS_CONTROL);
+    let visuals = &mut style.visuals;
+    visuals.panel_fill = t.bg;
+    visuals.window_fill = t.raised;
+    visuals.faint_bg_color = t.panel;
+    visuals.extreme_bg_color = t.field;
+    visuals.code_bg_color = t.hover;
+    visuals.hyperlink_color = t.accent;
+    visuals.error_fg_color = t.danger;
+    visuals.window_stroke = Stroke::new(1.0_f32, t.border);
+    visuals.window_corner_radius = egui::CornerRadius::same(scale::RADIUS_DIALOG);
+    visuals.menu_corner_radius = egui::CornerRadius::same(scale::RADIUS_CARD);
+    let shadow = |offset: i8, blur: u8, alpha: u8| egui::Shadow {
+        offset: [0, offset],
+        blur,
+        spread: 0,
+        color: Color32::from_black_alpha(alpha),
+    };
+    visuals.window_shadow = shadow(8, 24, if dark { 115 } else { 40 });
+    visuals.popup_shadow = shadow(4, 16, if dark { 110 } else { 36 });
+    let widgets = &mut visuals.widgets;
+    widgets.noninteractive.bg_stroke = Stroke::new(1.0_f32, t.border);
+    widgets.noninteractive.fg_stroke = Stroke::new(1.0_f32, t.text);
+    widgets.noninteractive.bg_fill = t.panel;
+    widgets.noninteractive.weak_bg_fill = t.panel;
+    for (state, fill) in [
+        (&mut widgets.inactive, t.hover),
+        (&mut widgets.hovered, mix(t.hover, t.text, 0.06)),
+        (&mut widgets.active, mix(t.hover, t.text, 0.12)),
+        (&mut widgets.open, mix(t.hover, t.text, 0.06)),
+    ] {
+        state.weak_bg_fill = fill;
+        state.bg_fill = fill;
+        state.bg_stroke = Stroke::NONE;
+        state.fg_stroke = Stroke::new(1.0_f32, t.text);
+        state.corner_radius = control;
+        state.expansion = 0.0;
+    }
+    widgets.noninteractive.corner_radius = control;
+    style.spacing.item_spacing = egui::vec2(8.0, 8.0);
+    style.spacing.button_padding = egui::vec2(10.0, 4.0);
+    let sizes = scale::TEXT;
+    for (text_style, size) in [
+        (egui::TextStyle::Small, sizes[0]),
+        (egui::TextStyle::Body, sizes[2]),
+        (egui::TextStyle::Button, sizes[2]),
+        (egui::TextStyle::Heading, 17.0),
+        (egui::TextStyle::Monospace, sizes[1]),
+    ] {
+        if let Some(font) = style.text_styles.get_mut(&text_style) {
+            font.size = size;
+        }
+    }
 }
 
 const fn hex(rgb: u32) -> Color32 {
