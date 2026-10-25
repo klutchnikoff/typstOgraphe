@@ -27,30 +27,34 @@ impl App {
             .expect("published document statistics");
         let total = counts.document;
         let selected = counts.target;
-        ui.horizontal_wrapped(|ui| {
-            ui.label(crate::tr!(
-                "document-stats",
-                words = total.words,
-                signs = total.signs
-            ))
-            .on_hover_text(crate::tr!(
-                "statistics-hint",
-                without_spaces = total.signs_without_spaces
-            ));
-            if let Some(selected) = selected {
-                ui.separator();
-                ui.label(crate::tr!(
-                    "selection-stats",
-                    words = selected.words,
-                    signs = selected.signs
-                ))
+        use crate::ui_kit::{NoticeKind, chip};
+        let muted = crate::theme::Tokens::new(ui.visuals().dark_mode).muted;
+        let stats = |ui: &mut egui::Ui, text: String, without_spaces: usize| {
+            ui.label(egui::RichText::new(text).color(muted))
                 .on_hover_text(crate::tr!(
                     "statistics-hint",
-                    without_spaces = selected.signs_without_spaces
+                    without_spaces = without_spaces
                 ));
+        };
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.x = 12.0;
+            stats(
+                ui,
+                crate::tr!("document-stats", words = total.words, signs = total.signs),
+                total.signs_without_spaces,
+            );
+            if let Some(selected) = selected {
+                stats(
+                    ui,
+                    crate::tr!(
+                        "selection-stats",
+                        words = selected.words,
+                        signs = selected.signs
+                    ),
+                    selected.signs_without_spaces,
+                );
             }
             if self.preferences.spelling.enabled {
-                ui.separator();
                 let language = self.document.engine.metadata().options().language;
                 if !crate::spelling::supported(language) {
                     ui.weak(crate::tr!(
@@ -59,20 +63,18 @@ impl App {
                     ))
                     .on_hover_text(crate::tr!("spelling-dictionaries"));
                 } else if let Some(error) = &self.spelling.checker.error {
-                    ui.colored_label(ui.visuals().error_fg_color, crate::tr!("spelling-error"))
+                    chip(ui, NoticeKind::Error, crate::tr!("spelling-error"))
                         .on_hover_text(crate::i18n::error(error));
                 } else if self.spelling.checker.ready {
-                    let response = ui.add(
-                        egui::Button::new(crate::tr!(
-                            "spelling-count",
-                            count = self.spelling.checker.issues.len()
-                        ))
-                        .frame(false),
-                    );
-                    let clicked = response
-                        .on_hover_text(crate::tr!("spelling-hint"))
-                        .clicked();
-                    if clicked {
+                    let count = self.spelling.checker.issues.len();
+                    let kind = if count == 0 {
+                        NoticeKind::Neutral
+                    } else {
+                        NoticeKind::Error
+                    };
+                    let response = chip(ui, kind, crate::tr!("spelling-count", count = count))
+                        .on_hover_text(crate::tr!("spelling-hint"));
+                    if response.clicked() {
                         self.apply(Command::NextSpelling);
                     }
                 } else {
@@ -80,18 +82,22 @@ impl App {
                 }
             }
             if let Some(session) = &self.assistance.session {
-                ui.separator();
-                let label = if session.connected() {
+                let connected = session.connected();
+                let label = if connected {
                     crate::tr!("assistance-connected")
                 } else {
                     crate::tr!("assistance-ready")
                 };
-                if ui.button(label).clicked() {
+                let kind = if connected {
+                    NoticeKind::Success
+                } else {
+                    NoticeKind::Info
+                };
+                if chip(ui, kind, label).clicked() {
                     self.apply(Command::Assistance);
                 }
             }
             if let Some(message) = &self.dialogs.message {
-                ui.separator();
                 ui.add(egui::Label::new(message).truncate())
                     .on_hover_text(message);
             }

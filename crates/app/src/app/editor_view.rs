@@ -364,7 +364,14 @@ impl App {
                 if disabled {
                     ui.disable();
                 }
-                egui::Frame::central_panel(ui.style()).show(ui, |ui| {
+                let panel = egui::Frame::central_panel(ui.style());
+                // L'aperçu repose sur un fond « table » qui détache les pages du panneau.
+                let panel = if preview {
+                    panel.fill(crate::theme::Tokens::new(ui.visuals().dark_mode).canvas)
+                } else {
+                    panel
+                };
+                panel.show(ui, |ui| {
                     ui.set_min_size(ui.available_size());
                     if preview {
                         self.preview_ui(ui);

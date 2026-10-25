@@ -294,10 +294,9 @@ impl App {
         let mut r = self.assistance.review.take().expect("open review");
         let busy = self.assistance_busy();
         let mut action = None;
-        ui.horizontal_wrapped(|ui| {
-            ui.strong("typstOgraphe");
-            ui.label(crate::tr!("review-title"));
-            let back = ui.button(Command::CloseReview.label());
+        use crate::ui_kit::{ButtonKind, button, button_enabled, segmented};
+        ui.horizontal(|ui| {
+            let back = button(ui, ButtonKind::Secondary, Command::CloseReview.label());
             if r.focus_pending {
                 back.request_focus();
                 r.focus_pending = false;
@@ -307,6 +306,37 @@ impl App {
             {
                 action = Some(Command::CloseReview);
             }
+            ui.label(
+                egui::RichText::new(crate::tr!("review-title"))
+                    .size(17.0)
+                    .family(crate::theme::semibold()),
+            );
+            // La décision porte sur tout le lot et reste visible en haut de page.
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let pending = r.status == ProposalStatus::Pending && !busy;
+                if button_enabled(
+                    ui,
+                    ButtonKind::Primary,
+                    pending,
+                    Command::AcceptProposal.label(),
+                )
+                .on_hover_text(crate::tr!("review-whole-lot"))
+                .clicked()
+                {
+                    action = Some(Command::AcceptProposal);
+                }
+                if button_enabled(
+                    ui,
+                    ButtonKind::Danger,
+                    !busy && matches!(r.status, ProposalStatus::Pending | ProposalStatus::Stale),
+                    Command::RejectProposal.label(),
+                )
+                .on_hover_text(crate::tr!("review-whole-lot"))
+                .clicked()
+                {
+                    action = Some(Command::RejectProposal);
+                }
+            });
         });
         ui.separator();
         ui.label(crate::tr!(
@@ -321,42 +351,21 @@ impl App {
             ));
         }
         if r.status == ProposalStatus::Stale {
-            ui.colored_label(ui.visuals().warn_fg_color, crate::tr!("review-stale-help"));
+            crate::ui_kit::notice(
+                ui,
+                crate::ui_kit::NoticeKind::Error,
+                crate::tr!("review-stale-help"),
+            );
         }
         if busy {
             ui.label(crate::tr!("review-busy"));
         }
-        ui.horizontal_wrapped(|ui| {
-            ui.selectable_value(&mut r.tab, Tab::Content, crate::tr!("review-content"));
-            if r.changes.information_count() > 0 {
-                ui.selectable_value(
-                    &mut r.tab,
-                    Tab::Information,
-                    crate::tr!("review-information"),
-                );
-            }
-            ui.selectable_value(&mut r.tab, Tab::Preview, crate::tr!("review-preview"));
-        });
-        ui.separator();
-        ui.horizontal_wrapped(|ui| {
-            ui.weak(crate::tr!("review-whole-lot"));
-            let pending = r.status == ProposalStatus::Pending && !busy;
-            if ui
-                .add_enabled(
-                    !busy && matches!(r.status, ProposalStatus::Pending | ProposalStatus::Stale),
-                    egui::Button::new(Command::RejectProposal.label()),
-                )
-                .clicked()
-            {
-                action = Some(Command::RejectProposal);
-            }
-            if ui
-                .add_enabled(pending, egui::Button::new(Command::AcceptProposal.label()))
-                .clicked()
-            {
-                action = Some(Command::AcceptProposal);
-            }
-        });
+        let mut tabs = vec![(Tab::Content, crate::tr!("review-content"))];
+        if r.changes.information_count() > 0 {
+            tabs.push((Tab::Information, crate::tr!("review-information")));
+        }
+        tabs.push((Tab::Preview, crate::tr!("review-preview")));
+        segmented(ui, &mut r.tab, &tabs);
         ui.separator();
         match r.tab {
             Tab::Content => content::comparison(ui, &mut r, self.preferences.editor),

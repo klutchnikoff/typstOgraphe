@@ -105,10 +105,22 @@ impl App {
                     ui.add_space(10.0);
                     ui.horizontal(|ui| {
                         ui.add_space(8.0);
+                        let shadow = ui.painter().add(egui::Shape::Noop);
                         let response = ui.add(
                             egui::Image::new(page)
                                 .fit_to_exact_size(displayed)
                                 .sense(egui::Sense::click()),
+                        );
+                        let dark = ui.visuals().dark_mode;
+                        ui.painter().set(
+                            shadow,
+                            egui::Shadow {
+                                offset: [0, 2],
+                                blur: 10,
+                                spread: 0,
+                                color: egui::Color32::from_black_alpha(if dark { 150 } else { 60 }),
+                            }
+                            .as_shape(response.rect, 2.0),
                         );
                         if let Some(size) = self
                             .preview
@@ -175,7 +187,7 @@ impl App {
     }
     fn preview_header(&self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label(RichText::new(crate::tr!("preview-title")).strong())
+            ui.label(RichText::new(crate::tr!("preview-title")).family(crate::theme::semibold()))
                 .on_hover_text(crate::tr!("preview-hint"));
             if self.preview.revision != Some(self.document.engine.revision()) {
                 ui.spinner();
@@ -186,9 +198,13 @@ impl App {
                 } else {
                     time
                 };
+                // La durée de rendu reste consultable, sans encombrer l'en-tête.
                 ui.weak(crate::tr!(
                     "preview-stats",
-                    pages = self.preview.pages.len(),
+                    pages = self.preview.pages.len()
+                ))
+                .on_hover_text(crate::tr!(
+                    "preview-render-time",
                     milliseconds = time.as_millis() as f64
                 ));
             }

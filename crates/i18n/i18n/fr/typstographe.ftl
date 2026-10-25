@@ -223,9 +223,10 @@ cli-help =
       cargo run -- --capture-profile-letter IMAGE.png
 preview-stats =
     { $pages ->
-        [one] { $pages } page · { $milliseconds } ms
-       *[other] { $pages } pages · { $milliseconds } ms
+        [one] { $pages } page
+       *[other] { $pages } pages
     }
+preview-render-time = Rendu en { $milliseconds } ms
 document-stats =
     Document : { $words ->
         [one] { $words } mot

@@ -1225,7 +1225,7 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
   palette sans effet. Sept tests (composant et application) ; capture de revue
   `ui-kit-gallery -- sortie.png [light|dark] rail`. Les panneaux réels (plan, assistance,
   récents) relèvent du chantier G.
-- [ ] **L.3 — Migration des surfaces**, par risque croissant. **L.3a livrée le 25 octobre
+- [x] **L.3 — Migration des surfaces**, par risque croissant. **L.3a livrée le 25 octobre
   2026** : palette appliquée au style global d'egui (`theme::apply_to` : fonds, filets,
   rayons, ombres, boutons, tailles de texte, espacement des boutons) ; l'écran d'accueil
   reçoit enfin un fond de panneau (il restait sur le fond de fenêtre). Premier changement
@@ -1252,8 +1252,12 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
   atténué, remplacement en boutons secondaires ; palette en calque non modal (groupes
   de menu, icônes, raccourcis, fermeture au clic extérieur ; la version modale
   d'egui bloquait le focus d'une frame) ; accueil avec bouton principal. Scénario de
-  capture `--capture-widgets <fichier> palette`. À faire ensuite : barre d'état,
-  aperçu, relecture MCP.
+  capture `--capture-widgets <fichier> palette`. **L.3 terminée le 25 octobre 2026** avec la
+  barre d'état (pastilles d'orthographe et d'agent cliquables, séparateurs remplacés
+  par de l'espace), l'aperçu (fond « table », pages ombrées, en-tête « 1 page » avec la
+  durée de rendu en info-bulle) et la relecture MCP (décision Refuser/Accepter dans
+  l'en-tête, rubriques en contrôle segmenté, marque retirée). Reste pour L.4 le
+  bandeau variante B avec la pointe, puis la recette L.5.
 - [ ] **L.4 — Bandeaux et pointe (D37, D40).** Variante B pour les paramètres de bloc ;
   pointe vers le mot pour l'orthographe ; bandeau d'une faute dans un bloc inséré entre
   deux lignes, à la largeur du bloc. Passer la plage horizontale du bloc au placement
