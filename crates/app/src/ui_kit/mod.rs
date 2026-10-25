@@ -9,6 +9,7 @@ mod field;
 mod gallery;
 mod notice;
 mod segmented;
+mod side_rail;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
@@ -19,6 +20,7 @@ pub use field::{text_area, text_field};
 pub use gallery::{Gallery, Orientation, gallery};
 pub use notice::{NoticeKind, keycap, notice};
 pub use segmented::segmented;
+pub use side_rail::{DRAWER_MIN, RAIL_WIDTH, RailLayout, SidePanel, SideRail, reserve};
 
 use crate::theme::Tokens;
 use eframe::egui;

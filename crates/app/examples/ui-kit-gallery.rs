@@ -3,14 +3,19 @@
 use eframe::egui;
 use std::path::PathBuf;
 use typstographe::{
+    icons::Icon,
     theme::Tokens,
-    ui_kit::{ButtonKind, Dialog, Gallery, button, gallery, segmented, text_field},
+    ui_kit::{
+        ButtonKind, Dialog, Gallery, SidePanel, SideRail, button, gallery, segmented, text_field,
+    },
 };
 
 struct Sheet {
     out: PathBuf,
     dark: bool,
     dialog: bool,
+    rail: bool,
+    side: SideRail,
     state: Gallery,
     frames: u32,
     requested: bool,
@@ -25,12 +30,41 @@ impl eframe::App for Sheet {
         });
         ctx.all_styles_mut(|style| style.animation_time = 0.0);
         let tokens = Tokens::new(self.dark);
-        egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(tokens.bg).inner_margin(24))
-            .show(ctx, |ui| {
-                ui.set_max_width(520.0);
-                gallery(ui, &mut self.state);
-            });
+        if self.rail {
+            egui::CentralPanel::default()
+                .frame(egui::Frame::new().fill(tokens.bg))
+                .show(ctx, |ui| {
+                    let all = ui.max_rect();
+                    let preview = egui::Rect::from_min_max(all.center_top(), all.max);
+                    ui.painter()
+                        .rect_filled(preview, 0.0, tokens.bg.gamma_multiply(0.9));
+                    let panels = [
+                        SidePanel {
+                            id: "plan",
+                            icon: Icon::List,
+                            label: "Plan du document".into(),
+                        },
+                        SidePanel {
+                            id: "notes",
+                            icon: Icon::Quote,
+                            label: "Notes".into(),
+                        },
+                    ];
+                    self.side.open.get_or_insert("plan");
+                    self.side.show(ui, preview, &panels, true, |_, ui| {
+                        ui.label("Objet : demande de réservation");
+                        ui.label("Madame, Monsieur");
+                        ui.label("Équipements demandés");
+                    });
+                });
+        } else {
+            egui::CentralPanel::default()
+                .frame(egui::Frame::new().fill(tokens.bg).inner_margin(24))
+                .show(ctx, |ui| {
+                    ui.set_max_width(520.0);
+                    gallery(ui, &mut self.state);
+                });
+        }
         if self.dialog {
             let options = [
                 (
@@ -85,7 +119,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .ok_or("usage : ui-kit-gallery sortie.png [light|dark] [gallery|dialog]")?,
     );
     let dark = args.next().as_deref() == Some("dark");
-    let dialog = args.next().as_deref() == Some("dialog");
+    let scenario = args.next();
+    let dialog = scenario.as_deref() == Some("dialog");
+    let rail = scenario.as_deref() == Some("rail");
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([700.0, 640.0]),
         ..Default::default()
@@ -98,6 +134,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 out,
                 dark,
                 dialog,
+                rail,
+                side: SideRail::default(),
                 state: Gallery::default(),
                 frames: 0,
                 requested: false,

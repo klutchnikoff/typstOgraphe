@@ -31,6 +31,7 @@ mod preview;
 mod recovery;
 mod review;
 mod search;
+mod side_panels;
 mod signature;
 mod spelling;
 mod text_input;

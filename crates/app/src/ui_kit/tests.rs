@@ -209,3 +209,104 @@ fn gallery_renders_in_both_themes_with_the_theme_tokens() {
         }
     }
 }
+
+mod side_rail {
+    use super::*;
+
+    fn panels() -> Vec<SidePanel> {
+        vec![SidePanel {
+            id: "plan",
+            icon: Icon::List,
+            label: "Plan".into(),
+        }]
+    }
+    const BOUNDS: Rect = Rect {
+        min: pos2(0.0, 0.0),
+        max: pos2(600.0, 400.0),
+    };
+
+    #[test]
+    fn without_a_panel_nothing_is_reserved() {
+        let layout = reserve(BOUNDS, &[]);
+        assert_eq!(
+            layout,
+            RailLayout {
+                content: BOUNDS,
+                rail: None
+            }
+        );
+        let layout = reserve(BOUNDS, &panels());
+        assert_eq!(layout.content.right(), BOUNDS.right() - RAIL_WIDTH);
+        assert_eq!(layout.rail.map(|r| r.width()), Some(RAIL_WIDTH));
+    }
+
+    #[test]
+    fn the_drawer_never_exceeds_two_thirds_and_keeps_a_usable_minimum() {
+        let mut rail = SideRail::default();
+        assert_eq!(rail.drawer_width(BOUNDS), 330.0);
+        rail.fraction = 0.95;
+        assert_eq!(rail.drawer_width(BOUNDS), 400.0);
+        rail.fraction = 0.05;
+        assert_eq!(rail.drawer_width(BOUNDS), DRAWER_MIN);
+        let narrow = Rect::from_min_size(pos2(0.0, 0.0), egui::vec2(300.0, 400.0));
+        assert_eq!(
+            rail.drawer_width(narrow),
+            200.0,
+            "le plafond l’emporte sur le minimum"
+        );
+    }
+
+    #[test]
+    fn without_a_panel_it_draws_nothing_and_forgets_an_open_panel() {
+        let ctx = context(false);
+        let rail = std::cell::RefCell::new(SideRail {
+            open: Some("plan"),
+            ..Default::default()
+        });
+        let called = Cell::new(false);
+        let output = ctx.run(input(vec![]), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                rail.borrow_mut()
+                    .show(ui, BOUNDS, &[], true, |_, _| called.set(true));
+            });
+        });
+        assert_eq!(rail.borrow().open, None);
+        assert!(!called.get());
+        let empty = context(false).run(input(vec![]), |ctx| {
+            egui::CentralPanel::default().show(ctx, |_| {});
+        });
+        assert_eq!(output.shapes.len(), empty.shapes.len());
+    }
+
+    #[test]
+    fn an_icon_opens_the_drawer_with_its_body_and_a_second_click_closes_it() {
+        let ctx = context(false);
+        let rail = std::cell::RefCell::new(SideRail::default());
+        let opened = Cell::new(None);
+        let panels = panels();
+        let mut run = |ctx: &egui::Context| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                rail.borrow_mut().show(ui, BOUNDS, &panels, true, |id, ui| {
+                    opened.set(Some(id));
+                    ui.label("Corps du plan");
+                });
+            });
+        };
+        let _ = ctx.run(input(vec![]), &mut run);
+        assert_eq!(opened.get(), None);
+        let icon = pos2(BOUNDS.right() - RAIL_WIDTH / 2.0, BOUNDS.top() + 23.0);
+        click(&ctx, &mut run, icon);
+        assert_eq!(rail.borrow().open, Some("plan"));
+        let _ = ctx.run(input(vec![]), &mut run);
+        assert_eq!(opened.get(), Some("plan"));
+        let area = ctx.memory(|m| m.area_rect(egui::Id::new("side-rail-drawer")));
+        let area = area.expect("tiroir ouvert");
+        assert!(
+            area.width() <= SideRail::max_width(BOUNDS) + 25.0,
+            "{area:?}"
+        );
+        assert!(area.right() <= BOUNDS.right() - RAIL_WIDTH + 1.0);
+        click(&ctx, &mut run, icon);
+        assert_eq!(rail.borrow().open, None);
+    }
+}

@@ -30,6 +30,7 @@ mod profile;
 mod recovery;
 mod routing;
 mod search;
+mod side_rail;
 mod spelling;
 mod spelling_engine;
 mod support;

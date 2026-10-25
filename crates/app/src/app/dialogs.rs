@@ -47,6 +47,7 @@ impl App {
             self.recovery.open = false;
             self.dialogs.assistance_open = false;
             self.dialogs.palette_open = false;
+            self.dialogs.side_rail.close();
             self.dialogs.information_open = false;
             self.file.export_open = false;
             self.file.pending_action = None;

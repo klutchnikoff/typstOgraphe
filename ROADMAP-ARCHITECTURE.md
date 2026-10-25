@@ -1209,20 +1209,20 @@ fichiers de police si une police d'interface est embarquée (décision ouverte).
   `cargo run -p typstographe --example ui-kit-gallery -- sortie.png [light|dark] [gallery|dialog]`.
   La police d'interface embarquée et l'application de la palette au style global
   d'egui arrivent avec L.3, dans des commits d'apparence séparés.
-- [ ] **L.2 bis — Mécanisme de barre latérale droite, sans contenu (D40).** Composant
-  `SideRail` de `ui_kit` : barre étroite d'icônes carrées à droite et tiroir qui recouvre
-  l'aperçu sans déplacer l'éditeur, au plus 2/3 de la colonne d'aperçu (repli sur l'espace
-  disponible si elle est étroite ou masquée). État (ouvert, panneau actif, largeur) et
-  liste de panneaux déclarés (identifiant, icône, libellé, dessin) ; **liste vide en
-  production : ni barre, ni largeur réservée, aucune capture modifiée**. Ouverture et
-  fermeture par commandes d'interface du registre (D5), donc palette et raccourcis
-  personnalisables, hors catalogue CLI et MCP. Zone enregistrée comme zone d'interface
-  (aucun clic traversant), Échap sauf pendant l'IME, focus de l'éditeur conservé, menus,
-  palette et modales au-dessus, synchronisation de l'aperçu inchangée. Tests avec un
-  panneau factice compilé sous `cfg(test)` et scénario de capture, animations coupées en
-  mode capture. **Décidé le 25 octobre 2026 : pas d'épinglage.** Le tiroir ne sert qu'à des
-  interactions simples, qui n'exigent pas de le garder ouvert ; tout panneau qui demanderait
-  une présence durable relève d'une autre conception. Les panneaux réels (plan, assistance,
+- [x] **L.2 bis — Mécanisme de barre latérale droite, sans contenu (D40).** Livré le
+  25 octobre 2026. `ui_kit::SideRail` : barre étroite d'icônes carrées (44 points) et
+  tiroir qui recouvre l'aperçu sans déplacer l'éditeur, au plus 2/3 de la colonne
+  d'aperçu (minimum 240 points, le plafond l'emporte si la colonne est étroite), bord
+  gauche redimensionnable. **Aucun panneau n'est déclaré en production** : ni barre, ni
+  largeur réservée, ni état ouvert conservé ; les captures de l'application sont inchangées.
+  Branchement dans `columns_ui` (liste `dialogs.side_panels` vide) ; le tiroir est une zone
+  qui capte les clics, reste sous les modales et les menus, ne prend pas le focus ;
+  Échap le ferme (sauf pendant l'IME, comme les autres fermetures). **Décidé le
+  25 octobre 2026 : pas d'épinglage**, interactions simples seulement. Les commandes
+  d'interface d'ouverture et de fermeture (D5) sont créées avec le premier panneau réel,
+  chacune portant l'identité de son panneau, pour ne pas ajouter d'entrée de menu ou de
+  palette sans effet. Sept tests (composant et application) ; capture de revue
+  `ui-kit-gallery -- sortie.png [light|dark] rail`. Les panneaux réels (plan, assistance,
   récents) relèvent du chantier G.
 - [ ] **L.3 — Migration des surfaces**, par risque croissant : dialogues (nouveau document,
   export, enregistrer, erreurs, lecture seule, récupération, assistance), préférences,

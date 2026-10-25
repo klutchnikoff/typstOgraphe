@@ -72,6 +72,8 @@ pub(super) struct DialogState {
     pub(super) palette_index: usize,
     pub(super) message: Option<String>,
     pub(super) profile_error: Option<String>,
+    pub(super) side_rail: crate::ui_kit::SideRail,
+    pub(super) side_panels: Vec<crate::ui_kit::SidePanel>,
 }
 
 // La session vide sert de tampon interne sans document ouvert : aucun rendu,

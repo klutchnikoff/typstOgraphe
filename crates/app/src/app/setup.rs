@@ -111,6 +111,8 @@ impl App {
                 palette_index: 0,
                 message: None,
                 profile_error: None,
+                side_rail: Default::default(),
+                side_panels: vec![],
             },
             file: FileState {
                 command: None,

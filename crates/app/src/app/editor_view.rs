@@ -354,8 +354,9 @@ impl App {
             egui::pos2(editor_rect.right() + divider_width, bounds.top()),
             bounds.max,
         );
+        let rail = crate::ui_kit::reserve(preview_rect, &self.dialogs.side_panels);
         for (id, rect, preview) in [
-            ("preview-column", preview_rect, true),
+            ("preview-column", rail.content, true),
             ("editor-column", editor_rect, false),
         ] {
             ui.scope_builder(egui::UiBuilder::new().id_salt(id).max_rect(rect), |ui| {
@@ -373,6 +374,14 @@ impl App {
                 });
             });
         }
+        // Barre latérale : sans panneau déclaré, rien n'est réservé ni dessiné.
+        let panels = std::mem::take(&mut self.dialogs.side_panels);
+        let mut side_rail = self.dialogs.side_rail;
+        side_rail.show(ui, preview_rect, &panels, !disabled, |id, ui| {
+            self.side_panel_ui(id, ui)
+        });
+        self.dialogs.side_rail = side_rail;
+        self.dialogs.side_panels = panels;
         let stroke = if response.hovered() || response.dragged() {
             ui.visuals().widgets.hovered.fg_stroke
         } else {
