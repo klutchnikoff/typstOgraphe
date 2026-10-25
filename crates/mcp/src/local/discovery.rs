@@ -90,12 +90,14 @@ impl Advertisement {
             .unwrap()
             .try_lock()
             .map_err(io::Error::other)?;
-        let mut options = atomic_write_file::AtomicWriteFile::options();
+        let options = atomic_write_file::AtomicWriteFile::options();
         #[cfg(unix)]
-        {
+        let options = {
             use std::os::unix::fs::OpenOptionsExt;
+            let mut options = options;
             options.mode(0o600);
-        }
+            options
+        };
         let mut file = options.open(&advertisement.record)?;
         file.write_all(&serde_json::to_vec(&Record {
             version: 1,
