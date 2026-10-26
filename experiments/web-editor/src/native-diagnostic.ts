@@ -1,6 +1,8 @@
 import type { Editor, JSONContent } from '@tiptap/core'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import type { Provider, Transport } from './provider'
+import * as Y from 'yjs'
+import { settingsFor } from './state'
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 async function until(check: () => boolean | Promise<boolean>, message: string) {
@@ -141,10 +143,66 @@ export async function nativeDiagnostic(
       )
       steps.push('Notes/légendes et commande préparée par Rust partagées par le même circuit.')
       await pause(300)
+      await provider.flush()
+      await transport.invoke('publish_snapshot', {
+        snapshot: {
+          revision: provider.revision,
+          document: editor.getJSON(),
+          settings: settingsFor(provider),
+        },
+      })
+      await transport.invoke('agent_invite')
+      await until(async () => {
+        const state = await transport.invoke<{ proposal?: { status: string } }>('agent_state')
+        return state.proposal?.status === 'pending'
+      }, 'Proposition MCP absente.')
+      if (editor.getText().includes('NATIVE-MCP'))
+        throw new Error('Proposition publiée avant décision.')
+      const caret = editor.state.selection.from
+      document.querySelector<HTMLButtonElement>('[aria-label="Assistance à la rédaction"]')!.click()
+      await until(
+        () =>
+          Array.from(document.querySelectorAll('button')).some(
+            (b) => b.textContent === 'Accepter le lot',
+          ),
+        'Relecture absente.',
+      )
+      Array.from(document.querySelectorAll('button'))
+        .find((b) => b.textContent === 'Accepter le lot')!
+        .click()
+      await until(() => editor.getText().includes('NATIVE-MCP'), 'Acceptation absente.')
+      if (editor.state.selection.from !== caret) throw new Error('Curseur humain déplacé.')
+      await until(
+        async () => (await command('inspect')).text.includes('NATIVE-MCP'),
+        'Lot non partagé.',
+      )
+      editor.commands.undo()
+      await until(
+        async () => !(await command('inspect')).text.includes('NATIVE-MCP'),
+        'Lot non annulé en une fois.',
+      )
+      steps.push(
+        'MCP STDIO réel : découverte, proposition non publiée, relecture et acceptation du lot, sélection préservée et annulation partagée.',
+      )
+      const bootstrap = await transport.invoke<{ sessionPath: string }>('join')
+      await provider.flush()
+      await transport.invoke('save_file', {
+        path: `${bootstrap.sessionPath}/courrier.typsto`,
+        snapshot: {
+          revision: provider.revision,
+          document: editor.getJSON(),
+          settings: settingsFor(provider),
+        },
+        update: Array.from(Y.encodeStateAsUpdate(provider.doc)),
+      })
+      steps.push('Courrier enregistré dans une archive .typsto autonome sous verrou.')
+      await send('main', 'progress', { phase: 'before checkpoint' })
       await save()
+      await send('main', 'progress', { phase: 'before export' })
       const path = await transport.invoke<string>('export_document', {
         snapshot: { revision: provider.revision, document: editor.getJSON() },
       })
+      await send('main', 'progress', { phase: 'export complete' })
       steps.push(`Sauvegarde atomique et export PDF/Typst réel : ${path}`)
     }
     await transport.invoke('diagnostic_finish', { report: { success: true, mode, steps } })

@@ -138,5 +138,7 @@
   "Portrait": "orientation-portrait",
   "Paysage": "orientation-landscape",
   "Automatique (modèle)": "bullet-marker-automatic",
-  "Puces des listes": "field-bullet-marker"
+  "Puces des listes": "field-bullet-marker",
+  "Quitter": "cmd-quit",
+  "Vous": "web-you"
 }

@@ -14,9 +14,16 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tokio = { version = "1", features = ["sync", "rt", "net", "io-util", "time"] }
+zip = { version = "6", default-features = false, features = ["deflate"] }
+rmcp = { version = "=3.7.0", default-features = false, features = ["server", "transport-io"] }
+uuid = { version = "1", features = ["v4"] }
 typstographe-core = { path = "../../../crates/core" }
+typstographe-i18n = { path = "../../../crates/i18n" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+jsonschema = { version = "=0.60.1", default-features = false }
 base64 = "0.22"
 atomic-write-file = "0.3.1"
 sha2 = "0.11.1"

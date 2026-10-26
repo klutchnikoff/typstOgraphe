@@ -71,12 +71,14 @@ test('deux vues fusionnent hors ligne, annulation locale, sauvegarde et commande
   await ready(page, 'main')
   const peer = await context.newPage()
   await ready(peer, `peer-${Date.now()}`)
-  await peer.getByRole('button', { name: 'Connecté', exact: true }).click()
-  await expect(peer.getByRole('button', { name: 'Hors connexion', exact: true })).toBeVisible()
+  await peer.getByRole('button', { name: 'Affichage', exact: true }).click()
+  await peer.locator('[data-command="ui.connection"]').click()
+  await expect(peer.locator('#connection')).toHaveText('Hors connexion')
   const token = String(Date.now())
   await append(peer, `ALEX-${token}`)
   await append(page, `CAMILLE-${token}`)
-  await peer.getByRole('button', { name: 'Hors connexion', exact: true }).click()
+  await peer.getByRole('button', { name: 'Affichage', exact: true }).click()
+  await peer.locator('[data-command="ui.connection"]').click()
   await expect(page.locator('.tiptap')).toContainText(`ALEX-${token}`)
   await expect(peer.locator('.tiptap')).toContainText(`CAMILLE-${token}`)
   await peer.getByRole('button', { name: 'Annuler', exact: true }).click()
@@ -84,12 +86,14 @@ test('deux vues fusionnent hors ligne, annulation locale, sauvegarde et commande
   await expect(page.locator('.tiptap')).toContainText(`CAMILLE-${token}`)
   await page.getByRole('button', { name: 'Essai Rust', exact: true }).click()
   await expect(peer.locator('.tiptap')).toContainText('Cette phrase a été préparée depuis Rust')
-  await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
+  await page.getByRole('button', { name: 'Fichier', exact: true }).click()
+  await page.locator('[data-command="document.save"]').click()
   await expect(page.locator('#message')).toContainText('Session enregistrée', { timeout: 30_000 })
   await page.reload()
   await page.waitForFunction(() => window.__spike?.ready)
   await expect(page.locator('.tiptap')).toContainText(`CAMILLE-${token}`)
-  await page.getByRole('button', { name: 'Exporter', exact: true }).click()
+  await page.getByRole('button', { name: 'Fichier', exact: true }).click()
+  await page.locator('[data-command="document.export"]').click()
   await expect(page.locator('#message')).toContainText('sources Typst exportés', {
     timeout: 30_000,
   })
@@ -207,4 +211,122 @@ test('sélection entre blocs et saisie sur un document plus long', async ({ page
   await writeFile(metricsPath, JSON.stringify(result, null, 2))
   await testInfo.attach('typing-metrics', { path: metricsPath, contentType: 'application/json' })
   await page.screenshot({ path: testInfo.outputPath('long-document.png') })
+})
+
+test('capacités reprises, recherche exacte et sélection synchronisée avec le rendu', async ({
+  page,
+}) => {
+  await ready(page, 'main')
+  await page.evaluate(() => {
+    const e = window.__spike!.editor
+    e.commands.setContent({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: 'Bonjour ' },
+            { type: 'text', text: 'collègue', marks: [{ type: 'bold' }] },
+            { type: 'text', text: '. Bonjour encore.' },
+          ],
+        },
+        {
+          type: 'quote',
+          content: [
+            { type: 'paragraph', content: [{ type: 'text', text: 'Une citation sobre.' }] },
+            { type: 'quoteAttribution', content: [{ type: 'text', text: 'Source interne' }] },
+          ],
+        },
+        {
+          type: 'descriptionList',
+          content: [
+            {
+              type: 'descriptionItem',
+              content: [
+                { type: 'descriptionTerm', content: [{ type: 'text', text: 'Objet' }] },
+                {
+                  type: 'descriptionDefinition',
+                  content: [{ type: 'text', text: 'Organisation de la réunion.' }],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: 'postscript',
+          content: [{ type: 'text', text: 'Merci de confirmer votre présence.' }],
+        },
+        { type: 'attachment', content: [{ type: 'text', text: 'Ordre du jour' }] },
+      ],
+    })
+    e.commands.setTextSelection({ from: 1, to: 8 })
+  })
+  await expect(page.locator('#pages svg polygon').first()).toBeVisible({ timeout: 30000 })
+  await page.getByRole('button', { name: 'Rechercher', exact: true }).click()
+  await page.getByRole('searchbox', { name: 'Rechercher', exact: true }).fill('bonjour')
+  await expect(page.locator('.search-hit')).toHaveCount(2)
+  await page.locator('.search-hit').last().click()
+  expect(
+    await page.evaluate(() => {
+      const { from, to } = window.__spike!.editor.state.selection
+      return to - from
+    }),
+  ).toBe(7)
+  await page.locator('.search-hit').first().click()
+  expect(await page.evaluate(() => window.__spike!.editor.state.selection.from)).toBe(1)
+  await page.getByRole('textbox', { name: 'Remplacer par', exact: true }).fill('<suite>')
+  await page.getByRole('button', { name: 'Remplacer', exact: true }).click()
+  await expect(page.locator('.tiptap')).toContainText('<suite>')
+  await expect(page.locator('.search-hit')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.search-hit')).toHaveCount(0)
+  await page.locator('dd').click()
+  await expect
+    .poll(() => page.evaluate(() => window.__spike!.editor.state.selection.$from.parent.type.name))
+    .toBe('descriptionDefinition')
+  await page.keyboard.press('Control+Backspace')
+  await expect(page.locator('dl')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Annuler', exact: true }).click()
+  await expect(page.locator('dl')).toHaveCount(1)
+})
+
+test('raccourcis textuels Typst et séparation des paragraphes', async ({ page }) => {
+  await ready(page, 'main')
+  await page.evaluate(() => {
+    const e = window.__spike!.editor
+    e.commands.clearContent()
+    e.commands.focus('start')
+  })
+  await page.keyboard.type('= Titre')
+  await expect(page.locator('.tiptap h1')).toHaveText('Titre')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('*Important*')
+  await expect(page.locator('.tiptap strong')).toHaveText('Important')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('suite')
+  await expect(page.locator('.tiptap p')).toHaveCount(1)
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Autre paragraphe')
+  await expect(page.locator('.tiptap p')).toHaveCount(2)
+})
+
+test('accueil sans document et création depuis les types et modèles disponibles', async ({
+  page,
+}) => {
+  await page.goto('/?client=main&welcome=1')
+  await page.waitForFunction(() => window.__spike?.ready)
+  await expect(page.locator('.welcome')).toBeVisible()
+  await expect(page.locator('main')).toBeHidden()
+  await page.locator('#create-document').click()
+  await expect(page.locator('dialog')).toBeVisible()
+  await expect(page.locator('dialog select').first().locator('option')).toHaveCount(1)
+  await expect(page.locator('dialog select').nth(1).locator('option')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Créer', exact: true }).click()
+  await expect(page.locator('main')).toBeVisible()
+  await expect(page.locator('.tiptap')).not.toContainText('Valmont')
+  await expect(page.locator('.tiptap')).not.toContainText('Madame, Monsieur')
+  await page.getByRole('button', { name: 'Informations', exact: true }).click()
+  await page.getByLabel('Objet', { exact: true }).fill('Courrier créé depuis l’accueil')
+  await expect(page.locator('#pages img').first()).toBeVisible({ timeout: 30000 })
 })

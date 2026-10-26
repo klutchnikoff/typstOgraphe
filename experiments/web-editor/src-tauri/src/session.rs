@@ -34,6 +34,8 @@ impl Resource {
 pub struct Snapshot {
     pub revision: u64,
     pub document: Node,
+    #[serde(default)]
+    pub settings: Option<crate::settings::Settings>,
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -43,10 +45,16 @@ pub struct Checkpoint {
     pub source: String,
     pub update: Vec<u8>,
     pub resources: Vec<Resource>,
+    #[serde(default)]
+    pub settings: crate::settings::Settings,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Bootstrap {
+    pub generation: String,
+    pub opened: bool,
+    pub has_recovery: bool,
+    pub file_path: Option<String>,
     pub revision: u64,
     pub updates: Vec<Vec<u8>>,
     pub fixture: Node,
@@ -54,9 +62,15 @@ pub struct Bootstrap {
     pub resources: Vec<Resource>,
     pub restored_document: Option<Node>,
     pub session_path: String,
+    pub settings: crate::settings::Settings,
 }
 
 pub struct Session {
+    pub offline: HashSet<String>,
+    pub generation: String,
+    pub opened: bool,
+    pub fixture: Option<Node>,
+    pub file_lease: Option<typstographe_core::DocumentLease>,
     pub revision: u64,
     pub updates: Vec<Vec<u8>>,
     pub assets: Assets,
@@ -65,10 +79,16 @@ pub struct Session {
     bytes: usize,
     initialized: bool,
     restored: Option<Node>,
+    pub settings: crate::settings::Settings,
 }
 impl Session {
-    pub fn open(root: PathBuf) -> Result<Self, String> {
-        let mut session = Self {
+    pub fn fresh(root: PathBuf) -> Self {
+        Self {
+            offline: HashSet::new(),
+            generation: uuid::Uuid::new_v4().to_string(),
+            opened: false,
+            fixture: None,
+            file_lease: None,
             revision: 0,
             updates: vec![],
             assets: Assets::default(),
@@ -77,7 +97,11 @@ impl Session {
             bytes: 0,
             initialized: false,
             restored: None,
-        };
+            settings: Default::default(),
+        }
+    }
+    pub fn open(root: PathBuf) -> Result<Self, String> {
+        let mut session = Self::fresh(root);
         let path = session.root.join("session.json");
         if path.exists() {
             let mut bytes = Vec::new();
@@ -103,10 +127,11 @@ impl Session {
                     return Err("Ressource dupliquée.".into());
                 }
             }
-            if schema::source(&checkpoint.document, &session.assets)? != checkpoint.source {
-                return Err("Source et instantané incohérents.".into());
-            }
+            // Le source de récupération est un cache : régénérer depuis le schéma validé.
+            schema::source(&checkpoint.document, &session.assets)?;
             session.bytes = checkpoint.update.len();
+            checkpoint.settings.validate()?;
+            session.settings = checkpoint.settings;
             session.updates.push(checkpoint.update);
             session.restored = Some(checkpoint.document);
             session.initialized = true;
@@ -125,13 +150,23 @@ impl Session {
         self.initialized = true;
         self.peers.insert(peer.to_owned());
         Bootstrap {
+            generation: self.generation.clone(),
+            opened: self.opened,
+            has_recovery: self.root.join("session.json").exists(),
+            file_path: self
+                .file_lease
+                .as_ref()
+                .map(|lease| lease.path().to_string_lossy().into_owned()),
             revision: self.revision,
             updates: self.updates.clone(),
-            fixture: serde_json::from_str(include_str!("../../fixture.json")).expect("fixture"),
+            fixture: self.fixture.clone().unwrap_or_else(|| {
+                serde_json::from_str(include_str!("../../fixture.json")).expect("fixture")
+            }),
             initialize,
             resources: self.resources(),
             restored_document: self.restored.take(),
             session_path: self.root.display().to_string(),
+            settings: self.settings.clone(),
         }
     }
     pub fn relay(&mut self, peer: &str, update: &[u8]) -> Result<u64, String> {
@@ -147,14 +182,45 @@ impl Session {
             );
         }
         self.bytes += update.len();
+        self.restored = None;
         self.updates.push(update.to_vec());
         self.revision += 1;
         Ok(self.revision)
+    }
+    pub fn lifecycle(&self, revision: u64) -> Result<(), String> {
+        if self.revision != revision {
+            return Err("Le document a changé ; réessayez après synchronisation.".into());
+        }
+        if !self.offline.is_empty() {
+            return Err("Reconnectez les autres fenêtres avant de remplacer le document.".into());
+        }
+        Ok(())
+    }
+    pub fn replace(
+        &mut self,
+        document: Node,
+        settings: crate::settings::Settings,
+        assets: Assets,
+        yjs: Vec<u8>,
+    ) {
+        self.offline.clear();
+        self.generation = uuid::Uuid::new_v4().to_string();
+        self.revision += 1;
+        self.bytes = yjs.len();
+        self.initialized = !yjs.is_empty();
+        self.updates = if yjs.is_empty() { vec![] } else { vec![yjs] };
+        self.restored = self.initialized.then(|| document.clone());
+        self.fixture = Some(document);
+        self.settings = settings;
+        self.assets = assets;
+        self.opened = true;
     }
     pub fn validate(&self, snapshot: &Snapshot) -> Result<String, String> {
         if snapshot.revision != self.revision {
             return Err("stale".into());
         }
+        let settings = snapshot.settings.as_ref().unwrap_or(&self.settings);
+        settings.validate()?;
         schema::source(&snapshot.document, &self.assets)
     }
     pub fn resources(&self) -> Vec<Resource> {
@@ -202,6 +268,10 @@ impl Session {
             source,
             update,
             resources: self.resources(),
+            settings: snapshot
+                .settings
+                .clone()
+                .unwrap_or_else(|| self.settings.clone()),
         };
         let bytes = serde_json::to_vec(&checkpoint).map_err(|e| e.to_string())?;
         if bytes.len() as u64 > assets::MAX_DOCUMENT_BYTES {
@@ -223,6 +293,17 @@ fn atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
 mod tests {
     use super::*;
     #[test]
+    fn document_replacement_requires_a_current_connected_session() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::open(dir.path().into()).unwrap();
+        assert!(session.lifecycle(0).is_ok());
+        assert!(session.lifecycle(1).is_err());
+        session.offline.insert("peer".into());
+        assert!(session.lifecycle(0).is_err());
+        session.offline.clear();
+        assert!(session.lifecycle(0).is_ok());
+    }
+    #[test]
     fn initialization_is_unique_and_stale_or_invalid_save_cannot_replace_a_checkpoint() {
         let dir = tempfile::tempdir().unwrap();
         let mut s = Session::open(dir.path().into()).unwrap();
@@ -233,6 +314,7 @@ mod tests {
         let snapshot = Snapshot {
             revision: 1,
             document: a.fixture,
+            settings: None,
         };
         s.save(&snapshot, vec![1, 2]).unwrap();
         let before = std::fs::read(dir.path().join("session.json")).unwrap();
@@ -255,6 +337,7 @@ mod tests {
         let mut snapshot = Snapshot {
             revision: 0,
             document: s.join("a").fixture,
+            settings: None,
         };
         s.assets.clear();
         assert!(s.save(&snapshot, vec![1]).is_err());

@@ -725,3 +725,5 @@ web-session-saved = Session enregistrée
 web-exported = PDF et sources Typst exportés
 web-document-body = Corps du document
 web-column-width = Largeur des colonnes
+
+web-you = Vous

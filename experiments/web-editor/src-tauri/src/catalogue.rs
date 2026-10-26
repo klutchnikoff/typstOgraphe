@@ -1,0 +1,88 @@
+//! Présentation localisée des registres du cœur ; aucune liste parallèle de capacités.
+use serde_json::{Value, json};
+use typstographe_core::{
+    content::catalogue,
+    document::{DocumentLanguage, PaperFormat},
+    document_types::{DocumentType, Metadata, models::Model},
+};
+use typstographe_i18n::text;
+
+fn document_type(kind: DocumentType) -> Value {
+    let metadata = Metadata::blank(kind);
+    let fields: Vec<_> = metadata
+        .field_values()
+        .into_iter()
+        .map(|field| {
+            let parameter = match kind {
+                DocumentType::Courrier => typstographe_core::document_types::courrier::FIELDS
+                    .iter()
+                    .find(|f| f.field == field.field)
+                    .map(|f| f.parameter),
+                DocumentType::CompteRendu => {
+                    typstographe_core::document_types::compte_rendu::FIELDS
+                        .iter()
+                        .find(|f| f.field == field.field)
+                        .map(|f| f.parameter)
+                }
+            };
+            let mut value = serde_json::to_value(&field).expect("metadata field");
+            value["parameter"] = json!(parameter);
+            value["label"] = json!(text(field.label_key));
+            value
+        })
+        .collect();
+    let models: Vec<_> = kind
+        .models()
+        .map(|model| {
+            let label = match model.model {
+                Model::Personal => text("model-personal-letter"),
+            };
+            let page = model
+                .page
+                .map(|(paper, landscape)| json!({"paper":paper,"landscape":landscape}));
+            json!({
+                "id":model.model.id(), "label":label, "description":model.description,
+                "keywords":model.keywords, "source":model.source, "fixedPage":page
+            })
+        })
+        .collect();
+    let heading = if kind == DocumentType::Courrier {
+        "document-settings-heading"
+    } else {
+        "minutes-settings-heading"
+    };
+    let groups: Vec<_> = metadata
+        .editor_groups()
+        .iter()
+        .map(|group| json!({"id":group.id,"label":text(group.label_key)}))
+        .collect();
+    let capabilities: Vec<_> = catalogue::for_type(kind)
+        .map(|capability| capability.id)
+        .collect();
+    json!({
+        "capabilities":capabilities,
+        "id":kind,"label":text(kind.label_key()),"settingsHeading":text(heading),
+        "canCreate":kind.can_create(),"metadata":metadata,"fields":fields,"groups":groups,"models":models
+    })
+}
+#[tauri::command]
+pub fn content_catalogue() -> Value {
+    let types: Vec<_> = DocumentType::ALL.into_iter().map(document_type).collect();
+    let entries: Vec<_> = catalogue::ALL
+        .iter()
+        .map(|capability| {
+            let mut value = serde_json::to_value(capability).expect("capability");
+            value["label"] = json!(text(capability.label_key));
+            value["parameters"] = catalogue::parameters(capability.id);
+            value
+        })
+        .collect();
+    let papers =
+        PaperFormat::ALL.map(|paper| json!({"value":paper,"label":text(paper.label_key())}));
+    let languages = DocumentLanguage::ALL
+        .map(|language| json!({"value":language,"label":text(language.label_key())}));
+    json!({
+        "types":types,"entries":entries,"messages":typstographe_i18n::web_messages(),
+        "locale":typstographe_i18n::language(),"papers":papers,"languages":languages
+    })
+}

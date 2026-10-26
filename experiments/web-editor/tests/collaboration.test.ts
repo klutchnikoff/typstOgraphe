@@ -3,11 +3,19 @@ import { Editor, getSchema } from '@tiptap/core'
 import { prosemirrorJSONToYDoc, yUndoPluginKey } from '@tiptap/y-tiptap'
 import * as Y from 'yjs'
 import { baseExtensions, collaborativeExtensions } from '../src/extensions'
-import { Provider, stableJSON, type Bootstrap, type Transport } from '../src/provider'
+import {
+  Provider,
+  stableJSON,
+  ACCEPTED_PROPOSAL,
+  type Bootstrap,
+  type Transport,
+} from '../src/provider'
+import { prepareProposal } from '../src/assistance'
 import fixture from '../fixture.json'
 
 class Host {
   updates: number[][] = []
+  generation = 'one'
   revision = 0
   initialized = false
   handlers = new Map<string, Map<string, ((data: unknown) => void)[]>>()
@@ -16,6 +24,7 @@ class Host {
       invoke: async <T>(command: string, args?: Record<string, unknown>) => {
         if (command === 'join') {
           const data: Bootstrap = {
+            generation: this.generation,
             revision: this.revision,
             updates: structuredClone(this.updates),
             fixture,
@@ -89,6 +98,50 @@ async function flush(...clients: { provider: Provider }[]) {
 }
 
 describe('deux éditeurs structurés et deux Y.Doc indépendants', () => {
+  it('ne fusionne jamais une ancienne vue hors ligne avec un autre document', async () => {
+    const host = new Host(),
+      a = await client(host, 'main')
+    await a.provider.disconnect()
+    a.editor.commands.insertContent('Brouillon conservé localement')
+    const before = stableJSON(a.editor.getJSON())
+    host.generation = 'two'
+    await expect(a.provider.reconnect()).rejects.toThrow('remplacé')
+    expect(stableJSON(a.editor.getJSON())).toBe(before)
+    expect(a.provider.online).toBe(false)
+  })
+  it('accepte une proposition sans changer le curseur humain et permet une seule annulation', async () => {
+    const host = new Host(),
+      a = await client(host, 'main'),
+      b = await client(host, 'peer-1')
+    await flush(a, b)
+    a.editor.commands.setTextSelection(3)
+    const before = stableJSON(a.editor.getJSON()),
+      next = structuredClone(a.editor.getJSON())
+    next.content!.push({
+      type: 'paragraph',
+      attrs: undefined,
+      content: [{ type: 'text', text: 'PROPOSITION VALIDÉE', marks: [] }],
+    })
+    const manager = yUndoPluginKey.getState(a.editor.state)!.undoManager
+    manager.trackedOrigins.add(ACCEPTED_PROPOSAL)
+    manager.stopCapturing()
+    const update = prepareProposal(a.provider, [next])
+    host.updates.push(Array.from(update))
+    host.revision++
+    host.emit('web-editor:change', {
+      from: 'agent',
+      acceptedBy: 'main',
+      revision: host.revision,
+      update: Array.from(update),
+    })
+    expect(a.editor.getText()).toContain('PROPOSITION VALIDÉE')
+    expect(b.editor.getText()).toContain('PROPOSITION VALIDÉE')
+    expect(a.editor.state.selection.from).toBe(3)
+    expect(a.editor.commands.undo()).toBe(true)
+    await flush(a, b)
+    expect(stableJSON(a.editor.getJSON())).toBe(before)
+    expect(stableJSON(b.editor.getJSON())).toBe(before)
+  })
   it('distingue retour simple, nouveau paragraphe et retour forcé', async () => {
     const host = new Host(),
       a = await client(host, 'main')

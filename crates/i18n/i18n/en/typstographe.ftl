@@ -722,3 +722,5 @@ web-session-saved = Session saved
 web-exported = PDF and Typst sources exported
 web-document-body = Document body
 web-column-width = Column widths
+
+web-you = You

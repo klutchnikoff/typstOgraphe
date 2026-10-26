@@ -1,6 +1,12 @@
 {
   "identifier": "local-editor",
-  "description": "Deux éditeurs locaux du diagnostic, sans accès fichier générique depuis JavaScript.",
-  "windows": ["main", "peer-*"],
-  "permissions": ["core:default"]
+  "description": "Éditeur local : événements et fermeture de sa fenêtre ; accès aux fichiers par les commandes documentaires Rust.",
+  "windows": [
+    "main",
+    "peer-*"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-destroy"
+  ]
 }

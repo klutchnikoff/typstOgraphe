@@ -27,6 +27,64 @@ fn dispatch(bridge: &Bridge, request: &serde_json::Value) -> Result<serde_json::
     let peer = request["peer"].as_str().ok_or("Participant absent.")?;
     let command = request["command"].as_str().ok_or("Commande absente.")?;
     match command {
+        "sync_forward" | "sync_backward" | "sync_selection" => {
+            let revision = args["revision"].as_u64().ok_or("Révision absente.")?;
+            let session = bridge.session.lock().map_err(|e| e.to_string())?;
+            if session.revision != revision {
+                return Err("stale".into());
+            }
+            let cache = bridge.renderer.1.lock().map_err(|e| e.to_string())?;
+            let sync = cache
+                .as_ref()
+                .filter(|sync| sync.revision == revision)
+                .ok_or("stale")?;
+            match command {
+                "sync_forward" => Ok(serde_json::json!(
+                    sync.forward(args["position"].as_u64().ok_or("Position absente.")? as usize)
+                )),
+                "sync_backward" => Ok(serde_json::json!(sync.backward(
+                    serde_json::from_value(args["location"].clone()).map_err(|e| e.to_string())?
+                ))),
+                _ => Ok(serde_json::json!(sync.selection_highlights_exact(
+                    args["from"].as_u64().ok_or("Début absent.")? as usize
+                        ..args["to"].as_u64().ok_or("Fin absente.")? as usize
+                ))),
+            }
+        }
+        "connection" => {
+            let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
+            if args["online"].as_bool() == Some(true) {
+                session.offline.remove(peer);
+            } else {
+                session.offline.insert(peer.into());
+            }
+            Ok(serde_json::Value::Null)
+        }
+        "content_catalogue" => Ok(catalogue::content_catalogue()),
+        "count_text" => Ok(proofing::count_text(
+            args["text"].as_str().unwrap_or("").into(),
+            args["selection"].as_str().map(str::to_owned),
+        )),
+        "spelling_check" => tauri::async_runtime::block_on(proofing::spelling_check(
+            serde_json::from_value(args["segments"].clone()).map_err(|e| e.to_string())?,
+            serde_json::from_value(args["language"].clone()).map_err(|e| e.to_string())?,
+            serde_json::from_value(args["ignored"].clone()).map_err(|e| e.to_string())?,
+        )),
+        "spelling_suggestions" => tauri::async_runtime::block_on(proofing::spelling_suggestions(
+            serde_json::from_value(args["language"].clone()).map_err(|e| e.to_string())?,
+            args["word"].as_str().unwrap_or("").into(),
+        ))
+        .map(|words| serde_json::json!(words)),
+        "preferences_load" => serde_json::to_value(preferences::Preferences::load(
+            &bridge.session.lock().map_err(|e| e.to_string())?.root,
+        )?)
+        .map_err(|e| e.to_string()),
+        "preferences_save" => {
+            let preferences: preferences::Preferences =
+                serde_json::from_value(args["preferences"].clone()).map_err(|e| e.to_string())?;
+            preferences.save(&bridge.session.lock().map_err(|e| e.to_string())?.root)?;
+            Ok(serde_json::Value::Null)
+        }
         "reset" => {
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
             let root = session.root.join(format!(
@@ -79,11 +137,21 @@ fn dispatch(bridge: &Bridge, request: &serde_json::Value) -> Result<serde_json::
                         .as_nanos()
                 ))
             });
+            let map = if command == "preview" {
+                Some(
+                    typstographe_core::content::source_mapped(&snapshot.document, &session.assets)?
+                        .1,
+                )
+            } else {
+                None
+            };
             let preview = bridge.renderer.render(
                 source,
                 session.assets.clone(),
                 snapshot.revision,
                 export.clone(),
+                Some(snapshot.settings.as_ref().unwrap_or(&session.settings)),
+                map,
             )?;
             match command {
                 "preview" => serde_json::to_value(preview).map_err(|e| e.to_string()),

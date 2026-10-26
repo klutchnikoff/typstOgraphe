@@ -1,15 +1,29 @@
-import { Extension, Node, mergeAttributes, type Extensions } from '@tiptap/core'
+import {
+  Extension,
+  Node,
+  mergeAttributes,
+  markInputRule,
+  textblockTypeInputRule,
+  type Extensions,
+} from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
+import { ListItem } from '@tiptap/extension-list'
 import { TableKit } from '@tiptap/extension-table'
 import Collaboration from '@tiptap/extension-collaboration'
 import Caret from '@tiptap/extension-collaboration-caret'
 import type { Provider } from './provider'
+import { simpleWidgets, widgetBar } from './widgets'
+import { tr } from './i18n'
+import { Proofing } from './proofing'
 
 export function baseExtensions(
   imageURL: (path: string) => string,
   properties: (pos: number, kind: string) => void = () => {},
 ): Extensions {
   return [
+    Proofing,
+    ListItem.extend({ content: 'paragraph+' }),
+    ...simpleWidgets(properties),
     // Comme dans l'éditeur existant : une fin de ligne reste dans le paragraphe.
     Node.create({
       name: 'softBreak',
@@ -22,6 +36,18 @@ export function baseExtensions(
     Extension.create({
       name: 'paragraphInput',
       priority: 1000,
+      addInputRules() {
+        return [
+          ...[1, 2, 3].map((level) =>
+            textblockTypeInputRule({
+              find: new RegExp(`^={${level}}\\s$`),
+              type: this.editor.schema.nodes.heading,
+              getAttributes: { level },
+            }),
+          ),
+          markInputRule({ find: /(?:^|\s)(\*([^*]+)\*)$/, type: this.editor.schema.marks.bold }),
+        ]
+      },
       addKeyboardShortcuts() {
         return {
           Enter: () => {
@@ -43,6 +69,10 @@ export function baseExtensions(
     }),
     StarterKit.configure({
       undoRedo: false,
+      trailingNode: false,
+      bulletList: false,
+      listItem: false,
+      orderedList: false,
       heading: { levels: [1, 2, 3] },
       blockquote: false,
       code: false,
@@ -132,27 +162,14 @@ export function baseExtensions(
         () =>
         ({ node, getPos }) => {
           const dom = document.createElement('figure')
-          const bar = document.createElement('div')
-          bar.className = 'figure-bar'
-          bar.contentEditable = 'false'
-          const label = document.createElement('span')
-          label.textContent = 'Image'
-          const settings = document.createElement('button')
-          settings.type = 'button'
-          settings.textContent = 'Paramètres'
-          settings.setAttribute('aria-label', 'Paramètres de l’image')
-          settings.addEventListener('click', () => {
-            const pos = getPos()
-            if (pos !== undefined) properties(pos, 'figure')
-          })
-          bar.append(label, settings)
+          const bar = widgetBar('figure', tr('Image'), getPos, properties)
           const image = document.createElement('img')
           image.src = imageURL(node.attrs.src)
           image.alt = node.attrs.alt
           image.contentEditable = 'false'
           image.draggable = false
           const caption = document.createElement('figcaption')
-          caption.dataset.placeholder = 'Légende facultative'
+          caption.dataset.placeholder = tr('Légende facultative')
           dom.append(bar, image, caption)
           return {
             dom,
