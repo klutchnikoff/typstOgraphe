@@ -108,6 +108,44 @@ dispensée. Les menus partagent leur gestion de fermeture, les panneaux leurs
 règles de disposition CSS. La suggestion orthographique déclenchée par Entrée
 est mise en évidence à l'extrémité droite.
 
+### Bandeaux B et règles de rédaction — reprise des références validées
+
+Le contrat est celui de [l'audit du chantier L](interface-design-audit.md#1-ce-qui-est-déjà-décidé),
+de la [maquette B](mockups/interface-polish.html) et de ses
+[compléments livrés](architecture-chantier-l.md). Le premier portage plaçait à tort
+les interactions en tête de colonne. Les vérifications fonctionnelles précédentes
+ne démontraient pas sa conformité à ces références.
+
+| Before | After | Why |
+| --- | --- | --- |
+| Paramètres éloignés du widget | En-tête déplié dans son cadre commun, bordure d'accent, sans pointe | Variante B validée |
+| Correction en tête de colonne | Bandeau inséré avant la ligne du mot, pointe de 12 px centrée sur celui-ci | Rendre la cible précise, y compris après redimensionnement |
+| Correction d'un item sans lien avec son cadre | Bandeau interligne de la largeur du widget, dans celui-ci | Conserver la délimitation du bloc |
+| Logiques de focus et de fermeture séparées | Placement, cible mappée, brouillon unique, Entrée/Échap et restitution du contexte partagés | Éviter les écarts entre capacités |
+| `- ` reconnu seulement au début du paragraphe Tiptap | Reconnu au début d'une ligne saisie, y compris après un retour simple ; même règle pour `1. ` | Respecter nos raccourcis, indépendamment de Markdown |
+| Ajout d'une liste absorbant le paragraphe au curseur | Widget vide au curseur ; seul un texte explicitement sélectionné devient son contenu | Préserver le texte non sélectionné |
+| Entrées successives produisant des paragraphes vides | Retour simple interne ; deuxième retour = nouveau paragraphe ; retours supplémentaires sans ajout | Une seule ligne de séparation, avec `¶` atténué |
+| Citation ajoutant des paragraphes par défaut | Insertion au curseur sans paragraphes vides supplémentaires ; mêmes règles de retours dans son corps | L'utilisateur décide du découpage |
+| Retour arrière héritant de la sortie de liste Markdown | Retour au texte précédent ; fusion entre items ou retrait d'un item vide, sans désassembler le widget | Préserver les frontières et la rédaction |
+
+`¶`, les en-têtes et les espaces des bandeaux sont des éléments de présentation :
+ils ne sont pas des caractères de Yjs, du Typst, des compteurs ou du contenu MCP.
+Les listes restent non imbriquées. Le collage et l'import de documents structurés
+restent des parcours distincts de la reconnaissance interactive des raccourcis.
+
+Les paramètres de listes disposent des trois choix segmentés ; le numéro initial
+apparaît pour une liste numérotée. Le texte alternatif et le remplacement d'une
+image sont provisoires jusqu'à Appliquer. Entrée valide l'action par défaut ou le
+bouton explicitement atteint par Tab ; Échap abandonne le brouillon. Réutiliser la
+commande contextuelle redonne le focus au brouillon existant. Une cible modifiée
+est refusée ; une modification située avant elle reporte sa position.
+
+La réservation interligne utilise les décorations ProseMirror et les emplacements
+non éditables des NodeViews. Le panneau est positionné dans cette place réservée ;
+il ne recouvre pas le texte. Ce mécanisme commun évite de déplacer ou de publier le
+contenu pour afficher un contrôle, et garde les champs de formulaire montés lors
+d'un redimensionnement ou d'une modification distante.
+
 ### Périmètre restant distinct
 
 Le lancement Rust par défaut et l'ancienne CLI restent inchangés pendant l'essai.

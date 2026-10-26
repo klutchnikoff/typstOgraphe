@@ -71,3 +71,42 @@ pas une nouvelle évaluation de la qualité rédactionnelle d'un LLM.
   pour les fichiers texte de ce dossier, sans convertir les fichiers binaires.
 
 Ces contrôles locaux ne constituent pas un essai natif sous Windows ou Linux.
+
+## Reprise de la variante B et de la saisie
+
+Les références sont la maquette `docs/mockups/interface-polish.html` en variante B
+et les décisions du chantier L. Les captures de référence et celles de l'interface
+ont été ouvertes et comparées : paramètres de liste, paramètres d'image en sombre,
+correction dans la prose et dans un item. Les derniers contrôles ont corrigé le
+titre de l'image, l'affichage de son bandeau entier après défilement, les coins du
+cadre commun et le double contour de focus autour de la correction.
+
+- Suite complète de **38 parcours** réussie sur Chromium et WebKit, suivie de
+  contrôles ciblés des finitions et de la frontière terme/définition, tous réussis.
+  La suite disponible comprend désormais 40 parcours sur les deux navigateurs.
+- Contrôles clavier : `- ` au début du document ou après un retour simple, listes
+  par boutons, insertion au curseur sans absorption du texte, deux retours puis
+  retours supplémentaires, `¶` absent du document partagé, citation sans
+  paragraphes vides ajoutés, Retour arrière dans les items et les descriptions.
+- Contrôles des bandeaux : brouillon sans publication, un seul bandeau, choix de
+  liste au clavier, Entrée/Échap/Tab, retour du focus, reprise de brouillon par
+  Ctrl/Cmd+Entrée, application annulable en une étape, déplacement de la cible après
+  une édition précédente et refus d'une cible modifiée.
+- Navigation Tab des bandeaux normalisée : les boutons restent accessibles dans
+  WebKit/macOS même lorsque la navigation native les saute. Le parcours du champ
+  alternatif à Remplacer, Supprimer, Annuler et Appliquer est testé explicitement.
+- Géométrie orthographique : pointe de 12 px vers le mot, largeur du bloc à 2 px
+  près et centre de la pointe à 4 px près, à 1280 puis 900 px de largeur de fenêtre.
+- Construction TypeScript/Vite, Prettier, huit tests web, huit tests i18n, sept
+  tests de l'adaptateur Rust et clippy réussis. La frontière des dépendances du cœur
+  reste vérifiée.
+- Recette native Tauri complète puis reprise réussies : deux fenêtres, convergence,
+  annulation locale, annotations, proposition MCP sous validation, archive, export
+  PDF/Typst et réouverture.
+
+Les traces et captures locales sont conservées dans `output/tauri-bands-b/` ;
+la recette native est dans `output/web-editor/native-1793015839171/`. Les sorties
+restent ignorées par Git, comme les autres captures de référence du projet.
+La recette native vérifie les parcours documentaires ; le clavier et la géométrie
+des nouveaux bandeaux sont contrôlés par les parcours Chromium/WebKit. Ces essais
+ne remplacent pas un essai manuel d'IME ni une recette native Windows/Linux.
