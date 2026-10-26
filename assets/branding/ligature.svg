@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <title>typstOgraphe — ligature tO</title>
+  <g fill="currentColor" transform="translate(-13 11)">
+    <path id="letter-o" fill-rule="evenodd" d="M338 111C401 111 438 164 426 249C414 335 369 387 307 387C244 387 213 332 225 247C237 164 278 111 338 111ZM333 131C293 131 271 182 261 248C250 320 268 367 309 367C349 367 375 313 386 246C397 178 376 131 333 131Z"/>
+    <path id="letter-t" d="M185 111L219 102L193 279C188 314 190 333 206 333C219 333 231 321 247 298L259 307C240 344 217 364 191 364C153 364 145 334 151 290L172 150C174 136 170 130 155 130L154 117Z"/>
+    <path id="crossbar" d="M116 184H264L261 206H112Z"/>
+  </g>
+</svg>

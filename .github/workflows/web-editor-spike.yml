@@ -1,9 +1,9 @@
 name: Web editor spike
 on:
   push:
-    paths: ['experiments/web-editor/**', 'crates/core/**', 'crates/i18n/**', '.github/workflows/web-editor-spike.yml']
+    paths: ['experiments/web-editor/**', 'assets/branding/**', 'crates/core/**', 'crates/i18n/**', '.github/workflows/web-editor-spike.yml']
   pull_request:
-    paths: ['experiments/web-editor/**', 'crates/core/**', 'crates/i18n/**', '.github/workflows/web-editor-spike.yml']
+    paths: ['experiments/web-editor/**', 'assets/branding/**', 'crates/core/**', 'crates/i18n/**', '.github/workflows/web-editor-spike.yml']
   workflow_dispatch:
 permissions:
   contents: read

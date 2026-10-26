@@ -1,0 +1,76 @@
+:root {
+  color-scheme: light dark;
+  --paper: #f6f4ee;
+  --ink: #285c77;
+  --name: #25333b;
+  --name-accent: #19779e;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+@font-face {
+  font-family: Inter;
+  src: url('../../crates/app/assets/fonts/inter/Inter-Regular.ttf');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: Inter;
+  src: url('../../crates/app/assets/fonts/inter/Inter-SemiBold.ttf');
+  font-weight: 600;
+  font-display: swap;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #162c39;
+    --ink: #f8f5ec;
+    --name: #8c9ca6;
+    --name-accent: #b4e9ff;
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --paper: #162c39;
+  --ink: #f8f5ec;
+  --name: #8c9ca6;
+  --name-accent: #b4e9ff;
+}
+:root[data-theme='light'] { color-scheme: light; }
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; }
+.splash {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: var(--paper);
+}
+.signature { display: grid; justify-items: center; gap: 14px; padding: 24px; }
+.camera { width: clamp(96px, 23vmin, 160px); height: auto; }
+.ligature { display: block; width: 100%; height: auto; overflow: visible; }
+.ligature mask path {
+  fill: none;
+  stroke: white;
+  stroke-width: 76;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+}
+.ligature mask .reveal-crossbar { stroke-width: 32; stroke-linecap: butt; }
+.ligature mask .reveal-t { stroke-width: 96; }
+.splash[data-state='settled'] .ligature [mask] { mask: none; }
+.wordmark {
+  margin: 0;
+  padding-left: .06em;
+  font-size: clamp(15px, 2.8vmin, 18px);
+  line-height: 1.2;
+  font-weight: 400;
+  letter-spacing: .035em;
+  color: var(--name);
+}
+.wordmark span { color: var(--name-accent); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .camera { transform: none !important; filter: none !important; }
+}

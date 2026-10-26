@@ -12,6 +12,7 @@ import { mountAssistance } from './assistance'
 import { mountProofing, searchState } from './proofing'
 import type { BandHost } from './band-layout'
 import { documentType, settingsFor, setSetting, setDocument, type Settings } from './state'
+import { welcomeBrand } from './welcome-brand'
 export interface Model {
   id: string
   label: string
@@ -101,13 +102,11 @@ export async function mountShell(s: Shell) {
   const welcome = document.createElement('section')
   welcome.className = 'welcome'
   welcome.innerHTML =
-    '<div class="welcome-card"><span class="eyebrow">typstOgraphe</span><h1>Le contenu d’abord.</h1><p>Rédigez simplement. Votre modèle s’occupe de la présentation.</p><div class="welcome-actions"><button id="create-document" class="primary">Nouveau document</button><button id="open-document">Ouvrir…</button><button id="resume-document">Reprendre la session</button></div><div id="recent-documents"></div></div>'
+    '<div class="welcome-card"><div class="welcome-actions"><button id="create-document" class="primary">Nouveau document</button><button id="open-document">Ouvrir…</button><button id="resume-document">Reprendre la session</button></div></div>'
+  const brand = welcomeBrand()
+  welcome.querySelector('.welcome-card')!.prepend(brand.element)
   workspace.before(welcome)
-  $('resume-document').hidden = !s.hasRecovery
-  welcome.querySelector('h1')!.textContent = tr('Le contenu d’abord.')
-  welcome.querySelector('p')!.textContent = tr(
-    'Rédigez simplement. Votre modèle s’occupe de la présentation.',
-  )
+  $<HTMLButtonElement>('resume-document').disabled = !s.hasRecovery
   for (const [id, label] of [
     ['create-document', 'Nouveau document'],
     ['open-document', 'Ouvrir…'],
@@ -159,6 +158,8 @@ export async function mountShell(s: Shell) {
     active = value
     welcome.hidden = value
     workspace.hidden = !value
+    if (value) brand.finish()
+    else brand.play()
     for (const id of ['document.save', 'document.export', 'document.close']) {
       const command = commands.get(id)
       if (command) command.enabled = () => active
@@ -255,7 +256,6 @@ export async function mountShell(s: Shell) {
   async function remember(file: string) {
     preferences.recent = [file, ...preferences.recent.filter((p) => p !== file)].slice(0, 12)
     await transport.invoke('preferences_save', { preferences })
-    recent()
   }
   async function open(file?: string) {
     const selected = file || (await transport.invoke<string | null>('choose_file', { save: false }))
@@ -550,17 +550,6 @@ export async function mountShell(s: Shell) {
       (error) => s.message(String(error), true),
     )
   }
-  function recent() {
-    const container = $('recent-documents')
-    container.replaceChildren()
-    for (const file of preferences.recent) {
-      const button = document.createElement('button')
-      button.textContent = file.split(/[\\/]/).at(-1) || file
-      button.title = file
-      button.onclick = () => confirmDiscard(() => guarded(() => open(file)))
-      container.append(button)
-    }
-  }
   add('document.new', tr('Nouveau document'), () => confirmDiscard(create), 'Mod+N')
   add('document.open', tr('Ouvrir…'), () => confirmDiscard(() => guarded(() => open())), 'Mod+O')
   add('document.save', tr('Enregistrer'), () => guarded(() => saveFile()), 'Mod+S')
@@ -784,6 +773,5 @@ export async function mountShell(s: Shell) {
     s.message,
   )
   renderMetadata()
-  recent()
   setActive(active)
 }

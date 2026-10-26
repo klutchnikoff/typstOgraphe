@@ -1,5 +1,28 @@
 # Vérifications locales — interface Tauri
 
+## Accueil et préparation de la fusion — 26 octobre 2026
+
+Revue de l’accueil et de l’identité visuelle avant intégration dans main.
+
+| Before | After | Why |
+| --- | --- | --- |
+| Accueil textuel et récents empilés | Signe tO, trois actions centrées ; récents à retrouver dans l’organisation de l’interface | Accès direct à créer, ouvrir ou reprendre |
+| Identité native provisoire | Icônes adaptées aux trois plateformes, ressources embarquées | Cohérence de l’application installée |
+| Pas de recette dédiée à ce nouvel accueil | Deux parcours sur Chromium et WebKit : actions pendant l’animation, retour sans rejeu, mouvement réduit, fenêtre minimale | Vérifier le comportement au-delà d’une capture |
+
+Compilation TypeScript/Vite, formatage et **66 tests unitaires** réussis.
+La suite complète de **72 parcours Chromium/WebKit** est verte. Captures de
+l’accueil [clair](welcome-light.png) et [sombre](welcome-dark.png) inspectées.
+L’adaptateur Rust passe ses dix tests (un diagnostic ignoré) et Clippy.
+Ces essais ne remplacent pas les recettes natives Windows/Linux.
+
+La CI Windows précédente échouait sur les imports SVG externes : Vitest
+autorisait un chemin issu de URL.pathname, incorrect pour un lecteur Windows.
+La configuration utilise désormais fileURLToPath, comme Vite ; la validation
+distante de ce correctif reste à contrôler sur la prochaine CI.
+
+## Résultats du portage
+
 26 octobre 2026, macOS Apple Silicon. Ces résultats décrivent un build de
 développement ; ils ne remplacent pas la CI Windows/Linux ni un test utilisateur.
 

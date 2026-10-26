@@ -21,6 +21,9 @@
   --danger: #a83f33;
   --rust: #a64e2a;
   --green: #127653;
+  --brand-ink: #285c77;
+  --brand-name: #25333b;
+  --brand-name-accent: #19779e;
   --editor-width: 50%;
   background: var(--bg);
   color: var(--text);
@@ -37,6 +40,9 @@
     --danger: #f09180;
     --rust: #e4a17c;
     --green: #8fc7aa;
+    --brand-ink: #f8f5ec;
+    --brand-name: #8c9ca6;
+    --brand-name-accent: #b4e9ff;
   }
 }
 * {
@@ -542,39 +548,88 @@ summary svg {
   display: grid;
   place-items: center;
   padding: 32px;
+  overflow: auto;
 }
 .welcome-card {
-  max-width: 620px;
+  max-width: 280px;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
 }
-.welcome h1 {
-  font-size: 38px;
-  letter-spacing: -0.035em;
+.welcome-brand {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  color: var(--brand-ink);
+}
+.welcome-brand .camera {
+  width: clamp(96px, 23vmin, 160px);
+}
+.welcome-brand .ligature {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.welcome-brand mask path {
+  fill: none;
+  stroke: white;
+  stroke-width: 76;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+}
+.welcome-brand mask .reveal-crossbar {
+  stroke-width: 32;
+  stroke-linecap: butt;
+}
+.welcome-brand mask .reveal-t {
+  stroke-width: 96;
+}
+.welcome-brand[data-state='settled'] [mask] {
+  mask: none;
+}
+.welcome-brand .wordmark {
+  margin: 0;
+  padding-left: 0.06em;
+  font-size: clamp(15px, 2.8vmin, 18px);
   line-height: 1.2;
-  margin: 14px 0;
+  font-weight: 400;
+  letter-spacing: 0.035em;
+  color: var(--brand-name);
 }
-.welcome p {
-  color: var(--muted);
-  margin-bottom: 28px;
+.welcome-brand .wordmark span {
+  color: var(--brand-name-accent);
+  font-weight: 600;
 }
-.eyebrow {
-  font-size: 12px;
-  color: var(--accent);
-  letter-spacing: 0.08em;
+.welcome-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: min(100%, 240px);
 }
-.welcome-actions,
+.welcome-actions button {
+  min-height: 40px;
+  border-color: var(--border);
+}
+.welcome-actions .primary {
+  border-color: transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  .welcome-brand .camera {
+    transform: none !important;
+    filter: none !important;
+  }
+}
 .metadata-tabs {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-}
-#recent-documents {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 5px;
-  margin-top: 24px;
 }
 .document-settings {
   border-bottom: 1px solid var(--border);
@@ -774,6 +829,9 @@ main {
   --accent: #276c8c;
   --rust: #a9441b;
   --green: #286348;
+  --brand-ink: #285c77;
+  --brand-name: #25333b;
+  --brand-name-accent: #19779e;
 }
 :root[data-appearance='dark'] {
   color-scheme: dark;
@@ -786,6 +844,9 @@ main {
   --accent: #94cee9;
   --rust: #ed986e;
   --green: #8cc9ae;
+  --brand-ink: #f8f5ec;
+  --brand-name: #8c9ca6;
+  --brand-name-accent: #b4e9ff;
 }
 .content-widget {
   border: 1px solid var(--border);

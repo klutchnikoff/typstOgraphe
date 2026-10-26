@@ -1,0 +1,11 @@
+{
+  "bundle": {
+    "icon": [
+      "icons/macos/32x32.png",
+      "icons/macos/128x128.png",
+      "icons/macos/128x128@2x.png",
+      "icons/macos/icon.png",
+      "icons/icon.icns"
+    ]
+  }
+}
