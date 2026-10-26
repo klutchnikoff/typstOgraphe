@@ -6,11 +6,11 @@ use crate::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range};
 use typst::{
     World,
     layout::{Abs, Frame, FrameItem, Point},
-    syntax::SyntaxKind,
+    syntax::{Source, Span, SyntaxKind},
 };
 use typst_layout::PagedDocument;
 
@@ -57,8 +57,12 @@ impl RenderSync {
     pub fn new(revision: u64, world: TypstWorld, document: PagedDocument, map: SourceMap) -> Self {
         let mut anchors = Vec::new();
         let mut frames = Vec::new();
+        let mut source = AnchorSource {
+            source: world.source(file_id("contenu.typ")).ok(),
+            nodes: HashMap::new(),
+        };
         for (page, output) in document.pages().iter().enumerate() {
-            collect_anchors(&world, &output.frame, page, &mut anchors);
+            collect_anchors(&mut source, &output.frame, page, &mut anchors);
             let mut frame = output.frame.clone();
             // Le double-clic sur le texte d'un lien doit rejoindre l'éditeur.
             // Les annotations de lien sont conservées dans le PDF et le rendu.
@@ -194,12 +198,36 @@ fn remove_links(frame: &mut Frame) {
     });
 }
 
-fn collect_anchors(world: &TypstWorld, frame: &Frame, page: usize, anchors: &mut Vec<Anchor>) {
+/// Many glyphs share a syntax span. Resolve each span once in this immutable
+/// compilation, including failed lookups. Never reuse it across source revisions.
+struct AnchorSource {
+    source: Option<Source>,
+    nodes: HashMap<Span, Option<(Range<usize>, SyntaxKind)>>,
+}
+impl AnchorSource {
+    fn find(&mut self, span: Span) -> Option<(Range<usize>, SyntaxKind)> {
+        let source = self.source.as_ref()?;
+        if span.id() != Some(source.id()) {
+            return None;
+        }
+        self.nodes
+            .entry(span)
+            .or_insert_with(|| source.find(span).map(|node| (node.range(), node.kind())))
+            .clone()
+    }
+}
+
+fn collect_anchors(
+    source: &mut AnchorSource,
+    frame: &Frame,
+    page: usize,
+    anchors: &mut Vec<Anchor>,
+) {
     for &(mut pos, ref item) in frame.items() {
         match item {
             FrameItem::Group(group) => {
                 let start = anchors.len();
-                collect_anchors(world, &group.frame, page, anchors);
+                collect_anchors(source, &group.frame, page, anchors);
                 for anchor in &mut anchors[start..] {
                     anchor.point = pos + anchor.point.transform(group.transform);
                     anchor.corners = anchor
@@ -207,12 +235,10 @@ fn collect_anchors(world: &TypstWorld, frame: &Frame, page: usize, anchors: &mut
                         .map(|point| pos + point.transform(group.transform));
                 }
             }
-            FrameItem::Image(_, size, span) if span.id() == Some(file_id("contenu.typ")) => {
-                if let Ok(source) = world.source(file_id("contenu.typ"))
-                    && let Some(node) = source.find(*span)
-                {
+            FrameItem::Image(_, size, span) => {
+                if let Some((range, _)) = source.find(*span) {
                     anchors.push(Anchor {
-                        source: node.range(),
+                        source: range,
                         page,
                         point: pos + Point::new(size.x / 2.0, size.y / 2.0),
                         corners: [
@@ -225,36 +251,30 @@ fn collect_anchors(world: &TypstWorld, frame: &Frame, page: usize, anchors: &mut
                 }
             }
             FrameItem::Text(text) => {
+                let metrics = text.font.metrics();
+                let top = pos.y - metrics.ascender.at(text.size);
+                let bottom = pos.y - metrics.descender.at(text.size);
                 for glyph in &text.glyphs {
                     let width = glyph.x_advance.at(text.size);
                     let (span, offset) = glyph.span;
-                    if span.id() == Some(file_id("contenu.typ"))
-                        && let Ok(source) = world.source(file_id("contenu.typ"))
-                        && let Some(node) = source.find(span)
-                    {
-                        let range = node.range();
-                        let source =
-                            if matches!(node.kind(), SyntaxKind::Text | SyntaxKind::MathText) {
+                    if let Some((range, kind)) = source.find(span) {
+                        let glyph_source =
+                            if matches!(kind, SyntaxKind::Text | SyntaxKind::MathText) {
                                 let start = (range.start + usize::from(offset)).min(range.end);
                                 start..(start + glyph.range().len()).min(range.end)
                             } else {
                                 range
                             };
                         anchors.push(Anchor {
-                            source,
+                            source: glyph_source,
                             page,
                             point: Point::new(pos.x + width / 4.0, pos.y - text.size / 2.0),
-                            corners: {
-                                let metrics = text.font.metrics();
-                                let top = pos.y - metrics.ascender.at(text.size);
-                                let bottom = pos.y - metrics.descender.at(text.size);
-                                [
-                                    Point::new(pos.x, top),
-                                    Point::new(pos.x + width, top),
-                                    Point::new(pos.x + width, bottom),
-                                    Point::new(pos.x, bottom),
-                                ]
-                            },
+                            corners: [
+                                Point::new(pos.x, top),
+                                Point::new(pos.x + width, top),
+                                Point::new(pos.x + width, bottom),
+                                Point::new(pos.x, bottom),
+                            ],
                         });
                     }
                     pos.x += width;

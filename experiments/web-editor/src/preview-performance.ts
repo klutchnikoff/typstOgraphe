@@ -36,6 +36,24 @@ export async function nativePreviewPerformance(
 ) {
   const samples: Record<string, unknown>[] = []
   const typing: Record<string, unknown>[] = []
+  const unexpected: unknown[] = []
+  let editing = false
+  editor.on('update', ({ transaction }) => {
+    if (!editing)
+      unexpected.push({
+        revision: provider.revision,
+        text: editor.getText().slice(0, 100),
+        meta: { uiEvent: transaction.getMeta('uiEvent'), ySync: transaction.getMeta('y-sync$') },
+      })
+  })
+  const edit = (run: () => void) => {
+    editing = true
+    try {
+      run()
+    } finally {
+      editing = false
+    }
+  }
   const fixture = editor.getJSON()
   const text =
     'Madame, Monsieur, je vous remercie de bien vouloir examiner ce courrier. Les informations demandées seront transmises dès réception des pièces justificatives. Nous restons disponibles pour toute précision complémentaire.'
@@ -64,10 +82,10 @@ export async function nativePreviewPerformance(
     // Rotate the order to avoid systematically warming Typst for one transport.
     const encodings: Encoding[] = ['dataurl', 'png', 'rgba', 'svg']
     for (const [workload, content] of workloads) {
-      editor.commands.setContent(content)
+      edit(() => editor.commands.setContent(content))
       await provider.flush()
       for (let round = 0; round < 10; round++) {
-        editor.commands.insertContentAt(1, String.fromCharCode(97 + round))
+        edit(() => editor.commands.insertContentAt(1, String.fromCharCode(97 + round)))
         await provider.flush()
         for (let j = 0; j < encodings.length; j++) {
           const encoding = encodings[(round + j) % encodings.length]
@@ -116,7 +134,7 @@ export async function nativePreviewPerformance(
     }
     // The actual automatic pipeline, including queue, Yjs relay, projection and IPC.
     for (const [workload, content] of workloads.slice(0, 2)) {
-      editor.commands.setContent(content)
+      edit(() => editor.commands.setContent(content))
       await provider.flush()
       let finish: (() => void) | undefined
       harness.observe((revision) => {
@@ -128,7 +146,7 @@ export async function nativePreviewPerformance(
           finish = resolve
         })
         const start = performance.now()
-        editor.commands.insertContentAt(1, String.fromCharCode(65 + i))
+        edit(() => editor.commands.insertContentAt(1, String.fromCharCode(65 + i)))
         await ready
         await painted()
         typing.push({ workload, mode: 'single', elapsedMs: performance.now() - start })
@@ -142,7 +160,7 @@ export async function nativePreviewPerformance(
       })
       const burstStarted = performance.now()
       for (let i = 0; i < 15; i++) {
-        editor.commands.insertContentAt(1, 'x')
+        edit(() => editor.commands.insertContentAt(1, 'x'))
         await wait(40)
       }
       typing.push({
@@ -155,7 +173,7 @@ export async function nativePreviewPerformance(
       const last = new Promise<void>((resolve) => {
         finish = resolve
       })
-      editor.commands.insertContentAt(1, 'z')
+      edit(() => editor.commands.insertContentAt(1, 'z'))
       await last
       await painted()
       typing.push({ workload, mode: 'burst-tail', elapsedMs: performance.now() - start })
@@ -181,7 +199,7 @@ export async function nativePreviewPerformance(
     })
   } catch (error) {
     await transport.invoke('diagnostic_finish', {
-      report: { ok: false, success: false, error: String(error), samples, typing },
+      report: { ok: false, success: false, error: String(error), samples, typing, unexpected },
     })
   }
 }

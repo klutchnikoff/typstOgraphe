@@ -1118,3 +1118,40 @@ fn postscript_insertion_precedes_existing_enclosures_and_reuses_its_existing_blo
         document.view
     );
 }
+
+#[test]
+fn navigation_rebuilds_source_ranges_for_each_compilation_of_a_reused_world() {
+    let mut world = crate::rendering::TypstWorld::default();
+    let metadata = Metadata::demo(DocumentType::Courrier);
+    let mut snapshots = Vec::new();
+    for (revision, prefix) in ["", "Préambule allongé. ", "Court. "]
+        .into_iter()
+        .enumerate()
+    {
+        let document = Document::from_source(&format!(
+            "{prefix}*Noël* consulte le #link(\"https://example.org\")[dossier] avec _Élodie_."
+        ))
+        .unwrap();
+        let rendered = world
+            .compile_with_template(document.source(), &metadata, &Model::Personal.source())
+            .unwrap();
+        let sync = crate::navigation::RenderSync::new(
+            revision as u64,
+            world.clone(),
+            rendered,
+            document.source_map.clone(),
+        );
+        let at = document.view.text[..document.view.text.find("dossier").unwrap()]
+            .chars()
+            .count()
+            + 2;
+        let point = sync.forward(at).unwrap();
+        assert_eq!(sync.backward(point), Some(at));
+        assert!(!sync.selection_highlights(at..at + 1).is_empty());
+        snapshots.push((sync, at, point));
+    }
+    for (sync, at, point) in snapshots {
+        assert_eq!(sync.forward(at), Some(point));
+        assert_eq!(sync.backward(point), Some(at));
+    }
+}
