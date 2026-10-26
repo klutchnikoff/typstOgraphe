@@ -75,24 +75,23 @@ ${languages.map((language) => `        <string>${language}</string>`).join('\n')
   }
 }
 
-export function generateNativeLocaleConfig() {
-  const source = readInterfaceLanguages(resolve(root, '../../crates/i18n'))
+export function generateNativeLocaleConfig(
+  projectRoot = root,
+  catalogueRoot = resolve(projectRoot, '../../crates/i18n'),
+) {
+  const source = readInterfaceLanguages(catalogueRoot)
   const metadata = nativeMetadata(source)
-  const directory = join(root, 'src-tauri/gen/native-locales')
+  const directory = join(projectRoot, 'src-tauri/gen/native-locales')
   mkdirSync(directory, { recursive: true })
   const writeIfChanged = (path, value) => {
     if (!existsSync(path) || readFileSync(path, 'utf8') !== value) writeFileSync(path, value)
   }
-  const plist = join(directory, 'Info.plist')
+  // Tauri's development executable embeds only this conventional path.
+  // bundle.macOS.infoPlist works for packaging, but is ignored by dev codegen.
+  // Both launches must therefore use this same generated file.
+  const plist = join(projectRoot, 'src-tauri/Info.plist')
   writeIfChanged(plist, metadata.plist)
   const path = join(directory, 'tauri.locales.json')
-  writeIfChanged(
-    path,
-    JSON.stringify(
-      { bundle: { macOS: { infoPlist: plist }, windows: metadata.windows } },
-      null,
-      2,
-    ) + '\n',
-  )
+  writeIfChanged(path, JSON.stringify({ bundle: { windows: metadata.windows } }, null, 2) + '\n')
   return path
 }

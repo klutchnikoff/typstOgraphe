@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { nativeMetadata, readInterfaceLanguages } from './native-locales.mjs'
+import {
+  generateNativeLocaleConfig,
+  nativeMetadata,
+  readInterfaceLanguages,
+} from './native-locales.mjs'
 
 function fixture(t, fallback, languages) {
   const root = mkdtempSync(join(tmpdir(), 'tog-locales-'))
@@ -46,4 +50,25 @@ test('a missing fallback catalogue or unsupported native identifier fails explic
     () => nativeMetadata({ fallback: 'ja', languages: ['ja'] }),
     /Identifiants d’installateur à définir/,
   )
+})
+
+test('development and packaging share the conventional generated Info.plist', (t) => {
+  const root = fixture(t, 'fr', ['en', 'fr'])
+  const project = join(root, 'application')
+  const config = generateNativeLocaleConfig(project, root)
+  const plist = join(project, 'src-tauri/Info.plist')
+  assert.equal(readFileSync(plist, 'utf8'), nativeMetadata(readInterfaceLanguages(root)).plist)
+  // A custom infoPlist override alone would pass a bundle check but break dev.
+  const overrides = JSON.parse(readFileSync(config, 'utf8'))
+  assert.equal(overrides.bundle.macOS, undefined)
+  assert.deepEqual(overrides.bundle.windows.nsis.languages, ['French', 'English'])
+  const modified = statSync(plist).mtimeMs
+  generateNativeLocaleConfig(project, root)
+  assert.equal(statSync(plist).mtimeMs, modified, 'do not force recompilation on every launch')
+  writeFileSync(
+    join(root, 'i18n.toml'),
+    'fallback_language = "en"\n[fluent]\nassets_dir = "i18n"\ndomain = "interface"\n',
+  )
+  generateNativeLocaleConfig(project, root)
+  assert.equal(readFileSync(plist, 'utf8'), nativeMetadata(readInterfaceLanguages(root)).plist)
 })
