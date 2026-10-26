@@ -49,9 +49,9 @@ jobs:
       - name: Generate reports
         run: |
           mkdir -p output/coverage
-          cargo +nightly llvm-cov report --html --output-dir output/coverage
-          cargo +nightly llvm-cov report --lcov --output-path output/coverage/lcov.info
-          cargo +nightly llvm-cov report --json --summary-only --output-path output/coverage/summary.json
+          cargo +nightly llvm-cov report --workspace --ignore-filename-regex 'app/src-tauri/' --html --output-dir output/coverage
+          cargo +nightly llvm-cov report --workspace --ignore-filename-regex 'app/src-tauri/' --lcov --output-path output/coverage/lcov.info
+          cargo +nightly llvm-cov report --workspace --ignore-filename-regex 'app/src-tauri/' --json --summary-only --output-path output/coverage/summary.json
           python3 .github/scripts/coverage_summary.py output/coverage/summary.json output/coverage/badge
       - uses: actions/upload-artifact@v7
         with:
