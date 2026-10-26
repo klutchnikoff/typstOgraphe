@@ -166,7 +166,13 @@ export class Provider {
     return `data:${mime};base64,${resource.data}`
   }
   async flush() {
-    await this.pending
+    // Updates can extend the tail while a relay acknowledgment is in flight.
+    // A snapshot needs every queued update acknowledged, not just the old tail.
+    let tail: Promise<unknown>
+    do {
+      tail = this.pending
+      await tail
+    } while (tail !== this.pending)
     if (!this.online) throw new Error('La fenêtre est déconnectée.')
   }
   async disconnect() {
