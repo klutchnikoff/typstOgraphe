@@ -90,8 +90,12 @@ async function flush(...clients: { provider: Provider }[]) {
 
 describe('deux éditeurs structurés et deux Y.Doc indépendants', () => {
   it('distingue retour simple, nouveau paragraphe et retour forcé', async () => {
-    const host = new Host(), a = await client(host, 'main')
-    a.editor.commands.setContent({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Bonjour' }] }] })
+    const host = new Host(),
+      a = await client(host, 'main')
+    a.editor.commands.setContent({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Bonjour' }] }],
+    })
     a.editor.commands.setTextSelection(8)
     expect(a.editor.commands.keyboardShortcut('Enter')).toBe(true)
     expect(a.editor.getJSON().content?.[0].content?.at(-1)?.type).toBe('softBreak')

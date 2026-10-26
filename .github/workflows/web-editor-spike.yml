@@ -1,0 +1,71 @@
+name: Web editor spike
+on:
+  push:
+    paths: ['experiments/web-editor/**', 'crates/core/**', '.github/workflows/web-editor-spike.yml']
+  pull_request:
+    paths: ['experiments/web-editor/**', 'crates/core/**', '.github/workflows/web-editor-spike.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  CARGO_BUILD_JOBS: "2"
+concurrency:
+  group: web-editor-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: experiments/web-editor
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: experiments/web-editor/package-lock.json
+      - name: Linux Tauri libraries
+        if: runner.os == 'Linux'
+        run: >-
+          sudo apt-get update && sudo apt-get install -y
+          build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev
+          libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Rust toolchain
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: web-editor-${{ runner.os }}-${{ hashFiles('experiments/web-editor/src-tauri/Cargo.lock') }}
+          restore-keys: web-editor-${{ runner.os }}-
+      - run: npm ci
+      - run: npm run check:format
+      - run: npm test
+      - run: npm run build
+      - run: cargo +stable fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo +stable test --locked --manifest-path src-tauri/Cargo.toml
+      - run: cargo +stable clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+      - name: Browser recipe driver
+        if: runner.os == 'Linux'
+        run: cargo +stable build --locked --manifest-path src-tauri/Cargo.toml
+      - name: Browser engines
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps chromium webkit
+      - name: Graphical recipes
+        if: runner.os == 'Linux'
+        run: npm run test:browser
+      - uses: actions/upload-artifact@v7
+        if: always() && runner.os == 'Linux'
+        with:
+          name: web-editor-browser-results
+          path: experiments/web-editor/test-results

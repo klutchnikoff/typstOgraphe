@@ -27,12 +27,15 @@ Le dossier par défaut est `output/web-editor/default/` à la racine du dépôt.
 Pour un essai indépendant :
 
 ```sh
-npm run tauri dev -- -- --session-dir /chemin/absolu/vers/un/dossier-essai
+npm run tauri -- dev -- -- --session-dir /chemin/absolu/vers/un/dossier-essai
 ```
 
 ## Édition et rendu
 
 - Paragraphes, titres 1–3, gras, italique, liens, listes non imbriquées.
+- Dans le corps libre : Entrée reste dans le paragraphe (espace dans le rendu),
+  deux Entrées créent un paragraphe. Maj+Entrée force un saut de ligne Typst.
+  Listes, cellules, titres et légendes gardent leur navigation structurelle.
 - Image avec légende directement éditable ; paramètres pour le texte alternatif.
 - Tableau sans fusion ; commandes de lignes et colonnes lorsque le curseur y est.
 - Note en ligne avec bandeau de texte, Entrée pour appliquer, Échap pour fermer.
@@ -70,6 +73,7 @@ npm test
 npm run build
 npm run test:rust
 npm run check:rust
+npm run check:format
 ```
 
 Les tests de collaboration utilisent deux éditeurs et deux Y.Doc distincts :
@@ -78,6 +82,35 @@ reprise binaire et presse-papier HTML. Les tests Rust vérifient refus, sauvegar
 et véritable compilation/export du corpus avec tableaux, notes et image.
 La composition IME du système reste un essai manuel à distinguer des événements
 simulés et des tests du navigateur.
+
+Pour les parcours graphiques Chromium et WebKit, avec le **vrai** cœur Rust via
+un transport de recette STDIO/SSE (aucun rendu factice) :
+
+```sh
+cargo build --locked --manifest-path src-tauri/Cargo.toml
+npx playwright install chromium webkit
+npm run test:browser
+```
+
+Le serveur de test est strictement local et n'est activé qu'en mode `browser-test`.
+Les captures et mesures de saisie se trouvent dans `test-results/`. La CI dédiée
+compile et teste l'adaptateur sur les trois systèmes ; les parcours de navigateur
+s'exécutent sous Linux. Cela ne vaut pas un essai graphique natif sur ces systèmes.
+
+Pour automatiser deux **fenêtres Tauri natives**, fermer l'application puis
+rouvrir le fichier enregistré, avec un affichage disponible :
+
+```sh
+npm run build
+cargo build --locked --features custom-protocol --manifest-path src-tauri/Cargo.toml
+npm run test:native
+```
+
+La recette crée sa propre session dans `output/web-editor/`. Elle garde deux
+rapports, les journaux et le pic de RSS échantillonné du seul processus Rust
+(hors processus WebKit, donc pas la consommation totale de l'application).
+Le [bilan](../../docs/web-editor-spike-results.md) distingue les résultats
+automatisés, les limites et les vérifications manuelles restantes.
 
 ## Dépendances et icône
 
