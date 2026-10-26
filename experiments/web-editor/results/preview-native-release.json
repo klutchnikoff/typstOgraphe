@@ -1,0 +1,2823 @@
+{
+  "defaultEncoding": "rgba",
+  "ok": true,
+  "samples": [
+    {
+      "backendMs": 7.841374999999999,
+      "bytes": 241709,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 1,
+      "prepareMs": 13,
+      "requestMs": 10,
+      "round": 0,
+      "timings": {
+        "base64Ms": 0.091709,
+        "compileMs": 1.596417,
+        "exportMs": 0.000125,
+        "pngMs": 3.9290000000000003,
+        "prepareMs": 0.959292,
+        "rasterMs": 1.163333,
+        "svgMs": 0,
+        "syncMs": 0.100208
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.220041,
+      "bytes": 181497,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 1,
+      "prepareMs": 8.999999999999943,
+      "requestMs": 9.000000000000057,
+      "round": 0,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.9834589999999999,
+        "exportMs": 8.3e-05,
+        "pngMs": 3.9435,
+        "prepareMs": 0.781916,
+        "rasterMs": 0.435209,
+        "svgMs": 0,
+        "syncMs": 0.07475
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.7664999999999997,
+      "bytes": 8023201,
+      "encoding": "rgba",
+      "frameMs": 34,
+      "pages": 1,
+      "prepareMs": 1,
+      "requestMs": 8,
+      "round": 0,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.040583,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.8187920000000001,
+        "rasterMs": 0.447375,
+        "svgMs": 0,
+        "syncMs": 0.084125
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 4.107165999999999,
+      "bytes": 147896,
+      "encoding": "svg",
+      "frameMs": 33,
+      "pages": 1,
+      "prepareMs": 10,
+      "requestMs": 5,
+      "round": 0,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.105125,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.871458,
+        "rasterMs": 0,
+        "svgMs": 2.057541,
+        "syncMs": 0.072666
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 7.322583,
+      "bytes": 181799,
+      "encoding": "png",
+      "frameMs": 45,
+      "pages": 1,
+      "prepareMs": 8.999999999999943,
+      "requestMs": 9.000000000000057,
+      "round": 1,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.670666,
+        "exportMs": 0.000167,
+        "pngMs": 4.0325,
+        "prepareMs": 0.82575,
+        "rasterMs": 0.723292,
+        "svgMs": 0,
+        "syncMs": 0.069208
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.607917,
+      "bytes": 8023192,
+      "encoding": "rgba",
+      "frameMs": 33,
+      "pages": 1,
+      "prepareMs": 1,
+      "requestMs": 7,
+      "round": 1,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.993083,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.7773329999999999,
+        "rasterMs": 0.439792,
+        "svgMs": 0,
+        "syncMs": 0.074417
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.566083,
+      "bytes": 148017,
+      "encoding": "svg",
+      "frameMs": 34.000000000000114,
+      "pages": 1,
+      "prepareMs": 9,
+      "requestMs": 5,
+      "round": 1,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0204579999999999,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.8000830000000001,
+        "rasterMs": 0,
+        "svgMs": 1.681666,
+        "syncMs": 0.063417
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.612292,
+      "bytes": 242106,
+      "encoding": "dataurl",
+      "frameMs": 49.999999999999886,
+      "pages": 1,
+      "prepareMs": 11,
+      "requestMs": 7.999999999999886,
+      "round": 1,
+      "timings": {
+        "base64Ms": 0.087834,
+        "compileMs": 1.01625,
+        "exportMs": 4.2e-05,
+        "pngMs": 4.189459,
+        "prepareMs": 0.800542,
+        "rasterMs": 0.447791,
+        "svgMs": 0,
+        "syncMs": 0.069708
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 4.7095,
+      "bytes": 8023202,
+      "encoding": "rgba",
+      "frameMs": 28,
+      "pages": 1,
+      "prepareMs": 2,
+      "requestMs": 8,
+      "round": 2,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.7129999999999999,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.829458,
+        "rasterMs": 0.721542,
+        "svgMs": 0,
+        "syncMs": 0.07566700000000001
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.683166,
+      "bytes": 148100,
+      "encoding": "svg",
+      "frameMs": 33.000000000000114,
+      "pages": 1,
+      "prepareMs": 9,
+      "requestMs": 5,
+      "round": 2,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.050959,
+        "exportMs": 0.000166,
+        "pngMs": 0,
+        "prepareMs": 0.863541,
+        "rasterMs": 0,
+        "svgMs": 1.703583,
+        "syncMs": 0.064709
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.829917,
+      "bytes": 242964,
+      "encoding": "dataurl",
+      "frameMs": 49.999999999999886,
+      "pages": 1,
+      "prepareMs": 10.999999999999886,
+      "requestMs": 10,
+      "round": 2,
+      "timings": {
+        "base64Ms": 0.093167,
+        "compileMs": 1.052333,
+        "exportMs": 0.000125,
+        "pngMs": 4.233416,
+        "prepareMs": 0.841333,
+        "rasterMs": 0.516042,
+        "svgMs": 0,
+        "syncMs": 0.092542
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.843709,
+      "bytes": 182456,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 1,
+      "prepareMs": 10,
+      "requestMs": 9,
+      "round": 2,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.1280000000000001,
+        "exportMs": 4.1e-05,
+        "pngMs": 4.297208,
+        "prepareMs": 0.874875,
+        "rasterMs": 0.465084,
+        "svgMs": 0,
+        "syncMs": 0.076958
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 4.367375,
+      "bytes": 148211,
+      "encoding": "svg",
+      "frameMs": 29.000000000000114,
+      "pages": 1,
+      "prepareMs": 9,
+      "requestMs": 6,
+      "round": 3,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.761541,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.881584,
+        "rasterMs": 0,
+        "svgMs": 1.66375,
+        "syncMs": 0.060125
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.948083,
+      "bytes": 243533,
+      "encoding": "dataurl",
+      "frameMs": 49.999999999999886,
+      "pages": 1,
+      "prepareMs": 11,
+      "requestMs": 8.999999999999886,
+      "round": 3,
+      "timings": {
+        "base64Ms": 0.083875,
+        "compileMs": 1.044416,
+        "exportMs": 4.2e-05,
+        "pngMs": 4.110709,
+        "prepareMs": 0.8967499999999999,
+        "rasterMs": 0.7462909999999999,
+        "svgMs": 0,
+        "syncMs": 0.065292
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.642958,
+      "bytes": 182889,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 1,
+      "prepareMs": 10,
+      "requestMs": 8,
+      "round": 3,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.060625,
+        "exportMs": 4.1e-05,
+        "pngMs": 4.181500000000001,
+        "prepareMs": 0.875583,
+        "rasterMs": 0.44708299999999995,
+        "svgMs": 0,
+        "syncMs": 0.07662500000000001
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 4.083875,
+      "bytes": 8023194,
+      "encoding": "rgba",
+      "frameMs": 33.000000000000114,
+      "pages": 1,
+      "prepareMs": 1,
+      "requestMs": 8,
+      "round": 3,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.107792,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.877583,
+        "rasterMs": 0.5100830000000001,
+        "svgMs": 0,
+        "syncMs": 0.089625
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 7.787167,
+      "bytes": 243947,
+      "encoding": "dataurl",
+      "frameMs": 45.000000000000114,
+      "pages": 1,
+      "prepareMs": 11,
+      "requestMs": 10,
+      "round": 4,
+      "timings": {
+        "base64Ms": 0.088333,
+        "compileMs": 1.839167,
+        "exportMs": 0.000166,
+        "pngMs": 4.169459000000001,
+        "prepareMs": 0.8843749999999999,
+        "rasterMs": 0.726625,
+        "svgMs": 0,
+        "syncMs": 0.0785
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.758542,
+      "bytes": 183167,
+      "encoding": "png",
+      "frameMs": 49.999999999999886,
+      "pages": 1,
+      "prepareMs": 10,
+      "requestMs": 8.999999999999886,
+      "round": 4,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.05975,
+        "exportMs": 0.000125,
+        "pngMs": 4.202,
+        "prepareMs": 0.920167,
+        "rasterMs": 0.492459,
+        "svgMs": 0,
+        "syncMs": 0.082667
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.9850830000000004,
+      "bytes": 8023202,
+      "encoding": "rgba",
+      "frameMs": 33,
+      "pages": 1,
+      "prepareMs": 1,
+      "requestMs": 8,
+      "round": 4,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.117083,
+        "exportMs": 8.3e-05,
+        "pngMs": 0,
+        "prepareMs": 0.8765,
+        "rasterMs": 0.4685,
+        "svgMs": 0,
+        "syncMs": 0.10900000000000001
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.9667499999999998,
+      "bytes": 148319,
+      "encoding": "svg",
+      "frameMs": 34,
+      "pages": 1,
+      "prepareMs": 9,
+      "requestMs": 6,
+      "round": 4,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.135708,
+        "exportMs": 0,
+        "pngMs": 0,
+        "prepareMs": 0.919958,
+        "rasterMs": 0,
+        "svgMs": 1.842417,
+        "syncMs": 0.068417
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 7.385833,
+      "bytes": 183366,
+      "encoding": "png",
+      "frameMs": 46,
+      "pages": 1,
+      "prepareMs": 10,
+      "requestMs": 9,
+      "round": 5,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.6565,
+        "exportMs": 0.000125,
+        "pngMs": 4.110499999999999,
+        "prepareMs": 0.8026249999999999,
+        "rasterMs": 0.738334,
+        "svgMs": 0,
+        "syncMs": 0.076666
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.9158329999999997,
+      "bytes": 8023201,
+      "encoding": "rgba",
+      "frameMs": 33,
+      "pages": 1,
+      "prepareMs": 2,
+      "requestMs": 9,
+      "round": 5,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.1098329999999998,
+        "exportMs": 0,
+        "pngMs": 0,
+        "prepareMs": 0.882583,
+        "rasterMs": 0.470084,
+        "svgMs": 0,
+        "syncMs": 0.082917
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.773583,
+      "bytes": 148441,
+      "encoding": "svg",
+      "frameMs": 33,
+      "pages": 1,
+      "prepareMs": 10,
+      "requestMs": 5,
+      "round": 5,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.1069579999999999,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.8919159999999999,
+        "rasterMs": 0,
+        "svgMs": 1.715375,
+        "syncMs": 0.058958
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.661916000000001,
+      "bytes": 244189,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 1,
+      "prepareMs": 11,
+      "requestMs": 9,
+      "round": 5,
+      "timings": {
+        "base64Ms": 0.092333,
+        "compileMs": 1.011625,
+        "exportMs": 0,
+        "pngMs": 4.179333000000001,
+        "prepareMs": 0.869375,
+        "rasterMs": 0.444291,
+        "svgMs": 0,
+        "syncMs": 0.06420899999999999
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 4.745,
+      "bytes": 8023192,
+      "encoding": "rgba",
+      "frameMs": 28,
+      "pages": 1,
+      "prepareMs": 2,
+      "requestMs": 8,
+      "round": 6,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.729542,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.8122090000000001,
+        "rasterMs": 0.752625,
+        "svgMs": 0,
+        "syncMs": 0.079
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.659292,
+      "bytes": 149914,
+      "encoding": "svg",
+      "frameMs": 34,
+      "pages": 1,
+      "prepareMs": 9,
+      "requestMs": 5,
+      "round": 6,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.058167,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.823209,
+        "rasterMs": 0,
+        "svgMs": 1.713542,
+        "syncMs": 0.06404199999999999
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.679375,
+      "bytes": 244529,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 1,
+      "prepareMs": 11,
+      "requestMs": 9,
+      "round": 6,
+      "timings": {
+        "base64Ms": 0.095417,
+        "compileMs": 1.02575,
+        "exportMs": 8.4e-05,
+        "pngMs": 4.167708,
+        "prepareMs": 0.870792,
+        "rasterMs": 0.446042,
+        "svgMs": 0,
+        "syncMs": 0.073
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 5.945334,
+      "bytes": 183643,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 1,
+      "prepareMs": 10,
+      "requestMs": 8,
+      "round": 6,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.9408329999999999,
+        "exportMs": 4.1e-05,
+        "pngMs": 3.767542,
+        "prepareMs": 0.741417,
+        "rasterMs": 0.4295,
+        "svgMs": 0,
+        "syncMs": 0.06483299999999999
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 5.424625,
+      "bytes": 151170,
+      "encoding": "svg",
+      "frameMs": 28,
+      "pages": 1,
+      "prepareMs": 9,
+      "requestMs": 7,
+      "round": 7,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.521416,
+        "exportMs": 0.00020800000000000001,
+        "pngMs": 0,
+        "prepareMs": 0.7682500000000001,
+        "rasterMs": 0,
+        "svgMs": 3.0443330000000004,
+        "syncMs": 0.089708
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.375541999999999,
+      "bytes": 244799,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 1,
+      "prepareMs": 10.000000000000227,
+      "requestMs": 9,
+      "round": 7,
+      "timings": {
+        "base64Ms": 0.080791,
+        "compileMs": 0.947375,
+        "exportMs": 4.2e-05,
+        "pngMs": 3.794625,
+        "prepareMs": 0.758125,
+        "rasterMs": 0.723,
+        "svgMs": 0,
+        "syncMs": 0.07100000000000001
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.680833,
+      "bytes": 183805,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 1,
+      "prepareMs": 10,
+      "requestMs": 9,
+      "round": 7,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.081417,
+        "exportMs": 0,
+        "pngMs": 4.181667,
+        "prepareMs": 0.885667,
+        "rasterMs": 0.454042,
+        "svgMs": 0,
+        "syncMs": 0.076916
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 4.064917,
+      "bytes": 8023194,
+      "encoding": "rgba",
+      "frameMs": 34,
+      "pages": 1,
+      "prepareMs": 1,
+      "requestMs": 8,
+      "round": 7,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.129042,
+        "exportMs": 0,
+        "pngMs": 0,
+        "prepareMs": 0.8851249999999999,
+        "rasterMs": 0.479792,
+        "svgMs": 0,
+        "syncMs": 0.080833
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 8.199207999999999,
+      "bytes": 245241,
+      "encoding": "dataurl",
+      "frameMs": 46,
+      "pages": 1,
+      "prepareMs": 11.000000000000227,
+      "requestMs": 11,
+      "round": 8,
+      "timings": {
+        "base64Ms": 0.089125,
+        "compileMs": 1.76,
+        "exportMs": 0,
+        "pngMs": 4.228292,
+        "prepareMs": 0.872416,
+        "rasterMs": 1.172666,
+        "svgMs": 0,
+        "syncMs": 0.075958
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.60175,
+      "bytes": 184154,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 1,
+      "prepareMs": 10,
+      "requestMs": 8,
+      "round": 8,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.030542,
+        "exportMs": 4.2e-05,
+        "pngMs": 4.178459,
+        "prepareMs": 0.858375,
+        "rasterMs": 0.460334,
+        "svgMs": 0,
+        "syncMs": 0.072791
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 4.240041,
+      "bytes": 8023201,
+      "encoding": "rgba",
+      "frameMs": 33.00000000000023,
+      "pages": 1,
+      "prepareMs": 2,
+      "requestMs": 7,
+      "round": 8,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.118708,
+        "exportMs": 4.1e-05,
+        "pngMs": 0,
+        "prepareMs": 0.871958,
+        "rasterMs": 0.49129200000000006,
+        "svgMs": 0,
+        "syncMs": 0.133208
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.9442920000000004,
+      "bytes": 151275,
+      "encoding": "svg",
+      "frameMs": 32.99999999999977,
+      "pages": 1,
+      "prepareMs": 10,
+      "requestMs": 4.999999999999773,
+      "round": 8,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.1102079999999999,
+        "exportMs": 0.000167,
+        "pngMs": 0,
+        "prepareMs": 0.902042,
+        "rasterMs": 0,
+        "svgMs": 1.8608330000000002,
+        "syncMs": 0.070917
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 7.481041,
+      "bytes": 184385,
+      "encoding": "png",
+      "frameMs": 45,
+      "pages": 1,
+      "prepareMs": 10,
+      "requestMs": 9,
+      "round": 9,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.692083,
+        "exportMs": 4.2e-05,
+        "pngMs": 4.152375,
+        "prepareMs": 0.835708,
+        "rasterMs": 0.726625,
+        "svgMs": 0,
+        "syncMs": 0.07295900000000001
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.7412919999999996,
+      "bytes": 8023222,
+      "encoding": "rgba",
+      "frameMs": 34,
+      "pages": 1,
+      "prepareMs": 1,
+      "requestMs": 8,
+      "round": 9,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0273750000000001,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.812375,
+        "rasterMs": 0.461375,
+        "svgMs": 0,
+        "syncMs": 0.06929099999999999
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 3.8761669999999997,
+      "bytes": 151375,
+      "encoding": "svg",
+      "frameMs": 33,
+      "pages": 1,
+      "prepareMs": 9.000000000000227,
+      "requestMs": 5,
+      "round": 9,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.105708,
+        "exportMs": 0.000167,
+        "pngMs": 0,
+        "prepareMs": 0.8652500000000001,
+        "rasterMs": 0,
+        "svgMs": 1.84125,
+        "syncMs": 0.063584
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 6.818582999999999,
+      "bytes": 245562,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 1,
+      "prepareMs": 10.999999999999773,
+      "requestMs": 9.000000000000227,
+      "round": 9,
+      "timings": {
+        "base64Ms": 0.086875,
+        "compileMs": 1.117041,
+        "exportMs": 0.000125,
+        "pngMs": 4.1932920000000005,
+        "prepareMs": 0.870708,
+        "rasterMs": 0.479875,
+        "svgMs": 0,
+        "syncMs": 0.06979199999999999
+      },
+      "workload": "letter"
+    },
+    {
+      "backendMs": 14.336958000000001,
+      "bytes": 396629,
+      "encoding": "dataurl",
+      "frameMs": 52,
+      "pages": 2,
+      "prepareMs": 15,
+      "requestMs": 17,
+      "round": 0,
+      "timings": {
+        "base64Ms": 0.139834,
+        "compileMs": 2.7000840000000004,
+        "exportMs": 0.000125,
+        "pngMs": 8.029416000000001,
+        "prepareMs": 0.899667,
+        "rasterMs": 2.413542,
+        "svgMs": 0,
+        "syncMs": 0.15312499999999998
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 14.177041,
+      "bytes": 297904,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 12,
+      "requestMs": 16,
+      "round": 0,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.9870840000000001,
+        "exportMs": 8.3e-05,
+        "pngMs": 10.012500000000001,
+        "prepareMs": 0.843416,
+        "rasterMs": 2.164042,
+        "svgMs": 0,
+        "syncMs": 0.167417
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 6.831542000000001,
+      "bytes": 16046432,
+      "encoding": "rgba",
+      "frameMs": 34,
+      "pages": 2,
+      "prepareMs": 4,
+      "requestMs": 15,
+      "round": 0,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.981125,
+        "exportMs": 8.3e-05,
+        "pngMs": 0,
+        "prepareMs": 0.882,
+        "rasterMs": 2.275834,
+        "svgMs": 0,
+        "syncMs": 0.128583
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 4.253291,
+      "bytes": 246992,
+      "encoding": "svg",
+      "frameMs": 49,
+      "pages": 2,
+      "prepareMs": 15,
+      "requestMs": 6,
+      "round": 0,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.952083,
+        "exportMs": 0,
+        "pngMs": 0,
+        "prepareMs": 0.739416,
+        "rasterMs": 0,
+        "svgMs": 2.469249,
+        "syncMs": 0.092375
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 13.357125,
+      "bytes": 298344,
+      "encoding": "png",
+      "frameMs": 43.999999999999545,
+      "pages": 2,
+      "prepareMs": 12,
+      "requestMs": 14.999999999999545,
+      "round": 1,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.91375,
+        "exportMs": 0.000167,
+        "pngMs": 8.070708999999999,
+        "prepareMs": 0.8475419999999999,
+        "rasterMs": 2.3785410000000002,
+        "svgMs": 0,
+        "syncMs": 0.14400000000000002
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 6.437167,
+      "bytes": 16046437,
+      "encoding": "rgba",
+      "frameMs": 33,
+      "pages": 2,
+      "prepareMs": 5,
+      "requestMs": 12,
+      "round": 1,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.933208,
+        "exportMs": 8.3e-05,
+        "pngMs": 0,
+        "prepareMs": 0.7445419999999999,
+        "rasterMs": 2.164376,
+        "svgMs": 0,
+        "syncMs": 0.121458
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 4.19775,
+      "bytes": 247947,
+      "encoding": "svg",
+      "frameMs": 34,
+      "pages": 2,
+      "prepareMs": 13.000000000000455,
+      "requestMs": 6,
+      "round": 1,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.933083,
+        "exportMs": 8.3e-05,
+        "pngMs": 0,
+        "prepareMs": 0.739875,
+        "rasterMs": 0,
+        "svgMs": 2.427708,
+        "syncMs": 0.096833
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 12.1535,
+      "bytes": 397182,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 14,
+      "requestMs": 15,
+      "round": 1,
+      "timings": {
+        "base64Ms": 0.141042,
+        "compileMs": 1.023167,
+        "exportMs": 0,
+        "pngMs": 7.874083999999999,
+        "prepareMs": 0.8108339999999999,
+        "rasterMs": 2.1810820000000004,
+        "svgMs": 0,
+        "syncMs": 0.12237500000000001
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 7.612792,
+      "bytes": 16046425,
+      "encoding": "rgba",
+      "frameMs": 28,
+      "pages": 2,
+      "prepareMs": 4,
+      "requestMs": 13,
+      "round": 2,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.788459,
+        "exportMs": 8.3e-05,
+        "pngMs": 0,
+        "prepareMs": 0.7775,
+        "rasterMs": 2.35725,
+        "svgMs": 0,
+        "syncMs": 0.136875
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 4.320125,
+      "bytes": 248059,
+      "encoding": "svg",
+      "frameMs": 33,
+      "pages": 2,
+      "prepareMs": 13,
+      "requestMs": 6,
+      "round": 2,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.972458,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.766042,
+        "rasterMs": 0,
+        "svgMs": 2.490834,
+        "syncMs": 0.090542
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 14.486,
+      "bytes": 397767,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 14.000000000000455,
+      "requestMs": 17,
+      "round": 2,
+      "timings": {
+        "base64Ms": 0.180291,
+        "compileMs": 0.96725,
+        "exportMs": 0,
+        "pngMs": 10.230958,
+        "prepareMs": 0.7650410000000001,
+        "rasterMs": 2.1947509999999997,
+        "svgMs": 0,
+        "syncMs": 0.146
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 12.308708999999999,
+      "bytes": 298780,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 12,
+      "requestMs": 14,
+      "round": 2,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.030042,
+        "exportMs": 0.000375,
+        "pngMs": 8.100666,
+        "prepareMs": 0.7951250000000001,
+        "rasterMs": 2.263916,
+        "svgMs": 0,
+        "syncMs": 0.117167
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 5.2355,
+      "bytes": 249233,
+      "encoding": "svg",
+      "frameMs": 29,
+      "pages": 2,
+      "prepareMs": 13,
+      "requestMs": 7,
+      "round": 3,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.7806250000000001,
+        "exportMs": 8.3e-05,
+        "pngMs": 0,
+        "prepareMs": 0.7689170000000001,
+        "rasterMs": 0,
+        "svgMs": 2.588874,
+        "syncMs": 0.09674999999999999
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 12.01425,
+      "bytes": 398562,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 13.999999999999545,
+      "requestMs": 14.000000000000455,
+      "round": 3,
+      "timings": {
+        "base64Ms": 0.136459,
+        "compileMs": 0.977667,
+        "exportMs": 4.1e-05,
+        "pngMs": 7.729917,
+        "prepareMs": 0.7865409999999999,
+        "rasterMs": 2.255291,
+        "svgMs": 0,
+        "syncMs": 0.126709
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 15.482292,
+      "bytes": 299349,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 12,
+      "requestMs": 17,
+      "round": 3,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.018709,
+        "exportMs": 0,
+        "pngMs": 11.175374,
+        "prepareMs": 0.806792,
+        "rasterMs": 2.2835,
+        "svgMs": 0,
+        "syncMs": 0.196333
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 6.921875,
+      "bytes": 16046439,
+      "encoding": "rgba",
+      "frameMs": 33,
+      "pages": 2,
+      "prepareMs": 3.0000000000004547,
+      "requestMs": 12,
+      "round": 3,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0013750000000001,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.921583,
+        "rasterMs": 2.263667,
+        "svgMs": 0,
+        "syncMs": 0.119416
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 13.403709,
+      "bytes": 399096,
+      "encoding": "dataurl",
+      "frameMs": 62,
+      "pages": 2,
+      "prepareMs": 13,
+      "requestMs": 16,
+      "round": 4,
+      "timings": {
+        "base64Ms": 0.151334,
+        "compileMs": 1.7545,
+        "exportMs": 4.2e-05,
+        "pngMs": 8.044291,
+        "prepareMs": 0.8924169999999999,
+        "rasterMs": 2.4332909999999996,
+        "svgMs": 0,
+        "syncMs": 0.126292
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 12.869709,
+      "bytes": 299741,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 12,
+      "requestMs": 14,
+      "round": 4,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.075,
+        "exportMs": 0,
+        "pngMs": 8.440042,
+        "prepareMs": 0.83875,
+        "rasterMs": 2.380583,
+        "svgMs": 0,
+        "syncMs": 0.133542
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 6.914917,
+      "bytes": 16046440,
+      "encoding": "rgba",
+      "frameMs": 33,
+      "pages": 2,
+      "prepareMs": 3,
+      "requestMs": 12,
+      "round": 4,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0257910000000001,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.822917,
+        "rasterMs": 2.332375,
+        "svgMs": 0,
+        "syncMs": 0.119583
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 4.591833,
+      "bytes": 249314,
+      "encoding": "svg",
+      "frameMs": 33,
+      "pages": 2,
+      "prepareMs": 13,
+      "requestMs": 6,
+      "round": 4,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.035417,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.809042,
+        "rasterMs": 0,
+        "svgMs": 2.648333,
+        "syncMs": 0.098625
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 12.861042,
+      "bytes": 300258,
+      "encoding": "png",
+      "frameMs": 45,
+      "pages": 2,
+      "prepareMs": 13,
+      "requestMs": 14,
+      "round": 5,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.741584,
+        "exportMs": 0.000125,
+        "pngMs": 7.824459,
+        "prepareMs": 0.7747919999999999,
+        "rasterMs": 2.388667,
+        "svgMs": 0,
+        "syncMs": 0.12975
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 6.949542,
+      "bytes": 16046452,
+      "encoding": "rgba",
+      "frameMs": 34,
+      "pages": 2,
+      "prepareMs": 4,
+      "requestMs": 14,
+      "round": 5,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0465419999999999,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.824542,
+        "rasterMs": 2.391917,
+        "svgMs": 0,
+        "syncMs": 0.12237500000000001
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 4.470667000000001,
+      "bytes": 250309,
+      "encoding": "svg",
+      "frameMs": 33,
+      "pages": 2,
+      "prepareMs": 13,
+      "requestMs": 7,
+      "round": 5,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.986208,
+        "exportMs": 0,
+        "pngMs": 0,
+        "prepareMs": 0.794292,
+        "rasterMs": 0,
+        "svgMs": 2.597083,
+        "syncMs": 0.092833
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 13.345332999999998,
+      "bytes": 399757,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 14,
+      "requestMs": 16,
+      "round": 5,
+      "timings": {
+        "base64Ms": 0.16825,
+        "compileMs": 0.9718749999999999,
+        "exportMs": 4.2e-05,
+        "pngMs": 9.175166,
+        "prepareMs": 0.750291,
+        "rasterMs": 2.128083,
+        "svgMs": 0,
+        "syncMs": 0.15
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 7.556833,
+      "bytes": 16046427,
+      "encoding": "rgba",
+      "frameMs": 28,
+      "pages": 2,
+      "prepareMs": 3,
+      "requestMs": 13,
+      "round": 6,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.728208,
+        "exportMs": 0,
+        "pngMs": 0,
+        "prepareMs": 0.768958,
+        "rasterMs": 2.390209,
+        "svgMs": 0,
+        "syncMs": 0.113625
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 4.361833,
+      "bytes": 252025,
+      "encoding": "svg",
+      "frameMs": 34,
+      "pages": 2,
+      "prepareMs": 12.999999999999545,
+      "requestMs": 6.000000000000455,
+      "round": 6,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.957416,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.7561669999999999,
+        "rasterMs": 0,
+        "svgMs": 2.5541250000000004,
+        "syncMs": 0.093833
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 14.660334,
+      "bytes": 401083,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 14,
+      "requestMs": 17,
+      "round": 6,
+      "timings": {
+        "base64Ms": 0.166791,
+        "compileMs": 0.969958,
+        "exportMs": 4.2e-05,
+        "pngMs": 10.40025,
+        "prepareMs": 0.76,
+        "rasterMs": 2.200375,
+        "svgMs": 0,
+        "syncMs": 0.16141699999999998
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 15.261000000000001,
+      "bytes": 301274,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 12,
+      "requestMs": 17,
+      "round": 6,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.9984580000000001,
+        "exportMs": 0,
+        "pngMs": 11.089751,
+        "prepareMs": 0.797709,
+        "rasterMs": 2.2294579999999997,
+        "svgMs": 0,
+        "syncMs": 0.143709
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 5.354875,
+      "bytes": 253155,
+      "encoding": "svg",
+      "frameMs": 29,
+      "pages": 2,
+      "prepareMs": 12,
+      "requestMs": 7,
+      "round": 7,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.8509579999999999,
+        "exportMs": 4.1e-05,
+        "pngMs": 0,
+        "prepareMs": 0.821083,
+        "rasterMs": 0,
+        "svgMs": 2.577041,
+        "syncMs": 0.1055
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 11.939333,
+      "bytes": 401686,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 14,
+      "requestMs": 15,
+      "round": 7,
+      "timings": {
+        "base64Ms": 0.163166,
+        "compileMs": 0.954916,
+        "exportMs": 4.2e-05,
+        "pngMs": 7.725125,
+        "prepareMs": 0.741583,
+        "rasterMs": 2.239499,
+        "svgMs": 0,
+        "syncMs": 0.114
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 12.266083,
+      "bytes": 301739,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 13.000000000000455,
+      "requestMs": 14,
+      "round": 7,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.033083,
+        "exportMs": 4.2e-05,
+        "pngMs": 8.085291999999999,
+        "prepareMs": 0.8000830000000001,
+        "rasterMs": 2.2359999999999998,
+        "svgMs": 0,
+        "syncMs": 0.109875
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 6.896415999999999,
+      "bytes": 16046460,
+      "encoding": "rgba",
+      "frameMs": 33,
+      "pages": 2,
+      "prepareMs": 4,
+      "requestMs": 13.000000000000455,
+      "round": 7,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0360829999999999,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.8125,
+        "rasterMs": 2.3064160000000005,
+        "svgMs": 0,
+        "syncMs": 0.119792
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 13.448417000000001,
+      "bytes": 402087,
+      "encoding": "dataurl",
+      "frameMs": 62,
+      "pages": 2,
+      "prepareMs": 13,
+      "requestMs": 16,
+      "round": 8,
+      "timings": {
+        "base64Ms": 0.153584,
+        "compileMs": 1.764459,
+        "exportMs": 4.1e-05,
+        "pngMs": 8.163834,
+        "prepareMs": 0.771708,
+        "rasterMs": 2.423583,
+        "svgMs": 0,
+        "syncMs": 0.169834
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 12.814917,
+      "bytes": 302020,
+      "encoding": "png",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 12,
+      "requestMs": 14.000000000000455,
+      "round": 8,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.10275,
+        "exportMs": 0.000167,
+        "pngMs": 8.467625,
+        "prepareMs": 0.8049580000000001,
+        "rasterMs": 2.3237500000000004,
+        "svgMs": 0,
+        "syncMs": 0.11175
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 6.953917000000001,
+      "bytes": 16046464,
+      "encoding": "rgba",
+      "frameMs": 33,
+      "pages": 2,
+      "prepareMs": 3,
+      "requestMs": 13,
+      "round": 8,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0342909999999998,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.807792,
+        "rasterMs": 2.362499,
+        "svgMs": 0,
+        "syncMs": 0.12125000000000001
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 4.711959,
+      "bytes": 254021,
+      "encoding": "svg",
+      "frameMs": 34,
+      "pages": 2,
+      "prepareMs": 13.000000000000455,
+      "requestMs": 7,
+      "round": 8,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.040834,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.811334,
+        "rasterMs": 0,
+        "svgMs": 2.7565,
+        "syncMs": 0.10291700000000001
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 13.496041,
+      "bytes": 302316,
+      "encoding": "png",
+      "frameMs": 46.000000000000455,
+      "pages": 2,
+      "prepareMs": 14,
+      "requestMs": 15,
+      "round": 9,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.8145419999999999,
+        "exportMs": 0.000125,
+        "pngMs": 8.329126,
+        "prepareMs": 0.860916,
+        "rasterMs": 2.355584,
+        "svgMs": 0,
+        "syncMs": 0.133375
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 6.942709,
+      "bytes": 16046445,
+      "encoding": "rgba",
+      "frameMs": 32.999999999999545,
+      "pages": 2,
+      "prepareMs": 3,
+      "requestMs": 11.999999999999545,
+      "round": 9,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.9738330000000001,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.763417,
+        "rasterMs": 2.303958,
+        "svgMs": 0,
+        "syncMs": 0.146875
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 4.69775,
+      "bytes": 254991,
+      "encoding": "svg",
+      "frameMs": 33,
+      "pages": 2,
+      "prepareMs": 13,
+      "requestMs": 6,
+      "round": 9,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.9903749999999999,
+        "exportMs": 0,
+        "pngMs": 0,
+        "prepareMs": 0.7559170000000001,
+        "rasterMs": 0,
+        "svgMs": 2.8311659999999996,
+        "syncMs": 0.11983300000000001
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 13.123709000000002,
+      "bytes": 402533,
+      "encoding": "dataurl",
+      "frameMs": 50,
+      "pages": 2,
+      "prepareMs": 14,
+      "requestMs": 16,
+      "round": 9,
+      "timings": {
+        "base64Ms": 0.17658300000000002,
+        "compileMs": 0.9897499999999999,
+        "exportMs": 8.3e-05,
+        "pngMs": 8.619792,
+        "prepareMs": 0.7569589999999999,
+        "rasterMs": 2.4350840000000002,
+        "svgMs": 0,
+        "syncMs": 0.141417
+      },
+      "workload": "fixture"
+    },
+    {
+      "backendMs": 62.1795,
+      "bytes": 4745651,
+      "encoding": "dataurl",
+      "frameMs": 157,
+      "pages": 5,
+      "prepareMs": 34.999999999999545,
+      "requestMs": 83.00000000000045,
+      "round": 0,
+      "timings": {
+        "base64Ms": 1.7477080000000003,
+        "compileMs": 8.105792000000001,
+        "exportMs": 0.000125,
+        "pngMs": 31.456122,
+        "prepareMs": 0.739958,
+        "rasterMs": 18.964333999999997,
+        "svgMs": 0,
+        "syncMs": 1.1620409999999999
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 41.179416,
+      "bytes": 3563430,
+      "encoding": "png",
+      "frameMs": 83.00000000000045,
+      "pages": 5,
+      "prepareMs": 19,
+      "requestMs": 46,
+      "round": 0,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.058709,
+        "exportMs": 8.3e-05,
+        "pngMs": 32.276541,
+        "prepareMs": 0.809875,
+        "rasterMs": 5.675332999999999,
+        "svgMs": 0,
+        "syncMs": 1.352375
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 16.917834,
+      "bytes": 40128615,
+      "encoding": "rgba",
+      "frameMs": 66.99999999999955,
+      "pages": 5,
+      "prepareMs": 17,
+      "requestMs": 41.999999999999545,
+      "round": 0,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.989333,
+        "exportMs": 0.000167,
+        "pngMs": 0,
+        "prepareMs": 0.7707499999999999,
+        "rasterMs": 7.177792,
+        "svgMs": 0,
+        "syncMs": 1.3145419999999999
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 15.177667000000001,
+      "bytes": 1524257,
+      "encoding": "svg",
+      "frameMs": 216,
+      "pages": 5,
+      "prepareMs": 158.0000000000009,
+      "requestMs": 19,
+      "round": 0,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.024042,
+        "exportMs": 8.3e-05,
+        "pngMs": 0,
+        "prepareMs": 0.798125,
+        "rasterMs": 0,
+        "svgMs": 12.278915999999999,
+        "syncMs": 1.072708
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 41.965500000000006,
+      "bytes": 3564071,
+      "encoding": "png",
+      "frameMs": 77,
+      "pages": 5,
+      "prepareMs": 18.99999999999909,
+      "requestMs": 47.00000000000091,
+      "round": 1,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 2.418,
+        "exportMs": 8.4e-05,
+        "pngMs": 31.379875000000002,
+        "prepareMs": 0.7756249999999999,
+        "rasterMs": 6.33225,
+        "svgMs": 0,
+        "syncMs": 1.052166
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 15.946541000000002,
+      "bytes": 40128605,
+      "encoding": "rgba",
+      "frameMs": 50,
+      "pages": 5,
+      "prepareMs": 13,
+      "requestMs": 31,
+      "round": 1,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.031167,
+        "exportMs": 8.3e-05,
+        "pngMs": 0,
+        "prepareMs": 0.779291,
+        "rasterMs": 6.424167,
+        "svgMs": 0,
+        "syncMs": 1.246167
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 14.8905,
+      "bytes": 1524364,
+      "encoding": "svg",
+      "frameMs": 200,
+      "pages": 5,
+      "prepareMs": 156,
+      "requestMs": 19,
+      "round": 1,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0315420000000002,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.7707919999999999,
+        "rasterMs": 0,
+        "svgMs": 12.078250999999998,
+        "syncMs": 1.00925
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 41.848209,
+      "bytes": 4746454,
+      "encoding": "dataurl",
+      "frameMs": 116,
+      "pages": 5,
+      "prepareMs": 35,
+      "requestMs": 62,
+      "round": 1,
+      "timings": {
+        "base64Ms": 1.6999579999999996,
+        "compileMs": 1.017,
+        "exportMs": 0.000125,
+        "pngMs": 31.176041,
+        "prepareMs": 0.786334,
+        "rasterMs": 6.007041,
+        "svgMs": 0,
+        "syncMs": 1.158375
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 17.004458,
+      "bytes": 40128606,
+      "encoding": "rgba",
+      "frameMs": 51,
+      "pages": 5,
+      "prepareMs": 14,
+      "requestMs": 32,
+      "round": 2,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 2.68975,
+        "exportMs": 0.000166,
+        "pngMs": 0,
+        "prepareMs": 0.779875,
+        "rasterMs": 6.1064989999999995,
+        "svgMs": 0,
+        "syncMs": 1.051083
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 14.787542,
+      "bytes": 1524461,
+      "encoding": "svg",
+      "frameMs": 209,
+      "pages": 5,
+      "prepareMs": 158,
+      "requestMs": 19,
+      "round": 2,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.9527920000000001,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.742375,
+        "rasterMs": 0,
+        "svgMs": 11.933874,
+        "syncMs": 1.157708
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 41.349084,
+      "bytes": 4746259,
+      "encoding": "dataurl",
+      "frameMs": 100,
+      "pages": 5,
+      "prepareMs": 30,
+      "requestMs": 62,
+      "round": 2,
+      "timings": {
+        "base64Ms": 1.5931659999999999,
+        "compileMs": 1.01575,
+        "exportMs": 0.000125,
+        "pngMs": 30.535251,
+        "prepareMs": 0.760667,
+        "rasterMs": 6.220667,
+        "svgMs": 0,
+        "syncMs": 1.2199170000000001
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 39.618791,
+      "bytes": 3563930,
+      "encoding": "png",
+      "frameMs": 83,
+      "pages": 5,
+      "prepareMs": 22,
+      "requestMs": 46,
+      "round": 2,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.030959,
+        "exportMs": 4.2e-05,
+        "pngMs": 30.943084000000002,
+        "prepareMs": 0.7903749999999999,
+        "rasterMs": 5.822625999999999,
+        "svgMs": 0,
+        "syncMs": 1.0267080000000002
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 15.808416,
+      "bytes": 1524559,
+      "encoding": "svg",
+      "frameMs": 196,
+      "pages": 5,
+      "prepareMs": 154,
+      "requestMs": 19,
+      "round": 3,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 2.428459,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.788375,
+        "rasterMs": 0,
+        "svgMs": 11.467708,
+        "syncMs": 1.123375
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 45.59525,
+      "bytes": 4746649,
+      "encoding": "dataurl",
+      "frameMs": 114,
+      "pages": 5,
+      "prepareMs": 29,
+      "requestMs": 65,
+      "round": 3,
+      "timings": {
+        "base64Ms": 1.687,
+        "compileMs": 1.01775,
+        "exportMs": 4.1e-05,
+        "pngMs": 34.607499000000004,
+        "prepareMs": 0.776917,
+        "rasterMs": 6.388249,
+        "svgMs": 0,
+        "syncMs": 1.112917
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 38.683707999999996,
+      "bytes": 3564219,
+      "encoding": "png",
+      "frameMs": 83,
+      "pages": 5,
+      "prepareMs": 19,
+      "requestMs": 43,
+      "round": 3,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0109590000000002,
+        "exportMs": 0,
+        "pngMs": 30.476292,
+        "prepareMs": 0.7755420000000001,
+        "rasterMs": 5.28454,
+        "svgMs": 0,
+        "syncMs": 1.127334
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 15.708416,
+      "bytes": 40128598,
+      "encoding": "rgba",
+      "frameMs": 50,
+      "pages": 5,
+      "prepareMs": 10,
+      "requestMs": 32,
+      "round": 3,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.109084,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.777791,
+        "rasterMs": 5.609458,
+        "svgMs": 0,
+        "syncMs": 1.047375
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 41.903709,
+      "bytes": 4747043,
+      "encoding": "dataurl",
+      "frameMs": 110,
+      "pages": 5,
+      "prepareMs": 33,
+      "requestMs": 60,
+      "round": 4,
+      "timings": {
+        "base64Ms": 1.54879,
+        "compileMs": 2.498333,
+        "exportMs": 0.000125,
+        "pngMs": 30.578542,
+        "prepareMs": 0.764417,
+        "rasterMs": 5.420083,
+        "svgMs": 0,
+        "syncMs": 1.0907499999999999
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 39.876666,
+      "bytes": 3564502,
+      "encoding": "png",
+      "frameMs": 83,
+      "pages": 5,
+      "prepareMs": 19.00000000000091,
+      "requestMs": 44,
+      "round": 4,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.005125,
+        "exportMs": 0.000125,
+        "pngMs": 31.252708000000002,
+        "prepareMs": 0.785,
+        "rasterMs": 5.664960000000001,
+        "svgMs": 0,
+        "syncMs": 1.164333
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 16.107875,
+      "bytes": 40128618,
+      "encoding": "rgba",
+      "frameMs": 50,
+      "pages": 5,
+      "prepareMs": 11,
+      "requestMs": 32,
+      "round": 4,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0237079999999998,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.782833,
+        "rasterMs": 5.5170010000000005,
+        "svgMs": 0,
+        "syncMs": 1.04925
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 15.065792,
+      "bytes": 1524667,
+      "encoding": "svg",
+      "frameMs": 217,
+      "pages": 5,
+      "prepareMs": 159,
+      "requestMs": 20,
+      "round": 4,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.99825,
+        "exportMs": 0.000167,
+        "pngMs": 0,
+        "prepareMs": 0.773417,
+        "rasterMs": 0,
+        "svgMs": 12.283168,
+        "syncMs": 1.010375
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 41.412458,
+      "bytes": 3564842,
+      "encoding": "png",
+      "frameMs": 76.00000000000091,
+      "pages": 5,
+      "prepareMs": 20,
+      "requestMs": 46,
+      "round": 5,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 2.335083,
+        "exportMs": 8.4e-05,
+        "pngMs": 31.415999999999997,
+        "prepareMs": 0.731583,
+        "rasterMs": 5.767584,
+        "svgMs": 0,
+        "syncMs": 1.156916
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 15.426,
+      "bytes": 40128596,
+      "encoding": "rgba",
+      "frameMs": 49.99999999999909,
+      "pages": 5,
+      "prepareMs": 10,
+      "requestMs": 30.99999999999909,
+      "round": 5,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.048125,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.77625,
+        "rasterMs": 5.712875,
+        "svgMs": 0,
+        "syncMs": 1.171375
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 15.163958,
+      "bytes": 1524801,
+      "encoding": "svg",
+      "frameMs": 200.0000000000009,
+      "pages": 5,
+      "prepareMs": 152,
+      "requestMs": 20,
+      "round": 5,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.9970840000000001,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.774125,
+        "rasterMs": 0,
+        "svgMs": 12.263292999999999,
+        "syncMs": 1.1288330000000002
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 43.432541,
+      "bytes": 4747502,
+      "encoding": "dataurl",
+      "frameMs": 117,
+      "pages": 5,
+      "prepareMs": 34,
+      "requestMs": 63.99999999999909,
+      "round": 5,
+      "timings": {
+        "base64Ms": 1.560292,
+        "compileMs": 0.9465,
+        "exportMs": 4.2e-05,
+        "pngMs": 33.694334,
+        "prepareMs": 0.72875,
+        "rasterMs": 5.3286679999999995,
+        "svgMs": 0,
+        "syncMs": 1.161833
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 16.337542,
+      "bytes": 40128614,
+      "encoding": "rgba",
+      "frameMs": 46,
+      "pages": 5,
+      "prepareMs": 10.99999999999909,
+      "requestMs": 31.00000000000091,
+      "round": 6,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 2.439417,
+        "exportMs": 0.00020800000000000001,
+        "pngMs": 0,
+        "prepareMs": 0.782417,
+        "rasterMs": 5.680835,
+        "svgMs": 0,
+        "syncMs": 1.01625
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 14.142584,
+      "bytes": 1526278,
+      "encoding": "svg",
+      "frameMs": 198.0000000000009,
+      "pages": 5,
+      "prepareMs": 149,
+      "requestMs": 16.99999999999909,
+      "round": 6,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.941167,
+        "exportMs": 4.1e-05,
+        "pngMs": 0,
+        "prepareMs": 0.7234999999999999,
+        "rasterMs": 0,
+        "svgMs": 11.417375,
+        "syncMs": 1.0602090000000002
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 39.193290999999995,
+      "bytes": 4748458,
+      "encoding": "dataurl",
+      "frameMs": 99.99999999999909,
+      "pages": 5,
+      "prepareMs": 28,
+      "requestMs": 58.99999999999909,
+      "round": 6,
+      "timings": {
+        "base64Ms": 1.468208,
+        "compileMs": 0.9496669999999999,
+        "exportMs": 4.2e-05,
+        "pngMs": 29.984959,
+        "prepareMs": 0.7373329999999999,
+        "rasterMs": 4.917374000000001,
+        "svgMs": 0,
+        "syncMs": 1.128334
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 37.75275,
+      "bytes": 3565540,
+      "encoding": "png",
+      "frameMs": 82,
+      "pages": 5,
+      "prepareMs": 21,
+      "requestMs": 42,
+      "round": 6,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.9803329999999999,
+        "exportMs": 0,
+        "pngMs": 30.045458,
+        "prepareMs": 0.7549170000000001,
+        "rasterMs": 4.872208,
+        "svgMs": 0,
+        "syncMs": 1.09575
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 16.337541,
+      "bytes": 1527499,
+      "encoding": "svg",
+      "frameMs": 193,
+      "pages": 5,
+      "prepareMs": 151,
+      "requestMs": 21,
+      "round": 7,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 2.3866669999999996,
+        "exportMs": 0.000125,
+        "pngMs": 0,
+        "prepareMs": 0.754291,
+        "rasterMs": 0,
+        "svgMs": 12.109249,
+        "syncMs": 1.086292
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 39.675333,
+      "bytes": 4749049,
+      "encoding": "dataurl",
+      "frameMs": 102,
+      "pages": 5,
+      "prepareMs": 34,
+      "requestMs": 59,
+      "round": 7,
+      "timings": {
+        "base64Ms": 1.588041,
+        "compileMs": 0.958125,
+        "exportMs": 0,
+        "pngMs": 30.084958999999998,
+        "prepareMs": 0.733416,
+        "rasterMs": 5.244792,
+        "svgMs": 0,
+        "syncMs": 1.0577500000000002
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 37.668917,
+      "bytes": 3565988,
+      "encoding": "png",
+      "frameMs": 84,
+      "pages": 5,
+      "prepareMs": 20,
+      "requestMs": 43,
+      "round": 7,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.972292,
+        "exportMs": 0.000125,
+        "pngMs": 29.842083,
+        "prepareMs": 0.75725,
+        "rasterMs": 5.000624,
+        "svgMs": 0,
+        "syncMs": 1.092958
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 14.51825,
+      "bytes": 40128630,
+      "encoding": "rgba",
+      "frameMs": 66.00000000000091,
+      "pages": 5,
+      "prepareMs": 14,
+      "requestMs": 38,
+      "round": 7,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0007499999999998,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.7757499999999999,
+        "rasterMs": 5.298998999999999,
+        "svgMs": 0,
+        "syncMs": 1.039916
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 41.553625,
+      "bytes": 4749264,
+      "encoding": "dataurl",
+      "frameMs": 110.00000000000091,
+      "pages": 5,
+      "prepareMs": 31,
+      "requestMs": 60,
+      "round": 8,
+      "timings": {
+        "base64Ms": 1.6963759999999999,
+        "compileMs": 2.3583749999999997,
+        "exportMs": 8.3e-05,
+        "pngMs": 30.144958000000003,
+        "prepareMs": 0.747625,
+        "rasterMs": 5.543957000000001,
+        "svgMs": 0,
+        "syncMs": 1.055584
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 38.284125,
+      "bytes": 3566142,
+      "encoding": "png",
+      "frameMs": 82.99999999999909,
+      "pages": 5,
+      "prepareMs": 18.00000000000091,
+      "requestMs": 42.99999999999909,
+      "round": 8,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.983166,
+        "exportMs": 0.000125,
+        "pngMs": 30.196917,
+        "prepareMs": 0.7706670000000001,
+        "rasterMs": 5.252458,
+        "svgMs": 0,
+        "syncMs": 1.077417
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 14.568707999999999,
+      "bytes": 40128646,
+      "encoding": "rgba",
+      "frameMs": 50.00000000000091,
+      "pages": 5,
+      "prepareMs": 11,
+      "requestMs": 33,
+      "round": 8,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 1.0062090000000001,
+        "exportMs": 0.00020800000000000001,
+        "pngMs": 0,
+        "prepareMs": 0.7761250000000001,
+        "rasterMs": 5.278542,
+        "svgMs": 0,
+        "syncMs": 1.065625
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 14.314459,
+      "bytes": 1527606,
+      "encoding": "svg",
+      "frameMs": 199.9999999999991,
+      "pages": 5,
+      "prepareMs": 147,
+      "requestMs": 18.99999999999909,
+      "round": 8,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.9575830000000001,
+        "exportMs": 0.000167,
+        "pngMs": 0,
+        "prepareMs": 0.752875,
+        "rasterMs": 0,
+        "svgMs": 11.500541,
+        "syncMs": 1.102834
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 40.205333,
+      "bytes": 3566387,
+      "encoding": "png",
+      "frameMs": 519,
+      "pages": 5,
+      "prepareMs": 452,
+      "requestMs": 45,
+      "round": 9,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 2.412375,
+        "exportMs": 0.000125,
+        "pngMs": 30.577916000000002,
+        "prepareMs": 0.7511249999999999,
+        "rasterMs": 5.401751,
+        "svgMs": 0,
+        "syncMs": 1.057584
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 15.982625,
+      "bytes": 40128610,
+      "encoding": "rgba",
+      "frameMs": 48,
+      "pages": 5,
+      "prepareMs": 10,
+      "requestMs": 34,
+      "round": 9,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.959125,
+        "exportMs": 4.2e-05,
+        "pngMs": 0,
+        "prepareMs": 0.743,
+        "rasterMs": 5.678166999999999,
+        "svgMs": 0,
+        "syncMs": 1.112042
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 14.226042,
+      "bytes": 1527707,
+      "encoding": "svg",
+      "frameMs": 189,
+      "pages": 5,
+      "prepareMs": 146,
+      "requestMs": 18,
+      "round": 9,
+      "timings": {
+        "base64Ms": 0,
+        "compileMs": 0.972958,
+        "exportMs": 0,
+        "pngMs": 0,
+        "prepareMs": 0.731583,
+        "rasterMs": 0,
+        "svgMs": 11.514999,
+        "syncMs": 1.0060419999999999
+      },
+      "workload": "long"
+    },
+    {
+      "backendMs": 41.935708000000005,
+      "bytes": 4749548,
+      "encoding": "dataurl",
+      "frameMs": 104,
+      "pages": 5,
+      "prepareMs": 30.00000000000182,
+      "requestMs": 64,
+      "round": 9,
+      "timings": {
+        "base64Ms": 1.558791,
+        "compileMs": 0.956208,
+        "exportMs": 4.2e-05,
+        "pngMs": 31.956875,
+        "prepareMs": 0.735958,
+        "rasterMs": 5.634749,
+        "svgMs": 0,
+        "syncMs": 1.090125
+      },
+      "workload": "long"
+    }
+  ],
+  "scope": "Native IPC; transaction to two requestAnimationFrames after publication, not a hardware presentation timestamp. First round discarded as warm-up; app and fonts already initialized. Synthetic editor transactions, not OS keystrokes.",
+  "success": true,
+  "typing": [
+    {
+      "elapsedMs": 35,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 34,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 34,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 33.00000000000182,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 33.99999999999818,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "letter"
+    },
+    {
+      "durationMs": 652,
+      "mode": "burst",
+      "publications": 15,
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 32,
+      "mode": "burst-tail",
+      "workload": "letter"
+    },
+    {
+      "elapsedMs": 40,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 34,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 33.00000000000182,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 33.99999999999818,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 32,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 34,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 34,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 33,
+      "mode": "single",
+      "workload": "fixture"
+    },
+    {
+      "durationMs": 652,
+      "mode": "burst",
+      "publications": 15,
+      "workload": "fixture"
+    },
+    {
+      "elapsedMs": 48,
+      "mode": "burst-tail",
+      "workload": "fixture"
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "viewport": {
+    "devicePixelRatio": 2,
+    "height": 868,
+    "width": 1280
+  },
+  "visibility": "visible",
+  "environment": {
+    "platform": "darwin",
+    "release": "25.6.0",
+    "architecture": "arm64",
+    "cpu": "Apple M1 Max",
+    "totalMemoryBytes": 34359738368,
+    "binary": "/Users/nicolas/Documents/git/typstOgraphe/target/release/typstographe-web-editor-spike",
+    "git": "7f93d5fcdb2cfe300fc29aa66016499fb6646f8b",
+    "profile": "release; embedded production frontend"
+  },
+  "summary": [
+    {
+      "workload": "letter",
+      "encoding": "dataurl",
+      "pages": 1,
+      "n": 9,
+      "frameP50": 49.999999999999886,
+      "frameP95": 50,
+      "requestP50": 9,
+      "backendP50": 6.818582999999999,
+      "bytes": 244189
+    },
+    {
+      "workload": "letter",
+      "encoding": "png",
+      "pages": 1,
+      "n": 9,
+      "frameP50": 50,
+      "frameP95": 50,
+      "requestP50": 9,
+      "backendP50": 6.758542,
+      "bytes": 183366
+    },
+    {
+      "workload": "letter",
+      "encoding": "rgba",
+      "pages": 1,
+      "n": 9,
+      "frameP50": 33,
+      "frameP95": 34,
+      "requestP50": 8,
+      "backendP50": 4.064917,
+      "bytes": 8023201
+    },
+    {
+      "workload": "letter",
+      "encoding": "svg",
+      "pages": 1,
+      "n": 9,
+      "frameP50": 33,
+      "frameP95": 34.000000000000114,
+      "requestP50": 5,
+      "backendP50": 3.8761669999999997,
+      "bytes": 148441
+    },
+    {
+      "workload": "fixture",
+      "encoding": "dataurl",
+      "pages": 2,
+      "n": 9,
+      "frameP50": 50,
+      "frameP95": 62,
+      "requestP50": 16,
+      "backendP50": 13.345332999999998,
+      "bytes": 399757
+    },
+    {
+      "workload": "fixture",
+      "encoding": "png",
+      "pages": 2,
+      "n": 9,
+      "frameP50": 50,
+      "frameP95": 50,
+      "requestP50": 14.000000000000455,
+      "backendP50": 12.869709,
+      "bytes": 300258
+    },
+    {
+      "workload": "fixture",
+      "encoding": "rgba",
+      "pages": 2,
+      "n": 9,
+      "frameP50": 33,
+      "frameP95": 34,
+      "requestP50": 13,
+      "backendP50": 6.942709,
+      "bytes": 16046440
+    },
+    {
+      "workload": "fixture",
+      "encoding": "svg",
+      "pages": 2,
+      "n": 9,
+      "frameP50": 33,
+      "frameP95": 34,
+      "requestP50": 6.000000000000455,
+      "backendP50": 4.591833,
+      "bytes": 250309
+    },
+    {
+      "workload": "long",
+      "encoding": "dataurl",
+      "pages": 5,
+      "n": 9,
+      "frameP50": 110,
+      "frameP95": 117,
+      "requestP50": 62,
+      "backendP50": 41.848209,
+      "bytes": 4747502
+    },
+    {
+      "workload": "long",
+      "encoding": "png",
+      "pages": 5,
+      "n": 9,
+      "frameP50": 83,
+      "frameP95": 519,
+      "requestP50": 44,
+      "backendP50": 39.618791,
+      "bytes": 3564842
+    },
+    {
+      "workload": "long",
+      "encoding": "rgba",
+      "pages": 5,
+      "n": 9,
+      "frameP50": 50,
+      "frameP95": 66.00000000000091,
+      "requestP50": 32,
+      "backendP50": 15.946541000000002,
+      "bytes": 40128610
+    },
+    {
+      "workload": "long",
+      "encoding": "svg",
+      "pages": 5,
+      "n": 9,
+      "frameP50": 199.9999999999991,
+      "frameP95": 217,
+      "requestP50": 19,
+      "backendP50": 14.8905,
+      "bytes": 1524801
+    }
+  ]
+}

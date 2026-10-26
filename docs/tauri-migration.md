@@ -458,3 +458,22 @@ Le fonctionnement de l’API est décrit dans la
 | Les anciennes pages disparaissaient dès réception du PNG. | Elles restent visibles jusqu’au décodage de toutes les nouvelles pages. | Éviter un aperçu temporairement vide. |
 | Le statut de rendu pouvait annoncer la fin avant que les images soient prêtes. | Il est actualisé après publication des images décodées. | Faire correspondre le statut à ce qui est visible. |
 | Un résultat pouvait devenir périmé pendant la préparation de l’affichage. | Version, révision, identité du document et ticket de publication sont vérifiés à la fin. | Conserver un aperçu et une navigation cohérents avec le document courant. |
+
+
+## Réactivité native prioritaire — 26 octobre 2026
+
+La vitesse de l’aperçu est un critère d’architecture : le prototype doit employer
+les vrais mécanismes destinés à l’application, y compris pendant le développement.
+Le délai de frappe de 180 ms est supprimé au profit d’une file immédiate avec une
+seule compilation active et une demande pour le dernier état disponible.
+
+L’aperçu courant transmet les pixels RGBA par IPC binaire Tauri à un canvas,
+sans PNG ni base64. Le remplacement reste atomique et soumis aux contrôles de
+révision et d’identité du document. La résolution, les polices et le rendu Typst
+restent identiques. Les transports PNG et SVG servent au banc de comparaison.
+
+La décision repose sur une recette dans la fenêtre native, avec frontend embarqué,
+compilation Rust optimisée et mesures incluant la préparation de l’affichage et
+une occasion de peindre. Le profil de développement est également mesuré avec le
+même chemin de rendu. Méthode, résultats bruts, limites et procédure reproductible :
+[latence de l’aperçu Typst](tauri-preview-performance.md).

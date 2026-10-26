@@ -366,3 +366,17 @@ construction TypeScript/Vite et formatage Prettier réussis. Les captures de
 l’ancien aperçu maintenu pendant le décodage et de l’aperçu actualisé ont été
 inspectées. Les optimisations de l’encodage Rust sont conservées ; aucune
 nouvelle recette native macOS/Windows/Linux n’est revendiquée dans ce lot.
+
+
+## Aperçu RGBA natif — 26 octobre 2026
+
+Le rendu interactif utilise désormais les pixels RGBA par IPC binaire vers un
+canvas. Les captures [claire](preview-rgba-light.png) et
+[sombre](preview-rgba-dark.png) montrent le parcours réel du navigateur, vérifié
+visuellement après édition d’une note, d’une légende et d’un tableau. Les
+compteurs de ces captures utilisent le relais fonctionnel STDIO/SSE et ne servent
+pas à chiffrer la latence native.
+
+La [recette native et ses résultats](../tauri-preview-performance.md) comparent
+quatre transports dans la vraie fenêtre Tauri, avec les mesures optimisées et de
+développement, la frappe continue, les limites et les rapports bruts.

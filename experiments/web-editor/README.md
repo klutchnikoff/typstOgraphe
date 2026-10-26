@@ -30,6 +30,24 @@ Pour un essai indépendant :
 npm run tauri -- dev -- -- --session-dir /chemin/absolu/vers/un/dossier-essai
 ```
 
+## Mesurer et tester la réactivité native
+
+L’aperçu utilise le vrai rendu Typst et le transfert RGBA binaire vers un canvas,
+sans délai de frappe. Pour tester le frontend embarqué avec Rust optimisé :
+
+```sh
+npm run build
+cargo build --release --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol
+../../target/release/typstographe-web-editor-spike
+```
+
+`npm run test:preview-native` lance le banc de comparaison dans une session
+isolée. La fenêtre doit rester visible et l’écran déverrouillé. Sur macOS,
+`caffeinate -di npm run test:preview-native` empêche la mise en veille automatique
+pendant cette recette. Les mesures du relais HTTP des tests de navigateur ne
+représentent pas celles du transport Tauri natif. Voir la
+[méthode et les résultats](../../docs/tauri-preview-performance.md).
+
 ## Édition et rendu
 
 - Paragraphes, titres 1–3, gras, italique, liens, listes non imbriquées.
