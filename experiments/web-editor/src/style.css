@@ -168,12 +168,17 @@ main {
 }
 .table-tools {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  white-space: nowrap;
   gap: 2px;
   padding: 6px 12px;
   background: var(--soft);
   border-bottom: 1px solid var(--border);
   font-size: 12px;
+}
+.table-tools button {
+  flex-shrink: 0;
 }
 .table-tools[data-active='false'] {
   visibility: hidden;

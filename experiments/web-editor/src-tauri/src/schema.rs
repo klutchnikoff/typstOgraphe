@@ -63,8 +63,12 @@ fn limits(node: &Node, depth: usize, count: &mut usize) -> Result<(), String> {
     if node.kind != "text" && node.text.is_some() {
         return Err("Texte hors d'un nœud texte.".into());
     }
-    if node.kind != "text" && !node.marks.is_empty() {
-        return Err("Style hors d'un nœud texte.".into());
+    if !matches!(
+        node.kind.as_str(),
+        "text" | "softBreak" | "hardBreak" | "footnote"
+    ) && !node.marks.is_empty()
+    {
+        return Err("Style hors d'un contenu en ligne.".into());
     }
     for child in &node.content {
         limits(child, depth + 1, count)?;
@@ -168,47 +172,44 @@ fn inline(nodes: &[Node]) -> Result<String, String> {
     nodes
         .iter()
         .map(|node| {
-            Ok(match node.kind.as_str() {
+            let text = match node.kind.as_str() {
                 "text" => {
                     if !node.content.is_empty() {
                         return Err("Un texte ne contient pas de blocs.".into());
                     }
-                    let mut text = format!(
+                    format!(
                         "#text({})",
                         typst_string(node.text.as_deref().unwrap_or_default())
-                    );
-                    for mark in &node.marks {
-                        text = match mark.kind.as_str() {
-                            "bold" => format!("#strong[{text}]"),
-                            "italic" => format!("#emph[{text}]"),
-                            "link" => {
-                                let url = mark
-                                    .attrs
-                                    .as_ref()
-                                    .and_then(|v| v.get("href"))
-                                    .and_then(Value::as_str)
-                                    .unwrap_or("");
-                                if !["https://", "http://", "mailto:"]
-                                    .iter()
-                                    .any(|prefix| url.starts_with(prefix))
-                                {
-                                    return Err(
-                                        "Le lien doit utiliser http, https ou mailto.".into()
-                                    );
-                                }
-                                format!("#link({})[{text}]", typst_string(url))
-                            }
-                            other => return Err(format!("Style non pris en charge : {other}")),
-                        };
-                    }
-                    text
+                    )
                 }
                 "hardBreak" if node.content.is_empty() => "#linebreak()".into(),
-                "softBreak" if node.content.is_empty() => " ".into(),
+                "softBreak" if node.content.is_empty() => "#text(\" \")".into(),
                 "footnote" if node.content.is_empty() => {
                     format!("#footnote[#text({})]", typst_string(node.string("text")?))
                 }
                 other => return Err(format!("Contenu en ligne non pris en charge : {other}")),
+            };
+            node.marks.iter().try_fold(text, |text, mark| {
+                Ok(match mark.kind.as_str() {
+                    "bold" => format!("#strong[{text}]"),
+                    "italic" => format!("#emph[{text}]"),
+                    "link" => {
+                        let url = mark
+                            .attrs
+                            .as_ref()
+                            .and_then(|v| v.get("href"))
+                            .and_then(Value::as_str)
+                            .unwrap_or("");
+                        if !["https://", "http://", "mailto:"]
+                            .iter()
+                            .any(|prefix| url.starts_with(prefix))
+                        {
+                            return Err("Le lien doit utiliser http, https ou mailto.".into());
+                        }
+                        format!("#link({})[{text}]", typst_string(url))
+                    }
+                    other => return Err(format!("Style non pris en charge : {other}")),
+                })
             })
         })
         .collect::<Result<Vec<_>, String>>()
@@ -257,7 +258,16 @@ mod tests {
         );
         assert_eq!(
             source(&document, &Assets::default()).unwrap(),
-            "#par[#text(\"a\") #text(\"b\")#linebreak()#text(\"c\")]"
+            "#par[#text(\"a\")#text(\" \")#text(\"b\")#linebreak()#text(\"c\")]"
         );
+    }
+    #[test]
+    fn pasted_inline_annotations_can_keep_their_surrounding_style() {
+        let document = node(
+            serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"hardBreak","marks":[{"type":"bold"}]},{"type":"footnote","attrs":{"text":"Annotation"},"marks":[{"type":"italic"}]}]}]}),
+        );
+        let source = source(&document, &Assets::default()).unwrap();
+        assert!(source.contains("#strong[#linebreak()]"));
+        assert!(source.contains("#emph[#footnote[#text(\"Annotation\")]]"));
     }
 }

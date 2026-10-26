@@ -175,6 +175,9 @@ test('sélection entre blocs et saisie sur un document plus long', async ({ page
   })
   await page.keyboard.type('Un test de saisie après cent paragraphes.', { delay: 30 })
   await page.waitForTimeout(100)
+  await expect
+    .poll(() => page.locator('#render-status').textContent(), { timeout: 60_000 })
+    .toMatch(/\d+ pages? · \d+ ms/)
   const result = await page.evaluate(() => {
     const metrics = (window as unknown as { __latency: { samples: number[]; stop: () => void } })
       .__latency
