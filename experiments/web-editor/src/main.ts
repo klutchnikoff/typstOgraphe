@@ -14,6 +14,8 @@ import { mountShell, type Catalogue } from './shell'
 import { documentType, initializeSettings, settingsFor } from './state'
 import { previewController } from './preview'
 import { installMenus } from './menus'
+import { BandHost } from './band-layout'
+import { propertyPanel } from './properties'
 import './style.css'
 
 export interface Preview {
@@ -38,7 +40,6 @@ app.innerHTML = `
   <main><section class="writing" aria-label="Éditeur du document">
     <nav id="toolbar" aria-label="Mise en forme"></nav>
     <div class="document-info"><span>Courrier personnel</span><span>Français · A4 · Modèle local</span></div>
-    <form id="properties" class="properties" hidden><div class="panel-title"><strong id="property-title"></strong><button type="button" id="close-properties" aria-label="Fermer les paramètres">×</button></div><label id="property-label" for="property-value"></label><textarea id="property-value" rows="3"></textarea><div class="panel-actions"><button type="button" id="remove-block" class="danger">Supprimer</button><button type="button" id="cancel-properties">Annuler</button><button type="submit" class="primary">Appliquer</button></div><p id="property-error" role="alert"></p></form>
     <div id="editor-scroll"><div id="editor"></div></div>
   </section><div class="splitter" role="separator" tabindex="0" aria-label="Largeur des colonnes" aria-orientation="vertical" aria-valuemin="10" aria-valuemax="90" aria-valuenow="50"></div>
   <section class="preview" aria-label="Aperçu Typst"><div class="preview-title"><strong>Aperçu Typst</strong><span id="render-status" role="status">Préparation…</span></div><div id="pages"><p class="empty">Le rendu du document apparaîtra ici.</p></div></section></main>
@@ -67,7 +68,7 @@ const host = window.__SPIKE_TRANSPORT__ ??
   }
 const provider = new Provider(host.id, host.transport)
 let editor: Editor
-let property: { pos: number; kind: string; original: string } | undefined
+let properties: ReturnType<typeof propertyPanel> | undefined
 let timer: ReturnType<typeof setTimeout>
 let rendering = false
 let dirty = false
@@ -88,123 +89,9 @@ function propertyTarget(): { pos: number; kind: string } | undefined {
   const widget = widgetTarget(editor)
   return widget ? { pos: widget.pos, kind: widget.node.type.name } : undefined
 }
-function openProperties(pos: number, kind: string) {
-  const node = editor.state.doc.nodeAt(pos)
-  if (!node || (kind !== 'link' && node.type.name !== kind)) return
-  const original =
-    kind === 'link'
-      ? editor.getAttributes('link').href || ''
-      : kind === 'figure'
-        ? node.attrs.alt
-        : kind === 'orderedList'
-          ? String(node.attrs.start || 1)
-          : node.attrs.text || ''
-  property = { pos, kind, original }
-  element('property-title').textContent =
-    kind === 'link'
-      ? tr('Lien')
-      : kind === 'figure'
-        ? tr('Paramètres de l’image')
-        : kind === 'footnote'
-          ? tr('Note de bas de page')
-          : contentCatalogue.entries.find((c) => c.node === kind)?.label || tr('Paramètres du bloc')
-  element('property-label').textContent =
-    kind === 'link'
-      ? tr('Adresse du lien')
-      : kind === 'figure'
-        ? tr('Texte alternatif')
-        : kind === 'footnote'
-          ? tr('Texte de la note')
-          : kind === 'orderedList'
-            ? tr('Numéro initial')
-            : tr('La présentation est définie par le modèle.')
-  const editable = ['link', 'figure', 'footnote', 'orderedList'].includes(kind)
-  element('property-value').hidden = !editable
-  element<HTMLTextAreaElement>('property-value').value = original
-  element('property-error').textContent = ''
-  element('properties').hidden = false
-  element<HTMLTextAreaElement>('property-value').focus()
+function openProperties(pos: number, kind: string, remove = false) {
+  properties?.open(pos, kind, remove)
 }
-function closeProperties(focus = true) {
-  const pos = property?.pos
-  property = undefined
-  element('properties').hidden = true
-  if (focus && pos !== undefined)
-    editor.chain().focus().setTextSelection(Math.min(pos, editor.state.doc.content.size)).run()
-}
-element<HTMLFormElement>('properties').addEventListener('submit', (event) => {
-  event.preventDefault()
-  if (!property) return
-  const { pos, kind, original } = property
-  if (kind === 'link') {
-    const url = element<HTMLTextAreaElement>('property-value').value.trim()
-    if (!['https://', 'http://', 'mailto:'].some((prefix) => url.startsWith(prefix))) {
-      element('property-error').textContent = tr('Utilisez une adresse http, https ou mailto.')
-      return
-    }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
-    closeProperties()
-    return
-  }
-  const node = editor.state.doc.nodeAt(pos)
-  if (!['figure', 'footnote', 'orderedList'].includes(kind)) {
-    closeProperties()
-    return
-  }
-  if (kind === 'orderedList') {
-    const value = Number(element<HTMLTextAreaElement>('property-value').value)
-    if (!Number.isInteger(value) || value < 1 || value > 10000) {
-      element('property-error').textContent = tr('Numéro initial entre 1 et 10 000.')
-      return
-    }
-    if (!node || String(node.attrs.start || 1) !== original) {
-      element('property-error').textContent = tr('Le bloc a changé.')
-      return
-    }
-    editor.view.dispatch(
-      editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, start: value }),
-    )
-    closeProperties()
-    return
-  }
-  const key = kind === 'figure' ? 'alt' : 'text'
-  if (!node || node.type.name !== kind || node.attrs[key] !== original) {
-    element('property-error').textContent = tr(
-      'Ce bloc a été modifié ailleurs. Fermez puis rouvrez ses paramètres.',
-    )
-    return
-  }
-  const value = element<HTMLTextAreaElement>('property-value').value
-  editor.view.dispatch(
-    editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, [key]: value }),
-  )
-  closeProperties()
-})
-element('properties').addEventListener('keydown', (event) => {
-  if (event.isComposing) return
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    closeProperties()
-  }
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    element<HTMLFormElement>('properties').requestSubmit()
-  }
-})
-for (const id of ['close-properties', 'cancel-properties'])
-  element(id).addEventListener('click', () => closeProperties())
-element('remove-block').addEventListener('click', () => {
-  if (!property) return
-  if (property.kind === 'link') {
-    editor.chain().focus().extendMarkRange('link').unsetLink().run()
-    closeProperties()
-    return
-  }
-  const node = editor.state.doc.nodeAt(property.pos)
-  if (node?.type.name === property.kind)
-    editor.view.dispatch(editor.state.tr.delete(property.pos, property.pos + node.nodeSize))
-  closeProperties()
-})
 
 let commands: Registry = new Map()
 let contentCatalogue: Catalogue
@@ -354,6 +241,10 @@ element<HTMLInputElement>('image-file').addEventListener('change', (event) =>
       data: Array.from(new Uint8Array(await file.arrayBuffer())),
     })
     provider.addResource(resource)
+    if (properties?.replaceImage(resource.path)) {
+      element<HTMLInputElement>('image-file').value = ''
+      return
+    }
     editor
       .chain()
       .focus()
@@ -418,11 +309,8 @@ async function start() {
     ['connection', 'Connecté'],
     ['save', 'Enregistrer'],
     ['export', 'Exporter'],
-    ['remove-block', 'Supprimer'],
-    ['cancel-properties', 'Annuler'],
   ])
     element(id).textContent = tr(label)
-  element('properties').querySelector('button[type=submit]')!.textContent = tr('Appliquer')
   document.querySelector('.preview-title strong')!.textContent = tr('Aperçu Typst')
   const schema = getSchema(baseExtensions((path) => provider.imageURL(path)))
   const bootstrap = await provider.start((fixture) => {
@@ -439,12 +327,17 @@ async function start() {
         'aria-label': tr('Corps du document'),
         role: 'textbox',
         'aria-multiline': 'true',
-        spellcheck: 'true',
+        spellcheck: 'false',
       },
       handleKeyDown: (_view, event) => {
         if (event.isComposing || editor.view.composing) return false
         if (widgetKey(editor, event)) return true
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+          if (bands.isOpen) {
+            event.preventDefault()
+            bands.focus()
+            return true
+          }
           if (openCorrection(editor)) {
             event.preventDefault()
             return true
@@ -460,14 +353,6 @@ async function start() {
       },
     },
     onTransaction: ({ transaction }) => {
-      if (property) {
-        property.pos = transaction.mapping.map(property.pos)
-        if (
-          property.kind !== 'link' &&
-          editor.state.doc.nodeAt(property.pos)?.type.name !== property.kind
-        )
-          closeProperties(false)
-      }
       refresh()
     },
     onUpdate: schedule,
@@ -476,6 +361,25 @@ async function start() {
       preview?.selection()
     },
   })
+  const bands = new BandHost(editor)
+  properties = propertyPanel(editor, bands, contentCatalogue, () =>
+    element<HTMLInputElement>('image-file').click(),
+  )
+  document.addEventListener('band:open-inline', (event) => {
+    const detail = (
+      event as CustomEvent<{
+        panel: HTMLElement
+        from: number
+        to: number
+        close: () => void
+        target: () => { from: number; to: number } | null
+      }>
+    ).detail
+    bands.open(detail.panel, detail.from, detail.to, false, detail.close)
+    detail.target = () => bands.forPanel(detail.panel)
+    bands.focus()
+  })
+  document.addEventListener('band:close', () => bands.close())
   preview = previewController(editor, provider, host.transport, () => version)
   initializeSettings(provider, contentCatalogue, bootstrap.settings)
   commands = createRegistry(
@@ -491,6 +395,10 @@ async function start() {
     shortcut: 'Mod+Enter',
     run: () => {
       if (editor.view.composing) return
+      if (bands.isOpen) {
+        bands.focus()
+        return
+      }
       if (openCorrection(editor)) return
       const target = propertyTarget()
       if (target) openProperties(target.pos, target.kind)

@@ -8,20 +8,24 @@ import {
 } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { ListItem } from '@tiptap/extension-list'
-import { TableKit } from '@tiptap/extension-table'
+import { TableKit, Table, TableView } from '@tiptap/extension-table'
 import Collaboration from '@tiptap/extension-collaboration'
 import Caret from '@tiptap/extension-collaboration-caret'
 import type { Provider } from './provider'
-import { simpleWidgets, widgetBar } from './widgets'
+import { simpleWidgets, widgetBar, bandSlot } from './widgets'
 import { tr } from './i18n'
 import { Proofing } from './proofing'
+import { DocumentInput } from './editing'
+import { ContextBand } from './band-layout'
 
 export function baseExtensions(
   imageURL: (path: string) => string,
-  properties: (pos: number, kind: string) => void = () => {},
+  properties: (pos: number, kind: string, remove?: boolean) => void = () => {},
 ): Extensions {
   return [
     Proofing,
+    ContextBand,
+    DocumentInput,
     ListItem.extend({ content: 'paragraph+' }),
     ...simpleWidgets(properties),
     // Comme dans l'éditeur existant : une fin de ligne reste dans le paragraphe.
@@ -48,24 +52,6 @@ export function baseExtensions(
           markInputRule({ find: /(?:^|\s)(\*([^*]+)\*)$/, type: this.editor.schema.marks.bold }),
         ]
       },
-      addKeyboardShortcuts() {
-        return {
-          Enter: () => {
-            const { selection } = this.editor.state
-            const { $from } = selection
-            // Titres, cellules, listes et légendes gardent leur navigation structurelle.
-            if ($from.parent.type.name !== 'paragraph' || $from.depth !== 1) return false
-            if (selection.empty && $from.nodeBefore?.type.name === 'softBreak') {
-              return this.editor
-                .chain()
-                .deleteRange({ from: $from.pos - 1, to: $from.pos })
-                .splitBlock()
-                .run()
-            }
-            return this.editor.commands.insertContent({ type: 'softBreak' })
-          },
-        }
-      },
     }),
     StarterKit.configure({
       undoRedo: false,
@@ -81,7 +67,17 @@ export function baseExtensions(
       horizontalRule: false,
       link: { openOnClick: false },
     }),
-    TableKit.configure({ table: { resizable: false } }),
+    TableKit.configure({ table: false }),
+    Table.extend({
+      addNodeView() {
+        return ({ node, view, getPos }) => {
+          const table = new TableView(node, this.options.cellMinWidth, view)
+          table.dom.classList.add('content-widget', 'widget-table')
+          table.dom.prepend(bandSlot(), widgetBar('table', tr('Tableau'), getPos, properties))
+          return table
+        }
+      },
+    }).configure({ resizable: false }),
     Node.create({
       name: 'footnote',
       group: 'inline',
@@ -170,10 +166,12 @@ export function baseExtensions(
           image.draggable = false
           const caption = document.createElement('figcaption')
           caption.dataset.placeholder = tr('Légende facultative')
-          dom.append(bar, image, caption)
+          dom.append(bandSlot(), bar, image, caption)
           return {
             dom,
             contentDOM: caption,
+            ignoreMutation: (mutation) =>
+              mutation.type !== 'selection' && !caption.contains(mutation.target),
             update(next) {
               if (next.type.name !== 'figure') return false
               image.src = imageURL(next.attrs.src)
@@ -188,7 +186,7 @@ export function baseExtensions(
 
 export async function collaborativeExtensions(
   provider: Provider,
-  properties: (pos: number, kind: string) => void,
+  properties: (pos: number, kind: string, remove?: boolean) => void,
 ): Promise<Extensions> {
   return [
     ...baseExtensions((path) => provider.imageURL(path), properties),

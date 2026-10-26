@@ -1,6 +1,6 @@
 import { tr } from './i18n'
 import type { Editor, JSONContent } from '@tiptap/core'
-import { description } from './widgets'
+import { insertList, insertQuote } from './editing'
 export interface Capability {
   id: string
   label: string
@@ -44,42 +44,16 @@ export function createRegistry(
     },
     'text.link': () => properties(editor.state.selection.from, 'link'),
     'block.bullet': () => {
-      editor.chain().focus().toggleBulletList().run()
+      insertList(editor, 'bulletList')
     },
     'block.numbered': () => {
-      editor.chain().focus().toggleOrderedList().run()
+      insertList(editor, 'orderedList')
     },
     'block.description': () => {
-      editor.chain().focus().insertContent(description()).run()
+      insertList(editor, 'descriptionList')
     },
     'block.quote': () => {
-      const { from, to, $from, $to, empty } = editor.state.selection
-      const selected = editor.state.doc.slice(from, to).content
-      let content: JSONContent[] = []
-      if (!empty) {
-        if ($from.sameParent($to)) content = [{ type: 'paragraph', content: selected.toJSON() }]
-        else
-          selected.forEach((node) => {
-            if (node.isTextblock)
-              content.push({ type: 'paragraph', content: node.content.toJSON() })
-            else if (node.textContent)
-              content.push({
-                type: 'paragraph',
-                content: [{ type: 'text', text: node.textContent }],
-              })
-          })
-      }
-      editor
-        .chain()
-        .focus()
-        .insertContent({
-          type: 'quote',
-          content: [
-            ...(content.length ? content : [{ type: 'paragraph' }]),
-            { type: 'quoteAttribution' },
-          ],
-        })
-        .run()
+      insertQuote(editor)
     },
     'insert.image': image,
     'insert.table': () => {

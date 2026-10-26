@@ -177,100 +177,119 @@ export function mountProofing(
   editor.on('update', check)
   provider.doc.getMap('settings').observe(check)
   check()
+  let requestTicket = 0
   document.addEventListener('proofing:open', (event) => {
     const issue = (event as CustomEvent<Hit>).detail
-    void (async () => {
-      if (issue.from < 0 || issue.to > editor.state.doc.content.size) return
-      const original = editor.state.doc.textBetween(issue.from, issue.to)
-      if (original !== issue.word) return
-      const settings = settingsFor(provider),
-        language = String(settings.metadata.fields.options.language)
-      const suggestions = await transport.invoke<string[]>('spelling_suggestions', {
-        language,
-        word: issue.word,
-      })
-      document.querySelector<HTMLElement>('#properties')!.hidden = true
-      document.querySelector('#proofing-band')?.remove()
-      const band = document.createElement('section')
-      band.id = 'proofing-band'
-      band.className = 'properties'
-      const title = document.createElement('strong')
-      title.textContent = `Orthographe · ${issue.word}`
-      const actions = document.createElement('div')
-      actions.className = 'panel-actions'
-      const close = () => {
-        band.remove()
-        editor.commands.focus()
+    if (
+      editor.view.composing ||
+      issue.to > editor.state.doc.content.size ||
+      editor.state.doc.textBetween(issue.from, issue.to) !== issue.word
+    )
+      return
+    const ticket = ++requestTicket
+    const language = String(settingsFor(provider).metadata.fields.options.language)
+    const band = document.createElement('section')
+    band.id = 'proofing-band'
+    band.className = 'properties'
+    band.tabIndex = -1
+    const title = document.createElement('div')
+    title.className = 'panel-title'
+    const heading = document.createElement('strong')
+    const kind = document.createElement('span')
+    kind.className = 'band-kind'
+    kind.textContent = tr('Orthographe')
+    heading.append(kind, document.createTextNode(`« ${issue.word} »`))
+    const cancel = document.createElement('button')
+    cancel.type = 'button'
+    cancel.textContent = '×'
+    cancel.setAttribute('aria-label', tr('Fermer la correction'))
+    const error = document.createElement('p')
+    error.setAttribute('role', 'alert')
+    const choices = document.createElement('div')
+    choices.className = 'suggestions'
+    choices.textContent = tr('Recherche de suggestions…')
+    const actions = document.createElement('div')
+    actions.className = 'panel-actions'
+    const request = {
+      panel: band,
+      from: issue.from,
+      to: issue.to,
+      close: () => band.remove(),
+      target: (): { from: number; to: number } | null => null,
+    }
+    const close = () => {
+      if (request.target()) document.dispatchEvent(new Event('band:close'))
+    }
+    const valid = () => {
+      const range = request.target()
+      if (!range) return null
+      if (range.from > range.to || range.to > editor.state.doc.content.size) return null
+      if (
+        String(settingsFor(provider).metadata.fields.options.language) !== language ||
+        editor.state.doc.textBetween(range.from, range.to) !== issue.word
+      ) {
+        error.textContent = tr('Le mot a changé : rouvrez la correction.')
+        return null
       }
-      const choices: HTMLButtonElement[] = []
-      for (const suggestion of suggestions.slice(0, 6)) {
-        const button = document.createElement('button')
-        button.textContent = suggestion
-        button.onclick = () => {
-          if (
-            issue.to > editor.state.doc.content.size ||
-            editor.state.doc.textBetween(issue.from, issue.to) !== issue.word
-          ) {
-            message(tr('Le mot a changé : rouvrez la correction.'), true)
+      return range
+    }
+    cancel.onclick = close
+    title.append(heading, cancel)
+    const ignore = document.createElement('button')
+    ignore.textContent = tr('Ignorer dans ce document')
+    ignore.onclick = () => {
+      if (!valid()) return
+      const ignored = structuredClone(
+        (settingsFor(provider).metadata.fields.options.spelling_ignored || {}) as Record<
+          string,
+          string[]
+        >,
+      )
+      ignored[language] = [...new Set([...(ignored[language] || []), issue.word])]
+      setSetting(provider, 'options.spelling_ignored', ignored)
+      close()
+      check()
+    }
+    const add = document.createElement('button')
+    add.textContent = tr('Ajouter au dictionnaire personnel')
+    add.onclick = () => {
+      if (!valid()) return
+      void savePersonal(issue.word, language)
+        .then(() => {
+          personal[language] = [...(personal[language] || []), issue.word]
+          close()
+          check()
+        })
+        .catch((reason) => message(String(reason), true))
+    }
+    actions.append(ignore, add)
+    band.append(title, choices, actions, error)
+    document.dispatchEvent(new CustomEvent('band:open-inline', { detail: request }))
+    void transport
+      .invoke<string[]>('spelling_suggestions', { language, word: issue.word })
+      .then((suggestions) => {
+        if (ticket !== requestTicket || !request.target()) return
+        choices.replaceChildren()
+        const buttons = suggestions.slice(0, 6).map((suggestion) => {
+          const button = document.createElement('button')
+          button.textContent = suggestion
+          button.onclick = () => {
+            const range = valid()
+            if (!range) return
+            editor.commands.insertContentAt(range, { type: 'text', text: suggestion })
             close()
-            return
           }
-          editor
-            .chain()
-            .focus()
-            .insertContentAt({ from: issue.from, to: issue.to }, suggestion)
-            .run()
-          close()
-        }
-        choices.push(button)
-      }
-      const ignore = document.createElement('button')
-      ignore.textContent = tr('Ignorer dans ce document')
-      ignore.onclick = () => {
-        const ignored = structuredClone(
-          (settingsFor(provider).metadata.fields.options.spelling_ignored || {}) as Record<
-            string,
-            string[]
-          >,
-        )
-        ignored[language] = [...new Set([...(ignored[language] || []), issue.word])]
-        setSetting(provider, 'options.spelling_ignored', ignored)
-        close()
-        check()
-      }
-      const add = document.createElement('button')
-      add.textContent = tr('Ajouter au dictionnaire personnel')
-      add.onclick = () => {
-        void savePersonal(issue.word, language)
-          .then(() => {
-            personal[language] = [...(personal[language] || []), issue.word]
-            close()
-            check()
-          })
-          .catch((error) => message(String(error), true))
-      }
-      const cancel = document.createElement('button')
-      cancel.textContent = tr('Fermer')
-      cancel.onclick = close
-      const [preferred, ...alternatives] = choices
-      if (preferred) preferred.className = 'primary'
-      actions.append(ignore, add, cancel, ...alternatives)
-      if (preferred) actions.append(preferred)
-      band.append(title, actions)
-      document.querySelector('#editor-scroll')!.before(band)
-      band.tabIndex = -1
-      band.focus()
-      band.onkeydown = (e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault()
-          close()
-        }
-        if (e.key === 'Enter') {
-          e.preventDefault()
-          if (e.target instanceof HTMLButtonElement) e.target.click()
-          else preferred?.click()
-        }
-      }
-    })().catch((error) => message(String(error), true))
+          return button
+        })
+        const [preferred, ...others] = buttons
+        if (preferred) {
+          preferred.className = 'primary'
+          preferred.dataset.default = ''
+          choices.append(...others, preferred)
+        } else choices.textContent = tr('Aucune suggestion disponible.')
+      })
+      .catch((reason) => {
+        if (request.target()) error.textContent = String(reason)
+      })
   })
 }

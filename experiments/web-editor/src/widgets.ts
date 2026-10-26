@@ -18,7 +18,7 @@ export function widgetBar(
   kind: string,
   label: string,
   getPos: () => number | undefined,
-  properties: (pos: number, kind: string) => void,
+  properties: (pos: number, kind: string, remove?: boolean) => void,
 ) {
   const bar = document.createElement('div')
   bar.className = 'widget-bar'
@@ -35,11 +35,12 @@ export function widgetBar(
     button.title = `${name} · ${label}`
     button.setAttribute('aria-label', `${name} · ${label}`)
     button.innerHTML = icon(iconName)
+    button.onmousedown = (event) => {
+      if (event.button === 0) event.preventDefault()
+    }
     button.onclick = () => {
       const pos = getPos()
-      if (pos !== undefined) properties(pos, kind)
-      if (name === tr('Supprimer'))
-        document.querySelector<HTMLButtonElement>('#remove-block')?.focus()
+      if (pos !== undefined) properties(pos, kind, name === tr('Supprimer'))
     }
     bar.append(button)
   }
@@ -49,7 +50,7 @@ export function widgetView(
   kind: string,
   label: string,
   tag: string,
-  properties: (pos: number, kind: string) => void,
+  properties: (pos: number, kind: string, remove?: boolean) => void,
 ) {
   return ({ getPos, node }: { getPos: () => number | undefined; node: PMNode }) => {
     const dom = document.createElement('section')
@@ -62,13 +63,22 @@ export function widgetView(
       return true
     }
     update(node)
-    dom.append(bar, contentDOM)
-    return { dom, contentDOM, update }
+    dom.append(bandSlot(), bar, contentDOM)
+    return {
+      dom,
+      contentDOM,
+      update,
+      ignoreMutation: (mutation: import('@tiptap/pm/view').ViewMutationRecord) =>
+        mutation.type !== 'selection' && !contentDOM.contains(mutation.target),
+    }
   }
 }
-export const simpleWidgets = (properties: (pos: number, kind: string) => void) => [
+export const simpleWidgets = (
+  properties: (pos: number, kind: string, remove?: boolean) => void,
+) => [
   ...([BulletList, OrderedList] as const).map((extension) =>
     extension.extend({
+      addInputRules: () => [],
       addKeyboardShortcuts: () => ({}), // Les raccourcis publics viennent du registre.
       addAttributes() {
         const attributes = this.parent?.() || {}
@@ -152,8 +162,13 @@ export const simpleWidgets = (properties: (pos: number, kind: string) => void) =
           const contentDOM = document.createElement('div')
           contentDOM.dataset.placeholder =
             name === 'postscript' ? tr('Texte du post-scriptum…') : tr('Document joint…')
-          dom.append(bar, contentDOM)
-          return { dom, contentDOM }
+          dom.append(bandSlot(), bar, contentDOM)
+          return {
+            dom,
+            contentDOM,
+            ignoreMutation: (mutation: import('@tiptap/pm/view').ViewMutationRecord) =>
+              mutation.type !== 'selection' && !contentDOM.contains(mutation.target),
+          }
         },
     }),
   ),
@@ -273,4 +288,11 @@ export function widgetKey(editor: Editor, event: KeyboardEvent): boolean {
     return true
   }
   return false
+}
+
+export function bandSlot() {
+  const slot = document.createElement('div')
+  slot.className = 'band-slot'
+  slot.contentEditable = 'false'
+  return slot
 }
