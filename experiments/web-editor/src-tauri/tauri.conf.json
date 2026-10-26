@@ -15,11 +15,5 @@
       "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
     }
   },
-  "bundle": {
-    "active": false,
-    "windows": {
-      "nsis": { "languages": ["English", "French"] },
-      "wix": { "language": ["en-US", "fr-FR"] }
-    }
-  }
+  "bundle": { "active": false }
 }

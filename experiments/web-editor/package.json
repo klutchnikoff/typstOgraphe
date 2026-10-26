@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
     "build": "tsc --noEmit && vite build",
-    "tauri": "tauri",
-    "test": "vitest run",
+    "tauri": "node scripts/tauri.mjs",
+    "test": "vitest run && node --test scripts/native-locales.test.mjs",
     "test:browser": "playwright test",
     "test:native": "node scripts/native-recipe.mjs",
     "test:preview-native": "node scripts/preview-performance.mjs",
