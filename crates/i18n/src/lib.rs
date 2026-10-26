@@ -48,6 +48,19 @@ pub fn text(key: &str) -> String {
     loader().get(key)
 }
 
+/// Les adaptateurs web utilisent les mêmes catalogues Fluent embarqués.
+pub fn web_messages() -> std::collections::BTreeMap<String, String> {
+    let keys: std::collections::BTreeMap<String, String> =
+        serde_json::from_str(include_str!("../web-labels.json")).expect("web label catalogue");
+    keys.into_iter()
+        .map(|(source, key)| (source, text(&key)))
+        .collect()
+}
+pub fn language() -> String {
+    use i18n_embed::LanguageLoader;
+    loader().current_language().to_string()
+}
+
 /// Les messages écrits dans le code et leurs arguments sont vérifiés à la
 /// compilation par i18n-embed-fl, contre le catalogue de repli anglais.
 #[macro_export]
@@ -109,6 +122,18 @@ mod tests {
         )
     }
 
+    #[test]
+    fn web_labels_are_present_in_both_fluent_catalogues() {
+        let keys: std::collections::BTreeMap<String, String> =
+            serde_json::from_str(include_str!("../web-labels.json")).unwrap();
+        for language in ["fr", "en"] {
+            let loader = requested(&[language]);
+            for key in keys.values() {
+                assert!(!loader.get(key).is_empty());
+                assert_ne!(loader.get(key), *key, "{language}: {key}");
+            }
+        }
+    }
     #[test]
     fn negotiates_system_preferences_and_falls_back_to_english() {
         for (languages, expected, save) in [
