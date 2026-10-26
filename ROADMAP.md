@@ -32,7 +32,22 @@ regroupement de plusieurs documents indépendants.
 
 Le mot « document » peut rester celui des actions courantes dans l’interface.
 Le catalogue global référence les projets : il ne remplace pas leurs fichiers
-par un espace de stockage imposé. Son organisation graphique reste à valider.
+par un espace de stockage imposé.
+
+**Séparation d’interface validée le 27 octobre 2026 :**
+
+- **Projets** : retrouver les fichiers récents ou épinglés, rechercher par nom,
+  créer et ouvrir un projet. Retirer une entrée des récents ne supprime pas
+  le fichier.
+- **Document** : naviguer dans le projet actif, avec son plan, ses références
+  bibliographiques, ses ressources et ses versions conservées. Les rubriques
+  s’adaptent aux capacités du type ; l’arborescence technique reste masquée.
+
+La piste à maquetter s’appuie sur la barre verticale existante et un seul panneau
+latéral ouvert à la fois, avec les accès aux outils et aux préférences globales.
+« Versions » est le libellé proposé pour les snapshots. Leur consultation,
+leur comparaison et leurs actions demandent une maquette spécifique ; la
+séparation Projets/Document n’en fige pas encore la présentation détaillée.
 
 ## Priorités et dépendances
 
@@ -199,12 +214,12 @@ export autonomes, compilables sans téléchargement de paquets.
   de focus, validation, annulation et suppression ; contenus spécifiques par capacité.
 - Renforcer les parcours clavier, les lecteurs d’écran, les contrastes, l’IME,
   les petits écrans et les états sans document ou sans résultat.
-- Maquetter l’accès central aux projets récents/épinglés, puis la navigation
-  dans le projet actif : plan, ressources, références et snapshots. Clarifier
-  leur articulation avec bibliothèque globale, préférences et assistance,
-  en conservant la place de l’éditeur et de l’aperçu. Les panneaux, leur
-  emplacement et le vocabulaire utilisateur restent à valider ; le catalogue
-  ne doit pas exposer l’arborescence technique de l’archive.
+- Maquetter les deux accès validés **Projets** (catalogue global) et **Document**
+  (navigation dans le projet actif), définis plus haut. Clarifier leur
+  articulation avec bibliothèque globale, préférences et assistance, en
+  conservant la place de l’éditeur et de l’aperçu. Valider la disposition
+  détaillée et les parcours clavier, notamment la consultation d’une ancienne
+  version en lecture seule et le retour explicite au travail courant.
 - Définir l’ouverture de plusieurs documents (fenêtres ou onglets), l’impression
   et l’accès direct aux fichiers/PDF produits.
 - Définir le déplacement/duplication de blocs, le collage structuré et le collage

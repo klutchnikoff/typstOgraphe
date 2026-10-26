@@ -173,10 +173,18 @@ Conserver les conventions validées des widgets/bandeaux, menus, actions et
 raccourcis ; maqueter les extensions sur l’interface Tauri réelle. Examiner
 focus, lecture d’écran, contraste, mouvement réduit, petite fenêtre et saisie IME.
 
-Valider la maquette du catalogue global des projets et de la navigation dans
-le projet courant (plan, ressources, références, snapshots), en distinguant
-préférences/bibliothèque globales et données du projet. Ne pas déduire de ce
-cadrage un choix déjà arrêté de panneaux, de fenêtres ou d’onglets.
+**Séparation validée le 27 octobre 2026 :** l’accès **Projets** présente le
+catalogue global (récents, épinglés, recherche, création et ouverture) ; l’accès
+**Document** présente le plan, les références, les ressources et les versions du
+projet actif, selon son type. Le catalogue référence les fichiers ; retirer une
+entrée ne les supprime pas. Préférences et bibliothèque globales restent
+distinctes des données du projet.
+
+Maquetter cette séparation sur la barre verticale existante ; un seul panneau
+ouvert à la fois et le libellé « Versions » sont les pistes proposées. La
+disposition détaillée, la consultation en lecture seule, la comparaison et les
+actions de restauration restent à valider. Le choix fenêtres/onglets pour
+plusieurs projets ouverts reste lui aussi distinct de cette séparation.
 
 Les tests graphiques Chromium/WebKit vérifient le frontend ; les recettes natives
 doivent aussi couvrir WebKit macOS, WebView2 Windows et WebKitGTK Linux.
