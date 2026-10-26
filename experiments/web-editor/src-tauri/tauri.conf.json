@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "typstOgraphe — diagnostic web",
+  "version": "0.1.0",
+  "identifier": "org.typstographe.web-editor-spike",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{"label":"main", "title":"typstOgraphe — diagnostic web", "width":1280, "height":900, "minWidth":800, "minHeight":600}],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
+    }
+  },
+  "bundle": {"active":false}
+}

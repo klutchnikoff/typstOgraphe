@@ -1,0 +1,112 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "heading",
+      "attrs": { "level": 1 },
+      "content": [{ "type": "text", "text": "Préparer la rencontre" }]
+    },
+    { "type": "paragraph", "content": [{ "type": "text", "text": "Madame, Monsieur," }] },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "text", "text": "Nous souhaitons réserver la salle des Tilleuls pour une " },
+        { "type": "text", "text": "rencontre associative", "marks": [{ "type": "bold" }] },
+        {
+          "type": "text",
+          "text": ". Ce diagnostic permet de rédiger librement, avec un rendu Typst réel."
+        },
+        {
+          "type": "footnote",
+          "attrs": {
+            "text": "Les informations de ce courrier servent uniquement à l’essai de l’éditeur."
+          }
+        }
+      ]
+    },
+    {
+      "type": "bulletList",
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [{ "type": "text", "text": "Accueillir les participants" }]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [{ "type": "text", "text": "Installer la salle et le vidéoprojecteur" }]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "content": [
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableHeader",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "Équipement" }] }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "Quantité" }] }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "Places assises" }] }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "30" }] }]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "content": [
+                { "type": "paragraph", "content": [{ "type": "text", "text": "Vidéoprojecteur" }] }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "1" }] }]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "figure",
+      "attrs": { "src": "images/parc.svg", "alt": "Allée arborée et bancs du parc des Tilleuls." },
+      "content": [{ "type": "text", "text": "Le parc des Tilleuls, à proximité de la salle." }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "type": "text", "text": "Je vous remercie pour votre retour." }]
+    }
+  ]
+}

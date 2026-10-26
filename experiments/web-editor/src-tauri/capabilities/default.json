@@ -1,0 +1,6 @@
+{
+  "identifier": "local-editor",
+  "description": "Deux éditeurs locaux du diagnostic, sans accès fichier générique depuis JavaScript.",
+  "windows": ["main", "peer-*"],
+  "permissions": ["core:default"]
+}

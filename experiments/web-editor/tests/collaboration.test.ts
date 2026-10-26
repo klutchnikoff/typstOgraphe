@@ -1,0 +1,186 @@
+import { afterEach, describe, expect, it } from 'vitest'
+import { Editor, getSchema } from '@tiptap/core'
+import { prosemirrorJSONToYDoc, yUndoPluginKey } from '@tiptap/y-tiptap'
+import * as Y from 'yjs'
+import { baseExtensions, collaborativeExtensions } from '../src/extensions'
+import { Provider, stableJSON, type Bootstrap, type Transport } from '../src/provider'
+import fixture from '../fixture.json'
+
+class Host {
+  updates: number[][] = []
+  revision = 0
+  initialized = false
+  handlers = new Map<string, Map<string, ((data: unknown) => void)[]>>()
+  transport(id: string): Transport {
+    return {
+      invoke: async <T>(command: string, args?: Record<string, unknown>) => {
+        if (command === 'join') {
+          const data: Bootstrap = {
+            revision: this.revision,
+            updates: structuredClone(this.updates),
+            fixture,
+            initialize: !this.initialized,
+            resources: [],
+            restoredDocument: null,
+            sessionPath: 'test',
+          }
+          this.initialized = true
+          return data as T
+        }
+        if (command === 'relay') {
+          const update = args!.update as number[]
+          this.updates.push([...update])
+          this.revision++
+          this.emit('web-editor:change', { from: id, revision: this.revision, update: [...update] })
+          return this.revision as T
+        }
+        if (command === 'awareness')
+          this.emit('web-editor:awareness', { from: id, update: args!.update })
+        return undefined as T
+      },
+      listen: async <T>(name: string, handler: (data: T) => void) => {
+        if (!this.handlers.has(id)) this.handlers.set(id, new Map())
+        const handlers = this.handlers.get(id)!.get(name) ?? []
+        handlers.push(handler as (data: unknown) => void)
+        this.handlers.get(id)!.set(name, handlers)
+        return () => {
+          const index = handlers.indexOf(handler as (data: unknown) => void)
+          if (index >= 0) handlers.splice(index, 1)
+        }
+      },
+    }
+  }
+  emit(name: string, data: unknown) {
+    for (const listeners of this.handlers.values())
+      for (const callback of listeners.get(name) ?? []) callback(structuredClone(data))
+  }
+}
+const cleanup: (() => void)[] = []
+afterEach(() => {
+  for (const dispose of cleanup.splice(0).reverse()) dispose()
+})
+async function client(host: Host, id: string) {
+  const provider = new Provider(id, host.transport(id))
+  cleanup.push(() => provider.destroy())
+  const schema = getSchema(baseExtensions(() => ''))
+  await provider.start((content) => {
+    const seed = prosemirrorJSONToYDoc(schema, content, 'default')
+    const update = Y.encodeStateAsUpdate(seed)
+    seed.destroy()
+    return update
+  })
+  const editor = new Editor({
+    element: document.createElement('div'),
+    extensions: await collaborativeExtensions(provider, () => {}),
+  })
+  cleanup.push(() => editor.destroy())
+  yUndoPluginKey.getState(editor.state)?.undoManager.clear()
+  return { provider, editor }
+}
+function append(editor: Editor, text: string) {
+  yUndoPluginKey.getState(editor.state)?.undoManager.stopCapturing()
+  editor.commands.insertContentAt(editor.state.doc.content.size, {
+    type: 'paragraph',
+    content: [{ type: 'text', text }],
+  })
+}
+async function flush(...clients: { provider: Provider }[]) {
+  for (const c of clients) await c.provider.flush()
+}
+
+describe('deux éditeurs structurés et deux Y.Doc indépendants', () => {
+  it('distingue retour simple, nouveau paragraphe et retour forcé', async () => {
+    const host = new Host(), a = await client(host, 'main')
+    a.editor.commands.setContent({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Bonjour' }] }] })
+    a.editor.commands.setTextSelection(8)
+    expect(a.editor.commands.keyboardShortcut('Enter')).toBe(true)
+    expect(a.editor.getJSON().content?.[0].content?.at(-1)?.type).toBe('softBreak')
+    a.editor.commands.keyboardShortcut('Enter')
+    expect(a.editor.getJSON().content).toHaveLength(2)
+    a.editor.commands.insertContent('Suite')
+    a.editor.commands.keyboardShortcut('Shift-Enter')
+    expect(a.editor.getJSON().content?.[1].content?.at(-1)?.type).toBe('hardBreak')
+  })
+  it('initialise une seule fois et conserve tableaux, notes et légendes', async () => {
+    const host = new Host(),
+      a = await client(host, 'main'),
+      b = await client(host, 'peer-1')
+    await flush(a, b)
+    expect(a.provider.doc).not.toBe(b.provider.doc)
+    expect(stableJSON(a.editor.getJSON())).toBe(stableJSON(b.editor.getJSON()))
+    expect(a.editor.getText().match(/Madame, Monsieur/g)).toHaveLength(1)
+    expect(a.editor.getJSON().content?.some((node) => node.type === 'table')).toBe(true)
+    expect(a.editor.getHTML()).toContain('data-footnote')
+    expect(a.editor.getHTML()).toContain('<figcaption>')
+  })
+  it('fusionne des modifications hors ligne et annule seulement le travail local', async () => {
+    const host = new Host(),
+      a = await client(host, 'main'),
+      b = await client(host, 'peer-1')
+    await b.provider.disconnect()
+    append(a.editor, 'AJOUT CAMILLE')
+    await flush(a)
+    append(b.editor, 'AJOUT ALEX')
+    await b.provider.reconnect()
+    await flush(a, b)
+    expect(a.editor.getText()).toContain('AJOUT CAMILLE')
+    expect(a.editor.getText()).toContain('AJOUT ALEX')
+    expect(stableJSON(a.editor.getJSON())).toBe(stableJSON(b.editor.getJSON()))
+    b.editor.commands.undo()
+    await flush(a, b)
+    expect(a.editor.getText()).toContain('AJOUT CAMILLE')
+    expect(a.editor.getText()).not.toContain('AJOUT ALEX')
+    b.editor.commands.redo()
+    await flush(a, b)
+    expect(a.editor.getText()).toContain('AJOUT ALEX')
+  })
+  it('conserve deux modifications concurrentes dans la même cellule et la même légende', async () => {
+    const host = new Host(),
+      a = await client(host, 'main'),
+      b = await client(host, 'peer-1')
+    await b.provider.disconnect()
+    const position = (editor: Editor, type: string) => {
+      let found = -1
+      editor.state.doc.descendants((node, pos) => {
+        if (found < 0 && node.type.name === type) found = pos + (type === 'figure' ? 1 : 2)
+      })
+      return found
+    }
+    for (const [peer, token] of [
+      [a, 'éA'],
+      [b, 'にほんB'],
+    ] as const) {
+      peer.editor.commands.insertContentAt(position(peer.editor, 'tableCell'), token)
+      peer.editor.commands.insertContentAt(position(peer.editor, 'figure'), token)
+    }
+    await flush(a)
+    await b.provider.reconnect()
+    await flush(a, b)
+    expect(stableJSON(a.editor.getJSON())).toBe(stableJSON(b.editor.getJSON()))
+    expect(a.editor.getText()).toContain('éA')
+    expect(a.editor.getText()).toContain('にほんB')
+  })
+  it('reprend un état binaire après fermeture sans dupliquer le contenu', async () => {
+    const host = new Host(),
+      a = await client(host, 'main')
+    append(a.editor, 'Reprise vérifiée : Noël.')
+    await flush(a)
+    const expected = stableJSON(a.editor.getJSON())
+    const next = new Host()
+    next.initialized = true
+    next.updates = [Array.from(Y.encodeStateAsUpdate(a.provider.doc))]
+    const b = await client(next, 'main')
+    expect(stableJSON(b.editor.getJSON())).toBe(expected)
+    append(b.editor, 'Nouvelle session')
+    b.editor.commands.undo()
+    expect(stableJSON(b.editor.getJSON())).toBe(expected)
+  })
+  it('préserve les annotations et les styles par le presse-papier HTML de l’éditeur', async () => {
+    const host = new Host(),
+      a = await client(host, 'main')
+    const html = a.editor.getHTML()
+    const plain = new Editor({ extensions: baseExtensions(() => ''), content: html })
+    cleanup.push(() => plain.destroy())
+    expect(stableJSON(plain.getJSON())).toBe(stableJSON(a.editor.getJSON()))
+  })
+})
