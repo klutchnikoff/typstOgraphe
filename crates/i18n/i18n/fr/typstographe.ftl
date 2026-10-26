@@ -738,3 +738,4 @@ web-table = Tableau
 
 web-confirm = Valider
 web-no-extra-settings = Aucun paramètre supplémentaire à modifier.
+web-invalid-setting = Vérifiez la valeur de ce champ.

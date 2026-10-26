@@ -950,7 +950,8 @@ main {
   margin-top: 0;
 }
 .context-band input,
-.context-band textarea {
+.context-band textarea,
+.context-band select {
   width: 100%;
   padding: 7px 9px;
   border: 1px solid var(--muted);
@@ -958,6 +959,9 @@ main {
   background: var(--panel);
   color: var(--text);
   font: inherit;
+}
+.context-band input[type='checkbox'] {
+  width: auto;
 }
 .context-band .band-hint {
   color: var(--muted);

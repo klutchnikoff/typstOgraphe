@@ -10,7 +10,8 @@ import { Provider, stableJSON, ACCEPTED_PROPOSAL, type Resource, type Transport 
 import { createRegistry, toolbar, refreshCommands, type Registry } from './commands'
 import { widgetKey, widgetTarget, removeWidget } from './widgets'
 import { openCorrection, correctionAtCursor } from './proofing'
-import { hasWidgetSettings } from './widget-frame'
+import { widgetPresentations } from './widget-frame'
+import { hasSettings, settingsForNode } from './capability-settings'
 import { mountShell, type Catalogue } from './shell'
 import { documentType, initializeSettings, settingsFor } from './state'
 import { previewController } from './preview'
@@ -82,11 +83,17 @@ let preview: ReturnType<typeof previewController> | undefined
 function propertyTarget(): { pos: number; kind: string } | undefined {
   const { from } = editor.state.selection
   const at = editor.state.doc.nodeAt(from)
-  if (at?.type.name === 'footnote') return { pos: from, kind: 'footnote' }
-  if (editor.isActive('link')) return { pos: from, kind: 'link' }
   const widget = widgetTarget(editor)
-  return widget && hasWidgetSettings(widget.node.type.name)
-    ? { pos: widget.pos, kind: widget.node.type.name }
+  const target =
+    at?.type.name === 'footnote'
+      ? { pos: from, kind: 'footnote' }
+      : editor.isActive('link')
+        ? { pos: from, kind: 'link' }
+        : widget
+          ? { pos: widget.pos, kind: widget.node.type.name }
+          : undefined
+  return target && hasSettings(settingsForNode(target.kind, contentCatalogue.entries))
+    ? target
     : undefined
 }
 function openProperties(pos: number, kind: string, remove = false) {
@@ -311,7 +318,10 @@ async function start() {
   ])
     element(id).textContent = tr(label)
   document.querySelector('.preview-title strong')!.textContent = tr('Aperçu Typst')
-  const schema = getSchema(baseExtensions((path) => provider.imageURL(path)))
+  const presentations = widgetPresentations(contentCatalogue.entries)
+  const schema = getSchema(
+    baseExtensions((path) => provider.imageURL(path), undefined, presentations),
+  )
   const bootstrap = await provider.start((fixture) => {
     const seed = prosemirrorJSONToYDoc(schema, fixture, 'default')
     const update = Y.encodeStateAsUpdate(seed)
@@ -320,15 +330,7 @@ async function start() {
   })
   editor = new Editor({
     element: element('editor'),
-    extensions: await collaborativeExtensions(
-      provider,
-      openProperties,
-      Object.fromEntries(
-        contentCatalogue.entries
-          .filter((entry) => entry.node)
-          .map((entry) => [entry.node!, entry.icon]),
-      ),
-    ),
+    extensions: await collaborativeExtensions(provider, openProperties, presentations),
     editorProps: {
       attributes: {
         'aria-label': tr('Corps du document'),

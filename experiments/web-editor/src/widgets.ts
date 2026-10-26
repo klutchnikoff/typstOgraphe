@@ -7,7 +7,7 @@ import {
   widgetFrame,
   type WidgetKind,
   type WidgetAction,
-  type WidgetIcons,
+  type WidgetPresentations,
 } from './widget-frame'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { TextSelection, type Transaction } from '@tiptap/pm/state'
@@ -15,10 +15,10 @@ export function widgetView(
   kind: WidgetKind,
   tag: string,
   properties: WidgetAction,
-  icons: WidgetIcons,
+  presentations: WidgetPresentations,
 ) {
   return ({ getPos, node }: { getPos: () => number | undefined; node: PMNode }) => {
-    const frame = widgetFrame(kind, getPos, properties, undefined, icons[kind])
+    const frame = widgetFrame(kind, getPos, properties, undefined, presentations[kind])
     const { dom } = frame
     const contentDOM = document.createElement(tag)
     const update = (next: PMNode) => {
@@ -35,7 +35,7 @@ export function widgetView(
     }
   }
 }
-export const simpleWidgets = (properties: WidgetAction, icons: WidgetIcons) => [
+export const simpleWidgets = (properties: WidgetAction, presentations: WidgetPresentations) => [
   ...([BulletList, OrderedList] as const).map((extension) =>
     extension.extend({
       addInputRules: () => [],
@@ -51,13 +51,13 @@ export const simpleWidgets = (properties: WidgetAction, icons: WidgetIcons) => [
           extension.name === 'orderedList' ? 'orderedList' : 'bulletList',
           extension.name === 'orderedList' ? 'ol' : 'ul',
           properties,
-          icons,
+          presentations,
         ),
     }),
   ),
   Node.create({
     name: 'quote',
-    addNodeView: () => widgetView('quote', 'blockquote', properties, icons),
+    addNodeView: () => widgetView('quote', 'blockquote', properties, presentations),
     group: 'block',
     content: 'paragraph+ quoteAttribution',
     isolating: true,
@@ -77,7 +77,7 @@ export const simpleWidgets = (properties: WidgetAction, icons: WidgetIcons) => [
   }),
   Node.create({
     name: 'descriptionList',
-    addNodeView: () => widgetView('descriptionList', 'dl', properties, icons),
+    addNodeView: () => widgetView('descriptionList', 'dl', properties, presentations),
     group: 'block',
     content: 'descriptionItem+',
     isolating: true,
@@ -116,7 +116,7 @@ export const simpleWidgets = (properties: WidgetAction, icons: WidgetIcons) => [
       addNodeView:
         () =>
         ({ getPos }) => {
-          const frame = widgetFrame(name, getPos, properties, undefined, icons[name])
+          const frame = widgetFrame(name, getPos, properties, undefined, presentations[name])
           const { dom } = frame
           dom.dataset.letterNote = name
           const contentDOM = document.createElement('div')

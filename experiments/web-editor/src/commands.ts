@@ -3,6 +3,7 @@ import { createTable } from '@tiptap/extension-table'
 import { widgetTarget } from './widgets'
 import { isWidgetKind } from './widget-frame'
 import type { Editor, JSONContent } from '@tiptap/core'
+import type { Parameters } from './capability-settings'
 import {
   insertList,
   insertQuote,
@@ -20,7 +21,8 @@ export interface Capability {
   node: string | null
   mark: string | null
   letter_only: boolean
-  parameters: unknown
+  parameters: Parameters
+  editor?: { conversion_group?: string }
 }
 export interface PublicCommand {
   id: string

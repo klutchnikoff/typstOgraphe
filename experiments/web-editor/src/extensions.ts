@@ -13,7 +13,7 @@ import Collaboration from '@tiptap/extension-collaboration'
 import Caret from '@tiptap/extension-collaboration-caret'
 import type { Provider } from './provider'
 import { simpleWidgets } from './widgets'
-import { widgetFrame, type WidgetIcons } from './widget-frame'
+import { widgetFrame, type WidgetPresentations } from './widget-frame'
 import { tr } from './i18n'
 import { Proofing } from './proofing'
 import { DocumentInput } from './editing'
@@ -22,14 +22,14 @@ import { ContextBand } from './band-layout'
 export function baseExtensions(
   imageURL: (path: string) => string,
   properties: (pos: number, kind: string, remove?: boolean) => void = () => {},
-  icons: WidgetIcons = {},
+  presentations: WidgetPresentations = {},
 ): Extensions {
-  return [
+  const extensions: Extensions = [
     Proofing,
     ContextBand,
     DocumentInput,
     ListItem.extend({ content: 'paragraph+' }),
-    ...simpleWidgets(properties, icons),
+    ...simpleWidgets(properties, presentations),
     // Comme dans l'éditeur existant : une fin de ligne reste dans le paragraphe.
     Node.create({
       name: 'softBreak',
@@ -74,7 +74,7 @@ export function baseExtensions(
       addNodeView() {
         return ({ node, view, getPos }) => {
           const table = new TableView(node, this.options.cellMinWidth, view)
-          const frame = widgetFrame('table', getPos, properties, table.dom, icons.table)
+          const frame = widgetFrame('table', getPos, properties, table.dom, presentations.table)
           table.ignoreMutation = frame.content(
             table.contentDOM,
             table.ignoreMutation.bind(table),
@@ -167,7 +167,7 @@ export function baseExtensions(
             getPos,
             properties,
             document.createElement('figure'),
-            icons.figure,
+            presentations.figure,
           )
           const { dom } = frame
           const image = document.createElement('img')
@@ -191,15 +191,28 @@ export function baseExtensions(
         },
     }),
   ]
+  return extensions.map((extension) => {
+    const fields = presentations[extension.name as keyof WidgetPresentations]?.settings.fields
+    if (extension.type !== 'node' || !fields?.length) return extension
+    return (extension as Node).extend({
+      addAttributes() {
+        const existing = this.parent?.() || {}
+        const declared = Object.fromEntries(
+          fields.map((field) => [field.attribute, { default: field.schema.default ?? null }]),
+        )
+        return { ...declared, ...existing }
+      },
+    })
+  })
 }
 
 export async function collaborativeExtensions(
   provider: Provider,
   properties: (pos: number, kind: string, remove?: boolean) => void,
-  icons: WidgetIcons = {},
+  presentations: WidgetPresentations = {},
 ): Promise<Extensions> {
   return [
-    ...baseExtensions((path) => provider.imageURL(path), properties, icons),
+    ...baseExtensions((path) => provider.imageURL(path), properties, presentations),
     Collaboration.configure({ document: provider.doc, field: 'default' }),
     Caret.configure({
       provider,
