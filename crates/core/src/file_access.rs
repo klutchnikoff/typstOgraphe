@@ -133,3 +133,30 @@ impl Binding {
         self.expected = Some(fingerprint);
     }
 }
+
+/// Garde de fichier réutilisable par les adaptateurs structurés. Le verrou et
+/// l'empreinte suivent la même politique que le moteur documentaire historique.
+#[derive(Clone)]
+pub struct DocumentLease(Binding);
+impl DocumentLease {
+    pub fn acquire(path: &Path) -> Result<Self, CommandError> {
+        let mut binding = Binding::acquire(path, false)?;
+        binding.observe()?;
+        Ok(Self(binding))
+    }
+    pub fn path(&self) -> &Path {
+        &self.0.target
+    }
+    pub fn check(&self) -> Result<(), CommandError> {
+        self.0.check_unchanged()
+    }
+    pub fn record_save(&mut self) -> Result<(), CommandError> {
+        self.0.observe()
+    }
+    pub fn prepare_fingerprint(&self, file: &mut File) -> Result<[u8; 32], CommandError> {
+        fingerprint(file).map_err(io_error)
+    }
+    pub fn record_fingerprint(&mut self, value: [u8; 32]) {
+        self.0.saved(value);
+    }
+}

@@ -30,7 +30,7 @@ async fn lifecycle() {
         let dir = tempfile::tempdir().unwrap();
         let client = start(dir.path(), version, &[]).await;
         let resources = client.list_all_resources().await.unwrap();
-        assert_eq!(resources.len(), 5);
+        assert_eq!(resources.len(), 6);
         let empty = read(&client, "typstographe://document").await;
         assert!(empty["document"].is_null());
         assert_eq!(empty["outcome"]["state"]["open"], false);

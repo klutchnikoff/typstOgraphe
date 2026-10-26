@@ -4,6 +4,14 @@ use serde_json::{Value, json};
 use typstographe_core::engine::{CommandError, Engine, catalogue as core_catalogue};
 
 pub fn describe(id: &str, context: &Value, policy: &Policy) -> Result<Value, CommandError> {
+    if !core_catalogue().iter().any(|s| s.id.as_str() == id)
+        && let Some(contract) = typstographe_core::content::catalogue::describe(id)
+    {
+        return Ok(
+            json!({"content_contract":contract,"prototype_support":{"exposed":false,"authorized":false},
+            "details":"This structured-content capability is implemented by the web adapter. It is documented here but is not executable through the legacy flat-text MCP host."}),
+        );
+    }
     let tool = catalogue::for_session(policy.is_attached())
         .iter()
         .find(|t| t.name == id);
@@ -47,6 +55,9 @@ pub fn describe(id: &str, context: &Value, policy: &Policy) -> Result<Value, Com
             "effects":{"batch_step":false,"requires_document":id=="render.page","filesystem":"No file IO requested.","render_cache":if id=="render.page" {"May compile a derived current render."} else {"No rendering."}},
             "transaction":if id.starts_with("proposals.") {"No publication; whole-lot human acceptance in the application creates one undo entry."} else {"Read only; no undo entry."}})
     };
+    if let Some(contract) = typstographe_core::content::catalogue::describe(id) {
+        info["content_contract"] = contract;
+    }
     info["prototype_support"] = spec.map(|s| policy.support(s))
         .unwrap_or_else(|| json!({"exposed":tool.is_some(),"authorized":!id.starts_with("proposals.") || policy.allows_proposals(),"filesystem":false,"read_only":policy.describe()["read_only"]}));
     info["mcp_input_schema"] = tool.map(|t| json!(t.input_schema)).unwrap_or(Value::Null);

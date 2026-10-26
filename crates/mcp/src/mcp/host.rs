@@ -223,6 +223,9 @@ impl<'a> Host<'a> {
     pub fn resource(&self, uri: &str) -> Result<Reply, CommandError> {
         use typstographe_core::document_types::DocumentType;
         let outcome = match uri {
+            "typstographe://content-capabilities" => {
+                json!({"entries":typstographe_core::content::catalogue::ALL.iter().map(|capability| typstographe_core::content::catalogue::describe(capability.id).expect("catalogue")).collect::<Vec<_>>()})
+            }
             "typstographe://guide" => {
                 json!({"instructions":super::instructions(self.policy.is_attached()),"session":if self.policy.is_attached() {"attached"} else {"autonomous"},
                 "resources":super::resources::list(),"resource_consistency":"Each read is a current snapshot serialized with tool calls; no subscriptions. Read again after edits. The outer document reference guards subsequent calls."})

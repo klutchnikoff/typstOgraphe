@@ -587,3 +587,6 @@ widget-spelling = Orthographe
 cli-usage-capture-widgets = Utilisation : --capture-widgets image.png image|list|list-empty|remove|spelling|link|quote|notes|context-list|context-spelling[-dark]
 cli-mcp-attach-active-help = Relier MCP à l’unique invitation autorisée disponible, sans modifier la configuration à chaque connexion.
 assistance-fixed-configuration = Configuration MCP à enregistrer une seule fois dans votre assistant. Pour une nouvelle invitation, reconnectez le serveur sans modifier ses arguments.
+
+cmd-insert-table = Insérer un tableau
+cmd-insert-footnote = Insérer une note de bas de page

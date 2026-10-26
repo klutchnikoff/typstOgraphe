@@ -4,6 +4,7 @@
 
 pub mod annotations;
 pub mod assets;
+pub mod content;
 pub mod dates;
 pub mod document;
 pub mod document_types;
@@ -11,6 +12,7 @@ pub mod engine;
 pub mod errors;
 pub mod exporting;
 mod file_access;
+pub use file_access::DocumentLease;
 pub mod fonts;
 mod identity;
 pub mod navigation;

@@ -584,3 +584,6 @@ widget-spelling = Spelling
 cli-usage-capture-widgets = Usage: --capture-widgets image.png image|list|list-empty|remove|spelling|link|quote|notes|context-list|context-spelling[-dark]
 cli-mcp-attach-active-help = Connect MCP to the single available authorized invitation, using a fixed configuration across connections.
 assistance-fixed-configuration = Save this MCP configuration once in your assistant. For a new invitation, reconnect the server without changing its arguments.
+
+cmd-insert-table = Insert table
+cmd-insert-footnote = Insert footnote

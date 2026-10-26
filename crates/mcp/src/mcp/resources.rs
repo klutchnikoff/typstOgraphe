@@ -1,7 +1,12 @@
 //! Ressources virtuelles uniquement ; aucun URI n’est converti en chemin disque.
 use rmcp::model::Resource;
 
-const RESOURCES: [(&str, &str, &str); 5] = [
+const RESOURCES: [(&str, &str, &str); 6] = [
+    (
+        "content-capabilities",
+        "Structured content contracts",
+        "Shared semantic capability definitions with explicit support per adapter; documentation does not imply execution.",
+    ),
     (
         "guide",
         "Usage guide",

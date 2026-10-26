@@ -330,12 +330,27 @@ pub fn retained_assets(
         return Ok(assets.clone());
     }
     let document = crate::document::Document::from_source(source)?;
-    let mut required: std::collections::BTreeSet<_> = document
+    let required: std::collections::BTreeSet<_> = document
         .view
         .images
         .values()
         .map(|image| image.path.clone())
         .collect();
+    retained_assets_for_paths(source, metadata, template, assets, dependencies, required)
+}
+
+/// Même rétention pour un adaptateur qui possède déjà les chemins de ses objets.
+pub fn retained_assets_for_paths(
+    source: &str,
+    metadata: &Metadata,
+    template: &str,
+    assets: &crate::assets::Assets,
+    dependencies: &crate::packages::Dependencies,
+    mut required: std::collections::BTreeSet<String>,
+) -> Result<crate::assets::Assets, CoreError> {
+    if assets.is_empty() {
+        return Ok(assets.clone());
+    }
     required.extend(metadata.signature_path().map(str::to_owned));
     fn declared_paths(
         node: &typst_syntax::SyntaxNode,

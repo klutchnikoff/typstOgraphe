@@ -198,10 +198,7 @@ impl Analysis {
     }
 }
 
-pub(crate) fn suggestions(
-    language: DocumentLanguage,
-    word: &str,
-) -> Result<Vec<String>, CoreError> {
+pub fn suggestions(language: DocumentLanguage, word: &str) -> Result<Vec<String>, CoreError> {
     let mut suggestions = Vec::new();
     dictionary(language)?.suggest(&dictionary_word(word), &mut suggestions);
     if word.contains('’') {
@@ -424,6 +421,29 @@ impl Drop for Checker {
     fn drop(&mut self) {
         self.generation.fetch_add(1, Ordering::Relaxed);
     }
+}
+
+/// Analyse synchrone réutilisable par un adaptateur qui possède déjà son worker.
+/// Les positions restent des indices Unicode scalaires, comme le contrat existant.
+pub fn check_text(
+    language: DocumentLanguage,
+    text: &str,
+    accepted: &BTreeSet<String>,
+) -> Result<Vec<Issue>, CoreError> {
+    let dictionary = dictionary(language)?;
+    let mut result = vec![];
+    let mut offset = 0;
+    for line in text.split('\n') {
+        for mut issue in check_line(dictionary, line) {
+            if !accepted.contains(&word_key(&issue.word)) {
+                issue.range.start += offset;
+                issue.range.end += offset;
+                result.push(issue)
+            }
+        }
+        offset += line.chars().count() + 1;
+    }
+    Ok(result)
 }
 
 #[cfg(test)]

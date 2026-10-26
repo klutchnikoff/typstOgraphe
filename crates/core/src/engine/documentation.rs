@@ -22,6 +22,7 @@ impl Engine {
         json!({"id":kind,"name":name,"description":description,"can_create":kind.can_create(),
             "fields":metadata.field_values(),"default_options":metadata.options(),
             "capabilities":Self::capabilities(kind),"models":models,
+            "content_capabilities":crate::content::catalogue::for_type(kind).collect::<Vec<_>>(),
             "model_contract":"Models of the same type share fields and capabilities; choosing a model changes presentation only.",
             "field_guidance":"Use metadata.set with a listed field ID. Dates use fixed ISO YYYY-MM-DD values. Empty fields may be valid in a draft; required_for_export applies only to export readiness."})
     }
