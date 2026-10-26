@@ -1,7 +1,7 @@
 # Phase 4 — CLI documentaire
 
 Décisions validées le **24 octobre 2026** avant implémentation : D23 et D24 dans
-[ROADMAP-ARCHITECTURE.md](../ROADMAP-ARCHITECTURE.md). **Phase terminée le 24 octobre 2026.**
+[ROADMAP-ARCHITECTURE.md](https://github.com/klutchnikoff/typstOgraphe/blob/7b0d6fd3e6ae25e5704ed43ce2f4efefa9c2fa0b/ROADMAP-ARCHITECTURE.md). **Phase terminée le 24 octobre 2026.**
 
 ## Premier lot
 

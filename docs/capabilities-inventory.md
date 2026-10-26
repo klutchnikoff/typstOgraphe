@@ -4,42 +4,36 @@
 fournie par l'utilisateur, des besoins de typstOgraphe et d'un premier examen de
 Typst et de Typst Universe.
 
-Cet inventaire est une référence pour le [chantier C de la feuille de route](../ROADMAP.md#c-capacités-documentaires-typst--p1-à-p3).
+Cet inventaire est une référence pour le [chantier C de la feuille de route](../ROADMAP.md#c--compléter-les-capacités-à-partir-des-besoins-des-types).
 Il ne constitue ni un engagement à tout développer, ni le catalogue des commandes
 déjà implémentées, décrit dans [l'inventaire des commandes](commands-inventory.md).
 La liste de Docs est un point de comparaison fourni par l'utilisateur, pas un
 audit exhaustif de ce produit.
 
-**Les deux premières priorités documentaires restent les tableaux simples et les
-notes de bas de page.** Les autres ajouts seront délimités et ordonnés ensemble.
-Ce relevé ne lance aucune implémentation : la prochaine discussion porte sur
-l'assistance ACP, chantier M de [ROADMAP-ARCHITECTURE.md](../ROADMAP-ARCHITECTURE.md).
+**Les tableaux simples et les notes de bas de page ont une base fonctionnelle
+dans l’interface Tauri.** Leur consolidation reste prioritaire sur de nouvelles
+capacités complexes ; le périmètre des autres ajouts dépendra des types retenus.
+Ce relevé ne lance aucune implémentation. L’assistance ACP et la collaboration
+ont leurs propres chantiers dans la [roadmap](../ROADMAP.md).
 
-## 1. Capacités déjà présentes
+## 1. Périmètre
 
-- Paragraphes, titres de niveaux 1 à 3, gras, italique et liens.
-- Listes à puces, numérotées et de descriptions, sans imbrication pour l'instant.
-- Citations en bloc avec attribution facultative.
-- Images avec légende facultative et texte alternatif.
-- Pour le courrier : post-scriptum et mentions de pièces jointes.
+Le catalogue exécutable de [contenu structuré](../crates/core/src/content/catalogue.rs)
+décrit les capacités disponibles. Cet inventaire conserve les besoins à concevoir
+ou à compléter ; il ne répète pas la liste des fonctionnalités terminées.
+Les métadonnées, dates et signatures relèvent des paramètres du document et du modèle.
+Une citation en bloc et une citation bibliographique sont deux capacités distinctes.
 
-Les paragraphes sont le fonctionnement normal de l'éditeur ; ils ne nécessitent
-pas une nouvelle commande d'insertion. Une citation en bloc et une citation
-bibliographique sont deux capacités distinctes.
+## 2. Consolidation prioritaire — P1
 
-Les métadonnées, dates et signatures sont également gérées, mais relèvent des
-paramètres du document et du modèle plutôt que de cette liste d'insertions.
-
-## 2. Premières livraisons — P1
-
-| Capacité | Premier périmètre à concevoir | Appui Typst |
+| Capacité | Compléments à cadrer après vérification de l’existant | Appui Typst |
 | --- | --- | --- |
-| Tableaux simples | En-tête, lignes et colonnes, ajout/suppression, navigation et édition au clavier, alignement et légende facultative. Décider des contenus autorisés dans les cellules ; différer les fusions et les calculs. | `table`, avec `figure` pour une légende et une éventuelle numérotation. |
-| Notes de bas de page | Insertion, édition, suppression et navigation entre l'appel et la note ; numérotation produite automatiquement. | `footnote`. |
+| Tableaux simples | Légende, alignements, contrat des contenus de cellules et recette complète clavier/fichier/MCP. Ne pas refaire la grille et les opérations déjà présentes ; différer les fusions et les calculs. | `table`, avec `figure` pour une légende et une éventuelle numérotation. |
+| Notes de bas de page | Terminer la recette de navigation, des frontières, des modifications distantes et des exports ; corriger les manques réellement observés. | `footnote`. |
 
-Le prototype technique de tableau ne constitue pas une livraison de cette
-capacité dans l'application. Ces deux lots conservent leur priorité sur les
-autres enrichissements documentaires.
+L’ajout d’une capacité nouvelle doit répondre au besoin d’un type retenu. Les
+deux recettes ci-dessus accompagnent la sortie du prototype, sans remettre à zéro
+leur implémentation.
 
 ## 3. Inventaire complémentaire
 
@@ -87,7 +81,7 @@ seront examinés lors du choix de chaque lot.
 | Composition | [Typst — columns](https://typst.app/docs/reference/layout/columns/), [pagebreak](https://typst.app/docs/reference/layout/pagebreak/) | Colonnes locales ou à l'échelle de la page, sauts explicites et contraintes de placement. |
 | Code | [Typst — raw](https://typst.app/docs/reference/text/raw/), [Codly](https://typst.app/universe/package/codly/) | Le natif couvre le texte littéral et la coloration ; Codly ajoute notamment numéros de lignes, références et annotations. |
 | Encadrés | [Showybox](https://typst.app/universe/package/showybox/) | Candidat pour la présentation de boîtes ; ne définit pas à lui seul notre contrat sémantique d'alerte. |
-| Mathématiques | [Typst — math](https://typst.app/docs/reference/math/), [MathLive](https://mathlive.io/mathfield/), [MiTeX](https://typst.app/universe/package/mitex/) | Saisie Typst native, ou éditeur web produisant du LaTeX rendu via MiTeX. La seconde piste demande une étude spécifique dans l'application egui. |
+| Mathématiques | [Typst — math](https://typst.app/docs/reference/math/), [MathLive](https://mathlive.io/mathfield/), [MiTeX](https://typst.app/universe/package/mitex/) | Saisie Typst native, ou éditeur web produisant du LaTeX rendu via MiTeX. Comparer l’ergonomie et les dépendances sur l’interface Tauri avant de choisir. |
 | Diagrammes | [Fletcher](https://typst.app/universe/package/fletcher/), [CeTZ](https://typst.app/universe/package/cetz/) | Diagrammes avec flèches pour Fletcher ; dessin plus général pour CeTZ, sur lequel Fletcher s'appuie. |
 | Graphiques de données | [Lilaq](https://typst.app/universe/package/lilaq/) | Bibliothèque de tracés : courbes, barres, nuages de points, etc. |
 
@@ -115,7 +109,7 @@ les agents. Ces points font partie du coût réel de la capacité.
 5. **Consigner le contrat.** Les identifiants publics restent anglais ou latins,
    les libellés sont traduits. Les noms proposés ici ne figent aucune signature.
    Le contrat documentaire doit servir l'interface graphique, la CLI et MCP.
-6. **Garantir l'autonomie.** Source Typst comme référence ; données, ressources et
+6. **Garantir l'autonomie.** Contenu structuré et Typst généré cohérents ; données, ressources et
    dépendances nécessaires conservées dans le `.typsto` et les exports appropriés,
    avec compilation hors ligne. L'inventaire technique des paquets retenus reste
    `crates/core/templates/dependencies.json`.

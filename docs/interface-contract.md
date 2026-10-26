@@ -363,4 +363,4 @@ Ils restent disponibles localement dans `docs/` et dans la feuille de route.
 - [Branchement egui, parcours et captures identiques](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/view-sync-egui.md).
 - [CLI](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/cli.md) et [MCP](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/mcp.md), pour leurs enveloppes et politiques propres.
 - [Rattachement MCP local en lecture](https://github.com/klutchnikoff/typstOgraphe/blob/main/docs/mcp-local.md).
-- [Décisions et suite de phase 6](https://github.com/klutchnikoff/typstOgraphe/blob/main/ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).
+- [Décisions et suite de phase 6](https://github.com/klutchnikoff/typstOgraphe/blob/7b0d6fd3e6ae25e5704ed43ce2f4efefa9c2fa0b/ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).

@@ -5,7 +5,7 @@ Le workspace contient les trois crates prévues ; les lots 3.1 à 3.8 sont livr�
 Le catalogue conserve ses **49 commandes et 19 requêtes**, ses contrats d’entrée
 et ses références générées. La CI vérifiera les trois systèmes après la poussée.
 
-Références : [feuille technique](../ROADMAP-ARCHITECTURE.md#phase-3--espace-de-travail-taille-m),
+Références : [feuille technique](https://github.com/klutchnikoff/typstOgraphe/blob/7b0d6fd3e6ae25e5704ed43ce2f4efefa9c2fa0b/ROADMAP-ARCHITECTURE.md#phase-3--espace-de-travail-taille-m),
 [bilan de phase 2](architecture-phase-2-review.md), [contrat des lectures](engine-queries.md).
 
 ## Découpage confirmé

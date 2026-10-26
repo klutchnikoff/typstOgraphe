@@ -9,7 +9,7 @@ La première relecture portait sur `39245c4edbafb9067231c84f11257056b05aabb5`, p
 sur les tests de presse-papiers. Les absences signalées ont ensuite été complétées
 dans les lots `88d68d7` et `01f4328`, avec les vérifications ci-dessous.
 
-Références : [feuille technique](../ROADMAP-ARCHITECTURE.md),
+Références : [feuille technique](https://github.com/klutchnikoff/typstOgraphe/blob/7b0d6fd3e6ae25e5704ed43ce2f4efefa9c2fa0b/ROADMAP-ARCHITECTURE.md),
 [inventaire relu](commands-inventory.md), [catalogue](commands.md),
 [schémas d’entrée](commands.json), [historique des lots](architecture-phase-2.md).
 Les tableaux de migration restent un relevé de départ ; ils ne constituent pas

@@ -51,7 +51,7 @@ explicite au moteur. Voir les essais [models_engine.rs](../crates/app/src/app/te
 et [models.rs](../crates/core/src/engine/tests/models.rs).
 Les tableaux ci-dessous restent l’inventaire de migration de toutes les actions,
 pas la liste des opérations déjà disponibles sans interface.
-Les règles déjà validées sont dans [la feuille de route technique](../ROADMAP-ARCHITECTURE.md),
+Les règles déjà validées sont dans [la feuille de route technique](https://github.com/klutchnikoff/typstOgraphe/blob/7b0d6fd3e6ae25e5704ed43ce2f4efefa9c2fa0b/ROADMAP-ARCHITECTURE.md),
 D1–D20. Les propositions qui les précisent ou les font évoluer sont signalées.
 
 ## 1. Périmètre et relevé

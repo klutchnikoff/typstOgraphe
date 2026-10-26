@@ -1,7 +1,7 @@
 # Phase 5 — MCP documentaire
 
 Décisions du 24 octobre 2026 : D11/D12, D25–D28 et complément D14 dans
-[la feuille de route](../ROADMAP-ARCHITECTURE.md). **Phase terminée le 24 octobre 2026.**
+[la feuille de route](https://github.com/klutchnikoff/typstOgraphe/blob/7b0d6fd3e6ae25e5704ed43ce2f4efefa9c2fa0b/ROADMAP-ARCHITECTURE.md). **Phase terminée le 24 octobre 2026.**
 La [recette finale](mcp-acceptance.md) distingue essai avec un agent, inspecteur
 et scénario automatisé rejoué dans la CI.
 

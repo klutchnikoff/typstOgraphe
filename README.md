@@ -26,7 +26,8 @@ npm ci
 npm run tauri dev
 ```
 
-La migration reste sur la branche `codex/tauri-interface`.
+La nouvelle interface est intégrée à `main` ; sa sortie du dossier expérimental
+fait partie du premier chantier de développement.
 `cargo run --locked` lance encore l’interface egui de référence.
 La [CLI documentaire](docs/cli.md) utilise encore son contrat historique.
 

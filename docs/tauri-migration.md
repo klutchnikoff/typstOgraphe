@@ -1,9 +1,10 @@
 # Reconstruction de l'interface Tauri
 
 Décision du 26 octobre 2026 : après essai du diagnostic, reconstruire l'interface
-avec Tauri, Tiptap/ProseMirror et Yjs, en conservant le cœur Rust. Branche de travail :
-`codex/tauri-interface`, issue du diagnostic validé. L'interface egui reste accessible
-pendant le portage ; elle sert de référence fonctionnelle.
+avec Tauri, Tiptap/ProseMirror et Yjs, en conservant le cœur Rust. Le portage démarré
+sur `codex/tauri-interface` est intégré à `main`. Ce document conserve son bilan ;
+les travaux restants sont désormais dans la [roadmap](../ROADMAP.md).
+L'interface egui reste accessible comme référence jusqu'à son retrait décidé ensemble.
 
 ## Invariants
 

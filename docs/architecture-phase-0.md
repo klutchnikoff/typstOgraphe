@@ -1,6 +1,6 @@
 # Phase 0 — Base avant la restructuration
 
-Les décisions D1 à D20 de [ROADMAP-ARCHITECTURE.md](../ROADMAP-ARCHITECTURE.md)
+Les décisions D1 à D20 de [ROADMAP-ARCHITECTURE.md](https://github.com/klutchnikoff/typstOgraphe/blob/7b0d6fd3e6ae25e5704ed43ce2f4efefa9c2fa0b/ROADMAP-ARCHITECTURE.md)
 sont validées. La phase 0 est terminée ; la phase 1 n’a pas commencé.
 Le tag annoté `pre-refactor-architecture` identifie le dépôt prêt à être restructuré.
 

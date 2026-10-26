@@ -3,7 +3,7 @@
 Bilan du 25 octobre 2026 pour la décision D40. Les analyses et maquettes d'origine sont
 dans [interface-design-audit.md](interface-design-audit.md) et
 [mockups/](mockups/). Le plan détaillé est dans la section « Chantier L » de
-[ROADMAP-ARCHITECTURE.md](../ROADMAP-ARCHITECTURE.md).
+[ROADMAP-ARCHITECTURE.md](https://github.com/klutchnikoff/typstOgraphe/blob/7b0d6fd3e6ae25e5704ed43ce2f4efefa9c2fa0b/ROADMAP-ARCHITECTURE.md).
 
 ## Ce qui est livré
 

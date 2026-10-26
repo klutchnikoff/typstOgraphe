@@ -1,7 +1,7 @@
 # MCP local — assistance à la composition (phase 6)
 
 Les choix D34/D35/D36 et les lots sont consignés dans
-[ROADMAP-ARCHITECTURE.md](../ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).
+[ROADMAP-ARCHITECTURE.md](https://github.com/klutchnikoff/typstOgraphe/blob/7b0d6fd3e6ae25e5704ed43ce2f4efefa9c2fa0b/ROADMAP-ARCHITECTURE.md#phase-6--assistance-à-la-composition-dans-lapplication-d14).
 Le rattachement propose désormais les **lots soumis à approbation humaine** de
 6.4b (D39), avec les contextes séparés et positions de 6.3. Le [contrat des
 propositions](mcp-proposals.md) précise `proposals.submit/get/cancel`, la comparaison
