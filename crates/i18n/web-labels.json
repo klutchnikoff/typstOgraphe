@@ -61,6 +61,7 @@
   "Fermer": "web-close",
   "Appliquer": "web-apply",
   "Valider": "web-confirm",
+  "Aucun paramètre supplémentaire à modifier.": "web-no-extra-settings",
   "Retirer le lien": "cmd-remove-link",
   "Fermer le panneau": "web-close-panel",
   "Fermer les paramètres": "web-close-settings",

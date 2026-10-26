@@ -9,7 +9,8 @@ import { baseExtensions, collaborativeExtensions } from './extensions'
 import { Provider, stableJSON, ACCEPTED_PROPOSAL, type Resource, type Transport } from './provider'
 import { createRegistry, toolbar, refreshCommands, type Registry } from './commands'
 import { widgetKey, widgetTarget, removeWidget } from './widgets'
-import { openCorrection } from './proofing'
+import { openCorrection, correctionAtCursor } from './proofing'
+import { hasWidgetSettings } from './widget-frame'
 import { mountShell, type Catalogue } from './shell'
 import { documentType, initializeSettings, settingsFor } from './state'
 import { previewController } from './preview'
@@ -79,16 +80,14 @@ let version = 0
 let preview: ReturnType<typeof previewController> | undefined
 
 function propertyTarget(): { pos: number; kind: string } | undefined {
-  const { $from, from } = editor.state.selection
+  const { from } = editor.state.selection
   const at = editor.state.doc.nodeAt(from)
   if (at?.type.name === 'footnote') return { pos: from, kind: 'footnote' }
   if (editor.isActive('link')) return { pos: from, kind: 'link' }
-  for (let depth = $from.depth; depth > 0; depth--) {
-    if ($from.node(depth).type.name === 'figure')
-      return { pos: $from.before(depth), kind: 'figure' }
-  }
   const widget = widgetTarget(editor)
-  return widget ? { pos: widget.pos, kind: widget.node.type.name } : undefined
+  return widget && hasWidgetSettings(widget.node.type.name)
+    ? { pos: widget.pos, kind: widget.node.type.name }
+    : undefined
 }
 function openProperties(pos: number, kind: string, remove = false) {
   properties?.open(pos, kind, remove)
@@ -340,8 +339,9 @@ async function start() {
       handleKeyDown: (_view, event) => {
         if (event.isComposing || editor.view.composing) return false
         if (widgetKey(editor, event)) return true
-        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && openContext()) {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
           event.preventDefault()
+          openContext()
           return true
         }
         return false
@@ -385,6 +385,9 @@ async function start() {
     id: 'context.open',
     label: tr('Paramètres'),
     shortcut: 'Mod+Enter',
+    enabled: () =>
+      !editor.view.composing &&
+      (bands.isOpen || !!correctionAtCursor(editor) || !!propertyTarget()),
     run: openContext,
   })
   commands.set('block.remove', {

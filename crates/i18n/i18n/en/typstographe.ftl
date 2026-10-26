@@ -734,3 +734,4 @@ web-close-correction = Close correction
 web-table = Table
 
 web-confirm = Confirm
+web-no-extra-settings = No additional settings to edit.

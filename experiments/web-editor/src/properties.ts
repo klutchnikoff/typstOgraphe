@@ -6,7 +6,7 @@ import { tr } from './i18n'
 import type { Catalogue } from './shell'
 import { contextPanel } from './context-panel'
 import { removeWidget } from './widgets'
-import { isWidgetKind } from './widget-frame'
+import { isWidgetKind, hasWidgetSettings } from './widget-frame'
 
 export function propertyPanel(
   editor: Editor,
@@ -152,6 +152,7 @@ export function propertyPanel(
   return {
     open(pos: number, kind: string, remove = false) {
       if (editor.view.composing) return
+      if (!remove && !['link', 'footnote'].includes(kind) && !hasWidgetSettings(kind)) return
       const node = editor.state.doc.nodeAt(pos)
       if (!node || (kind !== 'link' && node.type.name !== kind)) return
       const selection = editor.state.selection

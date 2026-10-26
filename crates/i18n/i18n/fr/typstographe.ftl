@@ -737,3 +737,4 @@ web-close-correction = Fermer la correction
 web-table = Tableau
 
 web-confirm = Valider
+web-no-extra-settings = Aucun paramètre supplémentaire à modifier.

@@ -117,11 +117,14 @@ export function searchState(editor: Editor, query: string, ignoreCase = true) {
   editor.view.dispatch(editor.state.tr.setMeta(proofingKey, { query, ignoreCase }))
   return proofingKey.getState(editor.state)?.hits || []
 }
-export function openCorrection(editor: Editor) {
+export function correctionAtCursor(editor: Editor) {
   const position = editor.state.selection.from
-  const issue = proofingKey
+  return proofingKey
     .getState(editor.state)
     ?.issues.find((issue) => issue.from <= position && position <= issue.to)
+}
+export function openCorrection(editor: Editor) {
+  const issue = correctionAtCursor(editor)
   if (!issue) return false
   document.dispatchEvent(new CustomEvent('proofing:open', { detail: issue }))
   return true

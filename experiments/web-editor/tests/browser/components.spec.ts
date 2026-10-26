@@ -56,38 +56,48 @@ test('tous les widgets partagent leur cadre, leur bandeau B et la suppression an
     const widget = page.locator(`[data-editor-widget="${kind}"]`)
     await expect(widget.locator(':scope > .widget-bar')).toHaveCount(1)
     await expect(widget.locator(':scope > .band-slot')).toHaveCount(1)
-    await widget.getByRole('button', { name: /^Paramètres ·/ }).click()
     const panel = page.locator('#properties')
-    await expect(panel).toBeVisible()
-    await expect(panel.locator(':scope > .panel-title')).toBeHidden()
-    await expect(panel.locator('#remove-block')).toBeHidden()
-    await expect(panel.locator('#apply-properties')).toHaveText('Valider')
-    await expect(panel.locator(':scope > .context-panel-body')).toHaveCount(1)
-    await expect(panel.locator(':scope > .panel-actions')).toHaveCount(1)
-    await expect
-      .poll(() =>
-        widget.evaluate((host) => {
-          const rect = host.getBoundingClientRect()
-          const style = getComputedStyle(host)
-          const band = document.querySelector('#properties')!.getBoundingClientRect()
-          const header = host.querySelector('.widget-bar')!.getBoundingClientRect()
-          const left = parseFloat(style.borderLeftWidth),
-            right = parseFloat(style.borderRightWidth)
-          return Math.max(
-            Math.abs(band.x - rect.x - left),
-            Math.abs(band.y - header.bottom),
-            Math.abs(band.width - rect.width + left + right),
-          )
-        }),
+    const settings = widget.getByRole('button', { name: /^Paramètres ·/ })
+    if (['bulletList', 'orderedList', 'descriptionList', 'figure'].includes(kind)) {
+      await widget.getByRole('button', { name: /^Paramètres ·/ }).click()
+      await expect(panel).toBeVisible()
+      await expect(panel.locator(':scope > .panel-title')).toBeHidden()
+      await expect(panel.locator('#remove-block')).toBeHidden()
+      await expect(panel.locator('#apply-properties')).toHaveText('Valider')
+      await expect(panel.locator(':scope > .context-panel-body')).toHaveCount(1)
+      await expect(panel.locator(':scope > .panel-actions')).toHaveCount(1)
+      await expect
+        .poll(() =>
+          widget.evaluate((host) => {
+            const rect = host.getBoundingClientRect()
+            const style = getComputedStyle(host)
+            const band = document.querySelector('#properties')!.getBoundingClientRect()
+            const header = host.querySelector('.widget-bar')!.getBoundingClientRect()
+            const left = parseFloat(style.borderLeftWidth),
+              right = parseFloat(style.borderRightWidth)
+            return Math.max(
+              Math.abs(band.x - rect.x - left),
+              Math.abs(band.y - header.bottom),
+              Math.abs(band.width - rect.width + left + right),
+            )
+          }),
+        )
+        .toBeLessThan(2)
+      expect(await page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON()))).toBe(
+        before,
       )
-      .toBeLessThan(2)
-    expect(await page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON()))).toBe(before)
-    if (kind === 'quote') await page.screenshot({ path: info.outputPath('quote-frame-band.png') })
-    await page.keyboard.press('Escape')
-    await expect(panel).toBeHidden()
+      await page.keyboard.press('Escape')
+      await expect(panel).toBeHidden()
+    } else {
+      await expect(settings).toBeDisabled()
+      await expect(settings).toHaveAttribute('title', /Aucun paramètre supplémentaire/)
+      await settings.evaluate((button: HTMLButtonElement) => button.click())
+      await expect(panel).toBeHidden()
+    }
     await widget.getByRole('button', { name: /^Supprimer ·/ }).click()
     await expect(panel.locator('button:visible')).toHaveText(['Annuler', 'Supprimer'])
     await expect(panel.locator('.context-panel-body')).toBeHidden()
+    if (kind === 'quote') await page.screenshot({ path: info.outputPath('quote-frame-remove.png') })
     await expect(page.locator('#apply-properties')).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(widget).toHaveCount(0)
@@ -95,7 +105,7 @@ test('tous les widgets partagent leur cadre, leur bandeau B et la suppression an
     await expect(widget).toHaveCount(1)
     expect(await page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON()))).toBe(before)
     // The direct shortcut uses the same removal operation as the confirmed band.
-    await widget.getByRole('button', { name: /^Paramètres ·/ }).click()
+    await widget.getByRole('button', { name: /^Supprimer ·/ }).click()
     await page.keyboard.press('Escape')
     await widget.locator('.widget-bar > span').click()
     await page.evaluate((kind) => {

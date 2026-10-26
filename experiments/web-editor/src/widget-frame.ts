@@ -2,20 +2,23 @@ import type { ViewMutationRecord } from '@tiptap/pm/view'
 import { icon, availableIcon } from './icons'
 import { tr } from './i18n'
 
-const labels = {
-  figure: 'Image',
-  quote: 'Citation',
-  descriptionList: 'Descriptions',
-  bulletList: 'Liste à puces',
-  orderedList: 'Liste numérotée',
-  postscript: 'P.-S.',
-  attachment: 'P.J.',
-  table: 'Tableau',
+// Settings describe implemented secondary controls, not the Typst parameter signature.
+// For example, the quote's attribution is already edited directly in its body.
+const widgets = {
+  figure: { label: 'Image', settings: true },
+  quote: { label: 'Citation', settings: false },
+  descriptionList: { label: 'Descriptions', settings: true },
+  bulletList: { label: 'Liste à puces', settings: true },
+  orderedList: { label: 'Liste numérotée', settings: true },
+  postscript: { label: 'P.-S.', settings: false },
+  attachment: { label: 'P.J.', settings: false },
+  table: { label: 'Tableau', settings: false },
 } as const
-export type WidgetKind = keyof typeof labels
+export type WidgetKind = keyof typeof widgets
 export type WidgetAction = (pos: number, kind: WidgetKind, remove?: boolean) => void
 export type WidgetIcons = Partial<Record<WidgetKind, string>>
-export const isWidgetKind = (kind: string): kind is WidgetKind => Object.hasOwn(labels, kind)
+export const isWidgetKind = (kind: string): kind is WidgetKind => Object.hasOwn(widgets, kind)
+export const hasWidgetSettings = (kind: string) => isWidgetKind(kind) && widgets[kind].settings
 
 /** The only constructor for block-widget chrome, including maintained NodeViews. */
 export function widgetFrame(
@@ -34,7 +37,7 @@ export function widgetFrame(
   bar.className = 'widget-bar'
   bar.contentEditable = 'false'
   const title = document.createElement('span')
-  const label = tr(labels[kind])
+  const label = tr(widgets[kind].label)
   title.title = label
   title.className = 'widget-kind'
   const glyph = iconName && availableIcon(iconName)
@@ -53,11 +56,14 @@ export function widgetFrame(
     button.type = 'button'
     button.title = `${name} · ${label}`
     button.setAttribute('aria-label', button.title)
+    button.disabled = !remove && !hasWidgetSettings(kind)
+    if (button.disabled) button.title += ` — ${tr('Aucun paramètre supplémentaire à modifier.')}`
     button.innerHTML = icon(iconName)
     button.onmousedown = (event) => {
       if (event.button === 0) event.preventDefault()
     }
     button.onclick = () => {
+      if (button.disabled) return
       const pos = getPos()
       if (pos !== undefined) action(pos, kind, remove)
     }

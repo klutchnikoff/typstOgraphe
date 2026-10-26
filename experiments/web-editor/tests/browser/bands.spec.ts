@@ -219,7 +219,7 @@ test('image : bandeau intégré, focus et modification annulable du texte altern
 test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse au redimensionnement', async ({
   page,
 }, info) => {
-  for (const inBlock of [false, true]) {
+  for (const inBlock of [false, true, 'quote'] as const) {
     await page.evaluate((inBlock) => {
       const e = window.__spike!.editor
       const p = {
@@ -233,9 +233,12 @@ test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse a
       }
       e.commands.setContent({
         type: 'doc',
-        content: inBlock
-          ? [{ type: 'bulletList', content: [{ type: 'listItem', content: [p] }] }]
-          : [p],
+        content:
+          inBlock === 'quote'
+            ? [{ type: 'quote', content: [p, { type: 'quoteAttribution' }] }]
+            : inBlock
+              ? [{ type: 'bulletList', content: [{ type: 'listItem', content: [p] }] }]
+              : [p],
       })
       let pos = 1
       e.state.doc.descendants((node, offset) => {
@@ -267,7 +270,7 @@ test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse a
           .poll(() =>
             page.evaluate(() => {
               const rect = document.querySelector('#proofing-band')!.getBoundingClientRect()
-              const host = document.querySelector('.widget-bulletList')!.getBoundingClientRect()
+              const host = document.querySelector('[data-editor-widget]')!.getBoundingClientRect()
               return Math.abs(rect.width - host.width + 2)
             }),
           )
@@ -288,7 +291,13 @@ test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse a
     }
     expect(await contents(page)).toBe(before)
     await page.screenshot({
-      path: info.outputPath(inBlock ? 'spelling-in-list.png' : 'spelling-prose.png'),
+      path: info.outputPath(
+        inBlock === 'quote'
+          ? 'spelling-in-quote.png'
+          : inBlock
+            ? 'spelling-in-list.png'
+            : 'spelling-prose.png',
+      ),
     })
     await page.keyboard.press('Escape')
     await expect(band).toHaveCount(0)
@@ -363,7 +372,7 @@ test('un seul brouillon, reprise au raccourci et refus des paramètres périmés
   await expect(page.locator('figure img')).toHaveAttribute('alt', 'Modification distante')
 })
 
-test('liens et tableaux utilisent le même placement et le même contrat clavier', async ({
+test('liens et suppression de tableau utilisent le même placement et le même contrat clavier', async ({
   page,
 }) => {
   await page.evaluate(() => {
@@ -382,7 +391,11 @@ test('liens et tableaux utilisent le même placement et le même contrat clavier
   await page.getByLabel('Adresse du lien', { exact: true }).fill('https://example.com')
   await page.keyboard.press('Enter')
   await expect(page.locator('.tiptap a')).toHaveAttribute('href', 'https://example.com')
-  await page.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
+  await expect(
+    page.getByRole('button', { name: 'Paramètres · Tableau', exact: true }),
+  ).toBeDisabled()
+  await page.locator('td').first().click()
+  await page.getByRole('button', { name: 'Supprimer le tableau', exact: true }).click()
   const form = page.locator('#properties')
   await expect(form).toBeVisible()
   const host = await page.locator('.widget-table').boundingBox(),
