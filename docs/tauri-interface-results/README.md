@@ -342,3 +342,27 @@ rendu réel, les annotations, les images, la sauvegarde collaborative et la
 synchronisation, construction du binaire, formatage Rust et Clippy avec
 avertissements refusés réussis. Le diagnostic de performance a été lancé
 explicitement ; aucune limite temporelle n’est ajoutée à la CI.
+
+
+## Remplacement des pages après décodage
+
+La recette force une attente distincte pour chacune des deux pages du nouvel
+aperçu. Elle vérifie que les anciennes pages restent en place pendant toute
+l’attente, y compris après libération de la première page, puis que les deux
+images ajoutées sont déjà chargées et possèdent leurs dimensions intrinsèques.
+Le défilement reste identique et le statut demeure « Mise à jour… » tant que
+l’affichage n’a pas été publié. Avant correction, cette recette échouait : le
+client n’attendait aucun décodage.
+
+Six tests unitaires supplémentaires couvrent la publication groupée, la
+conservation de l’ancien aperçu sur erreur, les résultats concurrents et
+périmés, les changements de document/version/révision, les erreurs tardives et
+la navigation issue d’une ancienne image. Les références visuelles de l’attente
+et du nouvel aperçu sont conservées dans `output/tauri-preview-swap/`.
+
+
+Validation : **55 tests unitaires web**, **62 parcours Chromium/WebKit**,
+construction TypeScript/Vite et formatage Prettier réussis. Les captures de
+l’ancien aperçu maintenu pendant le décodage et de l’aperçu actualisé ont été
+inspectées. Les optimisations de l’encodage Rust sont conservées ; aucune
+nouvelle recette native macOS/Windows/Linux n’est revendiquée dans ce lot.

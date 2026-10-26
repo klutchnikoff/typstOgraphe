@@ -421,3 +421,40 @@ Un test ignoré par défaut compare le chemin RGBA du cœur et celui de l’aper
 sur des sources, ressources, modèles et options de rasterisation identiques.
 Il alterne l’ordre des deux chemins et modifie le texte à chaque itération.
 Les résultats locaux avant/après sont conservés avec la recette détaillée.
+
+
+## Publication de l’aperçu sans page vide — 26 octobre 2026
+
+Avant le correctif de performance, la version web encodait déjà les pages en
+PNG puis en base64, avec les réglages de compression par défaut et les
+bibliothèques en debug non optimisées. L’optimisation garde ce transport et la
+même résolution. Elle ne changeait pas le remplacement des images côté client.
+
+Ce remplacement supprimait les pages visibles puis insérait immédiatement les
+nouveaux éléments `img`, avant leur décodage par le navigateur. Le client pouvait
+donc afficher brièvement des images vides, même si le PNG était déjà entièrement
+produit côté Rust.
+
+`previewController.show` prépare désormais les pages hors de l’arbre affiché et
+attend `HTMLImageElement.decode()` pour chacune d’elles. Toutes les pages, les
+calques de sélection et leurs références de synchronisation sont ensuite publiés
+ensemble, en conservant le défilement courant. Le dernier aperçu reste affiché
+pendant cette préparation ; aucune transition animée ni délai artificiel n’est
+ajouté. Le statut « Mise à jour… » reste présent jusqu’à la publication effective.
+
+Une édition, une nouvelle révision, un remplacement de document ou une
+invalidation pendant le décodage interdit la publication de l’ancien résultat.
+Une erreur de décodage garde le dernier aperçu et suit la voie de signalement
+existante ; une erreur tardive sur un résultat périmé est ignorée. Le retour
+asynchrone d’une navigation depuis une ancienne image est également rejeté.
+
+Le compteur visible reste la durée côté Rust : il n’inclut pas cette attente de
+décodage, qui était déjà nécessaire au navigateur avant de dessiner l’image.
+Le fonctionnement de l’API est décrit dans la
+[documentation de `decode()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/decode).
+
+| Avant | Après | Pourquoi |
+| --- | --- | --- |
+| Les anciennes pages disparaissaient dès réception du PNG. | Elles restent visibles jusqu’au décodage de toutes les nouvelles pages. | Éviter un aperçu temporairement vide. |
+| Le statut de rendu pouvait annoncer la fin avant que les images soient prêtes. | Il est actualisé après publication des images décodées. | Faire correspondre le statut à ce qui est visible. |
+| Un résultat pouvait devenir périmé pendant la préparation de l’affichage. | Version, révision, identité du document et ticket de publication sont vérifiés à la fin. | Conserver un aperçu et une navigation cohérents avec le document courant. |
