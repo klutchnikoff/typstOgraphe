@@ -399,7 +399,8 @@ main {
   padding: 22px;
   flex: 1;
 }
-#pages img {
+#pages img,
+#pages canvas {
   display: block;
   width: 100%;
   height: auto;
@@ -866,7 +867,8 @@ main {
   position: relative;
   margin-bottom: 22px;
 }
-#pages .preview-page img {
+#pages .preview-page img,
+#pages .preview-page canvas {
   margin: 0;
   display: block;
 }

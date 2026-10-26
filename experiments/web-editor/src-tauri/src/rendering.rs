@@ -1,5 +1,5 @@
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     io::Write,
     path::{Path, PathBuf},
@@ -23,7 +23,7 @@ pub struct Preview {
     pub page_sizes: Vec<[f32; 2]>,
 }
 
-/// Rust-side stages only: debounce, source projection, IPC and browser decoding
+/// Rust-side stages only: scheduling, source projection, IPC and browser decoding
 /// are outside this measurement. elapsed_ms remains the existing total counter.
 #[derive(Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,10 +35,49 @@ pub struct PreviewTimings {
     pub png_ms: f64,
     pub base64_ms: f64,
     pub sync_ms: f64,
+    pub svg_ms: f64,
 }
 
 fn milliseconds(start: Instant) -> f64 {
     start.elapsed().as_secs_f64() * 1000.0
+}
+
+/// Real native IPC candidates, also used by the repeatable WebView benchmark.
+#[derive(Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Encoding {
+    Png,
+    Rgba,
+    Svg,
+    #[serde(skip)]
+    Dataurl,
+}
+struct Output {
+    preview: Preview,
+    buffers: Vec<Vec<u8>>,
+    dimensions: Vec<[u32; 2]>,
+}
+impl Output {
+    fn packet(self, encoding: Encoding) -> Result<Vec<u8>, String> {
+        let mut offset = 0;
+        let pages: Vec<_> = self.buffers.iter().zip(&self.dimensions).map(|(bytes, size)| {
+            let page = serde_json::json!({"encoding": encoding, "width": size[0], "height": size[1], "offset": offset, "length": bytes.len()});
+            offset += bytes.len();
+            page
+        }).collect();
+        let header =
+            serde_json::to_vec(&serde_json::json!({"preview": self.preview, "pages": pages}))
+                .map_err(|e| e.to_string())?;
+        let length = u32::try_from(header.len()).map_err(|e| e.to_string())?;
+        let mut packet = Vec::with_capacity(8 + header.len() + offset);
+        packet.extend_from_slice(b"TOG1");
+        packet.extend_from_slice(&length.to_le_bytes());
+        packet.extend(header);
+        for bytes in self.buffers {
+            packet.extend(bytes);
+        }
+        Ok(packet)
+    }
 }
 
 #[derive(Default)]
@@ -71,6 +110,49 @@ impl Renderer {
         settings: Option<&crate::settings::Settings>,
         map: Option<SourceMap>,
     ) -> Result<Preview, String> {
+        self.render_output(
+            source,
+            assets,
+            revision,
+            export,
+            settings,
+            map,
+            Encoding::Dataurl,
+        )
+        .map(|output| output.preview)
+    }
+    pub fn frame(
+        &self,
+        source: String,
+        assets: Assets,
+        revision: u64,
+        settings: &crate::settings::Settings,
+        map: SourceMap,
+        encoding: Encoding,
+    ) -> Result<Vec<u8>, String> {
+        self.render_output(
+            source,
+            assets,
+            revision,
+            None,
+            Some(settings),
+            Some(map),
+            encoding,
+        )?
+        .packet(encoding)
+    }
+    // One compilation/validation/synchronisation path for all preview transports.
+    #[allow(clippy::too_many_arguments)]
+    fn render_output(
+        &self,
+        source: String,
+        assets: Assets,
+        revision: u64,
+        export: Option<PathBuf>,
+        settings: Option<&crate::settings::Settings>,
+        map: Option<SourceMap>,
+        encoding: Encoding,
+    ) -> Result<Output, String> {
         let fallback = crate::settings::Settings::default();
         let settings = settings.unwrap_or(&fallback);
         let template = settings.template.clone();
@@ -127,20 +209,36 @@ impl Renderer {
         }
         timings.export_ms = milliseconds(export_start);
         let mut pages = Vec::new();
+        let mut buffers = Vec::new();
+        let mut dimensions = Vec::new();
         for page in document.pages() {
+            if matches!(encoding, Encoding::Svg) {
+                let svg_start = Instant::now();
+                buffers.push(typst_svg::svg(page, &typst_svg::SvgOptions::default()).into_bytes());
+                dimensions.push([0, 0]);
+                timings.svg_ms += milliseconds(svg_start);
+                continue;
+            }
             let raster_start = Instant::now();
             let pixmap = typst_render::render(page, &typst_render::RenderOptions::default());
             timings.raster_ms += milliseconds(raster_start);
             let png_start = Instant::now();
             let (width, height) = (pixmap.width(), pixmap.height());
-            // Own the pixmap: consume its buffer instead of cloning it merely
-            // to undo premultiplied alpha for PNG. Preserve transparent models.
             let rgba = pixmap.take_demultiplied();
+            dimensions.push([width, height]);
+            if matches!(encoding, Encoding::Rgba) {
+                buffers.push(rgba);
+                continue;
+            }
             let data = preview_png(width, height, &rgba)?;
             timings.png_ms += milliseconds(png_start);
-            let base64_start = Instant::now();
-            pages.push(format!("data:image/png;base64,{}", STANDARD.encode(data)));
-            timings.base64_ms += milliseconds(base64_start);
+            if matches!(encoding, Encoding::Dataurl) {
+                let base64_start = Instant::now();
+                pages.push(format!("data:image/png;base64,{}", STANDARD.encode(data)));
+                timings.base64_ms += milliseconds(base64_start);
+            } else {
+                buffers.push(data);
+            }
         }
         let page_sizes = document
             .pages()
@@ -163,13 +261,17 @@ impl Renderer {
                 ));
         }
         timings.sync_ms = milliseconds(sync_start);
-        Ok(Preview {
-            revision,
-            source,
-            pages,
-            elapsed_ms: milliseconds(start),
-            timings,
-            page_sizes,
+        Ok(Output {
+            preview: Preview {
+                revision,
+                source,
+                pages,
+                elapsed_ms: milliseconds(start),
+                timings,
+                page_sizes,
+            },
+            buffers,
+            dimensions,
         })
     }
 }
@@ -309,6 +411,25 @@ mod tests {
                 )
                 .unwrap();
             assert_eq!(decoded_png(bytes), expected);
+            let packet = Renderer::default()
+                .frame(
+                    source.into(),
+                    Assets::default(),
+                    1,
+                    &settings,
+                    SourceMap::default(),
+                    Encoding::Rgba,
+                )
+                .unwrap();
+            assert_eq!(&packet[..4], b"TOG1");
+            let length = u32::from_le_bytes(packet[4..8].try_into().unwrap()) as usize;
+            let header: serde_json::Value = serde_json::from_slice(&packet[8..8 + length]).unwrap();
+            assert_eq!(header["pages"][0]["encoding"], "rgba");
+            assert_eq!(header["pages"][0]["width"], 80);
+            assert_eq!(header["pages"][0]["height"], 80);
+            assert_eq!(header["pages"][0]["offset"], 0);
+            assert_eq!(header["pages"][0]["length"], expected.len());
+            assert_eq!(&packet[8 + length..], expected);
         }
     }
 

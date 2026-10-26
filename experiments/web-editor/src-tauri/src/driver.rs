@@ -134,6 +134,29 @@ fn dispatch(
             )?)
             .map_err(|e| e.to_string())
         }
+        "preview_frame" => {
+            use base64::Engine as _;
+            let snapshot: Snapshot =
+                serde_json::from_value(args["snapshot"].clone()).map_err(|e| e.to_string())?;
+            let encoding =
+                serde_json::from_value(args["encoding"].clone()).map_err(|e| e.to_string())?;
+            let session = bridge.session.lock().map_err(|e| e.to_string())?;
+            let source = session.validate(&snapshot)?;
+            let map =
+                typstographe_core::content::source_mapped(&snapshot.document, &session.assets)?.1;
+            let bytes = bridge.renderer.frame(
+                source,
+                session.assets.clone(),
+                snapshot.revision,
+                snapshot.settings.as_ref().unwrap_or(&session.settings),
+                map,
+                encoding,
+            )?;
+            // STDIO is only the browser functional test driver, never the native benchmark.
+            Ok(
+                serde_json::json!({"binary": base64::engine::general_purpose::STANDARD.encode(bytes)}),
+            )
+        }
         "preview" | "save" | "export_document" => {
             let snapshot: Snapshot =
                 serde_json::from_value(args["snapshot"].clone()).map_err(|e| e.to_string())?;

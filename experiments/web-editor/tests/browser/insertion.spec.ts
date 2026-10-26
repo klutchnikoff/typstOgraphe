@@ -15,7 +15,7 @@ test.beforeEach(async ({ page, request }) => {
   expect((await response.json()).error).toBeUndefined()
   await page.goto('/?client=main')
   await page.waitForFunction(() => window.__spike?.ready)
-  await expect(page.locator('#pages img').first()).toBeVisible()
+  await expect(page.locator('#pages .preview-page').first()).toBeVisible()
 })
 test('insertion commune : tableau au début, milieu, fin ou après un retour, et tous les autres widgets', async ({
   page,

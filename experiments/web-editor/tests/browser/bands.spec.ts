@@ -6,7 +6,7 @@ async function contents(page: Page) {
 async function ready(page: Page) {
   await page.goto('/?client=main')
   await page.waitForFunction(() => window.__spike?.ready)
-  await expect(page.locator('#pages img').first()).toBeVisible()
+  await expect(page.locator('#pages .preview-page').first()).toBeVisible()
 }
 test.beforeEach(async ({ page, request }) => {
   const response = await request.post('/__spike/invoke', {

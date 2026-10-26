@@ -15,19 +15,14 @@ import { hasSettings, settingsForNode } from './capability-settings'
 import { mountShell, type Catalogue } from './shell'
 import { documentType, initializeSettings, settingsFor } from './state'
 import { previewController } from './preview'
+import { requestPreview } from './preview-frame'
+import { renderQueue } from './render-queue'
 import { installMenus } from './menus'
 import { BandHost } from './band-layout'
 import { propertyPanel } from './properties'
 import { insertBlock } from './editing'
 import './style.css'
 
-export interface Preview {
-  revision: number
-  source: string
-  pages: string[]
-  elapsedMs: number
-  pageSizes?: [number, number][]
-}
 declare global {
   interface Window {
     __SPIKE_TRANSPORT__?: { id: string; transport: Transport }
@@ -72,9 +67,9 @@ const host = window.__SPIKE_TRANSPORT__ ??
 const provider = new Provider(host.id, host.transport)
 let editor: Editor
 let properties: ReturnType<typeof propertyPanel> | undefined
-let timer: ReturnType<typeof setTimeout>
-let rendering = false
-let dirty = false
+const rendering = renderQueue(render)
+let scheduledAt = 0
+let onPreview: ((revision: number) => void) | undefined
 let restoringError = false
 let statisticsTicket = 0
 let version = 0
@@ -163,42 +158,39 @@ function refresh() {
 function schedule() {
   version++
   preview?.invalidate()
-  dirty = true
+  scheduledAt = performance.now()
   if (!provider.online) {
     element('render-status').textContent = tr('Modifications locales · hors connexion')
     return
   }
   element('render-status').textContent = tr('Mise à jour…')
-  clearTimeout(timer)
-  timer = setTimeout(() => void render(), 180)
+  rendering.request()
 }
 async function render() {
-  if (!editor || rendering || !provider.online || restoringError) return
-  rendering = true
-  dirty = false
+  if (!editor || !provider.online || restoringError) return
   const localVersion = version
+  const inputTime = scheduledAt
   try {
     await provider.flush()
-    const result = await host.transport.invoke<Preview>('preview', {
-      snapshot: snapshot(),
-    })
+    if (localVersion !== version) return
+    const { result } = await requestPreview(host.transport, snapshot())
     if (localVersion !== version) return
     if (!(await preview?.show(result, localVersion)) || localVersion !== version) return
     const pages = result.pages
     element('render-status').textContent =
       `${pages.length} page${pages.length > 1 ? 's' : ''} · ${Math.round(result.elapsedMs)} ms`
     element('render-status').classList.remove('error')
+    element('render-status').title =
+      `${Math.round(performance.now() - inputTime)} ms · édition → publication`
+    onPreview?.(result.revision)
   } catch (error) {
     if (String(error) === 'stale') {
-      dirty = true
+      rendering.request()
       return
     }
     element('render-status').textContent = tr('Contenu à corriger · dernier rendu conservé')
     element('render-status').classList.add('error')
     message(String(error), true)
-  } finally {
-    rendering = false
-    if (dirty) timer = setTimeout(() => void render(), 180)
   }
 }
 function snapshot() {
@@ -456,7 +448,25 @@ async function start() {
   message('Session locale · modifications partagées entre les fenêtres ouvertes')
   if (isTauri) {
     const mode = await host.transport.invoke<string | null>('diagnostic_mode')
-    if (mode)
+    if (mode === 'performance') {
+      void (await import('./preview-performance')).nativePreviewPerformance(
+        host.transport,
+        provider,
+        editor,
+        {
+          pause: rendering.pause,
+          resume: () => {
+            rendering.resume()
+            rendering.request()
+          },
+          snapshot,
+          show: (result) => preview!.show(result, version),
+          observe: (callback) => {
+            onPreview = callback
+          },
+        },
+      )
+    } else if (mode)
       void (await import('./native-diagnostic')).nativeDiagnostic(
         mode,
         host.transport,
@@ -467,4 +477,7 @@ async function start() {
   }
 }
 void start().catch((error) => message(String(error), true))
-window.addEventListener('beforeunload', () => provider.destroy())
+window.addEventListener('beforeunload', () => {
+  preview?.destroy()
+  provider.destroy()
+})

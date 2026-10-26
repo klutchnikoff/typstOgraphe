@@ -10,7 +10,7 @@ test.beforeEach(async ({ request }) => {
 async function ready(page: Page, id: string) {
   await page.goto(`/?client=${id}`)
   await page.waitForFunction(() => window.__spike?.ready)
-  await expect(page.locator('#pages img').first()).toBeVisible()
+  await expect(page.locator('#pages .preview-page').first()).toBeVisible()
 }
 async function append(page: Page, text: string) {
   await page.evaluate((text) => {
@@ -328,7 +328,7 @@ test('accueil sans document et création depuis les types et modèles disponible
   await expect(page.locator('.tiptap')).not.toContainText('Madame, Monsieur')
   await page.getByRole('button', { name: 'Informations', exact: true }).click()
   await page.getByLabel('Objet', { exact: true }).fill('Courrier créé depuis l’accueil')
-  await expect(page.locator('#pages img').first()).toBeVisible({ timeout: 30000 })
+  await expect(page.locator('#pages .preview-page').first()).toBeVisible({ timeout: 30000 })
 })
 
 test('préférences globales enregistrées explicitement et retrouvées après réouverture', async ({

@@ -131,3 +131,42 @@ it('un retour de navigation d’une ancienne image ne déplace pas le curseur', 
   await Promise.resolve()
   expect(editor.state.selection.from).toBe(cursor)
 })
+
+it('libère les URL binaires périmées et conserve celles de l’aperçu visible', async () => {
+  const create = vi
+    .fn()
+    .mockReturnValueOnce('blob:first')
+    .mockReturnValueOnce('blob:next')
+    .mockReturnValueOnce('blob:stale')
+  const revoke = vi.fn()
+  vi.stubGlobal(
+    'URL',
+    Object.assign(class {}, { createObjectURL: create, revokeObjectURL: revoke }),
+  )
+  const binary = (revision: number) => ({
+    revision,
+    pages: [
+      { encoding: 'svg' as const, width: 0, height: 0, data: new TextEncoder().encode('<svg/>') },
+    ],
+    pageSizes: [[100, 200] as [number, number]],
+  })
+  try {
+    expect(await controller.show(binary(1), 1)).toBe(true)
+    expect(revoke).not.toHaveBeenCalled()
+    version = provider.revision = 2
+    expect(await controller.show(binary(2), 2)).toBe(true)
+    expect(revoke).toHaveBeenCalledWith('blob:first')
+    expect(revoke).not.toHaveBeenCalledWith('blob:next')
+    const held = deferred()
+    decode.mockReturnValueOnce(held.promise)
+    const pending = controller.show(binary(2), 2)
+    controller.invalidate()
+    held.resolve()
+    expect(await pending).toBe(false)
+    expect(revoke).toHaveBeenCalledWith('blob:stale')
+    controller.destroy()
+    expect(revoke).toHaveBeenCalledWith('blob:next')
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})

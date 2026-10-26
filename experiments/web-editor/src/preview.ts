@@ -1,8 +1,9 @@
 import type { Editor } from '@tiptap/core'
 import type { Transport, Provider } from './provider'
+import type { BinaryPage } from './preview-frame'
 interface Result {
   revision: number
-  pages: string[]
+  pages: (string | BinaryPage)[]
   pageSizes?: [number, number][]
 }
 interface Highlight {
@@ -21,6 +22,7 @@ export function previewController(
     ticket = 0,
     displayTicket = 0,
     timer: ReturnType<typeof setTimeout>
+  let visibleUrls: string[] = []
   const clear = () => {
     for (const svg of container.querySelectorAll('svg')) svg.replaceChildren()
   }
@@ -72,6 +74,13 @@ export function previewController(
   }
   return {
     selection,
+    destroy: () => {
+      ticket++
+      displayTicket++
+      clearTimeout(timer)
+      visibleUrls.forEach((url) => URL.revokeObjectURL(url))
+      visibleUrls = []
+    },
     invalidate: () => {
       ticket++
       displayTicket++
@@ -87,54 +96,91 @@ export function previewController(
         generation === provider.generation &&
         !editor.isDestroyed
       const images: HTMLImageElement[] = []
-      const pages = value.pages.map((src, index) => {
-        const page = document.createElement('div')
-        page.className = 'preview-page'
-        page.dataset.page = String(index)
-        const image = document.createElement('img')
-        image.src = src
-        image.alt = `Page ${index + 1} du rendu Typst`
-        images.push(image)
-        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-        const size = value.pageSizes?.[index]
-        if (size) svg.setAttribute('viewBox', `0 0 ${size[0]} ${size[1]}`)
-        page.append(image, svg)
-        const displayed = () =>
-          result === value && shown === version() && provider.revision === value.revision
-        page.ondblclick = (event) => {
-          if (!displayed() || !size) return
-          const rect = image.getBoundingClientRect()
-          const location = {
-            page: index,
-            point: [
-              ((event.clientX - rect.left) * size[0]) / rect.width,
-              ((event.clientY - rect.top) * size[1]) / rect.height,
-            ],
-          }
-          void transport
-            .invoke<number | null>('sync_backward', { revision: value.revision, location })
-            .then((pos) => {
-              if (pos !== null && displayed())
-                editor.chain().focus().setTextSelection(pos).scrollIntoView().run()
-            })
-            .catch(() => {})
-        }
-        return page
-      })
+      const urls: string[] = []
+      const release = () => urls.forEach((url) => URL.revokeObjectURL(url))
+      let pages: HTMLElement[]
       try {
+        pages = value.pages.map((src, index) => {
+          const page = document.createElement('div')
+          page.className = 'preview-page'
+          page.dataset.page = String(index)
+          let image: HTMLImageElement | HTMLCanvasElement
+          if (typeof src !== 'string' && src.encoding === 'rgba') {
+            image = document.createElement('canvas')
+            image.width = src.width
+            image.height = src.height
+            const context = image.getContext('2d')
+            if (!context) throw new Error('Canvas indisponible.')
+            context.putImageData(
+              new ImageData(
+                new Uint8ClampedArray(src.data.buffer, src.data.byteOffset, src.data.byteLength),
+                src.width,
+                src.height,
+              ),
+              0,
+              0,
+            )
+            image.setAttribute('aria-label', `Page ${index + 1} du rendu Typst`)
+          } else {
+            image = document.createElement('img')
+            if (typeof src === 'string') image.src = src
+            else {
+              const url = URL.createObjectURL(
+                new Blob([src.data], {
+                  type: src.encoding === 'svg' ? 'image/svg+xml' : 'image/png',
+                }),
+              )
+              urls.push(url)
+              image.src = url
+            }
+            image.alt = `Page ${index + 1} du rendu Typst`
+            images.push(image)
+          }
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+          const size = value.pageSizes?.[index]
+          if (size) svg.setAttribute('viewBox', `0 0 ${size[0]} ${size[1]}`)
+          page.append(image, svg)
+          const displayed = () =>
+            result === value && shown === version() && provider.revision === value.revision
+          page.ondblclick = (event) => {
+            if (!displayed() || !size) return
+            const rect = image.getBoundingClientRect()
+            const location = {
+              page: index,
+              point: [
+                ((event.clientX - rect.left) * size[0]) / rect.width,
+                ((event.clientY - rect.top) * size[1]) / rect.height,
+              ],
+            }
+            void transport
+              .invoke<number | null>('sync_backward', { revision: value.revision, location })
+              .then((pos) => {
+                if (pos !== null && displayed())
+                  editor.chain().focus().setTextSelection(pos).scrollIntoView().run()
+              })
+              .catch(() => {})
+          }
+          return page
+        })
         // Decode detached images before replacing any visible page. Publishing
         // all pages together also keeps layout and sync on the same revision.
         await Promise.all(images.map((image) => image.decode()))
       } catch (error) {
+        release()
         if (!current()) return false
         throw error
       }
-      if (!current()) return false
+      if (!current()) {
+        release()
+        return false
+      }
       ticket++
       result = value
       shown = currentVersion
       const scrollTop = container.scrollTop
       container.replaceChildren(...pages)
+      visibleUrls.forEach((url) => URL.revokeObjectURL(url))
+      visibleUrls = urls
       container.scrollTop = scrollTop
       selection()
       return true

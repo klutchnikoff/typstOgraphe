@@ -20,6 +20,8 @@ export async function browserTransport(): Promise<{ id: string; transport: Trans
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ command, args, peer: id }),
         })
+        if (response.headers.get('Content-Type') === 'application/octet-stream')
+          return (await response.arrayBuffer()) as T
         const data = await response.json()
         if (data.error) throw data.error
         return data.result as T

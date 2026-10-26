@@ -6216,6 +6216,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "typst-render",
+ "typst-svg",
  "typstographe-core",
  "typstographe-i18n",
  "uuid",

@@ -84,8 +84,13 @@ export function browserDriver(root: string): Plugin {
           if (input.command === 'awareness')
             broadcast('web-editor:awareness', { from: input.peer, update: input.args.update })
           if (input.command === 'import_image') broadcast('web-editor:asset', result)
-          response.setHeader('Content-Type', 'application/json')
-          response.end(JSON.stringify({ result }))
+          if (input.command === 'preview_frame') {
+            response.setHeader('Content-Type', 'application/octet-stream')
+            response.end(Buffer.from((result as { binary: string }).binary, 'base64'))
+          } else {
+            response.setHeader('Content-Type', 'application/json')
+            response.end(JSON.stringify({ result }))
+          }
         } catch (error) {
           response.setHeader('Content-Type', 'application/json')
           response.end(JSON.stringify({ error: String(error) }))

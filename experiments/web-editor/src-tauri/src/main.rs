@@ -142,6 +142,43 @@ async fn preview(state: State<'_, Bridge>, snapshot: Snapshot) -> Result<Preview
     .await
     .map_err(|e| e.to_string())?
 }
+/// Binary IPC: no base64, JSON byte arrays, temporary files or asset HTTP server.
+#[tauri::command]
+async fn preview_frame(
+    state: State<'_, Bridge>,
+    snapshot: Snapshot,
+    encoding: rendering::Encoding,
+) -> Result<tauri::ipc::Response, String> {
+    let session = state.session.clone();
+    let renderer = state.renderer.clone();
+    {
+        let session = session.lock().map_err(|e| e.to_string())?;
+        session.validate(&snapshot)?;
+        state.agent.lock().map_err(|e| e.to_string())?.snapshot = Some(snapshot.clone());
+    }
+    let bytes = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, String> {
+        let (source, assets, settings) = {
+            let session = session.lock().map_err(|e| e.to_string())?;
+            (
+                session.validate(&snapshot)?,
+                session.assets.clone(),
+                snapshot
+                    .settings
+                    .clone()
+                    .unwrap_or_else(|| session.settings.clone()),
+            )
+        };
+        let map = typstographe_core::content::source_mapped(&snapshot.document, &assets)?.1;
+        let bytes = renderer.frame(source, assets, snapshot.revision, &settings, map, encoding)?;
+        if session.lock().map_err(|e| e.to_string())?.revision != snapshot.revision {
+            return Err("stale".into());
+        }
+        Ok(bytes)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    Ok(tauri::ipc::Response::new(bytes))
+}
 #[tauri::command]
 async fn save(
     state: State<'_, Bridge>,
@@ -341,6 +378,9 @@ fn main() {
         if arg == "--diagnostic" {
             diagnostic = Some("full".to_owned());
         }
+        if arg == "--diagnostic-performance" {
+            diagnostic = Some("performance".to_owned());
+        }
         if arg == "--diagnostic-restore" {
             diagnostic = Some("restore".to_owned());
         }
@@ -437,6 +477,7 @@ fn main() {
             relay,
             awareness,
             preview,
+            preview_frame,
             save,
             export_document,
             import_image,
