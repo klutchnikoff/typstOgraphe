@@ -176,3 +176,26 @@ Les captures de liste claire, image sombre, citation et correction dans la prose
 ou un widget ont été inspectées. Elles sont conservées localement dans
 `output/tauri-context-components/`. Aucun essai manuel d'IME ni nouvelle recette
 native Windows/Linux n'est revendiqué dans ce lot.
+
+## En-tête stable et bandeau compact
+
+La citation sert de référence pour l'affinage du 26 octobre : l'en-tête est
+conservé au-dessus du bandeau, l'icône est celle de la barre d'outils, le bandeau
+ne répète plus de titre et le fond de rédaction est neutre. Les paramètres ont
+Annuler/Valider ; la corbeille a seulement Annuler/Supprimer. Ces règles sont
+appliquées aux composants communs, sans modifier le document ni son rendu Typst.
+
+Les captures des trois états (replié, paramètres, suppression), en clair et sombre,
+ont été inspectées. Le parcours vérifie le contenu et les dimensions inchangés de
+l'en-tête, le positionnement du bandeau juste dessous, l'absence de filet entre les
+deux, l'identité de l'icône avec celle de la barre, les couleurs de fond, les actions
+visibles et la fermeture au clavier. La vérification commune des huit widgets et
+le parcours Tab de l'image suivent également cette nouvelle disposition.
+
+Validation du lot : **50 parcours Chromium/WebKit**, **43 tests web**, **8 tests
+i18n**, construction TypeScript/Vite, reconstruction du pilote Rust avec les
+catalogues mis à jour et formatage Prettier réussis.
+
+Les nouvelles références locales sont dans `output/tauri-widget-presentation/`.
+Les maquettes et recettes précédentes restent conservées. Ces contrôles ne
+constituent pas un essai manuel d'IME ou une recette native Windows/Linux.

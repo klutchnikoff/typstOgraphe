@@ -239,3 +239,38 @@ ne changent pas pour construire ces composants de présentation.
 | Image, tableau et notes de lettre assemblaient leur propre cadre. | Un constructeur d'enveloppe pour les huit widgets. | Modifier la présentation commune à un seul endroit. |
 | Propriétés et orthographe reconstruisaient titre, fermeture et actions. | Un composant de panneau, hébergé par un gestionnaire unique. | Garder les interactions cohérentes quand de nouveaux panneaux sont ajoutés. |
 | Le placement cherchait plusieurs balises pour reconnaître un widget. | Un marqueur d'enveloppe et deux modes de placement explicites. | Ajouter une capacité sans modifier les règles de positionnement. |
+
+## Affinage du cadre B — en-tête conservé
+
+Choix du 26 octobre 2026, précisés sur l'exemple de la citation puis appliqués aux
+composants communs. Cette évolution affine la variante B ; les anciennes maquettes
+et captures restent des références historiques.
+
+- L'en-tête du widget reste au-dessus du bandeau, avec la même géométrie et les
+  mêmes commandes dans les deux états. Son symbole reprend l'icône du catalogue
+  Rust utilisée par la barre d'outils ; son nom reste accessible et en info-bulle,
+  ou remplace l'icône si aucune n'est disponible.
+- Replié : en-tête, filet, contenu. Déplié : en-tête, bandeau, filet, contenu.
+  Le filet sous l'en-tête devient transparent pendant l'ouverture pour garder
+  sa hauteur sans séparer les deux surfaces bleues.
+- Le bandeau intégré ne répète ni le nom du widget ni un titre de paramètres,
+  et n'affiche pas de fermeture supplémentaire. Annuler et Échap le ferment.
+- La corbeille montre uniquement Annuler et Supprimer, sauf erreur à signaler.
+  Les paramètres montrent leurs contrôles puis Annuler et Valider ; Supprimer
+  reste réservé à la corbeille. Les autres contrôles propres à une capacité,
+  comme Remplacer pour une image, restent disponibles dans les paramètres.
+- Le fond coloré appartient à l'en-tête et au bandeau déplié. Le contenu éditable
+  garde le fond de la zone de rédaction, dans les deux thèmes.
+
+Les panneaux liés à un passage (liens, notes, orthographe) conservent leur titre
+et leur placement interligne avec pointe. Un lien en ligne garde son action
+Retirer le lien ; il n'est pas un widget doté d'une corbeille. Les règles de
+brouillon, péremption, focus, clavier et annulation restent celles du gestionnaire
+commun. Le nouveau libellé Valider est traduit par Fluent.
+
+| Avant | Après | Pourquoi |
+| --- | --- | --- |
+| Le panneau B apparaissait avant l'en-tête et répétait le nom. | L'en-tête reste en premier ; le panneau sans titre se déploie dessous. | Conserver le repère et gagner de la place. |
+| Les paramètres proposaient aussi Supprimer ; la corbeille avait une explication. | Paramètres : Annuler/Valider ; corbeille : Annuler/Supprimer. | Séparer les deux intentions sans actions redondantes. |
+| Le fond doux recouvrait le contenu du widget. | Le fond doux se limite à l'en-tête et au bandeau. | Garder une surface de rédaction uniforme. |
+| Les en-têtes affichaient un nom alors que la barre utilisait une icône. | La même icône est fournie par le catalogue, avec un nom accessible et un repli textuel. | Reconnaître la capacité avec le même symbole partout. |
