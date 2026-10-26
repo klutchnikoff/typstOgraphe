@@ -4,6 +4,12 @@ use crate::*;
 use std::io::{BufRead, Write};
 
 pub fn run(bridge: Bridge) {
+    let root = bridge
+        .session
+        .lock()
+        .expect("Session de recette indisponible")
+        .root
+        .clone();
     for line in std::io::stdin().lock().lines() {
         let Ok(line) = line else { break };
         let request: serde_json::Value = match serde_json::from_str(&line) {
@@ -13,7 +19,7 @@ pub fn run(bridge: Bridge) {
                 continue;
             }
         };
-        let result = dispatch(&bridge, &request);
+        let result = dispatch(&bridge, &root, &request);
         let response = match result {
             Ok(value) => serde_json::json!({"id":request["id"],"result":value}),
             Err(error) => serde_json::json!({"id":request["id"],"error":error}),
@@ -22,7 +28,11 @@ pub fn run(bridge: Bridge) {
         let _ = std::io::stdout().flush();
     }
 }
-fn dispatch(bridge: &Bridge, request: &serde_json::Value) -> Result<serde_json::Value, String> {
+fn dispatch(
+    bridge: &Bridge,
+    root: &std::path::Path,
+    request: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
     let args = &request["args"];
     let peer = request["peer"].as_str().ok_or("Participant absent.")?;
     let command = request["command"].as_str().ok_or("Commande absente.")?;
@@ -87,7 +97,8 @@ fn dispatch(bridge: &Bridge, request: &serde_json::Value) -> Result<serde_json::
         }
         "reset" => {
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
-            let root = session.root.join(format!(
+            // Each case is a sibling: never nest it under the preceding case.
+            let root = root.join(format!(
                 "case-{}",
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -166,5 +177,30 @@ fn dispatch(bridge: &Bridge, request: &serde_json::Value) -> Result<serde_json::
             }
         }
         _ => Err("Commande de diagnostic inconnue.".into()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resetting_cases_keeps_paths_bounded_and_preferences_writable() {
+        let dir = tempfile::tempdir().unwrap();
+        let bridge = Bridge {
+            session: Arc::new(Mutex::new(Session::open(dir.path().into()).unwrap())),
+            renderer: Arc::new(Renderer::default()),
+            diagnostic: None,
+            agent: Arc::new(Mutex::new(agent::AgentState::default())),
+        };
+        let request = serde_json::json!({"command":"reset", "peer":"main", "args":{}});
+        for _ in 0..50 {
+            dispatch(&bridge, dir.path(), &request).unwrap();
+            let session = bridge.session.lock().unwrap();
+            assert_eq!(session.root.parent(), Some(dir.path()));
+            preferences::Preferences::default()
+                .save(&session.root)
+                .unwrap();
+        }
     }
 }
