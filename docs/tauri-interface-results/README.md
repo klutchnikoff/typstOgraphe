@@ -54,3 +54,20 @@ restent réservés aux recettes.
 
 Le client de recette MCP vérifie le protocole et les permissions. Il ne constitue
 pas une nouvelle évaluation de la qualité rédactionnelle d'un LLM.
+
+## Correctifs de l'interface après essai
+
+- Construction TypeScript/Vite, formatage Prettier et huit tests de collaboration
+  réussis après les corrections.
+- Suite de vingt parcours graphiques réussie sur Chromium et WebKit. Les nouveaux
+  contrôles couvrent les listes via la barre et la saisie `- ` / `1. `, Entrée,
+  conversion et retrait de la liste sélectionnée, fermeture des menus sans édition,
+  absence de cadre et surface éditable pleine colonne, disposition des actions et
+  mise en évidence de l'enregistrement.
+- Le serveur de recette utilise désormais un port distinct (1421 par défaut),
+  sans réutiliser le serveur de développement et son éventuel document ouvert.
+- L'échec Windows de la CI précédente se situait dans Prettier : le checkout
+  convertissait les sources web en CRLF. Les attributs Git imposent désormais LF
+  pour les fichiers texte de ce dossier, sans convertir les fichiers binaires.
+
+Ces contrôles locaux ne constituent pas un essai natif sous Windows ou Linux.
