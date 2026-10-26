@@ -52,23 +52,43 @@ représentent pas celles du transport Tauri natif. Voir la
 
 ### Langues et services du système
 
-L’interface suit les préférences de langue du système via le chargeur Fluent
-partagé (`fr` et `en`, repli actuel `en`). Sa langue est déclarée sur `<html>`.
+Les catalogues de `crates/i18n/i18n/` définissent les langues disponibles ;
+`crates/i18n/i18n.toml` définit leur repli. Il n’existe pas de seconde liste
+de langues actives dans la configuration Tauri. L’interface choisit une seule
+langue selon les préférences du système via le chargeur Fluent partagé et
+la déclare sur `<html>`.
 Le corps de l’éditeur porte séparément la langue du document, actualisée lors
 d’un changement de ses paramètres, y compris reçu d’une autre fenêtre.
 
-- **macOS** : `src-tauri/Info.plist` déclare les deux langues natives et le
-  repli anglais. Tauri fusionne ces valeurs dans le bundle `.app` ; les menus et
-  dialogues système peuvent ainsi utiliser leurs traductions françaises.
+- **macOS** : les langues et le repli natifs sont générés depuis ces mêmes
+  catalogues et réglages Fluent. Tauri les fusionne dans le bundle `.app` ;
+  les menus et dialogues système peuvent ainsi négocier une langue prise en charge.
   Tester le bundle reconstruit : un exécutable lancé seul avec `cargo run`
   ne dispose pas des mêmes métadonnées natives.
 - **Windows** : Wry configure déjà la langue de WebView2 avec
-  `GetUserDefaultUILanguage`. Les installateurs NSIS et WiX déclarent aussi
-  l’anglais et le français dans `tauri.conf.json`. La langue de l’installateur
-  ne fixe pas celle des documents.
+  `GetUserDefaultUILanguage`. Les langues des installateurs NSIS et WiX sont
+  dérivées des mêmes catalogues, avec le repli Fluent en premier. La langue de
+  l’installateur ne fixe pas celle des documents.
 - **Linux** : Fluent suit les préférences de locale ; GTK et WebKitGTK utilisent
   les traductions et locales installées sur le système. Il n’existe pas de
   déclaration de langues de bundle équivalente à celle de macOS à ajouter ici.
+
+`npm run tauri -- dev|build|bundle …` passe par `scripts/tauri.mjs` : celui-ci
+lit les catalogues puis génère `src-tauri/gen/native-locales/Info.plist` et
+une surcharge de configuration Tauri, avant que la CLI ne lise les paramètres
+de bundle. Ces fichiers sont ignorés par Git et ne se modifient pas à la main.
+Utiliser cette commande plutôt que d’appeler directement la CLI Tauri.
+Les noms NSIS et les codes WiX sont des identifiants propres aux installateurs :
+leur correspondance est isolée dans `native-locales.mjs`, sans décider des langues
+disponibles. Un identifiant encore inconnu provoque une erreur explicite.
+
+La déclaration de plusieurs langues n’affiche pas une interface multilingue :
+elle indique au système lesquelles l’application sait présenter. Les composants
+natifs gardent leur propre négociation. Notamment, si la langue système n’existe
+pas dans Fluent, l’interface utilise son repli tandis que WebView2 ou GTK peuvent
+conserver la langue système. Un futur sélecteur de langue dans les préférences
+devra aussi traiter cette limite native ; modifier uniquement `<html lang>`
+ne traduit pas les menus système.
 
 Spellbook est l’unique producteur des soulignements orthographiques du document.
 Le corps porte `spellcheck="false"` et `autocorrect="off"`, hérités dans les
