@@ -50,6 +50,43 @@ représentent pas celles du transport Tauri natif. Voir la
 
 ## Édition et rendu
 
+### Langues et services du système
+
+L’interface suit les préférences de langue du système via le chargeur Fluent
+partagé (`fr` et `en`, repli actuel `en`). Sa langue est déclarée sur `<html>`.
+Le corps de l’éditeur porte séparément la langue du document, actualisée lors
+d’un changement de ses paramètres, y compris reçu d’une autre fenêtre.
+
+- **macOS** : `src-tauri/Info.plist` déclare les deux langues natives et le
+  repli anglais. Tauri fusionne ces valeurs dans le bundle `.app` ; les menus et
+  dialogues système peuvent ainsi utiliser leurs traductions françaises.
+  Tester le bundle reconstruit : un exécutable lancé seul avec `cargo run`
+  ne dispose pas des mêmes métadonnées natives.
+- **Windows** : Wry configure déjà la langue de WebView2 avec
+  `GetUserDefaultUILanguage`. Les installateurs NSIS et WiX déclarent aussi
+  l’anglais et le français dans `tauri.conf.json`. La langue de l’installateur
+  ne fixe pas celle des documents.
+- **Linux** : Fluent suit les préférences de locale ; GTK et WebKitGTK utilisent
+  les traductions et locales installées sur le système. Il n’existe pas de
+  déclaration de langues de bundle équivalente à celle de macOS à ajouter ici.
+
+Spellbook est l’unique producteur des soulignements orthographiques du document.
+Le corps porte `spellcheck="false"` et `autocorrect="off"`, hérités dans les
+listes, cellules, citations et légendes. Les services natifs explicitement
+demandés dans le menu contextuel restent un complément propre au système ;
+leur présence ne garantit ni leur disponibilité hors ligne ni leur compatibilité
+avec toutes les structures et l’historique Yjs.
+
+La recette Chromium/WebKit vérifie les attributs réellement hérités, la séparation
+des langues et un seul marquage Spellbook par occurrence dans le corps et les
+widgets. Le menu natif et les éventuels soulignements dessinés par le système
+restent à contrôler sur chaque OS : clic secondaire sur un mot erroné, correction,
+annulation, puis contrôle d’une liste, d’une cellule et d’une légende. Vérifier
+aussi les dialogues ouvrir/enregistrer en français et en anglais. Les tests de
+navigateur ne remplacent pas ce contrôle natif.
+
+### Capacités
+
 - Paragraphes, titres 1–3, gras, italique, liens, listes non imbriquées.
 - Dans le corps libre : Entrée reste dans le paragraphe (espace dans le rendu),
   deux Entrées créent un paragraphe. Maj+Entrée force un saut de ligne Typst.

@@ -354,6 +354,9 @@ export async function mountShell(s: Shell) {
     if (!settings.has('document')) return
     const kind = documentType(provider),
       current = settingsFor(provider)
+    // Native text services and accessibility follow the document language;
+    // menus and other interface controls keep the Fluent language on <html>.
+    editor.view.dom.lang = String(current.metadata.fields.options.language)
     $('document-type-label').textContent = kind.settingsHeading
     const tabs = $('metadata-tabs')
     tabs.replaceChildren()

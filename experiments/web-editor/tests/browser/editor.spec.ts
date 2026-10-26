@@ -21,6 +21,30 @@ async function append(page: Page, text: string) {
     })
   }, text)
 }
+test('langue documentaire indépendante de l’interface et correction native désactivée dans les widgets', async ({
+  page,
+}) => {
+  await ready(page, 'main')
+  const editor = page.locator('.tiptap')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'fr')
+  await expect(editor).toHaveAttribute('lang', 'fr')
+  await expect(editor).toHaveAttribute('spellcheck', 'false')
+  await expect(editor).toHaveAttribute('autocorrect', 'off')
+  // Captions, list items and cells inherit the same policy as the body.
+  for (const selector of ['figcaption', 'li p', 'td p'])
+    expect(
+      await editor
+        .locator(selector)
+        .first()
+        .evaluate((node) => (node as HTMLElement).spellcheck),
+    ).toBe(false)
+  await page.getByRole('button', { name: 'Général', exact: true }).click()
+  await page.getByLabel('Langue du document', { exact: true }).selectOption('en')
+  await expect(editor).toHaveAttribute('lang', 'en')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'fr')
+  await page.getByLabel('Langue du document', { exact: true }).selectOption('fr')
+  await expect(editor).toHaveAttribute('lang', 'fr')
+})
 test('rendu réel, bandeau de note, légende et sélection de tableau au clavier', async ({
   page,
 }, testInfo) => {

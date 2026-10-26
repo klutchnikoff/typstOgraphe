@@ -328,7 +328,10 @@ async function start() {
         'aria-label': tr('Corps du document'),
         role: 'textbox',
         'aria-multiline': 'true',
+        // Spellbook owns document underlines. Keep native services available
+        // on explicit request, without a second checker or silent replacements.
         spellcheck: 'false',
+        autocorrect: 'off',
       },
       handleKeyDown: (_view, event) => {
         if (event.isComposing || editor.view.composing) return false

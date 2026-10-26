@@ -251,6 +251,8 @@ test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse a
     await expect(page.locator('.spelling-error[data-word="courrrier"]')).toBeVisible({
       timeout: 15000,
     })
+    await expect(page.locator('.spelling-error[data-word="courrrier"]')).toHaveCount(1)
+    await expect(page.locator('.tiptap')).toHaveAttribute('spellcheck', 'false')
     const before = await contents(page)
     await page.keyboard.press('Control+Enter')
     const band = page.locator('#proofing-band')
