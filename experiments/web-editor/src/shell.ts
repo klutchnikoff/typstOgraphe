@@ -10,6 +10,7 @@ import type { Capability, Registry } from './commands'
 import { icon } from './commands'
 import { mountAssistance } from './assistance'
 import { mountProofing, searchState } from './proofing'
+import type { BandHost } from './band-layout'
 import { documentType, settingsFor, setSetting, setDocument, type Settings } from './state'
 export interface Model {
   id: string
@@ -49,6 +50,7 @@ export interface Catalogue {
 }
 
 interface Shell {
+  bands: BandHost
   editor: Editor
   provider: Provider
   transport: Transport
@@ -765,6 +767,7 @@ export async function mountShell(s: Shell) {
   mountAssistance(provider, transport, editor, showPanel, s.message, s.isTauri)
   mountProofing(
     editor,
+    s.bands,
     provider,
     transport,
     preferences.personal || {},

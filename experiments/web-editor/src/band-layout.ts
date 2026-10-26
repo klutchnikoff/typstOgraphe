@@ -2,12 +2,17 @@ import { Extension, type Editor } from '@tiptap/core'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import { Plugin, PluginKey, type SelectionBookmark } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
+import { enclosingWidget, isWidgetKind } from './widget-frame'
+import type { ContextPanel } from './context-panel'
 
+export type PanelTarget = { from: number; to: number } & {
+  placement: 'widget-header' | 'text'
+}
 interface Anchor {
   from: number
   to: number
   pos: number
-  block: boolean
+  placement: PanelTarget['placement']
   gap: HTMLElement
   bookmark: SelectionBookmark
 }
@@ -38,7 +43,7 @@ export const ContextBand = Extension.create({
           decorations(state) {
             const anchor = key.getState(state)
             if (!anchor) return null
-            if (anchor.block) {
+            if (anchor.placement === 'widget-header') {
               const node = state.doc.nodeAt(anchor.from)
               return node && anchor.from + node.nodeSize <= state.doc.content.size
                 ? DecorationSet.create(state.doc, [
@@ -62,7 +67,7 @@ export const ContextBand = Extension.create({
 })
 /** Presentation only: spacing lives in decorations/NodeViews, never in the shared document. */
 export class BandHost {
-  private panel?: HTMLElement
+  private panel?: HTMLFormElement
   private onClose?: () => void
   private frame = 0
   private slot?: HTMLElement
@@ -122,8 +127,7 @@ export class BandHost {
         event.preventDefault()
         event.stopImmediatePropagation()
         if (event.target instanceof HTMLButtonElement) event.target.click()
-        else if (this.panel instanceof HTMLFormElement) this.panel.requestSubmit()
-        else this.panel.querySelector<HTMLButtonElement>('[data-default]')?.click()
+        else this.panel.requestSubmit()
       }
     }
     document.addEventListener('keydown', keyboard, true)
@@ -143,7 +147,19 @@ export class BandHost {
   get target() {
     return key.getState(this.editor.state)
   }
-  open(panel: HTMLElement, from: number, to: number, block: boolean, onClose?: () => void) {
+  open(shell: ContextPanel, target: PanelTarget, onClose?: () => void) {
+    const panel = shell.element
+    if (this.editor.view.composing) return false
+    if (
+      !Number.isInteger(target.from) ||
+      !Number.isInteger(target.to) ||
+      target.from < 0 ||
+      target.to < target.from ||
+      target.to > this.editor.state.doc.content.size ||
+      (target.placement === 'widget-header' &&
+        !isWidgetKind(this.editor.state.doc.nodeAt(target.from)?.type.name || ''))
+    )
+      return false
     this.close(false)
     yUndoPluginKey.getState(this.editor.state)?.undoManager.stopCapturing()
     const gap = document.createElement('span')
@@ -158,10 +174,8 @@ export class BandHost {
     this.observer.observe(panel)
     this.editor.view.dispatch(
       this.editor.state.tr.setMeta(key, {
-        from,
-        to,
-        pos: from,
-        block,
+        ...target,
+        pos: target.from,
         gap,
         bookmark: this.editor.state.selection.getBookmark(),
       } satisfies Anchor),
@@ -169,6 +183,7 @@ export class BandHost {
     this.reanchor = true
     this.layout()
     this.schedule()
+    return true
   }
   close(focus = true) {
     if (!this.panel) return
@@ -195,9 +210,9 @@ export class BandHost {
   }
   reveal() {
     this.layout()
-    let target = this.panel
+    let target: HTMLElement | undefined = this.panel
     const anchor = this.target
-    if (anchor?.block) {
+    if (anchor?.placement === 'widget-header') {
       const host = this.editor.view.nodeDOM(anchor.from)
       const height = document.querySelector<HTMLElement>('#editor-scroll')!.clientHeight
       if (host instanceof HTMLElement && host.getBoundingClientRect().height <= height)
@@ -228,7 +243,7 @@ export class BandHost {
     const scroll = document.querySelector<HTMLElement>('#editor-scroll')!
     let host: HTMLElement
     let marker: HTMLElement
-    if (anchor.block) {
+    if (anchor.placement === 'widget-header') {
       host = view.nodeDOM(anchor.from) as HTMLElement
       if (!(host instanceof HTMLElement)) return
       const slot = host.querySelector<HTMLElement>(':scope > .band-slot')
@@ -256,19 +271,18 @@ export class BandHost {
       }
       const dom = view.domAtPos(anchor.from).node
       const element = dom instanceof HTMLElement ? dom : dom.parentElement!
-      host =
-        element.closest<HTMLElement>(
-          '.content-widget, figure, [data-letter-note], .tableWrapper',
-        ) || view.dom
+      host = enclosingWidget(element) || view.dom
       marker = anchor.gap
     }
     const hostRect = host.getBoundingClientRect(),
       scrollRect = scroll.getBoundingClientRect()
-    const inline = !anchor.block
+    const inline = anchor.placement === 'text'
     panel.classList.toggle('inline-context-band', inline)
     panel.classList.toggle('in-widget', host !== view.dom)
-    const padding = host === view.dom ? parseFloat(getComputedStyle(host).paddingLeft) : 1
-    const width = hostRect.width - padding * 2
+    const style = getComputedStyle(host)
+    const padding = parseFloat(host === view.dom ? style.paddingLeft : style.borderLeftWidth)
+    const right = parseFloat(host === view.dom ? style.paddingRight : style.borderRightWidth)
+    const width = hostRect.width - padding - right
     panel.style.width = `${width}px`
     const height = panel.getBoundingClientRect().height
     const reserved = height + (inline ? 20 : 0)

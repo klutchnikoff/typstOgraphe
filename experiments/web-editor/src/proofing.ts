@@ -5,6 +5,8 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import type { Transport, Provider } from './provider'
 import { settingsFor, setSetting } from './state'
+import type { BandHost } from './band-layout'
+import { contextPanel } from './context-panel'
 export interface Hit {
   from: number
   to: number
@@ -126,6 +128,7 @@ export function openCorrection(editor: Editor) {
 }
 export function mountProofing(
   editor: Editor,
+  bands: BandHost,
   provider: Provider,
   transport: Transport,
   personal: Record<string, string[]>,
@@ -178,7 +181,7 @@ export function mountProofing(
   provider.doc.getMap('settings').observe(check)
   check()
   let requestTicket = 0
-  document.addEventListener('proofing:open', (event) => {
+  const open = (event: Event) => {
     const issue = (event as CustomEvent<Hit>).detail
     if (
       editor.view.composing ||
@@ -188,108 +191,103 @@ export function mountProofing(
       return
     const ticket = ++requestTicket
     const language = String(settingsFor(provider).metadata.fields.options.language)
-    const band = document.createElement('section')
-    band.id = 'proofing-band'
-    band.className = 'properties'
-    band.tabIndex = -1
-    const title = document.createElement('div')
-    title.className = 'panel-title'
-    const heading = document.createElement('strong')
+    const close = () => {
+      if (bands.forPanel(panel.element)) bands.close()
+    }
+    const panel = contextPanel({
+      id: 'proofing-band',
+      closeLabel: tr('Fermer la correction'),
+      close,
+      canConfirm: () => !editor.view.composing,
+    })
+    const band = panel.element
     const kind = document.createElement('span')
     kind.className = 'band-kind'
     kind.textContent = tr('Orthographe')
-    heading.append(kind, document.createTextNode(`« ${issue.word} »`))
-    const cancel = document.createElement('button')
-    cancel.type = 'button'
-    cancel.textContent = '×'
-    cancel.setAttribute('aria-label', tr('Fermer la correction'))
-    const error = document.createElement('p')
-    error.setAttribute('role', 'alert')
+    panel.title.append(kind, document.createTextNode(`« ${issue.word} »`))
     const choices = document.createElement('div')
     choices.className = 'suggestions'
     choices.textContent = tr('Recherche de suggestions…')
-    const actions = document.createElement('div')
-    actions.className = 'panel-actions'
-    const request = {
-      panel: band,
-      from: issue.from,
-      to: issue.to,
-      close: () => band.remove(),
-      target: (): { from: number; to: number } | null => null,
-    }
-    const close = () => {
-      if (request.target()) document.dispatchEvent(new Event('band:close'))
-    }
+    panel.body.append(choices)
+    const target = () => bands.forPanel(band)
     const valid = () => {
-      const range = request.target()
+      const range = target()
       if (!range) return null
       if (range.from > range.to || range.to > editor.state.doc.content.size) return null
       if (
         String(settingsFor(provider).metadata.fields.options.language) !== language ||
         editor.state.doc.textBetween(range.from, range.to) !== issue.word
       ) {
-        error.textContent = tr('Le mot a changé : rouvrez la correction.')
+        panel.error.textContent = tr('Le mot a changé : rouvrez la correction.')
         return null
       }
       return range
     }
-    cancel.onclick = close
-    title.append(heading, cancel)
-    const ignore = document.createElement('button')
-    ignore.textContent = tr('Ignorer dans ce document')
-    ignore.onclick = () => {
-      if (!valid()) return
-      const ignored = structuredClone(
-        (settingsFor(provider).metadata.fields.options.spelling_ignored || {}) as Record<
-          string,
-          string[]
-        >,
-      )
-      ignored[language] = [...new Set([...(ignored[language] || []), issue.word])]
-      setSetting(provider, 'options.spelling_ignored', ignored)
-      close()
-      check()
-    }
-    const add = document.createElement('button')
-    add.textContent = tr('Ajouter au dictionnaire personnel')
-    add.onclick = () => {
-      if (!valid()) return
-      void savePersonal(issue.word, language)
-        .then(() => {
-          personal[language] = [...(personal[language] || []), issue.word]
-          close()
-          check()
-        })
-        .catch((reason) => message(String(reason), true))
-    }
-    actions.append(ignore, add)
-    band.append(title, choices, actions, error)
-    document.dispatchEvent(new CustomEvent('band:open-inline', { detail: request }))
+    panel.action({
+      label: tr('Ignorer dans ce document'),
+      run: () => {
+        if (!valid()) return
+        const ignored = structuredClone(
+          (settingsFor(provider).metadata.fields.options.spelling_ignored || {}) as Record<
+            string,
+            string[]
+          >,
+        )
+        ignored[language] = [...new Set([...(ignored[language] || []), issue.word])]
+        setSetting(provider, 'options.spelling_ignored', ignored)
+        close()
+        check()
+      },
+    })
+    panel.action({
+      label: tr('Ajouter au dictionnaire personnel'),
+      run: () => {
+        if (!valid()) return
+        void savePersonal(issue.word, language)
+          .then(() => {
+            personal[language] = [...(personal[language] || []), issue.word]
+            close()
+            check()
+          })
+          .catch((reason) => message(String(reason), true))
+      },
+    })
+    bands.open(panel, { from: issue.from, to: issue.to, placement: 'text' }, () => band.remove())
+    bands.focus()
     void transport
       .invoke<string[]>('spelling_suggestions', { language, word: issue.word })
       .then((suggestions) => {
-        if (ticket !== requestTicket || !request.target()) return
+        if (ticket !== requestTicket || !target()) return
         choices.replaceChildren()
         const buttons = suggestions.slice(0, 6).map((suggestion) => {
-          const button = document.createElement('button')
-          button.textContent = suggestion
-          button.onclick = () => {
-            const range = valid()
-            if (!range) return
-            editor.commands.insertContentAt(range, { type: 'text', text: suggestion })
-            close()
-          }
-          return button
+          return panel.action({
+            label: suggestion,
+            parent: choices,
+            run: () => {
+              const range = valid()
+              if (!range) return
+              editor.commands.insertContentAt(range, { type: 'text', text: suggestion })
+              close()
+            },
+          })
         })
         const [preferred, ...others] = buttons
         if (preferred) {
-          preferred.className = 'primary'
-          preferred.dataset.default = ''
+          panel.setDefault(preferred)
           choices.append(...others, preferred)
         } else choices.textContent = tr('Aucune suggestion disponible.')
       })
       .catch((reason) => {
-        if (request.target()) error.textContent = String(reason)
+        if (target()) panel.error.textContent = String(reason)
       })
+  }
+  document.addEventListener('proofing:open', open)
+  editor.on('destroy', () => {
+    clearTimeout(timer)
+    version++
+    requestTicket++
+    editor.off('update', check)
+    provider.doc.getMap('settings').unobserve(check)
+    document.removeEventListener('proofing:open', open)
   })
 }

@@ -110,7 +110,10 @@ for (const [label, command] of [
   button.type = 'button'
   button.textContent = label
   button.addEventListener('click', () => {
-    editor.chain().focus()[command]().run()
+    if (command === 'deleteTable') {
+      const target = widgetTarget(editor)
+      if (target?.node.type.name === 'table') openProperties(target.pos, 'table', true)
+    } else editor.chain().focus()[command]().run()
   })
   tableTools.append(button)
 }
@@ -329,22 +332,9 @@ async function start() {
       handleKeyDown: (_view, event) => {
         if (event.isComposing || editor.view.composing) return false
         if (widgetKey(editor, event)) return true
-        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-          if (bands.isOpen) {
-            event.preventDefault()
-            bands.focus()
-            return true
-          }
-          if (openCorrection(editor)) {
-            event.preventDefault()
-            return true
-          }
-          const target = propertyTarget()
-          if (target) {
-            event.preventDefault()
-            openProperties(target.pos, target.kind)
-            return true
-          }
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && openContext()) {
+          event.preventDefault()
+          return true
         }
         return false
       },
@@ -359,24 +349,21 @@ async function start() {
     },
   })
   const bands = new BandHost(editor)
+  const openContext = () => {
+    if (editor.view.composing) return false
+    if (bands.isOpen) {
+      bands.focus()
+      return true
+    }
+    if (openCorrection(editor)) return true
+    const target = propertyTarget()
+    if (!target) return false
+    openProperties(target.pos, target.kind)
+    return true
+  }
   properties = propertyPanel(editor, bands, contentCatalogue, () =>
     element<HTMLInputElement>('image-file').click(),
   )
-  document.addEventListener('band:open-inline', (event) => {
-    const detail = (
-      event as CustomEvent<{
-        panel: HTMLElement
-        from: number
-        to: number
-        close: () => void
-        target: () => { from: number; to: number } | null
-      }>
-    ).detail
-    bands.open(detail.panel, detail.from, detail.to, false, detail.close)
-    detail.target = () => bands.forPanel(detail.panel)
-    bands.focus()
-  })
-  document.addEventListener('band:close', () => bands.close())
   preview = previewController(editor, provider, host.transport, () => version)
   initializeSettings(provider, contentCatalogue, bootstrap.settings)
   commands = createRegistry(
@@ -390,16 +377,7 @@ async function start() {
     id: 'context.open',
     label: tr('Paramètres'),
     shortcut: 'Mod+Enter',
-    run: () => {
-      if (editor.view.composing) return
-      if (bands.isOpen) {
-        bands.focus()
-        return
-      }
-      if (openCorrection(editor)) return
-      const target = propertyTarget()
-      if (target) openProperties(target.pos, target.kind)
-    },
+    run: openContext,
   })
   commands.set('block.remove', {
     id: 'block.remove',
@@ -416,6 +394,7 @@ async function start() {
     provider,
     transport: host.transport,
     catalogue: contentCatalogue,
+    bands,
     commands,
     save,
     schedule,

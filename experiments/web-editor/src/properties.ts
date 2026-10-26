@@ -4,6 +4,9 @@ import type { BandHost } from './band-layout'
 import { convertList, listKinds, type ListKind } from './editing'
 import { tr } from './i18n'
 import type { Catalogue } from './shell'
+import { contextPanel } from './context-panel'
+import { removeWidget } from './widgets'
+import { isWidgetKind } from './widget-frame'
 
 export function propertyPanel(
   editor: Editor,
@@ -11,20 +14,29 @@ export function propertyPanel(
   catalogue: Catalogue,
   chooseImage: () => void,
 ) {
-  const form = document.createElement('form')
-  form.id = 'properties'
-  form.tabIndex = -1
-  form.noValidate = true
-  form.className = 'properties'
-  form.hidden = true
-  form.innerHTML = `<div class="panel-title"><strong id="property-title"></strong><button type="button" id="close-properties">×</button></div>
-    <div id="list-options" class="segmented" role="radiogroup"></div>
+  const panel = contextPanel({
+    id: 'properties',
+    titleId: 'property-title',
+    closeId: 'close-properties',
+    errorId: 'property-error',
+    closeLabel: tr('Fermer les paramètres'),
+    close: () => bands.close(),
+    canConfirm: () => !editor.view.composing,
+  })
+  const form = panel.element
+  panel.body.innerHTML = `<div id="list-options" class="segmented" role="radiogroup"></div>
     <div id="start-field"><label for="list-start"></label><input id="list-start" type="number" min="1" max="10000"></div>
     <label id="property-label" for="property-value"></label><input id="property-inline" type="text"><textarea id="property-value" rows="2"></textarea>
     <div id="image-options"><button type="button" id="replace-image"></button><span id="image-help"></span></div>
-    <p id="property-help" class="band-hint"></p>
-    <div class="panel-actions"><button type="button" id="remove-block" class="danger"></button><button type="button" id="cancel-properties"></button><button type="submit" id="apply-properties" class="primary"></button></div>
-    <p id="property-error" role="alert"></p>`
+    <p id="property-help" class="band-hint"></p>`
+  panel.action({ id: 'remove-block', label: tr('Supprimer'), danger: true, run: () => remove() })
+  panel.action({ id: 'cancel-properties', label: tr('Annuler'), run: () => bands.close() })
+  panel.action({
+    id: 'apply-properties',
+    label: tr('Appliquer'),
+    primary: true,
+    run: () => panel.submit(),
+  })
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => form.querySelector<T>(`#${id}`)!
   const value = $<HTMLTextAreaElement>('property-value')
   const inlineValue = $<HTMLInputElement>('property-inline')
@@ -91,11 +103,12 @@ export function propertyPanel(
     if (!valid()) return
     const { from, to } = bands.target!
     if (opened!.kind === 'link') editor.chain().setTextSelection({ from, to }).unsetLink().run()
+    else if (isWidgetKind(opened!.kind))
+      removeWidget(editor, { pos: from, node: editor.state.doc.nodeAt(from)! })
     else editor.commands.deleteRange({ from, to })
     close()
   }
-  form.onsubmit = (event) => {
-    event.preventDefault()
+  panel.confirm = () => {
     if (editor.view.composing || !opened || !valid()) return
     if (opened.remove) {
       remove()
@@ -132,11 +145,6 @@ export function propertyPanel(
     }
     close()
   }
-  $('close-properties').setAttribute('aria-label', tr('Fermer les paramètres'))
-  $('close-properties').onclick = $('cancel-properties').onclick = close
-  $('cancel-properties').textContent = tr('Annuler')
-  $('remove-block').textContent = tr('Supprimer')
-  $('remove-block').onclick = remove
   $('replace-image').textContent = tr('Remplacer…')
   $('replace-image').onclick = chooseImage
   $('image-help').textContent = tr('La légende se modifie directement dans le bloc.')
@@ -203,9 +211,17 @@ export function propertyPanel(
       $('remove-block').hidden = remove
       $('apply-properties').textContent = remove ? tr('Supprimer') : tr('Appliquer')
       $('apply-properties').classList.toggle('danger', remove)
-      bands.open(form, range.from, range.to, !['link', 'footnote'].includes(kind), () => {
-        opened = undefined
-      })
+      bands.open(
+        panel,
+        {
+          from: range.from,
+          to: range.to,
+          placement: isWidgetKind(kind) ? 'widget-header' : 'text',
+        },
+        () => {
+          opened = undefined
+        },
+      )
       opened = current
       if (remove) $('apply-properties').focus()
       else if (list) $('list-options').querySelector<HTMLElement>('[aria-checked=true]')?.focus()
