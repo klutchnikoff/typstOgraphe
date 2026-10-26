@@ -1449,6 +1449,8 @@ le panneau avant validation de sa présentation.
 **Choix validés :** Tauri, Tiptap/ProseMirror et Yjs, avec réutilisation du cœur
 Rust. Diagnostic sur `codex/spike-tauri-editor`, hors de l'application egui et des
 builds habituels. Voir les [décisions et critères de bilan](docs/architecture-web-editor-spike.md).
+Le prototype et ses recettes sont livrés ; le [bilan et les limites](docs/web-editor-spike-results.md)
+préparent l'essai ergonomique de l'utilisateur, sans décider d'une migration.
 
 L'état partagé et l'historique d'édition sont confiés à Yjs pendant la session ;
 le cœur valide les instantanés et produit le Typst. Deux fenêtres indépendantes
