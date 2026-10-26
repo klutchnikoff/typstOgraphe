@@ -274,3 +274,36 @@ commun. Le nouveau libellé Valider est traduit par Fluent.
 | Les paramètres proposaient aussi Supprimer ; la corbeille avait une explication. | Paramètres : Annuler/Valider ; corbeille : Annuler/Supprimer. | Séparer les deux intentions sans actions redondantes. |
 | Le fond doux recouvrait le contenu du widget. | Le fond doux se limite à l'en-tête et au bandeau. | Garder une surface de rédaction uniforme. |
 | Les en-têtes affichaient un nom alors que la barre utilisait une icône. | La même icône est fournie par le catalogue, avec un nom accessible et un repli textuel. | Reconnaître la capacité avec le même symbole partout. |
+
+## Paramètres réels et citation — correction du 26 octobre
+
+Un panneau de paramètres doit contenir des contrôles utilisables. Une explication
+sur le modèle ne justifie pas son ouverture. La disponibilité appartient à la
+définition commune de la vue du widget et correspond aux contrôles implémentés,
+indépendamment du nombre de paramètres de sa signature Typst.
+
+- Les listes ont le choix du type et, pour une liste numérotée, le numéro initial.
+  L'image a son texte alternatif et son remplacement : leurs paramètres restent actifs.
+- Citation, P.-S., P.J. et tableau n'ont actuellement aucun contrôle secondaire
+  dans ce panneau. Leur roue dentée est grisée, désactivée et accompagnée d'une
+  explication en info-bulle. Les paramètres éditables directement dans le contenu
+  et les commandes propres au tableau restent des interactions distinctes.
+- La même disponibilité est vérifiée avant l'ouverture et par la commande
+  contextuelle/palette. Ctrl/Cmd+Entrée n'ouvre aucun panneau vide et n'insère pas
+  de retour à la ligne à la place : ce raccourci est réservé à l'action contextuelle.
+  Une erreur orthographique reste prioritaire, y compris dans une citation dont
+  la roue dentée est désactivée. Un panneau déjà ouvert reste accessible au raccourci.
+- La corbeille et la suppression directe restent disponibles pour ces widgets.
+
+Le cadre extérieur de la citation reprend la bordure ordinaire de 1 px. La barre
+verticale d'accent de 5 px est à l'intérieur du contenu et accompagne les paragraphes
+cités, y compris leur marque de séparation. Elle ne borde ni l'en-tête, ni le bandeau
+de suppression, ni l'attribution. Le filet de l'attribution occupe 100 % de la
+largeur intérieure disponible, et le texte est aligné à gauche. Aucun changement
+du schéma ou du modèle Typst n'est nécessaire pour ces réglages visuels.
+
+| Avant | Après | Pourquoi |
+| --- | --- | --- |
+| Une roue active ouvrait une simple explication sans contrôle. | Roue désactivée, commande indisponible et ouverture refusée lorsqu'il n'y a aucun réglage. | Éviter une interaction inutile, quel que soit le déclencheur. |
+| La bordure gauche épaisse entourait tout le widget citation. | Cadre normal ; barre d'accent uniquement sur le texte cité. | Distinguer la citation de son attribution et de ses commandes. |
+| L'attribution était centrée sous un filet de 80 %. | Attribution à gauche sous un filet de 100 %. | Garder une délimitation et un alignement clairs. |

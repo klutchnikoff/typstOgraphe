@@ -199,3 +199,31 @@ catalogues mis à jour et formatage Prettier réussis.
 Les nouvelles références locales sont dans `output/tauri-widget-presentation/`.
 Les maquettes et recettes précédentes restent conservées. Ces contrôles ne
 constituent pas un essai manuel d'IME ou une recette native Windows/Linux.
+
+## Paramètres disponibles et cadre de citation
+
+La recette commune vérifie désormais deux groupes : paramètres actifs pour les
+listes et images ; paramètres désactivés pour citation, tableau, P.-S. et P.J.,
+avec une info-bulle explicative. La suppression reste vérifiée pour les huit
+widgets. Le parcours de tableau ouvre la confirmation de sa corbeille au lieu
+d'un panneau sans contrôles.
+
+Le parcours visuel de citation vérifie son cadre extérieur de 1 px, la bordure
+intérieure de 5 px sur les paragraphes, l'absence de bordure gauche sur la source,
+le filet pleine largeur et l'alignement à gauche. Il teste également les deux
+variantes de Ctrl/Cmd+Entrée sans édition parasite, l'indisponibilité dans la
+palette, l'accès direct à l'attribution par Tab et l'annulation de la suppression.
+Le parcours orthographique couvre maintenant aussi une citation : la correction
+reste prioritaire même lorsque ses paramètres sont désactivés.
+
+Vérifications : 43 tests web et 8 tests i18n réussis ; construction TypeScript/Vite,
+pilote Rust et formatage réussis. La suite graphique a passé 49 parcours sur 50 ;
+le parcours citation Chromium échouait car le test envoyait Tab sans attendre le
+retour du focus depuis la palette. Après ajout de cette attente, le parcours a été
+répété trois fois sur chaque navigateur, avec six réussites. Aucun changement du
+comportement applicatif n'a été nécessaire pour cette synchronisation du test.
+
+Les captures claires et sombres ont été inspectées. Les références de cette
+correction sont conservées dans `output/tauri-quote-settings/`, sans remplacer
+les captures précédentes. Aucun nouvel essai matériel d'IME ni de recette native
+Windows/Linux n'est revendiqué pour ce lot.
