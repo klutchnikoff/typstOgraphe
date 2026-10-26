@@ -183,7 +183,7 @@ async function render() {
       snapshot: snapshot(),
     })
     if (localVersion !== version) return
-    preview?.show(result, localVersion)
+    if (!(await preview?.show(result, localVersion)) || localVersion !== version) return
     const pages = result.pages
     element('render-status').textContent =
       `${pages.length} page${pages.length > 1 ? 's' : ''} · ${Math.round(result.elapsedMs)} ms`
