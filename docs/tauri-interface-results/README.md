@@ -110,3 +110,37 @@ restent ignorées par Git, comme les autres captures de référence du projet.
 La recette native vérifie les parcours documentaires ; le clavier et la géométrie
 des nouveaux bandeaux sont contrôlés par les parcours Chromium/WebKit. Ces essais
 ne remplacent pas un essai manuel d'IME ni une recette native Windows/Linux.
+
+## Insertion commune des widgets
+
+Le placement des tableaux, images, trois listes, citations, P.-S. et P.J. suit
+maintenant un contrat commun : découper au curseur, ne pas ajouter de paragraphe
+vide avant et réserver un paragraphe vide immédiatement après. Une ligne de
+reprise déjà présente est réutilisée. Le texte non sélectionné reste conservé,
+y compris ses marques de mise en forme.
+
+| Avant | Après | Pourquoi |
+| --- | --- | --- |
+| Le tableau utilisait son placement standard et pouvait laisser une ligne vide avant. | Les huit widgets passent par la même opération de placement. | Garder une insertion prévisible, au curseur. |
+| Une marge séparait la barre du tableau de sa grille. | La grille suit directement sa barre. | Éviter une bande vide ressemblant à une ligne supplémentaire. |
+| La sortie d'une liste pouvait recréer un paragraphe de reprise. | La sortie réutilise le paragraphe vide suivant. | Continuer la saisie sans doubler les lignes. |
+
+- **43 tests web**, dont 35 contrôles du contrat d'insertion : début, milieu, fin,
+  retour simple existant, ligne vide réutilisée, sélection et frontières de cellule.
+- Les nouveaux parcours graphiques exercent onze insertions par navigateur, via
+  les commandes de la barre et le sélecteur d'image : structure exacte, focus
+  initial, reprise de saisie et deux annulations restaurant le document initial.
+  Le rendu Typst est réel ; l'espacement entre la barre du tableau et sa grille
+  est contrôlé à 2 px près.
+- La suite complète de **42 parcours Chromium/WebKit** passe après correction du
+  pilote. Construction TypeScript/Vite, Prettier, huit tests Rust et clippy passent
+  également.
+- Les captures des tableaux en début, milieu et fin de ligne ont été inspectées.
+  Elles sont conservées localement dans `output/tauri-widget-insertion/`.
+- Le pilote de recette place désormais chaque scénario dans un dossier voisin.
+  L'ancienne imbrication finissait par provoquer une erreur de chemin trop long
+  lors de l'enregistrement des préférences dans la suite complète. Un contrôle
+  Rust vérifie cinquante réinitialisations suivies d'un enregistrement.
+
+Ces essais navigateur ne constituent pas une nouvelle recette native des trois
+systèmes ni un essai manuel d'IME.

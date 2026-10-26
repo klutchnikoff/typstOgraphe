@@ -146,6 +146,31 @@ il ne recouvre pas le texte. Ce mécanisme commun évite de déplacer ou de publ
 contenu pour afficher un contrôle, et garde les champs de formulaire montés lors
 d'un redimensionnement ou d'une modification distante.
 
+### Insertion des widgets : découpage et reprise
+
+Toutes les insertions graphiques de widgets de bloc utilisent la même opération :
+tableaux (construits par Tiptap), listes, descriptions, citations, images, P.-S. et
+P.J. La commande standard de tableau n'est plus utilisée pour placer le widget.
+La grille du tableau suit directement sa barre de commandes, sans marge interne
+simulant une ligne vide au-dessus ou au-dessous.
+
+- En début de ligne, insérer directement, sans conserver un paragraphe vide avant.
+- Au milieu ou en fin de ligne, couper au curseur et placer le widget après la
+  partie gauche, sans ajouter de ligne vide entre les deux.
+- Un retour simple déjà présent à cette frontière n'ajoute pas un second saut.
+- Toujours réserver un paragraphe vide immédiatement après le nouveau widget.
+  Réutiliser celui qui existe déjà ; le texte situé à droite du curseur reste
+  conservé après cette ligne de reprise.
+- Le focus initial reste dans le widget. Le paragraphe suivant permet de reprendre
+  la rédaction ; sortir d'une liste ou d'une annotation réutilise cette ligne.
+- L'insertion, son découpage et sa ligne de reprise forment une seule opération
+  d'annulation. Une insertion depuis une zone qui ne peut pas contenir de widget
+  (cellule, annotation, etc.) est indisponible, sans déplacement implicite hors
+  de cette zone.
+
+Cette règle concerne l'insertion de blocs. Les notes de bas de page restent des
+éléments en ligne ; changer le type d'une liste existante reste une conversion.
+
 ### Périmètre restant distinct
 
 Le lancement Rust par défaut et l'ancienne CLI restent inchangés pendant l'essai.
