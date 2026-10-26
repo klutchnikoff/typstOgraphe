@@ -565,6 +565,9 @@ pub fn specifications() -> Vec<Value> {
             params["properties"]["value"] =
                 json!({"type":"string","enum":["on","off"],"default":"on"})
         }
+        if capability.id.starts_with("insert.") || capability.id.starts_with("letter.insert_") {
+            params["properties"]["index"] = json!({"type":"integer","minimum":0,"description":"Root block insertion index; defaults to append."});
+        }
         if capability.id == "text.link" {
             params["properties"]["url"] = json!({"type":"string"});
             params["required"] = json!(["url"])
@@ -608,7 +611,12 @@ pub fn specifications() -> Vec<Value> {
     ] {
         let mut properties = properties;
         properties["target"] = target.clone();
-        entries.push(json!({"id":id,"description":description,"params_schema":{"type":"object","properties":properties,"additionalProperties":false}}))
+        let required = match id {
+            "text.insert" | "annotation.set" => vec!["text"],
+            "text.select" | "block.remove" => vec!["target"],
+            _ => vec![],
+        };
+        entries.push(json!({"id":id,"description":description,"params_schema":{"type":"object","properties":properties,"required":required,"additionalProperties":false}}))
     }
     entries
 }

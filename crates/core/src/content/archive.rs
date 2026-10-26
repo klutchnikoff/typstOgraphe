@@ -210,6 +210,24 @@ mod tests {
         Archive{document:serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Un texte é😀"},{"type":"footnote","attrs":{"text":"Une note."}}]}]})).unwrap(),metadata,dependencies:crate::packages::for_template(&template),template,model_id:"courrier.model.personal".into(),assets:Assets::default(),yjs:vec![0,0]}
     }
     #[test]
+    fn saving_prunes_deleted_images_without_mutating_live_resources() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("images.typsto");
+        let mut archive = fixture();
+        let svg:std::sync::Arc<[u8]>=br#"<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1"/></svg>"#.as_slice().into();
+        archive
+            .assets
+            .insert("images/unused.svg".into(), svg.clone());
+        archive.assets.insert("images/used.svg".into(), svg);
+        archive.document.content.push(serde_json::from_value(serde_json::json!({"type":"figure","attrs":{"src":"images/used.svg","alt":"A dot"}})).unwrap());
+        let mut lease = DocumentLease::acquire(&path).unwrap();
+        archive.save(&mut lease).unwrap();
+        let saved = Archive::read(&path).unwrap();
+        assert!(saved.assets.contains_key("images/used.svg"));
+        assert!(!saved.assets.contains_key("images/unused.svg"));
+        assert_eq!(archive.assets.len(), 2);
+    }
+    #[test]
     fn archive_roundtrip_and_guard_protect_an_existing_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("test.typsto");

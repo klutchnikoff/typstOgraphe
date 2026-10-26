@@ -10,8 +10,7 @@ struct Entry {
 pub(super) fn literal(value: &str) -> String {
     crate::document::escape_markup(value)
         .replace('.', "\\.")
-        .replace('\n', " ")
-        .replace('\r', " ")
+        .replace(['\n', '\r'], " ")
 }
 pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, SourceMap), String> {
     let mut marked = document.clone();
