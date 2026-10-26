@@ -144,3 +144,35 @@ y compris ses marques de mise en forme.
 
 Ces essais navigateur ne constituent pas une nouvelle recette native des trois
 systèmes ni un essai manuel d'IME.
+
+## Composants communs des widgets et panneaux
+
+La construction des huit cadres passe par `widgetFrame`, y compris pour les
+images, les tableaux et les P.-S./P.J. Les contenus éditables restent propres à
+chaque capacité. Les paramètres, confirmations, liens, notes et corrections
+orthographiques utilisent `contextPanel` et le même `BandHost`, avec deux cibles
+explicites : en-tête de widget B ou passage de texte. Le gestionnaire est injecté
+directement dans les consommateurs.
+
+La vérification des cadres a relevé deux écarts : le panneau de citation ne tenait
+pas compte de sa bordure gauche de 5 px, et le remplissage des P.-S./P.J. repoussait
+leur bandeau. Le gestionnaire mesure maintenant les bordures réelles ; le
+remplissage des notes de lettre appartient à leur contenu, avec l'en-tête commun
+au bord intérieur du cadre. La présentation B reste la référence, sans nouveau
+choix graphique pour ce lot.
+
+Les nouveaux contrôles couvrent les huit widgets : un cadre, paramètres intégrés,
+document inchangé à l'ouverture, confirmation par Entrée et suppression directe,
+annulation restaurant le contenu exact. Un essai garde une requête de suggestions
+en attente puis ouvre les paramètres d'une liste : la réponse tardive ne remplace
+ni le nouveau panneau ni son focus. Une suppression directe immédiatement après
+la saisie s'annule seule et restitue également le texte qui vient d'être écrit.
+
+Validation du lot : **48 parcours Chromium/WebKit**, **43 tests web**, construction
+TypeScript/Vite et formatage Prettier réussis. Le cœur Rust et son contrat ne sont
+pas modifiés par ce lot.
+
+Les captures de liste claire, image sombre, citation et correction dans la prose
+ou un widget ont été inspectées. Elles sont conservées localement dans
+`output/tauri-context-components/`. Aucun essai manuel d'IME ni nouvelle recette
+native Windows/Linux n'est revendiqué dans ce lot.

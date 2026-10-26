@@ -195,3 +195,47 @@ Le prochain palier avant de retirer la référence egui est le raccordement du
 lancement et des adaptateurs documentaires restants, puis la stabilisation des
 erreurs typées du nouveau contrat structuré. La conception des types déclaratifs
 et des manifestes de modèles ne fait pas partie de ce lot d'interface.
+
+## Deux composants obligatoires : widgets et panneaux contextuels
+
+Le cadre d'un widget et le panneau d'une interaction sont deux composants distincts.
+Les capacités ne reconstruisent ni leur en-tête ni leur bandeau.
+
+- `src/widget-frame.ts` construit l'enveloppe des huit widgets : marqueur de
+  contexte, emplacement du panneau B, barre, titre, corbeille et paramètres.
+  Les vues de listes, descriptions, citations, images, tableaux et P.-S./P.J.
+  l'utilisent toutes. Le tableau conserve la vue maintenue par Tiptap pour sa
+  grille ; le composant commun lui ajoute son enveloppe et protège son interface
+  des mutations du contenu éditable.
+- `src/context-panel.ts` construit le titre, la fermeture accessible, le corps,
+  les actions, l'action par défaut et l'erreur d'un panneau. Les paramètres,
+  confirmations de suppression, liens, notes et corrections orthographiques
+  fournissent uniquement leur contenu et leurs actions. Ce composant reste
+  indépendant d'un correcteur : une future correction grammaticale le réutilisera.
+- `src/band-layout.ts` est le gestionnaire unique de ces panneaux. Il reçoit une
+  cible typée : `widget-header` pour l'en-tête déplié B, `text` pour un passage.
+  Le second cas détecte l'enveloppe commune, sans énumérer des balises HTML :
+  largeur éditable dans la prose, largeur intérieure du cadre dans un widget,
+  avec une pointe vers le passage. Les bordures asymétriques d'une citation sont
+  prises en compte. Un seul panneau reste ouvert, et son brouillon, son focus,
+  sa cible suivie, le défilement et le clavier suivent les règles communes.
+
+Le gestionnaire est fourni directement aux propriétés et au correcteur ; il n'y
+a plus de relais global `band:open-inline` / `band:close`. La commande contextuelle
+et son raccourci partagent le même aiguillage. Corbeille, confirmation et raccourci
+de suppression rejoignent `removeWidget` ; le bouton auxiliaire de suppression du
+tableau ouvre lui aussi la confirmation commune. Les actions propres aux cellules
+restent des contrôles du tableau.
+
+La présentation commune se règle dans les sélecteurs `.content-widget`,
+`.widget-bar` et `.context-band`. Des variables de variante permettent à une image
+ou à une citation de garder leurs particularités, sans recopier les règles du cadre.
+Le catalogue documentaire reste en Rust : la liste des vues de widgets n'est pas
+un second catalogue de capacités. Le schéma du document, Yjs et le contrat MCP
+ne changent pas pour construire ces composants de présentation.
+
+| Avant | Après | Pourquoi |
+| --- | --- | --- |
+| Image, tableau et notes de lettre assemblaient leur propre cadre. | Un constructeur d'enveloppe pour les huit widgets. | Modifier la présentation commune à un seul endroit. |
+| Propriétés et orthographe reconstruisaient titre, fermeture et actions. | Un composant de panneau, hébergé par un gestionnaire unique. | Garder les interactions cohérentes quand de nouveaux panneaux sont ajoutés. |
+| Le placement cherchait plusieurs balises pour reconnaître un widget. | Un marqueur d'enveloppe et deux modes de placement explicites. | Ajouter une capacité sans modifier les règles de positionnement. |
