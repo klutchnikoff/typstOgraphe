@@ -1,6 +1,6 @@
 # Feuille de route de typstOgraphe
 
-Révisée le **26 octobre 2026**. Objectif : transformer le prototype validé en une
+Révisée le **27 octobre 2026**. Objectif : transformer le prototype validé en une
 application de rédaction utilisable au quotidien, pour l’administration,
 l’enseignement et la recherche en sciences humaines et sociales.
 
@@ -19,6 +19,20 @@ Livrer par lots courts et utilisables, vérifier les parcours réels, puis retir
 du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
+
+## Un projet typstOgraphe — définition retenue
+
+Un **projet est le fichier .typsto autonome**, équivalent d’un répertoire de
+travail LaTeX dont l’organisation technique est masquée. Il rassemble un
+document, éventuellement structuré en parties, ses métadonnées et réglages,
+le modèle, les dépendances, les images, les références bibliographiques et les
+autres ressources nécessaires, ainsi que les snapshots conservés. Un courrier,
+un article ou un mémoire constitue chacun un projet ; le projet n’est pas un
+regroupement de plusieurs documents indépendants.
+
+Le mot « document » peut rester celui des actions courantes dans l’interface.
+Le catalogue global référence les projets : il ne remplace pas leurs fichiers
+par un espace de stockage imposé. Son organisation graphique reste à valider.
 
 ## Priorités et dépendances
 
@@ -52,9 +66,33 @@ rédaction individuelle, l’ouverture et l’export doivent fonctionner hors li
   du fichier, dont le comportement reste à choisir.
 - Préciser le contrat de conservation de l’arbre documentaire, de Yjs et du
   Typst généré avant de stabiliser le format public du fichier .typsto.
+- **Snapshots — P1, à préparer dès le contrat du fichier :** conserver dans le
+  projet des états cohérents et identifiables, consultables hors ligne. Chaque
+  état doit retrouver son contenu, ses métadonnées et réglages, son modèle,
+  ses dépendances et les ressources nécessaires au rendu, y compris une image
+  remplacée ou supprimée depuis. Prévoir nom, date, auteur du snapshot et
+  description facultative ; ne pas confondre création du snapshot et attribution
+  de toutes les modifications à cette personne.
+- Distinguer snapshots durables, annuler/rétablir en séance et récupération
+  après incident. Prévoir consultation en lecture seule, comparaison et retour
+  à un état conservé sans effacer l’historique. Maquetter et valider le parcours
+  de restauration, de copie indépendante et de suppression des snapshots.
+- Séparer stockage des états et calcul des différences. **Git local embarqué
+  est une piste à évaluer, pas une dépendance choisie**, sans serveur GitHub ni
+  connaissance de Git demandée à l’utilisateur. Comparer cette piste à un
+  stockage de snapshots et une bibliothèque de diff existante. Git éventuel
+  ne remplace pas Yjs pour l’édition collaborative.
+- Maîtriser le poids du projet : étudier la déduplication des ressources et
+  leur référencement immuable par snapshot. Exclure assets/ d’un éventuel dépôt
+  Git ne doit pas permettre de perdre les images d’un état conservé. Définir
+  rétention, suppression et nettoyage ; une ressource utile à un snapshot
+  conservé reste dans le .typsto. L’export Typst/PDF porte sur l’état choisi,
+  sans embarquer inutilement les ressources des autres états.
 
 **Choix à valider :** organisation du dépôt et commande de lancement ; retrait
 d’egui et de l’ancienne CLI ; périmètre et moment de stabilisation du format.
+Pour les snapshots : déclenchement manuel/automatique, stockage, comparaison,
+rétention et restauration, puis droits et coordination en collaboration.
 Aucune couche de rétrocompatibilité préventive pendant cette phase préliminaire.
 
 **Sortie :** un même document passe de l’interface aux opérations documentaires
@@ -161,8 +199,12 @@ export autonomes, compilables sans téléchargement de paquets.
   de focus, validation, annulation et suppression ; contenus spécifiques par capacité.
 - Renforcer les parcours clavier, les lecteurs d’écran, les contrastes, l’IME,
   les petits écrans et les états sans document ou sans résultat.
-- Clarifier la barre latérale : récents, navigation du document, bibliothèque,
-  préférences et assistance, en conservant la place de l’éditeur et de l’aperçu.
+- Maquetter l’accès central aux projets récents/épinglés, puis la navigation
+  dans le projet actif : plan, ressources, références et snapshots. Clarifier
+  leur articulation avec bibliothèque globale, préférences et assistance,
+  en conservant la place de l’éditeur et de l’aperçu. Les panneaux, leur
+  emplacement et le vocabulaire utilisateur restent à valider ; le catalogue
+  ne doit pas exposer l’arborescence technique de l’archive.
 - Définir l’ouverture de plusieurs documents (fenêtres ou onglets), l’impression
   et l’accès direct aux fichiers/PDF produits.
 - Définir le déplacement/duplication de blocs, le collage structuré et le collage
@@ -217,7 +259,10 @@ les droits et le cycle de vie du document partagé restent à construire.
   d’organisation, accès même lorsque le poste de l’hôte est fermé.
 - **G.4 — Fiabilité :** sauvegarde et autorité du document partagé, copies locales,
   travail hors connexion, reconnexion, annulation propre à chaque participant,
-  ressources, modèles et versions de schéma cohérents.
+  ressources, modèles et versions de schéma cohérents. Définir l’autorité et
+  les droits de création, restauration et suppression des snapshots ; restaurer
+  un état doit être explicite et annoncé aux participants, avec traitement des
+  éditions concurrentes et conservation de l’historique.
 - **G.5 — Charge :** mesurer une centaine de collaborateurs répartis sur plusieurs
   documents, avec collages, images, coupures et reconnexions ; ne pas transformer
   une estimation de matériel en capacité garantie.

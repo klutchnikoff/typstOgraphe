@@ -1,6 +1,6 @@
 # Plan technique de développement
 
-Révisé le **26 octobre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
+Révisé le **27 octobre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
 et ne conserve que les décisions à prendre et les travaux techniques restants.
 Les anciennes phases, leurs réalisations et leurs inventaires historiques sont
 dans les bilans de docs/ et l’historique Git.
@@ -15,6 +15,10 @@ dans les bilans de docs/ et l’historique Git.
   reste indépendante du type et du modèle.
 - Fichiers locaux autonomes et compilation hors ligne, modèles et ressources
   embarqués, écritures atomiques et protection contre les écrasements concurrents.
+- Un projet correspond à un .typsto autonome : document, modèle, dépendances,
+  ressources et snapshots conservés. L’organisation technique de l’archive
+  reste masquée ; le catalogue de projets de l’application ne contient que
+  leurs références et les informations nécessaires à leur accès.
 - Préférences et profil locaux, distincts du contenu partagé ; les valeurs
   incorporées au document deviennent ses données propres.
 - Fluent fournit les langues de l’interface et son repli. Langue documentaire,
@@ -57,8 +61,41 @@ transactions ; aucun canal ne contourne les frontières entre zones.
 Fixer les responsabilités de l’état Yjs, de l’arbre validé et du Typst généré.
 Tester identité/révision, sauvegarde pendant des éditions, récupération après
 incident, fermeture, changement externe et refus d’une archive incohérente.
-Conserver les ressources utiles à l’annulation en séance ; n’exporter que celles
-requises par le document, le modèle et leurs dépendances.
+Conserver en séance les ressources utiles à l’annulation ; conserver dans
+l’archive celles requises par l’état courant et tous les snapshots retenus.
+Un export Typst/PDF de l’état choisi ne requiert pas les ressources propres
+aux autres états conservés.
+
+### A.4 Snapshots durables — P1, contrat à préparer avec A.3
+
+Définir un état cohérent incluant contenu structuré, métadonnées, réglages,
+modèle, dépendances et ressources, avec identité, nom, date, auteur du snapshot
+et description facultative. Préciser les données Yjs nécessaires à sa
+conservation ; une capture de l’état collaboratif binaire et une comparaison
+lisible du contenu répondent à des besoins distincts. Ne pas assimiler le
+snapshot à une commande d’annulation ou à la copie de récupération.
+
+Comparer Git embarqué local à un stockage de snapshots avec bibliothèque de
+diff : dépendances, taille, temps de création/lecture, empaquetage dans le
+.typsto et intégrité après incident. Aucun moteur n’est choisi ; ne pas
+introduire de service Git distant ou remplacer la synchronisation Yjs.
+Évaluer la comparaison documentaire par blocs, texte, annotations, métadonnées
+et ressources, sans exposer les différences d’octets Yjs à l’utilisateur.
+
+Étudier un stockage de ressources immuables identifiées par leur contenu,
+partagées entre états : une image remplacée doit rester accessible depuis
+son ancien snapshot. Le nettoyage prend en compte l’état courant et tous les
+snapshots retenus ; ignorer assets/ dans Git ne dispense pas de cette garantie.
+Définir rétention et suppression avant de stabiliser le schéma de l’archive.
+
+La restauration doit produire un nouvel état courant sans effacer les états
+conservés ; son interaction avec les révisions Yjs, les participants distants
+et les propositions MCP gardées par révision reste à spécifier avant codage.
+Vérifier hors ligne l’ouverture et le rendu d’un état ancien après changement
+de modèle, remplacement/suppression d’image, sauvegarde et réouverture ; tester
+aussi archive incomplète, suppression d’un snapshot et absence de nettoyage
+des ressources encore référencées. Une politique de nettoyage de l’historique
+ne doit pas dépendre du seul état courant.
 
 **Sortie A :** même corpus relu et modifié par les adaptateurs concernés,
 sauvegardé, rouvert, rendu et exporté sans branche documentaire spéciale.
@@ -135,6 +172,11 @@ et changement de modèle sans modification du contenu.
 Conserver les conventions validées des widgets/bandeaux, menus, actions et
 raccourcis ; maqueter les extensions sur l’interface Tauri réelle. Examiner
 focus, lecture d’écran, contraste, mouvement réduit, petite fenêtre et saisie IME.
+
+Valider la maquette du catalogue global des projets et de la navigation dans
+le projet courant (plan, ressources, références, snapshots), en distinguant
+préférences/bibliothèque globales et données du projet. Ne pas déduire de ce
+cadrage un choix déjà arrêté de panneaux, de fenêtres ou d’onglets.
 
 Les tests graphiques Chromium/WebKit vérifient le frontend ; les recettes natives
 doivent aussi couvrir WebKit macOS, WebView2 Windows et WebKitGTK Linux.
@@ -216,6 +258,9 @@ Sources de départ, pas choix d’infrastructure définitifs :
 
 Décider la propriété/sauvegarde des documents partagés, le transfert des images,
 les modèles et schémas compatibles, le travail hors connexion et la réconciliation.
+Préciser les droits et l’autorité pour les snapshots partagés, la capture d’une
+révision cohérente, l’annonce des restaurations et la gestion des éditions
+concurrentes ; conserver l’historique lors d’un retour à un état antérieur.
 Prévoir un test de charge représentatif à cent utilisateurs sur plusieurs documents,
 avec participants lents, collages volumineux, reconnexions et reprise du serveur.
 
