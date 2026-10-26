@@ -724,3 +724,11 @@ web-document-body = Document body
 web-column-width = Column widths
 
 web-you = You
+
+# Bandeaux contextuels de l’éditeur structuré
+web-list-type = List type
+web-remove-block = Delete block
+web-remove-block-help = The entire block will be deleted. You can undo this deletion.
+web-image-replacement-pending = Image replaced — apply to confirm
+web-close-correction = Close correction
+web-table = Table

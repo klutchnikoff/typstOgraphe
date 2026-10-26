@@ -727,3 +727,11 @@ web-document-body = Corps du document
 web-column-width = Largeur des colonnes
 
 web-you = Vous
+
+# Bandeaux contextuels de l’éditeur structuré
+web-list-type = Type de liste
+web-remove-block = Supprimer le bloc
+web-remove-block-help = Le bloc entier sera supprimé. Vous pourrez annuler cette suppression.
+web-image-replacement-pending = Image remplacée — appliquer pour confirmer
+web-close-correction = Fermer la correction
+web-table = Tableau
