@@ -53,12 +53,12 @@ jobs:
           cargo +stable check --locked -p typstographe-core
       - name: Editor model experiment
         if: runner.os == 'Linux'
-        run: cargo +stable test --locked --features editor-model-spike --example editor-model-spike model_spike
+        run: cargo +stable test --locked -p typstographe-egui --features editor-model-spike --example editor-model-spike model_spike
       - name: Workspace tests and interface contract examples
-        run: cargo +stable test --locked --workspace
+        run: cargo +stable test --locked --workspace --exclude typstographe
       - name: Isolated native MCP recipe driver (compile only)
-        run: cargo +stable check --locked -p typstographe --features mcp-acceptance --example mcp-acceptance
-      - run: cargo +stable clippy --locked --workspace --all-targets -- -D warnings
+        run: cargo +stable check --locked -p typstographe-egui --features mcp-acceptance --example mcp-acceptance
+      - run: cargo +stable clippy --locked --workspace --exclude typstographe --all-targets -- -D warnings
       - name: Informative WASM compatibility check
         if: runner.os == 'Linux'
         continue-on-error: true

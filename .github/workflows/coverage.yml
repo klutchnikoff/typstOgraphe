@@ -45,7 +45,7 @@ jobs:
           key: coverage-linux-nightly-${{ hashFiles('Cargo.lock') }}
           restore-keys: coverage-linux-nightly-
       - name: Run instrumented tests
-        run: cargo +nightly llvm-cov --locked --workspace --no-report
+        run: cargo +nightly llvm-cov --locked --workspace --exclude typstographe --no-report
       - name: Generate reports
         run: |
           mkdir -p output/coverage
