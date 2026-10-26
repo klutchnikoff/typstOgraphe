@@ -44,3 +44,74 @@ lue par l’agent et attend l’acceptation explicite de l’utilisateur.
 Les capacités déjà présentes sont prioritaires. Les tableaux simples et notes sont
 les premières extensions ; les mathématiques et diagrammes restent dans l'inventaire,
 sans ajout automatique de dépendances ou d'interface complexe.
+
+## État du portage
+
+Le catalogue `typstographe_core::content::catalogue` définit les 16 capacités
+visuelles et leur disponibilité par type. `content::operations::specifications`
+ajoute les contrats d'édition et de ciblage pour MCP. Les identifiants et contrats
+sont partagés ; le code des widgets ProseMirror et celui de leur mise en page Typst
+restent propres à leurs technologies.
+
+- Titres, gras, italique, liens, listes simples, descriptions, citations,
+  images avec légende/texte alternatif, P.-S./P.J., tableaux simples et notes.
+- Accueil, création depuis les registres de types/modèles, onglets des paramètres,
+  préférences et profil/signature globaux, récents, palette et menus natifs macOS.
+- Recherche exacte, remplacement, orthographe locale réutilisant le cœur,
+  compteurs Unicode document/sélection, thèmes et catalogues Fluent français/anglais.
+- Archives sous verrou et écriture atomique, import des anciens courriers,
+  export PDF et sources autonomes, récupération du brouillon après inactivité.
+- Sélection et navigation dans les deux sens avec le rendu Typst ; les requêtes
+  correspondant à un ancien rendu sont ignorées.
+- MCP rattaché : découverte, lecture et proposition atomique. Acceptation/refus
+  du lot dans l'interface ; une annulation retire le lot accepté. Les fichiers,
+  préférences et sélection humaine ne sont pas accessibles en écriture à l'agent.
+
+### Représentations documentaires
+
+Pendant la session, Yjs porte le contenu et les paramètres partagés. Le cœur
+valide l'arbre et génère le Typst ; celui-ci n'est plus la projection plate
+utilisée pour adresser les éditions. L'archive version 10 contient `document.json`,
+`state.yjs`, `contenu.typ`, `main.typ`, métadonnées, modèle et dépendances. Le lecteur
+vérifie que le source correspond à l'arbre ; la vue vérifie l'instantané restauré
+contre Yjs avant de permettre l'édition. L'export Typst reste utilisable hors ligne.
+Les images retirées restent en mémoire pour l'annulation, mais leurs octets ne
+figurent pas dans une nouvelle archive ou un export s'ils ne sont plus utilisés.
+
+Le remplacement du document exige une révision à jour et aucune vue déconnectée.
+Les autres vues rechargent le même état ; elles ne fusionnent pas deux documents
+différents. Un agent perd son invitation lors d'un remplacement.
+
+### Lecture de l'interface
+
+| Before | After | Why |
+| --- | --- | --- |
+| Barre de diagnostic du prototype | Menus, palette, barre compacte et accueil sans document | Retrouver les parcours de l'application |
+| Blocs de présentations différentes | Commandes de paramètres/suppression communes, contenus éditables spécifiques | Réduire les conventions à apprendre |
+| Paramètres séparés du contenu partagé | Onglets alimentés par le registre et paramètres dans Yjs | Conserver des vues cohérentes et l'annulation |
+| Positions de texte plat pour l'agent | Chemins de blocs/cellules et offsets dans une zone | Protéger les frontières structurées |
+
+### Périmètre restant distinct
+
+Le lancement Rust par défaut et l'ancienne CLI restent inchangés pendant l'essai.
+La CLI historique ne lit pas les archives version 10 ; le MCP rattaché de la
+nouvelle application emploie son nouveau contrat. Il ne faut pas confondre cet
+adaptateur avec l'ancien serveur autonome, qui documente sa disponibilité propre.
+Le catalogue propose actuellement le seul modèle personnel intégré : bibliothèque
+de modèles importables, sélection de polices système détaillée, personnalisation
+des raccourcis, ACP et collaboration réseau restent des travaux séparés.
+
+Les contrôles automatiques ne remplacent pas un essai matériel des méthodes de
+saisie macOS/Windows/Linux. La composition est gérée par le navigateur ; il faut
+encore refaire l'essai manuel japonais dans cette interface avant de le valider.
+
+## Vérifications et prochain palier
+
+Le [compte rendu des contrôles](tauri-interface-results/README.md) conserve les
+mesures et captures clair/sombre. Les recettes utilisent le vrai moteur Typst ;
+le client MCP est un client protocolaire, sans LLM ni skill.
+
+Le prochain palier avant de retirer la référence egui est le raccordement du
+lancement et des adaptateurs documentaires restants, puis la stabilisation des
+erreurs typées du nouveau contrat structuré. La conception des types déclaratifs
+et des manifestes de modèles ne fait pas partie de ce lot d'interface.

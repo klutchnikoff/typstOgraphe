@@ -1,0 +1,14 @@
+{
+  "tools": [
+    "document_types.list",
+    "document.inspect",
+    "document.structure",
+    "capabilities.list",
+    "capabilities.describe",
+    "proposals.submit",
+    "proposals.get",
+    "proposals.cancel"
+  ],
+  "proposal": "144c986a-e5e3-41f6-9367-f72f76839d11",
+  "status": "pending"
+}

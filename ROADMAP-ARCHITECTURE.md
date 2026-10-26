@@ -1450,16 +1450,19 @@ le panneau avant validation de sa présentation.
 Rust. Diagnostic sur `codex/spike-tauri-editor`, hors de l'application egui et des
 builds habituels. Voir les [décisions et critères de bilan](docs/architecture-web-editor-spike.md).
 Le prototype et ses recettes sont livrés ; le [bilan et les limites](docs/web-editor-spike-results.md)
-préparent l'essai ergonomique de l'utilisateur, sans décider d'une migration.
+ont été validés par l'utilisateur. Le 26 octobre, la reconstruction générale a
+été engagée sur `codex/tauri-interface` ; voir le [suivi de migration](docs/tauri-migration.md).
 
 L'état partagé et l'historique d'édition sont confiés à Yjs pendant la session ;
 le cœur valide les instantanés et produit le Typst. Deux fenêtres indépendantes
 échangent par un relais local. Le diagnostic couvre notamment tableaux, notes,
 annotations, sauvegarde/reprise et une modification initiée depuis Rust.
-Ce choix expérimental ne décide pas une migration générale ni une modification
-du format `.typsto`. Les tableaux et notes restent les premières priorités
-documentaires du chantier C. La conception ACP reprend après le bilan de ce
-prototype ; les décisions M.1 restent consignées.
+La nouvelle interface reprend les capacités existantes et ajoute les tableaux
+simples et notes. Son archive `.typsto` version 10 conserve arbre structuré,
+état Yjs, source Typst généré et vérifié, métadonnées, modèle et ressources utiles.
+Le MCP rattaché évolue vers des cibles structurées, conformément au choix validé ;
+la CLI et l'ancien adaptateur MCP autonome gardent leur contrat historique pendant
+ce portage. La conception ACP reste distincte ; les décisions M.1 sont conservées.
 
 ## Phase 7 — Consolidation (taille S)
 

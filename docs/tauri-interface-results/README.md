@@ -1,0 +1,56 @@
+# Vérifications locales — interface Tauri
+
+26 octobre 2026, macOS Apple Silicon. Ces résultats décrivent un build de
+développement ; ils ne remplacent pas la CI Windows/Linux ni un test utilisateur.
+
+- Suite Rust du workspace : 600 tests réussis pendant le portage. Les ajouts ont
+  ensuite été contrôlés par les suites ciblées : contenu structuré (13 tests),
+  localisation (8), adaptateur Tauri/MCP (7), collaboration web (8).
+- `cargo clippy --workspace --all-targets -- -D warnings` et clippy du workspace
+  Tauri séparé ; contrôle de la frontière de dépendances du cœur.
+- TypeScript, Vite, Prettier et recettes de scripts d'architecture vérifiés.
+- Douze recettes graphiques en série : six parcours sur Chromium et WebKit.
+  Elles couvrent rendu Typst, notes/images/tableaux au clavier, concurrence et
+  reconnexion, annulation locale, sélection entre blocs, recherche/remplacement
+  littéral, anciens widgets, raccourcis Typst et accueil/création.
+- Contrôles complémentaires après séparation des panneaux : recherche et
+  préférences persistantes, sur les deux navigateurs.
+- Fenêtres Tauri natives : deux Y.Doc indépendants, fusion après reconnexion,
+  annulation locale, annotations, lot MCP soumis via STDIO, relecture et
+  acceptation par l'interface, sélection préservée, annulation du lot, écriture
+  d'une archive sous verrou, export et reprise après fermeture du processus.
+- Sources exportées recompilées avec le CLI Typst, sans polices système et avec
+  le dossier de polices exporté (`--ignore-system-fonts --font-path fonts`).
+
+## Mesures
+
+Le document de saisie compte 100 paragraphes, 26 615 unités UTF-16 et sept pages.
+La mesure va de `keydown` à la frame suivant la transaction, sans latence de
+pilotage Playwright. Les fichiers JSON conservent les mesures brutes.
+
+| Mesure | Chromium | WebKit |
+| --- | --- | --- |
+| Saisie, médiane | 8,5 ms | 9 ms |
+| Saisie, p95 | 15 ms | 28 ms |
+| Rendu complet des sept pages PNG | 6,7 s | 6,9 s |
+
+Le RSS de la recette native ne couvre que le processus Rust, **pas WebKit**, ni
+le client MCP de test. Voir `native-metrics.json`. Il ne s'agit pas de mesures
+stabilisées de consommation globale de l'application.
+
+Les captures [en mode clair](editor-light.png) et [sombre](editor-dark.png)
+utilisent le courrier fictif de diagnostic. Ce courrier
+n'est pas ouvert au lancement normal. `Essai Rust` et les identités fictives
+restent réservés aux recettes.
+
+## Points à vérifier avant la bascule par défaut
+
+- Essai matériel des touches mortes et IME dans le nouvel éditeur sur les systèmes
+  visés ; un test de saisie Unicode automatisé ne démontre pas le trajet IME.
+- Raccordement de la CLI et du MCP autonome à l'archive structurée version 10.
+- Unification des diagnostics encore textuels des nouveaux modules structurés
+  avec les erreurs typées existantes, avant de stabiliser cette nouvelle API.
+- Bibliothèque de modèles et manifeste de leurs options : chantier distinct.
+
+Le client de recette MCP vérifie le protocole et les permissions. Il ne constitue
+pas une nouvelle évaluation de la qualité rédactionnelle d'un LLM.

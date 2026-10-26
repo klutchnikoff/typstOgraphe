@@ -1,0 +1,11 @@
+{
+  "paragraphs": 100,
+  "signs": 26615,
+  "samples": 40,
+  "medianMs": 8.5,
+  "p95Ms": 15,
+  "maxMs": 16.300000190734863,
+  "preview": "7 pages · 6685 ms",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.8078.4 Safari/537.36",
+  "approximateJSHeapMiB": 51.021575927734375
+}

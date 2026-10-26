@@ -5,6 +5,12 @@ décisions et des réalisations. Le POC est validé ; l’application continue �
 construite dans ce dépôt. Cette feuille de route ne constitue pas un calendrier.
 Le [README](README.md) présente l’objectif et le lancement de l’application.
 
+Le **26 octobre 2026**, l'essai de Tauri/Tiptap/Yjs a été validé. La nouvelle
+interface est reconstruite sur `codex/tauri-interface`, avec le cœur Rust partagé
+et un MCP ciblant les structures du document. Le [suivi du portage](docs/tauri-migration.md)
+précise les capacités reprises, les vérifications et les limites avant la bascule
+du lancement par défaut et de la CLI.
+
 ## Comment nous avançons
 
 **À chaque étape, les choix principaux sont discutés et validés ensemble avant

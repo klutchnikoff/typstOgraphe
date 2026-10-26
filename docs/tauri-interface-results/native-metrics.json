@@ -1,0 +1,32 @@
+{
+  "session": "Isolated local test session",
+  "platform": "darwin",
+  "memoryScope": "RSS du seul processus Rust, hors processus WebKit ; échantillonnage 500 ms.",
+  "results": [
+    {
+      "mode": "full",
+      "elapsedMs": 9845.226458000001,
+      "rustProcessPeakResidentMiB": 198.109375,
+      "steps": [
+        "Deux fenêtres Tauri, deux Y.Doc et un relais Rust opérationnels.",
+        "Éditions concurrentes puis convergence après reconnexion.",
+        "Annulation locale et rétablissement sans supprimer le travail du voisin.",
+        "Notes/légendes et commande préparée par Rust partagées par le même circuit.",
+        "MCP STDIO réel : découverte, proposition non publiée, relecture et acceptation du lot, sélection préservée et annulation partagée.",
+        "Courrier enregistré dans une archive .typsto autonome sous verrou.",
+        "Sauvegarde atomique et export PDF/Typst réel"
+      ],
+      "success": true
+    },
+    {
+      "mode": "restore",
+      "elapsedMs": 1897.0572080000002,
+      "rustProcessPeakResidentMiB": 183.09375,
+      "steps": [
+        "Réouverture native : Typst, état Yjs, note et ressources cohérents.",
+        "Nouvel enregistrement après réouverture."
+      ],
+      "success": true
+    }
+  ]
+}
