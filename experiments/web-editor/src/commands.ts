@@ -1,6 +1,15 @@
 import { tr } from './i18n'
+import { createTable } from '@tiptap/extension-table'
+import { widgetTarget } from './widgets'
 import type { Editor, JSONContent } from '@tiptap/core'
-import { insertList, insertQuote } from './editing'
+import {
+  insertList,
+  insertQuote,
+  insertBlock,
+  canInsertBlock,
+  listKinds,
+  type ListKind,
+} from './editing'
 export interface Capability {
   id: string
   label: string
@@ -57,7 +66,7 @@ export function createRegistry(
     },
     'insert.image': image,
     'insert.table': () => {
-      editor.chain().focus().insertTable({ rows: 3, cols: 2, withHeaderRow: true }).run()
+      insertBlock(editor, createTable(editor.schema, 3, 2, true).toJSON())
     },
     'insert.footnote': () => {
       editor
@@ -68,10 +77,10 @@ export function createRegistry(
       properties(editor.state.selection.from - 1, 'footnote')
     },
     'letter.insert_postscript': () => {
-      editor.chain().focus().insertContent({ type: 'postscript' }).run()
+      insertBlock(editor, { type: 'postscript' })
     },
     'letter.insert_attachment': () => {
-      editor.chain().focus().insertContent({ type: 'attachment' }).run()
+      insertBlock(editor, { type: 'attachment' })
     },
   }
   for (const capability of capabilities) {
@@ -89,7 +98,23 @@ export function createRegistry(
     registry.set(capability.id, {
       ...capability,
       run,
-      enabled: () => available()?.includes(capability.id) ?? true,
+      enabled: () => {
+        if (available()?.includes(capability.id) === false) return false
+        if (
+          capability.node &&
+          ['table', 'figure', 'quote', 'postscript', 'attachment', ...listKinds].includes(
+            capability.node,
+          )
+        ) {
+          if (
+            listKinds.includes(capability.node as ListKind) &&
+            listKinds.includes(widgetTarget(editor)?.node.type.name as ListKind)
+          )
+            return true
+          return canInsertBlock(editor)
+        }
+        return true
+      },
       active: () =>
         heading
           ? editor.isActive('heading', { level: Number(heading[1]) })
@@ -187,5 +212,6 @@ export function positionAtPath(editor: Editor, path: number[]): number {
   return pos
 }
 export function insertNode(editor: Editor, node: JSONContent) {
-  editor.chain().focus().insertContent(node).run()
+  if (node.type && editor.schema.nodes[node.type]?.isBlock) return insertBlock(editor, node)
+  return editor.chain().focus().insertContent(node).run()
 }

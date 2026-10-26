@@ -16,6 +16,7 @@ import { previewController } from './preview'
 import { installMenus } from './menus'
 import { BandHost } from './band-layout'
 import { propertyPanel } from './properties'
+import { insertBlock } from './editing'
 import './style.css'
 
 export interface Preview {
@@ -245,11 +246,7 @@ element<HTMLInputElement>('image-file').addEventListener('change', (event) =>
       element<HTMLInputElement>('image-file').value = ''
       return
     }
-    editor
-      .chain()
-      .focus()
-      .insertContent({ type: 'figure', attrs: { src: resource.path, alt: '' }, content: [] })
-      .run()
+    insertBlock(editor, { type: 'figure', attrs: { src: resource.path, alt: '' }, content: [] })
     element<HTMLInputElement>('image-file').value = ''
   }),
 )

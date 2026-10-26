@@ -3,7 +3,7 @@ import { Node, type Editor, type JSONContent } from '@tiptap/core'
 import { BulletList, OrderedList } from '@tiptap/extension-list'
 import { icon } from './icons'
 import type { Node as PMNode } from '@tiptap/pm/model'
-import { TextSelection } from '@tiptap/pm/state'
+import { TextSelection, type Transaction } from '@tiptap/pm/state'
 export const widgetKinds = new Set([
   'figure',
   'quote',
@@ -199,6 +199,13 @@ export function removeWidget(editor: Editor) {
     editor.commands.deleteRange({ from: target.pos, to: target.pos + target.node.nodeSize })
   )
 }
+export function resumeAfterWidget(tr: Transaction, pos: number) {
+  const next = tr.doc.nodeAt(pos)
+  if (next?.type.name !== 'paragraph' || next.content.size)
+    tr.insert(pos, tr.doc.type.schema.nodes.paragraph.create())
+  tr.setSelection(TextSelection.create(tr.doc, pos + 1))
+  return tr
+}
 export function widgetKey(editor: Editor, event: KeyboardEvent): boolean {
   if (event.isComposing || editor.view.composing) return false
   const { $from } = editor.state.selection
@@ -223,13 +230,8 @@ export function widgetKey(editor: Editor, event: KeyboardEvent): boolean {
         return editor.commands.setTextSelection(target.pos + 2)
       }
       const end = target.pos + target.node.nodeSize
-      if (editor.state.doc.nodeAt(end)?.isTextblock)
-        return editor.commands.setTextSelection(end + 1)
-      return editor
-        .chain()
-        .insertContentAt(end, { type: 'paragraph' })
-        .setTextSelection(end + 1)
-        .run()
+      editor.view.dispatch(resumeAfterWidget(editor.state.tr, end).scrollIntoView())
+      return true
     }
   }
   if (
@@ -270,9 +272,7 @@ export function widgetKey(editor: Editor, event: KeyboardEvent): boolean {
         only ? listEnd : itemEnd,
       )
       const pos = only ? listStart : tr.mapping.map(listEnd)
-      tr.insert(pos, editor.schema.nodes.paragraph.create())
-      tr.setSelection(TextSelection.create(tr.doc, pos + 1))
-      editor.view.dispatch(tr)
+      editor.view.dispatch(resumeAfterWidget(tr, pos).scrollIntoView())
       return true
     }
     const right = $from.parent.content.cut(editor.state.selection.$to.parentOffset)

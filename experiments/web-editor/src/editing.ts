@@ -1,8 +1,9 @@
 import { Extension, type Editor, type JSONContent } from '@tiptap/core'
+import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { Plugin, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import { widgetTarget } from './widgets'
+import { widgetTarget, resumeAfterWidget } from './widgets'
 
 export type ListKind = 'bulletList' | 'orderedList' | 'descriptionList'
 export const listKinds: ListKind[] = ['bulletList', 'orderedList', 'descriptionList']
@@ -20,25 +21,51 @@ export function listContent(kind: ListKind, content: JSONContent[] = []): JSONCo
     ],
   }
 }
-/** Insert at the cursor, converting only an explicit selection, never its containing paragraph. */
-export function insertBlock(editor: Editor, content: JSONContent, range = editor.state.selection) {
-  let { from, to } = range
-  const tr = editor.state.tr
-  const $from = tr.doc.resolve(from)
-  if (from === to && $from.nodeBefore?.type.name === 'softBreak') {
-    tr.delete(--from, to)
-    to = from
-  }
-  const node = editor.schema.nodeFromJSON(content)
-  tr.replaceRangeWith(from, to, node)
-  let inserted = -1
-  tr.doc.descendants((candidate, pos) => {
-    if (candidate === node) inserted = pos
+type Range = { from: number; to: number }
+export function canInsertBlock(editor: Editor, range: Range = editor.state.selection) {
+  if (range.from < 0 || range.to < range.from || range.to > editor.state.doc.content.size)
+    return false
+  return [range.from, range.to].every((pos) => {
+    const $pos = editor.state.doc.resolve(pos)
+    return (
+      $pos.depth === 0 ||
+      ($pos.depth === 1 && ['paragraph', 'heading'].includes($pos.parent.type.name))
+    )
   })
-  if (inserted < 0) return false
+}
+/** One insertion policy for every widget: split at the cursor, no empty line before, one after. */
+export function insertBlock(
+  editor: Editor,
+  content: JSONContent,
+  range: Range = editor.state.selection,
+) {
+  if (!canInsertBlock(editor, range)) return false
+  const tr = editor.state.tr
+  const $from = tr.doc.resolve(range.from),
+    $to = tr.doc.resolve(range.to)
+  const node = editor.schema.nodeFromJSON(content)
+  const nodes: PMNode[] = []
+  const start = $from.depth ? $from.before() : range.from
+  const end = $to.depth ? $to.after() : range.to
+  if ($from.depth) {
+    let left = $from.parent.content.cut(0, $from.parentOffset)
+    if (['softBreak', 'hardBreak'].includes(left.lastChild?.type.name || ''))
+      left = left.cut(0, left.size - 1)
+    if (left.size) nodes.push($from.parent.copy(left))
+  }
+  const inserted = start + nodes.reduce((sum, part) => sum + part.nodeSize, 0)
+  nodes.push(node)
+  let right = $to.depth ? $to.parent.content.cut($to.parentOffset) : null
+  if (right && ['softBreak', 'hardBreak'].includes(right.firstChild?.type.name || ''))
+    right = right.cut(1)
+  if (right?.size) nodes.push($to.parent.copy(right))
+  yUndoPluginKey.getState(editor.state)?.undoManager.stopCapturing()
+  tr.replaceWith(start, end, nodes)
+  resumeAfterWidget(tr, inserted + node.nodeSize)
   tr.setSelection(TextSelection.near(tr.doc.resolve(inserted + 1)))
   editor.view.dispatch(tr.scrollIntoView())
-  editor.commands.focus()
+  yUndoPluginKey.getState(editor.state)?.undoManager.stopCapturing()
+  editor.view.focus()
   return true
 }
 export function convertList(node: PMNode, kind: ListKind): JSONContent {
@@ -164,6 +191,24 @@ export const DocumentInput = Extension.create({
         const { selection } = this.editor.state,
           { $from } = selection
         if ($from.parent.type.name !== 'paragraph') return false
+        if (
+          selection.empty &&
+          !$from.parent.content.size &&
+          $from.depth > 1 &&
+          $from.node($from.depth - 1).type.name === 'listItem' &&
+          !$from.node($from.depth - 1).textContent
+        ) {
+          const depth = $from.depth - 1,
+            list = $from.node(depth - 1)
+          const listEnd = $from.after(depth - 1)
+          const only = list.childCount === 1
+          const tr = this.editor.state.tr.delete(
+            only ? $from.before(depth - 1) : $from.before(depth),
+            only ? listEnd : $from.after(depth),
+          )
+          this.editor.view.dispatch(resumeAfterWidget(tr, tr.mapping.map(listEnd)).scrollIntoView())
+          return true
+        }
         const parent = $from.node($from.depth - 1).type.name
         if (!['doc', 'quote'].includes(parent)) return false
         if (!$from.parent.content.size && selection.empty) return true
@@ -202,11 +247,9 @@ export const DocumentInput = Extension.create({
             const match = /^(?:-|([1-9]\d*)\.)$/.exec(prefix)
             if (!match) return false
             const kind = match[1] ? 'orderedList' : 'bulletList'
-            const tr = view.state.tr.delete(start, from)
-            view.dispatch(tr.setSelection(TextSelection.create(tr.doc, start)))
             const content = listContent(kind)
             if (match[1]) content.attrs = { start: Number(match[1]) }
-            return insertBlock(editor, content)
+            return insertBlock(editor, content, { from: start, to: from })
           },
           decorations(state) {
             const markers: Decoration[] = []
@@ -215,7 +258,8 @@ export const DocumentInput = Extension.create({
                 if (
                   index &&
                   node.type.name === 'paragraph' &&
-                  parent.child(index - 1).type.name === 'paragraph'
+                  parent.child(index - 1).type.name === 'paragraph' &&
+                  parent.child(index - 1).content.size > 0
                 )
                   markers.push(
                     Decoration.widget(
