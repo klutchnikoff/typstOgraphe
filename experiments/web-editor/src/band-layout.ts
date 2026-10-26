@@ -254,12 +254,20 @@ export class BandHost {
       // Hide only the inert spacer to measure natural wrapping. The focused form stays mounted.
       if (this.reanchor) {
         anchor.gap.style.display = 'none'
-        const word = view.coordsAtPos(anchor.from)
+        let previousInline = view.coordsAtPos(anchor.from)
         const start = view.state.doc.resolve(anchor.from).start()
         let pos = anchor.from
         while (pos > start && pos > anchor.from - 2000) {
           const previous = view.coordsAtPos(pos - 1)
-          if (Math.abs(previous.top - word.top) > 2) break
+          // A visual line can mix fonts, sizes and raised inline objects. Their
+          // glyph tops differ; adjacent glyph boxes still overlap vertically.
+          if (
+            Math.min(previous.bottom, previousInline.bottom) -
+              Math.max(previous.top, previousInline.top) <=
+            0.5
+          )
+            break
+          previousInline = previous
           pos--
         }
         anchor.gap.style.display = ''
