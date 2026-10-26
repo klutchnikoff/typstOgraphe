@@ -68,7 +68,18 @@ sauvegardé, rouvert, rendu et exporté sans branche documentaire spéciale.
 Préciser le schéma de chaque type, les genres de valeurs, les groupes de champs,
 les capacités et les signatures à implémenter. La note
 [Types, modèles et libertés](docs/types-modeles-libertes.md) est une proposition,
-pas un remplacement déjà validé des contrats actuels.
+avec une clarification validée sur les paramètres et l’interchangeabilité des
+modèles ; les autres arbitrages ne remplacent pas encore les contrats actuels.
+
+**Décision validée le 26 octobre 2026 :** le type définit les capacités ; tous
+ses modèles les implémentent. Les options de présentation ont un régime libre,
+restreint ou imposé, déclaré dans le manifeste, y compris pour les options des
+capacités. Une valeur imposée peut être indiquée sans sélecteur. Les métadonnées
+de contenu ne sont pas remplacées par le modèle. Séparer choix enregistré et
+valeur effective : un choix incompatible utilise le défaut avec avertissement,
+sans écrasement ; un choix imposé reste temporaire tant que ce modèle est actif.
+Vérifier notamment brouillon → revue à style imposé → brouillon : les citations
+restent intactes et le choix initial redevient effectif s’il est autorisé.
 
 Décider avant implémentation :
 
@@ -76,10 +87,11 @@ Décider avant implémentation :
 2. Champs simples et listes d’enregistrements, valeurs absentes et défauts ;
    conserver les genres jusqu’à la sérialisation Typst et empêcher l’injection
    de source par les valeurs saisies.
-3. Paramètres du type, paramètres généraux et options du modèle ; régime libre,
-   restreint ou non exposé, avec conservation des choix au changement de modèle.
-4. Interchangeabilité des modèles : arbitrer les restrictions de capacités,
-   sans perte ou réécriture implicite du contenu.
+3. Représentation des paramètres du type, des paramètres généraux et des options
+   du modèle ; schéma des trois régimes validés et exposition des contrôles.
+4. Contrôle de conformité des modèles et diagnostic d’incompatibilité, sans
+   perte ou réécriture implicite du contenu ; conservation des choix lors des
+   changements de régime.
 5. Dates : valeur structurée/ISO, insertion fixe d’aujourd’hui, langue du document,
    format demandé au modèle et rôle de l’adaptateur Typst/Datify.
 6. Format et emplacement du manifeste, validation des signatures, ressources,

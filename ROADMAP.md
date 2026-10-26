@@ -78,18 +78,23 @@ Typst à satisfaire. Distinguer paramètres du type, paramètres généraux et
 paramètres propres au modèle. Prévoir les auteurs multiples comme données
 structurées, sans les transformer prématurément en une chaîne de texte.
 
-**Arbitrages nécessaires avant refonte :**
+**Décisions à mettre en œuvre et arbitrages avant refonte :**
 
 - Types intégrés en Rust ou définition déclarative : la note propose une évolution,
   qui doit être validée avant de remplacer l’organisation actuelle.
-- Liberté des modèles et interchangeabilité : une restriction de présentation
-  ne doit pas supprimer silencieusement une capacité ou un contenu existant.
-  La possibilité pour un modèle de retirer des capacités reste à arbitrer.
+- Mettre en œuvre le choix validé pour les modèles : options de présentation
+  libres, restreintes ou imposées, y compris pour les capacités du type. Le type
+  définit les capacités disponibles ; tous ses modèles doivent les présenter,
+  sans suppression ni masquage de contenu. Les métadonnées de contenu restent
+  celles de l’auteur.
 - Dates : conserver une valeur structurée et la langue du document ; décider
   de l’évolution éventuelle du contrat en tenant compte de l’adaptateur Typst
   et de Datify. Ne pas déplacer implicitement la composition vers Fluent.
-- Listes d’enregistrements, champs facultatifs, valeurs effectives et changement
-  de modèle : conserver les choix sans masquer une incompatibilité.
+- Listes d’enregistrements et champs facultatifs : préciser les genres et les
+  valeurs absentes. Pour les options de présentation, distinguer choix conservé
+  et valeur effective : un modèle imposé ne réécrit pas le choix ; une valeur
+  exclue utilise le défaut avec avertissement. Le retour au modèle précédent
+  retrouve le choix conservé lorsqu’il est de nouveau autorisé.
 
 **Sortie :** une fiche par type retenu et une matrice type/capacité/modèle,
 compréhensibles pour l’utilisateur, le créateur de modèles et les agents.

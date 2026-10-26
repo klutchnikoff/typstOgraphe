@@ -5,10 +5,11 @@ utiles à une université de sciences humaines et sociales. **Aucun code n’est
 modifié par ce document.** Il fixe le vocabulaire et les règles avant toute
 refonte de `crates/core/src/document_types/`.
 
-**Statut : proposition à valider avec la feuille de route.** Le passage à des
-types déclaratifs, les restrictions de capacités par les modèles et le déplacement
-du formatage des dates décrit ci-dessous ne remplacent pas encore les contrats
-retenus. Ces arbitrages précèdent leur implémentation.
+**Statut : proposition partiellement validée avec la feuille de route.** Les
+régimes de paramètres et l’interchangeabilité des modèles décrits aux sections
+2 et 3 sont validés le 26 octobre 2026 ; leur implémentation reste à faire.
+Le passage à des types déclaratifs et le déplacement du formatage des dates
+restent des propositions à arbitrer avant de remplacer les contrats actuels.
 
 Il nuance le principe du lot 6.4a (« les types restent intégrés en Rust, les
 modèles en Typst ») : à terme, un type est une donnée déclarative, et seules les
@@ -49,45 +50,70 @@ affiche ou non.
 
 | Source | Définie par | Exemples | Rôle du modèle |
 |---|---|---|---|
-| **Paramètres du type** | le type | titre, auteur·e·s, mots-clés | Doit les accepter (contrat). Peut ne pas les afficher |
+| **Paramètres du type** | le type | titre, auteur·e·s, mots-clés ; options des capacités comme le style bibliographique | Doit les accepter (contrat). Peut ne pas afficher une métadonnée ; déclare le régime des options de présentation |
 | **Paramètres généraux** | l’application, vocabulaire fermé | format de papier, orientation, langue, marges | Déclare le régime de chacun |
-| **Paramètres du modèle** | le modèle | style bibliographique, variante d’en-tête, format de date | Les déclare avec genre, défaut et valeurs permises |
+| **Paramètres du modèle** | le modèle | variante d’en-tête, format de date | Les déclare avec genre, régime, défaut et valeurs permises |
 
 La liste générale est volontairement minimale : **format de papier, orientation,
-langue, marges**. Tout le reste appartient aux modèles, ce qui leur laisse la
-plus grande liberté.
+langue, marges**. Une option commune à une capacité, comme le style
+bibliographique, appartient à son contrat ; le modèle ne la redéfinit pas sous
+un autre nom. Les autres options propres à sa présentation lui appartiennent.
 
-### Régimes d’un paramètre général ou de modèle
+### Régimes des options de présentation — décision validée
 
 - **libre** : toute valeur valide du genre, avec un défaut ;
 - **à choix restreint** : une liste de valeurs permises, avec un défaut ;
-- **non exposé** : le modèle ne le gère pas ; il n’apparaît pas dans l’interface.
+- **imposé** : le modèle fixe la valeur effective, indépendamment du choix
+  conservé dans le document. L’interface peut indiquer cette valeur et son
+  origine, sans sélecteur modifiable.
 
-Il n’y a pas de régime « figé ». Un modèle qui impose un choix (le style APA,
-l’A4) l’écrit dans son Typst et ne déclare pas le paramètre. L’interface
-d’en-tête reste ainsi sans contrôle verrouillé inutile.
+Ces régimes s’appliquent aux options de présentation du contrat d’une capacité,
+aux paramètres généraux et aux options propres au modèle. Les métadonnées de
+contenu (titre, noms des auteurs, etc.) restent les valeurs de l’auteur : un
+modèle ne peut pas les remplacer sous prétexte d’imposer une présentation.
+
+**Non exposé** décrit séparément l’absence d’un contrôle dans l’interface ; ce
+n’est pas un quatrième régime. Un choix imposé doit être déclaré dans le
+manifeste, même si aucun contrôle n’est proposé. L’absence d’un contrôle
+n’autorise pas à omettre une capacité du type.
+
+Exemple : la capacité de citations bibliographiques définit un paramètre de
+style. Le modèle de brouillon laisse le choix entre une présentation
+auteur-année et une présentation numérique ; un modèle d’organisation peut
+limiter les styles proposés ; un modèle de revue impose le sien. Les citations
+et les références restent le même contenu dans les trois cas.
 
 ## 3. Règles de cohérence
 
-1. **Valeur effective** : valeur du document si elle est valide, sinon défaut du
-   modèle. Un paramètre non exposé n’existe pas pour le modèle.
+1. **Valeur effective** : pour une option libre ou restreinte, valeur du document
+   si elle est valide et autorisée, sinon défaut du modèle. Pour une option
+   imposée, valeur fixée par le modèle. Distinguer le choix enregistré de la
+   valeur utilisée pour le rendu.
 2. **Le document stocke ses choix** par nom de paramètre. Au changement de
    modèle, les valeurs sont conservées et revalidées : une valeur hors des
-   permises retombe sur le défaut, avec avertissement. Les valeurs des
-   paramètres que le nouveau modèle n’expose pas sont gardées pour un retour en
-   arrière.
-3. **Pas de collision de noms** : un modèle ne redéclare ni un paramètre de son
-   type ni un paramètre général.
-4. **Un paramètre du type n’est jamais restreint par un modèle.** Le contenu de
-   l’en-tête appartient à l’auteur.
-5. **Capacités** : un modèle peut en retirer ou restreindre l’usage (pas de
-   couleur, pas de figure pleine page), jamais en ajouter au type.
+   permises utilise le défaut, avec avertissement, sans écraser le choix
+   enregistré. Les valeurs des paramètres imposés ou non exposés par le nouveau
+   modèle sont gardées pour un retour en arrière. Brouillon → revue → brouillon
+   restaure ainsi le choix initial lorsqu’il est de nouveau autorisé.
+3. **Pas de collision de noms** : un modèle ne redéfinit pas le schéma d’un
+   paramètre de son type ou d’un paramètre général ; il en déclare seulement le
+   régime de présentation. Ses paramètres propres ont des noms distincts.
+4. **Le contenu appartient à l’auteur.** Un modèle ne restreint pas les valeurs
+   des métadonnées de contenu ; il peut restreindre ou imposer les options de
+   présentation, y compris celles définies par le type ou ses capacités.
+5. **Capacités** : le type définit leur disponibilité ; tous ses modèles doivent
+   savoir les présenter. Un modèle peut contraindre leurs options visuelles
+   (couleur, largeur des figures, style bibliographique), sans retirer une
+   capacité, masquer son contenu ni en ajouter au type. Un modèle qui ne
+   satisfait pas le contrat doit être signalé comme incompatible.
 6. **Conformité vérifiée au chargement** : le modèle déclare le type qu’il
    implémente ; l’application contrôle que sa fonction accepte tous les
    paramètres du type, puis compile le modèle avec des métadonnées de
    démonstration (comme le font déjà les tests actuels).
 7. **L’appel Typst** reste `#show: modele.with(…)` avec les valeurs effectives.
-   Le modèle ignore ce qui est libre ou restreint côté interface.
+   Le modèle reçoit les valeurs effectives et respecte les choix imposés qu’il
+   déclare ; l’interface ne transmet pas les préférences inactives comme valeurs
+   de rendu.
 
 ## 4. Genres de métadonnées et conversion vers Typst
 
@@ -147,10 +173,11 @@ Chaque modèle est accompagné d’un manifeste de données. Il contient :
 
 - l’identifiant du modèle, son nom, sa description, des mots-clés ;
 - le **type implémenté** et le nom de la fonction exportée ;
-- le **régime de chaque paramètre général** (libre, à choix restreint, non
-  exposé) avec défauts et valeurs permises ;
-- ses **paramètres propres** (genre, libellé, défaut, valeurs permises) ;
-- les **capacités retirées** ou restreintes ;
+- le **régime des options de présentation** du type, de ses capacités et des
+  paramètres généraux (libre, à choix restreint, imposé), avec défauts, valeurs
+  permises ou valeur imposée ;
+- ses **paramètres propres** (genre, libellé, régime, défaut, valeurs permises
+  ou valeur imposée) et les contrôles à exposer ;
 - les libertés de présentation déjà prévues (`ModelPresentation` actuel : marques
   de puces).
 
@@ -182,9 +209,9 @@ sont hors périmètre. Aucun type pour les étudiants.
 Le type **Libre** est un mode de brouillon pour tester l’application, avec toutes
 les capacités. Il est indépendant des autres types et pourrait disparaître.
 
-La bibliographie est un exemple de paramètre de modèle : le généraliste d’un
-Article laisse le choix du style à l’auteur (auteur-date ou notes, par exemple) ;
-un modèle de revue le fige en l’écrivant dans son Typst.
+Le style bibliographique est un exemple d’option commune à une capacité : le
+modèle généraliste d’un Article laisse ce choix à l’auteur ; un modèle de revue
+déclare une valeur imposée dans son manifeste et l’applique dans son Typst.
 
 ## 7. Conséquences sur le code actuel
 
