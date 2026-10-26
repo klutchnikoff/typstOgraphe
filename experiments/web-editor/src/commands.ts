@@ -1,6 +1,7 @@
 import { tr } from './i18n'
 import { createTable } from '@tiptap/extension-table'
 import { widgetTarget } from './widgets'
+import { isWidgetKind } from './widget-frame'
 import type { Editor, JSONContent } from '@tiptap/core'
 import {
   insertList,
@@ -100,12 +101,7 @@ export function createRegistry(
       run,
       enabled: () => {
         if (available()?.includes(capability.id) === false) return false
-        if (
-          capability.node &&
-          ['table', 'figure', 'quote', 'postscript', 'attachment', ...listKinds].includes(
-            capability.node,
-          )
-        ) {
+        if (capability.node && isWidgetKind(capability.node)) {
           if (
             listKinds.includes(capability.node as ListKind) &&
             listKinds.includes(widgetTarget(editor)?.node.type.name as ListKind)

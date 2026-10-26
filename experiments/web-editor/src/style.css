@@ -296,25 +296,9 @@ main {
   overflow: auto;
 }
 .tiptap figure {
-  margin: 1.2em 0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel);
+  --widget-radius: 8px;
+  --widget-surface: var(--panel);
   overflow: hidden;
-}
-.figure-bar {
-  font:
-    12px Inter,
-    system-ui,
-    sans-serif;
-  color: var(--muted);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px;
-}
-.figure-bar button {
-  padding: 3px 6px;
 }
 .tiptap figure img {
   display: block;
@@ -728,7 +712,6 @@ main {
   font-size: var(--editor-size, 18px);
 }
 .tiptap blockquote,
-.tiptap [data-letter-note],
 .tiptap dl {
   position: relative;
   border: 1px solid var(--border);
@@ -736,6 +719,12 @@ main {
   padding: 12px 16px;
   margin: 24px 0;
   background: var(--soft);
+}
+.tiptap [data-letter-note] {
+  position: relative;
+}
+.tiptap [data-letter-note] > [data-widget-body] {
+  padding: 12px 16px;
 }
 .tiptap blockquote {
   border-left: 5px solid var(--accent);
@@ -799,9 +788,9 @@ main {
 }
 .content-widget {
   border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--soft);
-  margin: 22px 0;
+  border-radius: var(--widget-radius, 7px);
+  background: var(--widget-surface, var(--soft));
+  margin: 0.35em 0;
   overflow: clip;
 }
 .widget-bar {
@@ -918,9 +907,7 @@ main {
 .band-slot {
   height: 0;
 }
-.content-widget.band-open,
-figure.band-open,
-[data-letter-note].band-open {
+.content-widget.band-open {
   border-color: var(--accent);
 }
 .context-band.properties {
@@ -1050,9 +1037,6 @@ li:has(.interline-band-gap[data-marker])::marker {
   font-size: 0.8em;
   line-height: 1.8em;
 }
-.content-widget,
-.tiptap figure,
-.tiptap [data-letter-note],
 .tiptap dl {
   margin: 0.35em 0;
 }

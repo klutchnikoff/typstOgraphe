@@ -12,7 +12,8 @@ import { TableKit, Table, TableView } from '@tiptap/extension-table'
 import Collaboration from '@tiptap/extension-collaboration'
 import Caret from '@tiptap/extension-collaboration-caret'
 import type { Provider } from './provider'
-import { simpleWidgets, widgetBar, bandSlot } from './widgets'
+import { simpleWidgets } from './widgets'
+import { widgetFrame } from './widget-frame'
 import { tr } from './i18n'
 import { Proofing } from './proofing'
 import { DocumentInput } from './editing'
@@ -72,8 +73,11 @@ export function baseExtensions(
       addNodeView() {
         return ({ node, view, getPos }) => {
           const table = new TableView(node, this.options.cellMinWidth, view)
-          table.dom.classList.add('content-widget', 'widget-table')
-          table.dom.prepend(bandSlot(), widgetBar('table', tr('Tableau'), getPos, properties))
+          const frame = widgetFrame('table', getPos, properties, table.dom)
+          table.ignoreMutation = frame.content(
+            table.contentDOM,
+            table.ignoreMutation.bind(table),
+          ).ignoreMutation
           return table
         }
       },
@@ -157,8 +161,8 @@ export function baseExtensions(
       addNodeView:
         () =>
         ({ node, getPos }) => {
-          const dom = document.createElement('figure')
-          const bar = widgetBar('figure', tr('Image'), getPos, properties)
+          const frame = widgetFrame('figure', getPos, properties, document.createElement('figure'))
+          const { dom } = frame
           const image = document.createElement('img')
           image.src = imageURL(node.attrs.src)
           image.alt = node.attrs.alt
@@ -166,12 +170,10 @@ export function baseExtensions(
           image.draggable = false
           const caption = document.createElement('figcaption')
           caption.dataset.placeholder = tr('Légende facultative')
-          dom.append(bandSlot(), bar, image, caption)
+          dom.append(image, caption)
           return {
             dom,
-            contentDOM: caption,
-            ignoreMutation: (mutation) =>
-              mutation.type !== 'selection' && !caption.contains(mutation.target),
+            ...frame.content(caption),
             update(next) {
               if (next.type.name !== 'figure') return false
               image.src = imageURL(next.attrs.src)

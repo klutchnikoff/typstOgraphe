@@ -1,61 +1,14 @@
 import { tr } from './i18n'
 import { Node, type Editor, type JSONContent } from '@tiptap/core'
+import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import { BulletList, OrderedList } from '@tiptap/extension-list'
-import { icon } from './icons'
+import { isWidgetKind, widgetFrame, type WidgetKind, type WidgetAction } from './widget-frame'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { TextSelection, type Transaction } from '@tiptap/pm/state'
-export const widgetKinds = new Set([
-  'figure',
-  'quote',
-  'descriptionList',
-  'bulletList',
-  'orderedList',
-  'postscript',
-  'attachment',
-  'table',
-])
-export function widgetBar(
-  kind: string,
-  label: string,
-  getPos: () => number | undefined,
-  properties: (pos: number, kind: string, remove?: boolean) => void,
-) {
-  const bar = document.createElement('div')
-  bar.className = 'widget-bar'
-  bar.contentEditable = 'false'
-  const title = document.createElement('span')
-  title.textContent = label
-  bar.append(title)
-  for (const [name, iconName] of [
-    [tr('Supprimer'), 'trash-2'],
-    [tr('Paramètres'), 'settings-2'],
-  ]) {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.title = `${name} · ${label}`
-    button.setAttribute('aria-label', `${name} · ${label}`)
-    button.innerHTML = icon(iconName)
-    button.onmousedown = (event) => {
-      if (event.button === 0) event.preventDefault()
-    }
-    button.onclick = () => {
-      const pos = getPos()
-      if (pos !== undefined) properties(pos, kind, name === tr('Supprimer'))
-    }
-    bar.append(button)
-  }
-  return bar
-}
-export function widgetView(
-  kind: string,
-  label: string,
-  tag: string,
-  properties: (pos: number, kind: string, remove?: boolean) => void,
-) {
+export function widgetView(kind: WidgetKind, tag: string, properties: WidgetAction) {
   return ({ getPos, node }: { getPos: () => number | undefined; node: PMNode }) => {
-    const dom = document.createElement('section')
-    dom.className = `content-widget widget-${kind}`
-    const bar = widgetBar(kind, label, getPos, properties)
+    const frame = widgetFrame(kind, getPos, properties)
+    const { dom } = frame
     const contentDOM = document.createElement(tag)
     const update = (next: PMNode) => {
       if (next.type.name !== kind) return false
@@ -63,19 +16,15 @@ export function widgetView(
       return true
     }
     update(node)
-    dom.append(bandSlot(), bar, contentDOM)
+    dom.append(contentDOM)
     return {
       dom,
-      contentDOM,
+      ...frame.content(contentDOM),
       update,
-      ignoreMutation: (mutation: import('@tiptap/pm/view').ViewMutationRecord) =>
-        mutation.type !== 'selection' && !contentDOM.contains(mutation.target),
     }
   }
 }
-export const simpleWidgets = (
-  properties: (pos: number, kind: string, remove?: boolean) => void,
-) => [
+export const simpleWidgets = (properties: WidgetAction) => [
   ...([BulletList, OrderedList] as const).map((extension) =>
     extension.extend({
       addInputRules: () => [],
@@ -88,8 +37,7 @@ export const simpleWidgets = (
       },
       addNodeView: () =>
         widgetView(
-          extension.name,
-          extension.name === 'orderedList' ? tr('Liste numérotée') : tr('Liste à puces'),
+          extension.name === 'orderedList' ? 'orderedList' : 'bulletList',
           extension.name === 'orderedList' ? 'ol' : 'ul',
           properties,
         ),
@@ -97,7 +45,7 @@ export const simpleWidgets = (
   ),
   Node.create({
     name: 'quote',
-    addNodeView: () => widgetView('quote', tr('Citation'), 'blockquote', properties),
+    addNodeView: () => widgetView('quote', 'blockquote', properties),
     group: 'block',
     content: 'paragraph+ quoteAttribution',
     isolating: true,
@@ -117,7 +65,7 @@ export const simpleWidgets = (
   }),
   Node.create({
     name: 'descriptionList',
-    addNodeView: () => widgetView('descriptionList', tr('Descriptions'), 'dl', properties),
+    addNodeView: () => widgetView('descriptionList', 'dl', properties),
     group: 'block',
     content: 'descriptionItem+',
     isolating: true,
@@ -156,18 +104,16 @@ export const simpleWidgets = (
       addNodeView:
         () =>
         ({ getPos }) => {
-          const dom = document.createElement('section')
+          const frame = widgetFrame(name, getPos, properties)
+          const { dom } = frame
           dom.dataset.letterNote = name
-          const bar = widgetBar(name, name === 'postscript' ? 'P.-S.' : 'P.J.', getPos, properties)
           const contentDOM = document.createElement('div')
           contentDOM.dataset.placeholder =
             name === 'postscript' ? tr('Texte du post-scriptum…') : tr('Document joint…')
-          dom.append(bandSlot(), bar, contentDOM)
+          dom.append(contentDOM)
           return {
             dom,
-            contentDOM,
-            ignoreMutation: (mutation: import('@tiptap/pm/view').ViewMutationRecord) =>
-              mutation.type !== 'selection' && !contentDOM.contains(mutation.target),
+            ...frame.content(contentDOM),
           }
         },
     }),
@@ -187,17 +133,26 @@ export function description(): JSONContent {
 export function widgetTarget(editor: Editor) {
   const { $from } = editor.state.selection
   for (let depth = 1; depth <= $from.depth; depth++)
-    if (widgetKinds.has($from.node(depth).type.name))
+    if (isWidgetKind($from.node(depth).type.name))
       return { pos: $from.before(depth), node: $from.node(depth) }
   const node = editor.state.doc.nodeAt(editor.state.selection.from)
-  if (node && widgetKinds.has(node.type.name)) return { pos: editor.state.selection.from, node }
+  if (node && isWidgetKind(node.type.name)) return { pos: editor.state.selection.from, node }
 }
-export function removeWidget(editor: Editor) {
-  const target = widgetTarget(editor)
-  return (
-    !!target &&
-    editor.commands.deleteRange({ from: target.pos, to: target.pos + target.node.nodeSize })
+export function removeWidget(editor: Editor, target = widgetTarget(editor)) {
+  if (
+    !target ||
+    !isWidgetKind(target.node.type.name) ||
+    !editor.state.doc.nodeAt(target.pos)?.eq(target.node)
   )
+    return false
+  const manager = yUndoPluginKey.getState(editor.state)?.undoManager
+  manager?.stopCapturing()
+  const removed = editor.commands.deleteRange({
+    from: target.pos,
+    to: target.pos + target.node.nodeSize,
+  })
+  manager?.stopCapturing()
+  return removed
 }
 export function resumeAfterWidget(tr: Transaction, pos: number) {
   const next = tr.doc.nodeAt(pos)
@@ -288,11 +243,4 @@ export function widgetKey(editor: Editor, event: KeyboardEvent): boolean {
     return true
   }
   return false
-}
-
-export function bandSlot() {
-  const slot = document.createElement('div')
-  slot.className = 'band-slot'
-  slot.contentEditable = 'false'
-  return slot
 }
