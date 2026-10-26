@@ -330,3 +330,20 @@ test('accueil sans document et création depuis les types et modèles disponible
   await page.getByLabel('Objet', { exact: true }).fill('Courrier créé depuis l’accueil')
   await expect(page.locator('#pages img').first()).toBeVisible({ timeout: 30000 })
 })
+
+test('préférences globales enregistrées explicitement et retrouvées après réouverture', async ({
+  page,
+}) => {
+  await ready(page, 'main')
+  await page.getByRole('button', { name: 'Préférences', exact: true }).click()
+  await page.getByLabel('Apparence', { exact: true }).selectOption('dark')
+  await page.getByLabel('Police de l’éditeur', { exact: true }).selectOption('sans')
+  await page.getByLabel('Taille', { exact: true }).fill('21')
+  await page.getByRole('button', { name: 'Enregistrer les préférences', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark')
+  await expect(page.locator('.tiptap')).toHaveCSS('font-size', '21px')
+  await page.reload()
+  await page.waitForFunction(() => window.__spike?.ready)
+  await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark')
+  await expect(page.locator('.tiptap')).toHaveCSS('font-size', '21px')
+})
