@@ -91,6 +91,23 @@ différents. Un agent perd son invitation lors d'un remplacement.
 | Paramètres séparés du contenu partagé | Onglets alimentés par le registre et paramètres dans Yjs | Conserver des vues cohérentes et l'annulation |
 | Positions de texte plat pour l'agent | Chemins de blocs/cellules et offsets dans une zone | Protéger les frontières structurées |
 
+### Correctifs après essai de l'interface
+
+| Before | After | Why |
+| --- | --- | --- |
+| Contour de focus autour d'une sous-zone de texte | Surface éditable sur toute la colonne, marges intérieures et aucun cadre de focus | Pouvoir cliquer et rédiger dans toute la surface disponible |
+| Menus ouverts après un clic extérieur | Fermeture sans commande au clic extérieur ou avec Échap ; un seul menu ouvert | Annuler un choix sans modifier le document |
+| Nœuds de listes privés des commandes Tiptap | Extensions de listes Tiptap, conservant nos widgets et la limitation sans imbrication | Restaurer les boutons, les raccourcis textuels et Entrée sans réimplémenter les commandes |
+| Actions dispersées ou empilées dans certains panneaux | Groupe à droite ; action destructive à gauche du groupe, action principale en dernier | Retrouver une disposition prévisible dans les formulaires, bandeaux et dialogues |
+
+Les barres d'outils, onglets et listes de résultats restent des contrôles de
+navigation ou de sélection, distincts des pieds de formulaire. Les icônes des
+widgets suivent l'ordre suppression puis paramètres. Le contour de focus reste
+visible sur les boutons et les champs ; seule la surface de rédaction en est
+dispensée. Les menus partagent leur gestion de fermeture, les panneaux leurs
+règles de disposition CSS. La suggestion orthographique déclenchée par Entrée
+est mise en évidence à l'extrémité droite.
+
 ### Périmètre restant distinct
 
 Le lancement Rust par défaut et l'ancienne CLI restent inchangés pendant l'essai.

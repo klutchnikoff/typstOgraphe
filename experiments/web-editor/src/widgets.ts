@@ -1,5 +1,6 @@
 import { tr } from './i18n'
-import { Node, wrappingInputRule, type Editor, type JSONContent } from '@tiptap/core'
+import { Node, type Editor, type JSONContent } from '@tiptap/core'
+import { BulletList, OrderedList } from '@tiptap/extension-list'
 import { icon } from './icons'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { TextSelection } from '@tiptap/pm/state'
@@ -26,8 +27,8 @@ export function widgetBar(
   title.textContent = label
   bar.append(title)
   for (const [name, iconName] of [
-    [tr('Paramètres'), 'settings-2'],
     [tr('Supprimer'), 'trash-2'],
+    [tr('Paramètres'), 'settings-2'],
   ]) {
     const button = document.createElement('button')
     button.type = 'button'
@@ -66,36 +67,22 @@ export function widgetView(
   }
 }
 export const simpleWidgets = (properties: (pos: number, kind: string) => void) => [
-  ...(['bulletList', 'orderedList'] as const).map((name) =>
-    Node.create({
-      name,
-      group: 'block',
-      content: 'listItem+',
-      addAttributes: () => (name === 'orderedList' ? { start: { default: 1 } } : {}),
-      parseHTML: () => [
-        {
-          tag: name === 'orderedList' ? 'ol' : 'ul',
-          getAttrs: (element) =>
-            name === 'orderedList' ? { start: Number(element.getAttribute('start') || 1) } : {},
-        },
-      ],
-      renderHTML: ({ HTMLAttributes }) => [name === 'orderedList' ? 'ol' : 'ul', HTMLAttributes, 0],
+  ...([BulletList, OrderedList] as const).map((extension) =>
+    extension.extend({
+      addKeyboardShortcuts: () => ({}), // Les raccourcis publics viennent du registre.
+      addAttributes() {
+        const attributes = this.parent?.() || {}
+        // Le style de numérotation appartient au modèle, pas au contenu éditable.
+        delete attributes.type
+        return attributes
+      },
       addNodeView: () =>
         widgetView(
-          name,
-          name === 'orderedList' ? tr('Liste numérotée') : tr('Liste à puces'),
-          name === 'orderedList' ? 'ol' : 'ul',
+          extension.name,
+          extension.name === 'orderedList' ? tr('Liste numérotée') : tr('Liste à puces'),
+          extension.name === 'orderedList' ? 'ol' : 'ul',
           properties,
         ),
-      addInputRules() {
-        return [
-          wrappingInputRule({
-            find: name === 'orderedList' ? /^(\d+)\.\s$/ : /^\s*([-+*])\s$/,
-            type: this.type,
-            getAttributes: (match) => (name === 'orderedList' ? { start: Number(match[1]) } : {}),
-          }),
-        ]
-      },
     }),
   ),
   Node.create({

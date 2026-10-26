@@ -202,6 +202,7 @@ export function mountProofing(
         band.remove()
         editor.commands.focus()
       }
+      const choices: HTMLButtonElement[] = []
       for (const suggestion of suggestions.slice(0, 6)) {
         const button = document.createElement('button')
         button.textContent = suggestion
@@ -221,7 +222,7 @@ export function mountProofing(
             .run()
           close()
         }
-        actions.append(button)
+        choices.push(button)
       }
       const ignore = document.createElement('button')
       ignore.textContent = tr('Ignorer dans ce document')
@@ -251,7 +252,10 @@ export function mountProofing(
       const cancel = document.createElement('button')
       cancel.textContent = tr('Fermer')
       cancel.onclick = close
-      actions.append(ignore, add, cancel)
+      const [preferred, ...alternatives] = choices
+      if (preferred) preferred.className = 'primary'
+      actions.append(ignore, add, cancel, ...alternatives)
+      if (preferred) actions.append(preferred)
       band.append(title, actions)
       document.querySelector('#editor-scroll')!.before(band)
       band.tabIndex = -1
@@ -263,7 +267,8 @@ export function mountProofing(
         }
         if (e.key === 'Enter') {
           e.preventDefault()
-          actions.querySelector<HTMLButtonElement>('button')?.click()
+          if (e.target instanceof HTMLButtonElement) e.target.click()
+          else preferred?.click()
         }
       }
     })().catch((error) => message(String(error), true))

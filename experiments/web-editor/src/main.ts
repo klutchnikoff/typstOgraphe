@@ -13,6 +13,7 @@ import { openCorrection } from './proofing'
 import { mountShell, type Catalogue } from './shell'
 import { documentType, initializeSettings, settingsFor } from './state'
 import { previewController } from './preview'
+import { installMenus } from './menus'
 import './style.css'
 
 export interface Preview {
@@ -30,13 +31,14 @@ declare global {
 }
 
 const app = document.querySelector<HTMLDivElement>('#app')!
+installMenus()
 app.innerHTML = `
   <header><div class="identity"><strong>typstOgraphe</strong><span class="badge">Diagnostic web</span></div>
     <div class="session-tools"><button id="peer">Deuxième fenêtre</button><button id="connection" aria-pressed="true">Connecté</button><button id="save">Enregistrer</button><button id="export">Exporter</button></div></header>
   <main><section class="writing" aria-label="Éditeur du document">
     <nav id="toolbar" aria-label="Mise en forme"></nav>
     <div class="document-info"><span>Courrier personnel</span><span>Français · A4 · Modèle local</span></div>
-    <form id="properties" class="properties" hidden><div class="panel-title"><strong id="property-title"></strong><button type="button" id="close-properties" aria-label="Fermer les paramètres">×</button></div><label id="property-label" for="property-value"></label><textarea id="property-value" rows="3"></textarea><div class="panel-actions"><button type="button" id="remove-block" class="danger">Supprimer</button><span></span><button type="button" id="cancel-properties">Annuler</button><button type="submit" class="primary">Appliquer</button></div><p id="property-error" role="alert"></p></form>
+    <form id="properties" class="properties" hidden><div class="panel-title"><strong id="property-title"></strong><button type="button" id="close-properties" aria-label="Fermer les paramètres">×</button></div><label id="property-label" for="property-value"></label><textarea id="property-value" rows="3"></textarea><div class="panel-actions"><button type="button" id="remove-block" class="danger">Supprimer</button><button type="button" id="cancel-properties">Annuler</button><button type="submit" class="primary">Appliquer</button></div><p id="property-error" role="alert"></p></form>
     <div id="editor-scroll"><div id="editor"></div></div>
   </section><div class="splitter" role="separator" tabindex="0" aria-label="Largeur des colonnes" aria-orientation="vertical" aria-valuemin="10" aria-valuemax="90" aria-valuenow="50"></div>
   <section class="preview" aria-label="Aperçu Typst"><div class="preview-title"><strong>Aperçu Typst</strong><span id="render-status" role="status">Préparation…</span></div><div id="pages"><p class="empty">Le rendu du document apparaîtra ici.</p></div></section></main>

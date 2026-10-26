@@ -70,7 +70,10 @@ export function preferencesPanel(
   save.type = 'submit'
   save.className = 'primary'
   save.textContent = tr('Enregistrer les préférences')
-  form.append(...fields, save)
+  const actions = document.createElement('div')
+  actions.className = 'panel-actions'
+  actions.append(save)
+  form.append(...fields, actions)
   form.onsubmit = (e) => {
     e.preventDefault()
     void (async () => {

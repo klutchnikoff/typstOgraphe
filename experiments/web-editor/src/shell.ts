@@ -193,17 +193,19 @@ export async function mountShell(s: Shell) {
     )
     const buttons = document.createElement('div')
     buttons.className = 'panel-actions'
-    for (const [label, action] of [
-      [tr('Annuler'), () => overlay.close()],
+    for (const [label, style, action] of [
       [
         tr('Abandonner'),
+        'danger',
         () => {
           overlay.close()
           next()
         },
       ],
+      [tr('Annuler'), '', () => overlay.close()],
       [
         tr('Enregistrer'),
+        'primary',
         () =>
           guarded(async () => {
             if (!(await saveFile())) return
@@ -214,6 +216,7 @@ export async function mountShell(s: Shell) {
     ] as const) {
       const b = document.createElement('button')
       b.textContent = label
+      b.className = style
       b.onclick = action
       buttons.append(b)
     }

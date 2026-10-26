@@ -89,15 +89,22 @@ export function mountAssistance(
           content.append(text)
         })
       }
-      content.append(paragraph, connect)
+      const actions = document.createElement('div')
+      actions.className = 'panel-actions'
+      actions.append(connect)
+      content.append(paragraph, actions)
       return
     }
     const revoke = document.createElement('button')
+    revoke.className = 'danger'
     revoke.textContent = tr('Déconnecter l’agent')
     revoke.onclick = () => {
       void transport.invoke('agent_revoke').then(show)
     }
-    content.append(revoke)
+    const connectionActions = document.createElement('div')
+    connectionActions.className = 'panel-actions'
+    connectionActions.append(revoke)
+    content.append(connectionActions)
     const p = state.proposal
     if (!p) {
       const text = document.createElement('p')
@@ -144,6 +151,7 @@ export function mountAssistance(
     actions.className = 'panel-actions'
     const reject = document.createElement('button')
     reject.textContent = tr('Refuser le lot')
+    reject.className = 'danger'
     reject.onclick = () => {
       void transport.invoke('agent_reject', { id: p.id }).then(show)
     }

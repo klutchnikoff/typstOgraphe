@@ -73,6 +73,7 @@ button:active {
   background: var(--border);
 }
 button:focus-visible,
+summary:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible {
   outline: 2px solid var(--accent);
@@ -89,6 +90,9 @@ button:disabled {
 .primary {
   background: var(--accent);
   color: var(--bg);
+}
+.primary:hover {
+  background: color-mix(in srgb, var(--accent), var(--text) 15%);
 }
 .danger {
   color: var(--danger);
@@ -197,15 +201,24 @@ main {
 #editor-scroll {
   overflow: auto;
   flex: 1;
-  padding: 20px clamp(18px, 3vw, 44px) 90px;
+  min-height: 0;
+}
+#editor {
+  min-height: 100%;
+  display: flex;
 }
 .tiptap {
+  flex: 1;
+  min-width: 0;
+  padding: 20px clamp(18px, 3vw, 44px) 90px;
   font-family: 'Libertinus Serif', Georgia, serif;
   font-size: 18px;
   line-height: 1.45;
   outline: none;
-  min-height: 240px;
   overflow-wrap: anywhere;
+}
+.tiptap:focus-visible {
+  outline: none;
 }
 .tiptap p {
   margin: 0 0 1em;
@@ -367,11 +380,10 @@ main {
 .panel-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
-}
-.panel-actions span {
-  flex: 1;
 }
 .properties p:empty {
   display: none;
@@ -481,10 +493,8 @@ footer button {
     gap: 3px;
     padding: 7px 14px;
   }
-  #editor-scroll {
-    padding: 16px;
-  }
   .tiptap {
+    padding: 16px;
     font-size: 16px;
   }
   #pages {
@@ -702,13 +712,16 @@ main {
 #side-content > input {
   padding: 8px;
 }
-#side-content > div:has(> button) {
+#side-content > div:not(.panel-actions):has(> button) {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 #side-content button {
   text-align: left;
+}
+#side-content .panel-actions button {
+  text-align: center;
 }
 .tiptap {
   font-family: var(--editor-font, Georgia), serif;

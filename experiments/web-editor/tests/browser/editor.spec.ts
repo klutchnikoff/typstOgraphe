@@ -347,3 +347,147 @@ test('préférences globales enregistrées explicitement et retrouvées après r
   await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark')
   await expect(page.locator('.tiptap')).toHaveCSS('font-size', '21px')
 })
+
+test('listes au clavier et dans la barre d’outils, bascule et sortie du widget', async ({
+  page,
+}) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await ready(page, 'main')
+  await page.evaluate(() => {
+    const e = window.__spike!.editor
+    e.commands.clearContent()
+    e.commands.focus('start')
+  })
+  await page.getByRole('button', { name: 'Listes', exact: true }).click()
+  await page.locator('[data-command="block.bullet"]').click()
+  await expect(page.locator('.widget-bulletList')).toHaveCount(1)
+  await expect(page.locator('.tiptap')).toBeFocused()
+  await page.keyboard.type('Premier')
+  await expect(page.locator('.widget-bulletList li p')).toHaveText('Premier')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Second')
+  await expect(page.locator('.widget-bulletList li')).toHaveCount(2)
+  await page.keyboard.press('Tab')
+  await expect(page.locator('.widget-bulletList .widget-bulletList')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Listes', exact: true }).click()
+  await page.locator('[data-command="block.numbered"]').click()
+  await expect(page.locator('.widget-orderedList li')).toHaveCount(2)
+  await expect(page.locator('.widget-bulletList')).toHaveCount(0)
+  await page.evaluate(() => window.__spike!.editor.commands.selectAll())
+  await page.getByRole('button', { name: 'Listes', exact: true }).click()
+  await page.locator('[data-command="block.numbered"]').click()
+  await expect(page.locator('.content-widget')).toHaveCount(0)
+  await expect(page.locator('.tiptap')).toContainText('Premier')
+  await expect(page.locator('.tiptap')).toContainText('Second')
+
+  for (const [prefix, kind] of [
+    ['- ', 'bulletList'],
+    ['1. ', 'orderedList'],
+  ]) {
+    await page.evaluate(() => {
+      const e = window.__spike!.editor
+      e.commands.clearContent()
+      e.commands.focus('start')
+    })
+    await page.keyboard.type(prefix + 'Un')
+    await expect(page.locator(`.widget-${kind} li`)).toHaveText('Un')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('Deux')
+    await expect(page.locator(`.widget-${kind} li`)).toHaveCount(2)
+    await page.keyboard.press('Enter')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type('Après la liste')
+    await expect(page.locator('.tiptap > p')).toHaveText('Après la liste')
+    await expect(page.locator(`.widget-${kind} li`)).toHaveCount(2)
+    await page.waitForFunction(() =>
+      /page/.test(document.querySelector('#render-status')!.textContent || ''),
+    )
+    await expect(page.locator('#message')).not.toHaveClass(/error/)
+  }
+  await page.evaluate(() => window.__spike!.editor.commands.clearContent())
+  await page.getByRole('button', { name: 'Listes', exact: true }).click()
+  await page.locator('[data-command="block.description"]').click()
+  await page.locator('dt').click()
+  await expect
+    .poll(() => page.evaluate(() => window.__spike!.editor.state.selection.$from.parent.type.name))
+    .toBe('descriptionTerm')
+  await page.keyboard.type('Terme')
+  await page.keyboard.press('Tab')
+  await page.keyboard.type('Définition')
+  await expect(page.locator('dt')).toHaveText('Terme')
+  await expect(page.locator('dd')).toHaveText('Définition')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Autre terme')
+  await expect(page.locator('dt')).toHaveCount(2)
+  await expect(page.locator('dt').last()).toHaveText('Autre terme')
+  expect(errors).toEqual([])
+})
+
+test('menus annulés au clic extérieur et avec Échap, sans modification du document', async ({
+  page,
+}) => {
+  await ready(page, 'main')
+  const before = await page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON()))
+  for (const label of ['Titres', 'Listes', 'Fichier']) {
+    await page.getByRole('button', { name: label, exact: true }).click()
+    await expect(page.locator('.tool-menu[open]')).toHaveCount(1)
+    await page.locator('.tiptap p').first().click()
+    await expect(page.locator('.tool-menu[open]')).toHaveCount(0)
+    expect(await page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON()))).toBe(before)
+  }
+  await page.getByRole('button', { name: 'Titres', exact: true }).click()
+  await page.getByRole('button', { name: 'Listes', exact: true }).click()
+  await expect(page.locator('.tool-menu[open]')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Titre 1', exact: true })).toBeHidden()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.tool-menu[open]')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Listes', exact: true })).toBeFocused()
+  expect(await page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON()))).toBe(before)
+})
+
+test('colonne éditable sans cadre et actions groupées à droite', async ({ page }, testInfo) => {
+  await ready(page, 'main')
+  await page.evaluate(() => {
+    const e = window.__spike!.editor
+    e.commands.setContent('<p>Un courrier très court.</p>')
+    e.commands.focus('end')
+  })
+  await expect(page.locator('.tiptap')).toHaveCSS('outline-style', 'none')
+  const area = await page.locator('#editor-scroll').boundingBox()
+  const editable = await page.locator('.tiptap').boundingBox()
+  expect(editable!.x).toBe(area!.x)
+  expect(editable!.width).toBe(area!.width)
+  expect(editable!.height).toBeGreaterThanOrEqual(area!.height)
+  await page.locator('.tiptap').click({ position: { x: 90, y: area!.height - 30 } })
+  await expect(page.locator('.tiptap')).toBeFocused()
+  await page.keyboard.type(' Suite.')
+  await expect(page.locator('.tiptap')).toContainText('Suite.')
+  await expect(page.locator('#render-status')).toHaveText(/^\d+ pages? ·/)
+  await page.screenshot({ path: testInfo.outputPath('editor-column-light.png') })
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.screenshot({ path: testInfo.outputPath('editor-column-dark.png') })
+
+  await page.getByRole('button', { name: 'Fichier', exact: true }).click()
+  await page.locator('[data-command="document.new"]').click()
+  const dialog = page.locator('dialog')
+  await expect(dialog).toBeVisible()
+  const buttons = dialog.locator('.panel-actions > button')
+  await expect(buttons).toHaveText(['Abandonner', 'Annuler', 'Enregistrer'])
+  await expect(buttons.first()).toHaveClass('danger')
+  await expect(buttons.last()).toHaveClass('primary')
+  const row = dialog.locator('.panel-actions')
+  await expect(row).toHaveCSS('justify-content', 'flex-end')
+  const last = await buttons.last().boundingBox()
+  const bounds = await row.boundingBox()
+  expect(Math.abs(last!.x + last!.width - bounds!.x - bounds!.width)).toBeLessThan(1)
+  await page.screenshot({ path: testInfo.outputPath('discard-actions.png') })
+  await page.getByRole('button', { name: 'Annuler', exact: true }).last().click()
+  await page.getByRole('button', { name: 'Préférences', exact: true }).click()
+  await expect(page.locator('#side-content .panel-actions')).toHaveCSS(
+    'justify-content',
+    'flex-end',
+  )
+  await expect(page.locator('#side-content .panel-actions')).toHaveCSS('flex-direction', 'row')
+  await expect(page.locator('#side-content .panel-actions > button').last()).toHaveClass('primary')
+})

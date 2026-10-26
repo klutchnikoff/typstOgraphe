@@ -149,6 +149,10 @@ export function toolbar(element: HTMLElement, registry: Registry, capabilities: 
     el.title = command.label
     el.dataset.command = command.id
     el.innerHTML = icon(command.icon || 'pilcrow')
+    // Le clic d'une commande de mise en forme conserve la sélection du texte.
+    el.onmousedown = (event) => {
+      if (event.button === 0) event.preventDefault()
+    }
     el.onclick = () => {
       if (command.enabled?.() === false) return
       command.run()

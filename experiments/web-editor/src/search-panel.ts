@@ -45,6 +45,7 @@ export function searchPanel(content: HTMLElement, editor: Editor) {
   }
   const all = document.createElement('button')
   all.textContent = tr('Tout remplacer')
+  all.className = 'danger'
   all.onclick = () => {
     const chain = editor.chain()
     for (const match of matches().reverse())
@@ -54,6 +55,9 @@ export function searchPanel(content: HTMLElement, editor: Editor) {
   }
   query.oninput = fill
   insensitive.onchange = fill
-  content.append(query, replacement, label, current, all, results)
+  const actions = document.createElement('div')
+  actions.className = 'panel-actions'
+  actions.append(all, current)
+  content.append(query, replacement, label, actions, results)
   query.focus()
 }
