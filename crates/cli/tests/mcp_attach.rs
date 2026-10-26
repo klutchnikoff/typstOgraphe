@@ -168,7 +168,7 @@ fn stdio_bridge_reads_the_same_unsaved_document_while_its_owner_keeps_editing() 
                 .await;
             }
             let resources = client.list_all_resources().await.unwrap();
-            assert_eq!(resources.len(), 5);
+            assert_eq!(resources.len(), 6);
             client
                 .read_resource(ReadResourceRequestParams::new("typstographe://document"))
                 .await

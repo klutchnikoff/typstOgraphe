@@ -238,7 +238,7 @@ pub fn parameters(id: &str) -> Value {
         "block.numbered" => {
             json!({"type":"object","properties":{"start":{"type":"integer","minimum":1,"default":1}},"additionalProperties":false})
         }
-        _ => json!({"type":"object","additionalProperties":false}),
+        _ => json!({"type":"object","properties":{},"additionalProperties":false}),
     }
 }
 

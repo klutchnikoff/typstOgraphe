@@ -164,6 +164,100 @@ pub fn apply(
         return Err("Capacité absente de ce type.".into());
     }
     let t = target(&call.params, context)?;
+    if call.id == "text.select" {
+        let n = at(root, &t.path)?;
+        if !matches!(
+            n.kind.as_str(),
+            "paragraph"
+                | "heading"
+                | "figure"
+                | "descriptionTerm"
+                | "descriptionDefinition"
+                | "quoteAttribution"
+                | "postscript"
+                | "attachment"
+        ) || t.from > t.to
+        {
+            return Err("Zone de texte attendue.".into());
+        }
+        split(&n.content, t.from)?;
+        split(&n.content, t.to)?;
+        *context = t;
+        return Ok(());
+    }
+    if call.id == "text.insert" && string(&call.params, "text")?.contains(['\n', '\r']) {
+        let value = string(&call.params, "text")?
+            .replace("\r\n", "\n")
+            .replace('\r', "\n");
+        let n = at(root, &t.path)?;
+        if t.from > t.to {
+            return Err("Sélection inversée.".into());
+        }
+        let (left, rest) = split(&n.content, t.from)?;
+        let (_, right) = split(&rest, t.to - t.from)?;
+        let marks: Vec<Mark> = call
+            .params
+            .get("marks")
+            .map(|v| serde_json::from_value(v.clone()).map_err(|e| e.to_string()))
+            .transpose()?
+            .unwrap_or_else(|| typing_marks.clone());
+        let parts: Vec<_> = value.split("\n\n").collect();
+        let chunks: Vec<_> = parts
+            .iter()
+            .enumerate()
+            .filter(|(i, v)| *i == 0 || *i == parts.len() - 1 || !v.is_empty())
+            .map(|(_, v)| v.trim_start_matches('\n'))
+            .collect();
+        let inline = |part: &str| -> Vec<Node> {
+            let mut result = vec![];
+            for (i, line) in part.split('\n').enumerate() {
+                if i > 0 {
+                    result.push(node("softBreak", vec![]));
+                }
+                if !line.is_empty() {
+                    result.push(text(line, marks.clone()));
+                }
+            }
+            result
+        };
+        if chunks.len() <= 1 {
+            let inserted = inline(&value);
+            let len = inserted.iter().map(inline_len).sum::<usize>();
+            at_mut(root, &t.path)?.content =
+                left.into_iter().chain(inserted).chain(right).collect();
+            *context = Target {
+                path: t.path,
+                from: t.from + len,
+                to: t.from + len,
+            };
+        } else {
+            if !matches!(n.kind.as_str(), "paragraph" | "heading") {
+                return Err(
+                    "Les paragraphes multiples sont interdits dans cette annotation.".into(),
+                );
+            }
+            let mut blocks: Vec<_> = chunks
+                .iter()
+                .map(|part| node("paragraph", inline(part)))
+                .collect();
+            blocks[0].content.splice(0..0, left);
+            let end = inline_len(blocks.last().unwrap());
+            blocks.last_mut().unwrap().content.extend(right);
+            let (index, parent) = t.path.split_last().ok_or("Paragraphe attendu.")?;
+            let last = *index + blocks.len() - 1;
+            at_mut(root, parent)?
+                .content
+                .splice(*index..=*index, blocks);
+            let mut path = parent.to_vec();
+            path.push(last);
+            *context = Target {
+                path,
+                from: end,
+                to: end,
+            };
+        }
+        return Ok(());
+    }
     if matches!(
         call.id.as_str(),
         "text.insert"
@@ -323,14 +417,29 @@ pub fn apply(
     let replacement = match call.id.as_str() {
         "block.bullet" | "block.numbered" => {
             let n = at(root, &t.path)?;
-            node(
+            let mut list = node(
                 if call.id == "block.bullet" {
                     "bulletList"
                 } else {
                     "orderedList"
                 },
                 vec![node("listItem", vec![node("paragraph", n.content.clone())])],
-            )
+            );
+            if call.id == "block.numbered" {
+                let start = call
+                    .params
+                    .get("start")
+                    .map(|value| {
+                        value
+                            .as_u64()
+                            .filter(|n| *n > 0)
+                            .ok_or("Départ de numérotation invalide.")
+                    })
+                    .transpose()?
+                    .unwrap_or(1);
+                list.attrs = Some(json!({"start":start}));
+            }
+            list
         }
         "block.description" => {
             let n = at(root, &t.path)?;
@@ -351,7 +460,15 @@ pub fn apply(
                 "quote",
                 vec![
                     node("paragraph", n.content.clone()),
-                    node("quoteAttribution", vec![]),
+                    node(
+                        "quoteAttribution",
+                        call.params
+                            .get("attribution")
+                            .and_then(Value::as_str)
+                            .filter(|s| !s.is_empty())
+                            .map(|s| vec![text(s, vec![])])
+                            .unwrap_or_default(),
+                    ),
                 ],
             )
         }
@@ -371,11 +488,17 @@ pub fn apply(
             image
         }
         "insert.table" => {
-            let rows = call.params.get("rows").and_then(Value::as_u64).unwrap_or(3);
+            let rows = call
+                .params
+                .get("rows")
+                .map(|v| v.as_u64().ok_or("Nombre de lignes invalide."))
+                .transpose()?
+                .unwrap_or(3);
             let columns = call
                 .params
                 .get("columns")
-                .and_then(Value::as_u64)
+                .map(|v| v.as_u64().ok_or("Nombre de colonnes invalide."))
+                .transpose()?
                 .unwrap_or(2);
             if !(1..=100).contains(&rows) || !(1..=12).contains(&columns) {
                 return Err("Dimensions de tableau invalides.".into());
@@ -457,6 +580,11 @@ pub fn specifications() -> Vec<Value> {
             json!({"text":{"type":"string"},"marks":{"type":"array","items":{"type":"object"}}}),
         ),
         (
+            "text.select",
+            "Set the agent's own context inside one zone; never moves the human selection.",
+            json!({}),
+        ),
+        (
             "text.delete",
             "Delete a range inside one editable zone.",
             json!({}),
@@ -488,6 +616,45 @@ pub fn specifications() -> Vec<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn explicit_style_context_and_paragraphs_remain_predictable() {
+        let mut root = node("doc", vec![node("paragraph", vec![])]);
+        let mut context = end_target(&root);
+        let mut marks = vec![];
+        for (id, params) in [
+            ("text.bold", json!({"value":"on"})),
+            ("text.insert", json!({"text":"Important"})),
+            ("text.bold", json!({"value":"off"})),
+            (
+                "text.insert",
+                json!({"text":" suite\ncontinue\n\nDeuxième"}),
+            ),
+        ] {
+            apply(
+                &mut root,
+                &Call {
+                    id: id.into(),
+                    params,
+                },
+                &mut context,
+                &mut marks,
+                crate::document_types::DocumentType::Courrier,
+            )
+            .unwrap();
+        }
+        assert_eq!(root.content.len(), 2);
+        assert_eq!(root.content[0].content[0].marks[0].kind, "bold");
+        assert!(root.content[0].content[1].marks.is_empty());
+        assert!(
+            root.content[0]
+                .content
+                .iter()
+                .any(|n| n.kind == "softBreak")
+        );
+        assert_eq!(context.path, vec![1]);
+        assert_eq!(context.from, "Deuxième".encode_utf16().count());
+        super::super::source(&root, &crate::assets::Assets::default()).unwrap();
+    }
     #[test]
     fn protected_unicode_edits_and_styles_use_structured_targets() {
         let mut root = node("doc", vec![node("paragraph", vec![text("Aé😀B", vec![])])]);

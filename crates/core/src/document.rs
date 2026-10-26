@@ -193,4 +193,4 @@ mod projection;
 #[path = "document/serialization.rs"]
 mod serialization;
 pub use options::*;
-pub use serialization::typst_string;
+pub use serialization::{escape_markup, typst_string};

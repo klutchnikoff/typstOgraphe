@@ -214,7 +214,7 @@ pub fn typst_string(text: &str) -> String {
     result
 }
 
-fn escape_markup(text: &str) -> String {
+pub fn escape_markup(text: &str) -> String {
     let mut result = String::new();
     for c in text.chars() {
         if "\\#*_[]$`<>@=+-/~{}\"':".contains(c) {

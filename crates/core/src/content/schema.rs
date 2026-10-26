@@ -44,12 +44,15 @@ impl Node {
 }
 
 pub fn source(document: &Node, assets: &Assets) -> Result<String, String> {
+    generate(document, assets, false)
+}
+pub(super) fn generate(document: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
     if document.kind != "doc" || document.text.is_some() || !document.marks.is_empty() {
         return Err("Un document structuré est attendu.".into());
     }
     let mut count = 0;
     limits(document, 0, &mut count)?;
-    let mut result = blocks(&document.content, assets)?;
+    let mut result = blocks(&document.content, assets, mapped)?;
     fn notes(node: &Node) -> bool {
         matches!(node.kind.as_str(), "postscript" | "attachment") || node.content.iter().any(notes)
     }
@@ -83,22 +86,25 @@ fn limits(node: &Node, depth: usize, count: &mut usize) -> Result<(), String> {
     }
     Ok(())
 }
-fn blocks(nodes: &[Node], assets: &Assets) -> Result<String, String> {
+fn blocks(nodes: &[Node], assets: &Assets, mapped: bool) -> Result<String, String> {
     nodes
         .iter()
-        .map(|node| block(node, assets))
+        .map(|node| block(node, assets, mapped))
         .collect::<Result<Vec<_>, _>>()
         .map(|s| s.join("\n\n"))
 }
-fn block(node: &Node, assets: &Assets) -> Result<String, String> {
+fn block(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
     Ok(match node.kind.as_str() {
-        "paragraph" => format!("#par[{}]", inline(&node.content)?),
+        "paragraph" => format!("#par[{}]", inline(&node.content, mapped)?),
         "heading" => {
             let level = node.integer("level", 1);
             if !(1..=3).contains(&level) {
                 return Err("Titre limité aux niveaux 1 à 3.".into());
             }
-            format!("#heading(level: {level})[{}]", inline(&node.content)?)
+            format!(
+                "#heading(level: {level})[{}]",
+                inline(&node.content, mapped)?
+            )
         }
         "bulletList" | "orderedList" => {
             let mut items = Vec::new();
@@ -109,7 +115,7 @@ fn block(node: &Node, assets: &Assets) -> Result<String, String> {
                 {
                     return Err("Seules les listes non imbriquées sont prises en charge.".into());
                 }
-                items.push(format!("[{}]", blocks(&item.content, assets)?));
+                items.push(format!("[{}]", blocks(&item.content, assets, mapped)?));
             }
             let function = if node.kind == "bulletList" {
                 "list"
@@ -129,7 +135,7 @@ fn block(node: &Node, assets: &Assets) -> Result<String, String> {
                 return Err("Image interne absente ou chemin invalide.".into());
             }
             let alt = typst_string(node.string("alt")?);
-            let caption = inline(&node.content)?;
+            let caption = inline(&node.content, mapped)?;
             let caption = if caption.is_empty() {
                 String::new()
             } else {
@@ -140,14 +146,14 @@ fn block(node: &Node, assets: &Assets) -> Result<String, String> {
                 typst_string(path)
             )
         }
-        "table" => table(node, assets)?,
+        "table" => table(node, assets, mapped)?,
         "quote" => {
             let annotation = node
                 .content
                 .last()
                 .filter(|child| child.kind == "quoteAttribution")
                 .ok_or("Attribution attendue dans la citation.")?;
-            let attribution = inline(&annotation.content)?;
+            let attribution = inline(&annotation.content, mapped)?;
             let option = if attribution.is_empty() {
                 String::new()
             } else {
@@ -155,7 +161,7 @@ fn block(node: &Node, assets: &Assets) -> Result<String, String> {
             };
             format!(
                 "#quote(block: true{option})[{}]",
-                blocks(&node.content[..node.content.len() - 1], assets)?
+                blocks(&node.content[..node.content.len() - 1], assets, mapped)?
             )
         }
         "descriptionList" => {
@@ -170,17 +176,19 @@ fn block(node: &Node, assets: &Assets) -> Result<String, String> {
                 }
                 items.push(format!(
                     "terms.item([{}], [{}])",
-                    inline(&item.content[0].content)?,
-                    inline(&item.content[1].content)?
+                    inline(&item.content[0].content, mapped)?,
+                    inline(&item.content[1].content, mapped)?
                 ));
             }
             format!("#terms({})", items.join(", "))
         }
-        "postscript" | "attachment" => format!("#{}[{}]", node.kind, inline(&node.content)?),
+        "postscript" | "attachment" => {
+            format!("#{}[{}]", node.kind, inline(&node.content, mapped)?)
+        }
         other => return Err(format!("Structure non prise en charge : {other}")),
     })
 }
-fn table(node: &Node, assets: &Assets) -> Result<String, String> {
+fn table(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
     let width = node.content.first().map_or(0, |r| r.content.len());
     if !(1..=12).contains(&width) || node.content.len() > 100 {
         return Err("Tableau limité à 12 colonnes et 100 lignes.".into());
@@ -202,7 +210,7 @@ fn table(node: &Node, assets: &Assets) -> Result<String, String> {
             if cell.content.iter().any(|p| p.kind != "paragraph") {
                 return Err("Une cellule contient seulement des paragraphes.".into());
             }
-            content.push(format!("[{}]", blocks(&cell.content, assets)?));
+            content.push(format!("[{}]", blocks(&cell.content, assets, mapped)?));
         }
         cells.push(if header {
             format!("table.header({})", content.join(", "))
@@ -212,7 +220,7 @@ fn table(node: &Node, assets: &Assets) -> Result<String, String> {
     }
     Ok(format!("#table(columns: {width}, {})", cells.join(", ")))
 }
-fn inline(nodes: &[Node]) -> Result<String, String> {
+fn inline(nodes: &[Node], mapped: bool) -> Result<String, String> {
     nodes
         .iter()
         .map(|node| {
@@ -221,15 +229,23 @@ fn inline(nodes: &[Node]) -> Result<String, String> {
                     if !node.content.is_empty() {
                         return Err("Un texte ne contient pas de blocs.".into());
                     }
-                    format!(
-                        "#text({})",
-                        typst_string(node.text.as_deref().unwrap_or_default())
-                    )
+                    let value = super::mapping::literal(node.text.as_deref().unwrap_or_default());
+                    if mapped {
+                        format!("/*@typstographe:{}*/{value}", node.integer("_mapping", 0))
+                    } else {
+                        value
+                    }
                 }
                 "hardBreak" if node.content.is_empty() => "#linebreak()".into(),
-                "softBreak" if node.content.is_empty() => "#text(\" \")".into(),
+                "softBreak" if node.content.is_empty() => " ".into(),
                 "footnote" if node.content.is_empty() => {
-                    format!("#footnote[#text({})]", typst_string(node.string("text")?))
+                    let value = super::mapping::literal(node.string("text")?);
+                    let marker = if mapped {
+                        format!("/*@typstographe:{}*/", node.integer("_mapping", 0))
+                    } else {
+                        String::new()
+                    };
+                    format!("#footnote[{marker}{value}]")
                 }
                 other => return Err(format!("Contenu en ligne non pris en charge : {other}")),
             };
@@ -272,7 +288,7 @@ mod tests {
             serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"#panic(\"oops\") $x$ [é]"}]}]}),
         );
         let s = source(&d, &Assets::default()).unwrap();
-        assert!(s.contains("#text(\"#panic(\\\"oops\\\") $x$ [é]\")"));
+        assert!(s.contains(r#"\#panic(\"oops\") \$x\$ \[é\]"#));
         let invalid = node(
             serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"x","marks":[{"type":"link","attrs":{"href":"javascript:alert(1)"}}]}]}]}),
         );
@@ -302,7 +318,7 @@ mod tests {
         );
         assert_eq!(
             source(&document, &Assets::default()).unwrap(),
-            "#par[#text(\"a\")#text(\" \")#text(\"b\")#linebreak()#text(\"c\")]"
+            "#par[a b#linebreak()c]"
         );
     }
     #[test]
@@ -312,6 +328,6 @@ mod tests {
         );
         let source = source(&document, &Assets::default()).unwrap();
         assert!(source.contains("#strong[#linebreak()]"));
-        assert!(source.contains("#emph[#footnote[#text(\"Annotation\")]]"));
+        assert!(source.contains("#emph[#footnote[Annotation]]"));
     }
 }

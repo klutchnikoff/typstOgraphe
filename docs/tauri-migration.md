@@ -21,6 +21,14 @@ pendant le portage ; elle sert de référence fonctionnelle.
   bandeaux cohérents, raccourcis centralisés, thèmes et internationalisation préservés.
 - Plusieurs commits vérifiés et une seule poussée par lot.
 
+## Contrat MCP validé
+
+Les noms restent identiques lorsque leur sens reste identique. Les cibles évoluent
+vers des chemins de blocs, cellules et annotations, avec des offsets UTF-16 à
+l’intérieur d’une zone de texte. Aucune compatibilité artificielle avec les
+positions de la projection plate n’est recherchée. Chaque lot porte la révision
+lue par l’agent et attend l’acceptation explicite de l’utilisateur.
+
 ## Portage
 
 1. Extraire le schéma structuré et le catalogue vers Rust ; le partager avec MCP.

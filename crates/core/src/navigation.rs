@@ -122,11 +122,39 @@ impl RenderSync {
             return Vec::new();
         }
         let source = self.map.characters[start].start..self.map.characters[end - 1].end;
+        self.highlights_for_sources(&[source])
+    }
+
+    /// Carte structurée : les annotations peuvent précéder leur corps dans le source.
+    pub fn selection_highlights_exact(&self, characters: Range<usize>) -> Vec<SelectionHighlight> {
+        let mut ranges = self.map.characters[characters.start.min(self.map.characters.len())
+            ..characters
+                .end
+                .min(self.map.characters.len())
+                .max(characters.start.min(self.map.characters.len()))]
+            .to_vec();
+        ranges.sort_by_key(|range| range.start);
+        let mut merged: Vec<Range<usize>> = vec![];
+        for range in ranges {
+            if range.is_empty() {
+                continue;
+            }
+            if let Some(last) = merged.last_mut().filter(|last| range.start <= last.end) {
+                last.end = last.end.max(range.end)
+            } else {
+                merged.push(range)
+            }
+        }
+        self.highlights_for_sources(&merged)
+    }
+    fn highlights_for_sources(&self, sources: &[Range<usize>]) -> Vec<SelectionHighlight> {
         let mut highlights: Vec<SelectionHighlight> = Vec::new();
         for anchor in &self.anchors {
+            let index = sources.partition_point(|range| range.end <= anchor.source.start);
             if anchor.source.is_empty()
-                || anchor.source.start >= source.end
-                || anchor.source.end <= source.start
+                || sources
+                    .get(index)
+                    .is_none_or(|range| range.start >= anchor.source.end)
             {
                 continue;
             }
