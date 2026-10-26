@@ -6205,6 +6205,7 @@ dependencies = [
  "atomic-write-file",
  "base64 0.22.1",
  "jsonschema",
+ "png",
  "rmcp",
  "serde",
  "serde_json",

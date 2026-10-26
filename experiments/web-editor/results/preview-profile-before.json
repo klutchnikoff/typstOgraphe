@@ -1,0 +1,491 @@
+{
+  "profile": "test, opt-level=0, debug=0",
+  "samples": [
+    {
+      "case": "simple",
+      "dataUrlBytes": 116862,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 0,
+      "legacyMs": 77.025333,
+      "pages": 1,
+      "projectionMs": 0.166333,
+      "rgbaBytes": 8022576,
+      "stages": {
+        "base64Ms": 0.44129199999999996,
+        "compileMs": 14.67025,
+        "exportMs": 0.000125,
+        "pngMs": 441.683875,
+        "prepareMs": 7.415917,
+        "rasterMs": 7.602875,
+        "syncMs": 1.067042
+      },
+      "webMs": 472.891
+    },
+    {
+      "case": "simple",
+      "dataUrlBytes": 116670,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 1,
+      "legacyMs": 31.441416,
+      "pages": 1,
+      "projectionMs": 0.131292,
+      "rgbaBytes": 8022576,
+      "stages": {
+        "base64Ms": 0.424,
+        "compileMs": 13.010625,
+        "exportMs": 0.000125,
+        "pngMs": 433.470417,
+        "prepareMs": 7.348917,
+        "rasterMs": 7.673375,
+        "syncMs": 1.587417
+      },
+      "webMs": 463.538208
+    },
+    {
+      "case": "simple",
+      "dataUrlBytes": 116822,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 2,
+      "legacyMs": 34.530917,
+      "pages": 1,
+      "projectionMs": 0.126709,
+      "rgbaBytes": 8022576,
+      "stages": {
+        "base64Ms": 0.402083,
+        "compileMs": 9.872334,
+        "exportMs": 4.2e-05,
+        "pngMs": 437.586625,
+        "prepareMs": 7.3759999999999994,
+        "rasterMs": 7.618625000000001,
+        "syncMs": 1.1895829999999998
+      },
+      "webMs": 464.052125
+    },
+    {
+      "case": "simple",
+      "dataUrlBytes": 116826,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 3,
+      "legacyMs": 31.329625,
+      "pages": 1,
+      "projectionMs": 0.1325,
+      "rgbaBytes": 8022576,
+      "stages": {
+        "base64Ms": 0.424041,
+        "compileMs": 13.142249999999999,
+        "exportMs": 8.3e-05,
+        "pngMs": 432.735708,
+        "prepareMs": 7.3477500000000004,
+        "rasterMs": 7.687292,
+        "syncMs": 1.5081660000000001
+      },
+      "webMs": 462.86320800000004
+    },
+    {
+      "case": "simple",
+      "dataUrlBytes": 116766,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 4,
+      "legacyMs": 34.05075,
+      "pages": 1,
+      "projectionMs": 0.12562500000000001,
+      "rgbaBytes": 8022576,
+      "stages": {
+        "base64Ms": 0.397708,
+        "compileMs": 9.877875,
+        "exportMs": 0.0,
+        "pngMs": 434.07166600000005,
+        "prepareMs": 7.354959,
+        "rasterMs": 7.588959,
+        "syncMs": 1.179042
+      },
+      "webMs": 460.476875
+    },
+    {
+      "case": "simple",
+      "dataUrlBytes": 116830,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 5,
+      "legacyMs": 31.316416999999998,
+      "pages": 1,
+      "projectionMs": 0.13941699999999999,
+      "rgbaBytes": 8022576,
+      "stages": {
+        "base64Ms": 0.40870799999999996,
+        "compileMs": 13.137292,
+        "exportMs": 8.4e-05,
+        "pngMs": 435.787041,
+        "prepareMs": 8.213292000000001,
+        "rasterMs": 7.665166999999999,
+        "syncMs": 1.205166
+      },
+      "webMs": 466.42366699999997
+    },
+    {
+      "case": "simple",
+      "dataUrlBytes": 116810,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 6,
+      "legacyMs": 34.2825,
+      "pages": 1,
+      "projectionMs": 0.13175,
+      "rgbaBytes": 8022576,
+      "stages": {
+        "base64Ms": 0.398042,
+        "compileMs": 9.948208,
+        "exportMs": 4.1e-05,
+        "pngMs": 434.167709,
+        "prepareMs": 7.356375,
+        "rasterMs": 7.616209,
+        "syncMs": 1.158333
+      },
+      "webMs": 460.652334
+    },
+    {
+      "case": "simple",
+      "dataUrlBytes": 116778,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 7,
+      "legacyMs": 31.159958000000003,
+      "pages": 1,
+      "projectionMs": 0.132958,
+      "rgbaBytes": 8022576,
+      "stages": {
+        "base64Ms": 0.39849999999999997,
+        "compileMs": 14.103166,
+        "exportMs": 0.00020800000000000001,
+        "pngMs": 433.366,
+        "prepareMs": 7.360125,
+        "rasterMs": 7.671167,
+        "syncMs": 1.1730829999999999
+      },
+      "webMs": 464.079792
+    },
+    {
+      "case": "simple",
+      "dataUrlBytes": 116870,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 8,
+      "legacyMs": 34.416875,
+      "pages": 1,
+      "projectionMs": 0.12625,
+      "rgbaBytes": 8022576,
+      "stages": {
+        "base64Ms": 0.39641600000000005,
+        "compileMs": 9.91325,
+        "exportMs": 4.2e-05,
+        "pngMs": 434.066042,
+        "prepareMs": 7.3586670000000005,
+        "rasterMs": 7.604125,
+        "syncMs": 1.1581670000000002
+      },
+      "webMs": 460.503833
+    },
+    {
+      "case": "fixture",
+      "dataUrlBytes": 210124,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ],
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 0,
+      "legacyMs": 131.83741700000002,
+      "pages": 2,
+      "projectionMs": 0.375583,
+      "rgbaBytes": 16045152,
+      "stages": {
+        "base64Ms": 0.759874,
+        "compileMs": 14.948457999999999,
+        "exportMs": 4.2e-05,
+        "pngMs": 931.522083,
+        "prepareMs": 7.386583000000001,
+        "rasterMs": 63.860375,
+        "syncMs": 2.962292
+      },
+      "webMs": 1021.447792
+    },
+    {
+      "case": "fixture",
+      "dataUrlBytes": 210028,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ],
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 1,
+      "legacyMs": 90.648708,
+      "pages": 2,
+      "projectionMs": 0.37074999999999997,
+      "rgbaBytes": 16045152,
+      "stages": {
+        "base64Ms": 0.7559999999999999,
+        "compileMs": 14.514417,
+        "exportMs": 4.1e-05,
+        "pngMs": 924.7316249999999,
+        "prepareMs": 7.339709,
+        "rasterMs": 64.187333,
+        "syncMs": 3.104584
+      },
+      "webMs": 1014.6415840000001
+    },
+    {
+      "case": "fixture",
+      "dataUrlBytes": 210156,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ],
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 2,
+      "legacyMs": 94.889166,
+      "pages": 2,
+      "projectionMs": 0.37225,
+      "rgbaBytes": 16045152,
+      "stages": {
+        "base64Ms": 0.752583,
+        "compileMs": 10.042209,
+        "exportMs": 8.4e-05,
+        "pngMs": 925.509375,
+        "prepareMs": 7.449459,
+        "rasterMs": 64.373,
+        "syncMs": 3.121375
+      },
+      "webMs": 1011.256167
+    },
+    {
+      "case": "fixture",
+      "dataUrlBytes": 210124,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ],
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 3,
+      "legacyMs": 90.014041,
+      "pages": 2,
+      "projectionMs": 0.36658300000000005,
+      "rgbaBytes": 16045152,
+      "stages": {
+        "base64Ms": 0.78875,
+        "compileMs": 14.560917,
+        "exportMs": 4.1e-05,
+        "pngMs": 924.9925420000001,
+        "prepareMs": 7.366917,
+        "rasterMs": 64.054916,
+        "syncMs": 3.484708
+      },
+      "webMs": 1015.271292
+    },
+    {
+      "case": "fixture",
+      "dataUrlBytes": 210068,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ],
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 4,
+      "legacyMs": 94.10729099999999,
+      "pages": 2,
+      "projectionMs": 0.375084,
+      "rgbaBytes": 16045152,
+      "stages": {
+        "base64Ms": 0.789834,
+        "compileMs": 9.976,
+        "exportMs": 0.0,
+        "pngMs": 942.577084,
+        "prepareMs": 7.355417,
+        "rasterMs": 63.844209,
+        "syncMs": 4.188792
+      },
+      "webMs": 1028.739458
+    },
+    {
+      "case": "fixture",
+      "dataUrlBytes": 210112,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ],
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 5,
+      "legacyMs": 91.525292,
+      "pages": 2,
+      "projectionMs": 0.484166,
+      "rgbaBytes": 16045152,
+      "stages": {
+        "base64Ms": 0.7683749999999999,
+        "compileMs": 14.684292,
+        "exportMs": 0.000125,
+        "pngMs": 926.080874,
+        "prepareMs": 7.721083,
+        "rasterMs": 64.463125,
+        "syncMs": 3.143167
+      },
+      "webMs": 1016.868417
+    },
+    {
+      "case": "fixture",
+      "dataUrlBytes": 210156,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ],
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 6,
+      "legacyMs": 94.61675,
+      "pages": 2,
+      "projectionMs": 0.367208,
+      "rgbaBytes": 16045152,
+      "stages": {
+        "base64Ms": 0.8029999999999999,
+        "compileMs": 10.018292,
+        "exportMs": 4.2e-05,
+        "pngMs": 925.436459,
+        "prepareMs": 7.3801250000000005,
+        "rasterMs": 64.116624,
+        "syncMs": 3.0848329999999997
+      },
+      "webMs": 1010.847791
+    },
+    {
+      "case": "fixture",
+      "dataUrlBytes": 210080,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ],
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 7,
+      "legacyMs": 89.970834,
+      "pages": 2,
+      "projectionMs": 0.36374999999999996,
+      "rgbaBytes": 16045152,
+      "stages": {
+        "base64Ms": 0.7824169999999999,
+        "compileMs": 14.445708999999999,
+        "exportMs": 4.2e-05,
+        "pngMs": 1025.085375,
+        "prepareMs": 7.354291,
+        "rasterMs": 64.867916,
+        "syncMs": 3.078625
+      },
+      "webMs": 1115.623083
+    },
+    {
+      "case": "fixture",
+      "dataUrlBytes": 210156,
+      "dimensions": [
+        [
+          1191,
+          1684
+        ],
+        [
+          1191,
+          1684
+        ]
+      ],
+      "iteration": 8,
+      "legacyMs": 94.487334,
+      "pages": 2,
+      "projectionMs": 0.36133299999999996,
+      "rgbaBytes": 16045152,
+      "stages": {
+        "base64Ms": 0.742166,
+        "compileMs": 9.995042000000002,
+        "exportMs": 8.3e-05,
+        "pngMs": 926.3733339999999,
+        "prepareMs": 7.349667,
+        "rasterMs": 63.805042,
+        "syncMs": 3.0715
+      },
+      "webMs": 1011.344542
+    }
+  ]
+}
