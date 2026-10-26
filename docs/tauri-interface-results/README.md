@@ -257,3 +257,33 @@ Les captures des listes en clair, des images en sombre et de la citation replié
 ont été inspectées. La présentation B est conservée. Les références locales
 sont dans `output/tauri-capability-settings/`. Aucun nouvel essai matériel d’IME
 ni aucune recette native Windows/Linux n’est revendiqué dans ce lot.
+
+
+## Ligne préservée sous les bandeaux contextuels
+
+Le scénario minimal « Test des notes », avec insertion d’une note après « Test »,
+a reproduit le défaut avant correction : les fragments de texte se retrouvaient
+sur deux lignes séparées par le panneau. Le document ne contenait pourtant pas
+de retour ajouté. La comparaison des sommets des rectangles de glyphes dans
+`BandHost` confondait l’exposant avec une autre ligne.
+
+La correction se limite au calcul commun du début de ligne : les rectangles
+adjacents peuvent avoir des sommets différents lorsqu’ils se chevauchent
+verticalement. Aucun changement spécifique aux notes, aux liens ou au correcteur
+n’a été ajouté. Les futurs bandeaux ancrés sur du texte empruntent ce calcul.
+
+La recette ajoute des contrôles du même invariant pour une note, un lien
+volontairement surélevé et une correction orthographique, dans la prose, une
+liste et une citation. Les positions horizontales de tous les caractères sont
+comparées avant et après ouverture, le panneau doit rester juste au-dessus de
+sa cible, et le JSON documentaire doit rester identique. Un autre parcours
+vérifie les retours simples, les replis automatiques et le redimensionnement
+pendant l’ouverture. La confirmation, l’annulation et les autres panneaux B
+restent couverts par les recettes existantes.
+
+Validation : **60 parcours Chromium/WebKit**, **49 tests web**, construction
+TypeScript/Vite et contrôle Prettier réussis. Les captures du scénario minimal,
+des panneaux dans les widgets et du cas multiligne ont été inspectées. Les
+références avant/après sont conservées dans `output/tauri-inline-bands/`.
+Le cœur Rust n’a pas été modifié ; aucun nouvel essai matériel d’IME ni recette
+native Windows/Linux n’est revendiqué dans ce lot.

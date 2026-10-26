@@ -360,3 +360,29 @@ implémenter lors de l’évolution d’une capacité.
 | Un booléen par widget décidait si sa roue était active. | Champs et actions du contrat déterminent automatiquement la disponibilité. | Éviter une liste parallèle à maintenir. |
 | Les champs du panneau étaient codés séparément par capacité. | Les contrôles ordinaires, leurs valeurs par défaut et contraintes viennent du schéma. | Faire évoluer la signature et son interface ensemble. |
 | L’attribution était un paramètre optionnel mais ne justifiait pas de panneau. | Sa destination `body` indique qu’elle est éditée directement dans le bloc. | Exprimer la distinction dans le contrat, sans exception dans le calcul de disponibilité. |
+
+
+## Placement commun des bandeaux interlignes — 26 octobre 2026
+
+Les notes, liens et corrections orthographiques utilisent le même placement
+`text` de `BandHost`. Leur appelant fournit uniquement la plage ciblée ; il ne
+choisit ni un saut de ligne ni une règle de géométrie propre à sa capacité.
+
+Le défaut observé avec « Test des notes » provenait de ce gestionnaire commun :
+il assimilait une différence de hauteur du haut des glyphes à un changement de
+ligne. Un exposant, ou une variation de police/taille, rompait cette hypothèse.
+L’espace de présentation était alors inséré au milieu de la ligne, sans pour
+autant modifier le document partagé.
+
+La recherche du début de ligne compare désormais le chevauchement vertical des
+rectangles adjacents, au lieu d’exiger des sommets identiques. Elle reste commune
+à toutes les cibles textuelles, présentes ou futures, sans branche « note » ni
+classe CSS particulière. Les limites des blocs, les retours simples et le repli
+automatique restent respectés. Le placement `widget-header` des panneaux B garde
+son ancrage sous l’en-tête ; il appartient également au gestionnaire commun.
+
+| Avant | Après | Pourquoi |
+| --- | --- | --- |
+| Le haut d’un exposant différent du texte était interprété comme une autre ligne. | Des rectangles voisins qui se recouvrent verticalement appartiennent à la même ligne. | Accepter des éléments en ligne de tailles différentes. |
+| L’espace du bandeau pouvait couper la phrase au niveau de sa cible. | L’espace est réservé avant le début de la ligne visuelle. | Garder le texte et son objet en ligne, avec le panneau au-dessus. |
+| Les tests vérifiaient surtout le panneau et son ancrage. | Ils vérifient aussi la position horizontale de chaque caractère avant et après ouverture. | Détecter une coupure ou un changement de repli, quel que soit le type de cible. |
