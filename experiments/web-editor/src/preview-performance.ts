@@ -15,8 +15,10 @@ const frame = () =>
     })
   })
 const painted = async () => {
+  if (document.visibilityState !== 'visible') throw new Error('Fenêtre de mesure masquée.')
   await frame()
   await frame()
+  if (document.visibilityState !== 'visible') throw new Error('Fenêtre masquée pendant la mesure.')
 }
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 interface Harness {
