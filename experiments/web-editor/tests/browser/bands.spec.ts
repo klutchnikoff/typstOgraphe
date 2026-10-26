@@ -196,6 +196,10 @@ test('image : bandeau intégré, focus et modification annulable du texte altern
   expect(await contents(page)).toBe(before)
   await page.getByRole('button', { name: 'Paramètres · Image', exact: true }).click()
   await field.fill('Description validée')
+  for (const id of ['replace-image', 'remove-block', 'cancel-properties', 'apply-properties']) {
+    await page.keyboard.press('Tab')
+    await expect(page.locator(`#${id}`)).toBeFocused()
+  }
   await page.keyboard.press('Enter')
   await expect(page.locator('figure img')).toHaveAttribute('alt', 'Description validée')
   await expect(page.locator('.tiptap')).toBeFocused()
