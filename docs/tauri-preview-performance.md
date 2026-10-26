@@ -143,11 +143,11 @@ de navigateur (leurs compteurs ne sont pas des mesures d’IPC natif) :
 
 ## Reproduire
 
-Depuis `experiments/web-editor`, après installation des dépendances :
+Depuis la racine du dépôt, après `npm ci` :
 
 ```sh
-npm run build
-cargo build --release --locked --offline --manifest-path src-tauri/Cargo.toml --features custom-protocol
+npm run build:web
+cargo build --release --locked --offline -p typstographe
 npm run test:preview-native
 ```
 
@@ -160,13 +160,13 @@ caffeinate -di npm run test:preview-native
 Le script affiche le dossier du rapport `native-performance-report.json`, sous
 `output/web-editor/`. `TOG_SPIKE_BINARY` permet de choisir explicitement un autre
 binaire et `TOG_BENCH_PROFILE` en précise le profil dans le rapport. Pour le profil
-de développement, compiler aussi avec `--features custom-protocol`, puis pointer
-sur `target/debug/typstographe-web-editor-spike`. Il utilise les mêmes mécanismes
+de développement, compiler aussi `typstographe` (frontend embarqué par défaut), puis pointer
+sur `target/debug/typstographe`. Il utilise les mêmes mécanismes
 et la même résolution ; seules les optimisations Rust diffèrent.
 
 Pour un essai manuel optimisé, le binaire release compilé ci-dessus se lance
-directement : `../../target/release/typstographe-web-editor-spike`. Aucun serveur
-Vite n’est nécessaire dans ce mode. `npm run tauri dev` reste disponible pendant
+directement : `./target/release/typstographe`. Aucun serveur
+Vite n’est nécessaire dans ce mode. `npm start` reste disponible pendant
 le développement et utilise lui aussi le transfert RGBA natif.
 
 ## Vérifications et limites

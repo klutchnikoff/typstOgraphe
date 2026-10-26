@@ -1,6 +1,7 @@
 # typstOgraphe
 
 [![CI](https://github.com/klutchnikoff/typstOgraphe/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/klutchnikoff/typstOgraphe/actions/workflows/ci.yml)
+[![Application Tauri](https://github.com/klutchnikoff/typstOgraphe/actions/workflows/desktop.yml/badge.svg?branch=main)](https://github.com/klutchnikoff/typstOgraphe/actions/workflows/desktop.yml)
 [![Couverture des lignes — Linux](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fklutchnikoff%2FtypstOgraphe%2Fcoverage%2Fcoverage.json)](https://github.com/klutchnikoff/typstOgraphe/actions/workflows/coverage.yml)
 [![Rust](https://img.shields.io/badge/Rust-1.92%2B-orange?logo=rust)](https://www.rust-lang.org/)
 [![Tauri](https://img.shields.io/badge/Tauri-2-blue?logo=tauri)](https://tauri.app/)
@@ -13,23 +14,20 @@ Les modèles prennent en charge la présentation et les conventions de l’organ
 L’application vise **macOS, Windows et Linux**, avec des fichiers locaux autonomes.
 Le premier modèle utilisable est un **courrier personnel français**.
 
-**En développement préliminaire.** La nouvelle interface utilise Tauri,
+**En développement préliminaire.** L’interface utilise Tauri,
 Tiptap/ProseMirror et Yjs, avec un cœur Rust et Typst embarqué.
 
-## Lancer la nouvelle interface
+## Lancer l’application
 
 Avec Rust, Node.js et les [prérequis Tauri](https://v2.tauri.app/start/prerequisites/) :
 
 ```sh
-cd experiments/web-editor
 npm ci
-npm run tauri dev
+npm start
 ```
 
-La nouvelle interface est intégrée à `main` ; sa sortie du dossier expérimental
-fait partie du premier chantier de développement.
-`cargo run --locked` lance encore l’interface egui de référence.
-La [CLI documentaire](docs/cli.md) utilise encore son contrat historique.
+Ces commandes s’exécutent depuis la racine. Tauri est l’application principale,
+avec l’accueil animé et les icônes tO. Le [guide de développement](app/README.md)
+décrit aussi le lancement par Cargo et les vérifications.
 
-Voir la [migration de l’interface](docs/tauri-migration.md) et la
-[feuille de route](ROADMAP.md).
+Voir la [CLI documentaire](docs/cli.md) et la [feuille de route](ROADMAP.md).

@@ -68,7 +68,7 @@ complètent cette couverture :
 ## Captures natives
 
 Les références existantes ont été préservées. Deux comparaisons avec
-`scripts/capture-baseline.sh --compare --binary target/debug/typstographe --output output/baseline`
+`scripts/capture-baseline.sh --compare --binary target/debug/typstographe-egui --output output/baseline`
 ont réussi :
 
 - avant branchement, code `e42a21d`, résultats dans `output/baseline/run-7190jqqf/` ;

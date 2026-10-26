@@ -36,12 +36,12 @@ n’est demandé pendant cette phase préliminaire.
 
 ## A. Socle et convergence — P0
 
-### A.1 Organisation de l’application
+### A.1 Retrait des références historiques
 
-Définir la place du frontend et de l’hôte Tauri dans le dépôt et le workspace,
-les commandes de développement/build/test et l’application lancée par défaut.
-Séparer recettes, fixtures et mesures de ce qui est livré. Décider le retrait
-de l’application egui après contrôle des parcours nécessaires.
+Le [bilan du rangement](docs/application-layout.md) décrit l’application Tauri
+principale et les commandes depuis la racine. Décider le retrait de la référence
+egui après contrôle des parcours nécessaires. Compléter la séparation des
+recettes, fixtures et mesures de ce qui est livré.
 
 ### A.2 Un contrat documentaire structuré
 

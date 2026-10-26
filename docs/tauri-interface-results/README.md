@@ -349,10 +349,10 @@ Données brutes versionnées :
 [avant](../../experiments/web-editor/results/preview-profile-before.json) et
 [après](../../experiments/web-editor/results/preview-profile-after.json).
 
-Pour reproduire depuis `experiments/web-editor` :
+Pour reproduire depuis la racine du dépôt :
 
 ```sh
-CARGO_INCREMENTAL=0 cargo test --manifest-path src-tauri/Cargo.toml --locked --offline profile_preview_pipeline -- --ignored --nocapture --test-threads=1
+CARGO_INCREMENTAL=0 cargo test -p typstographe --locked --offline profile_preview_pipeline -- --ignored --nocapture --test-threads=1
 ```
 
 Le diagnostic est ignoré dans la CI courante et n’impose aucun seuil temporel

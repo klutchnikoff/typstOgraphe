@@ -69,8 +69,9 @@ rédaction individuelle, l’ouverture et l’export doivent fonctionner hors li
 
 ## A — Sortir le code du statut de prototype
 
-- Faire de Tauri le parcours de lancement et de distribution de référence ;
-  ranger le frontend et son hôte Rust hors du dossier experiments.
+- Préparer le retrait de la référence egui conservée explicitement, après
+  vérification des parcours nécessaires ; le lancement principal Tauri et le
+  rangement de l’application sont décrits dans le [bilan A.1](docs/application-layout.md).
 - Unifier le contrat structuré entre l’interface, la CLI et MCP : capacités,
   cibles, erreurs, disponibilité, fichiers et exports. Retirer les chemins
   historiques devenus inutiles après vérification de la nouvelle voie.
@@ -104,8 +105,8 @@ rédaction individuelle, l’ouverture et l’export doivent fonctionner hors li
   conservé reste dans le .typsto. L’export Typst/PDF porte sur l’état choisi,
   sans embarquer inutilement les ressources des autres états.
 
-**Choix à valider :** organisation du dépôt et commande de lancement ; retrait
-d’egui et de l’ancienne CLI ; périmètre et moment de stabilisation du format.
+**Choix à valider :** retrait d’egui et de l’ancienne CLI ; périmètre et moment
+de stabilisation du format.
 Pour les snapshots : déclenchement manuel/automatique, stockage, comparaison,
 rétention et restauration, puis droits et coordination en collaboration.
 Aucune couche de rétrocompatibilité préventive pendant cette phase préliminaire.
@@ -328,8 +329,8 @@ premier périmètre. Les propositions non retenues ne deviennent pas des engagem
 
 1. Valider le premier groupe de types et sa matrice de capacités (**B.1**), en
    tranchant les points de la note de conception qui changent les contrats.
-2. Définir le rangement et la convergence technique (**A.1**) avant d’ajouter
-   des fonctions dans le dossier expérimental.
+2. Unifier le contrat structuré entre les adaptateurs (**A.2**), à partir du
+   [rangement de l’application](docs/application-layout.md) désormais établi.
 3. Livrer le premier périmètre administratif, un type à la fois, avec son modèle
    et les capacités qui lui manquent (**C/D/E**).
 4. Engager ACP après stabilisation du contrat documentaire et validation de sa

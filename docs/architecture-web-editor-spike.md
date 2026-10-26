@@ -71,6 +71,6 @@ migration. Plusieurs commits, puis une seule poussée après vérification.
 
 Prototype et recettes automatisées livrés sur cette branche. Voir le
 [bilan, les mesures et les limites](web-editor-spike-results.md), puis le
-[guide de lancement](../experiments/web-editor/README.md).
+[guide de lancement](../app/README.md).
 L'essai ergonomique par l'utilisateur, notamment avec son clavier et son IME,
 reste nécessaire avant toute décision de migration.

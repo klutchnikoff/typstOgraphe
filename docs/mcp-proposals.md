@@ -196,13 +196,13 @@ Captures natives conservées dans `output/phase6-4b/` : contenu clair/sombre,
 informations avec vignette, aperçu candidat et proposition périmée. Reproduction :
 
 ```sh
-cargo build --locked -p typstographe
+cargo build --locked -p typstographe-egui
 mkdir -p output/phase6-4b
-target/debug/typstographe --capture-widgets output/phase6-4b/review-light.png review
-target/debug/typstographe --capture-widgets output/phase6-4b/review-dark.png review-dark
-target/debug/typstographe --capture-widgets output/phase6-4b/information.png review-information
-target/debug/typstographe --capture-widgets output/phase6-4b/preview.png review-preview
-target/debug/typstographe --capture-widgets output/phase6-4b/stale.png review-stale
+target/debug/typstographe-egui --capture-widgets output/phase6-4b/review-light.png review
+target/debug/typstographe-egui --capture-widgets output/phase6-4b/review-dark.png review-dark
+target/debug/typstographe-egui --capture-widgets output/phase6-4b/information.png review-information
+target/debug/typstographe-egui --capture-widgets output/phase6-4b/preview.png review-preview
+target/debug/typstographe-egui --capture-widgets output/phase6-4b/stale.png review-stale
 ```
 
 Les 527 tests Rust, les deux doctests, les 14 tests Python, fmt et Clippy avec

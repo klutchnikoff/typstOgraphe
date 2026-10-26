@@ -5,6 +5,8 @@ avec Tauri, Tiptap/ProseMirror et Yjs, en conservant le cœur Rust. Le portage d
 sur `codex/tauri-interface` est intégré à `main`. Ce document conserve son bilan ;
 les travaux restants sont désormais dans la [roadmap](../ROADMAP.md).
 L'interface egui reste accessible comme référence jusqu'à son retrait décidé ensemble.
+Depuis le chantier A.1, Tauri est l’application principale dans `app/` ; les
+[commandes de lancement actuelles](../app/README.md) remplacent celles du prototype.
 
 ## Invariants
 

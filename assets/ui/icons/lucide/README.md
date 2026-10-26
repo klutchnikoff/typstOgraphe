@@ -1,8 +1,9 @@
 Base : icônes SVG officielles de [Lucide 0.468.0](https://github.com/lucide-icons/lucide/tree/0.468.0/icons), embarquées sans modification.
 
 Les licences ISC et MIT (pour les éléments issus de Feather) sont conservées
-dans `LICENSE` et `LICENSE-FEATHER`. Le rendu remplace `currentColor` par du blanc
-pour créer un masque teinté par egui, à la densité de pixels de l’écran.
+dans `LICENSE` et `LICENSE-FEATHER`. L’application Tauri charge les SVG via
+`app/src/icons.ts` et utilise `currentColor`. La référence egui remplace cette
+couleur par du blanc pour créer un masque teinté à la densité de pixels de l’écran.
 
 Les icônes `settings-2`, `trash-2` et `x` ont été ajoutées pour les widgets et
 bandeaux depuis la distribution locale officielle Lucide 1.8.0 (licence ISC).

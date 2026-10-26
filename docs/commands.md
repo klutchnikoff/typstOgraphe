@@ -1,6 +1,6 @@
 # Catalogue documentaire implémenté
 
-Fichier généré par `cargo run --locked -- --commands-catalogue`.
+Fichier généré par `cargo run --locked -p typstographe-egui -- --commands-catalogue`.
 Identifiants et contrats d’entrée stabilisés à la clôture de la phase 2, le 24 octobre 2026.
 Tout changement incompatible exige une décision explicite ; les ajouts compatibles restent possibles.
 Les actions propres à l’interface ne figurent pas dans ce catalogue documentaire.

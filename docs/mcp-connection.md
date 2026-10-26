@@ -4,9 +4,12 @@ Choix validé le 25 octobre 2026 : **configuration fixe, reconnexion explicite**
 L’autorisation reste temporaire et liée à un document. La configuration de Codex
 ou d’un autre client MCP n’a plus à contenir le chemin de chaque invitation.
 
+> Ce guide décrit le raccordement de la référence egui. Tauri est désormais
+> l’application principale ; ses commandes sont dans le [guide courant](../app/README.md).
+
 ## Configuration, une seule fois
 
-Construire la CLI et l’application (`cargo build --locked --offline --workspace`).
+Construire la CLI et l’application (`cargo build --locked --offline -p typstographe-cli -p typstographe-egui`).
 Dans le client MCP, enregistrer un serveur **STDIO** :
 
 - programme : chemin absolu de `typstographe-cli` (`typstographe-cli.exe` sous Windows) ;

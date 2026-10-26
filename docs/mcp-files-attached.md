@@ -128,7 +128,7 @@ Capture native du panneau inspectée : `output/phase6-5/assistance.png` (conserv
 localement, ignorée par Git). Reproduction :
 
 ```sh
-cargo build --locked -p typstographe
+cargo build --locked -p typstographe-egui
 mkdir -p output/phase6-5
-target/debug/typstographe --capture-assistance output/phase6-5/assistance.png
+target/debug/typstographe-egui --capture-assistance output/phase6-5/assistance.png
 ```

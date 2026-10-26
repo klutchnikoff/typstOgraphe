@@ -94,7 +94,7 @@ scripts/capture-baseline.sh --compare
 scripts/capture-baseline.sh --record --output output/baseline-nouvelle-reference
 
 # Réutiliser des binaires déjà construits (CLI voisine de l’application par défaut).
-scripts/capture-baseline.sh --compare --binary target/debug/typstographe --cli-binary target/debug/typstographe-cli
+scripts/capture-baseline.sh --compare --binary target/debug/typstographe-egui --cli-binary target/debug/typstographe-cli
 ```
 
 Les références et leur manifeste restent dans `output/baseline/reference/`.

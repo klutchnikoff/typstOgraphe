@@ -2,7 +2,7 @@
 
 Recette locale du 26 octobre 2026, macOS arm64, branche
 `codex/spike-tauri-editor`. Les [décisions](architecture-web-editor-spike.md)
-et les [commandes de lancement](../experiments/web-editor/README.md) sont séparées
+et les [commandes de lancement](../app/README.md) sont séparées
 de ce bilan. L'application egui et le cœur Rust de production n'ont pas été modifiés.
 
 ## Ce qui fonctionne

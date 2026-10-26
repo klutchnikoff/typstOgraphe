@@ -186,7 +186,7 @@ Tokio stdin. La connexion se ferme sans nouvelle entrée du client.
   références conservées : `output/baseline/run-3orzok94`.
 - Panneau d'autorisation inspecté visuellement :
   `output/phase6-local/assistance.png`, produit avec
-  `target/debug/typstographe --capture-assistance output/phase6-local/assistance.png`.
+  `target/debug/typstographe-egui --capture-assistance output/phase6-local/assistance.png`.
   Ce diagnostic n'ouvre aucun canal ni invitation.
 - Journaux de construction, Clippy, captures et tests conservés dans
   `output/phase6-local/` (ignoré par Git).

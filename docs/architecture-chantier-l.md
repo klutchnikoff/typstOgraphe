@@ -129,5 +129,5 @@ Références ré-enregistrées (20 scénarios, seconde passe identique) ; 584 te
 ```sh
 cargo test --locked --workspace
 scripts/capture-baseline.sh --compare --output output/phase-l5
-cargo run -p typstographe --example ui-kit-gallery -- sortie.png dark gallery
+cargo run -p typstographe-egui --example ui-kit-gallery -- sortie.png dark gallery
 ```
