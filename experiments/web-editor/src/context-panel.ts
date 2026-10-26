@@ -41,6 +41,10 @@ export function contextPanel(options: {
     body,
     actions,
     error,
+    setEmbedded(embedded: boolean) {
+      header.hidden = embedded
+      element.classList.toggle('widget-context-panel', embedded)
+    },
     confirm: () => preferred?.click(),
     submit() {
       if (options.canConfirm()) panel.confirm()

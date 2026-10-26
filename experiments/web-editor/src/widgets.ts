@@ -2,12 +2,23 @@ import { tr } from './i18n'
 import { Node, type Editor, type JSONContent } from '@tiptap/core'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import { BulletList, OrderedList } from '@tiptap/extension-list'
-import { isWidgetKind, widgetFrame, type WidgetKind, type WidgetAction } from './widget-frame'
+import {
+  isWidgetKind,
+  widgetFrame,
+  type WidgetKind,
+  type WidgetAction,
+  type WidgetIcons,
+} from './widget-frame'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { TextSelection, type Transaction } from '@tiptap/pm/state'
-export function widgetView(kind: WidgetKind, tag: string, properties: WidgetAction) {
+export function widgetView(
+  kind: WidgetKind,
+  tag: string,
+  properties: WidgetAction,
+  icons: WidgetIcons,
+) {
   return ({ getPos, node }: { getPos: () => number | undefined; node: PMNode }) => {
-    const frame = widgetFrame(kind, getPos, properties)
+    const frame = widgetFrame(kind, getPos, properties, undefined, icons[kind])
     const { dom } = frame
     const contentDOM = document.createElement(tag)
     const update = (next: PMNode) => {
@@ -24,7 +35,7 @@ export function widgetView(kind: WidgetKind, tag: string, properties: WidgetActi
     }
   }
 }
-export const simpleWidgets = (properties: WidgetAction) => [
+export const simpleWidgets = (properties: WidgetAction, icons: WidgetIcons) => [
   ...([BulletList, OrderedList] as const).map((extension) =>
     extension.extend({
       addInputRules: () => [],
@@ -40,12 +51,13 @@ export const simpleWidgets = (properties: WidgetAction) => [
           extension.name === 'orderedList' ? 'orderedList' : 'bulletList',
           extension.name === 'orderedList' ? 'ol' : 'ul',
           properties,
+          icons,
         ),
     }),
   ),
   Node.create({
     name: 'quote',
-    addNodeView: () => widgetView('quote', 'blockquote', properties),
+    addNodeView: () => widgetView('quote', 'blockquote', properties, icons),
     group: 'block',
     content: 'paragraph+ quoteAttribution',
     isolating: true,
@@ -65,7 +77,7 @@ export const simpleWidgets = (properties: WidgetAction) => [
   }),
   Node.create({
     name: 'descriptionList',
-    addNodeView: () => widgetView('descriptionList', 'dl', properties),
+    addNodeView: () => widgetView('descriptionList', 'dl', properties, icons),
     group: 'block',
     content: 'descriptionItem+',
     isolating: true,
@@ -104,7 +116,7 @@ export const simpleWidgets = (properties: WidgetAction) => [
       addNodeView:
         () =>
         ({ getPos }) => {
-          const frame = widgetFrame(name, getPos, properties)
+          const frame = widgetFrame(name, getPos, properties, undefined, icons[name])
           const { dom } = frame
           dom.dataset.letterNote = name
           const contentDOM = document.createElement('div')

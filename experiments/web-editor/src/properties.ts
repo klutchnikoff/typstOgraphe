@@ -33,7 +33,7 @@ export function propertyPanel(
   panel.action({ id: 'cancel-properties', label: tr('Annuler'), run: () => bands.close() })
   panel.action({
     id: 'apply-properties',
-    label: tr('Appliquer'),
+    label: tr('Valider'),
     primary: true,
     run: () => panel.submit(),
   })
@@ -166,6 +166,8 @@ export function propertyPanel(
       opened = current
       const list = listKinds.includes(kind as ListKind)
       const editable = !remove && ['link', 'figure', 'footnote'].includes(kind)
+      panel.body.hidden = remove
+      form.dataset.intent = remove ? 'remove' : 'settings'
       $('property-title').textContent = remove
         ? tr('Supprimer le bloc')
         : list
@@ -208,8 +210,9 @@ export function propertyPanel(
             ? ''
             : tr('La présentation est définie par le modèle.')
       $('property-error').textContent = ''
-      $('remove-block').hidden = remove
-      $('apply-properties').textContent = remove ? tr('Supprimer') : tr('Appliquer')
+      $('remove-block').hidden = remove || isWidgetKind(kind)
+      $('remove-block').textContent = kind === 'link' ? tr('Retirer le lien') : tr('Supprimer')
+      $('apply-properties').textContent = remove ? tr('Supprimer') : tr('Valider')
       $('apply-properties').classList.toggle('danger', remove)
       bands.open(
         panel,

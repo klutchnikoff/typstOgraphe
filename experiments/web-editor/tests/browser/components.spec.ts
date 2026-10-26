@@ -59,7 +59,9 @@ test('tous les widgets partagent leur cadre, leur bandeau B et la suppression an
     await widget.getByRole('button', { name: /^Paramètres ·/ }).click()
     const panel = page.locator('#properties')
     await expect(panel).toBeVisible()
-    await expect(panel.locator(':scope > .panel-title')).toHaveCount(1)
+    await expect(panel.locator(':scope > .panel-title')).toBeHidden()
+    await expect(panel.locator('#remove-block')).toBeHidden()
+    await expect(panel.locator('#apply-properties')).toHaveText('Valider')
     await expect(panel.locator(':scope > .context-panel-body')).toHaveCount(1)
     await expect(panel.locator(':scope > .panel-actions')).toHaveCount(1)
     await expect
@@ -68,11 +70,12 @@ test('tous les widgets partagent leur cadre, leur bandeau B et la suppression an
           const rect = host.getBoundingClientRect()
           const style = getComputedStyle(host)
           const band = document.querySelector('#properties')!.getBoundingClientRect()
+          const header = host.querySelector('.widget-bar')!.getBoundingClientRect()
           const left = parseFloat(style.borderLeftWidth),
             right = parseFloat(style.borderRightWidth)
           return Math.max(
             Math.abs(band.x - rect.x - left),
-            Math.abs(band.y - rect.y - 1),
+            Math.abs(band.y - header.bottom),
             Math.abs(band.width - rect.width + left + right),
           )
         }),
@@ -83,6 +86,8 @@ test('tous les widgets partagent leur cadre, leur bandeau B et la suppression an
     await page.keyboard.press('Escape')
     await expect(panel).toBeHidden()
     await widget.getByRole('button', { name: /^Supprimer ·/ }).click()
+    await expect(panel.locator('button:visible')).toHaveText(['Annuler', 'Supprimer'])
+    await expect(panel.locator('.context-panel-body')).toBeHidden()
     await expect(page.locator('#apply-properties')).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(widget).toHaveCount(0)

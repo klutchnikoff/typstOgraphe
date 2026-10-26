@@ -152,7 +152,8 @@ test('variante B : paramètres de liste intégrés, brouillon, validation, annul
   const widget = await page.locator('.widget-bulletList').boundingBox(),
     band = await form.boundingBox()
   expect(Math.abs(band!.x - widget!.x - 1)).toBeLessThan(2)
-  expect(Math.abs(band!.y - widget!.y - 1)).toBeLessThan(2)
+  const header = await page.locator('.widget-bulletList > .widget-bar').boundingBox()
+  expect(Math.abs(band!.y - header!.y - header!.height)).toBeLessThan(2)
   expect(Math.abs(band!.width - widget!.width + 2)).toBeLessThan(2)
   await page.keyboard.press('ArrowRight')
   await expect(page.getByRole('radio', { name: 'Liste numérotée', exact: true })).toHaveAttribute(
@@ -189,14 +190,15 @@ test('image : bandeau intégré, focus et modification annulable du texte altern
   await expect(field).toBeFocused()
   const widget = await page.locator('figure').boundingBox(),
     band = await page.locator('#properties').boundingBox()
-  expect(Math.abs(band!.y - widget!.y - 1)).toBeLessThan(2)
+  const header = await page.locator('figure > .widget-bar').boundingBox()
+  expect(Math.abs(band!.y - header!.y - header!.height)).toBeLessThan(2)
   await field.fill('Description provisoire')
   expect(await contents(page)).toBe(before)
   await page.keyboard.press('Escape')
   expect(await contents(page)).toBe(before)
   await page.getByRole('button', { name: 'Paramètres · Image', exact: true }).click()
   await field.fill('Description validée')
-  for (const id of ['replace-image', 'remove-block', 'cancel-properties', 'apply-properties']) {
+  for (const id of ['replace-image', 'cancel-properties', 'apply-properties']) {
     await page.keyboard.press('Tab')
     await expect(page.locator(`#${id}`)).toBeFocused()
   }
@@ -207,7 +209,9 @@ test('image : bandeau intégré, focus et modification annulable du texte altern
   expect(await contents(page)).toBe(before)
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.getByRole('button', { name: 'Paramètres · Image', exact: true }).click()
-  await expect(page.locator('#property-title')).toHaveText('Paramètres de l’image')
+  await expect(page.locator('#properties > .panel-title')).toBeHidden()
+  await expect(page.locator('#remove-block')).toBeHidden()
+  await expect(page.locator('#apply-properties')).toHaveText('Valider')
   await expect(page.locator('#properties .panel-actions')).toBeInViewport()
   await expect(page.locator('#render-status')).toHaveText(/^\d+ pages? ·/)
   await page.screenshot({ path: info.outputPath('image-band-dark.png') })
@@ -383,7 +387,8 @@ test('liens et tableaux utilisent le même placement et le même contrat clavier
   await expect(form).toBeVisible()
   const host = await page.locator('.widget-table').boundingBox(),
     rect = await form.boundingBox()
-  expect(Math.abs(rect!.y - host!.y - 1)).toBeLessThan(2)
+  const header = await page.locator('.widget-table > .widget-bar').boundingBox()
+  expect(Math.abs(rect!.y - header!.y - header!.height)).toBeLessThan(2)
   await page.keyboard.press('Escape')
   await expect(form).toBeHidden()
 })

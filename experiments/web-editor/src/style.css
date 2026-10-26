@@ -297,7 +297,6 @@ main {
 }
 .tiptap figure {
   --widget-radius: 8px;
-  --widget-surface: var(--panel);
   overflow: hidden;
 }
 .tiptap figure img {
@@ -789,7 +788,7 @@ main {
 .content-widget {
   border: 1px solid var(--border);
   border-radius: var(--widget-radius, 7px);
-  background: var(--widget-surface, var(--soft));
+  background: var(--widget-surface, var(--bg));
   margin: 0.35em 0;
   overflow: clip;
 }
@@ -799,6 +798,7 @@ main {
   gap: 2px;
   padding: 4px 8px;
   border-bottom: 1px solid var(--border);
+  background: var(--soft);
   font:
     11px Inter,
     sans-serif;
@@ -806,6 +806,8 @@ main {
 }
 .widget-bar > span {
   flex: 1;
+  display: flex;
+  align-items: center;
 }
 .widget-bar button {
   padding: 4px;
@@ -823,6 +825,10 @@ main {
   border: 0;
   margin: 0;
   border-radius: 0;
+}
+.content-widget > [data-widget-body],
+.content-widget th {
+  background: var(--bg);
 }
 .widget-quote {
   border-left: 5px solid var(--accent);
@@ -910,6 +916,9 @@ main {
 .content-widget.band-open {
   border-color: var(--accent);
 }
+.content-widget.band-open > .widget-bar {
+  border-bottom-color: transparent;
+}
 .context-band.properties {
   position: absolute;
   margin: 0;
@@ -926,6 +935,12 @@ main {
 }
 .context-band .panel-title {
   margin-bottom: 10px;
+}
+.widget-context-panel.properties {
+  border-radius: 0;
+}
+.widget-context-panel[data-intent='remove'] .panel-actions {
+  margin-top: 0;
 }
 .context-band input,
 .context-band textarea {

@@ -13,7 +13,7 @@ import Collaboration from '@tiptap/extension-collaboration'
 import Caret from '@tiptap/extension-collaboration-caret'
 import type { Provider } from './provider'
 import { simpleWidgets } from './widgets'
-import { widgetFrame } from './widget-frame'
+import { widgetFrame, type WidgetIcons } from './widget-frame'
 import { tr } from './i18n'
 import { Proofing } from './proofing'
 import { DocumentInput } from './editing'
@@ -22,13 +22,14 @@ import { ContextBand } from './band-layout'
 export function baseExtensions(
   imageURL: (path: string) => string,
   properties: (pos: number, kind: string, remove?: boolean) => void = () => {},
+  icons: WidgetIcons = {},
 ): Extensions {
   return [
     Proofing,
     ContextBand,
     DocumentInput,
     ListItem.extend({ content: 'paragraph+' }),
-    ...simpleWidgets(properties),
+    ...simpleWidgets(properties, icons),
     // Comme dans l'éditeur existant : une fin de ligne reste dans le paragraphe.
     Node.create({
       name: 'softBreak',
@@ -73,7 +74,7 @@ export function baseExtensions(
       addNodeView() {
         return ({ node, view, getPos }) => {
           const table = new TableView(node, this.options.cellMinWidth, view)
-          const frame = widgetFrame('table', getPos, properties, table.dom)
+          const frame = widgetFrame('table', getPos, properties, table.dom, icons.table)
           table.ignoreMutation = frame.content(
             table.contentDOM,
             table.ignoreMutation.bind(table),
@@ -161,7 +162,13 @@ export function baseExtensions(
       addNodeView:
         () =>
         ({ node, getPos }) => {
-          const frame = widgetFrame('figure', getPos, properties, document.createElement('figure'))
+          const frame = widgetFrame(
+            'figure',
+            getPos,
+            properties,
+            document.createElement('figure'),
+            icons.figure,
+          )
           const { dom } = frame
           const image = document.createElement('img')
           image.src = imageURL(node.attrs.src)
@@ -189,9 +196,10 @@ export function baseExtensions(
 export async function collaborativeExtensions(
   provider: Provider,
   properties: (pos: number, kind: string, remove?: boolean) => void,
+  icons: WidgetIcons = {},
 ): Promise<Extensions> {
   return [
-    ...baseExtensions((path) => provider.imageURL(path), properties),
+    ...baseExtensions((path) => provider.imageURL(path), properties, icons),
     Collaboration.configure({ document: provider.doc, field: 'default' }),
     Caret.configure({
       provider,

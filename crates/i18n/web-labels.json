@@ -60,6 +60,8 @@
   "Supprimer": "web-remove",
   "Fermer": "web-close",
   "Appliquer": "web-apply",
+  "Valider": "web-confirm",
+  "Retirer le lien": "cmd-remove-link",
   "Fermer le panneau": "web-close-panel",
   "Fermer les paramètres": "web-close-settings",
   "Paragraphe": "web-paragraph",

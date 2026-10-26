@@ -321,7 +321,15 @@ async function start() {
   })
   editor = new Editor({
     element: element('editor'),
-    extensions: await collaborativeExtensions(provider, openProperties),
+    extensions: await collaborativeExtensions(
+      provider,
+      openProperties,
+      Object.fromEntries(
+        contentCatalogue.entries
+          .filter((entry) => entry.node)
+          .map((entry) => [entry.node!, entry.icon]),
+      ),
+    ),
     editorProps: {
       attributes: {
         'aria-label': tr('Corps du document'),

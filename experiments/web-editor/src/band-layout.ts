@@ -168,6 +168,7 @@ export class BandHost {
     gap.setAttribute('aria-hidden', 'true')
     this.panel = panel
     this.onClose = onClose
+    shell.setEmbedded(target.placement === 'widget-header')
     panel.hidden = false
     panel.classList.add('context-band')
     this.layer.append(panel)

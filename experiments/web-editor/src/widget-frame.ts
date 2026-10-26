@@ -1,5 +1,5 @@
 import type { ViewMutationRecord } from '@tiptap/pm/view'
-import { icon } from './icons'
+import { icon, availableIcon } from './icons'
 import { tr } from './i18n'
 
 const labels = {
@@ -14,6 +14,7 @@ const labels = {
 } as const
 export type WidgetKind = keyof typeof labels
 export type WidgetAction = (pos: number, kind: WidgetKind, remove?: boolean) => void
+export type WidgetIcons = Partial<Record<WidgetKind, string>>
 export const isWidgetKind = (kind: string): kind is WidgetKind => Object.hasOwn(labels, kind)
 
 /** The only constructor for block-widget chrome, including maintained NodeViews. */
@@ -22,6 +23,7 @@ export function widgetFrame(
   getPos: () => number | undefined,
   action: WidgetAction,
   dom: HTMLElement = document.createElement('section'),
+  iconName?: string,
 ) {
   dom.classList.add('content-widget', `widget-${kind}`)
   dom.dataset.editorWidget = kind
@@ -33,7 +35,15 @@ export function widgetFrame(
   bar.contentEditable = 'false'
   const title = document.createElement('span')
   const label = tr(labels[kind])
-  title.textContent = label
+  title.title = label
+  title.className = 'widget-kind'
+  const glyph = iconName && availableIcon(iconName)
+  if (glyph) {
+    title.innerHTML = glyph
+    title.setAttribute('role', 'img')
+    title.setAttribute('aria-label', label)
+    title.querySelector('svg')?.setAttribute('aria-hidden', 'true')
+  } else title.textContent = label
   bar.append(title)
   for (const [name, iconName, remove] of [
     [tr('Supprimer'), 'trash-2', true],
@@ -53,7 +63,7 @@ export function widgetFrame(
     }
     bar.append(button)
   }
-  dom.prepend(slot, bar)
+  dom.prepend(bar, slot)
   return {
     dom,
     content(contentDOM: HTMLElement, delegate?: (record: ViewMutationRecord) => boolean) {

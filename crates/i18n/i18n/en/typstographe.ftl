@@ -732,3 +732,5 @@ web-remove-block-help = The entire block will be deleted. You can undo this dele
 web-image-replacement-pending = Image replaced — apply to confirm
 web-close-correction = Close correction
 web-table = Table
+
+web-confirm = Confirm

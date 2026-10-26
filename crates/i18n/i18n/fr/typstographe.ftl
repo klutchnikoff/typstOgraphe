@@ -735,3 +735,5 @@ web-remove-block-help = Le bloc entier sera supprimé. Vous pourrez annuler cett
 web-image-replacement-pending = Image remplacée — appliquer pour confirmer
 web-close-correction = Fermer la correction
 web-table = Tableau
+
+web-confirm = Valider
