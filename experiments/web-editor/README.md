@@ -63,8 +63,9 @@ d’un changement de ses paramètres, y compris reçu d’une autre fenêtre.
 - **macOS** : les langues et le repli natifs sont générés depuis ces mêmes
   catalogues et réglages Fluent. Tauri les fusionne dans le bundle `.app` ;
   les menus et dialogues système peuvent ainsi négocier une langue prise en charge.
-  Tester le bundle reconstruit : un exécutable lancé seul avec `cargo run`
-  ne dispose pas des mêmes métadonnées natives.
+  Le même fichier généré `src-tauri/Info.plist` est intégré dans l’exécutable
+  de développement et fusionné dans le bundle ; les deux parcours sont requis
+  pour vérifier cette déclaration.
 - **Windows** : Wry configure déjà la langue de WebView2 avec
   `GetUserDefaultUILanguage`. Les langues des installateurs NSIS et WiX sont
   dérivées des mêmes catalogues, avec le repli Fluent en premier. La langue de
@@ -74,13 +75,20 @@ d’un changement de ses paramètres, y compris reçu d’une autre fenêtre.
   déclaration de langues de bundle équivalente à celle de macOS à ajouter ici.
 
 `npm run tauri -- dev|build|bundle …` passe par `scripts/tauri.mjs` : celui-ci
-lit les catalogues puis génère `src-tauri/gen/native-locales/Info.plist` et
-une surcharge de configuration Tauri, avant que la CLI ne lise les paramètres
+lit les catalogues puis génère `src-tauri/Info.plist` et une surcharge de
+configuration Windows dans `src-tauri/gen/native-locales/`, avant que la CLI ne lise les paramètres
 de bundle. Ces fichiers sont ignorés par Git et ne se modifient pas à la main.
 Utiliser cette commande plutôt que d’appeler directement la CLI Tauri.
 Les noms NSIS et les codes WiX sont des identifiants propres aux installateurs :
 leur correspondance est isolée dans `native-locales.mjs`, sans décider des langues
 disponibles. Un identifiant encore inconnu provoque une erreur explicite.
+
+Ne pas déplacer le fichier généré `src-tauri/Info.plist` en se contentant de
+`bundle.macOS.infoPlist` : avec notre version de Tauri, cette option ne suffit
+pas au codegen de développement. Celui-ci lit uniquement l’emplacement
+conventionnel. Après un changement, vérifier aussi les clés de langue de la
+section Mach-O `__TEXT,__info_plist` de l’exécutable debug, et pas seulement
+le `Contents/Info.plist` du bundle release.
 
 La déclaration de plusieurs langues n’affiche pas une interface multilingue :
 elle indique au système lesquelles l’application sait présenter. Les composants
