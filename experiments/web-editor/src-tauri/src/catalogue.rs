@@ -74,6 +74,14 @@ pub fn content_catalogue() -> Value {
             let mut value = serde_json::to_value(capability).expect("capability");
             value["label"] = json!(text(capability.label_key));
             value["parameters"] = catalogue::parameters(capability.id);
+            if let Some(properties) = value["parameters"]["properties"].as_object_mut() {
+                for parameter in properties.values_mut() {
+                    if let Some(key) = parameter["x-editor"]["label_key"].as_str() {
+                        parameter["title"] = json!(text(key));
+                    }
+                }
+            }
+            value["editor"] = catalogue::editor(capability.id);
             value
         })
         .collect();
@@ -85,4 +93,30 @@ pub fn content_catalogue() -> Value {
         "types":types,"entries":entries,"messages":typstographe_i18n::web_messages(),
         "locale":typstographe_i18n::language(),"papers":papers,"languages":languages
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn localized_fields_preserve_shared_parameters_and_bindings() {
+        let catalogue = content_catalogue();
+        for entry in catalogue["entries"].as_array().unwrap() {
+            let id = entry["id"].as_str().unwrap();
+            let mut localized = entry["parameters"].clone();
+            for parameter in localized["properties"]
+                .as_object_mut()
+                .unwrap()
+                .values_mut()
+            {
+                if let Some(key) = parameter["x-editor"]["label_key"].as_str() {
+                    assert_eq!(parameter["title"], text(key));
+                    parameter.as_object_mut().unwrap().remove("title");
+                }
+            }
+            assert_eq!(localized, catalogue::parameters(id));
+            assert_eq!(entry["editor"], catalogue::editor(id));
+        }
+    }
 }

@@ -568,10 +568,6 @@ pub fn specifications() -> Vec<Value> {
         if capability.id.starts_with("insert.") || capability.id.starts_with("letter.insert_") {
             params["properties"]["index"] = json!({"type":"integer","minimum":0,"description":"Root block insertion index; defaults to append."});
         }
-        if capability.id == "text.link" {
-            params["properties"]["url"] = json!({"type":"string"});
-            params["required"] = json!(["url"])
-        }
         entries.push(
             json!({"id":capability.id,"description":capability.description,"params_schema":params}),
         )

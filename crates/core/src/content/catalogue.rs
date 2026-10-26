@@ -217,29 +217,44 @@ pub fn find(id: &str) -> Option<&'static Capability> {
 }
 pub fn describe(id: &str) -> Option<Value> {
     let c = find(id)?;
-    Some(json!({"capability":c,"parameters":parameters(id),
+    Some(
+        json!({"capability":c,"parameters":parameters(id),"editor":editor(id),
         "implementations":{"structured_web":true,"legacy_engine":c.legacy,"legacy_mcp":c.legacy},
-        "guidance":"Semantics are shared. Availability and execution are adapter-specific: documentation alone never grants execution. Models change presentation, not the capability contract."}))
+        "guidance":"Semantics are shared. Availability and execution are adapter-specific: documentation alone never grants execution. Models change presentation, not the capability contract."}),
+    )
 }
 pub fn parameters(id: &str) -> Value {
     match id {
+        "text.link" => {
+            json!({"type":"object","properties":{"url":{"type":"string","pattern":"^(https?://|mailto:).+","x-editor":{"placement":"panel","attribute":"href","label_key":"web-link-address"}}},"required":["url"],"additionalProperties":false})
+        }
         "insert.table" => {
-            json!({"type":"object","properties":{"rows":{"type":"integer","minimum":1,"maximum":100,"default":3},"columns":{"type":"integer","minimum":1,"maximum":12,"default":2},"header":{"type":"boolean","default":true}},"additionalProperties":false})
+            json!({"type":"object","properties":{"rows":{"type":"integer","minimum":1,"maximum":100,"default":3,"x-editor":{"placement":"structure"}},"columns":{"type":"integer","minimum":1,"maximum":12,"default":2,"x-editor":{"placement":"structure"}},"header":{"type":"boolean","default":true,"x-editor":{"placement":"creation"}}},"additionalProperties":false})
         }
         "insert.footnote" => {
-            json!({"type":"object","properties":{"text":{"type":"string","default":""}},"additionalProperties":false})
+            json!({"type":"object","properties":{"text":{"type":"string","default":"","x-editor":{"label_key":"web-footnote-text","multiline":true}}},"additionalProperties":false})
         }
         "block.quote" => {
-            json!({"type":"object","properties":{"attribution":{"type":"string","default":""}},"additionalProperties":false})
+            json!({"type":"object","properties":{"attribution":{"type":"string","default":"","x-editor":{"placement":"body"}}},"additionalProperties":false})
         }
         "insert.image" => {
-            json!({"type":"object","properties":{"src":{"type":"string"},"alt":{"type":"string","default":""}},"required":["src"],"additionalProperties":false})
+            json!({"type":"object","properties":{"src":{"type":"string","x-editor":{"placement":"panel","control":"image"}},"alt":{"type":"string","default":"","x-editor":{"label_key":"web-alt-text"}}},"required":["src"],"additionalProperties":false})
         }
         "block.numbered" => {
-            json!({"type":"object","properties":{"start":{"type":"integer","minimum":1,"default":1}},"additionalProperties":false})
+            json!({"type":"object","properties":{"start":{"type":"integer","minimum":1,"default":1,"x-editor":{"label_key":"web-list-start"}}},"additionalProperties":false})
         }
         _ => json!({"type":"object","properties":{},"additionalProperties":false}),
     }
+}
+
+/// Presentation hints complement the signature; they never authorize an edit.
+/// Optional parameters default to panel controls. Body/structure/creation bindings
+/// prevent duplicating controls already provided elsewhere by the editor.
+pub fn editor(id: &str) -> Value {
+    find(id)
+        .filter(|capability| capability.group == "lists")
+        .map(|capability| json!({"conversion_group":capability.group}))
+        .unwrap_or_else(|| json!({}))
 }
 
 #[cfg(test)]
@@ -262,5 +277,45 @@ mod tests {
         }
         assert!(!for_type(DocumentType::CompteRendu).any(|c| c.letter_only));
         assert!(for_type(DocumentType::Courrier).any(|c| c.id == "insert.footnote"));
+    }
+
+    #[test]
+    fn editor_bindings_are_part_of_the_shared_contract() {
+        for capability in ALL {
+            let description = describe(capability.id).unwrap();
+            assert_eq!(description["parameters"], parameters(capability.id));
+            assert_eq!(description["editor"], editor(capability.id));
+            let schema = parameters(capability.id);
+            for parameter in schema["properties"].as_object().unwrap().values() {
+                if let Some(placement) = parameter["x-editor"]["placement"].as_str() {
+                    assert!(["body", "structure", "creation", "panel"].contains(&placement));
+                }
+            }
+        }
+        assert_eq!(
+            parameters("block.quote")["properties"]["attribution"]["x-editor"]["placement"],
+            "body"
+        );
+        assert_eq!(
+            parameters("insert.table")["properties"]["rows"]["x-editor"]["placement"],
+            "structure"
+        );
+        assert_eq!(
+            parameters("text.link")["properties"]["url"]["x-editor"]["attribute"],
+            "href"
+        );
+        assert_eq!(editor("block.bullet"), editor("block.numbered"));
+        assert_eq!(editor("block.bullet"), editor("block.description"));
+        assert_eq!(editor("block.quote"), json!({}));
+        let operations = crate::content::operations::specifications();
+        let link = operations
+            .iter()
+            .find(|entry| entry["id"] == "text.link")
+            .unwrap();
+        assert_eq!(
+            link["params_schema"]["properties"]["url"],
+            parameters("text.link")["properties"]["url"]
+        );
+        assert_eq!(link["params_schema"]["required"], json!(["url"]));
     }
 }
