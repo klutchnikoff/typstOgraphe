@@ -386,3 +386,38 @@ son ancrage sous l’en-tête ; il appartient également au gestionnaire commun.
 | Le haut d’un exposant différent du texte était interprété comme une autre ligne. | Des rectangles voisins qui se recouvrent verticalement appartiennent à la même ligne. | Accepter des éléments en ligne de tailles différentes. |
 | L’espace du bandeau pouvait couper la phrase au niveau de sa cible. | L’espace est réservé avant le début de la ligne visuelle. | Garder le texte et son objet en ligne, avec le panneau au-dessus. |
 | Les tests vérifiaient surtout le panneau et son ancrage. | Ils vérifient aussi la position horizontale de chaque caractère avant et après ouverture. | Détecter une coupure ou un changement de repli, quel que soit le type de cible. |
+
+
+## Latence du rendu web — diagnostic du 26 octobre 2026
+
+Les deux interfaces réutilisent le même compilateur Typst. Leurs compteurs
+mesurent toutefois leur chaîne de rendu respective : egui conserve le tampon
+RGBA, tandis que le prototype web convertit chaque page en PNG puis en URL
+base64. `elapsedMs` inclut cette conversion et la préparation de la synchronisation,
+mais pas les 180 ms de temporisation après saisie, la projection structurée vers
+Typst, l’IPC ni le décodage par la vue web. La temporisation egui est de 220 ms et
+n’entre pas non plus dans son compteur de rendu.
+
+Le profil local a isolé l’encodage PNG comme principal surcoût en développement.
+Le filtrage, la compression et les opérations de pixels étaient exécutés sans
+optimisation Rust. La projection structurée reste inférieure à 1 ms sur les deux
+documents d’essai ; la compilation Typst est autour de 12 ms à chaud.
+
+Le correctif garde le transport PNG et la résolution existants :
+
+- Optimisation ciblée de `png`, `fdeflate` et `tiny-skia` dans le profil Cargo de
+  développement ; le code applicatif reste en debug. Le profil de test hérite
+  également de ces réglages. Le profil release ne change pas.
+- Utilisation de `png::Compression::Fast` pour l’aperçu local, sans perte de
+  pixels. Le choix des filtres et de la compression reste celui de la bibliothèque.
+- Consommation du tampon raster pour convertir l’alpha prémultiplié, au lieu
+  de le copier au préalable. Les pages transparentes restent prises en charge.
+- Les exports du cœur gardent leur propre politique ; le modèle Typst et la
+  résolution de rendu ne sont pas modifiés.
+
+Les durées par étape sont disponibles dans `Preview.timings` pour les prochains
+diagnostics. Le compteur visible conserve son sens de durée totale côté Rust.
+Un test ignoré par défaut compare le chemin RGBA du cœur et celui de l’aperçu
+sur des sources, ressources, modèles et options de rasterisation identiques.
+Il alterne l’ordre des deux chemins et modifie le texte à chaque itération.
+Les résultats locaux avant/après sont conservés avec la recette détaillée.

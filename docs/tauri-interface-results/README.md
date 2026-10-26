@@ -287,3 +287,58 @@ des panneaux dans les widgets et du cas multiligne ont été inspectées. Les
 références avant/après sont conservées dans `output/tauri-inline-bands/`.
 Le cœur Rust n’a pas été modifié ; aucun nouvel essai matériel d’IME ni recette
 native Windows/Linux n’est revendiqué dans ce lot.
+
+
+## Profil du rendu : compilation et préparation de l’aperçu
+
+Mesure locale du 26 octobre 2026, macOS, profil de test non optimisé pour le code
+applicatif (`opt-level=0`, informations de débogage désactivées). Chaque scénario
+comporte une première itération exclue puis huit mesures à chaud, avec une petite
+modification du texte à chaque mesure. Les deux chemins alternent leur ordre et
+gardent leur monde Typst en mémoire. Ce sont des durées côté Rust, hors frappe,
+temporisation, IPC et décodage dans la vue web ; aucun gain release n’est déduit
+de ces mesures de développement.
+
+| Scénario | Référence RGBA avant | Aperçu web avant | Référence RGBA après | Aperçu web après |
+| --- | ---: | ---: | ---: | ---: |
+| Courrier simple, 1 page | 32,8 ms | 463,2 ms | 28,0 ms | 54,9 ms |
+| Document d’essai, 2 pages | 92,8 ms | 1 015,0 ms | 34,3 ms | 93,2 ms |
+
+La référence RGBA appelle exactement `core::rendering::render`, utilisé par egui,
+dans le même banc Rust ; ce n’est pas une mesure d’une fenêtre egui complète.
+Son amélioration après correction vient de `tiny-skia`, également utilisé par
+ce chemin dans le banc de mesure. Les médianes indépendantes par étape ne
+s’additionnent pas exactement à la médiane de la durée totale.
+
+Pour le courrier simple, avant correction : préparation 7,4 ms, compilation
+11,5 ms, rasterisation 7,6 ms, préparation/encodage PNG 434,1 ms, base64 0,4 ms et
+synchronisation 1,2 ms. Après correction : compilation 11,7 ms, rasterisation
+1,9 ms, PNG 31,7 ms et base64 0,8 ms. La génération du source avec sa carte de
+positions est mesurée séparément : 0,13–0,14 ms pour le courrier simple et
+0,37–0,38 ms pour le document d’essai.
+
+Les pages restent en 1 191 × 1 684 pixels. Le compromis est un flux d’aperçu un
+peu plus gros : les URL base64 passent d’environ 117 à 219 ko pour une page et de
+210 à 400 ko pour les deux pages. Il s’agit d’octets d’URL de l’aperçu, pas de la
+taille des archives ni des PDF exportés.
+
+Données brutes versionnées :
+[avant](../../experiments/web-editor/results/preview-profile-before.json) et
+[après](../../experiments/web-editor/results/preview-profile-after.json).
+
+Pour reproduire depuis `experiments/web-editor` :
+
+```sh
+CARGO_INCREMENTAL=0 cargo test --manifest-path src-tauri/Cargo.toml --locked --offline profile_preview_pipeline -- --ignored --nocapture --test-threads=1
+```
+
+Le diagnostic est ignoré dans la CI courante et n’impose aucun seuil temporel
+lié à une machine. Le test fonctionnel compare les PNG décodés à l’ancien
+encodage, pixel par pixel, pour des pages opaques et transparentes.
+
+
+Validation du lot : **10 tests Rust**, **6 parcours Chromium/WebKit** ciblant le
+rendu réel, les annotations, les images, la sauvegarde collaborative et la
+synchronisation, construction du binaire, formatage Rust et Clippy avec
+avertissements refusés réussis. Le diagnostic de performance a été lancé
+explicitement ; aucune limite temporelle n’est ajoutée à la CI.
