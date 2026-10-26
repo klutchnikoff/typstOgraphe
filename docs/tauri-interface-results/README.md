@@ -227,3 +227,33 @@ Les captures claires et sombres ont été inspectées. Les références de cette
 correction sont conservées dans `output/tauri-quote-settings/`, sans remplacer
 les captures précédentes. Aucun nouvel essai matériel d'IME ni de recette native
 Windows/Linux n'est revendiqué pour ce lot.
+
+
+## Réglages générés depuis le contrat
+
+La disponibilité n’est plus une table de booléens dans les vues de widgets. Le
+contrat Rust déclare les paramètres et leurs destinations ; le même calcul
+construit les champs, active la roue et autorise l’ouverture contextuelle. Les
+paramètres directement édités dans le bloc ne sont pas répétés dans le panneau.
+Le groupe de conversion des listes provient lui aussi du catalogue partagé.
+
+Les tests ajoutent notamment un paramètre numérique inédit au contrat d’une
+citation : il active sa roue, reçoit sa valeur par défaut, refuse une valeur
+hors bornes sans publier d’édition, puis rejoint l’attribut et la sérialisation
+ProseMirror. Aucun cas dédié à ce paramètre n’est ajouté dans le widget ou le
+formulaire. Les tests couvrent également l’absence de paramètres, les champs
+édités ailleurs, les conversions, les liaisons de noms et les types de valeurs.
+La génération du contrôle ne remplace pas l’implémentation de sa sémantique dans
+le cœur et le modèle Typst.
+
+Validation : **49 tests web**, **14 tests du contenu structuré du cœur**, **9 tests
+Tauri**, **8 tests i18n**, construction TypeScript/Vite et Rust, Clippy Tauri avec
+avertissements refusés et formatage réussis. Les **50 parcours Chromium/WebKit**
+ont réussi ; après l’unification finale de la disponibilité des liens et notes
+avec celle des widgets, les six parcours ciblant la commande contextuelle, les
+liens et la citation ont également réussi sur les deux navigateurs.
+
+Les captures des listes en clair, des images en sombre et de la citation repliée
+ont été inspectées. La présentation B est conservée. Les références locales
+sont dans `output/tauri-capability-settings/`. Aucun nouvel essai matériel d’IME
+ni aucune recette native Windows/Linux n’est revendiqué dans ce lot.

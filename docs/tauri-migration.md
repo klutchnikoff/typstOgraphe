@@ -278,9 +278,9 @@ commun. Le nouveau libellé Valider est traduit par Fluent.
 ## Paramètres réels et citation — correction du 26 octobre
 
 Un panneau de paramètres doit contenir des contrôles utilisables. Une explication
-sur le modèle ne justifie pas son ouverture. La disponibilité appartient à la
-définition commune de la vue du widget et correspond aux contrôles implémentés,
-indépendamment du nombre de paramètres de sa signature Typst.
+sur le modèle ne justifie pas son ouverture. La disponibilité est dérivée du contrat partagé des capacités et correspond aux
+contrôles et actions effectivement proposés par le panneau. La règle est précisée
+ci-dessous ; aucun drapeau actif/inactif n’est maintenu par widget.
 
 - Les listes ont le choix du type et, pour une liste numérotée, le numéro initial.
   L'image a son texte alternatif et son remplacement : leurs paramètres restent actifs.
@@ -307,3 +307,56 @@ du schéma ou du modèle Typst n'est nécessaire pour ces réglages visuels.
 | Une roue active ouvrait une simple explication sans contrôle. | Roue désactivée, commande indisponible et ouverture refusée lorsqu'il n'y a aucun réglage. | Éviter une interaction inutile, quel que soit le déclencheur. |
 | La bordure gauche épaisse entourait tout le widget citation. | Cadre normal ; barre d'accent uniquement sur le texte cité. | Distinguer la citation de son attribution et de ses commandes. |
 | L'attribution était centrée sous un filet de 80 %. | Attribution à gauche sous un filet de 100 %. | Garder une délimitation et un alignement clairs. |
+
+
+## Réglages dérivés du contrat des capacités
+
+La signature déclarée dans `core::content::catalogue::parameters` est la source
+commune des paramètres pour les adaptateurs et la documentation MCP. Le panneau
+web, la roue du widget et la disponibilité de la commande contextuelle dérivent
+leurs réglages de ce même contrat, via `settingsForNode`. Le schéma MCP du lien
+réutilise aussi le paramètre URL, sans redéfinition parallèle.
+
+Par défaut, un paramètre optionnel produit un contrôle dans le panneau ; un
+paramètre obligatoire appartient à la création. Les annotations `x-editor`
+précisent une autre destination lorsqu’elle est nécessaire :
+
+- `body` : édition directe dans le contenu, comme l’attribution d’une citation ;
+- `structure` : commande structurelle, comme les lignes/colonnes du tableau ;
+- `creation` : option de création, comme sa ligne d’en-tête initiale ;
+- `panel` : réglage secondaire, y compris un paramètre obligatoire modifiable,
+  comme la ressource d’une image ou l’URL d’un lien.
+
+Ces indications décrivent l’interface d’un paramètre, sans autoriser une édition
+ni dupliquer son implémentation Typst. Le contrat intégré en Rust reste la
+référence ; il ne s’agit pas d’analyser la signature d’une fonction arbitraire
+dans le code d’un modèle.
+
+Le générateur de formulaire utilise le type, la valeur par défaut, les bornes,
+les choix et le caractère obligatoire du schéma. Il fournit les champs texte,
+multilignes, nombres, cases à cocher et listes de choix. Le contrôle de ressource
+image appelle le sélecteur existant. `x-editor.attribute` permet une liaison
+explicite lorsque le nom du paramètre diffère de celui de l’attribut structuré
+(`url` vers `href`). Les libellés sont traduits dans l’adaptateur, sans Fluent
+dans le cœur. Les types complexes non pris en charge échouent explicitement.
+
+Les conversions de listes constituent une action réelle du panneau, distincte
+d’un paramètre Typst. Le groupe de conversion provient lui aussi du catalogue.
+La roue est active s’il existe au moins un champ de panneau **ou** plusieurs
+choix de conversion ; sinon elle est automatiquement désactivée. Les listes
+à puces et de descriptions conservent donc leur changement de type, tandis que
+la citation ne présente pas un panneau vide pour son attribution déjà visible.
+
+Le formulaire travaille sur un brouillon, contrôle les valeurs à la validation
+et garde la protection contre les modifications concurrentes. Les attributs de
+panneau manquants dans la définition du nœud sont déclarés depuis le même
+contrat dans le schéma ProseMirror, partagé avec l’initialisation Yjs. Ajouter
+un champ scalaire au contrat suffit à produire son contrôle ; la sémantique,
+la validation documentaire et le rendu Rust/Typst de ce paramètre restent à
+implémenter lors de l’évolution d’une capacité.
+
+| Avant | Après | Pourquoi |
+| --- | --- | --- |
+| Un booléen par widget décidait si sa roue était active. | Champs et actions du contrat déterminent automatiquement la disponibilité. | Éviter une liste parallèle à maintenir. |
+| Les champs du panneau étaient codés séparément par capacité. | Les contrôles ordinaires, leurs valeurs par défaut et contraintes viennent du schéma. | Faire évoluer la signature et son interface ensemble. |
+| L’attribution était un paramètre optionnel mais ne justifiait pas de panneau. | Sa destination `body` indique qu’elle est éditée directement dans le bloc. | Exprimer la distinction dans le contrat, sans exception dans le calcul de disponibilité. |
