@@ -1,12 +1,16 @@
 [package]
-name = "typstographe-web-editor-spike"
-version = "0.1.0"
-edition = "2024"
-publish = false
+name = "typstographe"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+description = "Éditeur visuel typstOgraphe avec Tauri et Typst"
 
-[workspace]
+[lints]
+workspace = true
 
 [features]
+default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 
 [build-dependencies]
@@ -19,8 +23,8 @@ tokio = { version = "1", features = ["sync", "rt", "net", "io-util", "time"] }
 zip = { version = "6", default-features = false, features = ["deflate"] }
 rmcp = { version = "=3.7.0", default-features = false, features = ["server", "transport-io"] }
 uuid = { version = "1", features = ["v4"] }
-typstographe-core = { path = "../../../crates/core" }
-typstographe-i18n = { path = "../../../crates/i18n" }
+typstographe-core = { workspace = true }
+typstographe-i18n = { workspace = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 jsonschema = { version = "=0.60.1", default-features = false }
@@ -34,21 +38,3 @@ png = "0.18"
 [dev-dependencies]
 tempfile = "3"
 
-[profile.dev]
-debug = 0
-
-# Filtering millions of pixels must stay fast even in a debug application.
-[profile.dev.package.png]
-opt-level = 3
-
-[profile.dev.package.fdeflate]
-opt-level = 3
-
-[profile.dev.package.tiny-skia]
-opt-level = 3
-
-[profile.dev.package.typst-render]
-opt-level = 3
-
-[profile.test]
-debug = 0

@@ -1,6 +1,6 @@
 [workspace]
-members = ["crates/core", "crates/i18n", "crates/app", "crates/cli", "crates/mcp"]
-default-members = ["crates/app"]
+members = ["crates/core", "crates/i18n", "crates/app", "crates/cli", "crates/mcp", "app/src-tauri"]
+default-members = ["app/src-tauri"]
 resolver = "3"
 
 [workspace.package]
@@ -62,3 +62,16 @@ debug = 0
 
 [profile.test]
 debug = 0
+
+# Keep preview rendering fast in development as well as release.
+[profile.dev.package.png]
+opt-level = 3
+
+[profile.dev.package.fdeflate]
+opt-level = 3
+
+[profile.dev.package.tiny-skia]
+opt-level = 3
+
+[profile.dev.package.typst-render]
+opt-level = 3

@@ -14,11 +14,11 @@ pub fn install_fonts(ctx: &egui::Context) {
     for (name, data) in [
         (
             "Inter-Regular",
-            include_bytes!("../../assets/fonts/inter/Inter-Regular.ttf").as_slice(),
+            include_bytes!("../../../../assets/ui/fonts/inter/Inter-Regular.ttf").as_slice(),
         ),
         (
             "Inter-SemiBold",
-            include_bytes!("../../assets/fonts/inter/Inter-SemiBold.ttf").as_slice(),
+            include_bytes!("../../../../assets/ui/fonts/inter/Inter-SemiBold.ttf").as_slice(),
         ),
     ] {
         fonts

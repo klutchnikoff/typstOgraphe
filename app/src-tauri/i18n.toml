@@ -2,5 +2,5 @@
 fallback_language = "en"
 
 [fluent]
-assets_dir = "../../../crates/i18n/i18n"
+assets_dir = "../../crates/i18n/i18n"
 domain = "typstographe"

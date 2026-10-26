@@ -1,6 +1,6 @@
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-use typstographe::{app, engine, i18n, tr};
+use typstographe_egui::{app, engine, i18n, tr};
 
 use std::path::PathBuf;
 

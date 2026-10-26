@@ -370,7 +370,7 @@ fn main() {
     }
     let mut args = std::env::args().skip(1);
     let mut root =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../output/web-editor/default");
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../output/web-editor/default");
     let mut custom_root = false;
     let mut stdio = false;
     let mut diagnostic = None;

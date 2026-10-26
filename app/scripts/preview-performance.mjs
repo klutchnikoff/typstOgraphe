@@ -5,17 +5,13 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import os from 'node:os'
-const repo = fileURLToPath(new URL('../../../', import.meta.url))
+const repo = fileURLToPath(new URL('../../', import.meta.url))
 const root = path.resolve(
   process.argv[2] || path.join(repo, 'output/web-editor', `preview-native-${Date.now()}`),
 )
 const binary =
   process.env.TOG_SPIKE_BINARY ||
-  path.join(
-    repo,
-    'target/release',
-    `typstographe-web-editor-spike${process.platform === 'win32' ? '.exe' : ''}`,
-  )
+  path.join(repo, 'target/release', `typstographe${process.platform === 'win32' ? '.exe' : ''}`)
 await mkdir(root, { recursive: true })
 const child = spawn(binary, ['--diagnostic-performance', '--session-dir', root], {
   stdio: ['ignore', 'pipe', 'pipe'],

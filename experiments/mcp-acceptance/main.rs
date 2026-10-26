@@ -3,7 +3,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root = std::env::args()
         .nth(1)
         .ok_or("pass a new absolute diagnostic directory")?;
-    typstographe::i18n::initialize(&["fr".parse()?]);
+    typstographe_egui::i18n::initialize(&["fr".parse()?]);
     let options = eframe::NativeOptions {
         persist_window: false,
         viewport: eframe::egui::ViewportBuilder::default()
@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "typstOgraphe — recette isolée",
         options,
         Box::new(move |cc| {
-            Ok(Box::new(typstographe::app::App::acceptance(
+            Ok(Box::new(typstographe_egui::app::App::acceptance(
                 cc,
                 root.into(),
             )?))

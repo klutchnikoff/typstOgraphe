@@ -5,14 +5,14 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { proposeThroughMcp } from './mcp-recipe.mjs'
 
-const repo = fileURLToPath(new URL('../../../', import.meta.url))
+const repo = fileURLToPath(new URL('../../', import.meta.url))
 const root = path.resolve(
   process.argv[2] || path.join(repo, 'output/web-editor', `native-${Date.now()}`),
 )
 const binary = path.join(
   repo,
   'target/debug',
-  `typstographe-web-editor-spike${process.platform === 'win32' ? '.exe' : ''}`,
+  `typstographe${process.platform === 'win32' ? '.exe' : ''}`,
 )
 await mkdir(root, { recursive: true })
 const results = []

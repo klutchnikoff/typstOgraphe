@@ -2,7 +2,7 @@
 //! ui-kit-gallery -- sortie.png [light|dark] [gallery|dialog]`.
 use eframe::egui;
 use std::path::PathBuf;
-use typstographe::{
+use typstographe_egui::{
     icons::Icon,
     theme::Tokens,
     ui_kit::{
@@ -68,11 +68,11 @@ impl eframe::App for Sheet {
         if self.dialog {
             let options = [
                 (
-                    typstographe::ui_kit::Orientation::Portrait,
+                    typstographe_egui::ui_kit::Orientation::Portrait,
                     "Portrait".to_owned(),
                 ),
                 (
-                    typstographe::ui_kit::Orientation::Landscape,
+                    typstographe_egui::ui_kit::Orientation::Landscape,
                     "Paysage".to_owned(),
                 ),
             ];
@@ -105,7 +105,7 @@ impl eframe::App for Sheet {
             })
         });
         if let Some(image) = image {
-            typstographe::write_screenshot(&self.out, &image).expect("capture écrite");
+            typstographe_egui::write_screenshot(&self.out, &image).expect("capture écrite");
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
         ctx.request_repaint();
@@ -130,8 +130,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "ui-kit",
         options,
         Box::new(move |cc| {
-            typstographe::editor::install_fonts(&cc.egui_ctx);
-            typstographe::theme::install(&cc.egui_ctx);
+            typstographe_egui::editor::install_fonts(&cc.egui_ctx);
+            typstographe_egui::theme::install(&cc.egui_ctx);
             Ok(Box::new(Sheet {
                 out,
                 dark,

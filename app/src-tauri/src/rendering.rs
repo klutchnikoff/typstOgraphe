@@ -450,7 +450,7 @@ mod tests {
             let mut assets = Assets::default();
             assets.insert(
                 "images/parc.svg".into(),
-                include_bytes!("../../../../fixtures/parc.svg")
+                include_bytes!("../../../fixtures/parc.svg")
                     .as_slice()
                     .into(),
             );

@@ -1,9 +1,3 @@
-node_modules/
-dist/
-src-tauri/target/
-src-tauri/gen/
-# Generated from Fluent before Tauri dev/build/bundle; required by dev codegen.
-src-tauri/Info.plist
-test-results/
-playwright-report/
-*.local
+# Historical graphical results are retained locally, outside the application.
+/test-results/
+/.vite/

@@ -1,10 +1,10 @@
 [package]
-name = "typstographe"
+name = "typstographe-egui"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
-description = "Édition visuelle de documents avec egui et Typst"
+description = "Adaptateur egui de référence, conservé pendant la transition vers Tauri"
 
 [lints]
 workspace = true

@@ -1,4 +1,4 @@
-const assets = import.meta.glob('../../../crates/app/assets/icons/lucide/*.svg', {
+const assets = import.meta.glob('../../assets/ui/icons/lucide/*.svg', {
   query: '?raw',
   import: 'default',
   eager: true,

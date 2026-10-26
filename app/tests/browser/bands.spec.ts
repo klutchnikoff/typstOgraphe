@@ -317,7 +317,7 @@ test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse a
 test('références visuelles : variante B des maquettes validées', async ({ page }, info) => {
   const { pathToFileURL } = await import('node:url')
   const { resolve } = await import('node:path')
-  await page.goto(pathToFileURL(resolve('../../docs/mockups/interface-polish.html')).href)
+  await page.goto(pathToFileURL(resolve('../docs/mockups/interface-polish.html')).href)
   await page.locator('[data-v="b"]').click()
   await expect(page.locator('#col')).toHaveClass(/v-b/)
   for (const [scene, theme] of [

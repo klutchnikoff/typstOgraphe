@@ -149,8 +149,9 @@ def main():
     if args.binary:
         binary = args.binary.resolve()
     else:
-        subprocess.run(["cargo", "build", "--locked", "--workspace", "--bins"], cwd=ROOT, check=True)
-        binary = ROOT / "target/debug" / ("typstographe.exe" if os.name == "nt" else "typstographe")
+        subprocess.run(["cargo", "build", "--locked", "-p", "typstographe-egui",
+                        "-p", "typstographe-cli", "--bins"], cwd=ROOT, check=True)
+        binary = ROOT / "target/debug" / ("typstographe-egui.exe" if os.name == "nt" else "typstographe-egui")
     cli_binary = args.cli_binary.resolve() if args.cli_binary else binary.with_name(
         "typstographe-cli.exe" if os.name == "nt" else "typstographe-cli")
     output.mkdir(parents=True, exist_ok=True)

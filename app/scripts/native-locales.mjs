@@ -77,7 +77,7 @@ ${languages.map((language) => `        <string>${language}</string>`).join('\n')
 
 export function generateNativeLocaleConfig(
   projectRoot = root,
-  catalogueRoot = resolve(projectRoot, '../../crates/i18n'),
+  catalogueRoot = resolve(projectRoot, '../crates/i18n'),
 ) {
   const source = readInterfaceLanguages(catalogueRoot)
   const metadata = nativeMetadata(source)
@@ -95,3 +95,7 @@ export function generateNativeLocaleConfig(
   writeIfChanged(path, JSON.stringify({ bundle: { windows: metadata.windows } }, null, 2) + '\n')
   return path
 }
+
+// Direct Cargo launches use the same generator as the Tauri CLI wrapper.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))
+  generateNativeLocaleConfig()

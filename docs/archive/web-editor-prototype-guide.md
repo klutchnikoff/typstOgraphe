@@ -1,3 +1,6 @@
+> Archive du guide du prototype, avant le chantier A.1. Les commandes courantes
+> sont dans le [guide de l’application](../../app/README.md).
+
 # Diagnostic Tauri / Tiptap / Yjs
 
 Prototype isolé, sur `codex/spike-tauri-editor`. Les

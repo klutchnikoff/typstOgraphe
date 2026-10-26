@@ -1,7 +1,7 @@
 //! Diagnostic borné de phase 1.6, exclu du logiciel et des builds par défaut.
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-use typstographe::{document, editor};
+use typstographe_egui::{document, editor};
 
 use document::Projection;
 use eframe::egui::{self, text::CCursorRange};
