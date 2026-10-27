@@ -33,7 +33,8 @@ Les résultats et captures antérieurs sont conservés à leur emplacement. Le
 anciennes commandes ne sont pas le parcours de lancement courant.
 
 Le retrait d’egui et la séparation supplémentaire des diagnostics embarqués
-restent à décider après vérification des parcours nécessaires. La convergence
+restent à décider après vérification des parcours nécessaires, détaillés dans
+l’[inventaire avant retrait](egui-retirement.md). La convergence
 du contrat CLI/MCP autonome avec l’éditeur structuré relève de A.2.
 
 ## Vérifications du lot

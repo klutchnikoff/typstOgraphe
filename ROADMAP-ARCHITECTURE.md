@@ -40,7 +40,8 @@ n’est demandé pendant cette phase préliminaire.
 
 Le [bilan du rangement](docs/application-layout.md) décrit l’application Tauri
 principale et les commandes depuis la racine. Décider le retrait de la référence
-egui après contrôle des parcours nécessaires. Compléter la séparation des
+egui à partir de l’[inventaire des reprises et écarts](docs/egui-retirement.md),
+après contrôle des parcours nécessaires. Compléter la séparation des
 recettes, fixtures et mesures de ce qui est livré.
 
 ### A.2 Un contrat documentaire structuré

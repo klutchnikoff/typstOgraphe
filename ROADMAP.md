@@ -70,7 +70,8 @@ rédaction individuelle, l’ouverture et l’export doivent fonctionner hors li
 ## A — Sortir le code du statut de prototype
 
 - Préparer le retrait de la référence egui conservée explicitement, après
-  vérification des parcours nécessaires ; le lancement principal Tauri et le
+  validation de l’[inventaire des reprises et écarts](docs/egui-retirement.md) ;
+  le lancement principal Tauri et le
   rangement de l’application sont décrits dans le [bilan A.1](docs/application-layout.md).
 - Unifier le contrat structuré entre l’interface, la CLI et MCP : capacités,
   cibles, erreurs, disponibilité, fichiers et exports. Retirer les chemins
