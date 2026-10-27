@@ -134,6 +134,16 @@ Typst à satisfaire. Distinguer paramètres du type, paramètres généraux et
 paramètres propres au modèle. Prévoir les auteurs multiples comme données
 structurées, sans les transformer prématurément en une chaîne de texte.
 
+**Organisation d’en-tête validée le 27 octobre 2026 :** un seul accès par onglets.
+Pour le Courrier : Général, Expéditeur, En-tête. Les deux premiers sont des
+formulaires ; le dernier est une zone composée de sections décrites par le type,
+avec les informations propres au document. Ces contrôles éditent les valeurs
+structurées existantes, sans duplication dans le corps ni dépendance aux fonctions
+internes des modèles. Pour les futurs articles : titre, auteurs, affiliations,
+résumé riche et mots-clés ; préciser les capacités autorisées par zone. La
+[décision détaillée](docs/types-modeles-libertes.md#interface-de-len-tête--décision-du-27-octobre-2026)
+sert de référence ; le résumé riche et les auteurs multiples restent à réaliser.
+
 **Décisions à mettre en œuvre et arbitrages avant refonte :**
 
 - Types intégrés en Rust ou définition déclarative : la note propose une évolution,

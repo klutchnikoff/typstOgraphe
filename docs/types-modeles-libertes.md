@@ -10,6 +10,7 @@ régimes de paramètres et l’interchangeabilité des modèles décrits aux sec
 2 et 3 sont validés le 26 octobre 2026 ; leur implémentation reste à faire.
 Le passage à des types déclaratifs et le déplacement du formatage des dates
 restent des propositions à arbitrer avant de remplacer les contrats actuels.
+L’organisation de l’en-tête décrite ci-dessous est validée le 27 octobre 2026.
 
 Il nuance le principe du lot 6.4a (« les types restent intégrés en Rust, les
 modèles en Typst ») : à terme, un type est une donnée déclarative, et seules les
@@ -37,14 +38,42 @@ simplement ne pas l’interdire (types et manifestes en données, pas en code).
 
 - **Métadonnée** : valeur de l’en-tête qui sert au modèle (titre, auteur·e·s,
   mots-clés, date, lieu).
-- **Contenu** : ce qui se rédige dans le corps (résumé, sections, notes,
-  bibliographie). Sa disponibilité dépend des capacités du type. Un type
-  « lettre » n’a pas de résumé parce que la capacité correspondante est absente,
-  non parce qu’un champ serait vide.
+- **Contenu** : texte structuré du corps ou d’une zone éditoriale nommée (résumé,
+  sections, notes, bibliographie). Sa disponibilité dépend du type et des
+  capacités qu’il autorise dans cette zone. L’emplacement de la saisie dans
+  l’interface ne transforme pas un contenu riche en simple chaîne de métadonnées.
 
 Le type indique quelles métadonnées sont **obligatoires à l’export**
 (aujourd’hui `required_for_export`). Les autres sont facultatives : le modèle les
 affiche ou non.
+
+### Interface de l’en-tête — décision du 27 octobre 2026
+
+Un seul accès, au-dessus de l’éditeur, avec des onglets adaptés au type. Pour
+le Courrier : **Général, Expéditeur, En-tête**, dans cet ordre.
+
+- Général reste un formulaire de réglages (modèle, format, langue…).
+- Expéditeur reste le formulaire des coordonnées et de la signature du document,
+  distinct des valeurs par défaut conservées dans les préférences globales.
+- Le dernier onglet ouvre une zone plus riche, décrite par le type. Pour le
+  Courrier, elle regroupe Destinataire (nom et adresse) et Informations du
+  courrier (lieu, date, objet, référence), sans nouveaux widgets dans le corps.
+
+Le type décrit les sections, leur ordre et les champs qu’elles présentent.
+L’interface utilise des composants communs ; elle ne déduit pas cette structure
+à partir des fonctions internes du modèle. Chaque contrôle modifie les mêmes
+valeurs structurées utilisées par Yjs, les sauvegardes, les opérations MCP et
+l’appel `#show: courrier.with(…)`. Aucune copie des données dans un bloc de texte.
+Le modèle reste responsable de leur emplacement et de leur rendu Typst.
+Le bouton Aujourd’hui insère une date locale fixe, conservée dans le document.
+
+Pour les futurs articles, ce dernier onglet pourra réunir titre, auteurs,
+affiliations, résumé et mots-clés. Un résumé utilisera un composant d’édition
+riche commun, avec un sous-ensemble de capacités défini par le type, sans être
+sérialisé comme une citation. La prise en charge de ces genres reste à réaliser ;
+le lot Courrier utilise uniquement les champs texte, adresse multiligne et date.
+La zone déployée conserve une hauteur bornée et un défilement propre afin de
+laisser le corps du document accessible, y compris sur petit écran.
 
 ## 2. Les trois sources de paramètres
 
@@ -239,5 +268,5 @@ déclare une valeur imposée dans son manifeste et l’applique dans son Typst.
    embarque déjà `modele.typ`).
 3. **Migration** des deux types existants vers des types déclaratifs : avant ou
    après l’ajout des nouveaux types.
-4. **Interface d’en-tête** pour les listes d’enregistrements (ajout, ordre,
-   suppression) : à maquetter.
+4. **Contrôles riches du dernier onglet** : maquetter les listes d’enregistrements
+   (ajout, ordre, suppression), le résumé et leurs capacités autorisées.
