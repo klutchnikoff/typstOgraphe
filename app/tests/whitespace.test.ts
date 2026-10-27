@@ -92,3 +92,47 @@ it('réutilise aussi la frontière du paragraphe suivant sans créer de ligne vi
   expect(editor.getJSON()).toEqual(before)
   expect(editor.state.selection.from).toBe(8)
 })
+
+it.each(['Enter', 'Shift-Enter'])(
+  '%s ne crée aucune ligne vide initiale ni modification inutile',
+  (key) => {
+    for (const html of ['<p>Premier</p>', '<h1>Titre</h1>', '<p></p>', '<h1></h1>']) {
+      const editor = create(html),
+        before = editor.getJSON()
+      let updates = 0
+      editor.on('update', () => updates++)
+      editor.commands.keyboardShortcut(key)
+      expect(editor.getJSON()).toEqual(before)
+      expect(editor.state.selection.from).toBe(1)
+      expect(updates).toBe(0)
+      editor.commands.insertContent('Début ')
+      expect(editor.state.doc.firstChild!.textContent).toMatch(/^Début /)
+    }
+  },
+)
+it('supprime les lignes initiales importées en préservant les marques et la dernière ligne', () => {
+  const editor = create('<p></p>')
+  editor.commands.setContent(
+    '<p></p><h2></h2><p><br data-soft-break><br><strong>Corps</strong></p>',
+  )
+  expect(children(editor).map((node) => node.textContent)).toEqual(['Corps', ''])
+  expect(editor.state.doc.firstChild!.firstChild!.marks[0].type.name).toBe('bold')
+  expect(normalizeWhitespace(editor.state.tr).docChanged).toBe(false)
+})
+it('préserve le titre vide choisi avant la saisie et les retours internes aux widgets', () => {
+  const editor = create('<h1></h1>')
+  expect(editor.state.doc.firstChild!.type.name).toBe('heading')
+  editor.commands.setContent('<blockquote><p><br data-soft-break>Interne</p></blockquote>')
+  // Root normalization must not consume the first line inside a widget.
+  expect(editor.state.doc.firstChild!.type.name).toBe('quote')
+  expect(editor.state.doc.firstChild!.firstChild!.firstChild!.type.name).toBe('softBreak')
+})
+it('attend la validation IME avant de retirer les retours initiaux', () => {
+  const editor = create('<p></p>')
+  Object.defineProperty(editor.view, 'composing', { configurable: true, value: true })
+  editor.commands.setContent('<p></p><p><br data-soft-break>日本</p>')
+  expect(editor.state.doc.firstChild!.textContent).toBe('')
+  Object.defineProperty(editor.view, 'composing', { configurable: true, value: false })
+  editor.view.dispatch(editor.state.tr.setMeta(documentWhitespaceKey, true))
+  expect(children(editor).map((node) => node.textContent)).toEqual(['日本', ''])
+})

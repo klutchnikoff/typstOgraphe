@@ -197,6 +197,15 @@ function lineAhead(editor: Editor) {
     return null
   return $from.after() + 1
 }
+function atDocumentStart(editor: Editor) {
+  const { empty, $from } = editor.state.selection
+  return (
+    empty &&
+    $from.pos === 1 &&
+    $from.depth === 1 &&
+    ['paragraph', 'heading'].includes($from.parent.type.name)
+  )
+}
 export const DocumentInput = Extension.create({
   name: 'documentInput',
   priority: 1100,
@@ -205,6 +214,7 @@ export const DocumentInput = Extension.create({
       Backspace: () => !this.editor.view.composing && backspaceInList(this.editor),
       'Shift-Enter': () => {
         if (this.editor.view.composing) return false
+        if (atDocumentStart(this.editor)) return true
         const { empty, $from } = this.editor.state.selection
         const ahead = lineAhead(this.editor)
         if (ahead !== null) {
@@ -216,6 +226,7 @@ export const DocumentInput = Extension.create({
       },
       Enter: () => {
         if (this.editor.view.composing) return false
+        if (atDocumentStart(this.editor)) return true
         const { selection } = this.editor.state,
           { $from } = selection
         if ($from.parent.type.name !== 'paragraph') return false

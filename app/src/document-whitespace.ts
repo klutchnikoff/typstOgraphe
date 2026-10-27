@@ -9,9 +9,25 @@ export const lineBreak = (node: PMNode | null | undefined) =>
   !!node && ['softBreak', 'hardBreak'].includes(node.type.name)
 const emptyParagraph = (node: PMNode | null | undefined) =>
   node?.type.name === 'paragraph' && node.content.content.every((child) => lineBreak(child))
+const emptyFlowBlock = (node: PMNode | null | undefined) =>
+  !!node &&
+  ['paragraph', 'heading'].includes(node.type.name) &&
+  node.content.content.every((child) => lineBreak(child))
 
 /** Repair whitespace without rewriting text, marks, annotations, list items or cells. */
 export function normalizeWhitespace(tr: Transaction) {
+  // Keep an empty document editable, including a heading chosen before typing.
+  if (tr.doc.content.content.some((node) => !emptyFlowBlock(node)))
+    while (emptyFlowBlock(tr.doc.firstChild)) tr.delete(0, tr.doc.firstChild!.nodeSize)
+  const first = tr.doc.firstChild
+  if (first && ['paragraph', 'heading'].includes(first.type.name)) {
+    let leading = 0
+    for (const child of first.content.content) {
+      if (!lineBreak(child)) break
+      leading += child.nodeSize
+    }
+    if (leading) tr.delete(1, 1 + leading)
+  }
   const remove: { from: number; to: number }[] = []
   const visit = (parent: PMNode, start: number) => {
     parent.forEach((node, offset, index) => {
@@ -64,6 +80,12 @@ function normalizeSharedWhitespace(
     node
       .toArray()
       .every((child) => (child instanceof Y.XmlText ? child.length === 0 : isBreak(child)))
+  const emptyFlow = (node: unknown): node is Y.XmlElement =>
+    node instanceof Y.XmlElement &&
+    ['paragraph', 'heading'].includes(node.nodeName) &&
+    node
+      .toArray()
+      .every((child) => (child instanceof Y.XmlText ? child.length === 0 : isBreak(child)))
   const visit = (parent: Y.XmlFragment, flow: boolean) => {
     const children = parent.toArray()
     for (let i = children.length - 1; i >= 0; i--) {
@@ -89,6 +111,18 @@ function normalizeSharedWhitespace(
   }
   root.doc!.transact((transaction) => {
     transaction.meta.set('addToHistory', addToHistory)
+    if (root.toArray().some((node) => !emptyFlow(node)))
+      while (emptyFlow(root.toArray()[0])) root.delete(0, 1)
+    const first = root.toArray()[0]
+    if (first instanceof Y.XmlElement && ['paragraph', 'heading'].includes(first.nodeName)) {
+      const leading: number[] = []
+      for (const [index, child] of first.toArray().entries()) {
+        if (child instanceof Y.XmlText && child.length === 0) continue
+        if (!isBreak(child)) break
+        leading.push(index)
+      }
+      leading.reverse().forEach((index) => first.delete(index, 1))
+    }
     visit(root, true)
     const children = root.toArray(),
       last = children.at(-1),

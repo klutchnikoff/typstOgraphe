@@ -99,6 +99,11 @@ un retour déjà présent devant le curseur est réutilisé, les retours conséc
 sont réduits et une ligne vide reste disponible en fin de document. Un retour
 simple final fournit déjà cette ligne ; il ne faut pas lui ajouter un paragraphe
 vide supplémentaire. Deux retours continuent à former un nouveau paragraphe.
+Aucune ligne vide ne précède le premier contenu : Entrée et Maj+Entrée au début
+du document ne le modifient pas ; les lignes initiales introduites par collage,
+import ou édition distante sont retirées. Un document vide conserve sa zone de
+saisie, y compris un style de titre choisi avant de commencer à écrire. Cette
+règle initiale ne modifie pas les lignes internes aux widgets.
 
 L’extension utilise le hook de transactions prévu par Tiptap. Pour Yjs, les
 réparations portent directement sur les éléments d’espacement partagés afin de

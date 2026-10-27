@@ -39,3 +39,29 @@ test('Entrée réutilise le retour suivant et maintient une seule ligne finale �
   await page.keyboard.type('Fin')
   await expect(page.locator('.tiptap > p')).toHaveText(['AvantAprès', 'Suite', 'Fin', ''])
 })
+
+test('aucune ligne vide initiale, même après collage, et le document vide reste utilisable', async ({
+  page,
+}) => {
+  for (const html of ['<p>Premier</p>', '<h1>Titre</h1>', '<p></p>']) {
+    await page.evaluate((html) => {
+      const e = window.__spike!.editor
+      e.commands.setContent(html)
+      e.commands.setTextSelection(1)
+      e.view.focus()
+    }, html)
+    const before = await page.evaluate(() => window.__spike!.editor.getJSON())
+    for (const key of ['Enter', 'Enter', 'Shift+Enter']) await page.keyboard.press(key)
+    expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
+    await page.keyboard.insertText('Début ')
+    expect(
+      await page.evaluate(() => window.__spike!.editor.state.doc.firstChild!.textContent),
+    ).toMatch(/^Début /)
+  }
+  await page.evaluate(() => {
+    const e = window.__spike!.editor
+    e.commands.setContent('<p></p><p><br data-soft-break><strong>Corps</strong></p>')
+  })
+  await expect(page.locator('.tiptap > p')).toHaveText(['Corps', ''])
+  await expect(page.locator('.tiptap > p').first().locator('strong')).toHaveText('Corps')
+})

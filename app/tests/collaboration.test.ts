@@ -100,6 +100,41 @@ async function flush(...clients: { provider: Provider }[]) {
 }
 
 describe('deux éditeurs structurés et deux Y.Doc indépendants', () => {
+  it('retire les lignes initiales distantes sans perdre les caractères, les positions ni l’annulation locale', async () => {
+    const host = new Host(),
+      a = await client(host, 'main'),
+      b = await client(host, 'peer-1')
+    a.editor.commands.setContent('<p>Corps</p>')
+    await flush(a, b)
+    b.editor.commands.setTextSelection(3)
+    const remote = new Y.Doc()
+    Y.applyUpdate(remote, Y.encodeStateAsUpdate(a.provider.doc))
+    const root = remote.getXmlFragment('default')
+    root.insert(0, [new Y.XmlElement('paragraph')])
+    ;(root.get(1) as Y.XmlElement).insert(0, [new Y.XmlElement('softBreak')])
+    const update = Array.from(Y.encodeStateAsUpdate(remote, Y.encodeStateVector(a.provider.doc)))
+    host.updates.push(update)
+    host.revision++
+    host.emit('web-editor:change', { from: 'external', revision: host.revision, update })
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    await flush(a, b)
+    for (const { editor } of [a, b])
+      expect(editor.state.doc.content.content.map((node) => node.textContent)).toEqual([
+        'Corps',
+        '',
+      ])
+    expect(b.editor.state.selection.from).toBe(3)
+    const manager = yUndoPluginKey.getState(b.editor.state)!.undoManager
+    manager.clear()
+    b.editor.commands.insertContent('texte ')
+    await flush(a, b)
+    expect(a.editor.state.doc.firstChild!.textContent).toBe('Cotexte rps')
+    expect(b.editor.commands.undo()).toBe(true)
+    await flush(a, b)
+    for (const { editor } of [a, b]) expect(editor.state.doc.firstChild!.textContent).toBe('Corps')
+    remote.destroy()
+  })
+
   it('ne fusionne jamais une ancienne vue hors ligne avec un autre document', async () => {
     const host = new Host(),
       a = await client(host, 'main')
