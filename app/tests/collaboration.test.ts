@@ -160,6 +160,21 @@ describe('deux éditeurs structurés et deux Y.Doc indépendants', () => {
     a.editor.commands.keyboardShortcut('Shift-Enter')
     expect(a.editor.getJSON().content?.[1].content?.at(-1)?.type).toBe('hardBreak')
   })
+  it('annule la saisie dans la ligne finale en un seul geste, sans entrée d’historique pour sa recréation', async () => {
+    const host = new Host(),
+      a = await client(host, 'main')
+    a.editor.commands.setContent('<p>Avant</p>')
+    const manager = yUndoPluginKey.getState(a.editor.state)!.undoManager
+    manager.clear()
+    a.editor.commands.setTextSelection(a.editor.state.doc.content.size - 1)
+    const before = stableJSON(a.editor.getJSON())
+    for (const character of 'Reprise') a.editor.commands.insertContent(character)
+    expect(manager.undoStack).toHaveLength(1)
+    a.editor.commands.undo()
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(stableJSON(a.editor.getJSON())).toBe(before)
+    expect(manager.undoStack).toHaveLength(0)
+  })
   it.each(['main', 'peer-1'])(
     'conserve une seule ligne de reprise après deux saisies concurrentes et une annulation par %s',
     async (author) => {

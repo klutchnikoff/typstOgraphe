@@ -35,12 +35,12 @@ test('retours limités, marque de paragraphe et raccourci de liste après un ret
   await page.keyboard.press('Enter')
   await page.keyboard.press('Enter')
   await page.keyboard.type('Après')
-  await expect(page.locator('.tiptap > p').last()).toHaveText('Après')
+  await expect(page.locator('.tiptap > p').nth(-2)).toHaveText('Après')
   await clear(page)
   await page.keyboard.type('Premier')
   await page.keyboard.press('Enter')
   await page.keyboard.type('suite')
-  await expect(page.locator('.tiptap p')).toHaveCount(1)
+  await expect(page.locator('.tiptap p')).toHaveCount(2)
   await expect(page.locator('.paragraph-marker')).toHaveCount(0)
   for (let i = 0; i < 5; i++) await page.keyboard.press('Enter')
   await expect(page.locator('.tiptap p')).toHaveCount(2)
@@ -67,7 +67,7 @@ test('insertion des widgets au curseur sans absorber le texte, citation sans par
     const widget = page.locator(id === 'block.quote' ? '.widget-quote' : '.widget-bulletList')
     await expect(widget).toBeVisible()
     await expect(widget.locator('p')).toHaveText('')
-    await expect(page.locator('.tiptap > p')).toHaveText(['Avant', '', 'Après'])
+    await expect(page.locator('.tiptap > p')).toHaveText(['Avant', '', 'Après', ''])
     await expect(page.locator('.tiptap')).toBeFocused()
     await page.keyboard.type('Contenu')
     await expect(widget.locator('p')).toHaveText('Contenu')
@@ -100,8 +100,9 @@ test('Retour arrière dans une liste rejoint le texte précédent sans désassem
       ],
     })
     let pos = 0
-    e.state.doc.descendants((node, offset) => {
-      if (node.type.name === 'paragraph' && !node.content.size) pos = offset + 1
+    e.state.doc.descendants((node, offset, parent) => {
+      if (node.type.name === 'paragraph' && parent?.type.name === 'listItem' && !node.content.size)
+        pos = offset + 1
     })
     e.commands.setTextSelection(pos)
     e.commands.focus()
@@ -138,7 +139,7 @@ test('Retour arrière dans une liste rejoint le texte précédent sans désassem
     .poll(() => page.evaluate(() => window.__spike!.editor.state.selection.$from.depth))
     .toBe(1)
   await page.keyboard.type(' précédent')
-  await expect(page.locator('.tiptap > p')).toHaveText('Avant précédent')
+  await expect(page.locator('.tiptap > p')).toHaveText(['Avant précédent', ''])
 })
 test('variante B : paramètres de liste intégrés, brouillon, validation, annulation et suppression', async ({
   page,

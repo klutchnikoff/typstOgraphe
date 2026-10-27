@@ -91,3 +91,19 @@ sont ignorées par les flèches. Tab conserve son rôle de déplacement du focus
 
 Le [contrat de navigation clavier](../docs/keyboard-navigation.md) décrit les
 composants communs des listes, menus, formulaires et bandeaux.
+
+## Retours et ligne de reprise
+
+Le contrat commun est dans `src/document-whitespace.ts` et `src/editing.ts` :
+un retour déjà présent devant le curseur est réutilisé, les retours consécutifs
+sont réduits et une ligne vide reste disponible en fin de document. Un retour
+simple final fournit déjà cette ligne ; il ne faut pas lui ajouter un paragraphe
+vide supplémentaire. Deux retours continuent à former un nouveau paragraphe.
+
+L’extension utilise le hook de transactions prévu par Tiptap. Pour Yjs, les
+réparations portent directement sur les éléments d’espacement partagés afin de
+conserver l’identité des caractères et l’annulation locale. Les réparations après
+fusion sont regroupées après la projection distante et exclues de l’historique
+utilisateur. L’initialisation est achevée avant le suivi des modifications.
+Les tests couvrent aussi le collage, la composition IME et deux saisies concurrentes
+avec annulation par chacun des rédacteurs.

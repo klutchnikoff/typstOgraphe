@@ -82,6 +82,7 @@ test('insertion commune : tableau au début, milieu, fin ou après un retour, et
             [kind, ''],
             ['paragraph', ''],
             ['paragraph', 'AvantAprès'],
+            ['paragraph', ''],
           ]
         : pos === 11
           ? [
@@ -94,6 +95,7 @@ test('insertion commune : tableau au début, milieu, fin ou après un retour, et
               [kind, ''],
               ['paragraph', ''],
               ['paragraph', 'Après'],
+              ['paragraph', ''],
             ]
     await expect.poll(() => roots(page)).toEqual(expected)
     await expect
@@ -119,12 +121,13 @@ test('insertion commune : tableau au début, milieu, fin ou après un retour, et
         )
         .toBeLessThan(2)
     const line = page.locator('.tiptap > p').filter({ hasText: /^$/ })
-    await expect(line).toHaveCount(1)
-    await line.click()
+    await expect(line).toHaveCount(pos === 11 ? 1 : 2)
+    await line.first().click()
     await expect
       .poll(() => page.evaluate(() => window.__spike!.editor.state.selection.$from.depth))
       .toBe(1)
-    await page.keyboard.type('Reprise')
+    // One input transaction: the assertion concerns one undo, not the typing timeout.
+    await page.keyboard.insertText('Reprise')
     await expect(page.locator('.tiptap > p').filter({ hasText: /^Reprise$/ })).toHaveCount(1)
     await page.getByRole('button', { name: 'Annuler', exact: true }).click()
     await expect.poll(() => roots(page)).toEqual(expected)

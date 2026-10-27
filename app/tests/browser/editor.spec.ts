@@ -324,11 +324,11 @@ test('raccourcis textuels Typst et séparation des paragraphes', async ({ page }
   await expect(page.locator('.tiptap strong')).toHaveText('Important')
   await page.keyboard.press('Enter')
   await page.keyboard.type('suite')
-  await expect(page.locator('.tiptap p')).toHaveCount(1)
+  await expect(page.locator('.tiptap p')).toHaveCount(2)
   await page.keyboard.press('Enter')
   await page.keyboard.press('Enter')
   await page.keyboard.type('Autre paragraphe')
-  await expect(page.locator('.tiptap p')).toHaveCount(2)
+  await expect(page.locator('.tiptap p')).toHaveCount(3)
 })
 
 test('accueil sans document et création depuis les types et modèles disponibles', async ({
@@ -428,7 +428,7 @@ test('listes au clavier et dans la barre d’outils, bascule et sortie du widget
     await page.keyboard.press('Enter')
     await page.keyboard.press('Enter')
     await page.keyboard.type('Après la liste')
-    await expect(page.locator('.tiptap > p')).toHaveText('Après la liste')
+    await expect(page.locator('.tiptap > p')).toHaveText(['Après la liste', ''])
     await expect(page.locator(`.widget-${kind} li`)).toHaveCount(2)
     await page.waitForFunction(() =>
       /page/.test(document.querySelector('#render-status')!.textContent || ''),
