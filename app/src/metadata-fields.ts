@@ -1,67 +1,89 @@
 import { tr } from './i18n'
 import type { Field, MetadataGroup } from './shell'
 
-/** Native controls shared by form tabs and the type's editorial sections. */
+type Section = MetadataGroup['sections'][number]
+type ChangeField = (field: string, value: string) => void
+
+/** Shared section frame for type-defined fields and specialised metadata controls. */
+export function metadataSection(section: Pick<Section, 'id' | 'label' | 'layout'>) {
+  const inline = section.layout === 'inline'
+  const root = document.createElement(inline ? 'div' : 'fieldset')
+  root.className = `metadata-section metadata-section-${section.layout || 'editorial'}`
+  root.dataset.section = section.id
+  if (!inline) {
+    const legend = document.createElement('legend')
+    legend.textContent = section.label
+    root.append(legend)
+  }
+  const content = document.createElement('div')
+  content.className = 'metadata-section-fields'
+  root.append(content)
+  return { root, content }
+}
+
+/** Every type uses the same control and auxiliary actions for each field kind. */
+function metadataControl(definition: Field, value: string, change: ChangeField) {
+  const controls = document.createElement('div')
+  controls.className = 'metadata-field-controls'
+  const input = definition.multiline
+    ? document.createElement('textarea')
+    : document.createElement('input')
+  input.id = `metadata-field-${definition.field}`
+  input.dataset.metadataParameter = definition.parameter
+  if (input instanceof HTMLInputElement) input.type = definition.kind === 'date' ? 'date' : 'text'
+  if (input instanceof HTMLTextAreaElement) input.rows = 3
+  input.value = value
+  input.oninput = () => change(definition.field, input.value)
+  controls.append(input)
+  if (definition.kind === 'date') {
+    controls.classList.add('metadata-date-controls')
+    const today = document.createElement('button')
+    today.type = 'button'
+    today.textContent = tr('Aujourd’hui')
+    today.onclick = () => {
+      const now = new Date()
+      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+      change(definition.field, date)
+    }
+    controls.append(today)
+  }
+  return { controls, input }
+}
+
+/** Accessible label and control row shared by compact and editorial layouts. */
+function metadataField(definition: Field, value: string, change: ChangeField) {
+  const row = document.createElement('div')
+  row.className = 'field'
+  const label = document.createElement('label')
+  label.textContent = definition.label
+  const { controls, input } = metadataControl(definition, value, change)
+  label.htmlFor = input.id
+  row.append(label, controls)
+  return row
+}
+
+/** The type describes grouping and order; rendering never branches on the document type. */
 export function metadataFields(
   parent: HTMLElement,
   group: MetadataGroup,
   definitions: Field[],
   values: Record<string, unknown>,
-  change: (field: string, value: string) => void,
+  change: ChangeField,
 ) {
-  const append = (container: HTMLElement, definition: Field) => {
-    const row = document.createElement('div')
-    row.className = 'field'
-    const label = document.createElement('label')
-    label.textContent = definition.label
-    const input = definition.multiline
-      ? document.createElement('textarea')
-      : document.createElement('input')
-    input.id = `metadata-field-${definition.field}`
-    label.htmlFor = input.id
-    input.dataset.metadataParameter = definition.parameter
-    if (input instanceof HTMLInputElement) input.type = definition.kind === 'date' ? 'date' : 'text'
-    if (input instanceof HTMLTextAreaElement) input.rows = 3
-    input.value = String(values[definition.parameter] ?? '')
-    input.oninput = () => change(definition.field, input.value)
-    const controls = document.createElement('div')
-    controls.className = 'metadata-field-controls'
-    controls.append(input)
-    if (definition.kind === 'date') {
-      const today = document.createElement('button')
-      today.type = 'button'
-      today.textContent = tr('Aujourd’hui')
-      today.onclick = () => {
-        const now = new Date()
-        const value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-        change(definition.field, value)
-      }
-      controls.append(today)
-    }
-    row.append(label, controls)
-    container.append(row)
-  }
+  const append = (container: HTMLElement, definition: Field) =>
+    container.append(metadataField(definition, String(values[definition.parameter] ?? ''), change))
   if (!group.sections.length) {
     for (const definition of definitions.filter((field) => field.group === group.id))
       append(parent, definition)
     return
   }
   for (const section of group.sections) {
-    const inline = section.layout === 'inline'
-    const fieldset = document.createElement(inline ? 'div' : 'fieldset')
-    fieldset.className = `metadata-section metadata-section-${section.layout || 'editorial'}`
-    fieldset.dataset.section = section.id
-    const legend = document.createElement('legend')
-    legend.textContent = section.label
-    const fields = document.createElement('div')
-    fields.className = 'metadata-section-fields'
+    const { root, content } = metadataSection(section)
     for (const id of section.fields) {
       const definition = definitions.find((field) => field.field === id)
-      if (definition) append(fields, definition)
+      if (definition) append(content, definition)
     }
-    if (!inline) fieldset.append(legend)
-    fieldset.append(fields)
-    parent.append(fieldset)
+    parent.append(root)
   }
 }
 

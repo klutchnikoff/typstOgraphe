@@ -752,7 +752,7 @@ summary svg {
     row-gap: 6px;
   }
 }
-/* Editorial sections use the same fields as simple tabs; the type owns grouping. */
+/* Shared metadata sections: the type owns their order and layout. */
 .metadata-section {
   grid-column: 1 / -1;
   min-width: 0;
@@ -787,6 +787,15 @@ summary svg {
 }
 .metadata-field-controls textarea {
   resize: vertical;
+}
+/* A date keeps a readable input; its auxiliary action wraps on narrow columns. */
+.metadata-date-controls {
+  flex-wrap: wrap;
+}
+.metadata-date-controls input {
+  width: auto;
+  flex: 1 1 140px;
+  max-width: 100%;
 }
 #metadata-content {
   container-type: inline-size;

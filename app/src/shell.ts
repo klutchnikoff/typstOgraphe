@@ -16,7 +16,7 @@ import type { BandHost } from './band-layout'
 import { documentType, settingsFor, setSetting, setDocument, type Settings } from './state'
 import { welcomeBrand } from './welcome-brand'
 import { recoveryPanel } from './recovery-panel'
-import { metadataFields, refreshMetadataFields } from './metadata-fields'
+import { metadataFields, metadataSection, refreshMetadataFields } from './metadata-fields'
 import { documentOptions } from './document-options'
 import { withCurrentSnapshot } from './snapshot-operation'
 export interface Model {
@@ -507,15 +507,15 @@ export async function mountShell(s: Shell) {
           provider.addResource(resource)
           setSetting(provider, 'signature', resource.path)
         })
-      const signature = document.createElement('fieldset')
-      signature.className = 'metadata-section metadata-signature'
-      const legend = document.createElement('legend')
-      legend.textContent = tr('Signature du document')
-      const controls = document.createElement('div')
-      controls.className = 'metadata-signature-controls'
-      controls.append(image, actions)
-      signature.append(legend, controls)
-      content.append(signature)
+      const signature = metadataSection({
+        id: 'signature',
+        label: tr('Signature du document'),
+        layout: 'editorial',
+      })
+      signature.root.classList.add('metadata-signature')
+      signature.content.classList.add('metadata-signature-controls')
+      signature.content.append(image, actions)
+      content.append(signature.root)
     }
   }
   function showPanel(title: string) {
