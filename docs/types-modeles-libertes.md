@@ -84,11 +84,14 @@ les effacer ; cette action remet le focus au champ de date. Une date vide reste
 vide à l’enregistrement et à l’export. Le modèle Courrier personnel emploie
 « Le 19 janvier 1875 » sans lieu et « Paris, le 19 janvier 1875 » avec un lieu.
 
-Pour les futurs articles, ce dernier onglet pourra réunir titre, auteurs,
-affiliations, résumé et mots-clés. Un résumé utilisera un composant d’édition
-riche commun, avec un sous-ensemble de capacités défini par le type, sans être
-sérialisé comme une citation. La prise en charge de ces genres reste à réaliser ;
-le lot Courrier utilise uniquement les champs texte, adresse multiligne et date.
+Pour l’Article, les informations sont désormais réparties entre Titres
+(titre, sous-titre, titre court par langue), Affiliations, Auteurs et Résumés
+(résumé et mots-clés par langue), après Général. Les zones riches utilisent les
+profils communs de l’éditeur ; un résumé n’est pas sérialisé comme une citation.
+Le descripteur du type définit la répartition des collections et de leurs champs
+entre onglets, sans dupliquer les données. Les lignes répétables proposent un
+simple + à droite ; les ajouts sont provisoires jusqu’à validation, et Échap les
+abandonne sans toucher au reste du document. Voir le [contrat Article](article-contract.md).
 La zone déployée conserve une hauteur bornée et un défilement propre afin de
 laisser le corps du document accessible, y compris sur petit écran.
 

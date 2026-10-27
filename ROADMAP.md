@@ -140,10 +140,13 @@ Pour le Courrier : Général, Expéditeur, En-tête. Les deux premiers sont des
 formulaires ; le dernier est une zone composée de sections décrites par le type,
 avec les informations propres au document. Ces contrôles éditent les valeurs
 structurées existantes, sans duplication dans le corps ni dépendance aux fonctions
-internes des modèles. Pour les futurs articles : titre, auteurs, affiliations,
-résumé riche et mots-clés ; préciser les capacités autorisées par zone. La
+internes des modèles. Pour l’Article : Général, Titres (titre, sous-titre et titre
+court par langue), Affiliations, Auteurs et Résumés (résumé riche et mots-clés par
+langue). Les mêmes enregistrements multilingues alimentent Titres et Résumés.
+Les ajouts par + sont provisoires jusqu’à validation et annulables par Échap ;
+ils ne sont pas diffusés ni sauvegardés avant confirmation. La
 [décision détaillée](docs/types-modeles-libertes.md#interface-de-len-tête--décision-du-27-octobre-2026)
-sert de référence ; le résumé riche et les auteurs multiples restent à réaliser.
+et le [contrat Article](docs/article-contract.md) servent de référence.
 
 **Décisions à mettre en œuvre et arbitrages avant refonte :**
 

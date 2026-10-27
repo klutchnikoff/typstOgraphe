@@ -87,16 +87,32 @@ annulation, éditions concurrentes, sauvegarde/réouverture et export hors ligne
 
 À la création d’un document, choisir **Article**, puis **Article de travail**.
 L’onglet Général conserve modèle, papier, orientation et langue principale.
-L’onglet En-tête présente les titres de cette langue, puis les auteurs,
-affiliations et ensembles linguistiques. Ajouter une affiliation une seule fois,
-puis la cocher pour chacun de ses auteurs. Les flèches changent l’ordre sans
-changer les identifiants ; les corbeilles demandent confirmation. Une affiliation
-utilisée ne peut être supprimée qu’avec le retrait explicite de ses associations.
+Les onglets **Titres**, **Affiliations**, **Auteurs** et **Résumés** séparent les
+informations éditoriales. Titres présente, pour chaque langue, le titre, le
+sous-titre et le titre court ; Résumés présente le résumé et les mots-clés des
+mêmes ensembles linguistiques. Leur séparation visuelle ne duplique aucune donnée.
+L’ensemble de la langue principale est ouvert par défaut dans ces deux onglets.
+Ajouter une affiliation une seule fois, puis la cocher pour chacun de ses auteurs.
+Les flèches changent l’ordre sans changer les identifiants ; les corbeilles demandent
+confirmation. Une affiliation utilisée ne peut être supprimée qu’avec le retrait
+explicite de ses associations.
+
+Un bouton **+** termine chaque ligne d’auteur, d’affiliation ou de langue. Il
+prépare une entrée juste après cette ligne ; une collection vide présente seulement
+ce bouton. Le formulaire d’ajout prend le focus. **Valider** publie l’entrée entière
+en une seule action annulable ; **Échap** ou **Annuler** l’abandonne et remet le
+focus sur le bouton d’ajout. Entrée valide depuis un champ texte simple ; les
+zones riches conservent leurs règles de saisie. Changer d’onglet abandonne aussi
+l’ajout non validé. Les ajouts provisoires restent locaux : ils ne sont ni diffusés
+aux collaborateurs, ni inclus dans les fichiers ou exports, ni ajoutés à
+l’historique commun. L’annulation ne touche pas aux éditions reçues entre-temps.
 Le résumé possède une zone riche, avec gras, italique et liens via le bandeau
 commun. Les mots-clés sont saisis un par ligne, y compris les expressions longues.
 
 Les collections sont décrites en Rust, traduites par Fluent et présentées par des
-composants génériques. Les [profils de zones riches](rich-zones.md) centralisent
+composants génériques. Le descripteur `panels` associe chaque onglet à une collection
+et, si nécessaire, à certains de ses champs : aucune liste de champs Article n’est
+recopiée dans l’interface. Les [profils de zones riches](rich-zones.md) centralisent
 la création, le schéma et les comportements de saisie des titres et résumés.
 Dans Yjs, chaque enregistrement possède ses champs propres :
 `Y.Text` pour les textes libres, `Y.XmlFragment` pour les zones riches, valeurs
