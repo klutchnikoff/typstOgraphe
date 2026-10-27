@@ -71,8 +71,12 @@ export function inlineObjectView(options: {
       open()
     }
   })
-  const describe = (text: string) => {
-    dom.title = text ? `${options.title} : ${text}` : options.title
+  const describe = (text: string, number?: number) => {
+    const suffix = number === undefined ? '' : ` ${number}`
+    const label = `${options.label}${suffix}`
+    if (dom.textContent !== label) dom.textContent = label
+    const title = `${options.title}${suffix}`
+    dom.title = text ? `${title} : ${text}` : title
     dom.setAttribute('aria-label', dom.title)
   }
   return { dom, describe }

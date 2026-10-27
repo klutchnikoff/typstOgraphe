@@ -20,6 +20,7 @@ import { DocumentInput } from './editing'
 import { DocumentWhitespace } from './document-whitespace'
 import { ContextBand } from './band-layout'
 import { inlineObjectView } from './inline-objects'
+import { InlineObjectNumbering, inlineObjectNumber } from './inline-object-numbering'
 
 export function baseExtensions(
   imageURL: (path: string) => string,
@@ -31,6 +32,7 @@ export function baseExtensions(
     ContextBand,
     DocumentInput,
     DocumentWhitespace,
+    InlineObjectNumbering.configure({ kinds: ['footnote'] }),
     ListItem.extend({ content: 'paragraph+' }),
     ...simpleWidgets(properties, presentations),
     // Comme dans l'éditeur existant : une fin de ligne reste dans le paragraphe.
@@ -109,7 +111,7 @@ export function baseExtensions(
       ],
       addNodeView:
         () =>
-        ({ node, getPos, editor }) => {
+        ({ node, getPos, editor, decorations }) => {
           const badge = inlineObjectView({
             editor,
             getPos,
@@ -119,12 +121,12 @@ export function baseExtensions(
             title: tr('Note de bas de page'),
             open: properties,
           })
-          badge.describe(node.attrs.text)
+          badge.describe(node.attrs.text, inlineObjectNumber(decorations))
           return {
             dom: badge.dom,
-            update(next) {
+            update(next, decorations) {
               if (next.type.name !== 'footnote') return false
-              badge.describe(next.attrs.text)
+              badge.describe(next.attrs.text, inlineObjectNumber(decorations))
               return true
             },
           }
