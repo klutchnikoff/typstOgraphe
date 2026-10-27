@@ -1,9 +1,11 @@
+import { actionRow, keyboardScope } from './keyboard-navigation'
 /** Shared panel anatomy. Only body and actions belong to a capability/corrector. */
 export function contextPanel(options: {
   id: string
   closeLabel: string
   close: () => void
   canConfirm: () => boolean
+  tabExit?: () => void
   titleId?: string
   closeId?: string
   errorId?: string
@@ -28,8 +30,7 @@ export function contextPanel(options: {
   header.append(title, close)
   const body = document.createElement('div')
   body.className = 'context-panel-body'
-  const actions = document.createElement('div')
-  actions.className = 'panel-actions'
+  const actions = actionRow()
   const error = document.createElement('p')
   error.setAttribute('role', 'alert')
   if (options.errorId) error.id = options.errorId
@@ -77,6 +78,16 @@ export function contextPanel(options: {
       button.dataset.default = ''
     },
   }
+  keyboardScope(element, {
+    close: options.close,
+    confirm: () => panel.submit(),
+    canConfirm: options.canConfirm,
+    tab: true,
+    tabExit: options.tabExit,
+    enterMultiline: true,
+    priority: 20,
+    initialGroup: () => body.querySelector('[data-default-navigation]'),
+  })
   element.onsubmit = (event) => {
     event.preventDefault()
     panel.submit()

@@ -87,52 +87,7 @@ export class BandHost {
       if (transaction.docChanged) this.reanchor = true
       this.schedule()
     })
-    const keyboard = (event: KeyboardEvent) => {
-      if (!this.panel || event.isComposing || editor.view.composing) return
-      if (
-        event.key === 'Tab' &&
-        !event.altKey &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        this.panel.contains(event.target as Node)
-      ) {
-        // WebKit/macOS may skip buttons in native Tab navigation. Keep our controls reachable.
-        const controls = [
-          ...this.panel.querySelectorAll<HTMLElement>(
-            'button, input, textarea, select, [tabindex]',
-          ),
-        ].filter(
-          (control) =>
-            control.tabIndex >= 0 &&
-            !control.matches(':disabled') &&
-            control.getClientRects().length > 0,
-        )
-        const index = controls.indexOf(document.activeElement as HTMLElement)
-        const next = controls[index + (event.shiftKey ? -1 : 1)]
-        event.preventDefault()
-        event.stopImmediatePropagation()
-        if (next) next.focus()
-        else this.editor.view.focus()
-        return
-      }
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        event.stopImmediatePropagation()
-        this.close()
-      } else if (
-        event.key === 'Enter' &&
-        !event.shiftKey &&
-        this.panel.contains(event.target as Node)
-      ) {
-        event.preventDefault()
-        event.stopImmediatePropagation()
-        if (event.target instanceof HTMLButtonElement) event.target.click()
-        else this.panel.requestSubmit()
-      }
-    }
-    document.addEventListener('keydown', keyboard, true)
     editor.on('destroy', () => {
-      document.removeEventListener('keydown', keyboard, true)
       this.observer.disconnect()
       cancelAnimationFrame(this.frame)
       this.layer.remove()

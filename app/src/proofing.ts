@@ -1,3 +1,4 @@
+import { navigationGroup } from './keyboard-navigation'
 import { tr } from './i18n'
 import { Extension, type Editor } from '@tiptap/core'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
@@ -226,6 +227,7 @@ export function mountProofing(
       closeLabel: tr('Fermer la correction'),
       close,
       canConfirm: () => !editor.view.composing,
+      tabExit: () => editor.view.focus(),
     })
     const band = panel.element
     const kind = document.createElement('span')
@@ -234,6 +236,8 @@ export function mountProofing(
     panel.title.append(kind, document.createTextNode(`« ${issue.word} »`))
     const choices = document.createElement('div')
     choices.className = 'suggestions'
+    choices.dataset.defaultNavigation = ''
+    navigationGroup(choices, { axis: 'both', roving: true })
     choices.textContent = tr('Recherche de suggestions…')
     panel.body.append(choices)
     const target = () => bands.forPanel(band)

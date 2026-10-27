@@ -1,3 +1,4 @@
+import { actionRow, keyboardScope, navigationGroup } from './keyboard-navigation'
 import { commandPalette } from './command-palette'
 import { searchPanel, navigateSearch } from './search-panel'
 import { preferencesPanel, type Preferences } from './preferences-panel'
@@ -123,6 +124,7 @@ export async function mountShell(s: Shell) {
   side.className = 'side-rail'
   side.setAttribute('aria-label', 'Panneaux de l’application')
   workspace.append(side)
+  navigationGroup(side, { axis: 'vertical' })
   const panel = document.createElement('aside')
   panel.className = 'side-panel'
   panel.hidden = true
@@ -143,6 +145,33 @@ export async function mountShell(s: Shell) {
     '<div class="metadata-tabs"><strong id="document-type-label"></strong><div id="metadata-tabs"></div></div><div id="metadata-content" hidden></div>'
   document.querySelector('.document-info')!.replaceWith(context)
   let tab: string | null = null
+  keyboardScope(panel, {
+    close: () => {
+      panel.hidden = true
+      searchState(editor, '')
+      editor.commands.focus()
+    },
+    priority: 10,
+    tab: true,
+  })
+  keyboardScope(overlay, {
+    close: () => overlay.close(),
+    priority: 30,
+    confirm: () => overlay.querySelector<HTMLButtonElement>('[data-default]')?.click(),
+    tab: true,
+  })
+  keyboardScope(context, {
+    close: () => {
+      const previous = tab
+      tab = null
+      renderMetadata()
+      document.getElementById(`metadata-tab-${previous}`)?.focus()
+    },
+    active: () => tab !== null,
+    priority: 5,
+  })
+  navigationGroup($('metadata-tabs'), { axis: 'horizontal', roving: true, activateOnMove: true })
+  navigationGroup(menu, { axis: 'horizontal' })
   const guarded = (task: () => Promise<unknown> | void) => {
     try {
       const result = task()
@@ -210,8 +239,7 @@ export async function mountShell(s: Shell) {
     text.textContent = tr(
       'Enregistrez le document avant de le remplacer, ou abandonnez les modifications de cette session.',
     )
-    const buttons = document.createElement('div')
-    buttons.className = 'panel-actions'
+    const buttons = actionRow()
     for (const [label, style, action] of [
       [
         tr('Abandonner'),
@@ -236,6 +264,7 @@ export async function mountShell(s: Shell) {
       const b = document.createElement('button')
       b.textContent = label
       b.className = style
+      if (style === 'primary') b.dataset.default = ''
       b.onclick = action
       buttons.append(b)
     }
@@ -315,13 +344,13 @@ export async function mountShell(s: Shell) {
     }
     type.onchange = fill
     fill()
-    const controls = document.createElement('div')
-    controls.className = 'panel-actions'
+    const controls = actionRow()
     const cancel = document.createElement('button')
     cancel.textContent = tr('Annuler')
     cancel.onclick = () => overlay.close()
     const submit = document.createElement('button')
     submit.className = 'primary'
+    submit.dataset.default = ''
     submit.textContent = tr('Créer')
     submit.onclick = () => {
       const t = types.find((t) => t.id === type.value)!,
@@ -379,6 +408,7 @@ export async function mountShell(s: Shell) {
     for (const group of [{ id: 'general', label: tr('Général') }, ...kind.groups]) {
       const button = document.createElement('button')
       button.textContent = group.label
+      button.id = `metadata-tab-${group.id}`
       button.setAttribute('aria-pressed', String(tab === group.id))
       button.onclick = () => {
         tab = tab === group.id ? null : group.id
@@ -489,8 +519,7 @@ export async function mountShell(s: Shell) {
         }
       }
     if (tab === 'sender') {
-      const actions = document.createElement('div')
-      actions.className = 'panel-actions'
+      const actions = actionRow()
       for (const [label, value] of [
         [tr('Sans signature'), null],
         [tr('Signature des préférences'), preferences.signature?.path || null],
@@ -745,18 +774,6 @@ export async function mountShell(s: Shell) {
     'keydown',
     (event) => {
       if (event.isComposing) return
-      if (event.key === 'Escape') {
-        if (overlay.open) overlay.close()
-        else if (!panel.hidden) {
-          panel.hidden = true
-          searchState(editor, '')
-          editor.commands.focus()
-        } else {
-          tab = null
-          renderMetadata()
-        }
-        return
-      }
       if (!(event.metaKey || event.ctrlKey)) return
       const key = `Mod+${event.shiftKey ? 'Shift+' : ''}${event.key.length === 1 ? event.key.toUpperCase() : event.key}`
       for (const command of commands.values())
@@ -791,8 +808,7 @@ export async function mountShell(s: Shell) {
     const close = document.createElement('button')
     close.textContent = tr('Annuler')
     close.onclick = () => overlay.close()
-    const actions = document.createElement('div')
-    actions.className = 'panel-actions'
+    const actions = actionRow()
     actions.append(close)
     overlay.append(title, body, actions)
     overlay.showModal()

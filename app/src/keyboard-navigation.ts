@@ -18,7 +18,7 @@ export function visible(element: HTMLElement) {
 function available(element: HTMLElement) {
   return visible(element) && !element.matches(':disabled, [aria-disabled="true"]')
 }
-function field(element: EventTarget | null) {
+export function editingControl(element: EventTarget | null) {
   if (!(element instanceof Element)) return false
   const editable = element.closest('[contenteditable]')
   return (
@@ -117,7 +117,7 @@ function createNavigation(root: HTMLElement, options: NavigationOptions) {
   }
   const handle = (event: KeyboardEvent) => {
     if (event.defaultPrevented || !plain(event) || (event.shiftKey && event.key !== 'Enter')) return
-    if (event.target !== options.input && field(event.target)) return
+    if (event.target !== options.input && editingControl(event.target)) return
     const arrows =
       options.axis === 'vertical'
         ? ['ArrowUp', 'ArrowDown']
@@ -171,7 +171,7 @@ function createNavigation(root: HTMLElement, options: NavigationOptions) {
     }
   }
   const focus = (event: FocusEvent) => {
-    const item = items().find((item) => item === event.target)
+    const item = items().find((item) => event.target instanceof Node && item.contains(event.target))
     if (item) select(item)
   }
   const pointer = (event: MouseEvent) => {

@@ -1,3 +1,4 @@
+import { navigationGroup } from './keyboard-navigation'
 import type { ViewMutationRecord } from '@tiptap/pm/view'
 import { icon, availableIcon } from './icons'
 import { tr } from './i18n'
@@ -47,6 +48,7 @@ export function widgetFrame(
   const bar = document.createElement('div')
   bar.className = 'widget-bar'
   bar.contentEditable = 'false'
+  navigationGroup(bar, { axis: 'horizontal' })
   const title = document.createElement('span')
   const label = widgetLabel(kind)
   title.title = label

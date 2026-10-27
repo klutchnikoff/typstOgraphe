@@ -1,3 +1,4 @@
+import { navigationGroup } from './keyboard-navigation'
 import { tr } from './i18n'
 import { createTable } from '@tiptap/extension-table'
 import { widgetTarget } from './widgets'
@@ -139,6 +140,7 @@ export function createRegistry(
 }
 export function toolbar(element: HTMLElement, registry: Registry, capabilities: Capability[]) {
   element.replaceChildren()
+  navigationGroup(element, { axis: 'horizontal' })
   const button = (command: PublicCommand) => {
     const el = document.createElement('button')
     el.type = 'button'

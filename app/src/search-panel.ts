@@ -1,3 +1,4 @@
+import { actionRow, composing, navigationGroup } from './keyboard-navigation'
 import type { Editor } from '@tiptap/core'
 import { tr } from './i18n'
 import { searchState } from './proofing'
@@ -23,7 +24,24 @@ export function searchPanel(content: HTMLElement, editor: Editor) {
   const replacement = document.createElement('input')
   replacement.placeholder = tr('Remplacer par')
   replacement.setAttribute('aria-label', tr('Remplacer par'))
+  let lastDocument = editor.state.doc
   const results = document.createElement('div')
+  const selectMatch = (button: HTMLElement) => {
+    const from = Number(button.dataset.from),
+      to = Number(button.dataset.to)
+    if (matches().some((hit) => hit.from === from && hit.to === to))
+      editor.chain().setTextSelection({ from, to }).scrollIntoView().run()
+  }
+  const navigation = navigationGroup(results, {
+    axis: 'vertical',
+    input: query,
+    initial: false,
+    beforeNavigate: () => {
+      if (lastDocument !== editor.state.doc) fill()
+    },
+    enter: false,
+    onSelect: selectMatch,
+  })
   const insensitive = document.createElement('input')
   insensitive.type = 'checkbox'
   insensitive.checked = true
@@ -31,19 +49,17 @@ export function searchPanel(content: HTMLElement, editor: Editor) {
   label.append(insensitive, document.createTextNode(tr(' Ignorer la casse')))
   const matches = () => searchState(editor, query.value, insensitive.checked)
   const fill = () => {
+    lastDocument = editor.state.doc
     results.replaceChildren()
     for (const match of matches()) {
       const button = document.createElement('button')
+      button.type = 'button'
+      button.dataset.from = String(match.from)
+      button.dataset.to = String(match.to)
       button.textContent = match.word
-      button.onclick = () =>
-        editor
-          .chain()
-          .focus()
-          .setTextSelection({ from: match.from, to: match.to })
-          .scrollIntoView()
-          .run()
       results.append(button)
     }
+    navigation.refresh(true)
   }
   const replacementContent = () =>
     replacement.value ? { type: 'text', text: replacement.value } : []
@@ -68,21 +84,32 @@ export function searchPanel(content: HTMLElement, editor: Editor) {
   }
   query.oninput = fill
   query.onkeydown = (event) => {
-    if (event.key === 'Enter' && !event.isComposing) {
+    if (
+      event.key === 'Enter' &&
+      !composing(event) &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
       event.preventDefault()
+      if (lastDocument !== editor.state.doc) fill()
       navigateSearch(editor, event.shiftKey, false)
+      navigation.select(
+        [...results.children].find(
+          (button) => Number((button as HTMLElement).dataset.from) === editor.state.selection.from,
+        ) as HTMLElement | undefined,
+      )
     }
   }
   insensitive.onchange = fill
-  const actions = document.createElement('div')
-  actions.className = 'panel-actions'
+  const actions = actionRow()
   actions.append(all, current)
   const previous = document.createElement('button')
   previous.textContent = tr('Occurrence précédente')
-  previous.onclick = () => navigateSearch(editor, true)
+  previous.onclick = () => navigateSearch(editor, true, false)
   const next = document.createElement('button')
   next.textContent = tr('Occurrence suivante')
-  next.onclick = () => navigateSearch(editor)
+  next.onclick = () => navigateSearch(editor, false, false)
   actions.prepend(previous, next)
   content.append(query, replacement, label, actions, results)
   query.focus()

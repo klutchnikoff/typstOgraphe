@@ -1,3 +1,4 @@
+import { actionRow } from './keyboard-navigation'
 import { tr } from './i18n'
 import { icon } from './icons'
 import { Editor, type JSONContent } from '@tiptap/core'
@@ -90,8 +91,7 @@ export function mountAssistance(
           content.append(text)
         })
       }
-      const actions = document.createElement('div')
-      actions.className = 'panel-actions'
+      const actions = actionRow()
       actions.append(connect)
       content.append(paragraph, actions)
       return
@@ -102,8 +102,7 @@ export function mountAssistance(
     revoke.onclick = () => {
       void transport.invoke('agent_revoke').then(show)
     }
-    const connectionActions = document.createElement('div')
-    connectionActions.className = 'panel-actions'
+    const connectionActions = actionRow()
     connectionActions.append(revoke)
     content.append(connectionActions)
     const p = state.proposal
@@ -148,8 +147,7 @@ export function mountAssistance(
       content.append(status)
       return
     }
-    const actions = document.createElement('div')
-    actions.className = 'panel-actions'
+    const actions = actionRow()
     const reject = document.createElement('button')
     reject.textContent = tr('Refuser le lot')
     reject.className = 'danger'

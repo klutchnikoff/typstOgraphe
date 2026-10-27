@@ -1,4 +1,4 @@
-import { composing, navigateGroup, navigationGroup } from './keyboard-navigation'
+import { composing, editingControl, navigateGroup, navigationGroup } from './keyboard-navigation'
 
 /** Every .tool-menu, including menus created later, receives the same contract. */
 export function installMenus(root: Document = document) {
@@ -49,6 +49,7 @@ export function installMenus(root: Document = document) {
     if (
       current &&
       !summary &&
+      !editingControl(target) &&
       parent?.dataset.keyboardAxis === 'horizontal' &&
       ['ArrowLeft', 'ArrowRight'].includes(event.key)
     ) {

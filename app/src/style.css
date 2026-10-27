@@ -806,7 +806,7 @@ main {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.command-palette-results [aria-selected='true'] {
+[role='listbox'] [aria-selected='true'] {
   color: var(--accent);
   background: var(--soft);
   border-color: var(--accent);

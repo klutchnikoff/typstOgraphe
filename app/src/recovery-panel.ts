@@ -1,3 +1,4 @@
+import { actionRow, navigationGroup } from './keyboard-navigation'
 import { tr } from './i18n'
 import type { Transport } from './provider'
 
@@ -15,6 +16,7 @@ export async function recoveryPanel(
 ) {
   const body = document.createElement('div')
   content.replaceChildren(body)
+  navigationGroup(body, { axis: 'vertical', items: ':scope > section' })
   const fill = async () => {
     const entries = await transport.invoke<Entry[]>('recovery_list')
     if (content.firstChild !== body) return
@@ -25,6 +27,7 @@ export async function recoveryPanel(
     }
     for (const entry of entries) {
       const row = document.createElement('section')
+      row.tabIndex = 0
       const title = document.createElement('p')
       title.textContent = entry.name
       const detail = document.createElement('p')
@@ -35,8 +38,7 @@ export async function recoveryPanel(
               document.documentElement.lang || undefined,
             )
           : '')
-      const actions = document.createElement('div')
-      actions.className = 'panel-actions'
+      const actions = actionRow()
       const remove = document.createElement('button')
       remove.className = 'danger'
       remove.textContent = tr('Supprimer la copie')

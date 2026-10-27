@@ -1,3 +1,4 @@
+import { actionRow, keyboardScope, navigationGroup } from './keyboard-navigation'
 import { tr } from './i18n'
 import type { Catalogue } from './shell'
 import type { Resource, Transport } from './provider'
@@ -23,6 +24,7 @@ export function preferencesPanel(
   failed: (error: unknown) => void,
 ) {
   const form = document.createElement('form')
+  keyboardScope(form, { confirm: () => form.requestSubmit(), tab: true })
   const fields: HTMLElement[] = []
   const addField = (label: string, input: HTMLElement) => {
     input.setAttribute('aria-label', label)
@@ -60,6 +62,9 @@ export function preferencesPanel(
   spelling.checked = preferences.spelling_enabled !== false
   addField(tr('Correction orthographique'), spelling)
   const personal = structuredClone(preferences.personal || {})
+  const dictionary = document.createElement('div')
+  navigationGroup(dictionary, { axis: 'vertical' })
+  fields.push(dictionary)
   for (const [language, words] of Object.entries(personal)) {
     for (const word of words) {
       const row = document.createElement('div')
@@ -74,7 +79,7 @@ export function preferencesPanel(
         row.remove()
       }
       row.append(label, remove)
-      fields.push(row)
+      dictionary.append(row)
     }
   }
   const profileInputs = new Map<string, HTMLInputElement | HTMLTextAreaElement>()
@@ -111,8 +116,7 @@ export function preferencesPanel(
   save.type = 'submit'
   save.className = 'primary'
   save.textContent = tr('Enregistrer les préférences')
-  const actions = document.createElement('div')
-  actions.className = 'panel-actions'
+  const actions = actionRow()
   actions.append(save)
   form.append(...fields, actions)
   form.onsubmit = (e) => {

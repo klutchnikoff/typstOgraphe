@@ -1,3 +1,4 @@
+import { navigationGroup } from './keyboard-navigation'
 import { getMarkRange, type Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import type { BandHost } from './band-layout'
@@ -24,6 +25,7 @@ export function propertyPanel(
     closeLabel: tr('Fermer les paramètres'),
     close: () => bands.close(),
     canConfirm: () => !editor.view.composing,
+    tabExit: () => editor.view.focus(),
   })
   const form = panel.element
   const group = document.createElement('div')
@@ -31,6 +33,7 @@ export function propertyPanel(
   group.className = 'segmented'
   group.role = 'radiogroup'
   group.setAttribute('aria-label', tr('Type de liste'))
+  navigationGroup(group, { axis: 'horizontal', roving: true, activateOnMove: true })
   const fieldsRoot = document.createElement('div')
   const hint = document.createElement('p')
   hint.className = 'band-hint'
@@ -102,14 +105,6 @@ export function propertyPanel(
         current.selected = kind
         render()
         group.querySelector<HTMLElement>('[aria-checked=true]')?.focus()
-      }
-      button.onkeydown = (event) => {
-        if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return
-        event.preventDefault()
-        const next =
-          (index + (event.key === 'ArrowLeft' ? contract.conversions.length - 1 : 1)) %
-          contract.conversions.length
-        ;(group.children[next] as HTMLButtonElement).click()
       }
       group.append(button)
     }
