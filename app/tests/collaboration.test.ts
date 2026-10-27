@@ -82,6 +82,8 @@ async function client(host: Host, id: string) {
     element: document.createElement('div'),
     extensions: await collaborativeExtensions(provider, () => {}),
   })
+  if (!editor.isInitialized)
+    await new Promise<void>((resolve) => editor.once('create', () => resolve()))
   cleanup.push(() => editor.destroy())
   yUndoPluginKey.getState(editor.state)?.undoManager.clear()
   return { provider, editor }
@@ -158,6 +160,44 @@ describe('deux éditeurs structurés et deux Y.Doc indépendants', () => {
     a.editor.commands.keyboardShortcut('Shift-Enter')
     expect(a.editor.getJSON().content?.[1].content?.at(-1)?.type).toBe('hardBreak')
   })
+  it.each(['main', 'peer-1'])(
+    'conserve une seule ligne de reprise après deux saisies concurrentes et une annulation par %s',
+    async (author) => {
+      const host = new Host(),
+        a = await client(host, 'main'),
+        b = await client(host, 'peer-1')
+      a.editor.commands.setContent('<p>Début</p>')
+      await flush(a, b)
+      await b.provider.disconnect()
+      for (const [peer, text] of [
+        [a, 'ALPHA'],
+        [b, 'BETA'],
+      ] as const) {
+        yUndoPluginKey.getState(peer.editor.state)?.undoManager.stopCapturing()
+        peer.editor.commands.insertContentAt(peer.editor.state.doc.content.size - 1, text)
+      }
+      await b.provider.reconnect()
+      await flush(a, b)
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      await flush(a, b)
+      expect(stableJSON(a.editor.getJSON())).toBe(stableJSON(b.editor.getJSON()))
+      expect(a.editor.getText()).toContain('ALPHA')
+      expect(a.editor.getText().match(/BETA/g)).toHaveLength(1)
+      expect(a.editor.state.doc.lastChild!.content.size).toBe(0)
+      expect(
+        a.editor.state.doc.child(a.editor.state.doc.childCount - 2).content.size,
+      ).toBeGreaterThan(0)
+
+      const undoing = author === 'main' ? a : b
+      undoing.editor.commands.undo()
+      await new Promise((resolve) => setTimeout(resolve, 10))
+      await flush(a, b)
+      expect(a.editor.getText()).toContain(author === 'main' ? 'BETA' : 'ALPHA')
+      expect(a.editor.getText()).not.toContain(author === 'main' ? 'ALPHA' : 'BETA')
+      expect(stableJSON(a.editor.getJSON())).toBe(stableJSON(b.editor.getJSON()))
+      expect(host.updates.length).toBeLessThan(20)
+    },
+  )
   it('initialise une seule fois et conserve tableaux, notes et légendes', async () => {
     const host = new Host(),
       a = await client(host, 'main'),

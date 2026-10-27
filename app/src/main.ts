@@ -1,5 +1,7 @@
 import { initializeUI, tr } from './i18n'
 import { Editor, getSchema, type JSONContent } from '@tiptap/core'
+import { EditorState } from '@tiptap/pm/state'
+import { normalizeWhitespace } from './document-whitespace'
 import { prosemirrorJSONToYDoc, yUndoPluginKey } from '@tiptap/y-tiptap'
 import * as Y from 'yjs'
 import { invoke } from '@tauri-apps/api/core'
@@ -358,6 +360,9 @@ async function start() {
       preview?.selection()
     },
   })
+  // Finish extension initialization before installing dirty tracking or publishing readiness.
+  if (!editor.isInitialized)
+    await new Promise<void>((resolve) => editor.once('create', () => resolve()))
   const bands = new BandHost(editor)
   const openContext = () => {
     if (editor.view.composing) return false
@@ -430,8 +435,11 @@ async function start() {
   yUndoPluginKey.getState(editor.state)?.undoManager.clear()
   if (
     bootstrap.restoredDocument &&
-    (stableJSON(schema.nodeFromJSON(bootstrap.restoredDocument).toJSON()) !==
-      stableJSON(editor.getJSON()) ||
+    (stableJSON(
+      normalizeWhitespace(
+        EditorState.create({ doc: schema.nodeFromJSON(bootstrap.restoredDocument) }).tr,
+      ).doc.toJSON(),
+    ) !== stableJSON(normalizeWhitespace(editor.state.tr).doc.toJSON()) ||
       stableJSON(bootstrap.settings) !== stableJSON(settingsFor(provider)))
   ) {
     restoringError = true

@@ -17,6 +17,7 @@ import { widgetFrame, type WidgetPresentations } from './widget-frame'
 import { tr } from './i18n'
 import { Proofing } from './proofing'
 import { DocumentInput } from './editing'
+import { DocumentWhitespace } from './document-whitespace'
 import { ContextBand } from './band-layout'
 
 export function baseExtensions(
@@ -28,6 +29,7 @@ export function baseExtensions(
     Proofing,
     ContextBand,
     DocumentInput,
+    DocumentWhitespace,
     ListItem.extend({ content: 'paragraph+' }),
     ...simpleWidgets(properties, presentations),
     // Comme dans l'éditeur existant : une fin de ligne reste dans le paragraphe.

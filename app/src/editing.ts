@@ -4,6 +4,7 @@ import type { Node as PMNode } from '@tiptap/pm/model'
 import { Plugin, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { widgetTarget, resumeAfterWidget } from './widgets'
+import { lineBreak } from './document-whitespace'
 
 export type ListKind = 'bulletList' | 'orderedList' | 'descriptionList'
 export const listKinds: ListKind[] = ['bulletList', 'orderedList', 'descriptionList']
@@ -180,12 +181,39 @@ function backspaceInList(editor: Editor) {
     editor.commands.setTextSelection(TextSelection.near(editor.state.doc.resolve(before), -1))
   return true
 }
+/** Reuse an existing line on either side of a paragraph boundary as well as inline. */
+function lineAhead(editor: Editor) {
+  const { empty, $from } = editor.state.selection
+  if (!empty) return null
+  if (lineBreak($from.nodeAfter)) return $from.pos + $from.nodeAfter!.nodeSize
+  if (!$from.parent.isTextblock || $from.parentOffset !== $from.parent.content.size) return null
+  const parent = $from.node($from.depth - 1)
+  if (!['doc', 'quote'].includes(parent.type.name)) return null
+  const index = $from.index($from.depth - 1) + 1,
+    next = parent.maybeChild(index)
+  if (next?.type.name !== 'paragraph') return null
+  // The final resume paragraph is a placeholder: a first return must remain a Typst space.
+  if (parent.type.name === 'doc' && index === parent.childCount - 1 && !next.content.size)
+    return null
+  return $from.after() + 1
+}
 export const DocumentInput = Extension.create({
   name: 'documentInput',
   priority: 1100,
   addKeyboardShortcuts() {
     return {
       Backspace: () => !this.editor.view.composing && backspaceInList(this.editor),
+      'Shift-Enter': () => {
+        if (this.editor.view.composing) return false
+        const { empty, $from } = this.editor.state.selection
+        const ahead = lineAhead(this.editor)
+        if (ahead !== null) {
+          this.editor.commands.setTextSelection(ahead)
+          return true
+        }
+        if (empty && (lineBreak($from.nodeBefore) || !$from.parent.content.size)) return true
+        return this.editor.commands.setHardBreak()
+      },
       Enter: () => {
         if (this.editor.view.composing) return false
         const { selection } = this.editor.state,
@@ -212,7 +240,12 @@ export const DocumentInput = Extension.create({
         const parent = $from.node($from.depth - 1).type.name
         if (!['doc', 'quote'].includes(parent)) return false
         if (!$from.parent.content.size && selection.empty) return true
-        if (selection.empty && $from.nodeBefore?.type.name === 'softBreak') {
+        const ahead = lineAhead(this.editor)
+        if (ahead !== null) {
+          this.editor.commands.setTextSelection(ahead)
+          return true
+        }
+        if (selection.empty && lineBreak($from.nodeBefore)) {
           const pos = $from.pos - 1
           const tr = this.editor.state.tr
             .delete(pos, $from.pos)
@@ -259,7 +292,13 @@ export const DocumentInput = Extension.create({
                   index &&
                   node.type.name === 'paragraph' &&
                   parent.child(index - 1).type.name === 'paragraph' &&
-                  parent.child(index - 1).content.size > 0
+                  parent.child(index - 1).content.size > 0 &&
+                  !(
+                    parent.type.name === 'doc' &&
+                    index === parent.childCount - 1 &&
+                    node.content.size === 0 &&
+                    state.selection.from !== pos + 2 + offset
+                  )
                 )
                   markers.push(
                     Decoration.widget(

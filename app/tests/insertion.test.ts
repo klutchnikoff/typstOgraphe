@@ -49,6 +49,7 @@ describe.each(widgets)('insertion de %s', (kind) => {
         [kind, ''],
         ['paragraph', ''],
         ['paragraph', 'AvantAprès'],
+        ['paragraph', ''],
       ],
     ],
     [
@@ -59,6 +60,7 @@ describe.each(widgets)('insertion de %s', (kind) => {
         [kind, ''],
         ['paragraph', ''],
         ['paragraph', 'Après'],
+        ['paragraph', ''],
       ],
     ],
     [
@@ -86,6 +88,7 @@ describe.each(widgets)('insertion de %s', (kind) => {
       [kind, ''],
       ['paragraph', ''],
       ['paragraph', 'Suite'],
+      ['paragraph', ''],
     ])
   })
 })
@@ -112,6 +115,7 @@ it('un retour simple ne laisse pas de ligne vide avant le tableau', () => {
     ['table', ''],
     ['paragraph', ''],
     ['paragraph', 'Après'],
+    ['paragraph', ''],
   ])
   expect(e.state.doc.firstChild!.lastChild!.type.name).toBe('text')
 })
@@ -124,9 +128,12 @@ it('le texte non sélectionné conserve sa mise en forme de part et d’autre', 
     ['quote', ''],
     ['paragraph', ''],
     ['paragraph', 'Après'],
+    ['paragraph', ''],
   ])
   expect(e.state.doc.firstChild!.firstChild!.marks[0].type.name).toBe('bold')
-  expect(e.state.doc.lastChild!.firstChild!.marks[0].type.name).toBe('italic')
+  expect(e.state.doc.child(e.state.doc.childCount - 2).firstChild!.marks[0].type.name).toBe(
+    'italic',
+  )
 })
 it('ne sort pas implicitement d’une cellule pour insérer un autre widget', () => {
   const e = editor('<p></p>')
