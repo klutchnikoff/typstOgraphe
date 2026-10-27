@@ -1365,10 +1365,6 @@ li:has(.interline-band-gap[data-marker])::marker {
   display: grid;
   gap: 12px;
 }
-.metadata-primary-fields {
-  display: grid;
-  gap: 8px;
-}
 .metadata-record-section .metadata-section-fields {
   display: block;
 }
@@ -1423,7 +1419,8 @@ li:has(.interline-band-gap[data-marker])::marker {
   gap: 6px;
   color: var(--text);
 }
-.metadata-record-deletion .properties {
+.metadata-record-deletion .properties,
+.metadata-record-draft.properties {
   position: static;
   box-shadow: none;
   width: 100%;
@@ -1476,4 +1473,27 @@ li:has(.interline-band-gap[data-marker])::marker {
 }
 #metadata-content {
   position: relative;
+}
+
+.metadata-record-empty-actions {
+  margin: 0;
+}
+.metadata-record-empty-actions button {
+  padding: 4px;
+}
+.metadata-record-empty-actions svg {
+  width: 15px;
+  height: 15px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }

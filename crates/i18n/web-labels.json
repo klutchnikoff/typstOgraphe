@@ -195,5 +195,6 @@
   "Un mot-clé par ligne ; les expressions peuvent contenir des espaces.": "web-keyword-lines",
   "Retirer aussi les associations à cette affiliation.": "web-detach-affiliation",
   "L’ensemble de la langue principale doit être conservé.": "web-keep-primary-localization",
-  "Cette affiliation est utilisée. Confirmez le retrait de ses associations.": "web-affiliation-in-use"
+  "Cette affiliation est utilisée. Confirmez le retrait de ses associations.": "web-affiliation-in-use",
+  "Cette langue est déjà présente.": "web-language-already-present"
 }

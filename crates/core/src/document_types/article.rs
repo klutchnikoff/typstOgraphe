@@ -269,17 +269,39 @@ impl Metadata {
     }
 }
 pub const SIGNATURE: &str = "article(localizations, authors, affiliations, options, body)";
-pub const GROUPS: &[FieldGroup] = &[FieldGroup {
-    id: "header",
-    label_key: "group-editorial-header",
-    sections: &[],
-}];
+pub const GROUPS: &[FieldGroup] = &[
+    FieldGroup {
+        id: "titles",
+        label_key: "group-article-titles",
+        sections: &[],
+    },
+    FieldGroup {
+        id: "affiliations",
+        label_key: "field-article-affiliations",
+        sections: &[],
+    },
+    FieldGroup {
+        id: "authors",
+        label_key: "field-article-authors",
+        sections: &[],
+    },
+    FieldGroup {
+        id: "abstracts",
+        label_key: "group-article-abstracts",
+        sections: &[],
+    },
+];
 
 /// Shared collection descriptors consumed by GUI and documented to CLI/MCP.
 pub(super) fn schema() -> serde_json::Value {
     use serde_json::json;
     let rich = |key, label, inline| json!({"key":key,"label_key":label,"kind":if inline {"rich_inline"} else {"rich"},"default":RichText::default()});
-    json!({"collections":[
+    json!({"panels":[
+        {"id":"titles","collection":"localizations","fields":["language","title","subtitle","short-title"]},
+        {"id":"affiliations","collection":"affiliations"},
+        {"id":"authors","collection":"authors"},
+        {"id":"abstracts","collection":"localizations","fields":["language","abstract","keywords"]}
+    ],"collections":[
         {"field":"article.authors","parameter":"authors","label_key":"field-article-authors","item_label_key":"article-author","title_key":"name",
          "schema":schemars::schema_for!(Vec<Author>), "fields":[
             {"key":"name","label_key":"field-full-name","kind":"text","default":""},
@@ -292,7 +314,7 @@ pub(super) fn schema() -> serde_json::Value {
          "schema":schemars::schema_for!(Vec<Affiliation>), "fields":[
             {"key":"text","label_key":"field-official-affiliation","kind":"multiline","default":""}
          ]},
-        {"field":"article.localizations","parameter":"localizations","label_key":"field-article-localizations","item_label_key":"article-localization","title_key":"language","language_key":"language","primary_fields":["title","subtitle","short-title"],
+        {"field":"article.localizations","parameter":"localizations","label_key":"field-article-localizations","item_label_key":"article-localization","title_key":"language","language_key":"language",
          "schema":schemars::schema_for!(Vec<Localization>), "fields":[
             {"key":"language","label_key":"field-language","kind":"language","default":"fr"},
             rich("title","field-article-title",true), rich("short-title","field-short-title",true),
@@ -346,6 +368,33 @@ mod tests {
             ..Default::default()
         });
         meta
+    }
+    #[test]
+    fn editorial_tabs_share_localized_records_and_cover_every_field() {
+        let descriptor = schema();
+        let panels = descriptor["panels"].as_array().unwrap();
+        assert_eq!(panels.len(), GROUPS.len());
+        for group in GROUPS {
+            assert!(panels.iter().any(|panel| panel["id"] == group.id));
+        }
+        for collection in descriptor["collections"].as_array().unwrap() {
+            for field in collection["fields"].as_array().unwrap() {
+                assert!(panels.iter().any(|panel| {
+                    panel["collection"] == collection["parameter"]
+                        && (panel["fields"].is_null()
+                            || panel["fields"].as_array().unwrap().contains(&field["key"]))
+                }));
+            }
+        }
+        assert_eq!(panels[0]["collection"], panels[3]["collection"]);
+        assert_eq!(
+            panels[0]["fields"],
+            serde_json::json!(["language", "title", "subtitle", "short-title"])
+        );
+        assert_eq!(
+            panels[3]["fields"],
+            serde_json::json!(["language", "abstract", "keywords"])
+        );
     }
     #[test]
     fn real_article_preserves_official_affiliations_multilingual_content_and_running_title() {

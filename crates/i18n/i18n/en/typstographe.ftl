@@ -800,3 +800,7 @@ web-keyword-lines = One keyword per line; phrases may contain spaces.
 web-detach-affiliation = Also remove links to this affiliation.
 web-keep-primary-localization = Keep the primary language entry.
 web-affiliation-in-use = This affiliation is used. Confirm removing its links.
+
+group-article-titles = Titles
+group-article-abstracts = Abstracts
+web-language-already-present = This language is already present.

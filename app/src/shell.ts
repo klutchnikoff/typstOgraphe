@@ -487,12 +487,19 @@ export async function mountShell(s: Shell) {
         },
         (key, value) => setSetting(provider, `options.${key}`, value),
       )
-    } else if (tab === 'header' && kind.structured) {
-      recordPanel = metadataCollections(content, provider, kind.structured, catalogue, editor, () =>
-        String(
-          settings.get('options.language') ??
-            (settings.get('document') as Settings).metadata.fields.options.language,
-        ),
+    } else if (kind.structured?.panels?.some((panel) => panel.id === tab)) {
+      recordPanel = metadataCollections(
+        content,
+        provider,
+        kind.structured,
+        kind.structured.panels.find((panel) => panel.id === tab)!,
+        catalogue,
+        editor,
+        () =>
+          String(
+            settings.get('options.language') ??
+              (settings.get('document') as Settings).metadata.fields.options.language,
+          ),
       )
     } else {
       const group = kind.groups.find((group) => group.id === tab)

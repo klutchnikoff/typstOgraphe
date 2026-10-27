@@ -3,19 +3,22 @@ import type { Provider } from './provider'
 import type { Catalogue } from './shell'
 import { metadataSection } from './metadata-fields'
 import { metadataRich } from './metadata-rich'
-import { richFieldProfile } from './rich-zone'
+import { createRichZone, richFieldProfile } from './rich-zone'
 import { contextPanel } from './context-panel'
-import { actionRow, navigationGroup } from './keyboard-navigation'
+import { actionRow } from './keyboard-navigation'
 import { icon } from './icons'
 import { tr } from './i18n'
 import {
   addRecord,
+  createRecordDraft,
   setRecordField,
   recordMap,
   recordIds,
   moveRecord,
   removeRecord,
   type StructuredMetadata,
+  type MetadataPanel,
+  type RecordStore,
   type RecordCollection,
   type SharedRecord,
   type RecordField,
@@ -30,6 +33,7 @@ export function metadataCollections(
   parent: HTMLElement,
   provider: Provider,
   schema: StructuredMetadata,
+  panel: MetadataPanel,
   catalogue: Catalogue,
   main: Editor,
   language: () => string,
@@ -46,15 +50,19 @@ export function metadataCollections(
   const root = document.createElement('div')
   root.className = 'metadata-collections'
   parent.append(root)
-  const primaryRoot = document.createElement('div')
-  primaryRoot.className = 'metadata-primary-fields'
-  root.append(primaryRoot)
-  let primaryId = '',
-    primaryRecord: SharedRecord | undefined
-  let primaryViews: ReturnType<typeof fieldView>[] = []
   const collections = new Map<
     RecordCollection,
-    { root: HTMLElement; views: Map<string, View>; add: HTMLButtonElement }
+    {
+      root: HTMLElement
+      views: Map<string, View>
+      add: HTMLButtonElement
+      draft?: {
+        element: HTMLElement
+        refresh: () => void
+        destroy: () => void
+        focus: () => void
+      }
+    }
   >()
   const definitions = new Map(
     schema.collections.map((definition) => [definition.parameter, definition]),
@@ -77,6 +85,8 @@ export function metadataCollections(
     definition: RecordCollection,
     record: SharedRecord,
     field: RecordField,
+    store: RecordStore = provider,
+    owner: Editor = main,
   ) {
     const row = document.createElement('div')
     row.className = 'field metadata-record-field'
@@ -88,7 +98,7 @@ export function metadataCollections(
         field.label,
         record.get(field.key) as Y.XmlFragment,
         richFieldProfile(field.kind),
-        main,
+        owner,
         catalogue,
         String(record.get(definition.language_key || '') || language()),
       )
@@ -129,7 +139,7 @@ export function metadataCollections(
                 const selected = new Set(record.get(field.key) as string[])
                 if (checkbox.checked) selected.add(key)
                 else selected.delete(key)
-                discrete(() => setRecordField(provider, record, field.key, [...selected]))
+                discrete(() => setRecordField(store, record, field.key, [...selected]))
               }
             }
             choice.querySelector('span')!.textContent =
@@ -161,7 +171,7 @@ export function metadataCollections(
           : field.kind === 'tokens'
             ? input.value.split('\n').filter((s) => s.trim() !== '')
             : input.value
-      const update = () => setRecordField(provider, record, field.key, value)
+      const update = () => setRecordField(store, record, field.key, value)
       if (field.kind === 'boolean' || field.kind === 'language') discrete(update)
       else update()
     }
@@ -266,7 +276,8 @@ export function metadataCollections(
           )
           return
         }
-        collections.get(definition)!.add.focus()
+        refresh()
+        focusAdd(definition)
       },
     })
     deletion.append(confirm.element)
@@ -278,10 +289,10 @@ export function metadataCollections(
       confirm.element.hidden = false
       confirm.focus()
     })
-    const up = button(`${tr('Monter')} · ${definition.itemLabel}`, 'arrow-up', () =>
+    const up = button(`${tr('Monter')} · ${definition.itemLabel}`, 'chevron-up', () =>
       moveRecord(provider, definition, id, -1),
     )
-    const down = button(`${tr('Descendre')} · ${definition.itemLabel}`, 'arrow-down', () =>
+    const down = button(`${tr('Descendre')} · ${definition.itemLabel}`, 'chevron-down', () =>
       moveRecord(provider, definition, id, 1),
     )
     const edit = button(`${tr('Modifier')} · ${definition.itemLabel}`, 'settings-2', () => {
@@ -291,7 +302,8 @@ export function metadataCollections(
           .querySelector<HTMLElement>('input, textarea, select, [contenteditable=true]')
           ?.focus()
     })
-    actions.append(remove, up, down, edit)
+    const add = addButton(definition, id)
+    actions.append(remove, up, down, edit, add)
     summary.append(caption, actions)
     element.append(summary, deletion, fieldsRoot)
     collections.get(definition)!.root.append(element)
@@ -305,12 +317,8 @@ export function metadataCollections(
         for (const view of views) view.destroy()
         fieldsRoot.replaceChildren()
         mode = nextMode
-        views = definition.fields
-          .filter(
-            (field) =>
-              !isPrimary ||
-              (!definition.primary_fields?.includes(field.key) && field.kind !== 'language'),
-          )
+        views = fields(definition)
+          .filter((field) => !isPrimary || field.kind !== 'language')
           .map((field) => fieldView(fieldsRoot, definition, record, field))
       }
       const value = String(record.get(definition.title_key) ?? '')
@@ -322,6 +330,7 @@ export function metadataCollections(
       up.disabled = index === 0
       down.disabled = index === ids.length - 1
       remove.disabled = isPrimary
+      add.disabled = cannotAdd(definition)
       for (const view of views) view.refresh()
     }
     element.open = !!definition.language_key && record.get(definition.language_key) === language()
@@ -336,65 +345,150 @@ export function metadataCollections(
       },
     }
   }
-  for (const definition of schema.collections) {
+  function fields(definition: RecordCollection) {
+    return panel.fields
+      ? panel.fields.map((key) => definition.fields.find((field) => field.key === key)!)
+      : definition.fields
+  }
+  function cannotAdd(definition: RecordCollection) {
+    return (
+      !!definition.language_key &&
+      recordIds(provider, definition).length >= catalogue.languages.length
+    )
+  }
+  function focusAdd(definition: RecordCollection, after?: string) {
+    const state = collections.get(definition)!
+    const row =
+      (after && state.views.get(after)) ||
+      state.views.get(recordIds(provider, definition).at(-1) || '')
+    const target = row?.element.querySelector<HTMLButtonElement>('[data-record-add]') || state.add
+    target.focus()
+  }
+  function addButton(definition: RecordCollection, after?: string) {
+    const add = button(`${tr('Ajouter')} · ${definition.itemLabel}`, 'plus', () =>
+      startDraft(definition, after),
+    )
+    add.dataset.recordAdd = ''
+    return add
+  }
+  function startDraft(definition: RecordCollection, after?: string) {
+    const state = collections.get(definition)!
+    if (state.draft) {
+      state.draft.focus()
+      return
+    }
+    if (cannotAdd(definition)) return
+    const langKey = definition.language_key
+    const used = recordIds(provider, definition).map((id) =>
+      recordMap(provider, definition)
+        .get(id)!
+        .get(langKey || ''),
+    )
+    const next = catalogue.languages.find((item) => !used.includes(item.value))?.value
+    const draft = createRecordDraft(definition, langKey ? { [langKey]: next } : {})
+    // Rich drafts have their own local history. Only confirmation publishes one document transaction.
+    const owner = fields(definition).some(
+      (field) => field.kind === 'rich' || field.kind === 'rich_inline',
+    )
+      ? createRichZone({
+          profile: 'rich-text',
+          label: definition.itemLabel,
+          element: document.createElement('div'),
+          binding: { kind: 'document', document: draft.doc },
+        })
+      : undefined
+    let views: ReturnType<typeof fieldView>[] = []
+    const discard = () => {
+      state.draft?.destroy()
+      state.draft = undefined
+      refresh()
+      focusAdd(definition, after)
+    }
+    const form = contextPanel({
+      id: `add-record-${definition.parameter}`,
+      closeLabel: tr('Annuler'),
+      close: discard,
+      canConfirm: () => true,
+    })
+    form.title.textContent = `${tr('Ajouter')} · ${definition.itemLabel}`
+    form.element.classList.add('metadata-record-draft')
+    form.element.hidden = false
+    form.element.dataset.after = after || ''
+    form.body.classList.add('metadata-record-fields')
+    state.root.append(form.element)
+    views = fields(definition).map((field) =>
+      fieldView(form.body, definition, draft.record, field, draft, owner || main),
+    )
+    form.action({ label: tr('Annuler'), run: discard })
+    form.action({
+      label: tr('Valider'),
+      primary: true,
+      run: () => {
+        const value = draft.value()
+        if (
+          langKey &&
+          recordIds(provider, definition).some(
+            (id) => recordMap(provider, definition).get(id)!.get(langKey) === value[langKey],
+          )
+        ) {
+          form.error.textContent = tr('Cette langue est déjà présente.')
+          return
+        }
+        // References may have been removed by a peer while the form was open.
+        for (const field of definition.fields)
+          if (field.references) {
+            const ids = recordIds(provider, definitions.get(field.references)!)
+            value[field.key] = (value[field.key] as string[]).filter((id) => ids.includes(id))
+          }
+        discrete(() => addRecord(provider, definition, value, after))
+        state.draft?.destroy()
+        state.draft = undefined
+        refresh()
+        focusAdd(definition, value.id)
+      },
+    })
+    const update = () => {
+      for (const view of views) view.refresh()
+    }
+    draft.record.observeDeep(update)
+    state.draft = {
+      element: form.element,
+      refresh: update,
+      focus: () =>
+        form.body
+          .querySelector<HTMLElement>('input, textarea, select, [contenteditable=true]')
+          ?.focus(),
+      destroy() {
+        draft.record.unobserveDeep(update)
+        for (const view of views) view.destroy()
+        owner?.destroy()
+        draft.destroy()
+        form.element.remove()
+      },
+    }
+    refresh()
+    state.draft.focus()
+  }
+  for (const definition of schema.collections.filter(
+    (collection) => collection.parameter === panel.collection,
+  )) {
     const section = metadataSection({
       id: definition.parameter,
       label: definition.label,
       layout: 'editorial',
     })
     section.root.classList.add('metadata-record-section')
-    const add = document.createElement('button')
-    add.type = 'button'
-    add.textContent = `${tr('Ajouter')} · ${definition.itemLabel}`
+    // The tab supplies the section name; do not repeat it inside the panel.
+    section.root.querySelector('legend')?.classList.add('sr-only')
+    const add = addButton(definition)
     const actions = actionRow()
+    actions.classList.add('metadata-record-empty-actions')
     actions.append(add)
     section.content.append(actions)
     root.append(section.root)
     collections.set(definition, { root: section.content, views: new Map(), add })
-    add.onclick = () => {
-      const langKey = definition.language_key
-      const used = langKey
-        ? recordIds(provider, definition).map((id) =>
-            recordMap(provider, definition).get(id)!.get(langKey),
-          )
-        : []
-      const next = catalogue.languages.find((item) => !used.includes(item.value))?.value
-      if (langKey && !next) return
-      history?.stopCapturing()
-      const record = addRecord(provider, definition, langKey ? { [langKey]: next } : {})
-      history?.stopCapturing()
-      refresh()
-      const view = collections.get(definition)!.views.get(record.get('id') as string)
-      if (view) {
-        ;(view.element as HTMLDetailsElement).open = true
-        view.element
-          .querySelector<HTMLElement>(
-            '.metadata-record-fields input, .metadata-record-fields textarea, .metadata-record-fields select, [contenteditable=true]',
-          )
-          ?.focus()
-      }
-    }
   }
   function refresh() {
-    const localized = schema.collections.find((definition) => definition.language_key)
-    const current =
-      localized &&
-      recordIds(provider, localized)
-        .map((id) => recordMap(provider, localized).get(id)!)
-        .find((record) => record.get(localized.language_key!) === language())
-    if (current !== primaryRecord || (current?.get('id') || '') !== primaryId) {
-      for (const view of primaryViews) view.destroy()
-      primaryRoot.replaceChildren()
-      primaryRecord = current
-      primaryId = String(current?.get('id') || '')
-      primaryViews =
-        current && localized
-          ? (localized.primary_fields || [])
-              .map((key) => localized.fields.find((field) => field.key === key)!)
-              .map((field) => fieldView(primaryRoot, localized, current, field))
-          : []
-    }
-    for (const view of primaryViews) view.refresh()
     for (const [definition, state] of collections) {
       const ids = recordIds(provider, definition)
       for (const [id, view] of state.views)
@@ -403,6 +497,7 @@ export function metadataCollections(
           state.views.delete(id)
         }
       let previous: ChildNode = state.add.parentElement!
+      ;(previous as HTMLElement).hidden = ids.length > 0 || !!state.draft
       const focused = document.activeElement as HTMLElement | null
       for (const id of ids) {
         let view = state.views.get(id)
@@ -419,19 +514,33 @@ export function metadataCollections(
         if (previous.nextSibling !== view.element)
           state.root.insertBefore(view.element, previous.nextSibling)
         previous = view.element
+        if (state.draft && id === state.draft.element.dataset.after) {
+          if (previous.nextSibling !== state.draft.element)
+            state.root.insertBefore(state.draft.element, previous.nextSibling)
+          previous = state.draft.element
+        }
       }
       if (focused?.isConnected && root.contains(focused) && document.activeElement !== focused)
         focused.focus({ preventScroll: true })
-      state.add.disabled = !!definition.language_key && ids.length >= catalogue.languages.length
+      if (state.draft) {
+        if (
+          !ids.includes(state.draft.element.dataset.after || '') &&
+          state.root.lastChild !== state.draft.element
+        )
+          state.root.append(state.draft.element)
+        state.draft.refresh()
+      }
+      state.add.disabled = cannotAdd(definition)
     }
   }
   refresh()
   return {
     refresh,
     destroy() {
-      for (const view of primaryViews) view.destroy()
-      for (const state of collections.values())
+      for (const state of collections.values()) {
+        state.draft?.destroy()
         for (const view of state.views.values()) view.destroy()
+      }
       root.remove()
     },
   }

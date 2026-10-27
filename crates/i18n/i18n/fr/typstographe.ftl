@@ -803,3 +803,7 @@ web-keyword-lines = Un mot-clé par ligne ; les expressions peuvent contenir des
 web-detach-affiliation = Retirer aussi les associations à cette affiliation.
 web-keep-primary-localization = L’ensemble de la langue principale doit être conservé.
 web-affiliation-in-use = Cette affiliation est utilisée. Confirmez le retrait de ses associations.
+
+group-article-titles = Titres
+group-article-abstracts = Résumés
+web-language-already-present = Cette langue est déjà présente.
