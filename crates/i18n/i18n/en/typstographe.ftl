@@ -763,3 +763,5 @@ web-model-too-large = Model is too large.
 web-model-import-stale = The document has changed; import the model again.
 web-list-first-number = First number
 web-heading-level = Heading level
+
+web-palette-no-results = No matching commands.

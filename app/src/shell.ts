@@ -1,3 +1,4 @@
+import { commandPalette } from './command-palette'
 import { searchPanel, navigateSearch } from './search-panel'
 import { preferencesPanel, type Preferences } from './preferences-panel'
 import { tr } from './i18n'
@@ -529,35 +530,12 @@ export async function mountShell(s: Shell) {
     return content
   }
   function palette() {
-    const content = showPanel(tr('Commandes'))
-    const input = document.createElement('input')
-    input.placeholder = tr('Rechercher une commande…')
-    input.setAttribute('aria-label', tr('Rechercher une commande'))
-    const results = document.createElement('div')
-    const fill = () => {
-      results.replaceChildren()
-      const query = input.value.toLocaleLowerCase()
-      for (const command of commands.values())
-        if (command.label.toLocaleLowerCase().includes(query)) {
-          const button = document.createElement('button')
-          button.textContent = command.label + (command.shortcut ? ` · ${command.shortcut}` : '')
-          button.disabled = command.enabled?.() === false
-          button.onclick = () => {
-            panel.hidden = true
-            command.run()
-          }
-          results.append(button)
-        }
-    }
-    input.oninput = fill
-    input.onkeydown = (e) => {
-      if (e.key === 'Enter')
-        results.querySelector<HTMLButtonElement>('button:not(:disabled)')?.click()
-    }
-    content.append(input, results)
-    fill()
-    input.focus()
+    commandPalette(showPanel(tr('Commandes')), commands, (command) => {
+      panel.hidden = true
+      command.run()
+    })
   }
+
   function search() {
     searchPanel(showPanel(tr('Rechercher et remplacer')), editor)
   }

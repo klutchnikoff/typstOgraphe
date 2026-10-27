@@ -766,3 +766,5 @@ web-model-too-large = Modèle trop volumineux.
 web-model-import-stale = Le document a changé ; recommencez l’import.
 web-list-first-number = Premier numéro
 web-heading-level = Niveau de titre
+
+web-palette-no-results = Aucune commande ne correspond.

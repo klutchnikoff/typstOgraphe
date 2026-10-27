@@ -781,6 +781,40 @@ main {
 #side-content .panel-actions button {
   text-align: center;
 }
+.side-panel:has(.command-palette-results) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.side-panel:has(.command-palette-results) > .panel-title {
+  flex-shrink: 0;
+}
+#side-content:has(.command-palette-results) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+#side-content:has(.command-palette-results) > input {
+  flex-shrink: 0;
+}
+.command-palette-results {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.command-palette-results [role='option'] {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.command-palette-results [aria-selected='true'] {
+  color: var(--accent);
+  background: var(--soft);
+  border-color: var(--accent);
+}
+.command-palette-results + [role='status'] {
+  margin: 0;
+  color: var(--muted);
+}
 .tiptap {
   font-family: var(--editor-font, Georgia), 'Noto CJK', serif;
   font-size: var(--editor-size, 18px);
