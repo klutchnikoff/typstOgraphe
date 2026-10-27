@@ -130,3 +130,46 @@ it.each(['footnote', 'futureReference'])(
     expect(open).not.toHaveBeenCalled()
   },
 )
+
+it.each(['footnote', 'futureReference'])(
+  'la sortie de %s rejoint le texte voisin par graphème, sans arrêt DOM supplémentaire',
+  (kind) => {
+    const editor = create(kind),
+      open = vi.fn(),
+      before = 'e\u0301👨‍👩‍👧‍👦',
+      after = '👩🏽‍💻e\u0301'
+    editor.commands.setContent({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: before }, { type: kind }, { type: 'text', text: after }],
+        },
+      ],
+    })
+    const note = 1 + before.length,
+      original = editor.getJSON()
+    for (const [from, key, to] of [
+      [note, 'ArrowLeft', 3],
+      [note + 1, 'ArrowRight', note + 1 + '👩🏽‍💻'.length],
+    ] as const) {
+      editor.commands.setTextSelection(from)
+      const event = new KeyboardEvent('keydown', { key, cancelable: true })
+      expect(inlineObjectKey(editor, event, open)).toBe(true)
+      expect(editor.state.selection.from).toBe(to)
+      expect(event.defaultPrevented).toBe(true)
+      expect(editor.getJSON()).toEqual(original)
+    }
+    for (const modifier of ['shiftKey', 'altKey', 'ctrlKey', 'metaKey', 'isComposing']) {
+      editor.commands.setTextSelection(note + 1)
+      expect(
+        inlineObjectKey(
+          editor,
+          new KeyboardEvent('keydown', { key: 'ArrowRight', [modifier]: true }),
+          open,
+        ),
+      ).toBe(false)
+    }
+    expect(open).not.toHaveBeenCalled()
+  },
+)

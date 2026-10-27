@@ -162,6 +162,7 @@ test('le badge actif est inversé uniquement à droite et le raccourci suit ce r
     await expect(page.getByLabel('Texte de la note', { exact: true })).toHaveValue('B')
     await page.keyboard.press('Escape')
     await page.keyboard.press('ArrowRight')
+    expect(await page.evaluate(() => window.__spike!.editor.state.selection.from)).toBe(9)
     await expect(page.locator('.inline-object-active')).toHaveCount(0)
     expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(original)
   }

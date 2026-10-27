@@ -1,6 +1,8 @@
 import type { Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
-import { NodeSelection } from '@tiptap/pm/state'
+import { NodeSelection, TextSelection } from '@tiptap/pm/state'
+
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
 
 /** Inline atoms are objects, unlike text, marks or nonselectable line breaks. */
 export function isInlineObject(node?: PMNode | null): node is PMNode {
@@ -29,9 +31,25 @@ export function inlineObjectKey(
     if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return false
     const backwards = event.key === 'ArrowLeft'
     const target = inlineObjectTarget(editor, backwards ? 'before' : 'after')
-    if (!target) return false
+    let pos = target ? target.pos + (backwards ? 0 : target.node.nodeSize) : undefined
+    const { selection } = editor.state
+    if (pos === undefined && selection instanceof TextSelection && selection.empty) {
+      const { $from } = selection
+      const adjacent = backwards ? $from.nodeAfter : $from.nodeBefore
+      const text = backwards ? $from.nodeBefore : $from.nodeAfter
+      if (isInlineObject(adjacent) && text?.isText) {
+        // Chromium can stop once more at a noneditable boundary on Linux.
+        // Move out of the badge in document coordinates, by a whole grapheme.
+        const content = $from.parent.textBetween(0, $from.parent.content.size, undefined, '\uFFFC')
+        const segment = graphemes
+          .segment(content)
+          .containing($from.parentOffset - (backwards ? 1 : 0))
+        if (segment) pos = $from.start() + segment.index + (backwards ? 0 : segment.segment.length)
+      }
+    }
+    if (pos === undefined) return false
     event.preventDefault()
-    editor.commands.setTextSelection(target.pos + (backwards ? 0 : target.node.nodeSize))
+    editor.commands.setTextSelection(pos)
     editor.view.focus()
     return true
   }
