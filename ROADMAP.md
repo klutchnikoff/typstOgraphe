@@ -349,9 +349,9 @@ premier périmètre. Les propositions non retenues ne deviennent pas des engagem
 
 ## Prochain lot proposé
 
-1. Préciser le contrat du type Article (**B.1**) : auteurs multiples,
-   affiliations, résumés riches multilingues, mots-clés et capacités par zone.
-   Valider ensemble les champs et signatures avant de coder.
+1. Implémenter le [contrat Article validé](docs/article-contract.md) (**B.1**) :
+   auteurs multiples, affiliations officielles en texte libre, résumés riches
+   multilingues, mots-clés et titre court par langue.
 2. Unifier le contrat structuré entre les adaptateurs (**A.2**), à partir du
    [rangement de l’application](docs/application-layout.md) désormais établi.
 3. Construire l’Article et son modèle de travail avec les capacités existantes,

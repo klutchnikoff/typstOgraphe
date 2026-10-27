@@ -212,8 +212,10 @@ Règles :
 Le type Article et un premier modèle « Article de travail » constituent le
 prochain cas d’usage retenu. Son périmètre couvre auteurs multiples,
 affiliations partagées, résumés riches en plusieurs langues et mots-clés propres
-à chaque langue. Les détails des champs, les obligations et les signatures
-restent à valider avant l’implémentation.
+à chaque langue. Les champs, obligations et signatures sont désormais précisés dans le
+[contrat Article retenu](article-contract.md), avec affiliations en texte libre
+et titre court par langue. Ce contrat remplace les exemples exploratoires de
+champs d’auteurs et d’affiliations ci-dessus.
 
 Si une bibliothèque existante ne couvre pas notre contrat, nous construisons
 une bibliothèque Typst commune adaptée, réutilisée par les modèles d’Article et
