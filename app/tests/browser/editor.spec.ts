@@ -538,3 +538,44 @@ test('colonne éditable sans cadre et actions groupées à droite', async ({ pag
   await expect(page.locator('#side-content .panel-actions')).toHaveCSS('flex-direction', 'row')
   await expect(page.locator('#side-content .panel-actions > button').last()).toHaveClass('primary')
 })
+
+test('une édition distante survenue pendant la sauvegarde est incluse après refus du premier instantané périmé', async ({
+  page,
+  context,
+}) => {
+  await ready(page, 'main')
+  const peer = await context.newPage()
+  await ready(peer, 'peer-save-conflict')
+  const snapshots: { revision: number; document: unknown }[] = []
+  await page.route('**/__spike/invoke', async (route) => {
+    const request = route.request().postDataJSON()
+    if (request.command === 'save') {
+      snapshots.push(request.args.snapshot)
+      if (snapshots.length === 1) {
+        await peer.evaluate(async () => {
+          const { editor, provider } = window.__spike!
+          editor.commands.insertContentAt(1, 'Ajout distant pendant la sauvegarde. ')
+          await provider.flush()
+        })
+        await expect(page.locator('.tiptap')).toContainText('Ajout distant pendant la sauvegarde.')
+      }
+    }
+    await route.continue()
+  })
+  await page.getByRole('button', { name: 'Fichier', exact: true }).click()
+  await page.locator('[data-command="document.save"]').click()
+  await expect(page.locator('#message')).toContainText('Session enregistrée', { timeout: 30000 })
+  expect(snapshots.length).toBeGreaterThanOrEqual(2)
+  expect(snapshots.length).toBeLessThanOrEqual(3)
+  expect(JSON.stringify(snapshots[0].document)).not.toContain(
+    'Ajout distant pendant la sauvegarde.',
+  )
+  expect(JSON.stringify(snapshots.at(-1)!.document)).toContain(
+    'Ajout distant pendant la sauvegarde.',
+  )
+  expect(snapshots.at(-1)!.revision).toBeGreaterThan(snapshots[0].revision)
+  await peer.close()
+  await page.reload()
+  await page.waitForFunction(() => window.__spike?.ready)
+  await expect(page.locator('.tiptap')).toContainText('Ajout distant pendant la sauvegarde.')
+})

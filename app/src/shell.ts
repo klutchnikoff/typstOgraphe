@@ -18,6 +18,7 @@ import { welcomeBrand } from './welcome-brand'
 import { recoveryPanel } from './recovery-panel'
 import { metadataFields, refreshMetadataFields } from './metadata-fields'
 import { documentOptions } from './document-options'
+import { withCurrentSnapshot } from './snapshot-operation'
 export interface Model {
   id: string
   label: string
@@ -289,19 +290,25 @@ export async function mountShell(s: Shell) {
     const destination =
       as || !path ? await transport.invoke<string | null>('choose_file', { save: true }) : path
     if (!destination) return false
-    await transport.invoke('save_file', {
-      path: destination,
-      snapshot: {
-        revision: provider.revision,
-        document: editor.getJSON(),
-        settings: settingsFor(provider),
+    const persistedRevision = await withCurrentSnapshot(
+      provider,
+      () => ({
+        snapshot: {
+          revision: provider.revision,
+          document: editor.getJSON(),
+          settings: settingsFor(provider),
+        },
+        update: Array.from(Y.encodeStateAsUpdate(provider.doc)),
+      }),
+      async (checkpoint) => {
+        await transport.invoke('save_file', { path: destination, ...checkpoint })
+        return checkpoint.snapshot.revision
       },
-      update: Array.from(Y.encodeStateAsUpdate(provider.doc)),
-    })
+    )
     path = destination
-    dirty = false
-    savedRevision = provider.revision
+    savedRevision = persistedRevision
     await remember(destination)
+    dirty = provider.revision !== persistedRevision
     updateTitle()
     s.message(tr('Document enregistré.'))
     return true
@@ -586,14 +593,16 @@ export async function mountShell(s: Shell) {
           ? await transport.invoke<string | null>('choose_export_folder')
           : undefined
         if (s.isTauri && !folder) return
-        const destination = await transport.invoke<string>('export_document', {
-          destination: folder,
-          snapshot: {
+        const destination = await withCurrentSnapshot(
+          provider,
+          () => ({
             revision: provider.revision,
             document: editor.getJSON(),
             settings: settingsFor(provider),
-          },
-        })
+          }),
+          (snapshot) =>
+            transport.invoke<string>('export_document', { destination: folder, snapshot }),
+        )
         s.message(`PDF et sources Typst exportés · ${destination}`)
       }),
     'Mod+E',

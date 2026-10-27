@@ -19,6 +19,7 @@ import { documentType, initializeSettings, settingsFor } from './state'
 import { previewController } from './preview'
 import { requestPreview } from './preview-frame'
 import { renderQueue } from './render-queue'
+import { withCurrentSnapshot } from './snapshot-operation'
 import { installMenus } from './menus'
 import { BandHost } from './band-layout'
 import { propertyPanel } from './properties'
@@ -206,11 +207,11 @@ function snapshot() {
 async function save() {
   if (!provider.online || restoringError)
     throw new Error(tr('Reconnectez cette fenêtre avant d’enregistrer.'))
-  await provider.flush()
-  const path = await host.transport.invoke<string>('save', {
-    snapshot: snapshot(),
-    update: Array.from(Y.encodeStateAsUpdate(provider.doc)),
-  })
+  const path = await withCurrentSnapshot(
+    provider,
+    () => ({ snapshot: snapshot(), update: Array.from(Y.encodeStateAsUpdate(provider.doc)) }),
+    (checkpoint) => host.transport.invoke<string>('save', checkpoint),
+  )
   message(`${tr('Session enregistrée')} · ${path}`)
 }
 function action(task: () => Promise<unknown>) {
@@ -221,10 +222,9 @@ element('peer').addEventListener('click', () => action(() => host.transport.invo
 element('export').addEventListener('click', () =>
   action(async () => {
     if (!provider.online) throw new Error(tr('Reconnectez cette fenêtre avant d’exporter.'))
-    await provider.flush()
-    const path = await host.transport.invoke<string>('export_document', {
-      snapshot: snapshot(),
-    })
+    const path = await withCurrentSnapshot(provider, snapshot, (snapshot) =>
+      host.transport.invoke<string>('export_document', { snapshot }),
+    )
     message(`${tr('PDF et sources Typst exportés')} · ${path}`)
   }),
 )
