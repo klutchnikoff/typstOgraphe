@@ -319,20 +319,27 @@ export function keyboardScope(root: HTMLElement, options: ScopeOptions) {
 export function installKeyboardNavigation(root: Document = document) {
   if (installed.has(root)) return
   installed.add(root)
-  root.addEventListener('keydown', (event) => {
-    if (event.defaultPrevented || !plain(event) || event.key !== 'Escape') return
-    const open = [...root.querySelectorAll<HTMLElement>('[data-keyboard-scope]')].filter(
-      (element) =>
-        visible(element) && scopes.get(element)?.close && scopes.get(element)?.active?.() !== false,
-    )
-    const target = event.target instanceof Element ? event.target : null
-    const nearest = target ? open.filter((element) => element.contains(target)).at(-1) : undefined
-    const current =
-      nearest ||
-      open.sort((a, b) => (scopes.get(b)?.priority || 0) - (scopes.get(a)?.priority || 0))[0]
-    if (!current) return
-    consume(event)
-    event.stopImmediatePropagation()
-    scopes.get(current)!.close!()
-  })
+  // ProseMirror consumes Escape at its target, even when an application panel is open.
+  root.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.defaultPrevented || !plain(event) || event.key !== 'Escape') return
+      const open = [...root.querySelectorAll<HTMLElement>('[data-keyboard-scope]')].filter(
+        (element) =>
+          visible(element) &&
+          scopes.get(element)?.close &&
+          scopes.get(element)?.active?.() !== false,
+      )
+      const target = event.target instanceof Element ? event.target : null
+      const nearest = target ? open.filter((element) => element.contains(target)).at(-1) : undefined
+      const current =
+        nearest ||
+        open.sort((a, b) => (scopes.get(b)?.priority || 0) - (scopes.get(a)?.priority || 0))[0]
+      if (!current) return
+      consume(event)
+      event.stopImmediatePropagation()
+      scopes.get(current)!.close!()
+    },
+    true,
+  )
 }

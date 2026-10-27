@@ -224,3 +224,37 @@ it('Gauche et Droite passent au menu voisin sans exécuter ses commandes', async
     dispose()
   }
 })
+
+it('Échap ferme le menu puis le panneau avant que l’éditeur ne consomme la touche', async () => {
+  const panel = document.createElement('aside'),
+    editor = document.createElement('div'),
+    menu = document.createElement('details')
+  editor.contentEditable = 'true'
+  menu.className = 'tool-menu'
+  menu.innerHTML =
+    '<summary>Menu</summary><div class="tool-menu-content"><button>Action</button></div>'
+  panel.append(menu)
+  document.body.append(panel, editor)
+  const close = vi.fn()
+  keyboardScope(panel, { close, priority: 10 })
+  const consumed = vi.fn((event: KeyboardEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+  })
+  editor.addEventListener('keydown', consumed)
+  const dispose = installMenus()
+  try {
+    await tick()
+    menu.open = true
+    editor.focus()
+    key(editor, 'Escape')
+    expect(menu.open).toBe(false)
+    expect(close).not.toHaveBeenCalled()
+    editor.focus()
+    key(editor, 'Escape')
+    expect(close).toHaveBeenCalledOnce()
+    expect(consumed).not.toHaveBeenCalled()
+  } finally {
+    dispose()
+  }
+})

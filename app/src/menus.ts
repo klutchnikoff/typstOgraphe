@@ -1,4 +1,10 @@
-import { composing, editingControl, navigateGroup, navigationGroup } from './keyboard-navigation'
+import {
+  composing,
+  editingControl,
+  keyboardScope,
+  navigateGroup,
+  navigationGroup,
+} from './keyboard-navigation'
 
 /** Every .tool-menu, including menus created later, receives the same contract. */
 export function installMenus(root: Document = document) {
@@ -19,6 +25,14 @@ export function installMenus(root: Document = document) {
           itemRole: 'menuitem',
         })
         groups.set(menu, navigation)
+        keyboardScope(menu, {
+          active: () => menu.open,
+          priority: 40,
+          close: () => {
+            menu.open = false
+            summary.focus()
+          },
+        })
       }
       navigation.refresh()
     }
@@ -63,14 +77,6 @@ export function installMenus(root: Document = document) {
       }
       return
     }
-    if (event.key !== 'Escape') return
-    if (target?.closest('[data-keyboard-scope]') && !target.closest('.tool-menu')) return
-    const opened = [...menus()]
-    if (!opened.length) return
-    for (const menu of opened) menu.open = false
-    event.preventDefault()
-    event.stopImmediatePropagation()
-    opened.at(-1)?.querySelector<HTMLElement>('summary')?.focus()
   }
   const observer = new MutationObserver(setup)
   observer.observe(root, {
