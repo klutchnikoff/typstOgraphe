@@ -3,6 +3,32 @@ import { tr } from './i18n'
 
 type SnapshotSession = Pick<Provider, 'doc' | 'generation' | 'flush'>
 
+/** Drain our own relay acknowledgements before guarding an asynchronous edit draft.
+ * Unlike persistence, a draft never retries or merges a concurrent edit.
+ */
+export async function draftGuard(
+  provider: SnapshotSession & Pick<Provider, 'revision'>,
+  unchanged: () => boolean,
+): Promise<() => void> {
+  const generation = provider.generation,
+    identity = provider.doc.getMap('settings').get('identity')
+  const check = () => {
+    if (
+      provider.generation !== generation ||
+      provider.doc.getMap('settings').get('identity') !== identity ||
+      !unchanged()
+    )
+      throw new Error(tr('Le document a changé. Réessayez.'))
+  }
+  await provider.flush()
+  check()
+  const revision = provider.revision
+  return () => {
+    check()
+    if (provider.revision !== revision) throw new Error(tr('Le document a changé. Réessayez.'))
+  }
+}
+
 /** Manual persistence follows the current document, while the backend keeps its strict guard. */
 export async function withCurrentSnapshot<T, R>(
   provider: SnapshotSession,

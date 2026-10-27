@@ -13,6 +13,7 @@ import { tr } from './i18n'
 import { Proofing } from './proofing'
 import { inlineObjectView } from './inline-objects'
 import { InlineObjectNumbering, inlineObjectNumber } from './inline-object-numbering'
+import { citationLabel } from './citation-index'
 import { InlineObjectFocus } from './inline-object-focus'
 
 export function documentExtensions(
@@ -55,6 +56,69 @@ export function documentExtensions(
         }
       },
     }).configure({ resizable: false }),
+    Node.create({
+      name: 'citation',
+      group: 'inline',
+      inline: true,
+      atom: true,
+      selectable: true,
+      addAttributes: () => ({ items: { default: [] }, form: { default: 'normal' } }),
+      parseHTML: () => [
+        {
+          tag: 'span[data-citation]',
+          getAttrs: (element) => ({
+            items: JSON.parse(element.getAttribute('data-citation') || '[]'),
+            form: element.getAttribute('data-form') || 'normal',
+          }),
+        },
+      ],
+      renderHTML: ({ node }) => [
+        'span',
+        { 'data-citation': JSON.stringify(node.attrs.items), 'data-form': node.attrs.form },
+        node.attrs.items.map((item: { key: string }) => item.key).join('; '),
+      ],
+      addNodeView:
+        () =>
+        ({ node, getPos, editor }) => {
+          let current = node
+          const badge = inlineObjectView({
+            editor,
+            getPos,
+            kind: 'citation',
+            className: 'citation-ref',
+            label: tr('Citation'),
+            title: tr('Citation bibliographique'),
+            open: properties,
+          })
+          const updateLabel = () =>
+            badge.describe(
+              current.attrs.items.map((item: { key: string }) => item.key).join('; '),
+              undefined,
+              citationLabel(editor, current.attrs.items),
+            )
+          const transaction = ({
+            transaction,
+          }: {
+            transaction: import('@tiptap/pm/state').Transaction
+          }) => {
+            if (transaction.getMeta('bibliography-index')) updateLabel()
+          }
+          editor.on('transaction', transaction)
+          updateLabel()
+          return {
+            dom: badge.dom,
+            update(next) {
+              if (next.type.name !== 'citation') return false
+              current = next
+              updateLabel()
+              return true
+            },
+            destroy() {
+              editor.off('transaction', transaction)
+            },
+          }
+        },
+    }),
     Node.create({
       name: 'footnote',
       group: 'inline',

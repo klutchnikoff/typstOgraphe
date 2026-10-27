@@ -5,6 +5,8 @@ const assets = import.meta.glob('../../assets/ui/icons/lucide/*.svg', {
 }) as Record<string, string>
 export function availableIcon(name: string): string | undefined {
   if (name === 'footprints') return '<span class="icon-footnote" aria-hidden="true">1</span>'
+  if (name === 'book-open')
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" aria-hidden="true"><path d="M12 5C9 3 5 3 2 4v16c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1Zm0 0v16"/></svg>'
   if (name === 'plus')
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'
   if (name === 'table-2')

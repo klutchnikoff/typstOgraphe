@@ -181,9 +181,11 @@ export function propertyPanel(
       const current = opened
       render()
       panel.title.textContent = remove
-        ? kind === 'footnote'
-          ? tr('Supprimer la note de bas de page')
-          : tr('Supprimer le bloc')
+        ? kind === 'citation'
+          ? tr('Supprimer la citation')
+          : kind === 'footnote'
+            ? tr('Supprimer la note de bas de page')
+            : tr('Supprimer le bloc')
         : contract.conversions.length > 1
           ? tr('Paramètres de la liste')
           : kind === 'link'

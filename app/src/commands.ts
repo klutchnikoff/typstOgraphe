@@ -43,6 +43,7 @@ export function createRegistry(
   properties: (pos: number, kind: string) => void,
   image: () => void,
   available: () => string[] | undefined = () => undefined,
+  citation: () => void = () => {},
 ): Registry {
   const registry: Registry = new Map()
   const actions: Record<string, () => void> = {
@@ -72,6 +73,7 @@ export function createRegistry(
     'insert.table': () => {
       insertBlock(editor, createTable(editor.schema, 3, 2, true).toJSON())
     },
+    'insert.citation': citation,
     'insert.footnote': () =>
       insertInlineWithSettings(editor, { type: 'footnote', attrs: { text: '' } }, properties),
     'letter.insert_postscript': () => {
@@ -98,6 +100,11 @@ export function createRegistry(
       run,
       enabled: () => {
         if (available()?.includes(capability.id) === false) return false
+        if (capability.id === 'insert.citation')
+          return (
+            editor.state.selection.$from.parent.inlineContent &&
+            editor.state.selection.$from.sameParent(editor.state.selection.$to)
+          )
         if (capability.node && isWidgetKind(capability.node)) {
           if (
             listKinds.includes(capability.node as ListKind) &&

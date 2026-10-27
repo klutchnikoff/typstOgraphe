@@ -1497,3 +1497,85 @@ li:has(.interline-band-gap[data-marker])::marker {
   white-space: nowrap;
   border: 0;
 }
+
+.bibliography-settings {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+.bibliography-files {
+  display: grid;
+  gap: 4px;
+}
+.bibliography-file-row,
+.citation-selected-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.bibliography-file-row > span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bibliography-file-row .panel-actions,
+.citation-selected-row .panel-actions {
+  margin: 0;
+}
+.bibliography-file-row svg {
+  width: 15px;
+  height: 15px;
+}
+.bibliography-style {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bibliography-style select {
+  width: auto;
+  max-width: 65%;
+}
+.bibliography-settings .properties {
+  position: static;
+  width: 100%;
+  box-shadow: none;
+}
+.document-option-checkbox {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.document-option-checkbox input {
+  width: auto;
+}
+#citation-search-results {
+  max-height: 170px;
+  overflow: auto;
+}
+#citation-search-results button {
+  display: grid;
+  text-align: left;
+  gap: 3px;
+}
+#citation-search-results button span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.citation-selected {
+  display: grid;
+  gap: 5px;
+}
+.citation-selected-row > span {
+  flex: 1;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.citation-selected-row > input {
+  flex: 1;
+  min-width: 0;
+}

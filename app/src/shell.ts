@@ -1,3 +1,4 @@
+import { bibliographyPanel } from './bibliography-panel'
 import { actionRow, keyboardScope, navigationGroup } from './keyboard-navigation'
 import { commandPalette } from './command-palette'
 import { searchPanel, navigateSearch } from './search-panel'
@@ -22,12 +23,17 @@ import { richZoneOwnsShortcut } from './rich-zone'
 import { metadataFields, metadataSection, refreshMetadataFields } from './metadata-fields'
 import { documentOptions } from './document-options'
 import { withCurrentSnapshot } from './snapshot-operation'
+export interface ModelPolicy {
+  outline: boolean
+  citation_styles: string[]
+}
 export interface Model {
   id: string
   label: string
   description: string
   source: string
   fixedPage: { paper: string; landscape: boolean } | null
+  policy?: ModelPolicy
 }
 export interface Field {
   field: string
@@ -163,7 +169,28 @@ export async function mountShell(s: Shell) {
   document.querySelector('.document-info')!.replaceWith(context)
   let tab: string | null = null
   let generalOptions: ReturnType<typeof documentOptions> | undefined
-  let recordPanel: ReturnType<typeof metadataCollections> | undefined
+  let recordPanel: { refresh: () => void; destroy: () => void } | undefined
+  const policies = new Map<string, ModelPolicy>(),
+    loadingPolicies = new Set<string>()
+  const currentPolicy = (): ModelPolicy | undefined => {
+    const current = settingsFor(provider),
+      kind = documentType(provider)
+    const bundled = kind.models.find(
+      (model) => model.id === current.modelId && model.source === current.template,
+    )
+    if (bundled?.policy) return bundled.policy
+    if (!policies.has(current.template) && !loadingPolicies.has(current.template)) {
+      loadingPolicies.add(current.template)
+      void transport
+        .invoke<ModelPolicy>('model_policy', { template: current.template })
+        .then((policy) => {
+          policies.set(current.template, policy)
+          renderMetadata()
+        })
+        .catch(() => {})
+    }
+    return policies.get(current.template)
+  }
   keyboardScope(panel, {
     close: () => {
       panel.hidden = true
@@ -486,7 +513,16 @@ export async function mountShell(s: Shell) {
           setDocument(provider, next)
         },
         (key, value) => setSetting(provider, `options.${key}`, value),
+        (key, value) => {
+          const history = yUndoPluginKey.getState(editor.state)?.undoManager
+          history?.stopCapturing()
+          setSetting(provider, key, value)
+          history?.stopCapturing()
+        },
+        currentPolicy,
       )
+    } else if (kind.structured?.bibliography?.tab === tab) {
+      recordPanel = bibliographyPanel(content, provider, editor, transport, kind, currentPolicy)
     } else if (kind.structured?.panels?.some((panel) => panel.id === tab)) {
       recordPanel = metadataCollections(
         content,

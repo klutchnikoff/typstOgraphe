@@ -241,6 +241,7 @@ test('les ajouts par + restent provisoires et Échap restaure le focus sans annu
     'Affiliations',
     'Auteurs',
     'Résumés',
+    'Bibliographie',
   ])
   await tab(page, 'authors')
   const authors = section(page, 'authors')

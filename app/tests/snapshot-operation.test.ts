@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import * as Y from 'yjs'
-import { withCurrentSnapshot } from '../src/snapshot-operation'
+import { draftGuard, withCurrentSnapshot } from '../src/snapshot-operation'
 
 const documents: Y.Doc[] = []
 afterEach(() => documents.splice(0).forEach((doc) => doc.destroy()))
@@ -62,5 +62,40 @@ it.each(['identity', 'generation'])(
       'Le document a changé',
     )
     expect(operation).toHaveBeenCalledTimes(1)
+  },
+)
+
+it('attend ses propres relais avant de figer un brouillon sans accepter une édition concurrente', async () => {
+  const provider = { ...session(), revision: 1 }
+  provider.flush.mockImplementation(async () => {
+    provider.revision++
+  })
+  const check = await draftGuard(provider, () => true)
+  expect(check).not.toThrow()
+  provider.revision++
+  expect(check).toThrow('Le document a changé')
+  expect(provider.flush).toHaveBeenCalledTimes(1)
+})
+it('refuse un brouillon modifié pendant le drainage ou la validation, sans reprise', async () => {
+  const provider = { ...session(), revision: 1 }
+  let same = true
+  provider.flush.mockImplementation(async () => {
+    same = false
+  })
+  await expect(draftGuard(provider, () => same)).rejects.toThrow('Le document a changé')
+  provider.flush.mockImplementation(async () => {})
+  same = true
+  const check = await draftGuard(provider, () => same)
+  same = false
+  expect(check).toThrow('Le document a changé')
+})
+it.each(['identity', 'generation'])(
+  'invalide le brouillon après changement de document (%s)',
+  async (changed) => {
+    const provider = { ...session(), revision: 1 }
+    const check = await draftGuard(provider, () => true)
+    if (changed === 'identity') provider.doc.getMap('settings').set('identity', 'another')
+    else provider.generation = 'another'
+    expect(check).toThrow('Le document a changé')
   },
 )

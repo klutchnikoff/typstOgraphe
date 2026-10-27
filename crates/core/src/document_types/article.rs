@@ -351,7 +351,7 @@ pub const GROUPS: &[FieldGroup] = &[
 pub(super) fn schema() -> serde_json::Value {
     use serde_json::json;
     let rich = |key, label, inline| json!({"key":key,"label_key":label,"kind":if inline {"rich_inline"} else {"rich"},"default":RichText::default()});
-    json!({"bibliography":{"tab":"bibliography","files":"references","field":"article.references","style":"citation_style","style_field":"article.citation_style","outline":"show_outline","outline_field":"article.show_outline"},"panels":[
+    json!({"outline":{"parameter":"show_outline","field":"article.show_outline"},"bibliography":{"tab":"bibliography","files":"references","field":"article.references","style":"citation_style","style_field":"article.citation_style"},"panels":[
         {"id":"titles","collection":"localizations","fields":["language","title","subtitle","short-title"]},
         {"id":"affiliations","collection":"affiliations"},
         {"id":"authors","collection":"authors"},

@@ -12,7 +12,15 @@ export interface RecordField {
   key: string
   label: string
   kind:
-    'text' | 'multiline' | 'boolean' | 'references' | 'language' | 'tokens' | 'rich' | 'rich_inline'
+    | 'text'
+    | 'multiline'
+    | 'boolean'
+    | 'references'
+    | 'language'
+    | 'tokens'
+    | 'rich'
+    | 'rich_inline'
+    | 'source'
   default: unknown
   references?: string
 }
@@ -30,7 +38,19 @@ export interface MetadataPanel {
   collection: string
   fields?: string[]
 }
-export type StructuredMetadata = { collections: RecordCollection[]; panels?: MetadataPanel[] }
+export interface BibliographyDescriptor {
+  tab: string
+  files: string
+  field: string
+  style: string
+  style_field: string
+}
+export type StructuredMetadata = {
+  collections: RecordCollection[]
+  panels?: MetadataPanel[]
+  bibliography?: BibliographyDescriptor
+  outline?: { parameter: string; field: string }
+}
 export type RecordStore = Pick<Provider, 'doc'>
 export type RecordData = Record<string, unknown> & { id: string }
 export type SharedRecord = Y.Map<unknown>
@@ -115,17 +135,20 @@ export function initializeRecords(
   schema: StructuredMetadata | null | undefined,
   values: Record<string, unknown>,
 ) {
-  if (!schema || collections(provider)) return
+  if (!schema) return
   provider.doc.transact(() => {
-    const root = new Y.Map<Y.Map<SharedRecord>>()
-    provider.doc.getMap('settings').set('collections', root)
+    let root = collections(provider)
+    if (!root) {
+      root = new Y.Map<Y.Map<SharedRecord>>()
+      provider.doc.getMap('settings').set('collections', root)
+    }
     for (const definition of schema.collections) {
+      if (root.has(definition.parameter)) continue
       root.set(definition.parameter, new Y.Map<SharedRecord>())
       provider.doc.getMap('settings').set(`order:${definition.parameter}`, new Y.Array<string>())
-    }
-    for (const definition of schema.collections)
       for (const value of (values[definition.parameter] as RecordData[]) || [])
         insert(provider, definition, value)
+    }
   }, 'metadata-initialize')
 }
 export function snapshotRecords(

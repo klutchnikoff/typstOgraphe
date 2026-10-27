@@ -26,6 +26,8 @@ import { propertyPanel } from './properties'
 import { insertBlock } from './editing'
 import { inlineObjectTarget } from './inline-objects'
 import { activeInlineObject } from './inline-object-focus'
+import { citationPanel } from './citation-panel'
+import { referenceFiles, setCitationEntries, type ReferenceEntry } from './citation-index'
 import './style.css'
 
 declare global {
@@ -72,6 +74,7 @@ const host = window.__SPIKE_TRANSPORT__ ??
 const provider = new Provider(host.id, host.transport)
 let editor: Editor
 let properties: ReturnType<typeof propertyPanel> | undefined
+let citations: ReturnType<typeof citationPanel> | undefined
 const rendering = renderQueue(render)
 let scheduledAt = 0
 let onPreview: ((revision: number) => void) | undefined
@@ -96,7 +99,8 @@ function propertyTarget(): { pos: number; kind: string } | undefined {
     : undefined
 }
 function openProperties(pos: number, kind: string, remove = false) {
-  properties?.open(pos, kind, remove)
+  if (kind === 'citation' && !remove) citations?.open(pos)
+  else properties?.open(pos, kind, remove)
 }
 
 let commands: Registry = new Map()
@@ -374,12 +378,36 @@ async function start() {
   )
   preview = previewController(editor, provider, host.transport, () => version)
   initializeSettings(provider, contentCatalogue, bootstrap.settings)
+  citations = citationPanel(editor, provider, host.transport, bands)
+  let referenceKey = '',
+    referenceTicket = 0
+  const refreshReferences = () => {
+    const files = referenceFiles(provider),
+      key = JSON.stringify(files)
+    if (key === referenceKey) return
+    referenceKey = key
+    const ticket = ++referenceTicket
+    void host.transport
+      .invoke<ReferenceEntry[]>('bibliography_index', { files })
+      .then((entries) => {
+        if (ticket === referenceTicket) setCitationEntries(editor, entries)
+      })
+      .catch((error) => {
+        if (ticket === referenceTicket) {
+          setCitationEntries(editor, [])
+          message(String(error), true)
+        }
+      })
+  }
+  provider.doc.getMap('settings').observeDeep(() => queueMicrotask(refreshReferences))
+  refreshReferences()
   commands = createRegistry(
     editor,
     contentCatalogue.entries,
     openProperties,
     () => element<HTMLInputElement>('image-file').click(),
     () => documentType(provider).capabilities,
+    () => citations?.open(),
   )
   commands.set('context.open', {
     id: 'context.open',

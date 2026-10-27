@@ -118,9 +118,9 @@ export function inlineObjectView(options: {
       open()
     }
   })
-  const describe = (text: string, number?: number) => {
+  const describe = (text: string, number?: number, displayLabel?: string) => {
     const suffix = number === undefined ? '' : ` ${number}`
-    const textLabel = `${options.label}${suffix}`
+    const textLabel = displayLabel ?? `${options.label}${suffix}`
     if (label.textContent !== textLabel) label.textContent = textLabel
     const title = `${options.title}${suffix}`
     label.title = text ? `${title} : ${text}` : title

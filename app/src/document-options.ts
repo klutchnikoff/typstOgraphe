@@ -1,5 +1,5 @@
 import { tr } from './i18n'
-import type { Catalogue, DocumentType } from './shell'
+import type { Catalogue, DocumentType, ModelPolicy } from './shell'
 import type { Settings } from './state'
 
 /** General settings expose only options the active model lets the author change. */
@@ -10,6 +10,8 @@ export function documentOptions(
   settings: Settings,
   changeModel: (id: string) => void,
   changeOption: (key: string, value: string | boolean) => void,
+  changeField: (key: string, value: boolean) => void = () => {},
+  policy: () => ModelPolicy | undefined = () => undefined,
 ) {
   const root = document.createElement('div')
   root.className = 'document-options'
@@ -47,6 +49,17 @@ export function documentOptions(
     { value: 'true', label: tr('Paysage') },
   ])
   const language = choice(right, 'language', tr('Langue du document'), catalogue.languages)
+  const outlineRow = document.createElement('label'),
+    outline = document.createElement('input')
+  outline.type = 'checkbox'
+  outline.setAttribute('aria-label', tr('Afficher le sommaire'))
+  outlineRow.className = 'document-option-checkbox'
+  outlineRow.append(outline, document.createTextNode(tr('Afficher le sommaire')))
+  right.append(outlineRow)
+  outline.onchange = () => {
+    const descriptor = kind.structured?.outline
+    if (descriptor) changeField(descriptor.field, outline.checked)
+  }
   parent.append(root)
   model.select.onchange = () => changeModel(model.select.value)
   paper.select.onchange = () => changeOption('paper', paper.select.value)
@@ -60,6 +73,9 @@ export function documentOptions(
     else if (current.modelId !== 'embedded') embedded?.remove()
     if (model.select.value !== current.modelId) model.select.value = current.modelId
     const page = kind.models.find((model) => model.id === current.modelId)?.fixedPage
+    const descriptor = kind.structured?.outline
+    outlineRow.hidden = !descriptor || !policy()?.outline
+    outline.checked = !!(descriptor && current.metadata.fields[descriptor.parameter])
     const options = current.metadata.fields.options
     for (const [control, value] of [
       [paper, String(options.paper)],
