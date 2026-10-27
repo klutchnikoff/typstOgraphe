@@ -9,20 +9,6 @@ description = "Adaptateur egui de référence, conservé pendant la transition v
 [lints]
 workspace = true
 
-[features]
-editor-model-spike = []
-mcp-acceptance = []
-
-[[example]]
-name = "editor-model-spike"
-path = "../../experiments/editor-model/main.rs"
-required-features = ["editor-model-spike"]
-
-[[example]]
-name = "mcp-acceptance"
-path = "../../experiments/mcp-acceptance/main.rs"
-required-features = ["mcp-acceptance"]
-
 [dependencies]
 similar = { version = "3.2.0", features = ["unicode"] }
 typstographe-mcp.workspace = true

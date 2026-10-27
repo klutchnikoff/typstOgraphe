@@ -131,6 +131,21 @@ fn open(file: std::path::PathBuf) -> Result<Engine, CommandError> {
 
 fn catalogue_report(action: CatalogueAction) -> Result<Report, CommandError> {
     let outcome = match action {
+        CatalogueAction::Export { markdown } => {
+            let value = typstographe_core::engine::registry::catalogue_json();
+            return Ok(Report {
+                text: if markdown {
+                    typstographe_core::engine::registry::catalogue_markdown(&value)
+                } else {
+                    format!(
+                        "{}\n",
+                        serde_json::to_string_pretty(&value).expect("catalogue")
+                    )
+                },
+                outcome: value,
+                exit: 0,
+            });
+        }
         CatalogueAction::List { markdown: true, .. } => {
             return Ok(Report {
                 outcome: Value::Null,

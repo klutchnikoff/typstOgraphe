@@ -10,7 +10,9 @@ export default defineConfig({
   use: {
     baseURL,
     viewport: { width: 1280, height: 900 },
-    trace: 'retain-on-failure',
+    trace: 'off',
+    screenshot: 'off',
+    video: 'off',
   },
   projects: [
     { name: 'chromium', use: { browserName: 'chromium' } },

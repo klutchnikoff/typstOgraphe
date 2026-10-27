@@ -49,7 +49,6 @@ test('rendu réel, bandeau de note, légende et sélection de tableau au clavier
   page,
 }, testInfo) => {
   await ready(page, 'main')
-  await page.screenshot({ path: testInfo.outputPath('editor-overview.png') })
   await expect(page.getByRole('textbox', { name: 'Corps du document' })).toContainText(
     'Madame, Monsieur',
   )
@@ -84,9 +83,7 @@ test('rendu réel, bandeau de note, légende et sélection de tableau au clavier
   await page.waitForFunction(() =>
     /page/.test(document.querySelector('#render-status')!.textContent || ''),
   )
-  await page.screenshot({ path: testInfo.outputPath('editor-light.png'), fullPage: true })
   await page.emulateMedia({ colorScheme: 'dark' })
-  await page.screenshot({ path: testInfo.outputPath('editor-dark.png'), fullPage: true })
 })
 test('deux vues fusionnent hors ligne, annulation locale, sauvegarde et commande Rust', async ({
   page,
@@ -234,7 +231,6 @@ test('sélection entre blocs et saisie sur un document plus long', async ({ page
   const metricsPath = testInfo.outputPath('typing-metrics.json')
   await writeFile(metricsPath, JSON.stringify(result, null, 2))
   await testInfo.attach('typing-metrics', { path: metricsPath, contentType: 'application/json' })
-  await page.screenshot({ path: testInfo.outputPath('long-document.png') })
 })
 
 test('capacités reprises, recherche exacte et sélection synchronisée avec le rendu', async ({
@@ -488,9 +484,7 @@ test('colonne éditable sans cadre et actions groupées à droite', async ({ pag
   await page.keyboard.type(' Suite.')
   await expect(page.locator('.tiptap')).toContainText('Suite.')
   await expect(page.locator('#render-status')).toHaveText(/^\d+ pages? ·/)
-  await page.screenshot({ path: testInfo.outputPath('editor-column-light.png') })
   await page.emulateMedia({ colorScheme: 'dark' })
-  await page.screenshot({ path: testInfo.outputPath('editor-column-dark.png') })
 
   await page.getByRole('button', { name: 'Fichier', exact: true }).click()
   await page.locator('[data-command="document.new"]').click()
@@ -505,7 +499,6 @@ test('colonne éditable sans cadre et actions groupées à droite', async ({ pag
   const last = await buttons.last().boundingBox()
   const bounds = await row.boundingBox()
   expect(Math.abs(last!.x + last!.width - bounds!.x - bounds!.width)).toBeLessThan(1)
-  await page.screenshot({ path: testInfo.outputPath('discard-actions.png') })
   await page.getByRole('button', { name: 'Annuler', exact: true }).last().click()
   await page.getByRole('button', { name: 'Préférences', exact: true }).click()
   await expect(page.locator('#side-content .panel-actions')).toHaveCSS(

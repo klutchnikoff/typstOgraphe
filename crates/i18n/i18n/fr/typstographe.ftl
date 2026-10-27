@@ -739,3 +739,5 @@ web-table = Tableau
 web-confirm = Valider
 web-no-extra-settings = Aucun paramètre supplémentaire à modifier.
 web-invalid-setting = Vérifiez la valeur de ce champ.
+
+cli-catalogue-export-help = Exporter le catalogue documentaire statique, sans ouvrir de document.

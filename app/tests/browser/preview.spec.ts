@@ -81,7 +81,6 @@ for (const encoding of ['png', 'svg'] as const)
     await expect.poll(() => page.evaluate(() => window.__previewProbe.pending.length)).toBe(2)
     expect(await page.locator('#pages').innerHTML()).toBe(before)
     await expect(page.locator('#render-status')).toHaveText('Mise à jour…')
-    await page.screenshot({ path: info.outputPath('old-preview-while-decoding.png') })
     await page.evaluate(() => window.__previewProbe.pending.shift()!())
     expect(await page.locator('#pages').innerHTML()).toBe(before)
     await page.evaluate(() => window.__previewProbe.pending.shift()!())
@@ -91,7 +90,6 @@ for (const encoding of ['png', 'svg'] as const)
     const added = await page.evaluate(() => window.__previewProbe.additions)
     expect(added).toHaveLength(2)
     expect(added.every((img) => img.complete && img.width > 0 && img.height > 0)).toBe(true)
-    await page.screenshot({ path: info.outputPath('decoded-preview.png') })
   })
 
 test('le canevas reçoit tous ses pixels avant publication et une erreur garde le dernier rendu', async ({
@@ -134,5 +132,4 @@ test('le canevas reçoit tous ses pixels avant publication et une erreur garde l
     'Contenu à corriger · dernier rendu conservé',
   )
   await expect(page.locator('#pages canvas[data-retained]')).toHaveCount(1)
-  await page.screenshot({ path: info.outputPath('retained-canvas-after-error.png') })
 })

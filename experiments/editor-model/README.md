@@ -1,3 +1,6 @@
+> Bilan historique : le code du diagnostic egui a été retiré le 27 octobre 2026.
+> Les anciennes commandes ci-dessous documentent les essais passés.
+
 # Prototype de décision du modèle d’édition — phase 1.6
 
 Ce diagnostic réutilise le vrai `Projection` et son adaptateur `egui::TextBuffer`.

@@ -97,7 +97,6 @@ test('tous les widgets partagent leur cadre, leur bandeau B et la suppression an
     await widget.getByRole('button', { name: /^Supprimer ·/ }).click()
     await expect(panel.locator('button:visible')).toHaveText(['Annuler', 'Supprimer'])
     await expect(panel.locator('.context-panel-body')).toBeHidden()
-    if (kind === 'quote') await page.screenshot({ path: info.outputPath('quote-frame-remove.png') })
     await expect(page.locator('#apply-properties')).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(widget).toHaveCount(0)

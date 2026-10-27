@@ -138,12 +138,10 @@ test('citation : paramètres indisponibles, filet intérieur et attribution à g
         page.evaluate(() => window.__spike!.editor.state.selection.$from.parent.type.name),
       )
       .toBe('quoteAttribution')
-    await widget.screenshot({ path: info.outputPath(`quote-${theme}-collapsed.png`) })
     await header.getByRole('button', { name: 'Supprimer · Citation', exact: true }).click()
     await expect(panel.locator('button:visible')).toHaveText(['Annuler', 'Supprimer'])
     await expect(panel.locator('.context-panel-body')).toBeHidden()
     expect(await header.evaluate((el) => el.innerHTML)).toBe(headerHTML)
-    await widget.screenshot({ path: info.outputPath(`quote-${theme}-remove.png`) })
     await page.keyboard.press('Shift+Tab')
     await expect(page.locator('#cancel-properties')).toBeFocused()
     await page.keyboard.press('Enter')

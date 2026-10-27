@@ -162,7 +162,6 @@ test('variante B : paramètres de liste intégrés, brouillon, validation, annul
   )
   await page.getByLabel('Numéro initial', { exact: true }).fill('3')
   expect(await contents(page)).toBe(before)
-  await page.screenshot({ path: info.outputPath('list-band-light.png') })
   await page.keyboard.press('Escape')
   await expect(form).toBeHidden()
   expect(await contents(page)).toBe(before)
@@ -214,7 +213,6 @@ test('image : bandeau intégré, focus et modification annulable du texte altern
   await expect(page.locator('#apply-properties')).toHaveText('Valider')
   await expect(page.locator('#properties .panel-actions')).toBeInViewport()
   await expect(page.locator('#render-status')).toHaveText(/^\d+ pages? ·/)
-  await page.screenshot({ path: info.outputPath('image-band-dark.png') })
 })
 test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse au redimensionnement', async ({
   page,
@@ -292,15 +290,6 @@ test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse a
         .toBeLessThan(4)
     }
     expect(await contents(page)).toBe(before)
-    await page.screenshot({
-      path: info.outputPath(
-        inBlock === 'quote'
-          ? 'spelling-in-quote.png'
-          : inBlock
-            ? 'spelling-in-list.png'
-            : 'spelling-prose.png',
-      ),
-    })
     await page.keyboard.press('Escape')
     await expect(band).toHaveCount(0)
     expect(await contents(page)).toBe(before)
@@ -311,26 +300,6 @@ test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse a
     await expect(page.locator('.tiptap')).not.toContainText('courrrier')
     await expect(page.locator('.tiptap')).toBeFocused()
     await page.setViewportSize({ width: 1280, height: 900 })
-  }
-})
-
-test('références visuelles : variante B des maquettes validées', async ({ page }, info) => {
-  const { pathToFileURL } = await import('node:url')
-  const { resolve } = await import('node:path')
-  await page.goto(pathToFileURL(resolve('../docs/mockups/interface-polish.html')).href)
-  await page.locator('[data-v="b"]').click()
-  await expect(page.locator('#col')).toHaveClass(/v-b/)
-  for (const [scene, theme] of [
-    ['list', 'light'],
-    ['image', 'dark'],
-    ['spell', 'light'],
-    ['spellblock', 'light'],
-  ]) {
-    await page.locator(`[data-s="${scene}"]`).click()
-    await page.locator(`[data-t="${theme}"]`).click()
-    await page
-      .locator('#col')
-      .screenshot({ path: info.outputPath(`reference-${scene}-${theme}.png`) })
   }
 })
 

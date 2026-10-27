@@ -85,7 +85,6 @@ test('un bandeau de note préserve toute la ligne « Test des notes »', async (
   })
   await page.locator('[data-command="insert.footnote"]').click()
   await expect(page.getByLabel('Texte de la note', { exact: true })).toBeFocused()
-  await page.screenshot({ path: info.outputPath('note-middle.png') })
   const metrics = await lineGeometry(page)
   await info.attach('geometry', { body: JSON.stringify(metrics), contentType: 'application/json' })
   expect(metrics.lineSpread).toBeLessThan(2)
@@ -156,7 +155,6 @@ for (const context of ['prose', 'list', 'quote'] as const) {
       await unchangedWrapping(page, before)
       await aboveTarget(page, band, selector)
       expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(document)
-      await page.screenshot({ path: info.outputPath(`${context}-${target}.png`) })
       await page.keyboard.press('Escape')
       await expect(page.locator(band)).toBeHidden()
       await unchangedWrapping(page, before)
@@ -201,9 +199,6 @@ test('ligne ciblée après un retour simple ou un repli automatique, puis redime
       await page.setViewportSize({ width: width - 30, height: 900 })
       await aboveTarget(page, '#properties', '.footnote-ref')
       const expanded = await glyphs(page)
-      await page.screenshot({
-        path: info.outputPath(`${softBreak ? 'soft-break' : 'wrap'}-${width}.png`),
-      })
       await page.keyboard.press('Escape')
       await unchangedWrapping(page, expanded)
     }

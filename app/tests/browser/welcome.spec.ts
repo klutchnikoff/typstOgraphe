@@ -46,10 +46,8 @@ test('accueil centré, trois actions immédiates et animation non rejouée au re
         .every((animation) => animation.playState === 'finished'),
     ),
   ).toBe(true)
-  await page.screenshot({ path: testInfo.outputPath('welcome-light.png') })
   await page.emulateMedia({ colorScheme: 'dark' })
   await expect(brand).toHaveAttribute('data-state', 'settled')
-  await page.screenshot({ path: testInfo.outputPath('welcome-dark.png') })
 })
 
 test('accueil sans mouvement et actions accessibles à la taille minimale', async ({ page }) => {

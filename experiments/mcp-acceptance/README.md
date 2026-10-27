@@ -1,3 +1,6 @@
+> Bilan historique : le code du diagnostic egui a été retiré le 27 octobre 2026.
+> Les anciennes commandes ci-dessous documentent les essais passés.
+
 # Recette native MCP rattachée
 
 Pilote **du rôle utilisateur de test**, réservé à un courrier fictif dans un

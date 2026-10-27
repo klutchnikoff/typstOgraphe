@@ -119,6 +119,11 @@ pub use typstographe_mcp::args::Target;
 
 #[derive(Subcommand)]
 pub enum CatalogueAction {
+    #[command(about = tr!("cli-catalogue-export-help"))]
+    Export {
+        #[arg(long, conflicts_with = "json", help = tr!("cli-markdown-help"))]
+        markdown: bool,
+    },
     #[command(about = tr!("cli-list-help"))]
     List {
         #[arg(long, help = tr!("cli-query-help"))]
