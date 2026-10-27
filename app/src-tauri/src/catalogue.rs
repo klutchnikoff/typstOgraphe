@@ -127,11 +127,16 @@ mod tests {
         assert_eq!(
             sections[1]["fields"],
             json!([
-                "letter.place",
-                "letter.date",
                 "letter.subject",
-                "letter.reference"
+                "letter.reference",
+                "letter.place",
+                "letter.date"
             ])
+        );
+        assert!(
+            sections
+                .iter()
+                .all(|section| section["layout"] == "compact")
         );
         let sender = groups[0]["sections"].as_array().unwrap();
         assert_eq!(sender[0]["layout"], "inline");

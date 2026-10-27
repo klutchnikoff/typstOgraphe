@@ -244,7 +244,7 @@ pub const GROUPS: &[FieldGroup] = &[
         label_key: "group-editorial-header",
         sections: &[
             FieldSection {
-                layout: FieldSectionLayout::Editorial,
+                layout: FieldSectionLayout::Compact,
                 id: "recipient",
                 label_key: "group-recipient",
                 fields: &[
@@ -253,14 +253,14 @@ pub const GROUPS: &[FieldGroup] = &[
                 ],
             },
             FieldSection {
-                layout: FieldSectionLayout::Editorial,
+                layout: FieldSectionLayout::Compact,
                 id: "information",
                 label_key: "group-letter-information",
                 fields: &[
-                    MetadataField::LetterPlace,
-                    MetadataField::LetterDate,
                     MetadataField::LetterSubject,
                     MetadataField::LetterReference,
+                    MetadataField::LetterPlace,
+                    MetadataField::LetterDate,
                 ],
             },
         ],

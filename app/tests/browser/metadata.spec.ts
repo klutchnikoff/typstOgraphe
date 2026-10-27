@@ -314,3 +314,60 @@ test('expéditeur compact : identité, coordonnées et organisation, clavier et 
   await page.emulateMedia({ colorScheme: 'dark' })
   await expect(name).toBeVisible()
 })
+
+test('en-tête compact : destinataire, objet et référence puis lieu et date, sans débordement', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await header(page)
+  const content = page.locator('#metadata-content')
+  const labels = ['Destinataire', 'Adresse', 'Objet', 'Référence', 'Lieu', 'Date']
+  await expect(content.locator('label')).toHaveText(labels)
+  const recipient = content.getByRole('group', { name: 'Destinataire', exact: true })
+  const information = content.getByRole('group', { name: 'Informations', exact: true })
+  await expect(recipient.locator('label')).toHaveText(labels.slice(0, 2))
+  await expect(information.locator('label')).toHaveText(labels.slice(2))
+  const recipientBox = (await recipient.boundingBox())!,
+    informationBox = (await information.boundingBox())!
+  expect(Math.abs(recipientBox.y - informationBox.y)).toBeLessThan(2)
+  expect(informationBox.x).toBeGreaterThan(recipientBox.x + recipientBox.width)
+  expect((await content.boundingBox())!.height).toBeLessThan(245)
+  for (const label of labels) {
+    const bounds = (await content.getByLabel(label, { exact: true }).boundingBox())!
+    const labelBounds = (await content
+      .locator('label')
+      .filter({ hasText: new RegExp(`^${label}$`) })
+      .boundingBox())!
+    expect(bounds.x).toBeGreaterThan(labelBounds.x + labelBounds.width)
+    expect(Math.abs(bounds.y - labelBounds.y)).toBeLessThan(12)
+  }
+  await content.getByLabel('Destinataire', { exact: true }).focus()
+  // Date controls keep their native internal keyboard navigation.
+  for (const label of labels) {
+    await expect(content.getByLabel(label, { exact: true })).toBeFocused()
+    if (label !== 'Date') await page.keyboard.press('Tab')
+  }
+  await content.getByRole('button', { name: 'Aujourd’hui', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  const today = await page.evaluate(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  })
+  await expect(content.getByLabel('Date', { exact: true })).toHaveValue(today)
+  for (const width of [1280, 700]) {
+    await page.setViewportSize({ width, height: 700 })
+    expect(
+      await content.evaluate((element) => element.scrollWidth - element.clientWidth),
+    ).toBeLessThan(2)
+    expect(
+      (await content.getByLabel('Date', { exact: true }).boundingBox())!.width,
+    ).toBeGreaterThan(120)
+    expect(
+      await page.locator('#editor-scroll').evaluate((element) => element.clientHeight),
+    ).toBeGreaterThan(100)
+  }
+  expect((await information.boundingBox())!.y).toBeGreaterThan((await recipient.boundingBox())!.y)
+  await page.keyboard.press('Escape')
+  await expect(content).toBeHidden()
+  await expect(page.getByRole('button', { name: 'En-tête', exact: true })).toBeFocused()
+})

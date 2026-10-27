@@ -86,12 +86,18 @@ pris en charge ; cet onglet ne propose pas d’action d’import de modèle.
 ## Informations du courrier
 
 Les onglets sont Général, Expéditeur et En-tête. Le dernier regroupe les sections
-Destinataire (nom, adresse) et Informations (lieu, date, objet, référence).
+Destinataire (nom, adresse) et Informations (objet, référence, lieu, date).
+Ces sections utilisent la même présentation compacte que celles d’Expéditeur :
+libellés à côté des champs, groupes côte à côte si la largeur le permet. Les
+contrôles de date gardent une largeur lisible et le bouton Aujourd’hui se replie
+sur une autre ligne si nécessaire.
 Expéditeur présente d’abord le nom complet, puis les groupes compacts Coordonnées
 (adresse, courriel, téléphone) et Organisation (organisme, service, fonction),
 suivis de la signature. Les groupes se superposent dans une colonne étroite.
 L’organisation vient du type Rust, exposée par le catalogue ; les composants de
-champs sont communs aux onglets simples et aux sections éditoriales.
+champs et de sections sont communs aux onglets simples, aux sections éditoriales
+et à la section de signature. La construction du cadre, des lignes de champs et
+des contrôles par genre de champ passe par des fonctions dédiées communes.
 
 La saisie modifie les métadonnées partagées existantes et le rendu Typst, sans
 ajouter de bloc au corps. Les mises à jour d’une autre fenêtre actualisent aussi

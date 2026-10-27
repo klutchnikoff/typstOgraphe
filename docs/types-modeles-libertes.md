@@ -64,11 +64,17 @@ le Courrier : **Général, Expéditeur, En-tête**, dans cet ordre.
   restent distinctes des valeurs par défaut des préférences globales.
 - Le dernier onglet ouvre une zone plus riche, décrite par le type. Pour le
   Courrier, elle regroupe Destinataire (nom et adresse) et Informations du
-  courrier (lieu, date, objet, référence), sans nouveaux widgets dans le corps.
+  courrier (objet, référence, lieu, date), sans nouveaux widgets dans le corps.
+  Ces deux sections reprennent les lignes compactes de l’Expéditeur, côte à côte
+  si la largeur le permet, puis l’une sous l’autre. Le champ date reste lisible ;
+  son action Aujourd’hui passe à la ligne si nécessaire.
 
 Le type décrit les sections, leur ordre et les champs qu’elles présentent.
 L’interface utilise des composants communs ; elle ne déduit pas cette structure
-à partir des fonctions internes du modèle. Chaque contrôle modifie les mêmes
+à partir des fonctions internes du modèle. Cadres de sections (signature
+comprise), lignes et contrôles par genre de champ ont chacun leur fonction de
+construction commune, sans branchement sur le type de document.
+Chaque contrôle modifie les mêmes
 valeurs structurées utilisées par Yjs, les sauvegardes, les opérations MCP et
 l’appel `#show: courrier.with(…)`. Aucune copie des données dans un bloc de texte.
 Le modèle reste responsable de leur emplacement et de leur rendu Typst.
