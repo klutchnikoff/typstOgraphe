@@ -52,7 +52,11 @@ affiche ou non.
 Un seul accès, au-dessus de l’éditeur, avec des onglets adaptés au type. Pour
 le Courrier : **Général, Expéditeur, En-tête**, dans cet ordre.
 
-- Général reste un formulaire de réglages (modèle, format, langue…).
+- Général reste un formulaire compact de réglages (modèle, format, langue…).
+  Un réglage imposé par le modèle est entièrement masqué, sans valeur figée ni
+  message. Courrier personnel laisse choisir format et orientation ; A4 portrait
+  conserve la disposition pour enveloppe à fenêtre, les autres choix utilisent
+  une disposition adaptée dans le flux normal.
 - Expéditeur reste le formulaire des coordonnées et de la signature du document,
   distinct des valeurs par défaut conservées dans les préférences globales.
 - Le dernier onglet ouvre une zone plus riche, décrite par le type. Pour le
@@ -93,8 +97,8 @@ un autre nom. Les autres options propres à sa présentation lui appartiennent.
 - **libre** : toute valeur valide du genre, avec un défaut ;
 - **à choix restreint** : une liste de valeurs permises, avec un défaut ;
 - **imposé** : le modèle fixe la valeur effective, indépendamment du choix
-  conservé dans le document. L’interface peut indiquer cette valeur et son
-  origine, sans sélecteur modifiable.
+  conservé dans le document. L’interface courante masque le réglage et sa valeur ;
+  le modèle applique la valeur imposée.
 
 Ces régimes s’appliquent aux options de présentation du contrat d’une capacité,
 aux paramètres généraux et aux options propres au modèle. Les métadonnées de

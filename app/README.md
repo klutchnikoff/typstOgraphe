@@ -79,8 +79,8 @@ leur dossier isolé explicite.
 Un chemin `.typsto` peut être passé au binaire pour ouvrir le fichier au lancement.
 Général présente uniquement le modèle, le format, l’orientation et la langue du
 document, avec libellés et contrôles sur la même ligne. Un format ou une
-orientation imposés par le modèle sont affichés comme des valeurs fixes,
-accompagnées d’une explication. Les modèles embarqués dans les fichiers restent
+orientation imposés par le modèle sont masqués : ni contrôle ni valeur figée
+dans l’interface courante. Les modèles embarqués dans les fichiers restent
 pris en charge ; cet onglet ne propose pas d’action d’import de modèle.
 
 ## Informations du courrier
@@ -95,6 +95,17 @@ ajouter de bloc au corps. Les mises à jour d’une autre fenêtre actualisent a
 les champs ouverts sans reconstruire le contrôle focalisé. Aujourd’hui insère
 une date fixe. Les paramètres et les valeurs suivent les sauvegardes et exports
 habituels. Les zones riches des futurs types, comme un résumé, restent à réaliser.
+
+Le modèle Courrier personnel laisse choisir A4 (défaut), A5, Lettre US, Legal US
+et A3, en portrait ou paysage. La disposition pour enveloppe DL et ses repères de
+pliage sont conservés uniquement pour A4 portrait ; les autres choix utilisent
+un en-tête dans le flux normal de la page.
+
+Les sauvegardes et exports manuels reprennent un instantané à jour si un relais
+collaboratif change la révision pendant l’opération (trois tentatives au maximum).
+Chaque tentative garde la validation stricte du cœur. Un autre type d’erreur ou
+un remplacement de document interrompt l’opération. Ce mécanisme ne s’applique
+pas aux commandes d’édition MCP ni à l’acceptation des propositions d’agents.
 
 ## Palette de commandes
 
