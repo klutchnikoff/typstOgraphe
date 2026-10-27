@@ -205,6 +205,7 @@
         "$defs": {
           "DocumentType": {
             "enum": [
+              "article",
               "courrier",
               "compte-rendu"
             ],
@@ -262,7 +263,19 @@
                 "$ref": "#/$defs/MetadataField"
               },
               "value": {
-                "type": "string"
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "items": {
+                      "type": "object"
+                    },
+                    "maxItems": 100,
+                    "type": "array"
+                  }
+                ],
+                "description": "Text for scalar fields; an array of typed records for collection fields. Discover each collection's record schema in document_types.describe / structured_metadata."
               }
             },
             "required": [
@@ -273,6 +286,9 @@
           },
           "MetadataField": {
             "enum": [
+              "article.authors",
+              "article.affiliations",
+              "article.localizations",
               "sender.name",
               "sender.role",
               "sender.department",
@@ -765,6 +781,9 @@
         "$defs": {
           "MetadataField": {
             "enum": [
+              "article.authors",
+              "article.affiliations",
+              "article.localizations",
               "sender.name",
               "sender.role",
               "sender.department",
@@ -829,7 +848,19 @@
             "default": "discrete"
           },
           "value": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "object"
+                },
+                "maxItems": 100,
+                "type": "array"
+              }
+            ],
+            "description": "Text for scalar fields; an array of typed records for collection fields. Discover each collection's record schema in document_types.describe / structured_metadata."
           }
         },
         "required": [

@@ -455,7 +455,9 @@ mod tests {
         let header = metadata.main_source();
         assert!(header.contains("#show: courrier.with("));
         assert!(!header.contains("compact"));
-        for model in Model::all() {
+        for model in
+            Model::all().filter(|m| m.definition().kind == super::super::DocumentType::Courrier)
+        {
             assert!(
                 world
                     .compile_with_template("Bonjour.", &metadata, &model.source())

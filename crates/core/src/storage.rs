@@ -211,6 +211,7 @@ fn entry<R: Read + std::io::Seek>(
 }
 
 pub(crate) fn validate(letter: &StoredDocument) -> Result<(), CoreError> {
+    letter.metadata.validate().map_err(CoreError::external)?;
     crate::packages::validate(&letter.template, &letter.dependencies)?;
     let document = Document::from_source(&letter.source)?;
     if let Some(path) = letter.metadata.signature_path() {

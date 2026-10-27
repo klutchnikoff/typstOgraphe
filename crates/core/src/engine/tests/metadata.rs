@@ -34,14 +34,17 @@ fn field_catalogues_drive_typed_updates_for_every_type_without_touching_the_body
         let read = e.query_call(Query::Metadata(Empty {}).to_call()).unwrap();
         assert_eq!(
             read["fields"].as_array().unwrap().len(),
-            if kind == DocumentType::Courrier {
-                13
-            } else {
-                6
+            match kind {
+                DocumentType::Courrier => 13,
+                DocumentType::CompteRendu => 6,
+                DocumentType::Article => 3,
             }
         );
         assert_eq!(e.session.revision, 0);
         assert!(e.session.undo.is_empty());
+        if kind == DocumentType::Article {
+            continue;
+        } // structured fields have their own guarded editing recipe
         for field in e.session.metadata.field_values() {
             let value = if field.multiline {
                 "Zoé\nÉlodie"
@@ -430,4 +433,54 @@ fn metadata_options_and_normalized_multiline_fields_remain_autonomous_and_persis
     assert!(reopened == stored);
     assert!(reopened.metadata.main_source().contains("language: \"en\""));
     assert_eq!(reopened.source, "Bonjour.");
+}
+
+#[test]
+fn article_collections_are_guarded_typed_undoable_values_and_do_not_touch_the_body() {
+    let mut e = engine("Le corps reste intact.");
+    e.session.metadata = Metadata::blank(DocumentType::Article);
+    e.session.template = DocumentType::Article.default_model();
+    e.session.dependencies = crate::packages::for_template(&e.session.template);
+    let original = e.stored_document();
+    let affiliations = json!([{"id":"irmar","text":"Univ Rennes, CNRS, IRMAR - UMR 6625, F-35000 Rennes, France"}]);
+    let guard = e.target_guard();
+    call(
+        &mut e,
+        "metadata.set",
+        json!({"guard":guard,"field":"article.affiliations","value":affiliations}),
+    )
+    .unwrap();
+    assert!(
+        call(
+            &mut e,
+            "metadata.set",
+            json!({"guard":guard,"field":"article.authors","value":[]})
+        )
+        .is_err()
+    );
+    let author = json!({"id":"a1","name":"Camille","affiliation-ids":["irmar"],"email":"","orcid":"","corresponding":false});
+    let guard = e.target_guard();
+    call(
+        &mut e,
+        "metadata.set",
+        json!({"guard":guard,"field":"article.authors","value":[author]}),
+    )
+    .unwrap();
+    let guard = e.target_guard();
+    assert!(
+        call(
+            &mut e,
+            "metadata.set",
+            json!({"guard":guard,"field":"article.affiliations","value":[]})
+        )
+        .is_err()
+    );
+    assert_eq!(e.document().source(), original.source);
+    call(&mut e, "edit.undo", json!({})).unwrap();
+    call(&mut e, "edit.undo", json!({})).unwrap();
+    assert_eq!(e.session.metadata, original.metadata);
+    assert!(
+        Engine::type_documentation(DocumentType::Article)["structured_metadata"]["collections"]
+            .is_array()
+    );
 }

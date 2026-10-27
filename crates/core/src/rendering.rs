@@ -185,6 +185,7 @@ impl TypstWorld {
         {
             return Err(CoreError::from(TemplateError::BulletMarkerNotAllowed));
         }
+        metadata.validate().map_err(CoreError::external)?;
         self.set_source("main.typ", &metadata.main_source());
         self.set_source("modele.typ", template);
         self.set_source("contenu.typ", source);

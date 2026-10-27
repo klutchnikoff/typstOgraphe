@@ -18,6 +18,7 @@ impl Default for Settings {
 }
 impl Settings {
     pub fn validate(&self) -> Result<(), String> {
+        self.metadata.validate()?;
         if self.template.len() > 2 * 1024 * 1024 {
             return Err("Modèle trop volumineux.".into());
         }

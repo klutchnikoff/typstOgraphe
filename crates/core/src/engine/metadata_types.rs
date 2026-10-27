@@ -19,9 +19,17 @@ pub enum MetadataInput {
 pub struct SetMetadataParams {
     pub guard: TargetGuard,
     pub field: MetadataField,
-    pub value: String,
+    #[schemars(schema_with = "metadata_value_schema")]
+    pub value: serde_json::Value,
     #[serde(default)]
     pub input: MetadataInput,
+}
+
+pub(super) fn metadata_value_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    schemars::json_schema!({
+        "description": "Text for scalar fields; an array of typed records for collection fields. Discover each collection's record schema in document_types.describe / structured_metadata.",
+        "anyOf": [{"type":"string"}, {"type":"array", "maxItems":100, "items":{"type":"object"}}]
+    })
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

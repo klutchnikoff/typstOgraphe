@@ -1,6 +1,7 @@
 //! Contenu structuré indépendant des bibliothèques graphiques.
 pub mod archive;
 pub mod catalogue;
+pub mod editorial;
 pub mod legacy;
 mod mapping;
 pub use mapping::source_mapped;

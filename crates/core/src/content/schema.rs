@@ -3,7 +3,7 @@ use crate::{assets::Assets, document::typst_string};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Node {
     #[serde(rename = "type")]
@@ -17,7 +17,7 @@ pub struct Node {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub marks: Vec<Mark>,
 }
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Mark {
     #[serde(rename = "type")]
@@ -220,7 +220,7 @@ fn table(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
     }
     Ok(format!("#table(columns: {width}, {})", cells.join(", ")))
 }
-fn inline(nodes: &[Node], mapped: bool) -> Result<String, String> {
+pub(super) fn inline(nodes: &[Node], mapped: bool) -> Result<String, String> {
     nodes
         .iter()
         .map(|node| {

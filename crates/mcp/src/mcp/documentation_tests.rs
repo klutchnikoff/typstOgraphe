@@ -354,7 +354,10 @@ fn resources_are_current_coherent_snapshots_with_no_document_mutations() {
     }
     let models = resource(&h, "typstographe://models");
     assert!(models["outcome"]["active_document"].is_null());
-    assert_eq!(models["outcome"]["types"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        models["outcome"]["types"].as_array().unwrap().len(),
+        typstographe_core::document_types::DocumentType::ALL.len()
+    );
     let doc = created(&mut h);
     let edited = call(
         &mut h,
@@ -430,5 +433,76 @@ fn resource_catalogue_and_tools_share_docs_schemas_and_read_only_authorization()
             .unwrap()
             .iter()
             .all(|t| !t["description"].is_null())
+    );
+}
+
+#[test]
+fn article_discovery_and_collection_edits_use_the_same_typed_contract() {
+    let mut h = host::Host::new(false);
+    let description = call(
+        &mut h,
+        "document_types.describe",
+        json!({"document_type":"article"}),
+    );
+    let collections = description["outcome"]["structured_metadata"]["collections"]
+        .as_array()
+        .unwrap();
+    assert_eq!(collections.len(), 3);
+    let affiliations = collections
+        .iter()
+        .find(|c| c["parameter"] == "affiliations")
+        .unwrap();
+    assert_eq!(affiliations["fields"].as_array().unwrap().len(), 1);
+    assert_eq!(affiliations["fields"][0]["key"], "text");
+    let created = call(
+        &mut h,
+        "document.new",
+        json!({"type":"article","model":"article.model.working"}),
+    );
+    let mut doc = created["document"].clone();
+    let incomplete = call(&mut h, "document.validate", json!({"document":doc}));
+    assert_eq!(incomplete["outcome"]["valid"], true);
+    assert_eq!(incomplete["outcome"]["ready_for_export"], false);
+    assert_eq!(
+        incomplete["outcome"]["diagnostics"][0]["field"],
+        "article.localizations"
+    );
+    for (field, value) in [
+        (
+            "article.affiliations",
+            json!([{"id":"irmar","text":"Univ Rennes, CNRS, IRMAR - UMR 6625, F-35000 Rennes, France"}]),
+        ),
+        (
+            "article.authors",
+            json!([{"id":"a1","name":"Camille","affiliation-ids":["irmar"],"email":"","orcid":"","corresponding":false}]),
+        ),
+        (
+            "article.localizations",
+            json!([{"id":"fr","language":"fr","title":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Article scientifique"}]}]},"short-title":{"type":"doc","content":[{"type":"paragraph"}]},"subtitle":{"type":"doc","content":[{"type":"paragraph"}]},"abstract":{"type":"doc","content":[{"type":"paragraph"}]},"keywords":["recherche SHS"]}]),
+        ),
+    ] {
+        let result = call(
+            &mut h,
+            "metadata.set",
+            json!({"document":doc,"field":field,"value":value}),
+        );
+        doc = result["document"].clone();
+    }
+    let complete = call(&mut h, "document.validate", json!({"document":doc}));
+    assert_eq!(complete["outcome"]["ready_for_export"], true);
+    assert_eq!(complete["outcome"]["diagnostics"], json!([]));
+    let schema = json!(
+        catalogue::tools()
+            .iter()
+            .find(|t| t.name == "metadata.set")
+            .unwrap()
+            .input_schema
+    );
+    assert!(
+        validator(&schema).is_valid(&json!({"document":doc,"field":"article.authors","value":[]}))
+    );
+    assert!(
+        !validator(&schema)
+            .is_valid(&json!({"document":doc,"field":"article.authors","value":true}))
     );
 }

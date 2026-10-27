@@ -9,7 +9,8 @@ use std::path::PathBuf;
 #[serde(deny_unknown_fields)]
 pub struct InitialValue {
     pub field: MetadataField,
-    pub value: String,
+    #[schemars(schema_with = "super::metadata_types::metadata_value_schema")]
+    pub value: serde_json::Value,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

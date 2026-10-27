@@ -187,5 +187,13 @@
   "Le document a changé ; recommencez l’import.": "web-model-import-stale",
   "Premier numéro": "web-list-first-number",
   "Niveau de titre": "web-heading-level",
-  "Aucune commande ne correspond.": "web-palette-no-results"
+  "Aucune commande ne correspond.": "web-palette-no-results",
+  "Ajouter": "web-add",
+  "Modifier": "web-record-edit",
+  "Monter": "web-move-up",
+  "Descendre": "web-move-down",
+  "Un mot-clé par ligne ; les expressions peuvent contenir des espaces.": "web-keyword-lines",
+  "Retirer aussi les associations à cette affiliation.": "web-detach-affiliation",
+  "L’ensemble de la langue principale doit être conservé.": "web-keep-primary-localization",
+  "Cette affiliation est utilisée. Confirmez le retrait de ses associations.": "web-affiliation-in-use"
 }

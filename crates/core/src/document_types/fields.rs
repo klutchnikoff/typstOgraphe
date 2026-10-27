@@ -4,6 +4,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum MetadataField {
+    #[serde(rename = "article.authors")]
+    ArticleAuthors,
+    #[serde(rename = "article.affiliations")]
+    ArticleAffiliations,
+    #[serde(rename = "article.localizations")]
+    ArticleLocalizations,
     #[serde(rename = "sender.name")]
     SenderName,
     #[serde(rename = "sender.role")]
@@ -47,7 +53,8 @@ pub enum MetadataField {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct FieldValue {
     pub field: MetadataField,
-    pub value: String,
+    pub value: serde_json::Value,
+    pub parameter: &'static str,
     pub group: &'static str,
     pub multiline: bool,
     pub kind: super::FieldKind,
@@ -63,7 +70,8 @@ pub(super) fn values<T>(metadata: &T, fields: &[super::TextField<T>]) -> Vec<Fie
         .iter()
         .map(|f| FieldValue {
             field: f.field,
-            value: (f.get)(metadata).into(),
+            value: serde_json::Value::String((f.get)(metadata).into()),
+            parameter: f.parameter,
             group: f.group,
             multiline: f.multiline,
             kind: f.kind,

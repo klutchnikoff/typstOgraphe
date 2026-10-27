@@ -155,6 +155,9 @@ impl Renderer {
     ) -> Result<Output, String> {
         let fallback = crate::settings::Settings::default();
         let settings = settings.unwrap_or(&fallback);
+        if export.is_some() && !settings.metadata.ready_for_export() {
+            return Err(typstographe_i18n::text("export-required-fields"));
+        }
         let template = settings.template.clone();
         let request = RenderRequest {
             revision,

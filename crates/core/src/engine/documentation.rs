@@ -6,6 +6,10 @@ use serde_json::json;
 impl Engine {
     pub fn type_documentation(kind: DocumentType) -> Value {
         let (name, description) = match kind {
+            DocumentType::Article => (
+                "Scientific article",
+                "Scientific working article with stable author identities, shared free-text official affiliations and multilingual rich titles, short titles, abstracts and keywords.",
+            ),
             DocumentType::Courrier => (
                 "Letter",
                 "Administrative or personal correspondence with sender, recipient, subject, date, optional signature, postscript and enclosure mentions.",
@@ -20,11 +24,11 @@ impl Engine {
             "id":m.model.id(),"name":m.name,"type":kind,"description":m.description,"keywords":m.keywords
         })).collect();
         json!({"id":kind,"name":name,"description":description,"can_create":kind.can_create(),
-            "fields":metadata.field_values(),"default_options":metadata.options(),
+            "fields":metadata.field_values(),"structured_metadata":kind.structured_metadata(),"default_options":metadata.options(),
             "capabilities":Self::capabilities(kind),"models":models,
             "content_capabilities":crate::content::catalogue::for_type(kind).collect::<Vec<_>>(),
             "model_contract":"Models of the same type share fields and capabilities; choosing a model changes presentation only.",
-            "field_guidance":"Use metadata.set with a listed field ID. Dates use fixed ISO YYYY-MM-DD values. Empty fields may be valid in a draft; required_for_export applies only to export readiness."})
+            "field_guidance":"Use metadata.set with a listed field ID. Article collection fields accept JSON arrays following structured_metadata; they are guarded atomic replacements, not strings. Dates use fixed ISO YYYY-MM-DD values. Empty fields may be valid in a draft; required_for_export applies only to export readiness."})
     }
 
     pub fn command_documentation(id: &str) -> Result<Value, CommandError> {

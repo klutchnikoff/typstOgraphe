@@ -11,7 +11,7 @@ use std::cell::RefCell;
 pub(super) struct PresentationCache(RefCell<Option<(TargetGuard, ModelPresentation)>>);
 
 impl Engine {
-    fn metadata_value(&self, params: &SetMetadataParams) -> Result<String, CommandError> {
+    fn metadata_value(&self, params: &SetMetadataParams) -> Result<Value, CommandError> {
         self.check_guard(params.guard)?;
         let field = self
             .session
@@ -20,13 +20,23 @@ impl Engine {
             .into_iter()
             .find(|f| f.field == params.field)
             .ok_or_else(|| CommandError::new(ErrorCode::Unavailable, "metadata_field"))?;
-        if params.value.chars().any(|c| {
+        if field.kind == FieldKind::Records {
+            let mut next = self.session.metadata.clone();
+            next.set_field_value(params.field, params.value.clone())
+                .map_err(|_| CommandError::new(ErrorCode::InvalidParams, "invalid_text"))?;
+            return Ok(params.value.clone());
+        }
+        let text = params
+            .value
+            .as_str()
+            .ok_or_else(|| CommandError::new(ErrorCode::InvalidParams, "invalid_text"))?;
+        if text.chars().any(|c| {
             (c.is_control() && !(field.multiline && matches!(c, '\n' | '\r' | '\t')))
                 || matches!(c, crate::document::IMAGE_OBJECT | '\u{2028}' | '\u{2029}')
         }) {
             return Err(CommandError::new(ErrorCode::InvalidParams, "invalid_text"));
         }
-        let mut value = params.value.replace("\r\n", "\n").replace('\r', "\n");
+        let mut value = text.replace("\r\n", "\n").replace('\r', "\n");
         if field.kind == FieldKind::Date {
             if crate::dates::is_today(&value) {
                 return Err(CommandError::new(
@@ -38,7 +48,7 @@ impl Engine {
                 crate::dates::normalize_explicit(&mut value);
             }
         }
-        Ok(value)
+        Ok(Value::String(value))
     }
     pub fn fixed_page(&self) -> Option<(PaperFormat, bool)> {
         crate::document_types::models::ALL
@@ -124,10 +134,10 @@ impl Engine {
         let value = self.metadata_value(&params)?;
         let before = self.session.snapshot(self.selection);
         let mut candidate = before.clone();
-        *candidate
+        candidate
             .metadata
-            .field_mut(params.field)
-            .expect("active field checked") = value;
+            .set_field_value(params.field, value)
+            .map_err(|_| CommandError::new(ErrorCode::InvalidParams, "invalid_text"))?;
         let group = if params.input == MetadataInput::Typing {
             EditGroup::Metadata(params.field)
         } else {
@@ -148,6 +158,7 @@ impl Engine {
             DocumentOption::Language(value) => options.language = value,
             DocumentOption::BulletMarker(value) => options.bullet_marker = value,
         }
+        candidate.metadata.ensure_primary();
         self.selection = self.session.commit_snapshot(
             params.guard,
             before,

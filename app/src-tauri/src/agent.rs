@@ -298,7 +298,7 @@ fn dispatch(
     }
     if method == "document_types.list" {
         return Ok(
-            json!({"entries":crate::catalogue::content_catalogue()["types"].as_array().unwrap().iter().map(|t|json!({"id":t["id"],"label":t["label"],"canCreate":t["canCreate"]})).collect::<Vec<_>>()}),
+            json!({"entries":crate::catalogue::content_catalogue()["types"].as_array().unwrap().iter().map(|t|json!({"id":t["id"],"label":t["label"],"canCreate":t["canCreate"],"fields":t["fields"],"structured_metadata":t["structured"],"editing":"Metadata is readable; attached proposals currently edit body content only."})).collect::<Vec<_>>()}),
         );
     }
     if method == "capabilities.describe" {

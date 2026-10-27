@@ -205,7 +205,7 @@ fn quote_models_control_rendering_and_navigation_also_covers_attribution() {
     document.sync_source();
     let mut world = crate::rendering::TypstWorld::default();
     let metadata = Metadata::demo(DocumentType::Courrier);
-    for model in Model::all() {
+    for model in Model::all().filter(|m| m.definition().kind == DocumentType::Courrier) {
         let template = model.source();
         let output = world
             .compile_with_template(document.source(), &metadata, &template)
@@ -293,7 +293,7 @@ fn model_controls_list_markers_and_language_defaults_in_actual_typst_output() {
     let mut document =
         Document::from_source("- Élément unique\n\n/ Échéance: Le *12 novembre*.").unwrap();
     document.sync_source();
-    for model in Model::all() {
+    for model in Model::all().filter(|m| m.definition().kind == DocumentType::Courrier) {
         let template = model.source();
         assert_eq!(
             world.model_presentation(&template).unwrap(),
@@ -512,7 +512,7 @@ fn real_typst_composes_registered_models_and_metadata_escapes() {
         objet: "Une demande \"citée\" avec \\ et #panic(\"NON\")".into(),
         ..Default::default()
     });
-    for model in Model::all() {
+    for model in Model::all().filter(|m| m.definition().kind == DocumentType::Courrier) {
         let result = world
             .compile_courrier(document.source(), &metadata, model)
             .unwrap();
@@ -906,7 +906,7 @@ fn image_models_control_size_caption_and_navigation_and_embed_alt_in_pdf() {
     let mut world = crate::rendering::TypstWorld::default();
     world.set_assets(&document.assets);
     let metadata = Metadata::demo(DocumentType::Courrier);
-    for model in Model::all() {
+    for model in Model::all().filter(|m| m.definition().kind == DocumentType::Courrier) {
         let template = model.source();
         let page = world
             .compile_with_template(document.source(), &metadata, &template)

@@ -13,20 +13,8 @@ fn document_type(kind: DocumentType) -> Value {
         .field_values()
         .into_iter()
         .map(|field| {
-            let parameter = match kind {
-                DocumentType::Courrier => typstographe_core::document_types::courrier::FIELDS
-                    .iter()
-                    .find(|f| f.field == field.field)
-                    .map(|f| f.parameter),
-                DocumentType::CompteRendu => {
-                    typstographe_core::document_types::compte_rendu::FIELDS
-                        .iter()
-                        .find(|f| f.field == field.field)
-                        .map(|f| f.parameter)
-                }
-            };
             let mut value = serde_json::to_value(&field).expect("metadata field");
-            value["parameter"] = json!(parameter);
+            value["parameter"] = json!(field.parameter);
             value["label"] = json!(text(field.label_key));
             value
         })
@@ -36,6 +24,7 @@ fn document_type(kind: DocumentType) -> Value {
         .map(|model| {
             let label = match model.model {
                 Model::Personal => text("model-personal-letter"),
+                Model::ArticleWorking => text("model-working-article"),
             };
             let page = model
                 .page
@@ -46,7 +35,9 @@ fn document_type(kind: DocumentType) -> Value {
             })
         })
         .collect();
-    let heading = if kind == DocumentType::Courrier {
+    let heading = if kind == DocumentType::Article {
+        "article-settings-heading"
+    } else if kind == DocumentType::Courrier {
         "document-settings-heading"
     } else {
         "minutes-settings-heading"
@@ -62,13 +53,26 @@ fn document_type(kind: DocumentType) -> Value {
             json!({"id":group.id,"label":text(group.label_key),"sections":sections})
         })
         .collect();
+    let mut structured = kind.structured_metadata();
+    if let Some(schema) = structured.as_mut()
+        && let Some(collections) = schema["collections"].as_array_mut()
+    {
+        for collection in collections {
+            for (key, localized) in [("label_key", "label"), ("item_label_key", "itemLabel")] {
+                collection[localized] = json!(text(collection[key].as_str().unwrap()));
+            }
+            for field in collection["fields"].as_array_mut().unwrap() {
+                field["label"] = json!(text(field["label_key"].as_str().unwrap()));
+            }
+        }
+    }
     let capabilities: Vec<_> = catalogue::for_type(kind)
         .map(|capability| capability.id)
         .collect();
     json!({
         "capabilities":capabilities,
         "id":kind,"label":text(kind.label_key()),"settingsHeading":text(heading),
-        "canCreate":kind.can_create(),"metadata":metadata,"fields":fields,"groups":groups,"models":models
+        "structured":structured,"canCreate":kind.can_create(),"metadata":metadata,"fields":fields,"groups":groups,"models":models
     })
 }
 #[tauri::command]

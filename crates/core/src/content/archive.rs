@@ -30,6 +30,7 @@ struct Manifest {
 }
 impl Archive {
     pub fn validate(&self) -> Result<String, String> {
+        self.metadata.validate()?;
         crate::packages::validate(&self.template, &self.dependencies).map_err(|e| e.to_string())?;
         for (path, data) in &self.assets {
             if !crate::assets::valid_path(path) {

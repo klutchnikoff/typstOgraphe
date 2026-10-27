@@ -1,4 +1,5 @@
 //! Types intégrés à l’application. Leurs modèles sont des implémentations Typst.
+pub mod article;
 pub mod compte_rendu;
 pub mod courrier;
 mod fields;
@@ -11,25 +12,29 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum DocumentType {
+    Article,
     Courrier,
     CompteRendu,
 }
 impl DocumentType {
-    pub const ALL: [Self; 2] = [Self::Courrier, Self::CompteRendu];
+    pub const ALL: [Self; 3] = [Self::Courrier, Self::CompteRendu, Self::Article];
     pub fn label_key(self) -> &'static str {
         match self {
+            Self::Article => "article-type",
             Self::Courrier => "letter-type",
             Self::CompteRendu => "minutes-type",
         }
     }
     pub fn composition_function(self) -> &'static str {
         match self {
+            Self::Article => "article",
             Self::Courrier => courrier::CONTRACT.function,
             Self::CompteRendu => compte_rendu::CONTRACT.function,
         }
     }
     pub fn file_stem(self) -> &'static str {
         match self {
+            Self::Article => "article",
             Self::Courrier => "courrier",
             Self::CompteRendu => "compte-rendu",
         }
@@ -45,8 +50,15 @@ impl DocumentType {
     pub fn can_create(self) -> bool {
         self.models().next().is_some()
     }
+    pub fn structured_metadata(self) -> Option<serde_json::Value> {
+        match self {
+            Self::Article => Some(article::schema()),
+            Self::Courrier | Self::CompteRendu => None,
+        }
+    }
     pub fn demo_source(self) -> &'static str {
         match self {
+            Self::Article => include_str!("../../examples/article.typ"),
             Self::Courrier => include_str!("../../examples/courrier.typ"),
             Self::CompteRendu => include_str!("../../examples/compte-rendu.typ"),
         }
@@ -58,30 +70,35 @@ impl DocumentType {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "fields", rename_all = "kebab-case")]
 pub enum Metadata {
+    Article(article::Metadata),
     Courrier(courrier::Metadata),
     CompteRendu(compte_rendu::Metadata),
 }
 impl Metadata {
     pub fn demo(kind: DocumentType) -> Self {
         match kind {
+            DocumentType::Article => Self::Article(article::Metadata::demo()),
             DocumentType::Courrier => Self::Courrier(courrier::Metadata::default()),
             DocumentType::CompteRendu => Self::CompteRendu(compte_rendu::Metadata::demo()),
         }
     }
     pub fn blank(kind: DocumentType) -> Self {
         match kind {
+            DocumentType::Article => Self::Article(article::Metadata::default()),
             DocumentType::Courrier => Self::Courrier(courrier::Metadata::blank()),
             DocumentType::CompteRendu => Self::CompteRendu(compte_rendu::Metadata::default()),
         }
     }
     pub fn document_type(&self) -> DocumentType {
         match self {
+            Self::Article(_) => DocumentType::Article,
             Self::Courrier(_) => DocumentType::Courrier,
             Self::CompteRendu(_) => DocumentType::CompteRendu,
         }
     }
     pub fn options(&self) -> &DocumentOptions {
         match self {
+            Self::Article(meta) => &meta.options,
             Self::Courrier(meta) => &meta.options,
             Self::CompteRendu(meta) => &meta.options,
         }
@@ -89,47 +106,54 @@ impl Metadata {
     pub fn signature_path(&self) -> Option<&str> {
         match self {
             Self::Courrier(meta) => meta.signature.as_deref(),
-            Self::CompteRendu(_) => None,
+            Self::CompteRendu(_) | Self::Article(_) => None,
         }
     }
     pub fn options_mut(&mut self) -> &mut DocumentOptions {
         match self {
+            Self::Article(meta) => &mut meta.options,
             Self::Courrier(meta) => &mut meta.options,
             Self::CompteRendu(meta) => &mut meta.options,
         }
     }
     pub fn main_source(&self) -> String {
         match self {
+            Self::Article(meta) => meta.main_source(),
             Self::Courrier(meta) => courrier::CONTRACT.main_source(meta),
             Self::CompteRendu(meta) => compte_rendu::CONTRACT.main_source(meta),
         }
     }
     pub fn model_signature(&self) -> String {
         match self {
+            Self::Article(_) => article::SIGNATURE.into(),
             Self::Courrier(_) => courrier::CONTRACT.signature(),
             Self::CompteRendu(_) => compte_rendu::CONTRACT.signature(),
         }
     }
     pub fn editor_groups(&self) -> &'static [FieldGroup] {
         match self {
+            Self::Article(_) => article::GROUPS,
             Self::Courrier(_) => courrier::GROUPS,
             Self::CompteRendu(_) => compte_rendu::GROUPS,
         }
     }
     pub fn field_values(&self) -> Vec<FieldValue> {
         match self {
+            Self::Article(meta) => meta.field_values(),
             Self::Courrier(meta) => fields::values(meta, courrier::FIELDS),
             Self::CompteRendu(meta) => fields::values(meta, compte_rendu::FIELDS),
         }
     }
     pub fn field_mut(&mut self, field: MetadataField) -> Option<&mut String> {
         match self {
+            Self::Article(_) => None,
             Self::Courrier(meta) => fields::value_mut(meta, courrier::FIELDS, field),
             Self::CompteRendu(meta) => fields::value_mut(meta, compte_rendu::FIELDS, field),
         }
     }
     pub fn ready_for_export(&self) -> bool {
         match self {
+            Self::Article(meta) => meta.ready_for_export(),
             Self::Courrier(meta) => courrier::FIELDS
                 .iter()
                 .all(|field| !field.required_for_export || !(field.get)(meta).trim().is_empty()),
@@ -137,6 +161,56 @@ impl Metadata {
                 .iter()
                 .all(|field| !field.required_for_export || !(field.get)(meta).trim().is_empty()),
         }
+    }
+    /// Missing editorial data is a draft warning, separate from structural validity.
+    pub fn missing_export_fields(&self) -> Vec<MetadataField> {
+        if let Self::Article(meta) = self {
+            let mut fields = Vec::new();
+            if !meta
+                .localizations
+                .iter()
+                .any(|l| l.language == meta.options.language && !l.title.is_empty())
+            {
+                fields.push(MetadataField::ArticleLocalizations);
+            }
+            if meta.authors.iter().any(|a| a.name.trim().is_empty()) {
+                fields.push(MetadataField::ArticleAuthors);
+            }
+            if meta.affiliations.iter().any(|a| a.text.trim().is_empty()) {
+                fields.push(MetadataField::ArticleAffiliations);
+            }
+            return fields;
+        }
+        self.field_values()
+            .into_iter()
+            .filter(|f| {
+                f.required_for_export && f.value.as_str().is_none_or(|s| s.trim().is_empty())
+            })
+            .map(|f| f.field)
+            .collect()
+    }
+    pub fn validate(&self) -> Result<(), String> {
+        if let Self::Article(meta) = self {
+            meta.validate()?;
+        }
+        Ok(())
+    }
+    pub fn ensure_primary(&mut self) {
+        if let Self::Article(meta) = self {
+            meta.ensure_primary();
+        }
+    }
+    pub fn set_field_value(
+        &mut self,
+        field: MetadataField,
+        value: serde_json::Value,
+    ) -> Result<(), String> {
+        if let Self::Article(meta) = self {
+            return meta.set_field(field, value);
+        }
+        *self.field_mut(field).ok_or("Champ absent du type.")? =
+            value.as_str().ok_or("Valeur texte attendue.")?.into();
+        Ok(())
     }
     #[cfg(test)]
     #[cfg_attr(coverage_nightly, coverage(off))]
@@ -180,6 +254,7 @@ pub struct FieldSection {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FieldKind {
+    Records,
     Text,
     Date,
 }

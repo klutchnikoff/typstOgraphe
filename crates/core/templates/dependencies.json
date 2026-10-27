@@ -14,6 +14,18 @@
       "entrypoint": "capabilities/correspondence.typ",
       "signature": "postscript(body), attachment(body), letter-notes(postscript: body => body, attachments: items => items.join(parbreak()))",
       "packages": []
+    },
+    {
+      "id": "authorship",
+      "entrypoint": "capabilities/authorship.typ",
+      "signature": "prepare-authorship(authors, affiliations), show-authorship(prepared, render-author: auto, render-affiliation: auto)",
+      "packages": []
+    },
+    {
+      "id": "abstracts",
+      "entrypoint": "capabilities/abstracts.typ",
+      "signature": "show-abstracts(localizations, primary-language: \"fr\", render-entry: auto)",
+      "packages": []
     }
   ],
   "packages": [

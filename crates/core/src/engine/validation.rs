@@ -44,16 +44,14 @@ impl Engine {
                 diagnostics.push(Diagnostic::error(error.reason(), &error));
             }
         }
-        for field in self.metadata().field_values() {
-            if field.required_for_export && field.value.trim().is_empty() {
-                diagnostics.push(Diagnostic {
-                    severity: Severity::Warning,
-                    code: "export_required_field".into(),
-                    detail: None,
-                    field: Some(field.field),
-                    cause: None,
-                });
-            }
+        for field in self.metadata().missing_export_fields() {
+            diagnostics.push(Diagnostic {
+                severity: Severity::Warning,
+                code: "export_required_field".into(),
+                detail: None,
+                field: Some(field),
+                cause: None,
+            });
         }
         let valid = !diagnostics.iter().any(|d| d.severity == Severity::Error);
         Ok(ValidationResult {
