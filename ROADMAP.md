@@ -20,8 +20,9 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** reprendre les modifications de présentation de
-l’interface après le [retrait d’egui](docs/egui-retirement-results.md).
+**Séquence immédiate :** préciser le contrat de l’Article scientifique généraliste,
+puis construire son premier modèle « Article de travail » et les composants
+communs nécessaires à son en-tête.
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
 
@@ -197,10 +198,17 @@ vérifiés, avec la même disponibilité dans les interfaces qui exposent la cap
 
 - Accompagner chaque type livré d’un modèle généraliste sobre, utile et sans
   coordonnées ni contenu d’organisation fictifs imposés.
-- Produire d’abord le modèle de compte-rendu, puis celui de note/mémo, selon le
-  catalogue validé ; vérifier le courrier personnel sur les mêmes critères.
+- Commencer par le modèle « Article de travail », conformément au périmètre
+  retenu, puis reprendre compte-rendu et note/mémo selon le catalogue validé ;
+  vérifier le courrier personnel sur les mêmes critères.
 - Pour l’article, le rapport, le cours et le syllabus : définir une recette
   représentative, puis le modèle en même temps que les capacités nécessaires.
+- Construire si nécessaire une bibliothèque Typst éditoriale commune pour les
+  auteurs, affiliations et résumés multilingues, réutilisable par les modèles
+  sans leur imposer une présentation unique. S’inspirer de Pubmatter et de son
+  code libre, sans dépendance imposée ; recevoir les données de notre contrat
+  plutôt que reproduire sa normalisation de multiples formats. Les signatures
+  et la recette restent à valider ; voir l’[orientation détaillée](docs/types-modeles-libertes.md#bibliothèque-typst-éditoriale-commune--orientation-du-27-octobre-2026).
 - Définir le manifeste du modèle : identité, description, mots-clés, type,
   fonction publique, paramètres, défauts, ressources et dépendances.
 - Installer, choisir et retirer des modèles personnels ou d’organisation dans
@@ -341,12 +349,16 @@ premier périmètre. Les propositions non retenues ne deviennent pas des engagem
 
 ## Prochain lot proposé
 
-1. Valider le premier groupe de types et sa matrice de capacités (**B.1**), en
-   tranchant les points de la note de conception qui changent les contrats.
+1. Préciser le contrat du type Article (**B.1**) : auteurs multiples,
+   affiliations, résumés riches multilingues, mots-clés et capacités par zone.
+   Valider ensemble les champs et signatures avant de coder.
 2. Unifier le contrat structuré entre les adaptateurs (**A.2**), à partir du
    [rangement de l’application](docs/application-layout.md) désormais établi.
-3. Livrer le premier périmètre administratif, un type à la fois, avec son modèle
-   et les capacités qui lui manquent (**C/D/E**).
+3. Construire l’Article et son modèle de travail avec les capacités existantes,
+   puis les citations bibliographiques et la bibliothèque de références
+   (**C/D/E**). Développer les fonctions Typst éditoriales communes nécessaires,
+   inspirées des solutions libres pertinentes ; le périmètre administratif
+   restant sera repris ensuite, un type à la fois.
 4. Engager ACP après stabilisation du contrat documentaire et validation de sa
    maquette (**F**), sans attendre la livraison de tous les types SHS/enseignement.
 

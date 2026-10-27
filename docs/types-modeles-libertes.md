@@ -207,6 +207,47 @@ Règles :
    séparateurs, « et al. ».
 4. **L’éditeur ne formate jamais une liste en texte.**
 
+### Bibliothèque Typst éditoriale commune — orientation du 27 octobre 2026
+
+Le type Article et un premier modèle « Article de travail » constituent le
+prochain cas d’usage retenu. Son périmètre couvre auteurs multiples,
+affiliations partagées, résumés riches en plusieurs langues et mots-clés propres
+à chaque langue. Les détails des champs, les obligations et les signatures
+restent à valider avant l’implémentation.
+
+Si une bibliothèque existante ne couvre pas notre contrat, nous construisons
+une bibliothèque Typst commune adaptée, réutilisée par les modèles d’Article et
+par les autres types qui en ont besoin. La présentation de chaque modèle reste
+personnalisable : les fonctions communes n’imposent pas une mise en page unique.
+
+[Pubmatter](https://typst.app/universe/package/pubmatter/) et son
+[code source](https://github.com/continuous-foundation/pubmatter) sont des
+références pour cette conception, sans dépendance imposée au paquet. Étudier
+notamment les auteurs, les associations aux affiliations et les résumés multiples.
+Un emprunt de code conserve les mentions de licence et sa provenance ; la
+version ou le commit d’origine sera indiqué avec les sources concernées.
+
+Principes de la bibliothèque :
+
+- Le type définit les données structurées et leurs identités stables ; les
+  composants de saisie communs et les interfaces documentaires éditent ces mêmes
+  données. La bibliothèque Typst ne définit ni le formulaire ni l’état partagé.
+- Les fonctions publiques restent anglaises ou latines, avec une signature
+  propre à typstOgraphe. Les modèles importent des fonctions communes dans des
+  fichiers dédiés, par exemple `authorship.typ`, et choisissent leur composition.
+- Recevoir des données déjà validées, sans reproduire tous les formats d’entrée
+  et mécanismes de normalisation de Pubmatter, MyST ou Quarto. Un courriel ne
+  suffit pas à déduire le statut d’auteur correspondant : il reste explicite.
+- Conserver les ensembles linguistiques et leurs mots-clés comme données
+  distinctes ; ne pas les aplatir en texte avant de les transmettre au modèle.
+- Vérifier les fonctions sur des cas représentatifs : affiliations partagées et
+  multiples, auteur sans affiliation, ordre des auteurs, correspondant explicite,
+  résumés français/anglais et champs facultatifs absents.
+- Embarquer les fonctions réellement utilisées avec les modèles, les fichiers
+  `.typsto` et les exports Typst, pour une compilation hors ligne. Leur contrat
+  et leurs éventuelles dépendances seront ajoutés à l’inventaire technique lors
+  de l’implémentation, sans déclarer un paquet qui n’est pas utilisé.
+
 ### Texte brut ou balisé
 
 Les chaînes sont du **texte brut avec un mini-balisage** limité à l’italique
