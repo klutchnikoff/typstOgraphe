@@ -1,4 +1,8 @@
-# Inventaire avant retrait d’egui
+# Inventaire avant retrait d’egui — archive
+
+**Exécution :** le retrait et les reprises sont documentés dans le
+[bilan du nettoyage](egui-retirement-results.md). Le texte ci-dessous conserve
+le diagnostic préalable ; ses chemins egui renvoient à la référence Git.
 
 Audit du **27 octobre 2026**, après A.1. Inventaire fondé sur le code et les
 recettes existantes, à valider avant implémentation. Aucune suppression ni
@@ -73,8 +77,8 @@ ne suffisent pas à garantir ce second cas.
 | Tests `crates/app/src/app/tests/` et `editor/tests.rs` | Trier par garantie : réutiliser le cœur, traduire les scénarios de comportement en tests web/natifs, retirer les assertions de géométrie et d’événements propres à egui. Pas de copie automatique test pour test. |
 | CI, couverture et gardes de taille | Remplacer les exemples et chemins egui ; conserver la frontière du cœur et les contrôles génériques. Préciser le périmètre de couverture de l’hôte Tauri avant de retirer celui de l’ancienne interface. |
 
-Sources examinées : [commandes egui](../crates/app/src/commands.rs),
-[récupération egui](../crates/app/src/app/recovery.rs),
+Sources examinées : [commandes egui](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/commands.rs),
+[récupération egui](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/recovery.rs),
 [shell web](../app/src/shell.ts), [préférences web](../app/src/preferences-panel.ts),
 [session Tauri](../app/src-tauri/src/session.rs),
 [relecture web](../app/src/assistance.ts),

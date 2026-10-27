@@ -1,5 +1,9 @@
 # Widgets et bandeaux de l’éditeur — D37, lot 6.4a
 
+> Les références à egui et aux captures ci-dessous décrivent l’implémentation
+> historique conservée dans Git, avant le [retrait d’egui](egui-retirement-results.md).
+> Ses outils ne sont plus des commandes de développement actives.
+
 Choix validés le 25 octobre 2026 après la maquette interactive « Widgets et
 bandeaux ». Ce lot précède la relecture MCP de 6.4b. Les types restent intégrés
 en Rust, les modèles en Typst ; la présentation de l’éditeur est indépendante

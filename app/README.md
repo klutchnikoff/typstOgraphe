@@ -60,7 +60,23 @@ rédaction. `npm run test:native` vérifie le parcours natif avec une session
 isolée ; `npm run test:preview-native` mesure le binaire optimisé. Voir la
 [méthode de mesure](../docs/tauri-preview-performance.md).
 
-La référence egui reste accessible explicitement avec
-`cargo run --locked --offline -p typstographe-egui` jusqu’à son retrait.
+Aucune recette active ne produit de capture d’écran, de vidéo ou de trace
+Playwright. Les contrôles portent sur le comportement et les données.
+
+L’ancienne interface egui a été retirée ; voir le [bilan du nettoyage](../docs/egui-retirement-results.md).
 La CLI documentaire conserve son contrat historique ; sa convergence avec
 l’éditeur structuré constitue le chantier A.2.
+
+## Récupération et modèles embarqués
+
+L’application démarre à l’accueil. Elle propose les copies laissées par les
+processus terminés, à restaurer ou supprimer explicitement ; les copies d’un
+processus encore ouvert sont verrouillées et ne sont pas proposées. Sauvegarder
+ou abandonner le document nettoie sa copie, sans affecter un autre processus.
+Les fenêtres d’une même session partagent cette copie. Les diagnostics conservent
+leur dossier isolé explicite.
+
+Un chemin `.typsto` peut être passé au binaire pour ouvrir le fichier au lancement.
+Dans Général, un fichier `.typ` peut être importé comme modèle embarqué après
+validation par Typst pour le type courant. Il accompagne l’archive et l’export ;
+ce parcours ne constitue pas encore une bibliothèque globale de modèles.

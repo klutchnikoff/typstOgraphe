@@ -20,12 +20,10 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate retenue le 27 octobre 2026 :** nettoyer ce qui est inutile
-et retirer egui en préservant les comportements utiles, puis reprendre les
-modifications de présentation de l’interface. **Aucune capture d’écran pour
-le moment** : pas de migration des outils de capture ni de références au pixel
-près. Conserver les tests fonctionnels ; retirer ou désactiver les captures
-automatiques des recettes actives. L’interface n’est pas considérée comme figée.
+**Séquence immédiate :** reprendre les modifications de présentation de
+l’interface après le [retrait d’egui](docs/egui-retirement-results.md).
+**Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
+sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
 
 ## Un projet typstOgraphe — définition retenue
 
@@ -76,10 +74,6 @@ rédaction individuelle, l’ouverture et l’export doivent fonctionner hors li
 
 ## A — Sortir le code du statut de prototype
 
-- Préparer le retrait de la référence egui conservée explicitement, après
-  validation de l’[inventaire des reprises et écarts](docs/egui-retirement.md) ;
-  le lancement principal Tauri et le
-  rangement de l’application sont décrits dans le [bilan A.1](docs/application-layout.md).
 - Unifier le contrat structuré entre l’interface, la CLI et MCP : capacités,
   cibles, erreurs, disponibilité, fichiers et exports. Retirer les chemins
   historiques devenus inutiles après vérification de la nouvelle voie.
@@ -113,8 +107,8 @@ rédaction individuelle, l’ouverture et l’export doivent fonctionner hors li
   conservé reste dans le .typsto. L’export Typst/PDF porte sur l’état choisi,
   sans embarquer inutilement les ressources des autres états.
 
-**Choix à valider :** retrait d’egui et de l’ancienne CLI ; périmètre et moment
-de stabilisation du format.
+**Choix à valider :** migration du contrat de la CLI et du MCP autonome ;
+périmètre et moment de stabilisation du format.
 Pour les snapshots : déclenchement manuel/automatique, stockage, comparaison,
 rétention et restauration, puis droits et coordination en collaboration.
 Aucune couche de rétrocompatibilité préventive pendant cette phase préliminaire.

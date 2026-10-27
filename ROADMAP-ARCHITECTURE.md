@@ -36,20 +36,11 @@ n’est demandé pendant cette phase préliminaire.
 
 ## A. Socle et convergence — P0
 
-### A.1 Retrait des références historiques
-
-Le [bilan du rangement](docs/application-layout.md) décrit l’application Tauri
-principale et les commandes depuis la racine. Décider le retrait de la référence
-egui à partir de l’[inventaire des reprises et écarts](docs/egui-retirement.md),
-après contrôle des parcours nécessaires. Compléter la séparation des
-recettes, fixtures et mesures de ce qui est livré.
-
-**Orientation du 27 octobre 2026 : aucune capture d’écran pour le moment.**
-Retirer les outils de capture/comparaison et les galeries egui sans les porter
-vers Tauri ; retirer ou désactiver les captures automatiques des tests actifs.
-Conserver les scénarios fonctionnels utiles, indépendamment de leur ancien
-moyen de vérification. Le peaufinage visuel reprend après le nettoyage et le
-retrait de l’interface historique ; aucune référence graphique figée ne les bloque.
+L’application principale et le retrait d’egui sont décrits dans les bilans
+[A.1](docs/application-layout.md) et [nettoyage](docs/egui-retirement-results.md).
+**Aucune capture d’écran pour le moment** ; conserver les recettes fonctionnelles,
+sans outillage de capture ni références graphiques figées.
+La présentation de l’interface peut maintenant être retravaillée.
 
 ### A.2 Un contrat documentaire structuré
 
@@ -69,6 +60,10 @@ transactions ; aucun canal ne contourne les frontières entre zones.
 Fixer les responsabilités de l’état Yjs, de l’arbre validé et du Typst généré.
 Tester identité/révision, sauvegarde pendant des éditions, récupération après
 incident, fermeture, changement externe et refus d’une archive incohérente.
+Les copies de récupération Tauri sont désormais isolées par processus,
+protégées par un verrou et restaurées explicitement ; ne pas les confondre avec
+les snapshots durables. Étendre les recettes aux systèmes et situations réelles
+encore non couverts.
 Conserver en séance les ressources utiles à l’annulation ; conserver dans
 l’archive celles requises par l’état courant et tous les snapshots retenus.
 Un export Typst/PDF de l’état choisi ne requiert pas les ressources propres

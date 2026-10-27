@@ -1,5 +1,9 @@
 # Phase 0 — Base avant la restructuration
 
+> Les références à egui et aux captures ci-dessous décrivent l’implémentation
+> historique conservée dans Git, avant le [retrait d’egui](egui-retirement-results.md).
+> Ses outils ne sont plus des commandes de développement actives.
+
 Les décisions D1 à D20 de [ROADMAP-ARCHITECTURE.md](https://github.com/klutchnikoff/typstOgraphe/blob/7b0d6fd3e6ae25e5704ed43ce2f4efefa9c2fa0b/ROADMAP-ARCHITECTURE.md)
 sont validées. La phase 0 est terminée ; la phase 1 n’a pas commencé.
 Le tag annoté `pre-refactor-architecture` identifie le dépôt prêt à être restructuré.
@@ -57,7 +61,7 @@ ne dispose ni de rustup ni de cargo-llvm-cov.
 
 ## Captures de référence
 
-Le script [capture-baseline.sh](../scripts/capture-baseline.sh) utilise Python 3
+Le script [capture-baseline.sh](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/scripts/capture-baseline.sh) utilise Python 3
 et sa bibliothèque standard, sans paquet supplémentaire. Depuis la phase 4, il
 compile les deux binaires avec `cargo build --locked --workspace --bins`. La CLI
 prépare le courrier de référence avec `new` et `export --format typst`, à partir

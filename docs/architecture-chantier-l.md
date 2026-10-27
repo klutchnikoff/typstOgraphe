@@ -1,5 +1,9 @@
 # Chantier L — Polissage de l'interface : bilan
 
+> Les références à egui et aux captures ci-dessous décrivent l’implémentation
+> historique conservée dans Git, avant le [retrait d’egui](egui-retirement-results.md).
+> Ses outils ne sont plus des commandes de développement actives.
+
 Bilan du 25 octobre 2026 pour la décision D40. Les analyses et maquettes d'origine sont
 dans [interface-design-audit.md](interface-design-audit.md) et
 [mockups/](mockups/). Le plan détaillé est dans la section « Chantier L » de

@@ -1,5 +1,9 @@
 # Phase 1 — Rangement de l’application et décision sur l’éditeur
 
+> Les références à egui et aux captures ci-dessous décrivent l’implémentation
+> historique conservée dans Git, avant le [retrait d’egui](egui-retirement-results.md).
+> Ses outils ne sont plus des commandes de développement actives.
+
 La phase 1 est terminée. Les tâches 1.1 à 1.5 et le prototype 1.6 sont réalisés ;
 l’orientation vers des blocs/cellules explicites en mémoire a été validée ensemble
 le 22 octobre 2026. L’utilisateur confirme les accents et touches mortes sur macOS.

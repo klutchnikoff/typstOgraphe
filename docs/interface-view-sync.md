@@ -1,5 +1,9 @@
 # K.1 — États, événements et coordination des vues
 
+> Les références à egui et aux captures ci-dessous décrivent l’implémentation
+> historique conservée dans Git, avant le [retrait d’egui](egui-retirement-results.md).
+> Ses outils ne sont plus des commandes de développement actives.
+
 Relevé du code `af81da4`, le 24 octobre 2026. Complément de
 [l'inventaire des interactions](interface-interactions.md), en préparation de
 K.2/K.3 et des choix de phase 6. Les noms d'événements proposés par D30 restent
@@ -15,8 +19,8 @@ d'intégration ; cet inventaire conserve les observations de départ.
 
 ## États et propriété
 
-Les structures sont dans [app/state.rs](../crates/app/src/app/state.rs), sauf
-l'IME, déclaré dans [app/ime.rs](../crates/app/src/app/ime.rs).
+Les structures sont dans [app/state.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/state.rs), sauf
+l'IME, déclaré dans [app/ime.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/ime.rs).
 
 | État actuel | Sens observé | Partage à préparer |
 | --- | --- | --- |
@@ -48,16 +52,16 @@ initialisations et les remises à zéro sont distinguées des événements utili
 
 | Site | `forward_pending` | `editor_scroll_pending` | Condition exacte |
 | --- | --- | --- | --- |
-| [setup.rs](../crates/app/src/app/setup.rs), `with_context` | `true` initial | `false` initial | Application initialisée sans document ; aucun rendu lancé tant que le document est fermé. |
-| [engine.rs](../crates/app/src/app/engine.rs), `execute_document_command` | Passe à `true` | Passe à `true` si `RevealSelection` | Suivi avant si `outcome.changed || !effects.contains(Saved)`. Un succès sans modification et sans `Saved` peut donc demander le suivi ; une sauvegarde seule ne l'ajoute pas et n'efface pas une demande antérieure. |
+| [setup.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/setup.rs), `with_context` | `true` initial | `false` initial | Application initialisée sans document ; aucun rendu lancé tant que le document est fermé. |
+| [engine.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/engine.rs), `execute_document_command` | Passe à `true` | Passe à `true` si `RevealSelection` | Suivi avant si `outcome.changed || !effects.contains(Saved)`. Un succès sans modification et sans `Saved` peut donc demander le suivi ; une sauvegarde seule ne l'ajoute pas et n'efface pas une demande antérieure. |
 | Même fichier, `apply_document_command` | Déjà traité par la voie précédente | Passe aussi à `true` | Déclencheurs UI `InsertPostscript` et `InsertAttachment`. Cette demande supplémentaire ne vient pas d'un effet du moteur. |
-| [editor_view.rs](../crates/app/src/app/editor_view.rs), `editor_feedback` | Passe à `true` | Consommé, puis `false` | Le suivi avant est posé si la sélection finale diffère de `old_range`. La révélation éditeur utilise la sélection actuelle, centre son rectangle et ne reprend le focus que si aucun champ de recherche ne l'a. |
-| [search.rs](../crates/app/src/app/search.rs), `select_search_result` | Posé par la commande de sélection | Passe à `true` | Seulement si la sélection de l'occurrence gardée réussit. Le clic sur une plage peinte est distinct de `edit.find_next/previous`, dont le moteur produit déjà `RevealSelection`. |
-| [files.rs](../crates/app/src/app/files.rs), `after_document_replaced` | `true` | `true` | Après remplacement réussi, y compris fermeture, avec sélection ramenée à zéro et caches réinitialisés. |
-| [preview.rs](../crates/app/src/app/preview.rs), `rendering` | Passe à `true` | Inchangé | Après installation réussie d'un rendu lié à la garde courante, même sans déplacement de sélection. |
+| [editor_view.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/editor_view.rs), `editor_feedback` | Passe à `true` | Consommé, puis `false` | Le suivi avant est posé si la sélection finale diffère de `old_range`. La révélation éditeur utilise la sélection actuelle, centre son rectangle et ne reprend le focus que si aucun champ de recherche ne l'a. |
+| [search.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/search.rs), `select_search_result` | Posé par la commande de sélection | Passe à `true` | Seulement si la sélection de l'occurrence gardée réussit. Le clic sur une plage peinte est distinct de `edit.find_next/previous`, dont le moteur produit déjà `RevealSelection`. |
+| [files.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/files.rs), `after_document_replaced` | `true` | `true` | Après remplacement réussi, y compris fermeture, avec sélection ramenée à zéro et caches réinitialisés. |
+| [preview.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/preview.rs), `rendering` | Passe à `true` | Inchangé | Après installation réussie d'un rendu lié à la garde courante, même sans déplacement de sélection. |
 | Même fichier, `preview_ui` | Consommé, puis `false` | Inchangé | Seulement si `forward_pending && sync_is_current()`. La demande est consommée avant l'appel de localisation, même si celui-ci ne trouve aucun point. |
 | Même fichier, `navigate_backward` | Mis à `false` après le succès de la commande | Passe à `true` | Seulement avec un rendu courant, une cible trouvée et une sélection réussie. La voie générique avait posé le suivi avant ; cette remise à zéro évite le retour immédiat dans l'aperçu. |
-| [ime.rs](../crates/app/src/app/ime.rs), `ime_event(Commit)` | Passe à `true` | Inchangé | Après tentative de publication d'un Commit non vide/non saut de ligne, via `accept_edit` ; ce dernier peut aussi signaler un refus. La préédition seule ne pose pas cette demande. |
+| [ime.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/ime.rs), `ime_event(Commit)` | Passe à `true` | Inchangé | Après tentative de publication d'un Commit non vide/non saut de ligne, via `accept_edit` ; ce dernier peut aussi signaler un refus. La préédition seule ne pose pas cette demande. |
 
 Les reprises de focus supplémentaires de `force_selection` se trouvent dans
 `engine.rs`, `commands.rs`, `files.rs`, `dialogs.rs`, `preferences.rs`, `search.rs`
@@ -92,8 +96,8 @@ résultat de recherche en ajoutent dans l'application.
 
 ## Ordre observé dans une frame
 
-Sources : [ui_frame](../crates/app/src/app/mod.rs),
-[columns_ui et editor_feedback](../crates/app/src/app/editor_view.rs).
+Sources : [ui_frame](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/mod.rs),
+[columns_ui et editor_feedback](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/editor_view.rs).
 
 1. Vérifier/interrompre l'IME et traiter une demande de fermeture de fenêtre.
 2. Recevoir les exports, traiter les réponses de rendu et l'orthographe, puis les
@@ -147,16 +151,16 @@ le code et les cas à couvrir pendant l'extraction.
 
 | Preuve existante | Ce qu'elle contrôle | Repère de test |
 | --- | --- | --- |
-| Défilements et rendu périmé/échoué | Suivi des deux colonnes, refus de navigation inverse, consommation des demandes. | [preview.rs](../crates/app/src/app/tests/preview.rs), `synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders` |
+| Défilements et rendu périmé/échoué | Suivi des deux colonnes, refus de navigation inverse, consommation des demandes. | [preview.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/tests/preview.rs), `synchronization_scrolls_both_panes_and_rejects_outdated_or_failed_renders` |
 | Double-clic et mise à l'échelle | Retour du focus vers l'éditeur depuis une page redimensionnée. | Même fichier, `double_click_on_the_scaled_preview_returns_focus_to_the_editor` |
 | Surbrillances | Échelle, direction de sélection, absence de boîtes si cible/rendu indisponible. | Même fichier, `preview_paints_selection_at_page_scale_and_clears_it_when_unavailable` |
 | Identité documentaire | Refus d'une ancienne réponse, y compris à révision égale ; acceptation du rendu courant. | Même fichier, `render_responses_are_guarded_by_document_identity_even_at_the_same_revision` |
-| Recherche | Focus recherche conservé, cibles de session/révision, une sélection active, clic sur une autre occurrence et surbrillance de l'aperçu. | [search.rs](../crates/app/src/app/tests/search.rs) |
-| Annotations et orthographe | Navigation égale aux commandes JSON, focus et historique, refus des cibles d'une autre session. | [annotations_engine.rs](../crates/app/src/app/tests/annotations_engine.rs), [spelling_engine.rs](../crates/app/src/app/tests/spelling_engine.rs) |
-| Lots et métadonnées | Lot sauvegardé, récupération, focus de métadonnées, erreurs sans édition. | [batch_engine.rs](../crates/app/src/app/tests/batch_engine.rs), [information_engine.rs](../crates/app/src/app/tests/information_engine.rs) |
-| Fichiers et export | Sauvegarde sans réinitialisation indue, remplacement réussi, export de l'instantané demandé, récupération. | [files_engine.rs](../crates/app/src/app/tests/files_engine.rs) |
-| IME | Préédition inter-frames sans publication, interruption et Commit tardif, garde périmée, sauvegarde du seul texte validé. | [ime.rs](../crates/app/src/app/tests/ime.rs) |
-| Déclencheurs et disponibilité | Aiguillage commun, sélection gardée, commandes indisponibles et paramètres différés. | [routing.rs](../crates/app/src/app/tests/routing.rs) |
+| Recherche | Focus recherche conservé, cibles de session/révision, une sélection active, clic sur une autre occurrence et surbrillance de l'aperçu. | [search.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/tests/search.rs) |
+| Annotations et orthographe | Navigation égale aux commandes JSON, focus et historique, refus des cibles d'une autre session. | [annotations_engine.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/tests/annotations_engine.rs), [spelling_engine.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/tests/spelling_engine.rs) |
+| Lots et métadonnées | Lot sauvegardé, récupération, focus de métadonnées, erreurs sans édition. | [batch_engine.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/tests/batch_engine.rs), [information_engine.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/tests/information_engine.rs) |
+| Fichiers et export | Sauvegarde sans réinitialisation indue, remplacement réussi, export de l'instantané demandé, récupération. | [files_engine.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/tests/files_engine.rs) |
+| IME | Préédition inter-frames sans publication, interruption et Commit tardif, garde périmée, sauvegarde du seul texte validé. | [ime.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/tests/ime.rs) |
+| Déclencheurs et disponibilité | Aiguillage commun, sélection gardée, commandes indisponibles et paramètres différés. | [routing.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/tests/routing.rs) |
 | Géométrie sans egui | Localisation/boîtes gardées, pas de mutation documentaire. | [render.rs du cœur](../crates/core/src/engine/tests/render.rs) |
 
 Pour K.2/K.3, rendre ces règles testables sans egui et compléter notamment : attente

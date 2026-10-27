@@ -10,10 +10,9 @@ seul `Cargo.lock` ; les compilations Rust partagent `target/`.
 | `app/src/` | Interface Tiptap/ProseMirror, Yjs et présentation de l’aperçu |
 | `app/src-tauri/` | Exécutable `typstographe`, hôte Tauri et adaptateurs natifs |
 | `assets/branding/` | Sources de l’accueil animé et de l’identité tO |
-| `assets/ui/` | Polices et icônes partagées entre interfaces |
-| `crates/app/` | Référence `typstographe-egui`, lancement explicite uniquement |
+| `assets/ui/` | Polices et icônes de l’application |
 | `experiments/web-editor/results/` | Résultats historiques conservés |
-| `output/` | Rapports et captures des recettes locales |
+| `output/` | Rapports des recettes locales ; captures historiques conservées |
 
 Les commandes courantes sont dans le [guide de développement](../app/README.md).
 `npm start` lance le développement Tauri depuis la racine ; `cargo run` lance
@@ -23,19 +22,21 @@ macOS/Windows et les fichiers d’icônes sont conservés. L’identifiant de bu
 existant reste inchangé pour retrouver les données locales.
 
 La CI Tauri construit le frontend et vérifie l’hôte sur les trois systèmes,
-puis les recettes Chromium/WebKit sous Linux. La CI Rust et la couverture
-conservent leur périmètre cœur/CLI/MCP/référence egui ; elles excluent explicitement
-l’hôte Tauri testé par sa CI dédiée, qui nécessite Node et les bibliothèques
-système WebKit. Le contrôle de frontière du cœur reste indépendant de Tauri.
+puis les recettes Chromium/WebKit sous Linux, sans captures. La CI Rust vérifie
+le cœur, la CLI et le MCP indépendamment des bibliothèques de l’interface.
+La couverture Linux instrumente désormais tout le workspace Rust, hôte Tauri
+compris ; elle construit donc aussi le frontend et installe WebKit.
+Le contrôle de frontière du cœur reste indépendant de Tauri.
 
 Les résultats et captures antérieurs sont conservés à leur emplacement. Le
 [guide du prototype](archive/web-editor-prototype-guide.md) est archivé ; ses
 anciennes commandes ne sont pas le parcours de lancement courant.
 
-Le retrait d’egui et la séparation supplémentaire des diagnostics embarqués
-restent à décider après vérification des parcours nécessaires, détaillés dans
-l’[inventaire avant retrait](egui-retirement.md). La convergence
-du contrat CLI/MCP autonome avec l’éditeur structuré relève de A.2.
+L’interface egui a été retirée après les reprises décrites dans le
+[bilan du nettoyage](egui-retirement-results.md). La convergence du contrat
+CLI/MCP autonome avec l’éditeur structuré reste le chantier A.2.
+Les chiffres ci-dessous sont ceux du lot initial A.1 ; le bilan du nettoyage
+précise les vérifications suivantes.
 
 ## Vérifications du lot
 

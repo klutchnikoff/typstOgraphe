@@ -1,5 +1,9 @@
 # K.1 — Inventaire des interactions
 
+> Les références à egui et aux captures ci-dessous décrivent l’implémentation
+> historique conservée dans Git, avant le [retrait d’egui](egui-retirement-results.md).
+> Ses outils ne sont plus des commandes de développement actives.
+
 État du code relu : `af81da4`, le 24 octobre 2026. Inventaire documentaire, sans
 modification de comportement. D29 et D30 sont validées ; les événements et les
 politiques à définir en K.2 ou en phase 6 ne sont pas figés par ce document.

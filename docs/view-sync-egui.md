@@ -1,5 +1,9 @@
 # K.3 — Branchement egui et vérification des parcours
 
+> Les références à egui et aux captures ci-dessous décrivent l’implémentation
+> historique conservée dans Git, avant le [retrait d’egui](egui-retirement-results.md).
+> Ses outils ne sont plus des commandes de développement actives.
+
 Le branchement de `ViewSync` est livré sans modification volontaire du comportement
 graphique. Le [composant et son API](view-sync.md) restent dans le cœur ; aucun
 canal d'agent ni contexte d'édition supplémentaire n'est ajouté ici.
@@ -22,7 +26,7 @@ deux anciens indicateurs dans le code de l'application, tests compris.
 | Double-clic | `preview_target` localise sans mutation ; après sélection réussie, `SelectionChanged(Preview)` demande la révélation éditeur et supprime le retour immédiat. Un clic simple ne navigue pas. |
 | Révélation éditeur | `take_editor_action` consomme la demande lorsque le `TextEdit` est placé. egui conserve le focus de recherche et utilise le curseur natif de cette frame pour le rectangle à révéler. |
 
-[view_coordination.rs](../crates/app/src/app/view_coordination.rs) convertit les
+[view_coordination.rs](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/view_coordination.rs) convertit les
 curseurs et signale les faits. L'actualisation silencieuse de la position avant
 le rendu, avant l'aperçu et en fin de frame n'ajoute pas de demande de navigation.
 Les règles communes ne sont pas recalculées dans cet adaptateur.
@@ -54,7 +58,7 @@ Leurs contrôles couvrent notamment :
 - sauvegarde sans suivi ajouté, lot modifié et sauvegardé, remplacement et récupération ;
 - préédition IME inter-frames, abandon, Commit tardif et publication atomique.
 
-Trois [tests du branchement](../crates/app/src/app/tests/view_coordination.rs)
+Trois [tests du branchement](https://github.com/klutchnikoff/typstOgraphe/blob/b26f2df/crates/app/src/app/tests/view_coordination.rs)
 complètent cette couverture :
 
 1. La préédition ne change pas `ViewSync` ; après Commit, un ancien rendu reçu
