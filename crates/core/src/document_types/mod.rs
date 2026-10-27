@@ -162,8 +162,17 @@ pub struct FieldGroup {
     pub label_key: &'static str,
     pub sections: &'static [FieldSection],
 }
-/// Ordered fields of an editorial section; values keep their existing identities.
+/// Layout of a metadata section, independent of its field identities.
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FieldSectionLayout {
+    Editorial,
+    Compact,
+    Inline,
+}
+/// Ordered fields of a section; values keep their existing identities.
 pub struct FieldSection {
+    pub layout: FieldSectionLayout,
     pub id: &'static str,
     pub label_key: &'static str,
     pub fields: &'static [MetadataField],

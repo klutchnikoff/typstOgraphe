@@ -51,17 +51,17 @@ fn document_type(kind: DocumentType) -> Value {
     } else {
         "minutes-settings-heading"
     };
-    let groups: Vec<_> =
-        metadata
-            .editor_groups()
-            .iter()
-            .map(|group| {
-                let sections: Vec<_> = group.sections.iter().map(|section| json!({
-                "id": section.id, "label": text(section.label_key), "fields": section.fields
+    let groups: Vec<_> = metadata
+        .editor_groups()
+        .iter()
+        .map(|group| {
+            let sections: Vec<_> = group.sections.iter().map(|section| json!({
+                "id": section.id, "label": text(section.label_key), "fields": section.fields,
+                "layout": section.layout
             })).collect();
-                json!({"id":group.id,"label":text(group.label_key),"sections":sections})
-            })
-            .collect();
+            json!({"id":group.id,"label":text(group.label_key),"sections":sections})
+        })
+        .collect();
     let capabilities: Vec<_> = catalogue::for_type(kind)
         .map(|capability| capability.id)
         .collect();
@@ -133,7 +133,24 @@ mod tests {
                 "letter.reference"
             ])
         );
-        for section in sections {
+        let sender = groups[0]["sections"].as_array().unwrap();
+        assert_eq!(sender[0]["layout"], "inline");
+        assert_eq!(sender[0]["fields"], json!(["sender.name"]));
+        assert_eq!(sender[1]["label"], text("group-contact-details"));
+        assert_eq!(sender[1]["layout"], "compact");
+        assert_eq!(
+            sender[1]["fields"],
+            json!(["sender.address", "sender.email", "sender.phone"])
+        );
+        assert_eq!(sender[2]["label"], text("group-professional-details"));
+        assert_eq!(
+            sender[2]["fields"],
+            json!(["sender.organisation", "sender.department", "sender.role"])
+        );
+        for section in groups
+            .iter()
+            .flat_map(|group| group["sections"].as_array().unwrap())
+        {
             for id in section["fields"].as_array().unwrap() {
                 assert!(
                     letter["fields"]

@@ -1,5 +1,8 @@
 //! Le type Courrier : données, contrat du modèle et commandes propres au type.
-use super::{FieldGroup, FieldKind, FieldSection, MetadataField, ModelContract, TextField};
+use super::{
+    FieldGroup, FieldKind, FieldSection, FieldSectionLayout, MetadataField, ModelContract,
+    TextField,
+};
 use crate::document::DocumentOptions;
 use serde::{Deserialize, Serialize};
 
@@ -207,13 +210,41 @@ pub const GROUPS: &[FieldGroup] = &[
     FieldGroup {
         id: "sender",
         label_key: "group-sender",
-        sections: &[],
+        sections: &[
+            FieldSection {
+                layout: FieldSectionLayout::Inline,
+                id: "identity",
+                label_key: "group-sender",
+                fields: &[MetadataField::SenderName],
+            },
+            FieldSection {
+                layout: FieldSectionLayout::Compact,
+                id: "contact",
+                label_key: "group-contact-details",
+                fields: &[
+                    MetadataField::SenderAddress,
+                    MetadataField::SenderEmail,
+                    MetadataField::SenderPhone,
+                ],
+            },
+            FieldSection {
+                layout: FieldSectionLayout::Compact,
+                id: "organisation",
+                label_key: "group-professional-details",
+                fields: &[
+                    MetadataField::SenderOrganisation,
+                    MetadataField::SenderDepartment,
+                    MetadataField::SenderRole,
+                ],
+            },
+        ],
     },
     FieldGroup {
         id: "header",
         label_key: "group-editorial-header",
         sections: &[
             FieldSection {
+                layout: FieldSectionLayout::Editorial,
                 id: "recipient",
                 label_key: "group-recipient",
                 fields: &[
@@ -222,6 +253,7 @@ pub const GROUPS: &[FieldGroup] = &[
                 ],
             },
             FieldSection {
+                layout: FieldSectionLayout::Editorial,
                 id: "information",
                 label_key: "group-letter-information",
                 fields: &[
