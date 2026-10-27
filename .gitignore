@@ -1,5 +1,7 @@
 /target/
 /output/
+# Local sidecar used when opening a versioned example document.
+.*.typsto.lock
 .DS_Store
 __pycache__/
 node_modules/
