@@ -360,7 +360,7 @@ test('accueil sans document et création depuis les types et modèles disponible
   await expect(page.locator('main')).toBeHidden()
   await page.locator('#create-document').click()
   await expect(page.locator('dialog')).toBeVisible()
-  await expect(page.locator('dialog select').first().locator('option')).toHaveCount(1)
+  await expect(page.locator('dialog select').first().locator('option')).toHaveCount(2)
   await expect(page.locator('dialog select').nth(1).locator('option')).toHaveCount(1)
   await page.getByRole('button', { name: 'Créer', exact: true }).click()
   await expect(page.locator('main')).toBeVisible()

@@ -12,6 +12,7 @@ export class ParameterFields {
   constructor(
     private root: HTMLElement,
     private chooseImage: () => void,
+    private idPrefix = '',
   ) {}
   render(fields: SettingField[], drafts: Record<string, Scalar | undefined>) {
     this.drafts = drafts
@@ -22,14 +23,14 @@ export class ParameterFields {
       if (drafts[field.name] === undefined) drafts[field.name] = field.schema.default
       if (field.control === 'image') {
         const row = document.createElement('div')
-        row.id = 'image-options'
+        row.id = `${this.idPrefix}image-options`
         const button = document.createElement('button')
         button.type = 'button'
-        button.id = 'replace-image'
+        button.id = `${this.idPrefix}replace-image`
         button.textContent = tr('Remplacer…')
         button.onclick = this.chooseImage
         const hint = document.createElement('span')
-        hint.id = 'image-help'
+        hint.id = `${this.idPrefix}image-help`
         hint.textContent = tr('La légende se modifie directement dans le bloc.')
         row.append(button, hint)
         this.root.append(row)
@@ -42,7 +43,7 @@ export class ParameterFields {
           : field.control === 'select'
             ? document.createElement('select')
             : document.createElement('input')
-      input.id = `parameter-${field.name}`
+      input.id = `${this.idPrefix}parameter-${field.name}`
       input.setAttribute('aria-label', field.label)
       // JSON Schema requires a boolean value to be present, not necessarily true.
       input.required = field.required && field.control !== 'checkbox'

@@ -16,12 +16,13 @@ export function propertyPanel(
   bands: BandHost,
   catalogue: Catalogue,
   chooseImage: () => void,
+  idPrefix = '',
 ) {
   const panel = contextPanel({
-    id: 'properties',
-    titleId: 'property-title',
-    closeId: 'close-properties',
-    errorId: 'property-error',
+    id: `${idPrefix}properties`,
+    titleId: `${idPrefix}property-title`,
+    closeId: `${idPrefix}close-properties`,
+    errorId: `${idPrefix}property-error`,
     closeLabel: tr('Fermer les paramètres'),
     close: () => bands.close(),
     canConfirm: () => !editor.view.composing,
@@ -29,7 +30,7 @@ export function propertyPanel(
   })
   const form = panel.element
   const group = document.createElement('div')
-  group.id = 'list-options'
+  group.id = `${idPrefix}list-options`
   group.className = 'segmented'
   group.role = 'radiogroup'
   group.setAttribute('aria-label', tr('Type de liste'))
@@ -38,9 +39,9 @@ export function propertyPanel(
   const hint = document.createElement('p')
   hint.className = 'band-hint'
   panel.body.append(group, fieldsRoot, hint)
-  const fields = new ParameterFields(fieldsRoot, chooseImage)
+  const fields = new ParameterFields(fieldsRoot, chooseImage, idPrefix)
   const removeAction = panel.action({
-    id: 'remove-block',
+    id: `${idPrefix}remove-block`,
     label: tr('Supprimer'),
     danger: true,
     run: () => {
@@ -50,9 +51,13 @@ export function propertyPanel(
       else remove()
     },
   })
-  panel.action({ id: 'cancel-properties', label: tr('Annuler'), run: () => bands.close() })
+  panel.action({
+    id: `${idPrefix}cancel-properties`,
+    label: tr('Annuler'),
+    run: () => bands.close(),
+  })
   const apply = panel.action({
-    id: 'apply-properties',
+    id: `${idPrefix}apply-properties`,
     label: tr('Valider'),
     primary: true,
     run: () => panel.submit(),

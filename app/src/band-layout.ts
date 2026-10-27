@@ -75,15 +75,20 @@ export class BandHost {
   private observer: ResizeObserver
   private layer: HTMLElement
   private reanchor = true
-  constructor(private editor: Editor) {
+  constructor(
+    private editor: Editor,
+    private scrollRoot: HTMLElement = document.querySelector('#editor-scroll')!,
+    observedRoot: HTMLElement = document.querySelector('#editor')!,
+    private historyOwner: Editor = editor,
+  ) {
     this.layer = document.createElement('div')
     this.layer.className = 'band-layer'
-    document.querySelector('#editor-scroll')!.append(this.layer)
+    this.scrollRoot.append(this.layer)
     this.observer = new ResizeObserver(() => {
       this.reanchor = true
       this.schedule()
     })
-    this.observer.observe(document.querySelector('#editor')!)
+    this.observer.observe(observedRoot)
     editor.on('transaction', ({ transaction }) => {
       if (transaction.docChanged) this.reanchor = true
       this.schedule()
@@ -117,7 +122,7 @@ export class BandHost {
     )
       return false
     this.close(false)
-    yUndoPluginKey.getState(this.editor.state)?.undoManager.stopCapturing()
+    yUndoPluginKey.getState(this.historyOwner.state)?.undoManager.stopCapturing()
     const gap = document.createElement('span')
     gap.className = 'interline-band-gap'
     gap.contentEditable = 'false'
@@ -146,7 +151,7 @@ export class BandHost {
   }
   close(focus = true) {
     if (!this.panel) return
-    yUndoPluginKey.getState(this.editor.state)?.undoManager.stopCapturing()
+    yUndoPluginKey.getState(this.historyOwner.state)?.undoManager.stopCapturing()
     const anchor = this.target
     this.observer.unobserve(this.panel)
     this.panel.hidden = true
@@ -174,7 +179,7 @@ export class BandHost {
     const anchor = this.target
     if (anchor?.placement === 'widget-header') {
       const host = this.editor.view.nodeDOM(anchor.from)
-      const height = document.querySelector<HTMLElement>('#editor-scroll')!.clientHeight
+      const height = this.scrollRoot.clientHeight
       if (host instanceof HTMLElement && host.getBoundingClientRect().height <= height)
         target = host
     }
@@ -200,7 +205,7 @@ export class BandHost {
       this.close(false)
       return
     }
-    const scroll = document.querySelector<HTMLElement>('#editor-scroll')!
+    const scroll = this.scrollRoot
     let host: HTMLElement
     let marker: HTMLElement
     if (anchor.placement === 'widget-header') {

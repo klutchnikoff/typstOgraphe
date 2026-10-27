@@ -1,10 +1,27 @@
-import { Extension, type Editor, type JSONContent } from '@tiptap/core'
+import { Extension, Node, markInputRule, type Editor, type JSONContent } from '@tiptap/core'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { Plugin, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { widgetTarget, resumeAfterWidget } from './widgets'
 import { lineBreak } from './document-whitespace'
+
+/** Shared Typst-style inline input, also used by named editorial zones. */
+export const TypstInlineInput = Extension.create({
+  name: 'typstInlineInput',
+  priority: 1000,
+  addInputRules() {
+    return [markInputRule({ find: /(?:^|\s)(\*([^*]+)\*)$/, type: this.editor.schema.marks.bold })]
+  },
+})
+export const SoftBreak = Node.create({
+  name: 'softBreak',
+  group: 'inline',
+  inline: true,
+  selectable: false,
+  parseHTML: () => [{ tag: 'br[data-soft-break]' }],
+  renderHTML: () => ['br', { 'data-soft-break': '' }],
+})
 
 export type ListKind = 'bulletList' | 'orderedList' | 'descriptionList'
 export const listKinds: ListKind[] = ['bulletList', 'orderedList', 'descriptionList']
@@ -291,6 +308,7 @@ export const DocumentInput = Extension.create({
             const match = /^(?:-|([1-9]\d*)\.)$/.exec(prefix)
             if (!match) return false
             const kind = match[1] ? 'orderedList' : 'bulletList'
+            if (!editor.schema.nodes[kind]) return false
             const content = listContent(kind)
             if (match[1]) content.attrs = { start: Number(match[1]) }
             return insertBlock(editor, content, { from: start, to: from })

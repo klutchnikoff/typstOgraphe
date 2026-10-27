@@ -1357,3 +1357,123 @@ li:has(.interline-band-gap[data-marker])::marker {
   color: var(--danger);
   margin-right: 8px;
 }
+
+/* Repeatable editorial metadata uses the shared section and context-panel anatomy. */
+.metadata-collections {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.metadata-primary-fields {
+  display: grid;
+  gap: 8px;
+}
+.metadata-record-section .metadata-section-fields {
+  display: block;
+}
+.metadata-record {
+  border-top: 1px solid var(--border);
+  min-width: 0;
+  margin-top: 6px;
+}
+.metadata-record > summary {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 3px 0;
+  cursor: pointer;
+}
+.metadata-record-caption {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.metadata-record > summary .panel-actions {
+  margin: 0;
+  flex-wrap: nowrap;
+}
+.metadata-record > summary button {
+  padding: 4px;
+}
+.metadata-record > summary svg {
+  width: 15px;
+  height: 15px;
+}
+.metadata-record-fields {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0;
+}
+.metadata-record-fields .field {
+  min-width: 0;
+}
+.metadata-record-fields input[type='checkbox'] {
+  width: auto;
+}
+.metadata-reference-choices {
+  display: grid;
+  gap: 4px;
+}
+.metadata-reference-choices label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--text);
+}
+.metadata-record-deletion .properties {
+  position: static;
+  box-shadow: none;
+  width: 100%;
+  margin: 0 0 6px;
+}
+.metadata-rich {
+  min-width: 0;
+}
+.metadata-rich-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.metadata-rich-tools {
+  display: flex;
+}
+.metadata-rich-tools button {
+  padding: 3px;
+}
+.metadata-rich-tools svg {
+  width: 14px;
+  height: 14px;
+}
+.metadata-rich .tiptap {
+  font: inherit;
+  font-size: 14px;
+  padding: 7px 9px;
+  min-height: 85px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+}
+.metadata-rich-inline .tiptap {
+  min-height: 32px;
+}
+.metadata-rich .tiptap p {
+  margin: 0 0 0.6em;
+}
+.metadata-rich .tiptap p:last-child {
+  margin-bottom: 0;
+}
+.metadata-rich .tiptap:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+#metadata-content {
+  position: relative;
+}

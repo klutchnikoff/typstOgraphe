@@ -16,6 +16,8 @@ import type { BandHost } from './band-layout'
 import { documentType, settingsFor, setSetting, setDocument, type Settings } from './state'
 import { welcomeBrand } from './welcome-brand'
 import { recoveryPanel } from './recovery-panel'
+import type { StructuredMetadata } from './metadata-records'
+import { metadataCollections } from './metadata-collections'
 import { metadataFields, metadataSection, refreshMetadataFields } from './metadata-fields'
 import { documentOptions } from './document-options'
 import { withCurrentSnapshot } from './snapshot-operation'
@@ -30,7 +32,7 @@ export interface Field {
   field: string
   parameter: string
   label: string
-  value: string
+  value: unknown
   group: string
   multiline: boolean
   kind: string
@@ -47,6 +49,7 @@ export interface MetadataGroup {
   }[]
 }
 export interface DocumentType {
+  structured?: StructuredMetadata | null
   capabilities: string[]
   id: string
   label: string
@@ -159,6 +162,7 @@ export async function mountShell(s: Shell) {
   document.querySelector('.document-info')!.replaceWith(context)
   let tab: string | null = null
   let generalOptions: ReturnType<typeof documentOptions> | undefined
+  let recordPanel: ReturnType<typeof metadataCollections> | undefined
   keyboardScope(panel, {
     close: () => {
       panel.hidden = true
@@ -387,7 +391,8 @@ export async function mountShell(s: Shell) {
           `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
       }
       if (s.isTauri) {
-        if (preferences.signature) metadata.fields.signature = preferences.signature.path
+        if (t.id === 'courrier' && preferences.signature)
+          metadata.fields.signature = preferences.signature.path
         guarded(async () => {
           await provider.flush()
           await transport.invoke('new_document', {
@@ -401,7 +406,7 @@ export async function mountShell(s: Shell) {
         setDocument(provider, { metadata, template: m.source, modelId: m.id })
         editor.commands.clearContent()
       })
-      if (preferences.signature) {
+      if (t.id === 'courrier' && preferences.signature) {
         provider.addResource(preferences.signature)
         setSetting(provider, 'signature', preferences.signature.path)
       }
@@ -440,9 +445,17 @@ export async function mountShell(s: Shell) {
     }
     const content = $('metadata-content')
     content.hidden = tab === null
-    const samePanel = content.dataset.documentType === kind.id && content.dataset.tab === tab
+    const identity = String(settings.get('identity') || '')
+    const samePanel =
+      content.dataset.documentType === kind.id &&
+      content.dataset.tab === tab &&
+      content.dataset.identity === identity
     if (samePanel && tab === 'general' && generalOptions) {
       generalOptions.update(current)
+      return
+    }
+    if (samePanel && recordPanel) {
+      recordPanel.refresh()
       return
     }
     if (samePanel && content.contains(document.activeElement)) {
@@ -450,6 +463,9 @@ export async function mountShell(s: Shell) {
       return
     }
     generalOptions = undefined
+    recordPanel?.destroy()
+    recordPanel = undefined
+    content.dataset.identity = identity
     content.dataset.documentType = kind.id
     content.dataset.tab = tab || ''
     content.replaceChildren()
@@ -469,6 +485,13 @@ export async function mountShell(s: Shell) {
           setDocument(provider, next)
         },
         (key, value) => setSetting(provider, `options.${key}`, value),
+      )
+    } else if (tab === 'header' && kind.structured) {
+      recordPanel = metadataCollections(content, provider, kind.structured, catalogue, editor, () =>
+        String(
+          settings.get('options.language') ??
+            (settings.get('document') as Settings).metadata.fields.options.language,
+        ),
       )
     } else {
       const group = kind.groups.find((group) => group.id === tab)
@@ -748,6 +771,22 @@ export async function mountShell(s: Shell) {
       const key = `Mod+${event.shiftKey ? 'Shift+' : ''}${event.key.length === 1 ? event.key.toUpperCase() : event.key}`
       for (const command of commands.values())
         if (command.shortcut === key && command.enabled?.() !== false) {
+          // Named rich zones own their text shortcuts and share the same undo owner.
+          // Let their editor receive the key instead of focusing the document body.
+          if (
+            event.target instanceof Element &&
+            event.target.closest('.metadata-rich') &&
+            [
+              'history.undo',
+              'history.redo',
+              'text.bold',
+              'text.italic',
+              'text.link',
+              'context.open',
+              'block.remove',
+            ].includes(command.id)
+          )
+            return
           if (
             (event.target instanceof HTMLInputElement ||
               event.target instanceof HTMLTextAreaElement) &&
@@ -824,10 +863,17 @@ export async function mountShell(s: Shell) {
       2000,
     )
   }
-  settings.observe(() => {
+  let metadataRefreshQueued = false
+  settings.observeDeep(() => {
     dirty = true
     scheduleRecovery()
-    renderMetadata()
+    if (!metadataRefreshQueued) {
+      metadataRefreshQueued = true
+      queueMicrotask(() => {
+        metadataRefreshQueued = false
+        renderMetadata()
+      })
+    }
     updateTitle()
     s.schedule()
   })

@@ -2,7 +2,6 @@ import {
   Extension,
   Node,
   mergeAttributes,
-  markInputRule,
   textblockTypeInputRule,
   type Extensions,
 } from '@tiptap/core'
@@ -16,7 +15,7 @@ import { simpleWidgets } from './widgets'
 import { widgetFrame, type WidgetPresentations } from './widget-frame'
 import { tr } from './i18n'
 import { Proofing } from './proofing'
-import { DocumentInput } from './editing'
+import { DocumentInput, SoftBreak, TypstInlineInput } from './editing'
 import { DocumentWhitespace } from './document-whitespace'
 import { ContextBand } from './band-layout'
 import { inlineObjectView } from './inline-objects'
@@ -38,14 +37,8 @@ export function baseExtensions(
     ListItem.extend({ content: 'paragraph+' }),
     ...simpleWidgets(properties, presentations),
     // Comme dans l'éditeur existant : une fin de ligne reste dans le paragraphe.
-    Node.create({
-      name: 'softBreak',
-      group: 'inline',
-      inline: true,
-      selectable: false,
-      parseHTML: () => [{ tag: 'br[data-soft-break]' }],
-      renderHTML: () => ['br', { 'data-soft-break': '' }],
-    }),
+    SoftBreak,
+    TypstInlineInput,
     Extension.create({
       name: 'paragraphInput',
       priority: 1000,
@@ -58,7 +51,6 @@ export function baseExtensions(
               getAttributes: { level },
             }),
           ),
-          markInputRule({ find: /(?:^|\s)(\*([^*]+)\*)$/, type: this.editor.schema.marks.bold }),
         ]
       },
     }),
