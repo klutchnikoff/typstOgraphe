@@ -86,6 +86,28 @@ annulation, éditions concurrentes, sauvegarde/réouverture et export hors ligne
 ## Implémentation et utilisation
 
 À la création d’un document, choisir **Article**, puis **Article de travail**.
+Le modèle fourni compose une colonne en Libertinus Serif, avec titre et auteurs
+centrés, affiliations plus discrètes, résumés en retrait et titres de section
+hiérarchisés. Les pages suivantes portent le titre court et un filet fin ; le
+format A5 dispose de marges et d’un titre adaptés. Le titre principal conserve
+l’élément sémantique `title` de Typst. Toute cette présentation reste dans le
+modèle, sans ajout de règles à l’éditeur ni changement du contrat des données.
+Un projet déjà enregistré conserve son modèle embarqué ; la nouvelle présentation
+est fournie à la création des nouveaux articles.
+
+La recette visuelle [fixtures/article-layout.typ](../fixtures/article-layout.typ)
+couvre les deux langues, une affiliation officielle longue, les niveaux de
+section, une note, une citation et un tableau. Depuis la racine :
+
+```sh
+mkdir -p output/pdf
+typst compile --root . --ignore-system-fonts fixtures/article-layout.typ output/pdf/article-working.pdf
+```
+
+`--input paper=a5` ou `--input landscape=true` permettent aussi de vérifier les
+autres formats sans modifier la recette. Les fichiers générés dans `output/`
+restent hors du dépôt.
+
 L’onglet Général conserve modèle, papier, orientation et langue principale.
 Les onglets **Titres**, **Affiliations**, **Auteurs** et **Résumés** séparent les
 informations éditoriales. Titres présente, pour chaque langue, le titre, le
