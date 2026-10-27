@@ -7,6 +7,7 @@ use std::{
     sync::{Arc, Mutex, OnceLock},
 };
 use unicode_normalization::{UnicodeNormalization, char::is_combining_mark};
+const MAX_FILES: usize = 32;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -121,14 +122,18 @@ fn parse(file: &ReferenceFile) -> Result<Arc<Vec<Entry>>, String> {
             .collect(),
     );
     let mut guard = cache.lock().unwrap();
-    if guard.len() >= 16 {
+    // Cover a whole project: a smaller cache would reparse every file on each
+    // validation when iterating a library at the supported file limit.
+    if guard.len() >= MAX_FILES {
         guard.pop_front();
     }
     guard.push_back((digest, result.clone()));
     Ok(result)
 }
 pub fn index(files: &[ReferenceFile]) -> Result<Vec<Entry>, String> {
-    if files.len() > 32 || files.iter().map(|f| f.contents.len()).sum::<usize>() > 8 * 1024 * 1024 {
+    if files.len() > MAX_FILES
+        || files.iter().map(|f| f.contents.len()).sum::<usize>() > 8 * 1024 * 1024
+    {
         return Err("Bibliothèque trop volumineuse.".into());
     }
     let mut keys = BTreeMap::new();
