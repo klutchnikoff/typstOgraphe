@@ -123,3 +123,53 @@ test('en-tête partagé, focus conservé, export Typst et sauvegarde sans duplic
     'Bibliothèque universitaire',
   )
 })
+
+test('Général compact : choix utiles, valeurs imposées explicites et langue indépendante', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.getByRole('button', { name: 'Général', exact: true }).click()
+  const panel = page.locator('#metadata-content')
+  await expect(panel.getByRole('combobox')).toHaveCount(2)
+  await expect(page.getByLabel('Format', { exact: true })).toHaveText('A4')
+  await expect(page.getByLabel('Orientation', { exact: true })).toHaveText('Portrait')
+  await expect(
+    panel.getByText('Format et orientation définis par le modèle.', { exact: true }),
+  ).toBeVisible()
+  await expect(panel.locator('input[type=file]')).toHaveCount(0)
+  await expect(panel.getByText('Puces des listes', { exact: true })).toHaveCount(0)
+  const model = page.getByRole('combobox', { name: 'Modèle', exact: true })
+  const language = page.getByRole('combobox', { name: 'Langue du document', exact: true })
+  const geometry = await panel.evaluate((element) => {
+    const label = element
+      .querySelector('label[for="document-option-model"]')!
+      .getBoundingClientRect()
+    const select = element.querySelector('#document-option-model')!.getBoundingClientRect()
+    const column = element.querySelector('.document-options-column')!.getBoundingClientRect()
+    const language = element.querySelector('#document-option-language')!.getBoundingClientRect()
+    return {
+      sameLine: Math.abs(label.y + label.height / 2 - select.y - select.height / 2),
+      separateColumns: language.x > column.right,
+      controlWidth: select.width,
+      columnWidth: column.width,
+      height: element.getBoundingClientRect().height,
+    }
+  })
+  expect(geometry.sameLine).toBeLessThan(2)
+  expect(geometry.separateColumns).toBe(true)
+  expect(geometry.controlWidth).toBeLessThan(geometry.columnWidth)
+  expect(geometry.height).toBeLessThan(160)
+  await model.focus()
+  await page.keyboard.press('Tab')
+  await expect(language).toBeFocused()
+  await language.selectOption('en')
+  await expect(language).toBeFocused()
+  await expect(page.locator('.tiptap')).toHaveAttribute('lang', 'en')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'fr')
+  await page.setViewportSize({ width: 700, height: 700 })
+  expect(await panel.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThan(
+    2,
+  )
+  await page.keyboard.press('Escape')
+  await expect(panel).toBeHidden()
+})

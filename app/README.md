@@ -77,9 +77,11 @@ Les fenêtres d’une même session partagent cette copie. Les diagnostics conse
 leur dossier isolé explicite.
 
 Un chemin `.typsto` peut être passé au binaire pour ouvrir le fichier au lancement.
-Dans Général, un fichier `.typ` peut être importé comme modèle embarqué après
-validation par Typst pour le type courant. Il accompagne l’archive et l’export ;
-ce parcours ne constitue pas encore une bibliothèque globale de modèles.
+Général présente uniquement le modèle, le format, l’orientation et la langue du
+document, avec libellés et contrôles sur la même ligne. Un format ou une
+orientation imposés par le modèle sont affichés comme des valeurs fixes,
+accompagnées d’une explication. Les modèles embarqués dans les fichiers restent
+pris en charge ; cet onglet ne propose pas d’action d’import de modèle.
 
 ## Informations du courrier
 
