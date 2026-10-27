@@ -114,3 +114,16 @@ ni recette native Windows/Linux n’est annoncée comme exécutée sur ce Mac.
 Ce lot ne prétend pas une parité exhaustive test par test avec l’ancienne vue ;
 il conserve les garanties réutilisables et reprend les parcours utiles sans
 porter ses choix de géométrie ni maintenir artificiellement son tampon plat.
+
+## Suivi de la CI
+
+La CI du lot a confirmé Rust, la couverture et Tauri/macOS. Elle a révélé deux
+écarts corrigés ensuite : la règle LF de `.gitattributes` visait encore l’ancien
+répertoire du prototype, et la police CJK pouvait devenir la police latine de
+secours sur Linux, puis modifier les lignes après chargement. La règle vise
+maintenant `app/` ; les déclarations CJK sont limitées à leurs plages Unicode.
+Un nouveau parcours vérifie, même sans la police système choisie, l’absence de
+chargement CJK pour le français puis son chargement pour le japonais/chinois.
+Les assertions de stabilité des lignes restent inchangées. Les quatre parcours
+ciblés passent dans Chromium/WebKit ; un checkout avec `core.autocrlf=true`
+conserve les octets LF et ceux de l’icône binaire contrôlée.

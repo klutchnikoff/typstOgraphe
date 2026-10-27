@@ -204,3 +204,34 @@ test('ligne ciblée après un retour simple ou un repli automatique, puis redime
     }
   }
 })
+
+test('le secours CJK reste inutilisé pour le texte latin même sans la police système choisie', async ({
+  page,
+}) => {
+  const cjkRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.url().includes('NotoSansCJKjp')) cjkRequests.push(request.url())
+  })
+  await page.evaluate(async () => {
+    document.documentElement.style.setProperty('--editor-font', 'Police volontairement absente')
+    window.__spike!.editor.commands.setContent(
+      '<p>Un courrier français, lisible sans police CJK.</p>',
+    )
+    document.querySelector('.tiptap')!.getBoundingClientRect()
+    await document.fonts.ready
+  })
+  const statuses = () =>
+    page.evaluate(() =>
+      [...document.fonts]
+        .filter((font) => font.family.includes('Noto CJK'))
+        .map((font) => font.status),
+    )
+  expect(await statuses()).not.toContain('loaded')
+  expect(cjkRequests).toHaveLength(0)
+  await page.evaluate(() => {
+    window.__spike!.editor.commands.insertContent('Japonais : にほん。Chinois : 中文。')
+  })
+  await expect.poll(() => cjkRequests.length).toBeGreaterThan(0)
+  await page.evaluate(() => document.fonts.ready.then(() => undefined))
+  expect(await statuses()).toContain('loaded')
+})
