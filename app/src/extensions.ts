@@ -21,6 +21,7 @@ import { DocumentWhitespace } from './document-whitespace'
 import { ContextBand } from './band-layout'
 import { inlineObjectView } from './inline-objects'
 import { InlineObjectNumbering, inlineObjectNumber } from './inline-object-numbering'
+import { InlineObjectFocus } from './inline-object-focus'
 
 export function baseExtensions(
   imageURL: (path: string) => string,
@@ -33,6 +34,7 @@ export function baseExtensions(
     DocumentInput,
     DocumentWhitespace,
     InlineObjectNumbering.configure({ kinds: ['footnote'] }),
+    InlineObjectFocus,
     ListItem.extend({ content: 'paragraph+' }),
     ...simpleWidgets(properties, presentations),
     // Comme dans l'éditeur existant : une fin de ligne reste dans le paragraphe.

@@ -24,6 +24,7 @@ import { BandHost } from './band-layout'
 import { propertyPanel } from './properties'
 import { insertBlock } from './editing'
 import { inlineObjectKey, inlineObjectTarget } from './inline-objects'
+import { activeInlineObject } from './inline-object-focus'
 import './style.css'
 
 declare global {
@@ -80,7 +81,7 @@ let preview: ReturnType<typeof previewController> | undefined
 
 function propertyTarget(): { pos: number; kind: string } | undefined {
   const { from } = editor.state.selection
-  const inline = inlineObjectTarget(editor)
+  const inline = activeInlineObject(editor.state)
   const widget = widgetTarget(editor)
   const target = inline
     ? { pos: inline.pos, kind: inline.node.type.name }
@@ -371,9 +372,8 @@ async function start() {
       bands.focus()
       return true
     }
-    // An adjacent/selected inline object is an explicit target. Spelling still
-    // wins inside words and inside block widgets, away from an inline object.
-    const inline = inlineObjectTarget(editor)
+    // The same boundary that highlights the badge determines this command's target.
+    const inline = activeInlineObject(editor.state)
     if (inline) {
       openProperties(inline.pos, inline.node.type.name)
       return true
