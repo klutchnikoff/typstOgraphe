@@ -1,8 +1,9 @@
 // A restrained working article. All presentation choices belong to this model.
 #import "capabilities/authorship.typ": prepare-authorship, show-authorship
 #import "capabilities/abstracts.typ": show-abstracts, abstract-labels
-#let editor-options = (bullet-markers: (), custom-bullet-marker: false)
-#let article(localizations: (), authors: (), affiliations: (), options: (
+#import "capabilities/references.typ": reference-list
+#let editor-options = (bullet-markers: (), custom-bullet-marker: false, outline: true, citation-styles: ("chicago-author-date", "apa", "ieee"))
+#let article(localizations: (), authors: (), affiliations: (), references: (), citation-style: "chicago-author-date", show-outline: false, options: (
   paper: "a4", landscape: false, language: "fr", bullet-marker: auto,
 ), body) = {
   let primary = localizations.find(l => l.language == options.language)
@@ -97,6 +98,8 @@
     }
   }
   show-abstracts(localizations, primary-language: options.language, render-entry: render-abstract)
+  if show-outline { outline() }
   v(5mm)
   body
+  reference-list(references, style: citation-style)
 }

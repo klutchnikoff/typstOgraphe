@@ -175,6 +175,17 @@ pub const ALL: &[Capability] = &[
         "Rectangular table, 1–12 columns and 1–100 rows. No merged cells; header row optional."
     ),
     capability!(
+        "insert.citation",
+        "cmd-insert-citation",
+        "book-open",
+        "insert",
+        Some("citation"),
+        None,
+        false,
+        false,
+        "Article-only bibliographic citation. Choose references from the published project metadata; items use file_id and key, with optional literal supplement. Rendering belongs to Typst and the model."
+    ),
+    capability!(
         "insert.footnote",
         "cmd-insert-footnote",
         "footprints",
@@ -209,8 +220,10 @@ pub const ALL: &[Capability] = &[
     ),
 ];
 pub fn for_type(kind: DocumentType) -> impl Iterator<Item = &'static Capability> {
-    ALL.iter()
-        .filter(move |c| !c.letter_only || kind == DocumentType::Courrier)
+    ALL.iter().filter(move |c| {
+        (!c.letter_only || kind == DocumentType::Courrier)
+            && (c.id != "insert.citation" || kind == DocumentType::Article)
+    })
 }
 pub fn find(id: &str) -> Option<&'static Capability> {
     ALL.iter().find(|c| c.id == id)
@@ -230,6 +243,13 @@ pub fn parameters(id: &str) -> Value {
         }
         "insert.table" => {
             json!({"type":"object","properties":{"rows":{"type":"integer","minimum":1,"maximum":100,"default":3,"x-editor":{"placement":"structure"}},"columns":{"type":"integer","minimum":1,"maximum":12,"default":2,"x-editor":{"placement":"structure"}},"header":{"type":"boolean","default":true,"x-editor":{"placement":"creation"}}},"additionalProperties":false})
+        }
+        "insert.citation" => {
+            let mut schema =
+                serde_json::to_value(schemars::schema_for!(crate::bibliography::Citation)).unwrap();
+            schema["properties"]["items"]["x-editor"] = json!({"placement":"body"});
+            schema["properties"]["form"] = json!({"type":"string","enum":["normal","prose"],"default":"normal","x-editor":{"label_key":"web-citation-form"}});
+            schema
         }
         "insert.footnote" => {
             json!({"type":"object","properties":{"text":{"type":"string","default":"","x-editor":{"label_key":"web-footnote-text","multiline":true,"label_visibility":"accessible"}}},"additionalProperties":false})

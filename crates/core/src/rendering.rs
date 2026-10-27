@@ -155,6 +155,20 @@ impl TypstWorld {
                         }
                     }
                 }
+                ("outline", Value::Bool(allowed)) => policy.outline = *allowed,
+                ("citation-styles", Value::Array(styles)) => {
+                    for style in styles.iter() {
+                        let Value::Str(style) = style else {
+                            return Err(invalid());
+                        };
+                        if !["chicago-author-date", "apa", "ieee"].contains(&style.as_str()) {
+                            return Err(invalid());
+                        }
+                        if !policy.citation_styles.iter().any(|s| s == style.as_str()) {
+                            policy.citation_styles.push(style.to_string());
+                        }
+                    }
+                }
                 ("custom-bullet-marker", Value::Bool(allowed)) => {
                     policy.custom_bullet_marker = *allowed
                 }
@@ -186,6 +200,14 @@ impl TypstWorld {
             return Err(CoreError::from(TemplateError::BulletMarkerNotAllowed));
         }
         metadata.validate().map_err(CoreError::external)?;
+        self.files
+            .retain(|id, _| !id.vpath().get_with_slash().starts_with("/bibliography/"));
+        for (path, data) in crate::bibliography::resources(metadata) {
+            self.set_source(
+                &path,
+                std::str::from_utf8(&data).map_err(CoreError::external)?,
+            );
+        }
         self.set_source("main.typ", &metadata.main_source());
         self.set_source("modele.typ", template);
         self.set_source("contenu.typ", source);

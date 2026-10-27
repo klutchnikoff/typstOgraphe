@@ -40,6 +40,7 @@ pub fn write_document(
     format: ExportFormat,
     page_images: bool,
 ) -> Result<(), CoreError> {
+    request.metadata.validate().map_err(CoreError::external)?;
     check_directory(path)?;
     // Préparer les opérations faillibles de compilation avant la première écriture.
     let pdf = if format != ExportFormat::Typst {
@@ -88,7 +89,8 @@ pub fn write_document(
             }
             write(path, name, data)?;
         }
-        for (name, data) in request.dependencies.iter() {
+        let references = crate::bibliography::resources(&request.metadata);
+        for (name, data) in request.dependencies.iter().chain(references.iter()) {
             if let Some(parent) = path.join(name).parent() {
                 std::fs::create_dir_all(parent).map_err(CoreError::external)?;
             }

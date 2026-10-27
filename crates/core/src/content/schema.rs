@@ -56,6 +56,12 @@ pub(super) fn generate(document: &Node, assets: &Assets, mapped: bool) -> Result
     fn notes(node: &Node) -> bool {
         matches!(node.kind.as_str(), "postscript" | "attachment") || node.content.iter().any(notes)
     }
+    fn citations(node: &Node) -> bool {
+        node.kind == "citation" || node.content.iter().any(citations)
+    }
+    if citations(document) {
+        result = format!("#import \"capabilities/references.typ\": citation\n\n{result}");
+    }
     if notes(document) {
         result = format!(
             "#import \"capabilities/correspondence.typ\": postscript, attachment\n\n{result}"
@@ -76,7 +82,7 @@ fn limits(node: &Node, depth: usize, count: &mut usize) -> Result<(), String> {
     }
     if !matches!(
         node.kind.as_str(),
-        "text" | "softBreak" | "hardBreak" | "footnote"
+        "text" | "softBreak" | "hardBreak" | "footnote" | "citation"
     ) && !node.marks.is_empty()
     {
         return Err("Style hors d'un contenu en ligne.".into());
@@ -238,6 +244,40 @@ pub(super) fn inline(nodes: &[Node], mapped: bool) -> Result<String, String> {
                 }
                 "hardBreak" if node.content.is_empty() => "#linebreak()".into(),
                 "softBreak" if node.content.is_empty() => " ".into(),
+                "citation" if node.content.is_empty() => {
+                    let mut attrs = node.attrs.clone().unwrap_or_default();
+                    if let Some(object) = attrs.as_object_mut() {
+                        object.remove("_mapping");
+                    }
+                    let citation: crate::bibliography::Citation =
+                        serde_json::from_value(attrs).map_err(|e| e.to_string())?;
+                    citation.validate()?;
+                    let items = citation
+                        .items
+                        .iter()
+                        .map(|item| {
+                            format!(
+                                "#cite(label({}), supplement: {})",
+                                typst_string(&item.key),
+                                if item.supplement.is_empty() {
+                                    "none".into()
+                                } else {
+                                    format!("[{}]", super::mapping::literal(&item.supplement))
+                                }
+                            )
+                        })
+                        .collect::<String>();
+                    let expression =
+                        format!("#citation(form: {})[{items}]", typst_string(&citation.form));
+                    if mapped {
+                        format!(
+                            "/*@typstographe:{}*/{expression}/*@typstographe-end*/",
+                            node.integer("_mapping", 0)
+                        )
+                    } else {
+                        expression
+                    }
+                }
                 "footnote" if node.content.is_empty() => {
                     let value = super::mapping::literal(node.string("text")?);
                     let marker = if mapped {

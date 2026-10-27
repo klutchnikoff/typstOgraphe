@@ -10,6 +10,8 @@ rust-version = "1.92"
 publish = false
 
 [workspace.dependencies]
+hayagriva = "=0.10.1"
+strsim = "=0.11.1"
 typstographe-mcp = { path = "crates/mcp" }
 typstographe-core = { path = "crates/core" }
 typstographe-i18n = { path = "crates/i18n" }

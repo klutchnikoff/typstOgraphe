@@ -31,6 +31,7 @@ struct Manifest {
 impl Archive {
     pub fn validate(&self) -> Result<String, String> {
         self.metadata.validate()?;
+        crate::bibliography::validate_document(&self.document, &self.metadata)?;
         crate::packages::validate(&self.template, &self.dependencies).map_err(|e| e.to_string())?;
         for (path, data) in &self.assets {
             if !crate::assets::valid_path(path) {
@@ -56,6 +57,7 @@ impl Archive {
             &self.dependencies,
         )?;
         lease.check().map_err(|e| e.to_string())?;
+        let references = crate::bibliography::resources(&self.metadata);
         let entries = [
             (
                 "manifest.json",
@@ -81,9 +83,10 @@ impl Archive {
             .map(|(_, b)| b.len())
             .chain(assets.values().map(|b| b.len()))
             .chain(self.dependencies.values().map(|b| b.len()))
+            .chain(references.values().map(|b| b.len()))
             .sum();
         if size as u64 > MAX_DOCUMENT_BYTES
-            || assets.len() + self.dependencies.len() + entries.len() > 4096
+            || assets.len() + self.dependencies.len() + references.len() + entries.len() > 4096
         {
             return Err("Document trop volumineux.".into());
         }
@@ -105,7 +108,11 @@ impl Archive {
                 zip.start_file(*name, options).map_err(|e| e.to_string())?;
                 zip.write_all(data).map_err(|e| e.to_string())?;
             }
-            for (name, data) in assets.iter().chain(self.dependencies.iter()) {
+            for (name, data) in assets
+                .iter()
+                .chain(self.dependencies.iter())
+                .chain(references.iter())
+            {
                 zip.start_file(name, options).map_err(|e| e.to_string())?;
                 zip.write_all(data).map_err(|e| e.to_string())?;
             }
@@ -146,6 +153,7 @@ impl Archive {
             if !allowed.contains(&name.as_str())
                 && !crate::assets::valid_path(&name)
                 && !crate::packages::valid_path(&name)
+                && !crate::bibliography::valid_path(&name)
             {
                 return Err("Entrée inconnue.".into());
             }
@@ -193,6 +201,19 @@ impl Archive {
                     .collect(),
             ),
         };
+        let references = crate::bibliography::resources(&result.metadata);
+        if files.iter().any(|(path, data)| {
+            crate::bibliography::valid_path(path)
+                && references
+                    .get(path)
+                    .is_none_or(|expected| expected.as_ref() != data.as_slice())
+        }) || references.iter().any(|(path, data)| {
+            files
+                .get(path)
+                .is_none_or(|saved| saved.as_slice() != data.as_ref())
+        }) {
+            return Err("Ressources bibliographiques incohérentes.".into());
+        }
         if result.validate()?.as_bytes() != get("contenu.typ")?
             || result.metadata.main_source().as_bytes() != get("main.typ")?
         {

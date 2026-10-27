@@ -286,6 +286,9 @@
           },
           "MetadataField": {
             "enum": [
+              "article.references",
+              "article.citation_style",
+              "article.show_outline",
               "article.authors",
               "article.affiliations",
               "article.localizations",
@@ -781,6 +784,9 @@
         "$defs": {
           "MetadataField": {
             "enum": [
+              "article.references",
+              "article.citation_style",
+              "article.show_outline",
               "article.authors",
               "article.affiliations",
               "article.localizations",

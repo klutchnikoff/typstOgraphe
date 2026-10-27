@@ -56,7 +56,10 @@ fn at_mut<'a>(root: &'a mut Node, path: &[usize]) -> Result<&'a mut Node, String
 pub fn inline_len(node: &Node) -> usize {
     if node.kind == "text" {
         node.text.as_deref().unwrap_or("").encode_utf16().count()
-    } else if matches!(node.kind.as_str(), "softBreak" | "hardBreak" | "footnote") {
+    } else if matches!(
+        node.kind.as_str(),
+        "softBreak" | "hardBreak" | "footnote" | "citation"
+    ) {
         1
     } else {
         node.content.iter().map(inline_len).sum()
@@ -158,8 +161,7 @@ pub fn apply(
     }
     let capability = catalogue::find(&call.id);
     if let Some(c) = capability
-        && c.letter_only
-        && kind != crate::document_types::DocumentType::Courrier
+        && !catalogue::for_type(kind).any(|allowed| allowed.id == c.id)
     {
         return Err("Capacité absente de ce type.".into());
     }
@@ -268,6 +270,7 @@ pub fn apply(
             | "text.remove_link"
             | "text.clear"
             | "insert.footnote"
+            | "insert.citation"
     ) {
         let n = at_mut(root, &t.path)?;
         if !matches!(
@@ -315,6 +318,18 @@ pub fn apply(
                     from: t.from,
                     to: t.from,
                 }
+            }
+            "insert.citation" => {
+                let citation: crate::bibliography::Citation = serde_json::from_value(json!({"items":call.params["items"],"form":call.params.get("form").cloned().unwrap_or(json!("normal"))})).map_err(|e|e.to_string())?;
+                citation.validate()?;
+                let mut annotation = node("citation", vec![]);
+                annotation.attrs = Some(serde_json::to_value(citation).unwrap());
+                selected = vec![annotation];
+                *context = Target {
+                    path: t.path.clone(),
+                    from: t.from + 1,
+                    to: t.from + 1,
+                };
             }
             "insert.footnote" => {
                 let mut annotation = node("footnote", vec![]);
@@ -404,6 +419,19 @@ pub fn apply(
             root.content.push(node("paragraph", vec![]))
         }
         *context = end_target(root);
+        return Ok(());
+    }
+    if call.id == "citation.set" {
+        if kind != crate::document_types::DocumentType::Article {
+            return Err("Capacité absente de ce type.".into());
+        }
+        let n = at_mut(root, &t.path)?;
+        if n.kind != "citation" {
+            return Err("Citation attendue.".into());
+        }
+        let citation:crate::bibliography::Citation=serde_json::from_value(json!({"items":call.params["items"],"form":call.params.get("form").cloned().unwrap_or(json!("normal"))})).map_err(|e|e.to_string())?;
+        citation.validate()?;
+        n.attrs = Some(serde_json::to_value(citation).unwrap());
         return Ok(());
     }
     if call.id == "annotation.set" {
@@ -614,6 +642,11 @@ pub fn specifications() -> Vec<Value> {
         };
         entries.push(json!({"id":id,"description":description,"params_schema":{"type":"object","properties":properties,"required":required,"additionalProperties":false}}))
     }
+    let mut schema = catalogue::parameters("insert.citation");
+    schema["properties"]["target"] = target;
+    let required = schema["required"].as_array_mut().unwrap();
+    required.push(json!("target"));
+    entries.push(json!({"id":"citation.set","description":"Replace a whole citation group at its node path; references must already belong to the Article project.","params_schema":schema}));
     entries
 }
 

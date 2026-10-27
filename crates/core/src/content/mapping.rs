@@ -16,7 +16,7 @@ pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, Source
     let mut marked = document.clone();
     let mut entries = vec![];
     fn visit(node: &mut Node, position: usize, entries: &mut Vec<Entry>) -> usize {
-        if node.kind == "text" || node.kind == "footnote" {
+        if matches!(node.kind.as_str(), "text" | "footnote" | "citation") {
             let value = if node.kind == "text" {
                 node.text.clone().unwrap_or_default()
             } else {
@@ -27,7 +27,7 @@ pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, Source
                     .unwrap_or("")
                     .into()
             };
-            let atom = node.kind == "footnote";
+            let atom = node.kind != "text";
             let size = if atom {
                 1
             } else {
@@ -66,6 +66,16 @@ pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, Source
             .map_err(|_| "Identité interne invalide.")?;
         let entry = entries.get(id).ok_or("Carte interne invalide.")?;
         let start = output.len();
+        if entry.atom && entry.value.is_empty() && after[end + 2..].starts_with("#citation(") {
+            let tail = &after[end + 2..];
+            let stop = tail
+                .find("/*@typstographe-end*/")
+                .ok_or("Citation sans fin de carte.")?;
+            characters[entry.position] = start..start + stop;
+            output.push_str(&tail[..stop]);
+            remaining = &tail[stop + "/*@typstographe-end*/".len()..];
+            continue;
+        }
         let mut byte = start;
         let mut position = entry.position;
         for ch in entry.value.chars() {

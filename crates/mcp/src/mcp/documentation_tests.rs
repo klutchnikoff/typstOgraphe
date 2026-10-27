@@ -447,7 +447,7 @@ fn article_discovery_and_collection_edits_use_the_same_typed_contract() {
     let collections = description["outcome"]["structured_metadata"]["collections"]
         .as_array()
         .unwrap();
-    assert_eq!(collections.len(), 3);
+    assert_eq!(collections.len(), 4);
     let affiliations = collections
         .iter()
         .find(|c| c["parameter"] == "affiliations")

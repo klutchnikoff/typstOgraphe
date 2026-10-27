@@ -26,6 +26,12 @@
       "entrypoint": "capabilities/abstracts.typ",
       "signature": "show-abstracts(localizations, primary-language: \"fr\", render-entry: auto)",
       "packages": []
+    },
+    {
+      "id": "references",
+      "entrypoint": "capabilities/references.typ",
+      "signature": "citation(body, form: \"normal\"), reference-list(sources, style: \"chicago-author-date\")",
+      "packages": []
     }
   ],
   "packages": [

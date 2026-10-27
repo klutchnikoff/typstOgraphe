@@ -37,7 +37,7 @@ fn field_catalogues_drive_typed_updates_for_every_type_without_touching_the_body
             match kind {
                 DocumentType::Courrier => 13,
                 DocumentType::CompteRendu => 6,
-                DocumentType::Article => 3,
+                DocumentType::Article => 6,
             }
         );
         assert_eq!(e.session.revision, 0);

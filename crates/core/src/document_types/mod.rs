@@ -286,6 +286,8 @@ pub struct ModelContract<T: 'static> {
 pub struct ModelPresentation {
     pub bullet_markers: Vec<String>,
     pub custom_bullet_marker: bool,
+    pub outline: bool,
+    pub citation_styles: Vec<String>,
 }
 impl ModelPresentation {
     pub fn allows_bullet_marker(&self, marker: &str) -> bool {

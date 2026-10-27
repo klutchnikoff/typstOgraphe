@@ -54,14 +54,26 @@ impl Localization {
 #[serde(deny_unknown_fields)]
 pub struct Metadata {
     pub options: DocumentOptions,
+    #[serde(default)]
+    pub references: Vec<crate::bibliography::ReferenceFile>,
+    #[serde(default = "default_citation_style")]
+    pub citation_style: String,
+    #[serde(default)]
+    pub show_outline: bool,
     pub authors: Vec<Author>,
     pub affiliations: Vec<Affiliation>,
     pub localizations: Vec<Localization>,
+}
+fn default_citation_style() -> String {
+    "chicago-author-date".into()
 }
 impl Default for Metadata {
     fn default() -> Self {
         Self {
             options: Default::default(),
+            references: vec![],
+            citation_style: default_citation_style(),
+            show_outline: false,
             authors: vec![],
             affiliations: vec![],
             localizations: vec![Localization::blank(
@@ -104,6 +116,10 @@ impl Metadata {
             .push(Localization::blank(self.options.language, id));
     }
     pub fn validate(&self) -> Result<(), String> {
+        crate::bibliography::index(&self.references)?;
+        if !["chicago-author-date", "apa", "ieee"].contains(&self.citation_style.as_str()) {
+            return Err("Style bibliographique invalide.".into());
+        }
         fn ids<'a>(values: impl Iterator<Item = &'a str>) -> Result<BTreeSet<&'a str>, String> {
             let mut ids = BTreeSet::new();
             for id in values {
@@ -179,6 +195,24 @@ impl Metadata {
     pub fn field_values(&self) -> Vec<FieldValue> {
         [
             (
+                MetadataField::ArticleReferences,
+                "references",
+                "field-bibliography",
+                serde_json::to_value(&self.references).unwrap(),
+            ),
+            (
+                MetadataField::ArticleCitationStyle,
+                "citation_style",
+                "field-citation-style",
+                serde_json::json!(self.citation_style),
+            ),
+            (
+                MetadataField::ArticleOutline,
+                "show_outline",
+                "field-show-outline",
+                serde_json::json!(self.show_outline),
+            ),
+            (
                 MetadataField::ArticleAuthors,
                 "authors",
                 "field-article-authors",
@@ -218,6 +252,15 @@ impl Metadata {
     ) -> Result<(), String> {
         let mut next = self.clone();
         match field {
+            MetadataField::ArticleReferences => {
+                next.references = serde_json::from_value(value).map_err(|e| e.to_string())?
+            }
+            MetadataField::ArticleCitationStyle => {
+                next.citation_style = serde_json::from_value(value).map_err(|e| e.to_string())?
+            }
+            MetadataField::ArticleOutline => {
+                next.show_outline = serde_json::from_value(value).map_err(|e| e.to_string())?
+            }
             MetadataField::ArticleAuthors => {
                 next.authors = serde_json::from_value(value).map_err(|e| e.to_string())?
             }
@@ -257,8 +300,15 @@ impl Metadata {
             .collect::<String>();
         let localizations = self.localizations.iter().map(|l| format!("(id: {}, language: {}, title: [{}], short-title: [{}], subtitle: [{}], abstract: [{}], keywords: {}),", typst_string(&l.id), typst_string(l.language.code()), l.title.source(true), l.short_title.source(true), l.subtitle.source(true), l.summary.source(false), strings(&l.keywords))).collect::<String>();
         let o = &self.options;
+        let references = self
+            .references
+            .iter()
+            .map(|file| format!("path({}),", typst_string(&file.path())))
+            .collect::<String>();
         format!(
-            "#import \"modele.typ\": article\n#show: article.with(\n  authors: ({authors}),\n  affiliations: ({affiliations}),\n  localizations: ({localizations}),\n  options: (paper: {}, landscape: {}, language: {}, bullet-marker: {}),\n)\n#include \"contenu.typ\"\n",
+            "#import \"modele.typ\": article\n#show: article.with(\n  authors: ({authors}),\n  affiliations: ({affiliations}),\n  localizations: ({localizations}),\n  references: ({references}),\n  citation-style: {},\n  show-outline: {},\n  options: (paper: {}, landscape: {}, language: {}, bullet-marker: {}),\n)\n#include \"contenu.typ\"\n",
+            typst_string(&self.citation_style),
+            self.show_outline,
             typst_string(o.paper.typst_name()),
             o.landscape,
             typst_string(o.language.code()),
@@ -268,7 +318,7 @@ impl Metadata {
         )
     }
 }
-pub const SIGNATURE: &str = "article(localizations, authors, affiliations, options, body)";
+pub const SIGNATURE: &str = "article(localizations, authors, affiliations, references, citation-style, show-outline, options, body)";
 pub const GROUPS: &[FieldGroup] = &[
     FieldGroup {
         id: "titles",
@@ -290,18 +340,27 @@ pub const GROUPS: &[FieldGroup] = &[
         label_key: "group-article-abstracts",
         sections: &[],
     },
+    FieldGroup {
+        id: "bibliography",
+        label_key: "field-bibliography",
+        sections: &[],
+    },
 ];
 
 /// Shared collection descriptors consumed by GUI and documented to CLI/MCP.
 pub(super) fn schema() -> serde_json::Value {
     use serde_json::json;
     let rich = |key, label, inline| json!({"key":key,"label_key":label,"kind":if inline {"rich_inline"} else {"rich"},"default":RichText::default()});
-    json!({"panels":[
+    json!({"bibliography":{"tab":"bibliography","files":"references","field":"article.references","style":"citation_style","style_field":"article.citation_style","outline":"show_outline","outline_field":"article.show_outline"},"panels":[
         {"id":"titles","collection":"localizations","fields":["language","title","subtitle","short-title"]},
         {"id":"affiliations","collection":"affiliations"},
         {"id":"authors","collection":"authors"},
         {"id":"abstracts","collection":"localizations","fields":["language","abstract","keywords"]}
     ],"collections":[
+        {"field":"article.references","parameter":"references","label_key":"field-bibliography","item_label_key":"field-reference-file","title_key":"name","schema":schemars::schema_for!(Vec<crate::bibliography::ReferenceFile>),"fields":[
+            {"key":"name","label_key":"field-reference-file","kind":"text","default":""},
+            {"key":"contents","label_key":"field-reference-source","kind":"source","default":""}
+        ]},
         {"field":"article.authors","parameter":"authors","label_key":"field-article-authors","item_label_key":"article-author","title_key":"name",
          "schema":schemars::schema_for!(Vec<Author>), "fields":[
             {"key":"name","label_key":"field-full-name","kind":"text","default":""},
@@ -373,11 +432,14 @@ mod tests {
     fn editorial_tabs_share_localized_records_and_cover_every_field() {
         let descriptor = schema();
         let panels = descriptor["panels"].as_array().unwrap();
-        assert_eq!(panels.len(), GROUPS.len());
-        for group in GROUPS {
+        assert_eq!(panels.len() + 1, GROUPS.len());
+        for group in GROUPS.iter().filter(|group| group.id != "bibliography") {
             assert!(panels.iter().any(|panel| panel["id"] == group.id));
         }
         for collection in descriptor["collections"].as_array().unwrap() {
+            if collection["parameter"] == "references" {
+                continue;
+            }
             for field in collection["fields"].as_array().unwrap() {
                 assert!(panels.iter().any(|panel| {
                     panel["collection"] == collection["parameter"]

@@ -4,6 +4,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum MetadataField {
+    #[serde(rename = "article.references")]
+    ArticleReferences,
+    #[serde(rename = "article.citation_style")]
+    ArticleCitationStyle,
+    #[serde(rename = "article.show_outline")]
+    ArticleOutline,
     #[serde(rename = "article.authors")]
     ArticleAuthors,
     #[serde(rename = "article.affiliations")]

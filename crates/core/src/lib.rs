@@ -4,6 +4,7 @@
 
 pub mod annotations;
 pub mod assets;
+pub mod bibliography;
 pub mod content;
 pub mod dates;
 pub mod document;

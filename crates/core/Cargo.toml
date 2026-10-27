@@ -14,6 +14,8 @@ workspace = true
 test-support = []
 
 [dependencies]
+hayagriva.workspace = true
+strsim.workspace = true
 resvg.workspace = true
 unicode-segmentation.workspace = true
 serde.workspace = true
