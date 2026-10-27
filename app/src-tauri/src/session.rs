@@ -54,6 +54,7 @@ pub struct Bootstrap {
     pub generation: String,
     pub opened: bool,
     pub has_recovery: bool,
+    pub initial_path: Option<String>,
     pub file_path: Option<String>,
     pub revision: u64,
     pub updates: Vec<Vec<u8>>,
@@ -66,6 +67,9 @@ pub struct Bootstrap {
 }
 
 pub struct Session {
+    pub recovery: Option<crate::recovery::Store>,
+    pub initial_path: Option<String>,
+    pub clean_revision: Option<u64>,
     pub offline: HashSet<String>,
     pub generation: String,
     pub opened: bool,
@@ -84,6 +88,9 @@ pub struct Session {
 impl Session {
     pub fn fresh(root: PathBuf) -> Self {
         Self {
+            recovery: None,
+            initial_path: None,
+            clean_revision: None,
             offline: HashSet::new(),
             generation: uuid::Uuid::new_v4().to_string(),
             opened: false,
@@ -115,26 +122,7 @@ impl Session {
             }
             let checkpoint: Checkpoint =
                 serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
-            if checkpoint.schema != SCHEMA
-                || checkpoint.update.is_empty()
-                || checkpoint.update.len() > MAX_UPDATES
-            {
-                return Err("Version ou état Yjs de session invalide.".into());
-            }
-            for resource in checkpoint.resources {
-                let data = resource.decoded()?;
-                if session.assets.insert(resource.path, data.into()).is_some() {
-                    return Err("Ressource dupliquée.".into());
-                }
-            }
-            // Le source de récupération est un cache : régénérer depuis le schéma validé.
-            schema::source(&checkpoint.document, &session.assets)?;
-            session.bytes = checkpoint.update.len();
-            checkpoint.settings.validate()?;
-            session.settings = checkpoint.settings;
-            session.updates.push(checkpoint.update);
-            session.restored = Some(checkpoint.document);
-            session.initialized = true;
+            session = Self::from_checkpoint(session.root.clone(), checkpoint)?;
         } else {
             session.assets.insert(
                 "images/parc.svg".into(),
@@ -145,6 +133,50 @@ impl Session {
         }
         Ok(session)
     }
+    pub fn from_checkpoint(root: PathBuf, checkpoint: Checkpoint) -> Result<Self, String> {
+        let mut session = Self::fresh(root);
+        if checkpoint.schema != SCHEMA
+            || checkpoint.update.is_empty()
+            || checkpoint.update.len() > MAX_UPDATES
+        {
+            return Err("Version ou état Yjs de session invalide.".into());
+        }
+        for resource in checkpoint.resources {
+            let data = resource.decoded()?;
+            if session.assets.insert(resource.path, data.into()).is_some() {
+                return Err("Ressource dupliquée.".into());
+            }
+        }
+        // Le source de récupération est un cache : régénérer depuis le schéma validé.
+        schema::source(&checkpoint.document, &session.assets)?;
+        session.bytes = checkpoint.update.len();
+        checkpoint.settings.validate()?;
+        session.settings = checkpoint.settings;
+        session.updates.push(checkpoint.update);
+        session.restored = Some(checkpoint.document);
+        session.initialized = true;
+        session.fixture = session.restored.clone();
+        Ok(session)
+    }
+    pub fn managed(base: PathBuf) -> Result<Self, String> {
+        let recovery = crate::recovery::Store::new(base)?;
+        let mut session = Self::fresh(recovery.directory.clone());
+        session.fixture = Some(
+            serde_json::from_value(
+                serde_json::json!({"type":"doc","content":[{"type":"paragraph"}]}),
+            )
+            .expect("empty document"),
+        );
+        session.recovery = Some(recovery);
+        Ok(session)
+    }
+    pub fn mark_clean(&mut self) -> Result<(), String> {
+        if let Some(store) = &self.recovery {
+            store.clear()?;
+        }
+        self.clean_revision = Some(self.revision);
+        Ok(())
+    }
     pub fn join(&mut self, peer: &str) -> Bootstrap {
         let initialize = !self.initialized;
         self.initialized = true;
@@ -152,7 +184,12 @@ impl Session {
         Bootstrap {
             generation: self.generation.clone(),
             opened: self.opened,
-            has_recovery: self.root.join("session.json").exists(),
+            has_recovery: if let Some(store) = &self.recovery {
+                !store.list().unwrap_or_default().is_empty()
+            } else {
+                self.root.join("session.json").exists()
+            },
+            initial_path: self.initial_path.take(),
             file_path: self
                 .file_lease
                 .as_ref()
@@ -203,6 +240,7 @@ impl Session {
         assets: Assets,
         yjs: Vec<u8>,
     ) {
+        self.clean_revision = None;
         self.offline.clear();
         self.generation = uuid::Uuid::new_v4().to_string();
         self.revision += 1;
@@ -273,6 +311,18 @@ impl Session {
                 .clone()
                 .unwrap_or_else(|| self.settings.clone()),
         };
+        if let Some(store) = &self.recovery {
+            if self.clean_revision == Some(snapshot.revision) {
+                return Ok(self.root.join("session.json"));
+            }
+            let name = self
+                .file_lease
+                .as_ref()
+                .and_then(|l| l.path().file_name())
+                .map(|s| s.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "Sans titre".into());
+            return store.write(checkpoint, name);
+        }
         let bytes = serde_json::to_vec(&checkpoint).map_err(|e| e.to_string())?;
         if bytes.len() as u64 > assets::MAX_DOCUMENT_BYTES {
             return Err("Session trop volumineuse.".into());
@@ -290,6 +340,7 @@ fn atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     #[test]

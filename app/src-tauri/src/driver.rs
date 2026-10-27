@@ -71,6 +71,18 @@ fn dispatch(
             Ok(serde_json::Value::Null)
         }
         "content_catalogue" => Ok(catalogue::content_catalogue()),
+        "validate_model" => {
+            let snapshot: Snapshot =
+                serde_json::from_value(args["snapshot"].clone()).map_err(|e| e.to_string())?;
+            let session = bridge.session.lock().map_err(|e| e.to_string())?;
+            let source = session.validate(&snapshot)?;
+            bridge.renderer.validate(
+                &source,
+                &session.assets,
+                snapshot.settings.as_ref().unwrap_or(&session.settings),
+            )?;
+            Ok(serde_json::Value::Null)
+        }
         "count_text" => Ok(proofing::count_text(
             args["text"].as_str().unwrap_or("").into(),
             args["selection"].as_str().map(str::to_owned),
@@ -204,6 +216,7 @@ fn dispatch(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 

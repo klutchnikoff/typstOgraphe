@@ -123,6 +123,20 @@ export function correctionAtCursor(editor: Editor) {
     .getState(editor.state)
     ?.issues.find((issue) => issue.from <= position && position <= issue.to)
 }
+export function navigateSpelling(editor: Editor, backwards = false) {
+  const hits = proofingKey.getState(editor.state)?.issues || []
+  const { from, to } = editor.state.selection
+  const hit = backwards
+    ? [...hits].reverse().find((h) => h.to <= from) || hits.at(-1)
+    : hits.find((h) => h.from >= to && h.from !== from) || hits[0]
+  if (!hit) return false
+  return editor
+    .chain()
+    .focus()
+    .setTextSelection({ from: hit.from, to: hit.to })
+    .scrollIntoView()
+    .run()
+}
 export function openCorrection(editor: Editor) {
   const issue = correctionAtCursor(editor)
   if (!issue) return false
@@ -134,7 +148,7 @@ export function mountProofing(
   bands: BandHost,
   provider: Provider,
   transport: Transport,
-  personal: Record<string, string[]>,
+  preferences: () => { personal: Record<string, string[]>; spelling_enabled: boolean },
   savePersonal: (word: string, lang: string) => Promise<void>,
   message: (s: string, error?: boolean) => void,
 ) {
@@ -143,6 +157,10 @@ export function mountProofing(
   const check = () => {
     const ticket = ++version
     clearTimeout(timer)
+    if (preferences().spelling_enabled === false) {
+      editor.view.dispatch(editor.state.tr.setMeta(proofingKey, { issues: [] }))
+      return
+    }
     timer = setTimeout(() => {
       const segments: { text: string; pos: number }[] = []
       editor.state.doc.descendants((node, pos) => {
@@ -154,7 +172,7 @@ export function mountProofing(
       const settings = settingsFor(provider),
         language = String(settings.metadata.fields.options.language)
       const ignored = [
-        ...(personal[language] || []),
+        ...(preferences().personal[language] || []),
         ...((
           settings.metadata.fields.options.spelling_ignored as Record<string, string[]> | undefined
         )?.[language] || []),
@@ -181,6 +199,12 @@ export function mountProofing(
     }, 400)
   }
   editor.on('update', check)
+  document.addEventListener('proofing:changed', check)
+  editor.on('destroy', () => {
+    document.removeEventListener('proofing:changed', check)
+    clearTimeout(timer)
+    version++
+  })
   provider.doc.getMap('settings').observe(check)
   check()
   let requestTicket = 0
@@ -248,7 +272,10 @@ export function mountProofing(
         if (!valid()) return
         void savePersonal(issue.word, language)
           .then(() => {
-            personal[language] = [...(personal[language] || []), issue.word]
+            preferences().personal[language] = [
+              ...(preferences().personal[language] || []),
+              issue.word,
+            ]
             close()
             check()
           })

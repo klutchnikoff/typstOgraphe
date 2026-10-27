@@ -7,6 +7,18 @@
   src: url('../../assets/ui/fonts/inter/Inter-SemiBold.ttf');
   font-weight: 600;
 }
+/* Offline glyph fallback, fetched only when the editor actually needs it. */
+@font-face {
+  font-family: 'Noto CJK';
+  src: url('../../crates/core/assets/fonts/noto-cjk/NotoSansCJKjp-Regular.otf');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Noto CJK';
+  src: url('../../crates/core/assets/fonts/noto-cjk/NotoSansCJKjp-Bold.otf');
+  font-weight: 700;
+  font-display: swap;
+}
 :root {
   font-family: Inter, system-ui, sans-serif;
   font-size: 13px;
@@ -763,7 +775,7 @@ main {
   text-align: center;
 }
 .tiptap {
-  font-family: var(--editor-font, Georgia), serif;
+  font-family: var(--editor-font, Georgia), 'Noto CJK', serif;
   font-size: var(--editor-size, 18px);
 }
 .tiptap blockquote,

@@ -16,6 +16,8 @@ pub struct Preferences {
     pub profile: BTreeMap<String, String>,
     pub signature: Option<Resource>,
     pub recent: Vec<String>,
+    pub editor_fraction: f64,
+    pub spelling_enabled: bool,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -27,6 +29,8 @@ impl Default for Preferences {
             profile: Default::default(),
             signature: None,
             recent: vec![],
+            editor_fraction: 0.5,
+            spelling_enabled: true,
         }
     }
 }
@@ -52,6 +56,8 @@ impl Preferences {
             || !(12.0..=32.0).contains(&self.size)
             || self.recent.len() > 20
             || self.profile.values().any(|s| s.len() > 16_000)
+            || !self.editor_fraction.is_finite()
+            || !(0.1..=0.9).contains(&self.editor_fraction)
         {
             return Err("Préférences invalides.".into());
         }
@@ -132,4 +138,33 @@ pub fn profile_image(
         .lock()
         .map_err(|e| e.to_string())?
         .import(&extension, &data)
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use super::*;
+    #[test]
+    fn preferences_roundtrip_and_reject_invalid_column_widths() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut preferences = Preferences {
+            editor_fraction: 0.63,
+            spelling_enabled: false,
+            ..Default::default()
+        };
+        preferences
+            .personal
+            .insert("fr".into(), vec!["Typst".into()]);
+        preferences.save(directory.path()).unwrap();
+        let restored = Preferences::load(directory.path()).unwrap();
+        assert_eq!(restored.editor_fraction, 0.63);
+        assert!(!restored.spelling_enabled);
+        assert_eq!(restored.personal["fr"], vec!["Typst"]);
+        preferences.editor_fraction = 0.99;
+        assert!(preferences.save(directory.path()).is_err());
+        assert_eq!(
+            Preferences::load(directory.path()).unwrap().editor_fraction,
+            0.63
+        );
+    }
 }

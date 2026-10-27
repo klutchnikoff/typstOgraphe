@@ -97,7 +97,7 @@ impl Renderer {
         world.set_assets(assets);
         world.set_dependencies(&dependencies);
         world
-            .compile_with_template(source, &settings.metadata, &settings.template)
+            .validate_model(source, &settings.metadata, &settings.template)
             .map(|_| ())
             .map_err(|e| e.to_string())
     }
@@ -352,6 +352,7 @@ pub fn sync_selection(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 

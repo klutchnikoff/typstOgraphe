@@ -47,6 +47,15 @@ pub fn install(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
             .select_all()
             .separator()
             .text("ui.find", label("Rechercher et remplacer…"))
+            .text("find.next", label("Occurrence suivante"))
+            .text("find.previous", label("Occurrence précédente"))
+            .separator()
+            .text("text.clear", label("Effacer la mise en forme"))
+            .text("text.unlink", label("Supprimer le lien"))
+            .text(
+                "spelling.toggle",
+                label("Activer / désactiver la correction orthographique"),
+            )
             .text("ui.palette", label("Palette de commandes…"))
             .build()?;
         let view = SubmenuBuilder::new(app, label("Fenêtre"))

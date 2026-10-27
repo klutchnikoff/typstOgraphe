@@ -355,7 +355,12 @@ test('préférences globales enregistrées explicitement et retrouvées après r
   page,
 }) => {
   await ready(page, 'main')
+  const splitter = page.getByRole('separator', { name: 'Largeur des colonnes' })
+  await splitter.focus()
+  await splitter.press('ArrowRight')
+  await expect(splitter).toHaveAttribute('aria-valuenow', '52')
   await page.getByRole('button', { name: 'Préférences', exact: true }).click()
+  await page.getByLabel('Correction orthographique', { exact: true }).uncheck()
   await page.getByLabel('Apparence', { exact: true }).selectOption('dark')
   await page.getByLabel('Police de l’éditeur', { exact: true }).selectOption('sans')
   await page.getByLabel('Taille', { exact: true }).fill('21')
@@ -366,6 +371,9 @@ test('préférences globales enregistrées explicitement et retrouvées après r
   await page.waitForFunction(() => window.__spike?.ready)
   await expect(page.locator('html')).toHaveAttribute('data-appearance', 'dark')
   await expect(page.locator('.tiptap')).toHaveCSS('font-size', '21px')
+  await expect(splitter).toHaveAttribute('aria-valuenow', '52')
+  await page.getByRole('button', { name: 'Préférences', exact: true }).click()
+  await expect(page.getByLabel('Correction orthographique', { exact: true })).not.toBeChecked()
 })
 
 test('listes au clavier et dans la barre d’outils, bascule et sortie du widget', async ({
@@ -507,4 +515,36 @@ test('colonne éditable sans cadre et actions groupées à droite', async ({ pag
   )
   await expect(page.locator('#side-content .panel-actions')).toHaveCSS('flex-direction', 'row')
   await expect(page.locator('#side-content .panel-actions > button').last()).toHaveClass('primary')
+})
+
+test('importe un modèle embarqué et refuse un modèle invalide sans modifier le document', async ({
+  page,
+}) => {
+  await ready(page, 'main')
+  await page.getByRole('button', { name: 'Général', exact: true }).click()
+  const model = await page.evaluate(
+    () => window.__spike!.provider.doc.getMap('settings').get('document').template as string,
+  )
+  const input = page.getByLabel('Importer un modèle Typst', { exact: true })
+  await input.setInputFiles({
+    name: 'personnel.typ',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(model + '\n// Personnalisation locale'),
+  })
+  await expect(page.getByLabel('Modèle', { exact: true })).toHaveValue('embedded')
+  await expect(page.locator('#render-status')).toHaveText(/^\d+ pages? ·/)
+  const saved = await page.evaluate(
+    () => window.__spike!.provider.doc.getMap('settings').get('document').template,
+  )
+  await input.setInputFiles({
+    name: 'invalide.typ',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('#let autre(body) = body'),
+  })
+  await expect(page.locator('#message')).toHaveClass(/error/)
+  expect(
+    await page.evaluate(
+      () => window.__spike!.provider.doc.getMap('settings').get('document').template,
+    ),
+  ).toBe(saved)
 })

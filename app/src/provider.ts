@@ -25,6 +25,7 @@ export interface Bootstrap {
   hasRecovery?: boolean
   opened?: boolean
   filePath?: string | null
+  initialPath?: string | null
 }
 export interface Transport {
   invoke<T>(command: string, args?: Record<string, unknown>): Promise<T>

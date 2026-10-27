@@ -8,8 +8,14 @@ use tauri::{Emitter, State};
 use tauri_plugin_dialog::DialogExt;
 use typstographe_core::{DocumentLease, content::archive::Archive};
 #[tauri::command]
-pub fn quit_app(app: tauri::AppHandle) {
+pub fn quit_app(app: tauri::AppHandle, state: State<Bridge>) -> Result<(), String> {
+    state
+        .session
+        .lock()
+        .map_err(|e| e.to_string())?
+        .mark_clean()?;
     app.exit(0);
+    Ok(())
 }
 #[tauri::command]
 pub fn set_window_title(window: tauri::WebviewWindow, title: String) -> Result<(), String> {
@@ -106,6 +112,7 @@ pub async fn save_file(
         };
         archive.save(&mut lease)?;
         s.file_lease = Some(lease);
+        s.mark_clean()?;
         Ok(())
     })
     .await
@@ -174,6 +181,7 @@ pub async fn open_file(
         {
             let mut current = session.lock().map_err(|e| e.to_string())?;
             current.lifecycle(revision)?;
+            current.mark_clean()?;
             current.file_lease = Some(lease);
             current.replace(
                 archive.document.clone(),
@@ -181,6 +189,7 @@ pub async fn open_file(
                 archive.assets,
                 archive.yjs.clone(),
             );
+            current.clean_revision = Some(current.revision);
         }
         let _ = crate::preferences::remember(&app, &path);
         app.emit("app:document", path.to_string_lossy().as_ref())
@@ -218,8 +227,10 @@ pub fn new_document(
     let document: typstographe_core::content::Node =
         serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph"}]}))
             .unwrap();
+    session.mark_clean()?;
     session.file_lease = None;
     session.replace(document, settings, assets, vec![]);
+    session.clean_revision = Some(session.revision);
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
     agent.token = None;
     agent.proposal = None;
@@ -234,6 +245,7 @@ pub fn close_document(
 ) -> Result<(), String> {
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
     session.lifecycle(revision)?;
+    session.mark_clean()?;
     session.file_lease = None;
     session.opened = false;
     session.generation = uuid::Uuid::new_v4().to_string();

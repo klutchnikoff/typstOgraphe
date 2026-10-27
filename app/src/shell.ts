@@ -1,4 +1,4 @@
-import { searchPanel } from './search-panel'
+import { searchPanel, navigateSearch } from './search-panel'
 import { preferencesPanel, type Preferences } from './preferences-panel'
 import { tr } from './i18n'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -9,10 +9,11 @@ import type { Provider, Transport, Resource } from './provider'
 import type { Capability, Registry } from './commands'
 import { icon } from './commands'
 import { mountAssistance } from './assistance'
-import { mountProofing, searchState } from './proofing'
+import { mountProofing, searchState, navigateSpelling } from './proofing'
 import type { BandHost } from './band-layout'
 import { documentType, settingsFor, setSetting, setDocument, type Settings } from './state'
 import { welcomeBrand } from './welcome-brand'
+import { recoveryPanel } from './recovery-panel'
 export interface Model {
   id: string
   label: string
@@ -64,6 +65,7 @@ interface Shell {
   hasRecovery?: boolean
   opened?: boolean
   filePath?: string | null
+  initialPath?: string | null
   diagnostic: boolean
 }
 export async function mountShell(s: Shell) {
@@ -81,6 +83,8 @@ export async function mountShell(s: Shell) {
     signature: null,
     recent: [],
     personal: {},
+    editor_fraction: 0.5,
+    spelling_enabled: true,
   }))) as Preferences
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T
   document.querySelector('.badge')?.remove()
@@ -387,6 +391,7 @@ export async function mountShell(s: Shell) {
       const model = document.createElement('select')
       model.setAttribute('aria-label', tr('Modèle'))
       for (const m of kind.models) model.add(new Option(m.label, m.id))
+      if (current.modelId === 'embedded') model.add(new Option(tr('Modèle embarqué'), 'embedded'))
       model.value = current.modelId
       model.onchange = () => {
         const selected = kind.models.find((m) => m.id === model.value)!
@@ -397,6 +402,29 @@ export async function mountShell(s: Shell) {
         renderMetadata()
       }
       field(tr('Modèle'), model)
+      const importModel = document.createElement('input')
+      importModel.type = 'file'
+      importModel.accept = '.typ'
+      importModel.setAttribute('aria-label', tr('Importer un modèle Typst'))
+      importModel.onchange = () =>
+        guarded(async () => {
+          const file = importModel.files?.[0]
+          if (!file) return
+          if (file.size > 2 * 1024 * 1024) throw new Error(tr('Modèle trop volumineux.'))
+          await provider.flush()
+          const revision = provider.revision
+          const next = settingsFor(provider)
+          next.modelId = 'embedded'
+          next.template = await file.text()
+          await transport.invoke('validate_model', {
+            snapshot: { revision, document: editor.getJSON(), settings: next },
+          })
+          if (provider.revision !== revision)
+            throw new Error(tr('Le document a changé ; recommencez l’import.'))
+          setDocument(provider, next)
+          renderMetadata()
+        })
+      field(tr('Importer un modèle Typst'), importModel)
       for (const [key, label, items] of [
         ['paper', tr('Format'), catalogue.papers],
         ['language', tr('Langue du document'), catalogue.languages],
@@ -523,6 +551,10 @@ export async function mountShell(s: Shell) {
     searchPanel(showPanel(tr('Rechercher et remplacer')), editor)
   }
   function applyPreferences() {
+    document.dispatchEvent(
+      new CustomEvent('editor:resize', { detail: (preferences.editor_fraction ?? 0.5) * 100 }),
+    )
+    document.dispatchEvent(new Event('proofing:changed'))
     if (!s.diagnostic)
       editor.commands.updateUser({
         name: preferences.profile['sender.name'] || tr('Vous'),
@@ -604,6 +636,54 @@ export async function mountShell(s: Shell) {
   add('ui.preferences', tr('Préférences'), prefs, 'Mod+,')
   add('ui.palette', tr('Palette de commandes'), palette, 'Mod+Shift+P')
   add('ui.find', tr('Rechercher et remplacer'), search, 'Mod+F')
+  add(
+    'find.next',
+    tr('Occurrence suivante'),
+    () => {
+      navigateSearch(editor)
+    },
+    'Mod+G',
+  )
+  add(
+    'find.previous',
+    tr('Occurrence précédente'),
+    () => {
+      navigateSearch(editor, true)
+    },
+    'Mod+Shift+G',
+  )
+  add('text.clear', tr('Effacer la mise en forme'), () => {
+    editor.chain().focus().unsetAllMarks().run()
+  })
+  add('text.unlink', tr('Supprimer le lien'), () => {
+    editor.chain().focus().unsetLink().run()
+  })
+  add('spelling.toggle', tr('Activer / désactiver la correction orthographique'), () =>
+    guarded(async () => {
+      preferences.spelling_enabled = preferences.spelling_enabled === false
+      await transport.invoke('preferences_save', { preferences })
+      applyPreferences()
+    }),
+  )
+  add('spelling.next', tr('Erreur suivante'), () => {
+    navigateSpelling(editor)
+  })
+  add('spelling.previous', tr('Erreur précédente'), () => {
+    navigateSpelling(editor, true)
+  })
+  add('spelling.reset', tr('Réexaminer les mots ignorés'), () =>
+    setSetting(provider, 'options.spelling_ignored', {}),
+  )
+  add('ui.information', tr('Paramètres du document'), () => {
+    tab = tab ? null : 'general'
+    renderMetadata()
+  })
+  document.addEventListener('editor:width', (event) => {
+    const fraction = (event as CustomEvent<number>).detail / 100
+    if (preferences.editor_fraction === fraction) return
+    preferences.editor_fraction = fraction
+    guarded(() => transport.invoke('preferences_save', { preferences }))
+  })
   add('ui.peer', tr('Deuxième fenêtre'), () => guarded(() => transport.invoke('open_peer')))
   add('ui.connection', tr('Connexion / déconnexion'), () =>
     guarded(async () => {
@@ -623,7 +703,20 @@ export async function mountShell(s: Shell) {
         'document.close',
       ],
     ],
-    [tr('Édition'), ['history.undo', 'history.redo', 'ui.find', 'ui.palette']],
+    [
+      tr('Édition'),
+      [
+        'history.undo',
+        'history.redo',
+        'ui.find',
+        'find.next',
+        'find.previous',
+        'text.clear',
+        'text.unlink',
+        'spelling.toggle',
+        'ui.palette',
+      ],
+    ],
     [tr('Affichage'), ['ui.preferences', 'ui.peer', 'ui.connection']],
   ] as const) {
     const details = document.createElement('details')
@@ -696,10 +789,46 @@ export async function mountShell(s: Shell) {
   )
   $('create-document').onclick = () => confirmDiscard(create)
   $('open-document').onclick = () => guarded(() => open())
-  $('resume-document').onclick = () => {
-    setActive(true)
-    renderMetadata()
+  const showRecovery = () => {
+    if (!s.isTauri) {
+      setActive(true)
+      renderMetadata()
+      return
+    }
+    overlay.replaceChildren()
+    const title = document.createElement('h2')
+    title.textContent = tr('Récupération après incident')
+    const body = document.createElement('div')
+    const close = document.createElement('button')
+    close.textContent = tr('Annuler')
+    close.onclick = () => overlay.close()
+    const actions = document.createElement('div')
+    actions.className = 'panel-actions'
+    actions.append(close)
+    overlay.append(title, body, actions)
+    overlay.showModal()
+    guarded(() =>
+      recoveryPanel(
+        body,
+        transport,
+        (id) =>
+          confirmDiscard(() =>
+            guarded(async () => {
+              await provider.flush()
+              await transport.invoke('recovery_restore', { id, revision: provider.revision })
+            }),
+          ),
+        (error) => {
+          const message = document.createElement('p')
+          message.role = 'alert'
+          message.textContent = String(error)
+          body.append(message)
+        },
+      ),
+    )
   }
+  add('recovery.list', tr('Récupération après incident'), showRecovery)
+  $('resume-document').onclick = showRecovery
   let recoveryTimer: ReturnType<typeof setTimeout>
   function scheduleRecovery() {
     if (!s.isTauri || !active) return
@@ -747,22 +876,35 @@ export async function mountShell(s: Shell) {
     if (!s.diagnostic)
       await getCurrentWindow().onCloseRequested((event) => {
         event.preventDefault()
-        confirmDiscard(() => void getCurrentWindow().destroy())
+        confirmDiscard(() =>
+          guarded(async () => {
+            clearTimeout(recoveryTimer)
+            await transport.invoke('recovery_discard')
+            await getCurrentWindow().destroy()
+          }),
+        )
       })
     await transport.listen('app:document', () => {
       clearTimeout(recoveryTimer)
       window.location.reload()
     })
-    await transport.listen<string>('app:command', (id) => commands.get(id)?.run())
+    await transport.listen<string>('app:command', (id) => {
+      const command = commands.get(id)
+      if (command?.enabled?.() !== false) command?.run()
+    })
   }
   applyPreferences()
+  if (s.initialPath) guarded(() => open(s.initialPath!))
   mountAssistance(provider, transport, editor, showPanel, s.message, s.isTauri)
   mountProofing(
     editor,
     s.bands,
     provider,
     transport,
-    preferences.personal || {},
+    () => ({
+      personal: preferences.personal || {},
+      spelling_enabled: preferences.spelling_enabled !== false,
+    }),
     async (word, language) => {
       preferences.personal ||= {}
       preferences.personal[language] = [

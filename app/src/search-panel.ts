@@ -1,6 +1,19 @@
 import type { Editor } from '@tiptap/core'
 import { tr } from './i18n'
 import { searchState } from './proofing'
+import { proofingKey } from './proofing'
+
+export function navigateSearch(editor: Editor, backwards = false, focus = true) {
+  const hits = proofingKey.getState(editor.state)?.hits || []
+  const { from, to, empty } = editor.state.selection
+  const hit = backwards
+    ? [...hits].reverse().find((h) => h.to <= from && (empty || h.from !== from)) || hits.at(-1)
+    : hits.find((h) => h.from >= to && (empty || h.from !== from)) || hits[0]
+  if (!hit) return false
+  const chain = editor.chain().setTextSelection({ from: hit.from, to: hit.to }).scrollIntoView()
+  if (focus) chain.focus()
+  return chain.run()
+}
 
 export function searchPanel(content: HTMLElement, editor: Editor) {
   const query = document.createElement('input')
@@ -54,10 +67,23 @@ export function searchPanel(content: HTMLElement, editor: Editor) {
     fill()
   }
   query.oninput = fill
+  query.onkeydown = (event) => {
+    if (event.key === 'Enter' && !event.isComposing) {
+      event.preventDefault()
+      navigateSearch(editor, event.shiftKey, false)
+    }
+  }
   insensitive.onchange = fill
   const actions = document.createElement('div')
   actions.className = 'panel-actions'
   actions.append(all, current)
+  const previous = document.createElement('button')
+  previous.textContent = tr('Occurrence précédente')
+  previous.onclick = () => navigateSearch(editor, true)
+  const next = document.createElement('button')
+  next.textContent = tr('Occurrence suivante')
+  next.onclick = () => navigateSearch(editor)
+  actions.prepend(previous, next)
   content.append(query, replacement, label, actions, results)
   query.focus()
 }

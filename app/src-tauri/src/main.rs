@@ -1,3 +1,4 @@
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 mod agent;
 mod catalogue;
 mod driver;
@@ -5,6 +6,7 @@ mod files;
 mod menus;
 mod preferences;
 mod proofing;
+mod recovery;
 mod rendering;
 mod schema;
 mod session;
@@ -374,6 +376,7 @@ fn main() {
     let mut custom_root = false;
     let mut stdio = false;
     let mut diagnostic = None;
+    let mut initial_path = None;
     while let Some(arg) = args.next() {
         if arg == "--diagnostic" {
             diagnostic = Some("full".to_owned());
@@ -390,6 +393,13 @@ fn main() {
         if arg == "--session-dir" {
             custom_root = true;
             root = PathBuf::from(args.next().expect("--session-dir attend un chemin"));
+        } else if !arg.starts_with('-') && initial_path.is_none() {
+            initial_path = Some(
+                std::path::absolute(&arg)
+                    .expect("Chemin de document invalide")
+                    .to_string_lossy()
+                    .into_owned(),
+            );
         }
     }
     if stdio || diagnostic.is_some() {
@@ -419,7 +429,11 @@ fn main() {
                 *app.state::<Bridge>()
                     .session
                     .lock()
-                    .map_err(|e| e.to_string())? = Session::open(root)?;
+                    .map_err(|e| e.to_string())? = {
+                    let mut session = Session::managed(root)?;
+                    session.initial_path = initial_path;
+                    session
+                };
             }
             menus::install(app.handle())?;
             Ok(())
@@ -446,8 +460,13 @@ fn main() {
         })
         .manage(bridge)
         .invoke_handler(tauri::generate_handler![
+            settings::validate_model,
             catalogue::content_catalogue,
             recover,
+            recovery::recovery_list,
+            recovery::recovery_restore,
+            recovery::recovery_delete,
+            recovery::recovery_discard,
             preferences::preferences_load,
             preferences::preferences_save,
             preferences::profile_image,
@@ -492,6 +511,7 @@ fn main() {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     #[test]

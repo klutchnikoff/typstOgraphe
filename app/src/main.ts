@@ -271,17 +271,22 @@ document.addEventListener('keydown', (event) => {
 })
 
 const splitter = document.querySelector<HTMLElement>('.splitter')!
-function resize(fraction: number) {
+function resize(fraction: number, persist = true) {
   const value = Math.max(10, Math.min(90, fraction))
   document.documentElement.style.setProperty('--editor-width', `${value}%`)
   splitter.setAttribute('aria-valuenow', String(Math.round(value)))
+  if (persist) document.dispatchEvent(new CustomEvent('editor:width', { detail: value }))
 }
+document.addEventListener('editor:resize', (event) =>
+  resize((event as CustomEvent<number>).detail, false),
+)
 splitter.addEventListener('pointerdown', (event) => {
   splitter.setPointerCapture(event.pointerId)
-  const move = (e: PointerEvent) => resize((e.clientX / window.innerWidth) * 100)
+  const move = (e: PointerEvent) => resize((e.clientX / window.innerWidth) * 100, false)
   const end = () => {
     splitter.removeEventListener('pointermove', move)
     splitter.removeEventListener('pointerup', end)
+    resize(Number(splitter.getAttribute('aria-valuenow')))
   }
   splitter.addEventListener('pointermove', move)
   splitter.addEventListener('pointerup', end)
@@ -411,6 +416,7 @@ async function start() {
     opened: bootstrap.opened,
     hasRecovery: bootstrap.hasRecovery,
     filePath: bootstrap.filePath,
+    initialPath: bootstrap.initialPath,
     diagnostic:
       !new URLSearchParams(location.search).has('welcome') &&
       !!(

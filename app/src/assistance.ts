@@ -5,6 +5,7 @@ import Collaboration from '@tiptap/extension-collaboration'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import * as Y from 'yjs'
 import { baseExtensions } from './extensions'
+import { proposalPreview, proposalDetails } from './proposal-preview'
 import type { Provider, Transport } from './provider'
 interface Proposal {
   id: string
@@ -117,11 +118,13 @@ export function mountAssistance(
     const heading = document.createElement('h3')
     heading.textContent = p.summary
     content.append(heading)
-    const prose = (node: JSONContent): string =>
-      node.text ||
-      node.attrs?.text ||
-      node.content?.map(prose).join(node.type === 'doc' ? '\n\n' : '') ||
-      ''
+    const details = document.createElement('ul')
+    for (const detail of proposalDetails(p.before, p.after)) {
+      const row = document.createElement('li')
+      row.textContent = detail
+      details.append(row)
+    }
+    content.append(details)
     for (const [label, document] of [
       [tr('Actuel'), p.before],
       [tr('Proposition'), p.after],
@@ -129,9 +132,7 @@ export function mountAssistance(
       const section = window.document.createElement('section')
       const title = window.document.createElement('h4')
       title.textContent = label
-      const text = window.document.createElement('div')
-      text.className = 'proposal-text'
-      text.textContent = prose(document)
+      const text = proposalPreview(document, (path) => provider.imageURL(path))
       section.append(title, text)
       content.append(section)
     }

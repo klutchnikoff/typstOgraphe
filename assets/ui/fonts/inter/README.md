@@ -5,5 +5,5 @@
   `Inter-SemiBold.ttf` (SHA-256 `0dc98e8aa59585394880f25ab89e6d915ad5134522e961b046ca51fad3a18255`).
 - Licence : SIL Open Font License 1.1, texte dans `LICENSE.txt` (à conserver avec les fichiers).
 - Usage : police d’interface partagée ; chargée par `app/src/style.css` et la
-  référence egui `crates/app/src/editor/fonts.rs`. Les polices du rendu final
+  interface web `app/src/style.css`. Les polices du rendu final
   restent choisies par le modèle Typst.

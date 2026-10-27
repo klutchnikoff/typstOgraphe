@@ -10,6 +10,8 @@ export interface Preferences {
   signature: Resource | null
   recent: string[]
   personal: Record<string, string[]>
+  editor_fraction: number
+  spelling_enabled: boolean
 }
 
 export function preferencesPanel(
@@ -53,6 +55,28 @@ export function preferencesPanel(
   size.max = '32'
   size.value = String(preferences.size)
   addField(tr('Taille'), size)
+  const spelling = document.createElement('input')
+  spelling.type = 'checkbox'
+  spelling.checked = preferences.spelling_enabled !== false
+  addField(tr('Correction orthographique'), spelling)
+  const personal = structuredClone(preferences.personal || {})
+  for (const [language, words] of Object.entries(personal)) {
+    for (const word of words) {
+      const row = document.createElement('div')
+      const label = document.createElement('span')
+      label.textContent = `${language} · ${word}`
+      const remove = document.createElement('button')
+      remove.type = 'button'
+      remove.textContent = tr('Supprimer')
+      remove.setAttribute('aria-label', `${tr('Supprimer')} ${word}`)
+      remove.onclick = () => {
+        personal[language] = personal[language].filter((w) => w !== word)
+        row.remove()
+      }
+      row.append(label, remove)
+      fields.push(row)
+    }
+  }
   const profileInputs = new Map<string, HTMLInputElement | HTMLTextAreaElement>()
   for (const definition of catalogue.types[0].fields.filter((f) => f.group === 'sender')) {
     const input = definition.multiline
@@ -66,6 +90,23 @@ export function preferencesPanel(
   signature.type = 'file'
   signature.accept = 'image/png,image/jpeg,image/svg+xml'
   addField(tr('Signature par défaut'), signature)
+  let currentSignature = preferences.signature
+  if (currentSignature) {
+    const preview = document.createElement('img')
+    const extension = currentSignature.path.split('.').pop()
+    preview.src = `data:image/${extension === 'svg' ? 'svg+xml' : extension === 'jpg' ? 'jpeg' : extension};base64,${currentSignature.data}`
+    preview.alt = tr('Signature par défaut')
+    preview.style.maxWidth = '160px'
+    const remove = document.createElement('button')
+    remove.type = 'button'
+    remove.textContent = tr('Supprimer la signature')
+    remove.onclick = () => {
+      currentSignature = null
+      preview.remove()
+      remove.remove()
+    }
+    fields.push(preview, remove)
+  }
   const save = document.createElement('button')
   save.type = 'submit'
   save.className = 'primary'
@@ -82,6 +123,9 @@ export function preferencesPanel(
         appearance: appearance.value,
         font: font.value,
         size: Number(size.value),
+        spelling_enabled: spelling.checked,
+        personal,
+        signature: currentSignature,
         profile: Object.fromEntries([...profileInputs].map(([key, input]) => [key, input.value])),
       }
       const file = signature.files?.[0]

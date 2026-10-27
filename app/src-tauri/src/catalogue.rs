@@ -96,6 +96,7 @@ pub fn content_catalogue() -> Value {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 
