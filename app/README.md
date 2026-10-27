@@ -81,6 +81,19 @@ Dans Général, un fichier `.typ` peut être importé comme modèle embarqué ap
 validation par Typst pour le type courant. Il accompagne l’archive et l’export ;
 ce parcours ne constitue pas encore une bibliothèque globale de modèles.
 
+## Informations du courrier
+
+Les onglets sont Général, Expéditeur et En-tête. Le dernier regroupe les sections
+Destinataire (nom, adresse) et Informations (lieu, date, objet, référence).
+L’organisation vient du type Rust, exposée par le catalogue ; les composants de
+champs sont communs aux onglets simples et aux sections éditoriales.
+
+La saisie modifie les métadonnées partagées existantes et le rendu Typst, sans
+ajouter de bloc au corps. Les mises à jour d’une autre fenêtre actualisent aussi
+les champs ouverts sans reconstruire le contrôle focalisé. Aujourd’hui insère
+une date fixe. Les paramètres et les valeurs suivent les sauvegardes et exports
+habituels. Les zones riches des futurs types, comme un résumé, restent à réaliser.
+
 ## Palette de commandes
 
 Ouvrir la palette avec Ctrl/Cmd+Maj+P. La recherche conserve le focus pendant

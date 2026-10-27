@@ -16,6 +16,7 @@ import type { BandHost } from './band-layout'
 import { documentType, settingsFor, setSetting, setDocument, type Settings } from './state'
 import { welcomeBrand } from './welcome-brand'
 import { recoveryPanel } from './recovery-panel'
+import { metadataFields, refreshMetadataFields } from './metadata-fields'
 export interface Model {
   id: string
   label: string
@@ -33,6 +34,11 @@ export interface Field {
   kind: string
   required_for_export: boolean
 }
+export interface MetadataGroup {
+  id: string
+  label: string
+  sections: { id: string; label: string; fields: string[] }[]
+}
 export interface DocumentType {
   capabilities: string[]
   id: string
@@ -41,7 +47,7 @@ export interface DocumentType {
   settingsHeading: string
   metadata: Settings['metadata']
   fields: Field[]
-  groups: { id: string; label: string }[]
+  groups: MetadataGroup[]
   models: Model[]
 }
 export interface Catalogue {
@@ -402,6 +408,7 @@ export async function mountShell(s: Shell) {
     // Native text services and accessibility follow the document language;
     // menus and other interface controls keep the Fluent language on <html>.
     editor.view.dom.lang = String(current.metadata.fields.options.language)
+    if (tab !== 'general' && !kind.groups.some((group) => group.id === tab)) tab = null
     $('document-type-label').textContent = kind.settingsHeading
     const tabs = $('metadata-tabs')
     tabs.replaceChildren()
@@ -418,7 +425,16 @@ export async function mountShell(s: Shell) {
     }
     const content = $('metadata-content')
     content.hidden = tab === null
-    if (content.contains(document.activeElement)) return
+    if (
+      content.dataset.documentType === kind.id &&
+      content.dataset.tab === tab &&
+      content.contains(document.activeElement)
+    ) {
+      refreshMetadataFields(content, current.metadata.fields)
+      return
+    }
+    content.dataset.documentType = kind.id
+    content.dataset.tab = tab || ''
     content.replaceChildren()
     if (!tab) return
     const field = (label: string, control: HTMLElement) => {
@@ -491,42 +507,23 @@ export async function mountShell(s: Shell) {
       const bullets = document.createElement('p')
       bullets.textContent = tr('Automatique (modèle)')
       field(tr('Puces des listes'), bullets)
-    } else
-      for (const definition of kind.fields.filter((f) => f.group === tab)) {
-        const input = definition.multiline
-          ? document.createElement('textarea')
-          : document.createElement('input')
-        input.setAttribute('aria-label', definition.label)
-        if (input instanceof HTMLInputElement)
-          input.type = definition.kind === 'date' ? 'date' : 'text'
-        input.value = String(current.metadata.fields[definition.parameter] || '')
-        input.oninput = () => setSetting(provider, definition.field, input.value)
-        input.onblur = () => renderMetadata()
-        field(definition.label, input)
-        if (definition.kind === 'date') {
-          const today = document.createElement('button')
-          today.textContent = tr('Aujourd’hui')
-          today.onclick = () => {
-            const now = new Date()
-            setSetting(
-              provider,
-              definition.field,
-              `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
-            )
-            renderMetadata()
-          }
-          content.append(today)
-        }
-      }
+    } else {
+      const group = kind.groups.find((group) => group.id === tab)
+      if (group)
+        metadataFields(content, group, kind.fields, current.metadata.fields, (field, value) =>
+          setSetting(provider, field, value),
+        )
+    }
     if (tab === 'sender') {
       const actions = actionRow()
-      for (const [label, value] of [
-        [tr('Sans signature'), null],
-        [tr('Signature des préférences'), preferences.signature?.path || null],
+      for (const [label, useDefault] of [
+        [tr('Sans signature'), false],
+        [tr('Signature des préférences'), true],
       ] as const) {
         const button = document.createElement('button')
         button.textContent = label
         button.onclick = () => {
+          const value = useDefault ? preferences.signature?.path || null : null
           if (value && preferences.signature) provider.addResource(preferences.signature)
           setSetting(provider, 'signature', value)
         }

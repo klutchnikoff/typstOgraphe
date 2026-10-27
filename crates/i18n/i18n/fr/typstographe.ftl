@@ -81,6 +81,7 @@ preview-updating = Actualisation…
 preview-failed = Le document n’a pas pu être composé. Le dernier aperçu réussi est conservé.
 error-details = Détails
 preview-composing = Composition du document…
+group-editorial-header = En-tête
 group-recipient = Destinataire
 group-letter-information = Informations
 date-today = Aujourd’hui

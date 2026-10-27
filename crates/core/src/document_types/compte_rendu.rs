@@ -92,10 +92,12 @@ pub const GROUPS: &[FieldGroup] = &[
     FieldGroup {
         id: "meeting",
         label_key: "group-meeting",
+        sections: &[],
     },
     FieldGroup {
         id: "attendees",
         label_key: "group-attendees",
+        sections: &[],
     },
 ];
 pub const CONTRACT: ModelContract<Metadata> = ModelContract {

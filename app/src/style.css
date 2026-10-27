@@ -686,7 +686,7 @@ summary svg {
 }
 #metadata-content {
   padding: 12px 16px;
-  max-height: 280px;
+  max-height: min(420px, 50vh);
   overflow: auto;
   background: var(--soft);
   display: grid;
@@ -713,6 +713,53 @@ summary svg {
   border-radius: 5px;
   font: inherit;
   font-size: 13px;
+}
+/* Editorial sections use the same fields as simple tabs; the type owns grouping. */
+.metadata-section {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.metadata-section legend {
+  padding: 0 5px;
+  color: var(--text);
+  font-weight: 600;
+}
+.metadata-section-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.metadata-field-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.metadata-field-controls input,
+.metadata-field-controls textarea {
+  min-width: 0;
+  flex: 1;
+}
+.metadata-field-controls button {
+  flex: none;
+}
+.metadata-field-controls textarea {
+  resize: vertical;
+}
+#metadata-content {
+  container-type: inline-size;
+}
+@container (max-width: 360px) {
+  .metadata-section-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .metadata-field-controls {
+    flex-wrap: wrap;
+  }
 }
 .app-dialog {
   min-width: min(420px, 85vw);

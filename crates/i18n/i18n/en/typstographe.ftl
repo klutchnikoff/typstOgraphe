@@ -19,6 +19,7 @@ preview-updating = Updating…
 preview-failed = The document could not be typeset. The last successful preview is still displayed.
 error-details = Details
 preview-composing = Typesetting the document…
+group-editorial-header = Header
 group-recipient = Recipient
 group-letter-information = Information
 date-today = Today

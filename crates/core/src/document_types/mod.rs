@@ -156,9 +156,17 @@ impl Metadata {
     }
 }
 
+/// Presentation of one editor tab. Empty sections use the matching field group.
 pub struct FieldGroup {
     pub id: &'static str,
     pub label_key: &'static str,
+    pub sections: &'static [FieldSection],
+}
+/// Ordered fields of an editorial section; values keep their existing identities.
+pub struct FieldSection {
+    pub id: &'static str,
+    pub label_key: &'static str,
+    pub fields: &'static [MetadataField],
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]

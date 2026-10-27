@@ -51,11 +51,17 @@ fn document_type(kind: DocumentType) -> Value {
     } else {
         "minutes-settings-heading"
     };
-    let groups: Vec<_> = metadata
-        .editor_groups()
-        .iter()
-        .map(|group| json!({"id":group.id,"label":text(group.label_key)}))
-        .collect();
+    let groups: Vec<_> =
+        metadata
+            .editor_groups()
+            .iter()
+            .map(|group| {
+                let sections: Vec<_> = group.sections.iter().map(|section| json!({
+                "id": section.id, "label": text(section.label_key), "fields": section.fields
+            })).collect();
+                json!({"id":group.id,"label":text(group.label_key),"sections":sections})
+            })
+            .collect();
     let capabilities: Vec<_> = catalogue::for_type(kind)
         .map(|capability| capability.id)
         .collect();
@@ -99,6 +105,46 @@ pub fn content_catalogue() -> Value {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn editorial_sections_keep_localized_labels_and_canonical_field_bindings() {
+        let letter = document_type(DocumentType::Courrier);
+        let groups = letter["groups"].as_array().unwrap();
+        assert_eq!(
+            groups
+                .iter()
+                .map(|group| group["id"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["sender", "header"]
+        );
+        assert_eq!(groups[1]["label"], text("group-editorial-header"));
+        let sections = groups[1]["sections"].as_array().unwrap();
+        assert_eq!(sections[0]["label"], text("group-recipient"));
+        assert_eq!(
+            sections[0]["fields"],
+            json!(["recipient.name", "recipient.address"])
+        );
+        assert_eq!(
+            sections[1]["fields"],
+            json!([
+                "letter.place",
+                "letter.date",
+                "letter.subject",
+                "letter.reference"
+            ])
+        );
+        for section in sections {
+            for id in section["fields"].as_array().unwrap() {
+                assert!(
+                    letter["fields"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|field| field["field"] == *id)
+                );
+            }
+        }
+    }
 
     #[test]
     fn localized_fields_preserve_shared_parameters_and_bindings() {

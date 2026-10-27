@@ -1,5 +1,5 @@
 //! Le type Courrier : données, contrat du modèle et commandes propres au type.
-use super::{FieldGroup, FieldKind, MetadataField, ModelContract, TextField};
+use super::{FieldGroup, FieldKind, FieldSection, MetadataField, ModelContract, TextField};
 use crate::document::DocumentOptions;
 use serde::{Deserialize, Serialize};
 
@@ -205,16 +205,33 @@ pub const FIELDS: &[TextField<Metadata>] = &[
 ];
 pub const GROUPS: &[FieldGroup] = &[
     FieldGroup {
-        id: "recipient",
-        label_key: "group-recipient",
-    },
-    FieldGroup {
-        id: "information",
-        label_key: "group-letter-information",
-    },
-    FieldGroup {
         id: "sender",
         label_key: "group-sender",
+        sections: &[],
+    },
+    FieldGroup {
+        id: "header",
+        label_key: "group-editorial-header",
+        sections: &[
+            FieldSection {
+                id: "recipient",
+                label_key: "group-recipient",
+                fields: &[
+                    MetadataField::RecipientName,
+                    MetadataField::RecipientAddress,
+                ],
+            },
+            FieldSection {
+                id: "information",
+                label_key: "group-letter-information",
+                fields: &[
+                    MetadataField::LetterPlace,
+                    MetadataField::LetterDate,
+                    MetadataField::LetterSubject,
+                    MetadataField::LetterReference,
+                ],
+            },
+        ],
     },
 ];
 pub const CONTRACT: ModelContract<Metadata> = ModelContract {
@@ -386,7 +403,25 @@ mod tests {
         for field in FIELDS {
             assert!(parameters.insert(field.parameter));
             assert!(editor_ids.insert(field.editor_id));
-            assert!(GROUPS.iter().any(|group| group.id == field.group));
+            assert_eq!(
+                GROUPS
+                    .iter()
+                    .map(|group| {
+                        if group.sections.is_empty() {
+                            usize::from(group.id == field.group)
+                        } else {
+                            group
+                                .sections
+                                .iter()
+                                .flat_map(|section| section.fields)
+                                .filter(|&&id| id == field.field)
+                                .count()
+                        }
+                    })
+                    .sum::<usize>(),
+                1,
+                "each metadata field has exactly one editing location"
+            );
             let DocumentMetadata::Courrier(fields) = &mut metadata else {
                 unreachable!()
             };

@@ -366,7 +366,7 @@ test('accueil sans document et création depuis les types et modèles disponible
   await expect(page.locator('main')).toBeVisible()
   await expect(page.locator('.tiptap')).not.toContainText('Valmont')
   await expect(page.locator('.tiptap')).not.toContainText('Madame, Monsieur')
-  await page.getByRole('button', { name: 'Informations', exact: true }).click()
+  await page.getByRole('button', { name: 'En-tête', exact: true }).click()
   await page.getByLabel('Objet', { exact: true }).fill('Courrier créé depuis l’accueil')
   await expect(page.locator('#pages .preview-page').first()).toBeVisible({ timeout: 30000 })
 })
