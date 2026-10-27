@@ -124,7 +124,7 @@ test('insertion commune : tableau au début, milieu, fin ou après un retour, et
     await expect
       .poll(() => page.evaluate(() => window.__spike!.editor.state.selection.$from.depth))
       .toBe(1)
-    if (kind === 'table') await page.keyboard.type('Reprise')
+    await page.keyboard.type('Reprise')
     await expect(page.locator('.tiptap > p').filter({ hasText: /^Reprise$/ })).toHaveCount(1)
     await page.getByRole('button', { name: 'Annuler', exact: true }).click()
     await expect.poll(() => roots(page)).toEqual(expected)

@@ -523,7 +523,9 @@ test('importe un modèle embarqué et refuse un modèle invalide sans modifier l
   await ready(page, 'main')
   await page.getByRole('button', { name: 'Général', exact: true }).click()
   const model = await page.evaluate(
-    () => window.__spike!.provider.doc.getMap('settings').get('document').template as string,
+    () =>
+      window.__spike!.provider.doc.getMap<{ template: string }>('settings').get('document')!
+        .template,
   )
   const input = page.getByLabel('Importer un modèle Typst', { exact: true })
   await input.setInputFiles({
@@ -534,7 +536,9 @@ test('importe un modèle embarqué et refuse un modèle invalide sans modifier l
   await expect(page.getByLabel('Modèle', { exact: true })).toHaveValue('embedded')
   await expect(page.locator('#render-status')).toHaveText(/^\d+ pages? ·/)
   const saved = await page.evaluate(
-    () => window.__spike!.provider.doc.getMap('settings').get('document').template,
+    () =>
+      window.__spike!.provider.doc.getMap<{ template: string }>('settings').get('document')!
+        .template,
   )
   await input.setInputFiles({
     name: 'invalide.typ',
@@ -544,7 +548,9 @@ test('importe un modèle embarqué et refuse un modèle invalide sans modifier l
   await expect(page.locator('#message')).toHaveClass(/error/)
   expect(
     await page.evaluate(
-      () => window.__spike!.provider.doc.getMap('settings').get('document').template,
+      () =>
+        window.__spike!.provider.doc.getMap<{ template: string }>('settings').get('document')!
+          .template,
     ),
   ).toBe(saved)
 })

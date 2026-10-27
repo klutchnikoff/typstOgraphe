@@ -150,13 +150,28 @@ export async function mountShell(s: Shell) {
       s.message(String(e), true)
     }
   }
+  const requiresDocument = new Set([
+    'document.save',
+    'document.save_as',
+    'document.export',
+    'document.close',
+    'ui.find',
+    'find.next',
+    'find.previous',
+    'text.clear',
+    'text.unlink',
+    'spelling.next',
+    'spelling.previous',
+    'spelling.reset',
+    'ui.information',
+  ])
   const add = (id: string, label: string, run: () => void, shortcut?: string) =>
     commands.set(id, {
       id,
       label,
       run,
       shortcut,
-      enabled: () => !['document.save', 'document.export', 'document.close'].includes(id) || active,
+      enabled: () => !requiresDocument.has(id) || active,
     })
   const setActive = (value: boolean) => {
     active = value
@@ -164,10 +179,6 @@ export async function mountShell(s: Shell) {
     workspace.hidden = !value
     if (value) brand.finish()
     else brand.play()
-    for (const id of ['document.save', 'document.export', 'document.close']) {
-      const command = commands.get(id)
-      if (command) command.enabled = () => active
-    }
     if (value) {
       editor.commands.focus()
       s.schedule()

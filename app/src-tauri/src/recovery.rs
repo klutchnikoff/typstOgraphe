@@ -109,13 +109,18 @@ impl Store {
     }
     pub fn list(&self) -> Result<Vec<Entry>, String> {
         let mut ids = vec!["previous".to_owned()];
-        for entry in std::fs::read_dir(self.base.join("sessions"))
-            .map_err(|e| e.to_string())?
-            .take(4096)
-        {
+        for entry in std::fs::read_dir(self.base.join("sessions")).map_err(|e| e.to_string())? {
             let entry = entry.map_err(|e| e.to_string())?;
+            // Empty slots retain their stable lock sidecar, but must not hide
+            // recovery copies after many normal application launches.
+            if !entry.path().join("session.json").is_file() {
+                continue;
+            }
             if let Some(name) = entry.file_name().to_str() {
                 ids.push(name.into());
+            }
+            if ids.len() > 4096 {
+                break;
             }
         }
         let mut entries = Vec::new();
@@ -156,8 +161,15 @@ impl Store {
         if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
             return Err("Copie de récupération trop volumineuse.".into());
         }
-        let mut file =
-            atomic_write_file::AtomicWriteFile::open(&path).map_err(|e| e.to_string())?;
+        let options = atomic_write_file::AtomicWriteFile::options();
+        #[cfg(unix)]
+        let options = {
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut options = options;
+            options.mode(0o600);
+            options
+        };
+        let mut file = options.open(&path).map_err(|e| e.to_string())?;
         file.write_all(&bytes).map_err(|e| e.to_string())?;
         file.commit().map_err(|e| e.to_string())?;
         Ok(path)
