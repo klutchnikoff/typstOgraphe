@@ -352,7 +352,8 @@ main {
   font-size: 0.7em;
   font-weight: 600;
   line-height: 1;
-  vertical-align: 0.25em;
+  vertical-align: baseline;
+  margin-inline-start: 0.5ex;
   background: var(--soft);
   border: 1px solid var(--accent);
   padding: 2px 5px;
@@ -360,6 +361,9 @@ main {
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
+}
+.inline-object::before {
+  content: '\2060'; /* Join the badge to the preceding word without editing the document. */
 }
 .inline-object:focus-visible {
   outline: 2px solid var(--accent);
