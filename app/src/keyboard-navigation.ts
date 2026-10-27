@@ -58,6 +58,17 @@ export function navigationGroup(root: HTMLElement, options: NavigationOptions) {
 export function navigateGroup(root: HTMLElement, event: KeyboardEvent) {
   navigators.get(root)?.handle(event)
 }
+/** Prefer suggestions when available; otherwise use the panel's next live group. */
+export function initialNavigationGroup(root: HTMLElement) {
+  const groups = [...root.querySelectorAll<HTMLElement>('[data-keyboard-group]')]
+  return (
+    groups.find(
+      (group) => group.hasAttribute('data-default-navigation') && navigators.get(group)?.hasItems(),
+    ) ||
+    groups.find((group) => navigators.get(group)?.hasItems()) ||
+    null
+  )
+}
 function createNavigation(root: HTMLElement, options: NavigationOptions) {
   root.dataset.keyboardGroup = ''
   root.dataset.keyboardAxis = options.axis
@@ -221,6 +232,7 @@ function createNavigation(root: HTMLElement, options: NavigationOptions) {
     attributeFilter: ['disabled', 'aria-disabled', 'aria-checked', 'aria-pressed', 'data-default'],
   })
   return {
+    hasItems: () => items().length > 0,
     refresh,
     focus: (last = false) => {
       refresh(true)

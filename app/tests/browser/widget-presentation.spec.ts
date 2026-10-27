@@ -139,7 +139,10 @@ test('citation : paramètres indisponibles, filet intérieur et attribution à g
       )
       .toBe('quoteAttribution')
     await header.getByRole('button', { name: 'Supprimer · Citation', exact: true }).click()
-    await expect(panel.locator('button:visible')).toHaveText(['Annuler', 'Supprimer'])
+    await expect(panel.locator('.panel-actions button:visible')).toHaveText([
+      'Annuler',
+      'Supprimer',
+    ])
     await expect(panel.locator('.context-panel-body')).toBeHidden()
     expect(await header.evaluate((el) => el.innerHTML)).toBe(headerHTML)
     await page.keyboard.press('Shift+Tab')

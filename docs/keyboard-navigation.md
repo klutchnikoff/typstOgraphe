@@ -53,6 +53,20 @@ boutons d’une entrée ; Haut/Bas peut remonter à la liste des entrées. Les c
 éditables restent exclus. Un élément retiré pendant qu’il porte le focus cède
 celui-ci au prochain élément disponible.
 
+## Présentation commune des bandeaux
+
+Tous les bandeaux utilisent `contextPanel` et le même cadre CSS : en-tête visible
+avec titre et fermeture, contenu, actions et erreur éventuelle. Cela comprend les
+paramètres et la suppression d’un widget, ainsi que l’orthographe, les liens et
+les notes dans son texte. Il n’existe plus de variante visuelle « dans un widget » :
+seule la largeur s’adapte à son conteneur. Les champs conservent les mêmes touches
+et les boutons passent par les mêmes groupes de navigation.
+
+L’ancrage reste adapté au déclencheur : les paramètres et la suppression se
+placent sous l’en-tête du widget ; un outil de texte se place au-dessus du passage
+concerné avec sa flèche. Ce placement ne change ni l’anatomie ni le comportement
+du formulaire. Le bandeau reste hors du DOM éditable pour protéger la sélection.
+
 ## Fermeture et focus
 
 Un seul résolveur Échap ferme la portée visible la plus proche du focus.
@@ -66,7 +80,10 @@ focus dans l’éditeur.
 À l’ouverture et lors d’un retour par Ctrl/Cmd+Entrée, `BandHost` confie le focus
 à `contextPanel.focus()` : cible explicite `data-initial-focus`, choix exclusif
 actif, premier champ visible et disponible, puis formulaire si aucun champ
-n’existe. Les suggestions différées ne volent pas ce focus. La fermeture et la
+n’existe. Les suggestions différées ne volent pas ce focus. Depuis le formulaire, les
+flèches rejoignent le groupe de suggestions s’il contient des choix disponibles ;
+sinon elles rejoignent le premier groupe disponible, notamment les actions.
+Un groupe vide, masqué ou désactivé ne bloque donc pas la navigation. La fermeture et la
 validation restituent le repère de sélection enregistré, reporté à travers les
 éditions du document, puis le défilement vers ce repère.
 

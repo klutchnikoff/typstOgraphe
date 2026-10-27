@@ -141,7 +141,7 @@ test('Retour arrière dans une liste rejoint le texte précédent sans désassem
   await page.keyboard.type(' précédent')
   await expect(page.locator('.tiptap > p')).toHaveText(['Avant précédent', ''])
 })
-test('variante B : paramètres de liste intégrés, brouillon, validation, annulation et suppression', async ({
+test('bandeau commun : paramètres de liste intégrés, brouillon, validation, annulation et suppression', async ({
   page,
 }, info) => {
   const before = await contents(page)
@@ -209,7 +209,7 @@ test('image : bandeau intégré, focus et modification annulable du texte altern
   expect(await contents(page)).toBe(before)
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.getByRole('button', { name: 'Paramètres · Image', exact: true }).click()
-  await expect(page.locator('#properties > .panel-title')).toBeHidden()
+  await expect(page.locator('#properties > .panel-title')).toBeVisible()
   await expect(page.locator('#remove-block')).toBeHidden()
   await expect(page.locator('#apply-properties')).toHaveText('Valider')
   await expect(page.locator('#properties .panel-actions')).toBeInViewport()
@@ -218,6 +218,11 @@ test('image : bandeau intégré, focus et modification annulable du texte altern
 test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse au redimensionnement', async ({
   page,
 }, info) => {
+  await page.route('**/__spike/invoke', async (route) => {
+    if (route.request().postDataJSON().command !== 'spelling_suggestions') return route.continue()
+    await route.fulfill({ json: { result: ['courrier', 'courriers'] } })
+  })
+  let referenceChrome: string | undefined
   for (const inBlock of [false, true, 'quote'] as const) {
     await page.evaluate((inBlock) => {
       const e = window.__spike!.editor
@@ -257,6 +262,25 @@ test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse a
     const band = page.locator('#proofing-band')
     await expect(band).toBeVisible()
     await expect(band.locator('[data-default]')).toBeVisible()
+    await expect(band.locator(':scope > .panel-title')).toBeVisible()
+    const chrome = await band.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return JSON.stringify([
+        style.backgroundColor,
+        style.color,
+        style.border,
+        style.borderRadius,
+        style.boxShadow,
+        style.padding,
+        style.font,
+      ])
+    })
+    referenceChrome ??= chrome
+    expect(chrome).toBe(referenceChrome)
+    await expect(band).toBeFocused()
+    await page.keyboard.press('ArrowRight')
+    await expect(band.getByRole('button', { name: 'courriers', exact: true })).toBeFocused()
+    expect(await contents(page)).toBe(before)
     for (const width of [1280, 900]) {
       await page.setViewportSize({ width, height: 900 })
       await expect

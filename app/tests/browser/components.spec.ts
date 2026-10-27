@@ -1,5 +1,24 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Locator } from '@playwright/test'
 import fixture from '../../fixture.json' with { type: 'json' }
+
+async function panelChrome(panel: Locator) {
+  return panel.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return Object.fromEntries(
+      [
+        'backgroundColor',
+        'color',
+        'borderTopWidth',
+        'borderTopStyle',
+        'borderTopColor',
+        'borderRadius',
+        'boxShadow',
+        'font',
+        'padding',
+      ].map((key) => [key, style[key as keyof CSSStyleDeclaration]]),
+    )
+  })
+}
 
 test.beforeEach(async ({ page, request }) => {
   const response = await request.post('/__spike/invoke', {
@@ -11,10 +30,18 @@ test.beforeEach(async ({ page, request }) => {
   await expect(page.locator('#pages .preview-page').first()).toBeVisible()
 })
 
-test('tous les widgets partagent leur cadre, leur bandeau B et la suppression annulable', async ({
+test('tous les widgets partagent leur cadre, leur bandeau commun et la suppression annulable', async ({
   page,
 }, info) => {
   test.setTimeout(90000)
+  await page.evaluate(() => {
+    const e = window.__spike!.editor
+    e.commands.setContent('<p>Texte</p>')
+    e.commands.setTextSelection(3)
+  })
+  await page.locator('[data-command="insert.footnote"]').click()
+  const referenceChrome = await panelChrome(page.locator('#properties'))
+  await page.keyboard.press('Escape')
   await page.evaluate((fixture) => {
     const p = { type: 'paragraph', content: [{ type: 'text', text: 'Contenu' }] }
     window.__spike!.editor.commands.setContent({
@@ -61,7 +88,8 @@ test('tous les widgets partagent leur cadre, leur bandeau B et la suppression an
     if (['bulletList', 'orderedList', 'descriptionList', 'figure'].includes(kind)) {
       await widget.getByRole('button', { name: /^Paramètres ·/ }).click()
       await expect(panel).toBeVisible()
-      await expect(panel.locator(':scope > .panel-title')).toBeHidden()
+      expect(await panelChrome(panel)).toEqual(referenceChrome)
+      await expect(panel.locator(':scope > .panel-title')).toBeVisible()
       await expect(panel.locator('#remove-block')).toBeHidden()
       await expect(panel.locator('#apply-properties')).toHaveText('Valider')
       await expect(panel.locator(':scope > .context-panel-body')).toHaveCount(1)
@@ -95,7 +123,12 @@ test('tous les widgets partagent leur cadre, leur bandeau B et la suppression an
       await expect(panel).toBeHidden()
     }
     await widget.getByRole('button', { name: /^Supprimer ·/ }).click()
-    await expect(panel.locator('button:visible')).toHaveText(['Annuler', 'Supprimer'])
+    expect(await panelChrome(panel)).toEqual(referenceChrome)
+    await expect(panel.locator(':scope > .panel-title')).toBeVisible()
+    await expect(panel.locator('.panel-actions button:visible')).toHaveText([
+      'Annuler',
+      'Supprimer',
+    ])
     await expect(panel.locator('.context-panel-body')).toBeHidden()
     await expect(page.locator('#apply-properties')).toBeFocused()
     await page.keyboard.press('Enter')

@@ -1073,20 +1073,14 @@ main {
     13px/1.4 Inter,
     system-ui,
     sans-serif;
-  background: var(--soft);
-  border: 0;
-  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  border: 1px solid var(--accent);
   color: var(--text);
-  border-radius: 6px 6px 0 0;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px #0001;
 }
 .context-band .panel-title {
   margin-bottom: 10px;
-}
-.widget-context-panel.properties {
-  border-radius: 0;
-}
-.widget-context-panel[data-intent='remove'] .panel-actions {
-  margin-top: 0;
 }
 .context-band input,
 .context-band textarea,
@@ -1141,19 +1135,6 @@ main {
 .primary.danger {
   background: var(--danger);
   color: var(--bg);
-}
-.inline-context-band.properties {
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  background: var(--panel);
-  box-shadow: 0 3px 10px #0001;
-}
-.inline-context-band.in-widget.properties {
-  border-radius: 0;
-  background: var(--soft);
-  box-shadow: none;
-  border-left: 0;
-  border-right: 0;
 }
 .inline-context-band::after {
   content: '';

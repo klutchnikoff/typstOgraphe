@@ -125,7 +125,6 @@ export class BandHost {
     this.panel = panel
     this.shell = shell
     this.onClose = onClose
-    shell.setEmbedded(target.placement === 'widget-header')
     panel.hidden = false
     panel.classList.add('context-band')
     this.layer.append(panel)
@@ -247,7 +246,6 @@ export class BandHost {
       scrollRect = scroll.getBoundingClientRect()
     const inline = anchor.placement === 'text'
     panel.classList.toggle('inline-context-band', inline)
-    panel.classList.toggle('in-widget', host !== view.dom)
     const style = getComputedStyle(host)
     const padding = parseFloat(host === view.dom ? style.paddingLeft : style.borderLeftWidth)
     const right = parseFloat(host === view.dom ? style.paddingRight : style.borderRightWidth)

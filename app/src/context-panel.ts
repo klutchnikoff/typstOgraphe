@@ -1,4 +1,4 @@
-import { actionRow, keyboardScope, visible } from './keyboard-navigation'
+import { actionRow, initialNavigationGroup, keyboardScope, visible } from './keyboard-navigation'
 /** Shared panel anatomy. Only body and actions belong to a capability/corrector. */
 export function contextPanel(options: {
   id: string
@@ -56,10 +56,6 @@ export function contextPanel(options: {
         element
       target.focus({ preventScroll: true })
     },
-    setEmbedded(embedded: boolean) {
-      header.hidden = embedded
-      element.classList.toggle('widget-context-panel', embedded)
-    },
     confirm: () => preferred?.click(),
     submit() {
       if (options.canConfirm()) panel.confirm()
@@ -100,7 +96,7 @@ export function contextPanel(options: {
     tabExit: options.tabExit,
     enterMultiline: true,
     priority: 20,
-    initialGroup: () => body.querySelector('[data-default-navigation]'),
+    initialGroup: () => initialNavigationGroup(element),
   })
   element.onsubmit = (event) => {
     event.preventDefault()
