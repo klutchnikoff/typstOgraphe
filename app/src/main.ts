@@ -23,6 +23,7 @@ import { installMenus } from './menus'
 import { BandHost } from './band-layout'
 import { propertyPanel } from './properties'
 import { insertBlock } from './editing'
+import { inlineObjectKey, inlineObjectTarget } from './inline-objects'
 import './style.css'
 
 declare global {
@@ -79,16 +80,15 @@ let preview: ReturnType<typeof previewController> | undefined
 
 function propertyTarget(): { pos: number; kind: string } | undefined {
   const { from } = editor.state.selection
-  const at = editor.state.doc.nodeAt(from)
+  const inline = inlineObjectTarget(editor)
   const widget = widgetTarget(editor)
-  const target =
-    at?.type.name === 'footnote'
-      ? { pos: from, kind: 'footnote' }
-      : editor.isActive('link')
-        ? { pos: from, kind: 'link' }
-        : widget
-          ? { pos: widget.pos, kind: widget.node.type.name }
-          : undefined
+  const target = inline
+    ? { pos: inline.pos, kind: inline.node.type.name }
+    : editor.isActive('link')
+      ? { pos: from, kind: 'link' }
+      : widget
+        ? { pos: widget.pos, kind: widget.node.type.name }
+        : undefined
   return target && hasSettings(settingsForNode(target.kind, contentCatalogue.entries))
     ? target
     : undefined
@@ -342,6 +342,7 @@ async function start() {
       },
       handleKeyDown: (_view, event) => {
         if (event.isComposing || editor.view.composing) return false
+        if (inlineObjectKey(editor, event, openProperties)) return true
         if (widgetKey(editor, event)) return true
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
           event.preventDefault()
@@ -368,6 +369,13 @@ async function start() {
     if (editor.view.composing) return false
     if (bands.isOpen) {
       bands.focus()
+      return true
+    }
+    // An adjacent/selected inline object is an explicit target. Spelling still
+    // wins inside words and inside block widgets, away from an inline object.
+    const inline = inlineObjectTarget(editor)
+    if (inline) {
+      openProperties(inline.pos, inline.node.type.name)
       return true
     }
     if (openCorrection(editor)) return true
@@ -401,9 +409,12 @@ async function start() {
     id: 'block.remove',
     label: tr('Supprimer le bloc'),
     shortcut: 'Mod+Backspace',
-    enabled: () => !!widgetTarget(editor),
+    enabled: () => !!inlineObjectTarget(editor, 'before') || !!widgetTarget(editor),
     run: () => {
-      if (!editor.view.composing) removeWidget(editor)
+      if (editor.view.composing) return
+      const inline = inlineObjectTarget(editor, 'before')
+      if (inline) openProperties(inline.pos, inline.node.type.name, true)
+      else removeWidget(editor)
     },
   })
   toolbar(element('toolbar'), commands, contentCatalogue.entries)

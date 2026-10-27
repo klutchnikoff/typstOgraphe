@@ -119,6 +119,7 @@ export function searchState(editor: Editor, query: string, ignoreCase = true) {
   return proofingKey.getState(editor.state)?.hits || []
 }
 export function correctionAtCursor(editor: Editor) {
+  if (!(editor.state.selection instanceof TextSelection)) return
   const position = editor.state.selection.from
   return proofingKey
     .getState(editor.state)

@@ -74,6 +74,8 @@
   "Texte alternatif": "web-alt-text",
   "Texte de la note": "web-footnote-text",
   "Note de bas de page": "web-footnote",
+  "Note": "web-note-badge",
+  "Supprimer la note de bas de page": "web-remove-footnote",
   "Paramètres de l’image": "web-image-settings",
   "Paramètres du bloc": "web-block-settings",
   "Numéro initial": "web-list-start",

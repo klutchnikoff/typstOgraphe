@@ -19,6 +19,7 @@ import { Proofing } from './proofing'
 import { DocumentInput } from './editing'
 import { DocumentWhitespace } from './document-whitespace'
 import { ContextBand } from './band-layout'
+import { inlineObjectView } from './inline-objects'
 
 export function baseExtensions(
   imageURL: (path: string) => string,
@@ -104,35 +105,26 @@ export function baseExtensions(
           'data-footnote': HTMLAttributes.text,
           class: 'footnote-ref',
         }),
-        '※',
+        tr('Note'),
       ],
       addNodeView:
         () =>
-        ({ node, getPos }) => {
-          const dom = document.createElement('sup')
-          dom.className = 'footnote-ref'
-          dom.textContent = '※'
-          dom.title = node.attrs.text || 'Note de bas de page'
-          dom.setAttribute('role', 'button')
-          dom.setAttribute('aria-label', `Note : ${node.attrs.text || 'à renseigner'}`)
-          dom.tabIndex = 0
-          const open = () => {
-            const pos = getPos()
-            if (pos !== undefined) properties(pos, 'footnote')
-          }
-          dom.addEventListener('click', open)
-          dom.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault()
-              open()
-            }
+        ({ node, getPos, editor }) => {
+          const badge = inlineObjectView({
+            editor,
+            getPos,
+            kind: 'footnote',
+            className: 'footnote-ref',
+            label: tr('Note'),
+            title: tr('Note de bas de page'),
+            open: properties,
           })
+          badge.describe(node.attrs.text)
           return {
-            dom,
+            dom: badge.dom,
             update(next) {
               if (next.type.name !== 'footnote') return false
-              dom.title = next.attrs.text
-              dom.setAttribute('aria-label', `Note : ${next.attrs.text}`)
+              badge.describe(next.attrs.text)
               return true
             },
           }

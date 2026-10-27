@@ -43,7 +43,11 @@ export function propertyPanel(
     id: 'remove-block',
     label: tr('Supprimer'),
     danger: true,
-    run: () => remove(),
+    run: () => {
+      const target = bands.target
+      if (opened && target && opened.kind !== 'link') api.open(target.from, opened.kind, true)
+      else remove()
+    },
   })
   panel.action({ id: 'cancel-properties', label: tr('Annuler'), run: () => bands.close() })
   const apply = panel.action({
@@ -143,7 +147,7 @@ export function propertyPanel(
     }
     close()
   }
-  return {
+  const api = {
     open(pos: number, kind: string, remove = false) {
       if (editor.view.composing) return
       const contract = settingsForNode(kind, catalogue.entries)
@@ -171,7 +175,9 @@ export function propertyPanel(
       const current = opened
       render()
       panel.title.textContent = remove
-        ? tr('Supprimer le bloc')
+        ? kind === 'footnote'
+          ? tr('Supprimer la note de bas de page')
+          : tr('Supprimer le bloc')
         : contract.conversions.length > 1
           ? tr('Paramètres de la liste')
           : kind === 'link'
@@ -206,4 +212,5 @@ export function propertyPanel(
       return !!opened && !opened.remove && valid() && fields.replaceImage(path)
     },
   }
+  return api
 }
