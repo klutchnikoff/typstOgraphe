@@ -1,4 +1,4 @@
-import { actionRow, keyboardScope } from './keyboard-navigation'
+import { actionRow, keyboardScope, visible } from './keyboard-navigation'
 /** Shared panel anatomy. Only body and actions belong to a capability/corrector. */
 export function contextPanel(options: {
   id: string
@@ -42,6 +42,20 @@ export function contextPanel(options: {
     body,
     actions,
     error,
+    focus() {
+      const eligible = (selector: string) =>
+        [...element.querySelectorAll<HTMLElement>(selector)].find(
+          (control) => visible(control) && !control.matches(':disabled, [aria-disabled="true"]'),
+        )
+      const target =
+        eligible('[data-initial-focus]') ||
+        eligible('[aria-checked="true"]') ||
+        eligible(
+          '.context-panel-body input, .context-panel-body textarea, .context-panel-body select',
+        ) ||
+        element
+      target.focus({ preventScroll: true })
+    },
     setEmbedded(embedded: boolean) {
       header.hidden = embedded
       element.classList.toggle('widget-context-panel', embedded)

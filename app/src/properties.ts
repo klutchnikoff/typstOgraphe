@@ -188,6 +188,7 @@ export function propertyPanel(
       removeAction.textContent = kind === 'link' ? tr('Retirer le lien') : tr('Supprimer')
       apply.textContent = remove ? tr('Supprimer') : tr('Valider')
       apply.classList.toggle('danger', remove)
+      apply.toggleAttribute('data-initial-focus', remove)
       bands.open(
         panel,
         {
@@ -200,11 +201,6 @@ export function propertyPanel(
         },
       )
       opened = current
-      if (remove) apply.focus()
-      else if (contract.conversions.length > 1)
-        group.querySelector<HTMLElement>('[aria-checked=true]')?.focus()
-      else fields.focus()
-      bands.reveal()
     },
     replaceImage(path: string) {
       return !!opened && !opened.remove && valid() && fields.replaceImage(path)

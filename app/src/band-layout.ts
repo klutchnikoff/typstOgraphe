@@ -68,6 +68,7 @@ export const ContextBand = Extension.create({
 /** Presentation only: spacing lives in decorations/NodeViews, never in the shared document. */
 export class BandHost {
   private panel?: HTMLFormElement
+  private shell?: ContextPanel
   private onClose?: () => void
   private frame = 0
   private slot?: HTMLElement
@@ -122,6 +123,7 @@ export class BandHost {
     gap.contentEditable = 'false'
     gap.setAttribute('aria-hidden', 'true')
     this.panel = panel
+    this.shell = shell
     this.onClose = onClose
     shell.setEmbedded(target.placement === 'widget-header')
     panel.hidden = false
@@ -139,6 +141,8 @@ export class BandHost {
     this.reanchor = true
     this.layout()
     this.schedule()
+    shell.focus()
+    this.reveal()
     return true
   }
   close(focus = true) {
@@ -148,6 +152,7 @@ export class BandHost {
     this.observer.unobserve(this.panel)
     this.panel.hidden = true
     this.panel = undefined
+    this.shell = undefined
     if (this.slot) {
       this.slot.style.height = ''
       this.slot = undefined
@@ -177,8 +182,8 @@ export class BandHost {
     target?.scrollIntoView({ block: 'nearest' })
   }
   focus() {
-    this.panel?.focus()
-    this.panel?.scrollIntoView({ block: 'nearest' })
+    this.shell?.focus()
+    this.reveal()
   }
   schedule() {
     if (!this.panel || this.frame) return

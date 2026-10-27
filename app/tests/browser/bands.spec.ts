@@ -313,7 +313,7 @@ test('un seul brouillon, reprise au raccourci et refus des paramètres périmés
   await page.evaluate(() => window.__spike!.editor.view.focus())
   await page.keyboard.press('Control+Enter')
   await expect(alt).toHaveValue('Brouillon conservé')
-  await expect(page.locator('#properties')).toBeFocused()
+  await expect(alt).toBeFocused()
   await page.evaluate(() => {
     const e = window.__spike!.editor
     e.commands.insertContentAt(1, 'Ajout avant le bloc. ')

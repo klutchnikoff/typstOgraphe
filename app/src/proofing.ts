@@ -287,7 +287,6 @@ export function mountProofing(
       },
     })
     bands.open(panel, { from: issue.from, to: issue.to, placement: 'text' }, () => band.remove())
-    bands.focus()
     void transport
       .invoke<string[]>('spelling_suggestions', { language, word: issue.word })
       .then((suggestions) => {

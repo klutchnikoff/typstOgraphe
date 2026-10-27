@@ -72,14 +72,8 @@ export function createRegistry(
     'insert.table': () => {
       insertBlock(editor, createTable(editor.schema, 3, 2, true).toJSON())
     },
-    'insert.footnote': () => {
-      editor
-        .chain()
-        .focus()
-        .insertContent({ type: 'footnote', attrs: { text: '' } })
-        .run()
-      properties(editor.state.selection.from - 1, 'footnote')
-    },
+    'insert.footnote': () =>
+      insertInlineWithSettings(editor, { type: 'footnote', attrs: { text: '' } }, properties),
     'letter.insert_postscript': () => {
       insertBlock(editor, { type: 'postscript' })
     },
@@ -214,4 +208,17 @@ export function positionAtPath(editor: Editor, path: number[]): number {
 export function insertNode(editor: Editor, node: JSONContent) {
   if (node.type && editor.schema.nodes[node.type]?.isBlock) return insertBlock(editor, node)
   return editor.chain().focus().insertContent(node).run()
+}
+
+/** Inline tools transfer focus to their band, never schedule editor.focus() first. */
+export function insertInlineWithSettings(
+  editor: Editor,
+  content: JSONContent,
+  open: (pos: number, kind: string) => void,
+) {
+  const node = editor.schema.nodeFromJSON(content)
+  if (!node.isInline) return false
+  if (!editor.commands.insertContent(content)) return false
+  open(editor.state.selection.from - node.nodeSize, node.type.name)
+  return true
 }
