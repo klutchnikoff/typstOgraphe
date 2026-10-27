@@ -102,7 +102,12 @@ des contrôles par genre de champ passe par des fonctions dédiées communes.
 La saisie modifie les métadonnées partagées existantes et le rendu Typst, sans
 ajouter de bloc au corps. Les mises à jour d’une autre fenêtre actualisent aussi
 les champs ouverts sans reconstruire le contrôle focalisé. Aujourd’hui insère
-une date fixe. Les paramètres et les valeurs suivent les sauvegardes et exports
+une date fixe. Une petite corbeille à droite permet d’effacer une date facultative
+et restitue le focus au champ. La suppression reste partagée, enregistrée et
+exportée comme une valeur vide. Sans lieu, le modèle Courrier personnel présente
+la date avec une majuscule initiale (« Le 19 janvier 1875 »), et conserve la
+minuscule après le lieu (« Paris, le 19 janvier 1875 »).
+Les paramètres et les valeurs suivent les sauvegardes et exports
 habituels. Les zones riches des futurs types, comme un résumé, restent à réaliser.
 
 Le modèle Courrier personnel laisse choisir A4 (défaut), A5, Lettre US, Legal US

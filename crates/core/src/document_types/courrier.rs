@@ -331,6 +331,43 @@ mod tests {
     }
 
     #[test]
+    fn letter_date_is_optional_and_starts_with_a_capital_without_a_place() {
+        use crate::document::DocumentLanguage;
+        let mut world = TypstWorld::default();
+        let mut metadata = DocumentMetadata::blank(DocumentType::Courrier);
+        let template = Model::Personal.source();
+        for (place, date, expected) in [
+            ("", "1875-01-19", "Le 19 janvier 1875"),
+            ("Paris", "1875-01-19", "Paris, le 19 janvier 1875"),
+            ("Paris", "", "Paris"),
+            ("", "", ""),
+        ] {
+            metadata.courrier_mut().lieu = place.into();
+            metadata.courrier_mut().date = date.into();
+            let document = world
+                .compile_with_template("CORPS", &metadata, &template)
+                .unwrap();
+            let rendered = text(&document.pages()[0].frame);
+            assert!(rendered.contains(expected), "{rendered}");
+            assert_eq!(rendered.contains("1875"), !date.is_empty(), "{rendered}");
+            if place.is_empty() {
+                assert!(!rendered.contains("Paris"), "{rendered}");
+            }
+            if date.is_empty() {
+                assert!(!rendered.contains("janvier"), "{rendered}");
+                assert!(!rendered.contains("Le "), "{rendered}");
+            }
+        }
+        // A language without a date prefix must also compile without a place.
+        metadata.options_mut().language = DocumentLanguage::English;
+        metadata.courrier_mut().date = "1875-01-19".into();
+        let document = world
+            .compile_with_template("CORPS", &metadata, &template)
+            .unwrap();
+        assert!(text(&document.pages()[0].frame).contains("January"));
+    }
+
+    #[test]
     fn personal_window_letter_compiles_in_app_and_keeps_addresses_on_first_page() {
         let template = include_str!("../../templates/courrier-personnel.typ");
         let mut world = TypstWorld::default();

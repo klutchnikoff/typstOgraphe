@@ -79,6 +79,10 @@ valeurs structurées utilisées par Yjs, les sauvegardes, les opérations MCP et
 l’appel `#show: courrier.with(…)`. Aucune copie des données dans un bloc de texte.
 Le modèle reste responsable de leur emplacement et de leur rendu Typst.
 Le bouton Aujourd’hui insère une date locale fixe, conservée dans le document.
+Le contrôle commun des dates facultatives propose une corbeille à droite pour
+les effacer ; cette action remet le focus au champ de date. Une date vide reste
+vide à l’enregistrement et à l’export. Le modèle Courrier personnel emploie
+« Le 19 janvier 1875 » sans lieu et « Paris, le 19 janvier 1875 » avec un lieu.
 
 Pour les futurs articles, ce dernier onglet pourra réunir titre, auteurs,
 affiliations, résumé et mots-clés. Un résumé utilisera un composant d’édition

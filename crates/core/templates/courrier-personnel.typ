@@ -138,7 +138,11 @@
     v(6mm)
   }
   let datation = if date == "" { lieu } else {
-    [#if lieu != "" { [#lieu, ] }#labels.date-prefix#format-date(date, lang: options.language)]
+    let prefix = labels.date-prefix
+    if lieu == "" and prefix != "" {
+      prefix = upper(prefix.slice(0, 1)) + prefix.slice(1)
+    }
+    [#if lieu != "" { [#lieu, ] }#prefix#format-date(date, lang: options.language)]
   }
   if datation != "" { align(right, datation); v(7mm) }
   if objet != "" { block(below: 3mm, strong[#labels.subject : #objet]) }
