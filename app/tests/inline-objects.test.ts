@@ -92,3 +92,41 @@ it('une sélection de note ne devient pas une correction du mot qui la précède
   editor.commands.setTextSelection(3)
   expect(correctionAtCursor(editor)?.word).toBe('Fote')
 })
+
+it.each(['footnote', 'futureReference'])(
+  'les flèches traversent %s avec un curseur de texte, sans sélectionner un objet à remplacer',
+  (kind) => {
+    const editor = create(kind),
+      open = vi.fn(),
+      original = editor.getJSON()
+    for (const [from, key, to] of [
+      [6, 'ArrowLeft', 5],
+      [5, 'ArrowRight', 6],
+    ] as const) {
+      editor.commands.setTextSelection(from)
+      const event = new KeyboardEvent('keydown', { key, cancelable: true })
+      expect(inlineObjectKey(editor, event, open)).toBe(true)
+      expect(event.defaultPrevented).toBe(true)
+      expect(editor.state.selection.empty).toBe(true)
+      expect(editor.state.selection.from).toBe(to)
+      expect(editor.getJSON()).toEqual(original)
+    }
+    editor.commands.setNodeSelection(5)
+    expect(inlineObjectKey(editor, new KeyboardEvent('keydown', { key: 'ArrowLeft' }), open)).toBe(
+      true,
+    )
+    expect(editor.state.selection.empty).toBe(true)
+    expect(editor.state.selection.from).toBe(5)
+    for (const modifier of ['shiftKey', 'altKey', 'ctrlKey', 'metaKey', 'isComposing']) {
+      editor.commands.setTextSelection(6)
+      expect(
+        inlineObjectKey(
+          editor,
+          new KeyboardEvent('keydown', { key: 'ArrowLeft', [modifier]: true }),
+          open,
+        ),
+      ).toBe(false)
+    }
+    expect(open).not.toHaveBeenCalled()
+  },
+)

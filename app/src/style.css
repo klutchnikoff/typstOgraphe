@@ -353,19 +353,24 @@ main {
   font-weight: 600;
   line-height: 1;
   vertical-align: baseline;
-  margin-inline-start: 0.5ex;
+  cursor: text;
+  user-select: none;
+  white-space: nowrap;
+}
+.inline-object-label {
+  display: inline;
+  vertical-align: baseline;
   background: var(--soft);
   border: 1px solid var(--accent);
   padding: 2px 5px;
   border-radius: 5px;
   cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
 }
 .inline-object::before {
   content: '\2060'; /* Join the badge to the preceding word without editing the document. */
+  padding-inline-end: 0.5ex;
 }
-.inline-object:focus-visible {
+.inline-object-label:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

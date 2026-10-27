@@ -25,6 +25,16 @@ export function inlineObjectKey(
   properties: (pos: number, kind: string, remove?: boolean) => void,
 ) {
   if (event.isComposing || editor.view.composing) return false
+  if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return false
+    const backwards = event.key === 'ArrowLeft'
+    const target = inlineObjectTarget(editor, backwards ? 'before' : 'after')
+    if (!target) return false
+    event.preventDefault()
+    editor.commands.setTextSelection(target.pos + (backwards ? 0 : target.node.nodeSize))
+    editor.view.focus()
+    return true
+  }
   if (event.key !== 'Backspace' && event.key !== 'Delete') return false
   const target = inlineObjectTarget(editor, event.key === 'Backspace' ? 'before' : 'after')
   if (!target) return false
@@ -46,9 +56,14 @@ export function inlineObjectView(options: {
   const dom = document.createElement('span')
   dom.className = `inline-object ${options.className || ''}`.trim()
   dom.contentEditable = 'false'
-  dom.textContent = options.label
-  dom.setAttribute('role', 'button')
-  dom.tabIndex = 0
+  // Keep the browser's insertion boundary outside the painted badge.
+  const label = document.createElement('span')
+  label.className = 'inline-object-label'
+  label.textContent = options.label
+  label.contentEditable = 'false'
+  label.setAttribute('role', 'button')
+  label.tabIndex = 0
+  dom.append(label)
   const select = () => {
     const pos = options.getPos()
     if (pos !== undefined) options.editor.commands.setNodeSelection(pos)
@@ -61,8 +76,22 @@ export function inlineObjectView(options: {
   dom.addEventListener('mousedown', (event) => {
     if (event.button === 0) event.preventDefault()
   })
-  dom.addEventListener('focus', select)
-  dom.addEventListener('click', open)
+  label.addEventListener('focus', select)
+  dom.addEventListener('click', (event) => {
+    // The leading gap is a text insertion target, not part of the badge button.
+    const rect = label.getBoundingClientRect()
+    const inGap =
+      getComputedStyle(dom).direction === 'rtl'
+        ? event.clientX > rect.right
+        : event.clientX < rect.left
+    if (inGap && event.detail > 0) {
+      const pos = options.getPos()
+      if (pos !== undefined) {
+        options.editor.commands.setTextSelection(pos)
+        options.editor.view.focus()
+      }
+    } else open()
+  })
   dom.addEventListener('keydown', (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return
     if (event.key === 'Enter' || event.key === ' ') {
@@ -73,11 +102,11 @@ export function inlineObjectView(options: {
   })
   const describe = (text: string, number?: number) => {
     const suffix = number === undefined ? '' : ` ${number}`
-    const label = `${options.label}${suffix}`
-    if (dom.textContent !== label) dom.textContent = label
+    const textLabel = `${options.label}${suffix}`
+    if (label.textContent !== textLabel) label.textContent = textLabel
     const title = `${options.title}${suffix}`
-    dom.title = text ? `${title} : ${text}` : title
-    dom.setAttribute('aria-label', dom.title)
+    label.title = text ? `${title} : ${text}` : title
+    label.setAttribute('aria-label', label.title)
   }
   return { dom, describe }
 }

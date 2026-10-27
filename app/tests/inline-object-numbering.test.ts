@@ -37,7 +37,9 @@ function create() {
   editor.commands.setTextSelection(1)
   return editor
 }
-const badges = (editor: Editor) => [...editor.view.dom.querySelectorAll('.footnote-ref')]
+const badges = (editor: Editor) => [
+  ...editor.view.dom.querySelectorAll('.footnote-ref .inline-object-label'),
+]
 const labels = (editor: Editor) => badges(editor).map((badge) => badge.textContent)
 
 it('numérote dans l’ordre du document, y compris les citations et cellules, sans écrire d’attribut de numéro', () => {
