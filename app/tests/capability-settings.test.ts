@@ -156,3 +156,22 @@ it('les contrôles génériques conservent les types et les noms des attributs',
   root.querySelector<HTMLInputElement>('input[type=checkbox]')!.checked = false
   expect(fields.read().attrs?.visible).toBe(false)
 })
+
+it('un libellé peut être réservé à l’accessibilité par le contrat du champ', () => {
+  const contract = capability('footnote', {
+    properties: {
+      text: {
+        type: 'string',
+        title: 'Texte de la note',
+        'x-editor': { multiline: true, label_visibility: 'accessible' },
+      },
+    },
+  })
+  const root = document.createElement('div')
+  const fields = new ParameterFields(root, () => {})
+  fields.render(settingsForNode('footnote', [contract]).fields, {})
+  const input = root.querySelector('textarea')!
+  expect(root.querySelector('label')!.hidden).toBe(true)
+  expect(input.getAttribute('aria-label')).toBe('Texte de la note')
+  expect(root.querySelector('label')!.htmlFor).toBe(input.id)
+})

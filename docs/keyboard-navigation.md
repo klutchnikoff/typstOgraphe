@@ -63,6 +63,20 @@ l’éditeur. Les menus utilisent le même résolveur. Celui-ci intervient en ca
 que ProseMirror n’absorbe Échap : un panneau reste fermable après le retour du
 focus dans l’éditeur.
 
+À l’ouverture et lors d’un retour par Ctrl/Cmd+Entrée, `BandHost` confie le focus
+à `contextPanel.focus()` : cible explicite `data-initial-focus`, choix exclusif
+actif, premier champ visible et disponible, puis formulaire si aucun champ
+n’existe. Les suggestions différées ne volent pas ce focus. La fermeture et la
+validation restituent le repère de sélection enregistré, reporté à travers les
+éditions du document, puis le défilement vers ce repère.
+
+Une commande qui ouvre un bandeau ne doit pas programmer `editor.chain().focus()`
+avant son ouverture : Tiptap peut exécuter ce focus à la frame suivante et reprendre
+la main au champ. `insertInlineWithSettings` est le chemin commun des insertions
+inline accompagnées d’un bandeau. Le générateur `ParameterFields` accepte le hint
+`x-editor.label_visibility: "accessible"` : le nom accessible du champ est conservé
+sans afficher un libellé qui ferait doublon avec le titre du bandeau.
+
 ## Raccordements
 
 | Zone | Composant commun |

@@ -232,7 +232,7 @@ pub fn parameters(id: &str) -> Value {
             json!({"type":"object","properties":{"rows":{"type":"integer","minimum":1,"maximum":100,"default":3,"x-editor":{"placement":"structure"}},"columns":{"type":"integer","minimum":1,"maximum":12,"default":2,"x-editor":{"placement":"structure"}},"header":{"type":"boolean","default":true,"x-editor":{"placement":"creation"}}},"additionalProperties":false})
         }
         "insert.footnote" => {
-            json!({"type":"object","properties":{"text":{"type":"string","default":"","x-editor":{"label_key":"web-footnote-text","multiline":true}}},"additionalProperties":false})
+            json!({"type":"object","properties":{"text":{"type":"string","default":"","x-editor":{"label_key":"web-footnote-text","multiline":true,"label_visibility":"accessible"}}},"additionalProperties":false})
         }
         "block.quote" => {
             json!({"type":"object","properties":{"attribution":{"type":"string","default":"","x-editor":{"placement":"body"}}},"additionalProperties":false})

@@ -17,6 +17,7 @@ export interface Parameter {
     control?: 'image'
     multiline?: boolean
     label_key?: string
+    label_visibility?: 'visible' | 'accessible'
   }
 }
 export interface Parameters {

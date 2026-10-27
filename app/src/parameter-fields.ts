@@ -90,6 +90,7 @@ export class ParameterFields {
       const label = document.createElement('label')
       label.htmlFor = input.id
       label.textContent = field.label
+      label.hidden = field.schema['x-editor']?.label_visibility === 'accessible'
       this.root.append(label, input)
       this.controls.set(field, input)
     }
@@ -106,10 +107,6 @@ export class ParameterFields {
     for (const field of [...this.controls.keys(), ...(this.image ? [this.image.field] : [])])
       attrs[field.attribute] = this.drafts[field.name]
     return { attrs }
-  }
-  focus() {
-    const first = this.controls.values().next().value || this.image?.button
-    first?.focus()
   }
   replaceImage(path: string) {
     if (!this.image) return false
