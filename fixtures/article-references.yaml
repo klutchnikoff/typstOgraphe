@@ -1,0 +1,9 @@
+# Fictitious entry for the offline bibliography recipe.
+durand2020:
+  type: Article
+  title: Le travail collectif
+  author: Durand, Camille
+  date: 2020
+  parent:
+    type: Periodical
+    title: Revue exemple

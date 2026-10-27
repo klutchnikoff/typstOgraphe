@@ -2,12 +2,14 @@
 
 Le premier modèle est « Article de travail ». Le type reste intégré en Rust ;
 sa présentation et la bibliothèque éditoriale commune sont en pur Typst.
-Les citations bibliographiques et leur bibliothèque constituent le lot suivant.
+Les [citations et la bibliothèque du projet](article-bibliography.md) complètent
+ce contrat ; Typst compose la bibliographie et le sommaire facultatif.
 
 ## Fonction des modèles
 
 ```typ
-#let article(localizations: (), authors: (), affiliations: (), options: (
+#let article(localizations: (), authors: (), affiliations: (),
+  references: (), citation-style: "chicago-author-date", show-outline: false, options: (
   paper: "a4", landscape: false, language: "fr", bullet-marker: auto,
 ), body) = { /* présentation du modèle */ }
 ```
@@ -35,6 +37,12 @@ et du déplacement ; ils ne dépendent pas du libellé.
   Le titre court est facultatif ; son absence utilise le titre complet pour les
   modèles qui composent un titre courant. Le titre principal et les métadonnées
   du document conservent le titre complet.
+- `references` : chemins Typst vers les fichiers bibliographiques internes du
+  projet. Les métadonnées structurées conservent leurs identités, noms d’origine
+  et textes UTF-8 ; les chemins sont matérialisés à la sauvegarde et à l’export.
+- `citation-style` : style CSL reconnu par le type et proposé par le modèle.
+  `show-outline` : souhait documentaire d’afficher un sommaire. Le modèle peut
+  imposer sa propre valeur pour ces deux options.
 
 L’interface présente le titre principal d’abord, les auteurs et affiliations,
 puis les ensembles linguistiques. Changer la langue principale conserve les
@@ -113,6 +121,10 @@ Les onglets **Titres**, **Affiliations**, **Auteurs** et **Résumés** séparent
 informations éditoriales. Titres présente, pour chaque langue, le titre, le
 sous-titre et le titre court ; Résumés présente le résumé et les mots-clés des
 mêmes ensembles linguistiques. Leur séparation visuelle ne duplique aucune donnée.
+**Bibliographie** gère les fichiers originaux et le style autorisé par le modèle.
+**Général** propose le sommaire si le modèle le permet. Les déclarations Typst
+`editor-options.outline` et `editor-options.citation-styles` contrôlent ces choix ;
+une valeur absente ou un choix unique ne produit pas de contrôle inutile.
 L’ensemble de la langue principale est ouvert par défaut dans ces deux onglets.
 Ajouter une affiliation une seule fois, puis la cocher pour chacun de ses auteurs.
 Les flèches changent l’ordre sans changer les identifiants ; les corbeilles demandent
@@ -161,7 +173,6 @@ les identités et associations, les deux langues, l’annulation, les éditions 
 les parcours clavier Chromium/WebKit, la réouverture et un export recompilé avec
 ses seules dépendances. Aucune capture d’écran n’est produite.
 
-La bibliographie et les badges de citations restent à préciser ensemble. Ce lot
-ne fournit pas encore de correcteur orthographique propre aux zones riches de
+Ce lot ne fournit pas encore de correcteur orthographique propre aux zones riches de
 l’en-tête ni de synchronisation vers ces zones depuis l’aperçu. Le correcteur du
 corps et sa synchronisation restent disponibles.

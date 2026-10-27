@@ -20,9 +20,9 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** préciser ensemble les citations bibliographiques et la
-bibliothèque de références de l’Article, à partir du
-[contrat et de l’en-tête désormais implémentés](docs/article-contract.md).
+**Séquence immédiate :** poursuivre l’unification du contrat structuré entre
+adaptateurs (**A.2**), à partir du [contrat Article](docs/article-contract.md) et
+des [citations et de la bibliothèque locale](docs/article-bibliography.md).
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
 
@@ -141,8 +141,9 @@ formulaires ; le dernier est une zone composée de sections décrites par le typ
 avec les informations propres au document. Ces contrôles éditent les valeurs
 structurées existantes, sans duplication dans le corps ni dépendance aux fonctions
 internes des modèles. Pour l’Article : Général, Titres (titre, sous-titre et titre
-court par langue), Affiliations, Auteurs et Résumés (résumé riche et mots-clés par
-langue). Les mêmes enregistrements multilingues alimentent Titres et Résumés.
+court par langue), Affiliations, Auteurs, Résumés (résumé riche et mots-clés par
+langue) et Bibliographie. Les mêmes enregistrements multilingues alimentent
+Titres et Résumés.
 Les ajouts par + sont provisoires jusqu’à validation et annulables par Échap ;
 ils ne sont pas diffusés ni sauvegardés avant confirmation. La
 [décision détaillée](docs/types-modeles-libertes.md#interface-de-len-tête--décision-du-27-octobre-2026)
@@ -351,16 +352,13 @@ premier périmètre. Les propositions non retenues ne deviennent pas des engagem
 
 ## Prochain lot proposé
 
-1. Implémenter les [citations, la bibliothèque et le sommaire Article](docs/article-bibliography.md)
-   selon les choix validés : fichiers internes BibLaTeX/Hayagriva, recherche fuzzy,
-   badges, bibliographie finale automatique et sommaire facultatif (**B/C/D/E**).
-2. Poursuivre l’unification du contrat structuré entre les adaptateurs (**A.2**),
+1. Poursuivre l’unification du contrat structuré entre les adaptateurs (**A.2**),
    à partir du [rangement de l’application](docs/application-layout.md).
    Les schémas de métadonnées Article sont partagés ; les propositions MCP
    rattachées restent actuellement limitées au corps du document.
-3. Reprendre ensuite le périmètre administratif restant, un type à la fois,
+2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
-4. Engager ACP après stabilisation du contrat documentaire et validation de sa
+3. Engager ACP après stabilisation du contrat documentaire et validation de sa
    maquette (**F**), sans attendre la livraison de tous les types SHS/enseignement.
 
 Ce prochain lot est une proposition à discuter ; cette réécriture documentaire
