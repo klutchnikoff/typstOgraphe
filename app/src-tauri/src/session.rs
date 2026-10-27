@@ -259,6 +259,7 @@ impl Session {
         }
         let settings = snapshot.settings.as_ref().unwrap_or(&self.settings);
         settings.validate()?;
+        typstographe_core::bibliography::validate_document(&snapshot.document, &settings.metadata)?;
         schema::source(&snapshot.document, &self.assets)
     }
     pub fn resources(&self) -> Vec<Resource> {

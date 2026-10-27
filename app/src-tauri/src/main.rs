@@ -1,5 +1,6 @@
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 mod agent;
+mod bibliography;
 mod catalogue;
 mod driver;
 mod files;
@@ -476,6 +477,10 @@ fn main() {
             files::quit_app,
             files::save_file,
             files::open_file,
+            bibliography::bibliography_search,
+            bibliography::bibliography_index,
+            bibliography::validate_bibliography,
+            bibliography::model_policy,
             files::new_document,
             files::close_document,
             agent::publish_snapshot,

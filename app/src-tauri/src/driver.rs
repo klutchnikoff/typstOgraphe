@@ -37,6 +37,29 @@ fn dispatch(
     let peer = request["peer"].as_str().ok_or("Participant absent.")?;
     let command = request["command"].as_str().ok_or("Commande absente.")?;
     match command {
+        "bibliography_index" | "bibliography_search" => {
+            let files = serde_json::from_value(args["files"].clone()).map_err(|e| e.to_string())?;
+            serde_json::to_value(if command == "bibliography_index" {
+                bibliography::bibliography_index(files)?
+            } else {
+                bibliography::bibliography_search(
+                    files,
+                    args["query"].as_str().unwrap_or("").into(),
+                )?
+            })
+            .map_err(|e| e.to_string())
+        }
+        "validate_bibliography" => {
+            bibliography::validate_bibliography(
+                serde_json::from_value(args["document"].clone()).map_err(|e| e.to_string())?,
+                serde_json::from_value(args["metadata"].clone()).map_err(|e| e.to_string())?,
+            )?;
+            Ok(serde_json::Value::Null)
+        }
+        "model_policy" => serde_json::to_value(bibliography::model_policy(
+            args["template"].as_str().unwrap_or("").into(),
+        )?)
+        .map_err(|e| e.to_string()),
         "sync_forward" | "sync_backward" | "sync_selection" => {
             let revision = args["revision"].as_u64().ok_or("Révision absente.")?;
             let session = bridge.session.lock().map_err(|e| e.to_string())?;

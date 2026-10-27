@@ -31,7 +31,8 @@ fn document_type(kind: DocumentType) -> Value {
                 .map(|(paper, landscape)| json!({"paper":paper,"landscape":landscape}));
             json!({
                 "id":model.model.id(), "label":label, "description":model.description,
-                "keywords":model.keywords, "source":model.source, "fixedPage":page
+                "keywords":model.keywords, "source":model.source, "fixedPage":page,
+                "policy":typstographe_core::rendering::TypstWorld::default().model_presentation(model.source).expect("bundled model policy")
             })
         })
         .collect();

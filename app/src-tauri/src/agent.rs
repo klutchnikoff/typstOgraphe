@@ -330,6 +330,17 @@ fn dispatch(
         .ok_or("Document en cours de saisie : relire après publication de l'instantané.")?
         .clone();
     match method {
+        "bibliography.search" => {
+            let settings = snapshot.settings.as_ref().unwrap_or(&session.settings);
+            let typstographe_core::document_types::Metadata::Article(meta) = &settings.metadata
+            else {
+                return Err("Capability unavailable for this type".into());
+            };
+            let entries = typstographe_core::bibliography::index(&meta.references)?;
+            Ok(
+                json!({"revision":snapshot.revision,"entries":typstographe_core::bibliography::search(&entries,params["query"].as_str().unwrap_or(""))}),
+            )
+        }
         "document.inspect" | "document.structure" => Ok(
             json!({"revision":snapshot.revision,"document":snapshot.document,"metadata":snapshot.settings.as_ref().map(|s|&s.metadata),"permissions":{"proposals":true,"filesystem":false},"capabilities":catalogue::for_type(snapshot.settings.as_ref().unwrap_or(&session.settings).metadata.document_type()).collect::<Vec<_>>()}),
         ),
@@ -395,6 +406,7 @@ fn dispatch(
                     settings.metadata.document_type(),
                 )?;
                 crate::schema::source(&after, &session.assets)?;
+                typstographe_core::bibliography::validate_document(&after, &settings.metadata)?;
                 stage_bytes += serde_json::to_vec(&after).map_err(|e| e.to_string())?.len();
                 if stage_bytes > 8 * 1024 * 1024 {
                     return Err(
@@ -478,6 +490,11 @@ fn tools() -> Vec<Tool> {
             "document.inspect",
             "Read current published document, revision and capabilities.",
             json!({}),
+        ),
+        (
+            "bibliography.search",
+            "Find published project references by fuzzy title/author search. Use file_id and key in insert.citation/citation.set proposal steps. This never reads external files.",
+            json!({"query":{"type":"string"}}),
         ),
         (
             "document.structure",
@@ -671,5 +688,59 @@ mod tests {
             "stale"
         );
         assert!(dispatch(&session, &mut state, "document.structure", &json!({})).is_err());
+    }
+
+    #[test]
+    fn citation_discovery_and_atomic_proposals_resolve_project_references() {
+        let (_root, session, mut state) = fixture();
+        assert!(dispatch(&session, &mut state, "bibliography.search", &json!({})).is_err());
+        let mut meta = typstographe_core::document_types::article::Metadata::demo();
+        meta.references
+            .push(typstographe_core::bibliography::ReferenceFile {
+            id: "books".into(),
+            name: "books.bib".into(),
+            contents:
+                "@book{bourdieu1980,author={Bourdieu, Pierre},title={Le sens pratique},year={1980}}"
+                    .into(),
+        });
+        let snapshot = state.snapshot.as_mut().unwrap();
+        snapshot.document =
+            serde_json::from_value(json!({"type":"doc","content":[{"type":"paragraph"}]})).unwrap();
+        snapshot.settings = Some(Settings {
+            metadata: typstographe_core::document_types::Metadata::Article(meta),
+            template: typstographe_core::document_types::DocumentType::Article.default_model(),
+            model_id: "article.model.working".into(),
+        });
+        let found = dispatch(
+            &session,
+            &mut state,
+            "bibliography.search",
+            &json!({"query":"sens bordieu"}),
+        )
+        .unwrap();
+        assert_eq!(found["entries"][0]["file_id"], "books");
+        assert_eq!(found["entries"][0]["key"], "bourdieu1980");
+        let citation = json!({"items":[{"file_id":"books","key":"bourdieu1980","supplement":"p. 23"}],"form":"normal"});
+        let mut lot = json!({"request_id":"citation","revision":0,"steps":[{"id":"insert.citation","params":citation},{"id":"citation.set","params":{"target":{"path":[0,0]},"items":[{"file_id":"books","key":"bourdieu1980"}],"form":"prose"}}]});
+        let mut invalid = lot.clone();
+        invalid["steps"][0]["params"]["items"][0]["key"] = json!("absent");
+        assert!(
+            dispatch(&session, &mut state, "proposals.submit", &invalid)
+                .unwrap_err()
+                .contains("absent")
+        );
+        assert!(state.proposal.is_none());
+        // A failed lot has not consumed its id nor published any partial node.
+        let before = state.snapshot.as_ref().unwrap().document.clone();
+        let proposed = dispatch(&session, &mut state, "proposals.submit", &lot).unwrap();
+        assert_eq!(proposed["status"], "pending");
+        assert_eq!(
+            proposed["after"]["content"][0]["content"][0]["attrs"]["form"],
+            "prose"
+        );
+        assert_eq!(state.snapshot.as_ref().unwrap().document, before);
+        assert_eq!(session.revision, 0);
+        lot["steps"][0]["params"]["items"][0]["key"] = json!("different");
+        assert!(dispatch(&session, &mut state, "proposals.submit", &lot).is_err());
     }
 }
