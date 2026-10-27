@@ -44,6 +44,13 @@ egui à partir de l’[inventaire des reprises et écarts](docs/egui-retirement.
 après contrôle des parcours nécessaires. Compléter la séparation des
 recettes, fixtures et mesures de ce qui est livré.
 
+**Orientation du 27 octobre 2026 : aucune capture d’écran pour le moment.**
+Retirer les outils de capture/comparaison et les galeries egui sans les porter
+vers Tauri ; retirer ou désactiver les captures automatiques des tests actifs.
+Conserver les scénarios fonctionnels utiles, indépendamment de leur ancien
+moyen de vérification. Le peaufinage visuel reprend après le nettoyage et le
+retrait de l’interface historique ; aucune référence graphique figée ne les bloque.
+
 ### A.2 Un contrat documentaire structuré
 
 Converger entre le contenu structuré du nouvel éditeur et les adaptateurs

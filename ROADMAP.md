@@ -20,6 +20,13 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
+**Séquence immédiate retenue le 27 octobre 2026 :** nettoyer ce qui est inutile
+et retirer egui en préservant les comportements utiles, puis reprendre les
+modifications de présentation de l’interface. **Aucune capture d’écran pour
+le moment** : pas de migration des outils de capture ni de références au pixel
+près. Conserver les tests fonctionnels ; retirer ou désactiver les captures
+automatiques des recettes actives. L’interface n’est pas considérée comme figée.
+
 ## Un projet typstOgraphe — définition retenue
 
 Un **projet est le fichier .typsto autonome**, équivalent d’un répertoire de

@@ -5,6 +5,14 @@ recettes existantes, à valider avant implémentation. Aucune suppression ni
 correction fonctionnelle n’est réalisée par cet inventaire. Les tests A.1
 démontrent leurs parcours précis, pas une parité exhaustive des deux interfaces.
 
+**Orientation validée le 27 octobre 2026 : aucune capture d’écran pour le moment.**
+L’interface va encore évoluer après le nettoyage. Ne pas migrer l’outillage de
+capture egui, créer de références d’images, comparer des pixels ou faire des
+captures une condition du retrait. Les tests fonctionnels web et natifs restent
+utiles. Retirer ou désactiver la production automatique de captures des recettes
+actives ; les rapports historiques restent des archives, sans obligation de
+maintenir leur outillage. Le travail de présentation vient après le nettoyage.
+
 ## 1. Conserver indépendamment de l’interface
 
 - Le cœur Rust : compilation et export Typst, types et modèles, dépendances,
@@ -15,9 +23,9 @@ démontrent leurs parcours précis, pas une parité exhaustive des deux interfac
 - Fluent et ses catalogues ; distinction langue d’interface/langue documentaire.
 - L’état Yjs et son historique par participant ; les cibles structurées et
   offsets UTF-16 du nouvel éditeur. Ne pas réintroduire le tampon plat d’egui.
-- `assets/branding/`, `assets/ui/`, licences, fixtures utiles, rapports, résultats
-  d’essais, maquettes et références visuelles. Les captures egui restent des
-  références historiques, pas des images attendues pixel pour pixel de Tauri.
+- `assets/branding/`, `assets/ui/`, licences, fixtures utiles, rapports et résultats
+  d’essais. Les maquettes et images historiques documentent les travaux passés ;
+  elles ne constituent pas une présentation figée à reproduire dans Tauri.
 
 Attention : supprimer `crates/app/` ne signifie pas supprimer immédiatement les
 modules historiques de `crates/core/engine` ou `document`. La CLI et le MCP
@@ -58,10 +66,10 @@ ne suffisent pas à garantir ce second cas.
 | Élément actuellement lié à egui | Traitement proposé |
 | --- | --- |
 | `--commands-catalogue` / `--commands-catalogue-json` dans le binaire egui | Déplacer la génération utile dans un outil documentaire indépendant de l’interface, en cohérence avec A.2 ; garder les tests du catalogue. |
-| `scripts/capture_baseline.py`, son lanceur et ses tests | Remplacer les anciens déclencheurs `--capture-*` par les recettes Tauri/Playwright appropriées. Conserver les comparateurs et fixtures réutilisables, les captures et les bilans. |
+| `scripts/capture_baseline.py`, son lanceur et ses tests | Retirer l’outillage de capture et ses comparateurs, sans équivalent à reconstruire dans Tauri. Reprendre seulement les scénarios fonctionnels et les fixtures encore utiles dans les tests web/natifs. |
 | `experiments/editor-model/` | Conserver le bilan des frontières de cellules et de l’IME ; le diagnostic du tampon plat peut sortir de la compilation active. Ne pas recréer ce tampon dans ProseMirror. |
 | `experiments/mcp-acceptance/` | Reprendre les scénarios métier encore utiles sur le MCP structuré : concurrence humaine/agent, interruptions, droits, refus, acceptation, annulation. Conserver les résultats de l’essai d’agent sans skill. |
-| Galerie `ui-kit-gallery` et kit graphique egui | Conserver conventions, maquettes et références ; supprimer le rendu egui une fois les scénarios utiles couverts côté Tauri. |
+| Galerie `ui-kit-gallery` et kit graphique egui | Retirer la galerie et son rendu. Conserver les conventions fonctionnelles utiles ; les futures modifications de présentation seront discutées après nettoyage. |
 | Tests `crates/app/src/app/tests/` et `editor/tests.rs` | Trier par garantie : réutiliser le cœur, traduire les scénarios de comportement en tests web/natifs, retirer les assertions de géométrie et d’événements propres à egui. Pas de copie automatique test pour test. |
 | CI, couverture et gardes de taille | Remplacer les exemples et chemins egui ; conserver la frontière du cœur et les contrôles génériques. Préciser le périmètre de couverture de l’hôte Tauri avant de retirer celui de l’ancienne interface. |
 
@@ -90,13 +98,16 @@ Sources examinées : [commandes egui](../crates/app/src/commands.rs),
 
 1. Valider les écarts à reprendre et ceux à reporter ; ne pas appeler « parité »
    une fonction absente ou une recette non effectuée.
-2. Traiter la convergence documentaire A.2 et la fiabilité A.3, en priorité la
-   récupération et la visibilité des changements soumis à acceptation.
-3. Reprendre le périmètre de commandes/préférences retenu et transformer les
-   recettes nécessaires ; refaire les parcours clavier et fichiers sur Tauri.
+2. Nettoyer l’outillage inutile, notamment captures, comparateurs et galeries,
+   sans le porter vers Tauri. Traiter la convergence documentaire A.2 et la
+   fiabilité A.3, en priorité la récupération et les garanties d’acceptation.
+3. Reprendre le périmètre fonctionnel de commandes/préférences retenu et les
+   tests nécessaires ; refaire les parcours clavier et fichiers sur Tauri.
 4. Retirer egui et ses dépendances exclusives dans un lot dédié, puis vérifier
    lancement, édition, sauvegarde/réouverture, récupération, export et MCP sur
    les trois systèmes, ainsi que CI et couverture.
+5. Reprendre ensuite les modifications de présentation de l’interface. La
+   reprise d’un comportement ne demande pas de reproduire les anciennes vues.
 
 Ce retrait n’exige pas de terminer l’article scientifique, les projets/versions,
 ACP ou la collaboration distante. Il n’impose pas non plus un convertisseur
