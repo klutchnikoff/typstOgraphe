@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/core", "crates/i18n", "crates/app", "crates/cli", "crates/mcp", "app/src-tauri"]
+members = ["crates/core", "crates/i18n", "crates/cli", "crates/mcp", "app/src-tauri"]
 default-members = ["app/src-tauri"]
 resolver = "3"
 
@@ -13,7 +13,6 @@ publish = false
 typstographe-mcp = { path = "crates/mcp" }
 typstographe-core = { path = "crates/core" }
 typstographe-i18n = { path = "crates/i18n" }
-eframe = { version = "=0.33.3", default-features = false, features = ["default_fonts", "glow", "x11", "wayland", "accesskit", "persistence"] }
 resvg = { version = "=0.47.0", default-features = false }
 unicode-segmentation = "1.13"
 serde = { version = "1", features = ["derive"] }
@@ -33,7 +32,6 @@ comemo = "0.5"
 png = "0.18"
 zip = { version = "6", default-features = false, features = ["deflate"] }
 tempfile = "3"
-rfd = "0.15"
 i18n-embed = { version = "0.16", features = ["fluent-system", "desktop-requester"] }
 i18n-embed-fl = "0.10"
 rust-embed = { version = "8", features = ["debug-embed"] }
@@ -44,7 +42,6 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 regex = "1.13.1"
 spellbook = "0.4.2"
 unicode-normalization = "0.1"
-muda = { version = "0.21", default-features = false }
 fluent-syntax = "0.12"
 sha2 = "0.11.1"
 clap = { version = "4.6.7", features = ["derive", "string"] }

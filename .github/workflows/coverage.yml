@@ -26,8 +26,15 @@ jobs:
       - name: Linux libraries
         run: >-
           sudo apt-get update && sudo apt-get install -y
-          pkg-config libx11-dev libxi-dev libxcursor-dev libxrandr-dev
-          libxinerama-dev libxkbcommon-dev libwayland-dev libgl1-mesa-dev
+          build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev
+          libayatana-appindicator3-dev librsvg2-dev patchelf
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run build:web
       # Nightly is used only here to exclude test implementations via coverage(off).
       # The application and the three-platform CI continue to use stable Rust.
       - name: Coverage toolchain
@@ -45,13 +52,13 @@ jobs:
           key: coverage-linux-nightly-${{ hashFiles('Cargo.lock') }}
           restore-keys: coverage-linux-nightly-
       - name: Run instrumented tests
-        run: cargo +nightly llvm-cov --locked --workspace --exclude typstographe --no-report
+        run: cargo +nightly llvm-cov --locked --workspace --no-report
       - name: Generate reports
         run: |
           mkdir -p output/coverage
-          cargo +nightly llvm-cov report --workspace --ignore-filename-regex 'app/src-tauri/' --html --output-dir output/coverage
-          cargo +nightly llvm-cov report --workspace --ignore-filename-regex 'app/src-tauri/' --lcov --output-path output/coverage/lcov.info
-          cargo +nightly llvm-cov report --workspace --ignore-filename-regex 'app/src-tauri/' --json --summary-only --output-path output/coverage/summary.json
+          cargo +nightly llvm-cov report --workspace --html --output-dir output/coverage
+          cargo +nightly llvm-cov report --workspace --lcov --output-path output/coverage/lcov.info
+          cargo +nightly llvm-cov report --workspace --json --summary-only --output-path output/coverage/summary.json
           python3 .github/scripts/coverage_summary.py output/coverage/summary.json output/coverage/badge
       - uses: actions/upload-artifact@v7
         with:
