@@ -79,10 +79,10 @@ fn validation_reports_broken_resources_contract_dependencies_and_model_options_w
         (
             {
                 let mut e = engine("Texte");
-                e.session.metadata.options_mut().paper = crate::document::PaperFormat::A3;
+                e.session.metadata.options_mut().bullet_marker = Some("◆".into());
                 e
             },
-            "model_fixed_page",
+            "bullet_marker_policy",
         ),
     ];
     for (e, code) in cases {

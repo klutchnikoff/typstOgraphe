@@ -124,18 +124,18 @@ test('en-tête partagé, focus conservé, export Typst et sauvegarde sans duplic
   )
 })
 
-test('Général compact : choix utiles, valeurs imposées explicites et langue indépendante', async ({
+test('Général compact : format et orientation libres, choix utiles et langue indépendante', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await page.getByRole('button', { name: 'Général', exact: true }).click()
   const panel = page.locator('#metadata-content')
-  await expect(panel.getByRole('combobox')).toHaveCount(2)
-  await expect(page.getByLabel('Format', { exact: true })).toHaveText('A4')
-  await expect(page.getByLabel('Orientation', { exact: true })).toHaveText('Portrait')
-  await expect(
-    panel.getByText('Format et orientation définis par le modèle.', { exact: true }),
-  ).toBeVisible()
+  await expect(panel.getByRole('combobox')).toHaveCount(4)
+  await expect(page.getByRole('combobox', { name: 'Format', exact: true })).toHaveValue('a4')
+  await expect(page.getByRole('combobox', { name: 'Orientation', exact: true })).toHaveValue(
+    'false',
+  )
+  await expect(panel.locator('output, #document-page-policy')).toHaveCount(0)
   await expect(panel.locator('input[type=file]')).toHaveCount(0)
   await expect(panel.getByText('Puces des listes', { exact: true })).toHaveCount(0)
   const model = page.getByRole('combobox', { name: 'Modèle', exact: true })
@@ -161,6 +161,10 @@ test('Général compact : choix utiles, valeurs imposées explicites et langue i
   expect(geometry.height).toBeLessThan(160)
   await model.focus()
   await page.keyboard.press('Tab')
+  await expect(page.getByRole('combobox', { name: 'Format', exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('combobox', { name: 'Orientation', exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
   await expect(language).toBeFocused()
   await language.selectOption('en')
   await expect(language).toBeFocused()
@@ -172,4 +176,52 @@ test('Général compact : choix utiles, valeurs imposées explicites et langue i
   )
   await page.keyboard.press('Escape')
   await expect(panel).toBeHidden()
+})
+
+test('tous les formats du catalogue sont réellement compilés en portrait et paysage, puis conservés', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Général', exact: true }).click()
+  const paper = page.getByRole('combobox', { name: 'Format', exact: true })
+  const orientation = page.getByRole('combobox', { name: 'Orientation', exact: true })
+  const sizes: Record<string, [number, number]> = {
+    a4: [210, 297],
+    a5: [148, 210],
+    'us-letter': [215.9, 279.4],
+    'us-legal': [215.9, 355.6],
+    a3: [297, 420],
+  }
+  expect(
+    await paper
+      .locator('option')
+      .evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value)),
+  ).toEqual(Object.keys(sizes))
+  for (const [format, [width, height]] of Object.entries(sizes)) {
+    await paper.selectOption(format)
+    for (const landscape of ['false', 'true']) {
+      await orientation.selectOption(landscape)
+      const expected = landscape === 'true' ? height / width : width / height
+      await expect
+        .poll(() =>
+          page
+            .locator('#pages .preview-page svg')
+            .first()
+            .evaluate((svg) => {
+              const box = (svg as SVGSVGElement).viewBox.baseVal
+              return box.width / box.height
+            }),
+        )
+        .toBeCloseTo(expected, 3)
+      await expect(page.locator('#render-status')).toHaveText(/^\d+ pages? ·/)
+    }
+  }
+  await paper.selectOption('a5')
+  await page.getByRole('button', { name: 'Fichier', exact: true }).click()
+  await page.locator('[data-command="document.save"]').click()
+  await expect(page.locator('#message')).toContainText('Session enregistrée', { timeout: 30000 })
+  await page.reload()
+  await page.waitForFunction(() => window.__spike?.ready)
+  await page.getByRole('button', { name: 'Général', exact: true }).click()
+  await expect(page.getByRole('combobox', { name: 'Format', exact: true })).toHaveValue('a5')
+  await expect(page.getByRole('combobox', { name: 'Orientation', exact: true })).toHaveValue('true')
 })

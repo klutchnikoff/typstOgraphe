@@ -746,17 +746,6 @@ summary svg {
   font: inherit;
   font-size: 13px;
 }
-.document-option-control output {
-  display: inline-block;
-  padding: 4px 0;
-  color: var(--text);
-}
-.document-options-policy {
-  grid-column: 1 / -1;
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-}
 @container (max-width: 480px) {
   .document-options {
     grid-template-columns: minmax(0, 1fr);

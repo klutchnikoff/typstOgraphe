@@ -337,8 +337,46 @@ mod tests {
         assert!(
             world
                 .compile_with_template("Bonjour.", &metadata, template)
-                .is_err()
+                .is_ok()
         );
+    }
+
+    #[test]
+    fn personal_letter_renders_every_supported_paper_and_orientation() {
+        use crate::document::PaperFormat;
+        let mut world = TypstWorld::default();
+        let template = Model::Personal.source();
+        let mut metadata = DocumentMetadata::blank(DocumentType::Courrier);
+        metadata.courrier_mut().expediteur = "EXPEDITEURTEST".into();
+        metadata.courrier_mut().destinataire = "DESTINATAIRETEST".into();
+        for (paper, width, height) in [
+            (PaperFormat::A4, 210.0, 297.0),
+            (PaperFormat::A5, 148.0, 210.0),
+            (PaperFormat::Letter, 215.9, 279.4),
+            (PaperFormat::Legal, 215.9, 355.6),
+            (PaperFormat::A3, 297.0, 420.0),
+        ] {
+            for landscape in [false, true] {
+                metadata.options_mut().paper = paper;
+                metadata.options_mut().landscape = landscape;
+                let doc = world
+                    .compile_with_template("CONTENUTEST", &metadata, &template)
+                    .unwrap();
+                assert_eq!(doc.pages().len(), 1, "{paper:?} landscape={landscape}");
+                let frame = &doc.pages()[0].frame;
+                let (w, h) = if landscape {
+                    (height, width)
+                } else {
+                    (width, height)
+                };
+                assert!((frame.size().x.to_mm() - w).abs() < 0.1);
+                assert!((frame.size().y.to_mm() - h).abs() < 0.1);
+                let rendered = text(frame);
+                for value in ["EXPEDITEURTEST", "DESTINATAIRETEST", "CONTENUTEST"] {
+                    assert!(rendered.contains(value), "{paper:?}: {rendered}");
+                }
+            }
+        }
     }
 
     #[test]

@@ -29,7 +29,7 @@
   "Connecté": "web-connected",
   "Hors connexion": "web-offline",
   "Général": "web-general",
-  "Format et orientation définis par le modèle.": "web-fixed-page-policy",
+  "Le document a changé ; recommencez l’opération.": "web-snapshot-document-replaced",
   "Modèle": "web-model",
   "Type de document": "web-document-type",
   "Créer": "web-create",

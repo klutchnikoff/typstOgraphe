@@ -273,35 +273,22 @@ fn invalid_fields_text_values_and_stale_or_foreign_guards_are_rejected_atomicall
 }
 
 #[test]
-fn page_constraints_are_enforced_without_ui_while_language_remains_independent() {
+fn personal_letter_accepts_paper_and_orientation_without_ui_while_language_remains_independent() {
     let mut e = engine("Bonjour");
     let before = e.stored_document();
-    for choice in [
-        DocumentOption::Paper(PaperFormat::A3),
-        DocumentOption::Landscape(true),
-    ] {
-        assert_eq!(
-            option(&mut e, choice).unwrap_err().reason(),
-            "model_fixed_page"
-        );
+    for paper in PaperFormat::ALL {
+        for landscape in [false, true] {
+            option(&mut e, DocumentOption::Paper(paper)).unwrap();
+            option(&mut e, DocumentOption::Landscape(landscape)).unwrap();
+            assert_eq!(e.session.metadata.options().paper, paper);
+            assert_eq!(e.session.metadata.options().landscape, landscape);
+        }
     }
-    assert!(e.stored_document() == before);
-    assert!(
-        !option(&mut e, DocumentOption::Paper(PaperFormat::A4))
-            .unwrap()
-            .changed
-    );
     option(&mut e, DocumentOption::Language(DocumentLanguage::English)).unwrap();
     assert_eq!(
         e.session.metadata.options().language,
         DocumentLanguage::English
     );
-    assert_eq!(e.session.undo.len(), 1);
-    e.session.template = "#let courrier(..args) = []".into();
-    option(&mut e, DocumentOption::Paper(PaperFormat::A3)).unwrap();
-    option(&mut e, DocumentOption::Landscape(true)).unwrap();
-    assert_eq!(e.session.metadata.options().paper, PaperFormat::A3);
-    assert!(e.session.metadata.options().landscape);
     assert_eq!(e.session.document.source(), before.source);
 }
 
@@ -368,7 +355,7 @@ fn presentation_query_uses_document_dependencies_and_bad_policies_do_not_publish
     let mut e = engine("Bonjour");
     let before = e.stored_document();
     let read = e.query(Query::ModelPresentation(Empty {})).unwrap();
-    assert_eq!(read["fixed_page"], json!({"paper":"a4","landscape":false}));
+    assert!(read["fixed_page"].is_null());
     assert!(e.stored_document() == before);
     assert_eq!(e.session.revision, 0);
     assert!(e.session.undo.is_empty());

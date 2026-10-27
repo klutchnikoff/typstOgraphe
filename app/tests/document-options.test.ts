@@ -54,18 +54,16 @@ function mount() {
   const view = documentOptions(root, kind, catalogue, settings, changeModel, changeOption)
   return { root, view, changeModel, changeOption }
 }
-it('un format imposé est une valeur étiquetée, sans faux menu et sans écraser les choix conservés', () => {
+it('les réglages imposés sont masqués sans écraser les choix conservés', () => {
   const { root, changeOption } = mount()
-  const paper = root.querySelector<HTMLOutputElement>('#document-option-paper-fixed')!
-  expect(paper.value).toBe('A4')
-  expect(paper.hidden).toBe(false)
-  expect(root.querySelector('label[for="document-option-paper-fixed"]')!.textContent).toBe('Format')
-  expect(root.querySelector<HTMLOutputElement>('#document-option-orientation-fixed')!.value).toBe(
-    'Portrait',
-  )
-  expect(root.querySelector<HTMLSelectElement>('#document-option-paper')!.disabled).toBe(true)
-  expect(root.querySelector<HTMLSelectElement>('#document-option-paper')!.hidden).toBe(true)
-  expect(root.querySelector<HTMLElement>('#document-page-policy')!.hidden).toBe(false)
+  for (const name of ['paper', 'orientation']) {
+    const control = root.querySelector<HTMLSelectElement>(`#document-option-${name}`)!
+    expect(control.disabled).toBe(true)
+    expect(control.parentElement!.hidden).toBe(true)
+    expect(root.querySelector<HTMLLabelElement>(`label[for="${control.id}"]`)!.hidden).toBe(true)
+  }
+  expect(root.querySelector('output')).toBeNull()
+  expect(root.querySelector('#document-page-policy')).toBeNull()
   expect(settings.metadata.fields.options).toEqual({ paper: 'a3', landscape: true, language: 'fr' })
   expect(changeOption).not.toHaveBeenCalled()
 })
@@ -73,11 +71,9 @@ it('un modèle libre retrouve les choix conservés et les menus gardent leurs li
   const { root, view, changeModel, changeOption } = mount()
   view.update({ ...settings, modelId: 'free' })
   const paper = root.querySelector<HTMLSelectElement>('#document-option-paper')!
-  expect(paper.hidden).toBe(false)
+  expect(paper.parentElement!.hidden).toBe(false)
   expect(paper.disabled).toBe(false)
   expect(paper.value).toBe('a3')
-  expect(root.querySelector<HTMLOutputElement>('#document-option-paper-fixed')!.hidden).toBe(true)
-  expect(root.querySelector<HTMLElement>('#document-page-policy')!.hidden).toBe(true)
   paper.value = 'a4'
   paper.dispatchEvent(new Event('change'))
   const orientation = root.querySelector<HTMLSelectElement>('#document-option-orientation')!

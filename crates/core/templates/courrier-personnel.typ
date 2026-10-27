@@ -1,4 +1,4 @@
-// Maquette du modèle « Courrier français — enveloppe à fenêtre ».
+// Courrier personnel ; la disposition pour enveloppe à fenêtre est réservée à A4 portrait.
 // Référence : DL 110 × 220 mm, fenêtre 100 × 35 mm à 20 mm du bas et de droite.
 // GPV 60013 / ES35F110 : https://myprint.gpvfrance.fr/products/60013-boite-de-500-enveloppes-blanches-dl-110x220-90-g-m2-fenetre-35x100-bande-de-protection-es35f110
 // Feuille A4 pliée à 99 et 198 mm. Vérification papier à 100 % indispensable.
@@ -27,8 +27,9 @@
   controle: false,
   body,
 ) = {
-  assert(options.paper == "a4" and not options.landscape,
-    message: "Le modèle pour enveloppe DL demande une page A4 en portrait.")
+  let window-layout = options.paper == "a4" and not options.landscape
+  assert(not controle or window-layout,
+    message: "Le contrôle du pliage DL demande une page A4 en portrait.")
   let labels = (
     fr: (postscript: "P.-S.", attachments: "P.J.", subject: "Objet", reference: "Référence", date-prefix: "le "),
     en: (postscript: "P.S.", attachments: "Enclosures", subject: "Subject", reference: "Reference", date-prefix: ""),
@@ -60,11 +61,12 @@
   // Le fond utilise les coordonnées de la feuille, indépendamment des marges.
   set page(
     paper: options.paper,
-    margin: (left: 25mm, right: 25mm, top: 25mm, bottom: 23mm),
+    flipped: options.landscape,
+    margin: if window-layout { (left: 25mm, right: 25mm, top: 25mm, bottom: 23mm) } else { 18mm },
     footer: context if counter(page).get().first() > 1 {
       align(center, text(size: 9pt, counter(page).display("1")))
     },
-    background: context if counter(page).get().first() == 1 {
+    background: context if window-layout and counter(page).get().first() == 1 {
       for y in (99mm, 198mm) {
         place(top + left, dx: 7mm, dy: y, line(length: 3mm, stroke: 0.3pt + luma(65%)))
       }
@@ -108,25 +110,33 @@
     set par(justify: false, leading: 0.35em)
     (destinataire, adresse).filter(it => it != "").join(linebreak())
   }
-  // Le texte reste dans la partie commune des positions de fenêtre, avec du jeu.
-  // Une adresse trop longue est signalée ; elle n'est ni coupée ni miniaturisée.
-  context {
-    for mot in (destinataire + " " + adresse).split(regex("\\s+")) {
-      assert(measure(text(size: 10.5pt, mot)).width <= 82mm,
-        message: "Un élément de l'adresse est trop large pour la fenêtre DL.")
+  if window-layout {
+    // Le texte reste dans la partie commune des positions de fenêtre, avec du jeu.
+    // Une adresse trop longue est signalée ; elle n'est ni coupée ni miniaturisée.
+    context {
+      for mot in (destinataire + " " + adresse).split(regex("\\s+")) {
+        assert(measure(text(size: 10.5pt, mot)).width <= 82mm,
+          message: "Un élément de l'adresse est trop large pour la fenêtre DL.")
+      }
+      assert(measure(block(width: 82mm, destinataire-bloc)).height <= 18mm,
+        message: "L'adresse dépasse la zone de la fenêtre DL : raccourcissez ses lignes ou choisissez un autre modèle.")
+      assert(measure(block(width: 70mm, coordonnees)).height <= 59mm,
+        message: "Les coordonnées dépassent l'en-tête du courrier : réduisez les champs facultatifs.")
     }
-    assert(measure(block(width: 82mm, destinataire-bloc)).height <= 18mm,
-      message: "L'adresse dépasse la zone de la fenêtre DL : raccourcissez ses lignes ou choisissez un autre modèle.")
-    assert(measure(block(width: 70mm, coordonnees)).height <= 59mm,
-      message: "Les coordonnées dépassent l'en-tête du courrier : réduisez les champs facultatifs.")
-  }
-  // Place est relatif au début de la zone de texte (25 mm depuis les bords).
-  place(top + left, block(width: 70mm, coordonnees))
-  place(top + left, dx: 79mm, dy: 33mm,
-    block(width: 82mm, height: 18mm, align(left + horizon, destinataire-bloc)))
+    // Place est relatif au début de la zone de texte (25 mm depuis les bords).
+    place(top + left, block(width: 70mm, coordonnees))
+    place(top + left, dx: 79mm, dy: 33mm,
+      block(width: 82mm, height: 18mm, align(left + horizon, destinataire-bloc)))
 
-  // Seul le premier feuillet réserve une grande zone pour les adresses.
-  v(63mm)
+    v(63mm)
+  } else {
+    // Les autres formats utilisent le flux normal : pas de coordonnées de fenêtre
+    // ni de repères de pliage, et pas de chevauchement sur une page A5.
+    block(width: 100%, coordonnees)
+    v(6mm)
+    align(right, block(width: 82mm, destinataire-bloc))
+    v(6mm)
+  }
   let datation = if date == "" { lieu } else {
     [#if lieu != "" { [#lieu, ] }#labels.date-prefix#format-date(date, lang: options.language)]
   }

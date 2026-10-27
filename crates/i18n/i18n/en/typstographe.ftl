@@ -769,4 +769,4 @@ web-heading-level = Heading level
 
 web-palette-no-results = No matching commands.
 
-web-fixed-page-policy = Paper size and orientation are set by the template.
+web-snapshot-document-replaced = The document has changed; start the operation again.

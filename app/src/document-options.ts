@@ -2,7 +2,7 @@ import { tr } from './i18n'
 import type { Catalogue, DocumentType } from './shell'
 import type { Settings } from './state'
 
-/** Compact general settings; fixed values and editable choices have distinct affordances. */
+/** General settings expose only options the active model lets the author change. */
 export function documentOptions(
   parent: HTMLElement,
   kind: DocumentType,
@@ -31,13 +31,9 @@ export function documentOptions(
     const select = document.createElement('select')
     select.id = title.htmlFor
     for (const item of items) select.add(new Option(item.label, item.value))
-    const fixed = document.createElement('output')
-    fixed.id = `${select.id}-fixed`
-    fixed.setAttribute('aria-describedby', 'document-page-policy')
-    fixed.hidden = true
-    control.append(select, fixed)
+    control.append(select)
     column.append(title, control)
-    return { select, fixed, title }
+    return { select, control, title }
   }
   const model = choice(
     left,
@@ -51,11 +47,6 @@ export function documentOptions(
     { value: 'true', label: tr('Paysage') },
   ])
   const language = choice(right, 'language', tr('Langue du document'), catalogue.languages)
-  const policy = document.createElement('p')
-  policy.id = 'document-page-policy'
-  policy.className = 'document-options-policy'
-  policy.textContent = tr('Format et orientation définis par le modèle.')
-  root.append(policy)
   parent.append(root)
   model.select.onchange = () => changeModel(model.select.value)
   paper.select.onchange = () => changeOption('paper', paper.select.value)
@@ -71,18 +62,13 @@ export function documentOptions(
     const page = kind.models.find((model) => model.id === current.modelId)?.fixedPage
     const options = current.metadata.fields.options
     for (const [control, value] of [
-      [paper, String(page?.paper ?? options.paper)],
-      [orientation, String(page?.landscape ?? options.landscape)],
+      [paper, String(options.paper)],
+      [orientation, String(options.landscape)],
     ] as const) {
       if (control.select.value !== value) control.select.value = value
-      control.select.hidden = !!page
+      control.title.hidden = control.control.hidden = !!page
       control.select.disabled = !!page
-      control.fixed.hidden = !page
-      const label = control.select.selectedOptions[0]?.label || value
-      if (control.fixed.value !== label) control.fixed.value = label
-      control.title.htmlFor = page ? control.fixed.id : control.select.id
     }
-    policy.hidden = !page
     if (language.select.value !== String(options.language))
       language.select.value = String(options.language)
   }

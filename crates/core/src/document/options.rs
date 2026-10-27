@@ -15,7 +15,7 @@ pub enum PaperFormat {
     Legal,
 }
 impl PaperFormat {
-    pub const ALL: [Self; 5] = [Self::A3, Self::A4, Self::A5, Self::Letter, Self::Legal];
+    pub const ALL: [Self; 5] = [Self::A4, Self::A5, Self::Letter, Self::Legal, Self::A3];
     pub fn typst_name(self) -> &'static str {
         match self {
             Self::A3 => "a3",

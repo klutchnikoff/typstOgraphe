@@ -772,4 +772,4 @@ web-heading-level = Niveau de titre
 
 web-palette-no-results = Aucune commande ne correspond.
 
-web-fixed-page-policy = Format et orientation définis par le modèle.
+web-snapshot-document-replaced = Le document a changé ; recommencez l’opération.

@@ -29,10 +29,7 @@ fn model_catalogue_is_type_driven_pure_and_keeps_the_existing_preset_identity() 
     assert_eq!(value["models"].as_array().unwrap().len(), 1);
     assert_eq!(value["models"][0]["id"], "courrier.model.personal");
     assert_eq!(value["models"][0]["active"], true);
-    assert_eq!(
-        value["models"][0]["fixed_page"],
-        json!({"paper":"a4","landscape":false})
-    );
+    assert!(value["models"][0]["fixed_page"].is_null());
     assert!(e.stored_document() == before);
     assert!(e.session.undo.is_empty() && e.session.redo.is_empty() && !e.is_dirty());
     e.session.metadata = Metadata::blank(DocumentType::CompteRendu);
@@ -113,8 +110,8 @@ fn preset_and_generic_source_share_page_defaults_and_reset_only_the_marker_on_ch
     preset(&mut alias).unwrap();
     install(&mut generic, &Model::Personal.source()).unwrap();
     assert!(alias.stored_document() == generic.stored_document());
-    assert_eq!(alias.session.metadata.options().paper, PaperFormat::A4);
-    assert!(!alias.session.metadata.options().landscape);
+    assert_eq!(alias.session.metadata.options().paper, PaperFormat::A3);
+    assert!(alias.session.metadata.options().landscape);
     assert!(alias.session.metadata.options().bullet_marker.is_none());
     assert_eq!(
         alias.session.metadata.options().language,
