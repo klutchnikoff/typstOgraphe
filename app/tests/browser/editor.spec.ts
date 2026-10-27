@@ -107,6 +107,26 @@ test('deux vues fusionnent hors ligne, annulation locale, sauvegarde et commande
   await expect(page.locator('.tiptap')).toContainText(`CAMILLE-${token}`)
   await page.getByRole('button', { name: 'Essai Rust', exact: true }).click()
   await expect(peer.locator('.tiptap')).toContainText('Cette phrase a été préparée depuis Rust')
+  // Seeing the sentence does not yet acknowledge the remote whitespace repair.
+  // Save a converged checkpoint; strict revision checks reject concurrent edits.
+  await expect
+    .poll(async () => {
+      await Promise.all(
+        [page, peer].map((view) => view.evaluate(() => window.__spike!.provider.flush())),
+      )
+      const states = await Promise.all(
+        [page, peer].map((view) =>
+          view.evaluate(() =>
+            JSON.stringify({
+              revision: window.__spike!.provider.revision,
+              document: window.__spike!.editor.getJSON(),
+            }),
+          ),
+        ),
+      )
+      return states[0] === states[1]
+    })
+    .toBe(true)
   await page.getByRole('button', { name: 'Fichier', exact: true }).click()
   await page.locator('[data-command="document.save"]').click()
   await expect(page.locator('#message')).toContainText('Session enregistrée', { timeout: 30_000 })
