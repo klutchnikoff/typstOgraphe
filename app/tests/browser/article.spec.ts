@@ -85,6 +85,10 @@ test('Article : champs riches, auteurs partagés, langues, annulation et fichier
   await abstract.press('ControlOrMeta+z')
   await expect(abstract.locator('em')).toHaveCount(0)
   await expect(abstract).toBeFocused()
+  await abstract.press('ControlOrMeta+Shift+z')
+  await expect(abstract.locator('em')).not.toHaveCount(0)
+  await abstract.press('ControlOrMeta+z')
+  await expect(abstract.locator('em')).toHaveCount(0)
   // The shared link band edits this rich zone, preserving its text and selection.
   await abstract.press('ControlOrMeta+k')
   const link = page.locator('#metadata-content .context-band:not([hidden])')

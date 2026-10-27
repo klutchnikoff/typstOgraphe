@@ -108,7 +108,8 @@ exportée comme une valeur vide. Sans lieu, le modèle Courrier personnel prése
 la date avec une majuscule initiale (« Le 19 janvier 1875 »), et conserve la
 minuscule après le lieu (« Paris, le 19 janvier 1875 »).
 Les paramètres et les valeurs suivent les sauvegardes et exports
-habituels. Les zones riches des futurs types, comme un résumé, restent à réaliser.
+habituels. Le type Article utilise des zones riches pour ses titres et résumés ;
+leur création et leurs règles sont décrites dans le [contrat des zones riches](../docs/rich-zones.md).
 
 Le modèle Courrier personnel laisse choisir A4 (défaut), A5, Lettre US, Legal US
 et A3, en portrait ou paysage. La disposition pour enveloppe DL et ses repères de

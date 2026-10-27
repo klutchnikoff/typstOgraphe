@@ -96,7 +96,9 @@ Le résumé possède une zone riche, avec gras, italique et liens via le bandeau
 commun. Les mots-clés sont saisis un par ligne, y compris les expressions longues.
 
 Les collections sont décrites en Rust, traduites par Fluent et présentées par des
-composants génériques. Dans Yjs, chaque enregistrement possède ses champs propres :
+composants génériques. Les [profils de zones riches](rich-zones.md) centralisent
+la création, le schéma et les comportements de saisie des titres et résumés.
+Dans Yjs, chaque enregistrement possède ses champs propres :
 `Y.Text` pour les textes libres, `Y.XmlFragment` pour les zones riches, valeurs
 atomiques pour les booléens, langues, mots-clés et listes d’associations. L’ordre
 est séparé des identités. Les éditions de texte et de champs distincts fusionnent ;
