@@ -1,7 +1,7 @@
-import { Editor, Extension } from '@tiptap/core'
-import { ySyncPlugin, yUndoPluginKey } from '@tiptap/y-tiptap'
+import type { Editor } from '@tiptap/core'
+import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import * as Y from 'yjs'
-import { editorialExtensions } from './editorial-schema'
+import { createRichZone, richZoneProfiles, type EditorialProfile } from './rich-zone'
 import { BandHost } from './band-layout'
 import { propertyPanel } from './properties'
 import { icon } from './icons'
@@ -14,11 +14,12 @@ export function metadataRich(
   parent: HTMLElement,
   label: string,
   fragment: Y.XmlFragment,
-  inline: boolean,
+  profile: EditorialProfile,
   main: Editor,
   catalogue: Catalogue,
   language: string,
 ) {
+  const inline = !richZoneProfiles[profile].multiline
   const root = document.createElement('div')
   root.className = `metadata-rich ${inline ? 'metadata-rich-inline' : ''}`
   const heading = document.createElement('div')
@@ -63,57 +64,14 @@ export function metadataRich(
         button.disabled = current.state.selection.empty && !current.isActive('link')
     }
   }
-  const sharedHistory = (redo = false) => {
-    history?.stopCapturing()
-    if (redo) history?.redo()
-    else history?.undo()
-    return true
-  }
-  editor = new Editor({
+  editor = createRichZone({
+    profile,
     element: input,
-    extensions: [
-      ...editorialExtensions(inline),
-      Extension.create({
-        name: 'editorialSharedDocument',
-        addProseMirrorPlugins: () => [ySyncPlugin(fragment)],
-        addKeyboardShortcuts: () => ({
-          'Mod-k': () => {
-            if (editor.state.selection.empty && !editor.isActive('link')) return true
-            properties.open(editor.state.selection.from, 'link')
-            return true
-          },
-          'Mod-z': () => sharedHistory(),
-          'Mod-Shift-z': () => sharedHistory(true),
-          'Mod-y': () => sharedHistory(true),
-        }),
-      }),
-    ],
-    editorProps: {
-      attributes: {
-        role: 'textbox',
-        'aria-label': label,
-        'aria-multiline': String(!inline),
-        lang: language,
-        spellcheck: 'false',
-        autocorrect: 'off',
-      },
-      handleKeyDown: (_view, event) => {
-        if (
-          !event.isComposing &&
-          (event.ctrlKey || event.metaKey) &&
-          event.key === 'Enter' &&
-          editor.isActive('link')
-        ) {
-          event.preventDefault()
-          properties.open(editor.state.selection.from, 'link')
-          return true
-        }
-        return false
-      },
-    },
+    label,
+    language,
+    binding: { kind: 'fragment', fragment, historyOwner: main },
+    openLink: (zone) => properties.open(zone.state.selection.from, 'link'),
     onTransaction: ({ editor: current }) => refresh(current),
-    onFocus: () => history?.stopCapturing(),
-    onBlur: () => history?.stopCapturing(),
   })
   const bands = new BandHost(editor, parent.closest<HTMLElement>('#metadata-content')!, input, main)
   properties = propertyPanel(editor, bands, catalogue, () => {}, `metadata-${crypto.randomUUID()}-`)

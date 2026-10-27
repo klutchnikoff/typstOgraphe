@@ -1,11 +1,10 @@
 import { actionRow } from './keyboard-navigation'
 import { tr } from './i18n'
 import { icon } from './icons'
-import { Editor, type JSONContent } from '@tiptap/core'
-import Collaboration from '@tiptap/extension-collaboration'
+import { type Editor, type JSONContent } from '@tiptap/core'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import * as Y from 'yjs'
-import { baseExtensions } from './extensions'
+import { createRichZone } from './rich-zone'
 import { proposalPreview, proposalDetails } from './proposal-preview'
 import type { Provider, Transport } from './provider'
 interface Proposal {
@@ -20,12 +19,12 @@ interface Proposal {
 export function prepareProposal(provider: Provider, stages: JSONContent[]): Uint8Array {
   const draft = new Y.Doc()
   Y.applyUpdate(draft, Y.encodeStateAsUpdate(provider.doc))
-  const editor = new Editor({
+  const editor = createRichZone({
+    profile: 'document',
     element: document.createElement('div'),
-    extensions: [
-      ...baseExtensions((path) => provider.imageURL(path)),
-      Collaboration.configure({ document: draft, field: 'default' }),
-    ],
+    label: tr('Proposition'),
+    imageURL: (path) => provider.imageURL(path),
+    binding: { kind: 'document', document: draft },
   })
   try {
     for (const stage of stages) {

@@ -1,12 +1,12 @@
 import { generateHTML, type JSONContent } from '@tiptap/core'
-import { baseExtensions } from './extensions'
+import { richZoneExtensions } from './rich-zone'
 import { tr } from './i18n'
 
 /** Read-only semantic content; no editable views or widget controls. */
 export function proposalPreview(node: JSONContent, imageURL: (path: string) => string) {
   const result = document.createElement('div')
   result.className = 'proposal-text ProseMirror'
-  result.innerHTML = generateHTML(node, baseExtensions(imageURL))
+  result.innerHTML = generateHTML(node, richZoneExtensions('document', { imageURL }))
   for (const note of result.querySelectorAll<HTMLElement>('[data-footnote]'))
     note.textContent = `${tr('Note de bas de page')} : ${note.dataset.footnote || ''}`
   result.addEventListener('click', (event) => {

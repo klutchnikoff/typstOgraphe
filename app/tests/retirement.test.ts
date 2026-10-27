@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { Editor, type JSONContent } from '@tiptap/core'
-import { baseExtensions } from '../src/extensions'
+import { richZoneExtensions } from '../src/rich-zone'
 import { proposalDetails, proposalPreview } from '../src/proposal-preview'
 import { preferencesPanel, type Preferences } from '../src/preferences-panel'
 import { recoveryPanel } from '../src/recovery-panel'
@@ -54,7 +54,7 @@ it('rend les styles, notes, liens et ressources dans la relecture, sans interpr�
 })
 it('navigue en boucle sans cumuler les sélections, en gardant les autres occurrences marquées', () => {
   const editor = new Editor({
-    extensions: baseExtensions(() => ''),
+    extensions: richZoneExtensions('document'),
     content: paragraph('été été été'),
   })
   editors.push(editor)

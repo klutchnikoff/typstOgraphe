@@ -15,7 +15,7 @@ const emptyFlowBlock = (node: PMNode | null | undefined) =>
   node.content.content.every((child) => lineBreak(child))
 
 /** Repair whitespace without rewriting text, marks, annotations, list items or cells. */
-export function normalizeWhitespace(tr: Transaction) {
+export function normalizeWhitespace(tr: Transaction, trailingParagraph = true) {
   // Keep an empty document editable, including a heading chosen before typing.
   if (tr.doc.content.content.some((node) => !emptyFlowBlock(node)))
     while (emptyFlowBlock(tr.doc.firstChild)) tr.delete(0, tr.doc.firstChild!.nodeSize)
@@ -61,7 +61,10 @@ export function normalizeWhitespace(tr: Transaction) {
   if (emptyParagraph(last) && previous?.type.name === 'paragraph' && lineBreak(previous.lastChild))
     tr.delete(tr.doc.content.size - last!.nodeSize, tr.doc.content.size)
   const end = tr.doc.lastChild
-  if (end?.type.name !== 'paragraph' || (end.content.size > 0 && !lineBreak(end.lastChild)))
+  if (
+    trailingParagraph &&
+    (end?.type.name !== 'paragraph' || (end.content.size > 0 && !lineBreak(end.lastChild)))
+  )
     tr.insert(tr.doc.content.size, tr.doc.type.schema.nodes.paragraph.create())
   return tr
 }
@@ -71,6 +74,7 @@ function normalizeSharedWhitespace(
   root: Y.XmlFragment,
   origin: unknown = documentWhitespaceKey,
   addToHistory = false,
+  trailingParagraph = true,
 ) {
   const isBreak = (node: unknown) =>
     node instanceof Y.XmlElement && ['softBreak', 'hardBreak'].includes(node.nodeName)
@@ -138,13 +142,15 @@ function normalizeSharedWhitespace(
       )
     if (empty(last) && endingBreak(previous)) root.delete(root.length - 1, 1)
     const end = root.toArray().at(-1)
-    if (!empty(end) && !endingBreak(end)) root.insert(root.length, [new Y.XmlElement('paragraph')])
+    if (trailingParagraph && !empty(end) && !endingBreak(end))
+      root.insert(root.length, [new Y.XmlElement('paragraph')])
   }, origin)
 }
 
 /** Keep local repairs in the same undo capture; preserve shared character identities on remote repairs. */
 export const DocumentWhitespace = Extension.create({
   name: 'documentWhitespace',
+  addOptions: () => ({ trailingParagraph: true }),
   addStorage: () => ({
     checked: false,
     repairing: false,
@@ -163,7 +169,13 @@ export const DocumentWhitespace = Extension.create({
         this.storage.timer = undefined
         if (!this.editor.isDestroyed && !this.editor.view.composing) {
           const shared = ySyncPluginKey.getState(this.editor.state)
-          if (shared) normalizeSharedWhitespace(shared.type)
+          if (shared)
+            normalizeSharedWhitespace(
+              shared.type,
+              documentWhitespaceKey,
+              false,
+              this.options.trailingParagraph,
+            )
         }
       }, 0)
       return
@@ -178,9 +190,10 @@ export const DocumentWhitespace = Extension.create({
             shared.type,
             ySyncPluginKey,
             transaction.getMeta('addToHistory') !== false,
+            this.options.trailingParagraph,
           )
         else {
-          const repair = normalizeWhitespace(this.editor.state.tr)
+          const repair = normalizeWhitespace(this.editor.state.tr, this.options.trailingParagraph)
           if (transaction.getMeta('addToHistory') === false) repair.setMeta('addToHistory', false)
           if (repair.docChanged) next(repair)
         }

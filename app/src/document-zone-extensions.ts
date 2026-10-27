@@ -5,40 +5,27 @@ import {
   textblockTypeInputRule,
   type Extensions,
 } from '@tiptap/core'
-import StarterKit from '@tiptap/starter-kit'
 import { ListItem } from '@tiptap/extension-list'
 import { TableKit, Table, TableView } from '@tiptap/extension-table'
-import Collaboration from '@tiptap/extension-collaboration'
-import Caret from '@tiptap/extension-collaboration-caret'
-import type { Provider } from './provider'
 import { simpleWidgets } from './widgets'
 import { widgetFrame, type WidgetPresentations } from './widget-frame'
 import { tr } from './i18n'
 import { Proofing } from './proofing'
-import { DocumentInput, SoftBreak, TypstInlineInput } from './editing'
-import { DocumentWhitespace } from './document-whitespace'
-import { ContextBand } from './band-layout'
 import { inlineObjectView } from './inline-objects'
 import { InlineObjectNumbering, inlineObjectNumber } from './inline-object-numbering'
 import { InlineObjectFocus } from './inline-object-focus'
 
-export function baseExtensions(
+export function documentExtensions(
   imageURL: (path: string) => string,
   properties: (pos: number, kind: string, remove?: boolean) => void = () => {},
   presentations: WidgetPresentations = {},
 ): Extensions {
   const extensions: Extensions = [
     Proofing,
-    ContextBand,
-    DocumentInput,
-    DocumentWhitespace,
     InlineObjectNumbering.configure({ kinds: ['footnote'] }),
     InlineObjectFocus,
     ListItem.extend({ content: 'paragraph+' }),
     ...simpleWidgets(properties, presentations),
-    // Comme dans l'éditeur existant : une fin de ligne reste dans le paragraphe.
-    SoftBreak,
-    TypstInlineInput,
     Extension.create({
       name: 'paragraphInput',
       priority: 1000,
@@ -53,20 +40,6 @@ export function baseExtensions(
           ),
         ]
       },
-    }),
-    StarterKit.configure({
-      undoRedo: false,
-      trailingNode: false,
-      bulletList: false,
-      listItem: false,
-      orderedList: false,
-      heading: { levels: [1, 2, 3] },
-      blockquote: false,
-      code: false,
-      codeBlock: false,
-      strike: false,
-      horizontalRule: false,
-      link: { openOnClick: false },
     }),
     TableKit.configure({ table: false }),
     Table.extend({
@@ -194,22 +167,4 @@ export function baseExtensions(
       },
     })
   })
-}
-
-export async function collaborativeExtensions(
-  provider: Provider,
-  properties: (pos: number, kind: string, remove?: boolean) => void,
-  presentations: WidgetPresentations = {},
-): Promise<Extensions> {
-  return [
-    ...baseExtensions((path) => provider.imageURL(path), properties, presentations),
-    Collaboration.configure({ document: provider.doc, field: 'default' }),
-    Caret.configure({
-      provider,
-      user: {
-        name: provider.id === 'main' ? 'Camille' : 'Alex',
-        color: provider.id === 'main' ? '#286b91' : '#99733b',
-      },
-    }),
-  ]
 }

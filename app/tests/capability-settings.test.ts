@@ -3,7 +3,7 @@ import { Editor } from '@tiptap/core'
 import type { Capability } from '../src/commands'
 import { hasSettings, settingsForNode } from '../src/capability-settings'
 import { ParameterFields } from '../src/parameter-fields'
-import { baseExtensions } from '../src/extensions'
+import { richZoneExtensions } from '../src/rich-zone'
 import { widgetPresentations } from '../src/widget-frame'
 
 function capability(node: string, parameters: Capability['parameters'] = {}): Capability {
@@ -92,7 +92,7 @@ it('un nouveau champ du contrat traverse formulaire, attribut de nœud et séria
   const presentation = widgetPresentations([contract])
   const editor = new Editor({
     element: document.createElement('div'),
-    extensions: baseExtensions(() => '', undefined, presentation),
+    extensions: richZoneExtensions('document', { presentations: presentation }),
     content: {
       type: 'doc',
       content: [{ type: 'quote', content: [{ type: 'paragraph' }, { type: 'quoteAttribution' }] }],

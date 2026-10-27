@@ -3,6 +3,7 @@ import type { Provider } from './provider'
 import type { Catalogue } from './shell'
 import { metadataSection } from './metadata-fields'
 import { metadataRich } from './metadata-rich'
+import { richFieldProfile } from './rich-zone'
 import { contextPanel } from './context-panel'
 import { actionRow, navigationGroup } from './keyboard-navigation'
 import { icon } from './icons'
@@ -86,7 +87,7 @@ export function metadataCollections(
         row,
         field.label,
         record.get(field.key) as Y.XmlFragment,
-        field.kind === 'rich_inline',
+        richFieldProfile(field.kind),
         main,
         catalogue,
         String(record.get(definition.language_key || '') || language()),

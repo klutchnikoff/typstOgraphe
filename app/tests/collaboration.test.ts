@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { Editor, getSchema } from '@tiptap/core'
 import { prosemirrorJSONToYDoc, yUndoPluginKey } from '@tiptap/y-tiptap'
 import * as Y from 'yjs'
-import { baseExtensions, collaborativeExtensions } from '../src/extensions'
+import { createRichZone, richZoneExtensions } from '../src/rich-zone'
 import {
   Provider,
   stableJSON,
@@ -71,16 +71,18 @@ afterEach(() => {
 async function client(host: Host, id: string) {
   const provider = new Provider(id, host.transport(id))
   cleanup.push(() => provider.destroy())
-  const schema = getSchema(baseExtensions(() => ''))
+  const schema = getSchema(richZoneExtensions('document'))
   await provider.start((content) => {
     const seed = prosemirrorJSONToYDoc(schema, content, 'default')
     const update = Y.encodeStateAsUpdate(seed)
     seed.destroy()
     return update
   })
-  const editor = new Editor({
+  const editor = createRichZone({
+    profile: 'document',
+    label: 'Corps',
     element: document.createElement('div'),
-    extensions: await collaborativeExtensions(provider, () => {}),
+    binding: { kind: 'document', document: provider.doc, presence: provider },
   })
   if (!editor.isInitialized)
     await new Promise<void>((resolve) => editor.once('create', () => resolve()))
@@ -326,7 +328,7 @@ describe('deux éditeurs structurés et deux Y.Doc indépendants', () => {
     const host = new Host(),
       a = await client(host, 'main')
     const html = a.editor.getHTML()
-    const plain = new Editor({ extensions: baseExtensions(() => ''), content: html })
+    const plain = new Editor({ extensions: richZoneExtensions('document'), content: html })
     cleanup.push(() => plain.destroy())
     expect(stableJSON(plain.getJSON())).toBe(stableJSON(a.editor.getJSON()))
   })

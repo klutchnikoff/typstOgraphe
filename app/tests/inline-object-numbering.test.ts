@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from 'vitest'
 import { Editor, type JSONContent } from '@tiptap/core'
-import { baseExtensions } from '../src/extensions'
+import { richZoneExtensions } from '../src/rich-zone'
 import { inlineObjectNumberingKey } from '../src/inline-object-numbering'
 
 const editors: Editor[] = []
@@ -18,7 +18,7 @@ function create() {
   document.body.append(element)
   const editor = new Editor({
     element,
-    extensions: baseExtensions(() => ''),
+    extensions: richZoneExtensions('document'),
     content: {
       type: 'doc',
       content: [

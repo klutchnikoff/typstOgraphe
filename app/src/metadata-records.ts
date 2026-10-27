@@ -5,7 +5,7 @@ import {
   yXmlFragmentToProsemirrorJSON,
   ySyncPluginKey,
 } from '@tiptap/y-tiptap'
-import { editorialExtensions } from './editorial-schema'
+import { richZoneExtensions, richFieldProfile } from './rich-zone'
 import type { Provider } from './provider'
 
 export interface RecordField {
@@ -70,7 +70,7 @@ function insert(provider: Provider, definition: RecordCollection, value: RecordD
       const fragment = new Y.XmlFragment()
       record.set(field.key, fragment)
       prosemirrorJSONToYXmlFragment(
-        getSchema(editorialExtensions(field.kind === 'rich_inline')),
+        getSchema(richZoneExtensions(richFieldProfile(field.kind))),
         current,
         fragment,
       )

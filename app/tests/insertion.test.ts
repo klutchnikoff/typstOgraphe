@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { Editor, type JSONContent } from '@tiptap/core'
 import { createTable } from '@tiptap/extension-table'
-import { baseExtensions } from '../src/extensions'
+import { richZoneExtensions } from '../src/rich-zone'
 import { insertBlock, listContent, canInsertBlock } from '../src/editing'
 
 const editors: Editor[] = []
@@ -11,7 +11,7 @@ afterEach(() => {
 function editor(content: string | JSONContent, pos = 1) {
   const value = new Editor({
     element: document.createElement('div'),
-    extensions: baseExtensions(() => ''),
+    extensions: richZoneExtensions('document'),
     content,
   })
   editors.push(value)

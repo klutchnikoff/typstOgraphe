@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { Editor, Node } from '@tiptap/core'
 import { NodeSelection } from '@tiptap/pm/state'
-import { baseExtensions } from '../src/extensions'
+import { richZoneExtensions } from '../src/rich-zone'
 import { inlineObjectKey, inlineObjectTarget } from '../src/inline-objects'
 import { correctionAtCursor, proofingKey } from '../src/proofing'
 
@@ -11,7 +11,7 @@ function create(kind = 'footnote') {
   const editor = new Editor({
     element: document.createElement('div'),
     extensions: [
-      ...baseExtensions(() => ''),
+      ...richZoneExtensions('document'),
       Node.create({
         name: 'futureReference',
         group: 'inline',

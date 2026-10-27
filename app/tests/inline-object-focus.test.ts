@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from 'vitest'
 import { Editor, Node } from '@tiptap/core'
-import { baseExtensions } from '../src/extensions'
+import { richZoneExtensions } from '../src/rich-zone'
 import { activeInlineObject } from '../src/inline-object-focus'
 
 const editors: Editor[] = []
@@ -9,7 +9,7 @@ function create(kind: string) {
   const editor = new Editor({
     element: document.createElement('div'),
     extensions: [
-      ...baseExtensions(() => ''),
+      ...richZoneExtensions('document'),
       Node.create({
         name: 'futureCitation',
         group: 'inline',

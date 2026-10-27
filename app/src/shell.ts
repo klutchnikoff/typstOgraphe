@@ -18,6 +18,7 @@ import { welcomeBrand } from './welcome-brand'
 import { recoveryPanel } from './recovery-panel'
 import type { StructuredMetadata } from './metadata-records'
 import { metadataCollections } from './metadata-collections'
+import { richZoneOwnsShortcut } from './rich-zone'
 import { metadataFields, metadataSection, refreshMetadataFields } from './metadata-fields'
 import { documentOptions } from './document-options'
 import { withCurrentSnapshot } from './snapshot-operation'
@@ -773,20 +774,7 @@ export async function mountShell(s: Shell) {
         if (command.shortcut === key && command.enabled?.() !== false) {
           // Named rich zones own their text shortcuts and share the same undo owner.
           // Let their editor receive the key instead of focusing the document body.
-          if (
-            event.target instanceof Element &&
-            event.target.closest('.metadata-rich') &&
-            [
-              'history.undo',
-              'history.redo',
-              'text.bold',
-              'text.italic',
-              'text.link',
-              'context.open',
-              'block.remove',
-            ].includes(command.id)
-          )
-            return
+          if (richZoneOwnsShortcut(event.target, command.id)) return
           if (
             (event.target instanceof HTMLInputElement ||
               event.target instanceof HTMLTextAreaElement) &&

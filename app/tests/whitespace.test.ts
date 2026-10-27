@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from 'vitest'
 import { Editor } from '@tiptap/core'
-import { baseExtensions } from '../src/extensions'
+import { richZoneExtensions } from '../src/rich-zone'
 import { documentWhitespaceKey, normalizeWhitespace } from '../src/document-whitespace'
 
 const editors: Editor[] = []
@@ -8,7 +8,7 @@ afterEach(() => editors.splice(0).forEach((editor) => editor.destroy()))
 function create(html: string) {
   const editor = new Editor({
     element: document.createElement('div'),
-    extensions: baseExtensions(() => ''),
+    extensions: richZoneExtensions('document'),
     content: html,
   })
   editors.push(editor)

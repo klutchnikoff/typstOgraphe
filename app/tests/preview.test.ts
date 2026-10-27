@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { Editor } from '@tiptap/core'
-import { baseExtensions } from '../src/extensions'
+import { richZoneExtensions } from '../src/rich-zone'
 import { previewController } from '../src/preview'
 import type { Provider, Transport } from '../src/provider'
 
@@ -27,7 +27,10 @@ const result = (revision: number, pages = ['new']) => ({
 beforeEach(() => {
   vi.useFakeTimers()
   document.body.innerHTML = '<div id="pages"><img src="old" alt="Ancien aperçu"></div>'
-  editor = new Editor({ extensions: baseExtensions(() => ''), content: '<p>Test du rendu</p>' })
+  editor = new Editor({
+    extensions: richZoneExtensions('document'),
+    content: '<p>Test du rendu</p>',
+  })
   provider = { revision: 1, generation: 'document-a' } as Provider
   version = 1
   decode = vi.fn(() => Promise.resolve())

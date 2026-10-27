@@ -1,5 +1,5 @@
 import { initializeUI, tr } from './i18n'
-import { Editor, getSchema, type JSONContent } from '@tiptap/core'
+import { type Editor, getSchema, type JSONContent } from '@tiptap/core'
 import { EditorState } from '@tiptap/pm/state'
 import { normalizeWhitespace } from './document-whitespace'
 import { prosemirrorJSONToYDoc, yUndoPluginKey } from '@tiptap/y-tiptap'
@@ -7,10 +7,10 @@ import * as Y from 'yjs'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
-import { baseExtensions, collaborativeExtensions } from './extensions'
+import { createRichZone, richZoneExtensions } from './rich-zone'
 import { Provider, stableJSON, ACCEPTED_PROPOSAL, type Resource, type Transport } from './provider'
 import { createRegistry, toolbar, refreshCommands, type Registry } from './commands'
-import { widgetKey, widgetTarget, removeWidget } from './widgets'
+import { widgetTarget, removeWidget } from './widgets'
 import { openCorrection, correctionAtCursor } from './proofing'
 import { widgetPresentations } from './widget-frame'
 import { hasSettings, settingsForNode } from './capability-settings'
@@ -24,7 +24,7 @@ import { installMenus } from './menus'
 import { BandHost } from './band-layout'
 import { propertyPanel } from './properties'
 import { insertBlock } from './editing'
-import { inlineObjectKey, inlineObjectTarget } from './inline-objects'
+import { inlineObjectTarget } from './inline-objects'
 import { activeInlineObject } from './inline-object-focus'
 import './style.css'
 
@@ -320,7 +320,7 @@ async function start() {
   document.querySelector('.preview-title strong')!.textContent = tr('Aperçu Typst')
   const presentations = widgetPresentations(contentCatalogue.entries)
   const schema = getSchema(
-    baseExtensions((path) => provider.imageURL(path), undefined, presentations),
+    richZoneExtensions('document', { imageURL: (path) => provider.imageURL(path), presentations }),
   )
   const bootstrap = await provider.start((fixture) => {
     const seed = prosemirrorJSONToYDoc(schema, fixture, 'default')
@@ -328,31 +328,16 @@ async function start() {
     seed.destroy()
     return update
   })
-  editor = new Editor({
+  editor = createRichZone({
+    profile: 'document',
     element: element('editor'),
-    extensions: await collaborativeExtensions(provider, openProperties, presentations),
-    editorProps: {
-      attributes: {
-        'aria-label': tr('Corps du document'),
-        role: 'textbox',
-        'aria-multiline': 'true',
-        // Spellbook owns document underlines. Keep native services available
-        // on explicit request, without a second checker or silent replacements.
-        spellcheck: 'false',
-        autocorrect: 'off',
-      },
-      handleKeyDown: (_view, event) => {
-        if (event.isComposing || editor.view.composing) return false
-        if (inlineObjectKey(editor, event, openProperties)) return true
-        if (widgetKey(editor, event)) return true
-        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-          event.preventDefault()
-          openContext()
-          return true
-        }
-        return false
-      },
-    },
+    label: tr('Corps du document'),
+    imageURL: (path) => provider.imageURL(path),
+    properties: openProperties,
+    presentations,
+    binding: { kind: 'document', document: provider.doc, presence: provider },
+    openLink: (zone) => openProperties(zone.state.selection.from, 'link'),
+    openContext: () => openContext(),
     onTransaction: ({ transaction }) => {
       refresh()
     },
