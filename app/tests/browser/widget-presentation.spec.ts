@@ -124,10 +124,10 @@ test('citation : paramètres indisponibles, filet intérieur et attribution à g
     }
     await page.keyboard.press('Control+Shift+P')
     await page
-      .getByRole('textbox', { name: 'Rechercher une commande', exact: true })
+      .getByRole('combobox', { name: 'Rechercher une commande', exact: true })
       .fill('Paramètres')
     await expect(
-      page.getByRole('button', { name: 'Paramètres · Mod+Enter', exact: true }),
+      page.getByRole('option', { name: 'Paramètres · Mod+Enter', exact: true }),
     ).toBeDisabled()
     await page.keyboard.press('Escape')
     await expect(page.locator('.tiptap')).toBeFocused()

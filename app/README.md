@@ -88,3 +88,6 @@ la navigation avec Haut/Bas ; la commande active est mise en évidence et la
 liste défile sans masquer la recherche. Entrée lance la commande active,
 Échap ferme le panneau et rend le focus à l’éditeur. Les commandes indisponibles
 sont ignorées par les flèches. Tab conserve son rôle de déplacement du focus.
+
+Le [contrat de navigation clavier](../docs/keyboard-navigation.md) décrit les
+composants communs des listes, menus, formulaires et bandeaux.

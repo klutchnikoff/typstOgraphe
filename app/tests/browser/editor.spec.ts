@@ -283,7 +283,7 @@ test('capacités reprises, recherche exacte et sélection synchronisée avec le 
   })
   await expect(page.locator('#pages svg polygon').first()).toBeVisible({ timeout: 30000 })
   await page.getByRole('button', { name: 'Rechercher', exact: true }).click()
-  await page.getByRole('searchbox', { name: 'Rechercher', exact: true }).fill('bonjour')
+  await page.getByRole('combobox', { name: 'Rechercher', exact: true }).fill('bonjour')
   await expect(page.locator('.search-hit')).toHaveCount(2)
   await page.locator('.search-hit').last().click()
   expect(
@@ -418,6 +418,8 @@ test('listes au clavier et dans la barre d’outils, bascule et sortie du widget
       e.commands.clearContent()
       e.commands.focus('start')
     })
+    // Tiptap schedules native focus on the next frame; do not type into the old menu.
+    await expect(page.locator('.tiptap')).toBeFocused()
     await page.keyboard.type(prefix + 'Un')
     await expect(page.locator(`.widget-${kind} li`)).toHaveText('Un')
     await page.keyboard.press('Enter')

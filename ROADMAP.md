@@ -215,6 +215,8 @@ export autonomes, compilables sans téléchargement de paquets.
   sélection, correction, insertion, sauvegarde et export.
 - Achever l’harmonisation des widgets et bandeaux : même cadre et mêmes règles
   de focus, validation, annulation et suppression ; contenus spécifiques par capacité.
+- Étendre le [contrat clavier commun](docs/keyboard-navigation.md) aux nouveaux
+  contrôles via leurs générateurs : listes, menus, boutons, formulaires et bandeaux.
 - Renforcer les parcours clavier, les lecteurs d’écran, les contrastes, l’IME,
   les petits écrans et les états sans document ou sans résultat.
 - Maquetter les deux accès validés **Projets** (catalogue global) et **Document**
