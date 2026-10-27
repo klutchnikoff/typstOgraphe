@@ -772,3 +772,4 @@ web-heading-level = Heading level
 web-palette-no-results = No matching commands.
 
 web-snapshot-document-replaced = The document has changed; start the operation again.
+web-clear-date = Clear date

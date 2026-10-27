@@ -1,4 +1,5 @@
 import { tr } from './i18n'
+import { icon } from './icons'
 import type { Field, MetadataGroup } from './shell'
 
 type Section = MetadataGroup['sections'][number]
@@ -33,7 +34,10 @@ function metadataControl(definition: Field, value: string, change: ChangeField) 
   if (input instanceof HTMLInputElement) input.type = definition.kind === 'date' ? 'date' : 'text'
   if (input instanceof HTMLTextAreaElement) input.rows = 3
   input.value = value
-  input.oninput = () => change(definition.field, input.value)
+  input.oninput = () => {
+    refreshMetadataActions(input)
+    change(definition.field, input.value)
+  }
   controls.append(input)
   if (definition.kind === 'date') {
     controls.classList.add('metadata-date-controls')
@@ -46,6 +50,21 @@ function metadataControl(definition: Field, value: string, change: ChangeField) 
       change(definition.field, date)
     }
     controls.append(today)
+    if (!definition.required_for_export) {
+      const clear = document.createElement('button')
+      clear.type = 'button'
+      clear.className = 'metadata-date-clear'
+      clear.title = tr('Supprimer la date')
+      clear.setAttribute('aria-label', clear.title)
+      clear.innerHTML = icon('trash-2')
+      clear.querySelector('svg')?.setAttribute('aria-hidden', 'true')
+      clear.disabled = input.value === ''
+      clear.onclick = () => {
+        change(definition.field, '')
+        input.focus()
+      }
+      controls.append(clear)
+    }
   }
   return { controls, input }
 }
@@ -87,17 +106,26 @@ export function metadataFields(
   }
 }
 
+function refreshMetadataActions(input: HTMLInputElement | HTMLTextAreaElement) {
+  const clear = input.parentElement?.querySelector<HTMLButtonElement>('.metadata-date-clear')
+  if (clear) clear.disabled = input.value === ''
+}
+
 /** Refresh shared values without rebuilding the control being edited. */
 export function refreshMetadataFields(parent: HTMLElement, values: Record<string, unknown>) {
   for (const input of parent.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
     '[data-metadata-parameter]',
   )) {
     const value = String(values[input.dataset.metadataParameter!] ?? '')
-    if (input.value === value) continue
+    if (input.value === value) {
+      refreshMetadataActions(input)
+      continue
+    }
     const start = input.selectionStart,
       end = input.selectionEnd,
       direction = input.selectionDirection
     input.value = value
+    refreshMetadataActions(input)
     if (document.activeElement === input && start !== null && end !== null)
       input.setSelectionRange(
         Math.min(start, value.length),

@@ -117,3 +117,22 @@ it('une section en ligne garde ses libellés accessibles sans ajouter de titre r
   input.dispatchEvent(new Event('input', { bubbles: true }))
   expect(change).toHaveBeenCalledExactlyOnceWith('recipient.name', 'Camille Durand')
 })
+
+it('une date facultative peut être vidée et ses actions suivent les changements partagés sans perdre le champ', () => {
+  const { root, change } = mount()
+  const date = root.querySelector<HTMLInputElement>('input[type=date]')!
+  const clear = root.querySelector<HTMLButtonElement>('.metadata-date-clear')!
+  expect(clear.disabled).toBe(false)
+  clear.click()
+  expect(change).toHaveBeenCalledExactlyOnceWith('letter.date', '')
+  expect(document.activeElement).toBe(date)
+  refreshMetadataFields(root, { date: '' })
+  expect(date.value).toBe('')
+  expect(clear.disabled).toBe(true)
+  date.value = '1875-01-19'
+  date.dispatchEvent(new Event('input', { bubbles: true }))
+  expect(clear.disabled).toBe(false)
+  expect(change).toHaveBeenLastCalledWith('letter.date', '1875-01-19')
+  refreshMetadataFields(root, { date: '' })
+  expect(clear.disabled).toBe(true)
+})

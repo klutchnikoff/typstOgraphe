@@ -775,3 +775,4 @@ web-heading-level = Niveau de titre
 web-palette-no-results = Aucune commande ne correspond.
 
 web-snapshot-document-replaced = Le document a changé ; recommencez l’opération.
+web-clear-date = Supprimer la date
