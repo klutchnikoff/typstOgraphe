@@ -271,8 +271,9 @@ pub(super) fn inline(nodes: &[Node], mapped: bool) -> Result<String, String> {
                         format!("#citation(form: {})[{items}]", typst_string(&citation.form));
                     if mapped {
                         format!(
-                            "/*@typstographe:{}*/{expression}/*@typstographe-end*/",
-                            node.integer("_mapping", 0)
+                            "/*@typstographe:{}:{}*/{expression}",
+                            node.integer("_mapping", 0),
+                            expression.len()
                         )
                     } else {
                         expression

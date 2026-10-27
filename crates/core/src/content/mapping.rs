@@ -61,19 +61,24 @@ pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, Source
         output.push_str(&remaining[..index]);
         let after = &remaining[index + 16..];
         let end = after.find("*/").ok_or("Balise interne invalide.")?;
-        let id: usize = after[..end]
-            .parse()
-            .map_err(|_| "Identité interne invalide.")?;
+        let (id, width) = after[..end]
+            .split_once(':')
+            .map_or((&after[..end], None), |(id, width)| (id, Some(width)));
+        let id: usize = id.parse().map_err(|_| "Identité interne invalide.")?;
         let entry = entries.get(id).ok_or("Carte interne invalide.")?;
         let start = output.len();
-        if entry.atom && entry.value.is_empty() && after[end + 2..].starts_with("#citation(") {
+        // Composite atoms map their whole generated expression. An explicit byte
+        // width avoids interpreting marker-like citation keys as our delimiters.
+        if let Some(width) = width {
+            if !entry.atom {
+                return Err("Étendue interne hors d’un objet.".into());
+            }
+            let width: usize = width.parse().map_err(|_| "Étendue interne invalide.")?;
             let tail = &after[end + 2..];
-            let stop = tail
-                .find("/*@typstographe-end*/")
-                .ok_or("Citation sans fin de carte.")?;
-            characters[entry.position] = start..start + stop;
-            output.push_str(&tail[..stop]);
-            remaining = &tail[stop + "/*@typstographe-end*/".len()..];
+            let body = tail.get(..width).ok_or("Étendue interne invalide.")?;
+            characters[entry.position] = start..start + width;
+            output.push_str(body);
+            remaining = &tail[width..];
             continue;
         }
         let mut byte = start;
@@ -149,5 +154,17 @@ mod tests {
         assert_eq!(map.characters[2], map.characters[3]);
         assert_eq!(&source[map.characters[2].clone()], "😀");
         assert_eq!(&source[map.characters[5].clone()], "\\#");
+    }
+
+    #[test]
+    fn composite_atom_keys_cannot_be_interpreted_as_internal_markers() {
+        let node = serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"citation","attrs":{"items":[{"file_id":"books","key":"/*@typstographe:0*/ /*@typstographe-end*/","supplement":"é #panic(\"no\")"}],"form":"normal"}},{"type":"text","text":"Après"}]}]})).unwrap();
+        let (generated, map) = source_mapped(&node, &Assets::default()).unwrap();
+        assert_eq!(
+            generated,
+            super::super::source(&node, &Assets::default()).unwrap()
+        );
+        assert!(generated[map.characters[1].clone()].starts_with("#citation("));
+        assert_eq!(&generated[map.characters[2].clone()], "A");
     }
 }
