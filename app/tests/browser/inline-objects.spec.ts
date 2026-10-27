@@ -39,19 +39,34 @@ test('le badge est un objet accessible ; son contexte reste distinct du mot inco
   await page.keyboard.press('Control+Enter')
   await expect(page.locator('#proofing-band')).toBeVisible()
   await page.keyboard.press('Escape')
-  // Before/after a reference, and when explicitly selected, target the note.
-  for (const position of [10, 11, 'selected'] as const) {
-    await page.evaluate((pos) => {
-      const e = window.__spike!.editor
-      if (pos === 'selected') e.commands.setNodeSelection(10)
-      else e.commands.setTextSelection(pos)
-      e.view.focus()
-    }, position)
-    await page.keyboard.press('Control+Enter')
-    await expect(page.getByLabel('Texte de la note', { exact: true })).toBeFocused()
-    await expect(page.locator('#proofing-band')).toHaveCount(0)
-    await page.keyboard.press('Escape')
-  }
+  // At the left boundary the word owns the contextual command, never the badge.
+  await page.evaluate(() => {
+    const e = window.__spike!.editor
+    e.commands.setTextSelection(10)
+    e.view.focus()
+  })
+  await expect(page.locator('.inline-object-active')).toHaveCount(0)
+  await page.keyboard.press('Control+Enter')
+  await expect(page.locator('#proofing-band')).toBeVisible()
+  await expect(page.locator('#properties')).not.toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('ArrowRight')
+  await expect(page.locator('.inline-object-active')).toHaveCount(1)
+  await expect(page.locator('.inline-object-active .inline-object-label')).toHaveText('Note 1')
+  await page.keyboard.press('Control+Enter')
+  await expect(page.getByLabel('Texte de la note', { exact: true })).toBeFocused()
+  await expect(page.locator('#proofing-band')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  // Selecting the object is distinct from a caret after it; Enter/Space still work.
+  await page.evaluate(() => {
+    const e = window.__spike!.editor
+    e.commands.setNodeSelection(10)
+    e.view.focus()
+  })
+  await expect(page.locator('.inline-object-active')).toHaveCount(0)
+  await page.keyboard.press('Control+Enter')
+  await expect(page.locator('#properties')).not.toBeVisible()
+  await expect(page.locator('#proofing-band')).toHaveCount(0)
   await note.click()
   await expect(page.getByLabel('Texte de la note', { exact: true })).toBeFocused()
   await page.keyboard.press('Escape')
@@ -90,6 +105,66 @@ test('une note modifiée ailleurs ne peut pas être supprimée depuis ses ancien
   await expect(page.getByLabel('Texte de la note', { exact: true })).toHaveValue(
     'Modification distante',
   )
+})
+
+test('le badge actif est inversé uniquement à droite et le raccourci suit ce repère entre deux notes', async ({
+  page,
+}) => {
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme })
+    await page.evaluate(() => {
+      const e = window.__spike!.editor
+      e.commands.setContent(
+        '<p>Texte<span data-footnote="A"></span><span data-footnote="B"></span> suite</p>',
+      )
+      e.commands.setTextSelection(6)
+      e.view.focus()
+    })
+    const original = await page.evaluate(() => window.__spike!.editor.getJSON())
+    const label = page.locator('.inline-object-label').first()
+    const normal = await label.evaluate((el) => {
+      const rect = el.getBoundingClientRect(),
+        style = getComputedStyle(el)
+      return {
+        color: style.color,
+        background: style.backgroundColor,
+        width: rect.width,
+        height: rect.height,
+      }
+    })
+    await expect(page.locator('.inline-object-active')).toHaveCount(0)
+    await page.keyboard.press('Control+Enter')
+    await expect(page.locator('#properties')).not.toBeVisible()
+    await page.keyboard.press('ArrowRight')
+    await expect(page.locator('.inline-object-active .inline-object-label')).toHaveText('Note 1')
+    const active = await label.evaluate((el) => {
+      const rect = el.getBoundingClientRect(),
+        style = getComputedStyle(el)
+      return {
+        color: style.color,
+        background: style.backgroundColor,
+        width: rect.width,
+        height: rect.height,
+      }
+    })
+    expect(active.background).toBe(normal.color)
+    expect(active.color).not.toBe(normal.color)
+    expect(active.background).not.toBe(normal.background)
+    expect(active.width).toBe(normal.width)
+    expect(active.height).toBe(normal.height)
+    await page.keyboard.press('Meta+Enter')
+    await expect(page.getByLabel('Texte de la note', { exact: true })).toHaveValue('A')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('ArrowRight')
+    await expect(page.locator('.inline-object-active .inline-object-label')).toHaveText('Note 2')
+    await expect(label).toHaveCSS('background-color', normal.background)
+    await page.keyboard.press('Control+Enter')
+    await expect(page.getByLabel('Texte de la note', { exact: true })).toHaveValue('B')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('ArrowRight')
+    await expect(page.locator('.inline-object-active')).toHaveCount(0)
+    expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(original)
+  }
 })
 
 for (const context of ['prose', 'quote'] as const) {

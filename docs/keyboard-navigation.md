@@ -106,12 +106,17 @@ reprendre le focus. Aucun numéro n’est inscrit dans les attributs, les sauveg
 ou Yjs : insertion, suppression, déplacement, annulation et édition distante
 recalculent le même ordre dans chaque vue.
 
-Pour Ctrl/Cmd+Entrée, l’ordre est : bandeau déjà ouvert, objet inline sélectionné
-ou immédiatement voisin du curseur, correction orthographique, puis paramètres du
-lien ou du widget. Un curseur juste avant ou après une note vise donc cette note ;
-dans le mot voisin, il vise toujours la correction. Une sélection de texte n’est
-pas assimilée à l’objet situé à son extrémité. Entre deux objets, celui qui suit
-le curseur est prioritaire pour l’ouverture des paramètres.
+`InlineObjectFocus` met en évidence le badge uniquement quand le point d’insertion
+est immédiatement à sa droite : fond accentué et texte en vidéo inversée, sans
+modifier la géométrie du cadre. `activeInlineObject` est le résolveur commun de
+cette décoration et de la commande contextuelle, indépendant de la numérotation.
+Une sélection de texte ou d’objet ne constitue pas un point d’insertion actif.
+
+Pour Ctrl/Cmd+Entrée, l’ordre est : bandeau déjà ouvert, badge actif à gauche du
+point d’insertion, correction orthographique, puis paramètres du lien ou du widget.
+Avant une note, le raccourci reste donc disponible pour corriger le mot précédent.
+Entre deux badges, seul celui qui précède le curseur est actif et visé. Le clic
+sur le cadre et Entrée/Espace sur son bouton permettent toujours d’ouvrir la note.
 
 Retour arrière juste après un objet et Suppr juste avant ouvrent sa confirmation
 de suppression, sans changer le document. La commande centrale Ctrl/Cmd+Retour

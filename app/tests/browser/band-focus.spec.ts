@@ -55,7 +55,7 @@ for (const trigger of ['palette-keyboard', 'palette-pointer', 'toolbar'] as cons
     for (const shortcut of ['Control+Enter', 'Meta+Enter']) {
       await page.evaluate(() => {
         const editor = window.__spike!.editor
-        editor.commands.setTextSelection(5)
+        editor.commands.setTextSelection(6)
         editor.view.focus()
       })
       await page.keyboard.press(shortcut)
@@ -64,7 +64,7 @@ for (const trigger of ['palette-keyboard', 'palette-pointer', 'toolbar'] as cons
       await expect(field).toHaveValue('Une précision utile.')
       await page.keyboard.press('Escape')
       await expect(page.locator('.tiptap')).toBeFocused()
-      expect(await page.evaluate(() => window.__spike!.editor.state.selection.from)).toBe(5)
+      expect(await page.evaluate(() => window.__spike!.editor.state.selection.from)).toBe(6)
     }
   })
 }
