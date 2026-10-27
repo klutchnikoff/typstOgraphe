@@ -82,9 +82,18 @@ sans afficher un libellé qui ferait doublon avec le titre du bandeau.
 `inline-objects.ts` reconnaît les nœuds inline atomiques et sélectionnables à partir
 du schéma ProseMirror (les retours simples, non sélectionnables, sont exclus).
 `inlineObjectView` leur donne un badge non éditable, une sélection d’objet et le
-même accès au bandeau par clic, Entrée ou Espace. L’appel de note affiche « Note » ;
-le nom accessible et l’info-bulle donnent sa fonction et son contenu. Cette
+même accès au bandeau par clic, Entrée ou Espace. Le nom accessible et l’info-bulle
+donnent la fonction de l’appel de note et son contenu. Cette
 présentation ne change ni le contenu documentaire ni le rendu Typst.
+
+Le badge affiche « Note 1 », « Note 2 », etc. `InlineObjectNumbering` dérive les
+numéros de l’ordre des objets dans le document, y compris dans les citations et
+cellules. Ses décorations sont recalculées une fois par modification documentaire ;
+les mouvements de curseur réutilisent le résultat. Les NodeViews existantes
+actualisent leur texte et leur nom accessible sans changer leur sélection ni
+reprendre le focus. Aucun numéro n’est inscrit dans les attributs, les sauvegardes
+ou Yjs : insertion, suppression, déplacement, annulation et édition distante
+recalculent le même ordre dans chaque vue.
 
 Pour Ctrl/Cmd+Entrée, l’ordre est : bandeau déjà ouvert, objet inline sélectionné
 ou immédiatement voisin du curseur, correction orthographique, puis paramètres du

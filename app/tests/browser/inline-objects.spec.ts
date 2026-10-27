@@ -28,10 +28,10 @@ test('le badge est un objet accessible ; son contexte reste distinct du mot inco
     e.view.focus()
   })
   const note = page.getByRole('button', {
-    name: 'Note de bas de page : Une précision.',
+    name: 'Note de bas de page 1 : Une précision.',
     exact: true,
   })
-  await expect(note).toHaveText('Note')
+  await expect(note).toHaveText('Note 1')
   await expect(note).toHaveAttribute('contenteditable', 'false')
   await expect(page.locator('.spelling-error[data-word="courrrier"]')).toBeVisible({
     timeout: 15000,
@@ -146,3 +146,52 @@ for (const context of ['prose', 'quote'] as const) {
     expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
   })
 }
+
+test('les numéros suivent les insertions, suppressions et annulations distantes sans interrompre la saisie d’une note', async ({
+  page,
+  context,
+}) => {
+  await page.evaluate(async () => {
+    const e = window.__spike!.editor
+    e.commands.setContent(
+      '<p>Texte<span data-footnote="A"></span></p><p>Suite<span data-footnote="B"></span></p>',
+    )
+    await window.__spike!.provider.flush()
+  })
+  const peer = await context.newPage()
+  await peer.goto('/?client=numbering-peer')
+  await peer.waitForFunction(() => window.__spike?.ready)
+  await expect(peer.locator('.footnote-ref')).toHaveText(['Note 1', 'Note 2'])
+  await page.locator('.footnote-ref').nth(1).click()
+  const field = page.getByLabel('Texte de la note', { exact: true })
+  await expect(field).toBeFocused()
+  await peer.evaluate(() => {
+    const e = window.__spike!.editor
+    e.commands.setTextSelection(1)
+    e.view.focus()
+  })
+  await peer.locator('[data-command="insert.footnote"]').click()
+  await peer.getByLabel('Texte de la note', { exact: true }).fill('Avant')
+  await peer.keyboard.press('Enter')
+  for (const view of [page, peer])
+    await expect(view.locator('.footnote-ref')).toHaveText(['Note 1', 'Note 2', 'Note 3'])
+  await expect(field).toBeFocused()
+  await expect(field).toHaveValue('B')
+  await field.fill('B mise à jour')
+  await page.keyboard.press('Enter')
+  await expect(peer.locator('.footnote-ref').nth(2)).toHaveAccessibleName(
+    'Note de bas de page 3 : B mise à jour',
+  )
+  await peer.locator('.footnote-ref').nth(1).click()
+  await peer.locator('#remove-block').click()
+  await peer.keyboard.press('Enter')
+  for (const view of [page, peer])
+    await expect(view.locator('.footnote-ref')).toHaveText(['Note 1', 'Note 2'])
+  await peer.keyboard.press('Control+z')
+  for (const view of [page, peer])
+    await expect(view.locator('.footnote-ref')).toHaveText(['Note 1', 'Note 2', 'Note 3'])
+  await expect(page.locator('.footnote-ref').nth(2)).toHaveAccessibleName(
+    'Note de bas de page 3 : B mise à jour',
+  )
+  await peer.close()
+})
