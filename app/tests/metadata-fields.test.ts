@@ -104,3 +104,16 @@ it('les valeurs partagées sont actualisées sans remplacer le champ focalisé n
   expect(root.querySelector<HTMLInputElement>('input[type=date]')!.value).toBe('2026-10-28')
   expect(change).not.toHaveBeenCalled()
 })
+
+it('une section en ligne garde ses libellés accessibles sans ajouter de titre redondant', () => {
+  const { root, change } = mount({
+    ...group,
+    sections: [{ id: 'identity', label: 'Identité', fields: ['recipient.name'], layout: 'inline' }],
+  })
+  expect(root.querySelector('legend')).toBeNull()
+  const input = root.querySelector<HTMLInputElement>('input')!
+  expect(input.labels?.[0].textContent).toBe('Destinataire')
+  input.value = 'Camille Durand'
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  expect(change).toHaveBeenCalledExactlyOnceWith('recipient.name', 'Camille Durand')
+})

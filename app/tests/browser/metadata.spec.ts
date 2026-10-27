@@ -225,3 +225,92 @@ test('tous les formats du catalogue sont réellement compilés en portrait et pa
   await expect(page.getByRole('combobox', { name: 'Format', exact: true })).toHaveValue('a5')
   await expect(page.getByRole('combobox', { name: 'Orientation', exact: true })).toHaveValue('true')
 })
+
+test('expéditeur compact : identité, coordonnées et organisation, clavier et champs partagés', async ({
+  page,
+  context,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.getByRole('button', { name: 'Expéditeur', exact: true }).click()
+  const content = page.locator('#metadata-content')
+  const labels = [
+    'Nom complet',
+    'Adresse',
+    'Courriel',
+    'Téléphone',
+    'Organisme',
+    'Service',
+    'Fonction',
+  ]
+  await expect(content.locator('label')).toHaveText(labels)
+  await expect(content.locator('legend')).toHaveText([
+    'Coordonnées',
+    'Organisation',
+    'Signature du document',
+  ])
+  const name = content.getByLabel('Nom complet', { exact: true })
+  await name.focus()
+  for (const label of labels) {
+    await expect(content.getByLabel(label, { exact: true })).toBeFocused()
+    await page.keyboard.press('Tab')
+  }
+  await expect(content.getByLabel('Signature du document', { exact: true })).toBeFocused()
+  await page.keyboard.press('Shift+Tab')
+  await expect(content.getByLabel('Fonction', { exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(content.getByLabel('Signature du document', { exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(content.getByRole('button', { name: 'Sans signature', exact: true })).toBeFocused()
+  const contact = content.locator('[data-section=contact]'),
+    organisation = content.locator('[data-section=organisation]')
+  const left = (await contact.boundingBox())!,
+    right = (await organisation.boundingBox())!
+  expect(Math.abs(left.y - right.y)).toBeLessThan(2)
+  expect(right.x).toBeGreaterThan(left.x + left.width)
+  for (const label of labels) {
+    const field = content.getByLabel(label, { exact: true })
+    const bounds = await field.boundingBox()
+    const labelBounds = await content
+      .locator('label')
+      .filter({ hasText: new RegExp(`^${label}$`) })
+      .boundingBox()
+    expect(bounds!.x).toBeGreaterThan(labelBounds!.x + labelBounds!.width)
+    expect(Math.abs(bounds!.y - labelBounds!.y)).toBeLessThan(12)
+  }
+  await name.fill('Camille Durand')
+  await content.getByLabel('Adresse', { exact: true }).fill('12 rue des Lilas\n69000 Lyon')
+  await content.getByLabel('Courriel', { exact: true }).fill('camille@example.org')
+  await content.getByLabel('Téléphone', { exact: true }).fill('01 23 45 67 89')
+  await content.getByLabel('Organisme', { exact: true }).fill('Université')
+  await content.getByLabel('Service', { exact: true }).fill('Bibliothèque')
+  await content.getByLabel('Fonction', { exact: true }).fill('Responsable')
+  const peer = await context.newPage()
+  await peer.goto('/?client=peer-sender')
+  await peer.waitForFunction(() => window.__spike?.ready)
+  await peer.getByRole('button', { name: 'Expéditeur', exact: true }).click()
+  for (const label of labels)
+    await expect(peer.locator('#metadata-content').getByLabel(label, { exact: true })).toHaveValue(
+      await content.getByLabel(label, { exact: true }).inputValue(),
+    )
+  await name.focus()
+  await name.evaluate((input: HTMLInputElement) => input.setSelectionRange(3, 3))
+  await peer
+    .locator('#metadata-content')
+    .getByLabel('Service', { exact: true })
+    .fill('Documentation')
+  await expect(content.getByLabel('Service', { exact: true })).toHaveValue('Documentation')
+  await expect(name).toBeFocused()
+  expect(await name.evaluate((input: HTMLInputElement) => input.selectionStart)).toBe(3)
+  for (const width of [1280, 700]) {
+    await page.setViewportSize({ width, height: 700 })
+    expect(
+      await content.evaluate((element) => element.scrollWidth - element.clientWidth),
+    ).toBeLessThan(2)
+    expect(
+      await page.locator('#editor-scroll').evaluate((element) => element.clientHeight),
+    ).toBeGreaterThan(100)
+  }
+  expect((await organisation.boundingBox())!.y).toBeGreaterThan((await contact.boundingBox())!.y)
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await expect(name).toBeVisible()
+})

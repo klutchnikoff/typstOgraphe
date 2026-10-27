@@ -791,6 +791,55 @@ summary svg {
 #metadata-content {
   container-type: inline-size;
 }
+.metadata-section-inline {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.metadata-section-compact {
+  grid-column: auto;
+  padding: 8px 10px;
+  align-self: start;
+}
+.metadata-section-inline .metadata-section-fields,
+.metadata-section-compact .metadata-section-fields {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+.metadata-section-inline .field,
+.metadata-section-compact .field {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+}
+.metadata-section-inline input,
+.metadata-section-compact input,
+.metadata-section-compact textarea {
+  padding: 4px 8px;
+}
+.metadata-signature {
+  padding: 8px 10px;
+}
+.metadata-signature-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.metadata-signature-controls > input {
+  flex: 1 1 180px;
+  min-width: 0;
+  max-width: 100%;
+}
+.metadata-signature-controls .panel-actions {
+  margin: 0 0 0 auto;
+}
+@container (max-width: 560px) {
+  .metadata-section-compact {
+    grid-column: 1 / -1;
+  }
+}
 @container (max-width: 360px) {
   .metadata-section-fields {
     grid-template-columns: minmax(0, 1fr);

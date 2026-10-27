@@ -39,7 +39,12 @@ export interface Field {
 export interface MetadataGroup {
   id: string
   label: string
-  sections: { id: string; label: string; fields: string[] }[]
+  sections: {
+    id: string
+    label: string
+    fields: string[]
+    layout?: 'editorial' | 'compact' | 'inline'
+  }[]
 }
 export interface DocumentType {
   capabilities: string[]
@@ -178,6 +183,7 @@ export async function mountShell(s: Shell) {
     },
     active: () => tab !== null,
     priority: 5,
+    tab: true,
   })
   navigationGroup($('metadata-tabs'), { axis: 'horizontal', roving: true, activateOnMove: true })
   navigationGroup(menu, { axis: 'horizontal' })
@@ -501,7 +507,15 @@ export async function mountShell(s: Shell) {
           provider.addResource(resource)
           setSetting(provider, 'signature', resource.path)
         })
-      content.append(actions, image)
+      const signature = document.createElement('fieldset')
+      signature.className = 'metadata-section metadata-signature'
+      const legend = document.createElement('legend')
+      legend.textContent = tr('Signature du document')
+      const controls = document.createElement('div')
+      controls.className = 'metadata-signature-controls'
+      controls.append(image, actions)
+      signature.append(legend, controls)
+      content.append(signature)
     }
   }
   function showPanel(title: string) {

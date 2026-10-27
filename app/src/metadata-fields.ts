@@ -47,8 +47,9 @@ export function metadataFields(
     return
   }
   for (const section of group.sections) {
-    const fieldset = document.createElement('fieldset')
-    fieldset.className = 'metadata-section'
+    const inline = section.layout === 'inline'
+    const fieldset = document.createElement(inline ? 'div' : 'fieldset')
+    fieldset.className = `metadata-section metadata-section-${section.layout || 'editorial'}`
     fieldset.dataset.section = section.id
     const legend = document.createElement('legend')
     legend.textContent = section.label
@@ -58,7 +59,8 @@ export function metadataFields(
       const definition = definitions.find((field) => field.field === id)
       if (definition) append(fields, definition)
     }
-    fieldset.append(legend, fields)
+    if (!inline) fieldset.append(legend)
+    fieldset.append(fields)
     parent.append(fieldset)
   }
 }

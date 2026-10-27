@@ -87,6 +87,9 @@ pris en charge ; cet onglet ne propose pas d’action d’import de modèle.
 
 Les onglets sont Général, Expéditeur et En-tête. Le dernier regroupe les sections
 Destinataire (nom, adresse) et Informations (lieu, date, objet, référence).
+Expéditeur présente d’abord le nom complet, puis les groupes compacts Coordonnées
+(adresse, courriel, téléphone) et Organisation (organisme, service, fonction),
+suivis de la signature. Les groupes se superposent dans une colonne étroite.
 L’organisation vient du type Rust, exposée par le catalogue ; les composants de
 champs sont communs aux onglets simples et aux sections éditoriales.
 

@@ -57,8 +57,11 @@ le Courrier : **Général, Expéditeur, En-tête**, dans cet ordre.
   message. Courrier personnel laisse choisir format et orientation ; A4 portrait
   conserve la disposition pour enveloppe à fenêtre, les autres choix utilisent
   une disposition adaptée dans le flux normal.
-- Expéditeur reste le formulaire des coordonnées et de la signature du document,
-  distinct des valeurs par défaut conservées dans les préférences globales.
+- Expéditeur commence par le nom complet, puis regroupe Adresse, Courriel et
+  Téléphone dans « Coordonnées », et Organisme, Service et Fonction dans
+  « Organisation ». Les libellés sont à côté des champs, les groupes côte à côte
+  si la largeur le permet. La signature dispose de sa propre section. Ces valeurs
+  restent distinctes des valeurs par défaut des préférences globales.
 - Le dernier onglet ouvre une zone plus riche, décrite par le type. Pour le
   Courrier, elle regroupe Destinataire (nom et adresse) et Informations du
   courrier (lieu, date, objet, référence), sans nouveaux widgets dans le corps.
