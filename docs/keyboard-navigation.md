@@ -86,6 +86,17 @@ même accès au bandeau par clic, Entrée ou Espace. Le nom accessible et l’in
 donnent la fonction de l’appel de note et son contenu. Cette
 présentation ne change ni le contenu documentaire ni le rendu Typst.
 
+L’enveloppe sélectionnable et le cadre visible du badge sont deux éléments
+distincts : le navigateur positionne son curseur à la frontière de l’objet,
+à l’extérieur du cadre et de son padding.
+L’espace de 0,5 ex appartient à l’enveloppe, avant le cadre : le point d’insertion
+précède cet espace, et un clic dans celui-ci positionne le curseur avant l’objet.
+Le rôle de bouton et l’arrêt Tab appartiennent au cadre visible, pas à cet espace.
+Les flèches Gauche/Droite sans modificateur
+traversent l’objet en gardant un curseur de texte ; elles ne produisent pas une
+sélection d’objet que la frappe suivante remplacerait. Les combinaisons avec Maj,
+Alt ou Ctrl/Cmd gardent leur comportement de sélection/navigation habituel.
+
 Le badge affiche « Note 1 », « Note 2 », etc. `InlineObjectNumbering` dérive les
 numéros de l’ordre des objets dans le document, y compris dans les citations et
 cellules. Ses décorations sont recalculées une fois par modification documentaire ;

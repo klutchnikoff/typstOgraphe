@@ -52,7 +52,7 @@ test('rendu réel, bandeau de note, légende et sélection de tableau au clavier
   await expect(page.getByRole('textbox', { name: 'Corps du document' })).toContainText(
     'Madame, Monsieur',
   )
-  await page.locator('.footnote-ref').click()
+  await page.locator('.footnote-ref .inline-object-label').click()
   await page
     .getByLabel('Texte de la note', { exact: true })
     .fill('Note relue : ê, é, Noël, にほん.')

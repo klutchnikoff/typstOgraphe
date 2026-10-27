@@ -73,7 +73,7 @@ test('une note modifiée ailleurs ne peut pas être supprimée depuis ses ancien
     const e = window.__spike!.editor
     e.commands.setContent('<p>Avant<span data-footnote="Ancien texte"></span> après</p>')
   })
-  await page.locator('.footnote-ref').click()
+  await page.locator('.footnote-ref .inline-object-label').click()
   await page.evaluate(() => {
     const e = window.__spike!.editor
     e.state.doc.descendants((node, pos) => {
@@ -84,9 +84,9 @@ test('une note modifiée ailleurs ne peut pas être supprimée depuis ses ancien
   await page.locator('#remove-block').click()
   await expect(page.locator('#property-error')).toContainText('modifié ailleurs')
   await expect(page.locator('#properties')).toHaveAttribute('data-intent', 'settings')
-  await expect(page.locator('.footnote-ref')).toHaveCount(1)
+  await expect(page.locator('.footnote-ref .inline-object-label')).toHaveCount(1)
   await page.keyboard.press('Escape')
-  await page.locator('.footnote-ref').click()
+  await page.locator('.footnote-ref .inline-object-label').click()
   await expect(page.getByLabel('Texte de la note', { exact: true })).toHaveValue(
     'Modification distante',
   )
@@ -132,17 +132,17 @@ for (const context of ['prose', 'quote'] as const) {
       expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
     }
     // The properties button goes through the very same confirmation.
-    await page.locator('.footnote-ref').click()
+    await page.locator('.footnote-ref .inline-object-label').click()
     await page.locator('#remove-block').click()
     await expect(page.locator('#properties')).toHaveAttribute('data-intent', 'remove')
     expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
     await page.keyboard.press('Enter')
-    await expect(page.locator('.footnote-ref')).toHaveCount(0)
+    await expect(page.locator('.footnote-ref .inline-object-label')).toHaveCount(0)
     await expect(page.locator('.tiptap')).toBeFocused()
     const body = context === 'quote' ? '.tiptap blockquote p' : '.tiptap > p:first-child'
     await expect(page.locator(body)).toContainText('Avant après')
     await page.keyboard.press('Control+z')
-    await expect(page.locator('.footnote-ref')).toHaveCount(1)
+    await expect(page.locator('.footnote-ref .inline-object-label')).toHaveCount(1)
     expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
   })
 }
@@ -161,8 +161,8 @@ test('les numéros suivent les insertions, suppressions et annulations distantes
   const peer = await context.newPage()
   await peer.goto('/?client=numbering-peer')
   await peer.waitForFunction(() => window.__spike?.ready)
-  await expect(peer.locator('.footnote-ref')).toHaveText(['Note 1', 'Note 2'])
-  await page.locator('.footnote-ref').nth(1).click()
+  await expect(peer.locator('.footnote-ref .inline-object-label')).toHaveText(['Note 1', 'Note 2'])
+  await page.locator('.footnote-ref .inline-object-label').nth(1).click()
   const field = page.getByLabel('Texte de la note', { exact: true })
   await expect(field).toBeFocused()
   await peer.evaluate(() => {
@@ -174,23 +174,34 @@ test('les numéros suivent les insertions, suppressions et annulations distantes
   await peer.getByLabel('Texte de la note', { exact: true }).fill('Avant')
   await peer.keyboard.press('Enter')
   for (const view of [page, peer])
-    await expect(view.locator('.footnote-ref')).toHaveText(['Note 1', 'Note 2', 'Note 3'])
+    await expect(view.locator('.footnote-ref .inline-object-label')).toHaveText([
+      'Note 1',
+      'Note 2',
+      'Note 3',
+    ])
   await expect(field).toBeFocused()
   await expect(field).toHaveValue('B')
   await field.fill('B mise à jour')
   await page.keyboard.press('Enter')
-  await expect(peer.locator('.footnote-ref').nth(2)).toHaveAccessibleName(
+  await expect(peer.locator('.footnote-ref .inline-object-label').nth(2)).toHaveAccessibleName(
     'Note de bas de page 3 : B mise à jour',
   )
-  await peer.locator('.footnote-ref').nth(1).click()
+  await peer.locator('.footnote-ref .inline-object-label').nth(1).click()
   await peer.locator('#remove-block').click()
   await peer.keyboard.press('Enter')
   for (const view of [page, peer])
-    await expect(view.locator('.footnote-ref')).toHaveText(['Note 1', 'Note 2'])
+    await expect(view.locator('.footnote-ref .inline-object-label')).toHaveText([
+      'Note 1',
+      'Note 2',
+    ])
   await peer.keyboard.press('Control+z')
   for (const view of [page, peer])
-    await expect(view.locator('.footnote-ref')).toHaveText(['Note 1', 'Note 2', 'Note 3'])
-  await expect(page.locator('.footnote-ref').nth(2)).toHaveAccessibleName(
+    await expect(view.locator('.footnote-ref .inline-object-label')).toHaveText([
+      'Note 1',
+      'Note 2',
+      'Note 3',
+    ])
+  await expect(page.locator('.footnote-ref .inline-object-label').nth(2)).toHaveAccessibleName(
     'Note de bas de page 3 : B mise à jour',
   )
   await peer.close()

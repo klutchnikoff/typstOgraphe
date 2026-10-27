@@ -132,7 +132,7 @@ for (const context of ['prose', 'list', 'quote'] as const) {
     for (const target of ['note', 'link', 'spelling']) {
       const selector =
         target === 'note'
-          ? '.footnote-ref'
+          ? '.footnote-ref .inline-object-label'
           : target === 'link'
             ? '.tiptap a'
             : '.spelling-error[data-word="courrrier"]'
@@ -192,12 +192,12 @@ test('ligne ciblée après un retour simple ou un repli automatique, puis redime
     for (const width of [1280, 900, 700]) {
       await page.setViewportSize({ width, height: 900 })
       const before = await glyphs(page)
-      await page.locator('.footnote-ref').click()
+      await page.locator('.footnote-ref .inline-object-label').click()
       await expect(page.locator('#properties')).toBeVisible()
       await unchangedWrapping(page, before)
-      await aboveTarget(page, '#properties', '.footnote-ref')
+      await aboveTarget(page, '#properties', '.footnote-ref .inline-object-label')
       await page.setViewportSize({ width: width - 30, height: 900 })
-      await aboveTarget(page, '#properties', '.footnote-ref')
+      await aboveTarget(page, '#properties', '.footnote-ref .inline-object-label')
       const expanded = await glyphs(page)
       await page.keyboard.press('Escape')
       await unchangedWrapping(page, expanded)
