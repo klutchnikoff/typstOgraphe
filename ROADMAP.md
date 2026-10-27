@@ -351,9 +351,9 @@ premier périmètre. Les propositions non retenues ne deviennent pas des engagem
 
 ## Prochain lot proposé
 
-1. Préciser ensemble les citations bibliographiques et la bibliothèque de
-   références de l’Article : données, import, badge auteur–année, cibles et
-   paramètres de style laissés libres ou imposés par le modèle (**B/C/D/E**).
+1. Implémenter les [citations, la bibliothèque et le sommaire Article](docs/article-bibliography.md)
+   selon les choix validés : fichiers internes BibLaTeX/Hayagriva, recherche fuzzy,
+   badges, bibliographie finale automatique et sommaire facultatif (**B/C/D/E**).
 2. Poursuivre l’unification du contrat structuré entre les adaptateurs (**A.2**),
    à partir du [rangement de l’application](docs/application-layout.md).
    Les schémas de métadonnées Article sont partagés ; les propositions MCP
