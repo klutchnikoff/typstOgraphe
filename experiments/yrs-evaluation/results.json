@@ -1,0 +1,251 @@
+{
+  "versions": {
+    "yrs": "0.28.0",
+    "yrs_features": [
+      "small-client"
+    ],
+    "offset_kind": "Utf16",
+    "skip_gc": true,
+    "yjs": "13.6.33",
+    "y_tiptap": "3.0.10"
+  },
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.9.0"
+  },
+  "fixture": {
+    "sha256": "0ec624e8e388158336d4604d1fd7554521dc18cd8c673ef7207c9847bb8c2fcc",
+    "archive_bytes": 22072,
+    "saved_yjs_bytes": 21130,
+    "evaluated_yjs_bytes": 21050
+  },
+  "cases": [
+    {
+      "name": "01 — archive réelle : aller-retour complet sans édition, types partagés et identités conservés",
+      "passed": true,
+      "detail": {
+        "full_bytes": 21050,
+        "original_clients": 2,
+        "roots": [
+          "settings",
+          "__tiptap_position_migrations:root:default",
+          "default"
+        ]
+      }
+    },
+    {
+      "name": "02 — Unicode : UTF-16 explicite, emoji, accents combinants et japonais",
+      "passed": true,
+      "detail": {
+        "default_byte_offsets_are_not_yjs_offsets": true
+      }
+    },
+    {
+      "name": "03 — texte riche : gras, italique et liens préservés et modifiés depuis Rust",
+      "passed": true
+    },
+    {
+      "name": "04 — en-tête réel : auteur Y.Text, titre et résumé XmlFragment, ordre et sources bibliographiques",
+      "passed": true
+    },
+    {
+      "name": "05 — annotations et objets : attributs JSON des citations, notes, images et descriptions",
+      "passed": true
+    },
+    {
+      "name": "06 — tableau : ajout Rust et édition JS simultanée dans une cellule existante",
+      "passed": true
+    },
+    {
+      "name": "07 — convergence : insertions concurrentes au même endroit et champs indépendants",
+      "passed": true
+    },
+    {
+      "name": "08 — valeurs atomiques concurrentes : convergence déterministe, sans fusion métier",
+      "passed": true,
+      "detail": {
+        "atomic_lists_do_not_merge_members": true
+      }
+    },
+    {
+      "name": "09 — mises à jour différentielles : livraison inversée, répétition et dépendances en attente",
+      "passed": true
+    },
+    {
+      "name": "10 — positions relatives : ancrage conservé après insertion Rust et suppression voisine",
+      "passed": true
+    },
+    {
+      "name": "11 — annuler/rétablir humain dans le vrai éditeur sans effacer une édition Rust",
+      "passed": true
+    },
+    {
+      "name": "12 — limite : supprimer un bloc en concurrence avec une édition de son texte",
+      "passed": true,
+      "detail": {
+        "deletion_hides_concurrent_text": true,
+        "needs_application_conflict_policy": true
+      }
+    },
+    {
+      "name": "13 — article édité par Rust : validation et export Typst réels, état sauvegardable",
+      "passed": true,
+      "detail": {
+        "native_typst_validation": true,
+        "exported": true
+      }
+    },
+    {
+      "name": "14 — limite : Yrs accepte un badge dont la référence manque, le cœur le refuse",
+      "passed": true,
+      "detail": {
+        "crdt_validity_is_not_document_validity": true
+      }
+    },
+    {
+      "name": "15 — mesures release : article réel et deux documents plus longs",
+      "passed": true
+    },
+    {
+      "name": "16 — annuler/rétablir dans Rust et relire le résultat dans Yjs",
+      "passed": true
+    },
+    {
+      "name": "17 — sauvegarde .typsto réelle, réouverture dans le vrai éditeur et métadonnées concordantes",
+      "passed": true,
+      "detail": {
+        "compiled_pages": 3,
+        "yjs_and_archive_agree": true,
+        "undo_stack_not_persisted": true
+      }
+    },
+    {
+      "name": "18 — trente-deux fusions successives avec Unicode et styles concurrents",
+      "passed": true,
+      "detail": {
+        "cycles": 32
+      }
+    },
+    {
+      "name": "19 — rétention : effet du ramasse-miettes sur les états sérialisés",
+      "passed": true,
+      "detail": {
+        "replacements": 500,
+        "retained_bytes": 30147,
+        "collected_bytes": 147
+      }
+    }
+  ],
+  "benchmarks": [
+    {
+      "name": "article",
+      "iterations": 20,
+      "input_bytes": 21050,
+      "output_bytes": 21068,
+      "diff_bytes": 29,
+      "decode_us": {
+        "median": 87.916,
+        "p95": 106.333
+      },
+      "edit_us": {
+        "median": 1.0839999999999999,
+        "p95": 1.917
+      },
+      "encode_us": {
+        "median": 22.709,
+        "p95": 26.667
+      },
+      "core_total_us": {
+        "median": 122.75,
+        "p95": 145.791
+      },
+      "stdio_wall_ms": {
+        "median": 0.22162500000013097,
+        "p95": 0.26858399999946414
+      }
+    },
+    {
+      "name": "long",
+      "iterations": 20,
+      "input_bytes": 311844,
+      "output_bytes": 311862,
+      "diff_bytes": 20,
+      "decode_us": {
+        "median": 633.291,
+        "p95": 679.0830000000001
+      },
+      "edit_us": {
+        "median": 1.666,
+        "p95": 3.5829999999999997
+      },
+      "encode_us": {
+        "median": 326,
+        "p95": 363.834
+      },
+      "core_total_us": {
+        "median": 1089.875,
+        "p95": 1172.9589999999998
+      },
+      "stdio_wall_ms": {
+        "median": 2.0272500000000946,
+        "p95": 3.294499999999971
+      }
+    },
+    {
+      "name": "large",
+      "iterations": 20,
+      "input_bytes": 1647856,
+      "output_bytes": 1647874,
+      "diff_bytes": 20,
+      "decode_us": {
+        "median": 3185.625,
+        "p95": 3295.166
+      },
+      "edit_us": {
+        "median": 3.75,
+        "p95": 4.875
+      },
+      "encode_us": {
+        "median": 1670.875,
+        "p95": 1815
+      },
+      "core_total_us": {
+        "median": 5533.4169999999995,
+        "p95": 5695.7919999999995
+      },
+      "stdio_wall_ms": {
+        "median": 10.397249999999985,
+        "p95": 11.08245799999986
+      }
+    }
+  ],
+  "process_measurements": {
+    "note": "New Rust process per sample, OS caches warm; includes stdin JSON and base64, full update output discarded; excludes JS, Tauri, Typst and archive IO.",
+    "release_binary_bytes": 1294704,
+    "samples": [
+      {
+        "name": "article",
+        "runs": 7,
+        "fresh_process_wall_ms_median": 5.595500115305185,
+        "peak_rss_bytes_median": 2867200,
+        "peak_rss_bytes_max": 2916352
+      },
+      {
+        "name": "long",
+        "runs": 7,
+        "fresh_process_wall_ms_median": 8.608709089457989,
+        "peak_rss_bytes_median": 5210112,
+        "peak_rss_bytes_max": 5275648
+      },
+      {
+        "name": "large",
+        "runs": 7,
+        "fresh_process_wall_ms_median": 23.40099960565567,
+        "peak_rss_bytes_median": 17465344,
+        "peak_rss_bytes_max": 17514496
+      }
+    ]
+  }
+}

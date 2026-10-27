@@ -1,0 +1,17 @@
+[package]
+name = "typstographe-yrs-evaluation"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Deliberately isolated: evaluating Yrs does not add it to the application.
+[workspace]
+
+[dependencies]
+yrs = { version = "=0.28.0", features = ["small-client"] }
+serde_json = "1"
+base64 = "0.22"
+
+[profile.release]
+debug = false
+strip = true
