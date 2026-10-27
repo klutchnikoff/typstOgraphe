@@ -771,3 +771,5 @@ web-list-first-number = Premier numéro
 web-heading-level = Niveau de titre
 
 web-palette-no-results = Aucune commande ne correspond.
+
+web-fixed-page-policy = Format et orientation définis par le modèle.

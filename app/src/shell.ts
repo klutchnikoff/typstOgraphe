@@ -17,6 +17,7 @@ import { documentType, settingsFor, setSetting, setDocument, type Settings } fro
 import { welcomeBrand } from './welcome-brand'
 import { recoveryPanel } from './recovery-panel'
 import { metadataFields, refreshMetadataFields } from './metadata-fields'
+import { documentOptions } from './document-options'
 export interface Model {
   id: string
   label: string
@@ -151,6 +152,7 @@ export async function mountShell(s: Shell) {
     '<div class="metadata-tabs"><strong id="document-type-label"></strong><div id="metadata-tabs"></div></div><div id="metadata-content" hidden></div>'
   document.querySelector('.document-info')!.replaceWith(context)
   let tab: string | null = null
+  let generalOptions: ReturnType<typeof documentOptions> | undefined
   keyboardScope(panel, {
     close: () => {
       panel.hidden = true
@@ -425,88 +427,36 @@ export async function mountShell(s: Shell) {
     }
     const content = $('metadata-content')
     content.hidden = tab === null
-    if (
-      content.dataset.documentType === kind.id &&
-      content.dataset.tab === tab &&
-      content.contains(document.activeElement)
-    ) {
+    const samePanel = content.dataset.documentType === kind.id && content.dataset.tab === tab
+    if (samePanel && tab === 'general' && generalOptions) {
+      generalOptions.update(current)
+      return
+    }
+    if (samePanel && content.contains(document.activeElement)) {
       refreshMetadataFields(content, current.metadata.fields)
       return
     }
+    generalOptions = undefined
     content.dataset.documentType = kind.id
     content.dataset.tab = tab || ''
     content.replaceChildren()
     if (!tab) return
-    const field = (label: string, control: HTMLElement) => {
-      const row = document.createElement('label')
-      row.className = 'field'
-      const name = document.createElement('span')
-      name.textContent = label
-      row.append(name, control)
-      content.append(row)
-    }
     if (tab === 'general') {
-      const model = document.createElement('select')
-      model.setAttribute('aria-label', tr('Modèle'))
-      for (const m of kind.models) model.add(new Option(m.label, m.id))
-      if (current.modelId === 'embedded') model.add(new Option(tr('Modèle embarqué'), 'embedded'))
-      model.value = current.modelId
-      model.onchange = () => {
-        const selected = kind.models.find((m) => m.id === model.value)!
-        const next = settingsFor(provider)
-        next.modelId = selected.id
-        next.template = selected.source
-        setDocument(provider, next)
-        renderMetadata()
-      }
-      field(tr('Modèle'), model)
-      const importModel = document.createElement('input')
-      importModel.type = 'file'
-      importModel.accept = '.typ'
-      importModel.setAttribute('aria-label', tr('Importer un modèle Typst'))
-      importModel.onchange = () =>
-        guarded(async () => {
-          const file = importModel.files?.[0]
-          if (!file) return
-          if (file.size > 2 * 1024 * 1024) throw new Error(tr('Modèle trop volumineux.'))
-          await provider.flush()
-          const revision = provider.revision
+      generalOptions = documentOptions(
+        content,
+        kind,
+        catalogue,
+        current,
+        (id) => {
+          const selected = kind.models.find((model) => model.id === id)
+          if (!selected) return
           const next = settingsFor(provider)
-          next.modelId = 'embedded'
-          next.template = await file.text()
-          await transport.invoke('validate_model', {
-            snapshot: { revision, document: editor.getJSON(), settings: next },
-          })
-          if (provider.revision !== revision)
-            throw new Error(tr('Le document a changé ; recommencez l’import.'))
+          next.modelId = selected.id
+          next.template = selected.source
           setDocument(provider, next)
-          renderMetadata()
-        })
-      field(tr('Importer un modèle Typst'), importModel)
-      for (const [key, label, items] of [
-        ['paper', tr('Format'), catalogue.papers],
-        ['language', tr('Langue du document'), catalogue.languages],
-      ] as const) {
-        const select = document.createElement('select')
-        select.setAttribute('aria-label', label)
-        for (const item of items) select.add(new Option(item.label, item.value))
-        select.value = String(current.metadata.fields.options[key])
-        select.disabled =
-          key === 'paper' && !!kind.models.find((m) => m.id === current.modelId)?.fixedPage
-        select.onchange = () => setSetting(provider, `options.${key}`, select.value)
-        field(label, select)
-      }
-      const orientation = document.createElement('select')
-      orientation.add(new Option(tr('Portrait'), 'false'))
-      orientation.add(new Option(tr('Paysage'), 'true'))
-      orientation.value = String(current.metadata.fields.options.landscape)
-      orientation.disabled = !!kind.models.find((m) => m.id === current.modelId)?.fixedPage
-      orientation.onchange = () =>
-        setSetting(provider, 'options.landscape', orientation.value === 'true')
-      field(tr('Orientation'), orientation)
-      const bullets = document.createElement('p')
-      bullets.textContent = tr('Automatique (modèle)')
-      field(tr('Puces des listes'), bullets)
+        },
+        (key, value) => setSetting(provider, `options.${key}`, value),
+      )
     } else {
       const group = kind.groups.find((group) => group.id === tab)
       if (group)
