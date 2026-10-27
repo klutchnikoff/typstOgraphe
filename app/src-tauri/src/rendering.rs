@@ -1,11 +1,6 @@
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::{Deserialize, Serialize};
-use std::{
-    io::Write,
-    path::{Path, PathBuf},
-    sync::Mutex,
-    time::Instant,
-};
+use std::{path::PathBuf, sync::Mutex, time::Instant};
 use typstographe_core::{
     assets::Assets,
     document::SourceMap,
@@ -184,31 +179,14 @@ impl Renderer {
         timings.compile_ms = milliseconds(compile_start);
         let export_start = Instant::now();
         if let Some(path) = export {
-            typstographe_core::exporting::write_document(
+            typstographe_core::exporting::write_retained_document(
                 &document,
                 &request,
                 &path,
-                typstographe_core::engine::ExportFormat::Pdf,
+                typstographe_core::engine::ExportFormat::Both,
                 false,
             )
             .map_err(|e| e.to_string())?;
-            // L'appelant a élagué les ressources depuis l'arbre structuré.
-            // Compléter le PDF par les sources, dépendances et polices autonomes.
-            write(&path, "main.typ", request.metadata.main_source().as_bytes())?;
-            write(&path, "contenu.typ", source.as_bytes())?;
-            write(&path, "modele.typ", request.template.as_bytes())?;
-            write(
-                &path,
-                "metadonnees.json",
-                &serde_json::to_vec_pretty(&request.metadata).map_err(|e| e.to_string())?,
-            )?;
-            for (name, data) in &request.assets {
-                write(&path, name, data)?;
-            }
-            for (name, data) in request.dependencies.iter() {
-                write(&path, name, data)?;
-            }
-            typstographe_core::fonts::export_used(&document, &path).map_err(|e| e.to_string())?;
         }
         timings.export_ms = milliseconds(export_start);
         let mut pages = Vec::new();
@@ -293,16 +271,6 @@ fn preview_png(width: u32, height: u32, rgba: &[u8]) -> Result<Vec<u8>, String> 
     }
     Ok(data)
 }
-fn write(root: &Path, name: &str, data: &[u8]) -> Result<(), String> {
-    let path = root.join(name);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    std::fs::File::create_new(path)
-        .and_then(|mut file| file.write_all(data))
-        .map_err(|e| e.to_string())
-}
-
 #[tauri::command]
 pub fn sync_forward(
     state: tauri::State<crate::Bridge>,
@@ -358,6 +326,58 @@ pub fn sync_selection(
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn structured_export_includes_original_bibliography_files_and_retained_images() {
+        let mut meta = typstographe_core::document_types::article::Metadata::demo();
+        let reference = typstographe_core::bibliography::ReferenceFile {
+            id: "books".into(),
+            name: "books.bib".into(),
+            contents:
+                "@book{key,author={Bourdieu, Pierre},title={Le sens pratique},year={1980}}\r\n"
+                    .into(),
+        };
+        meta.references.push(reference.clone());
+        let settings = crate::settings::Settings {
+            metadata: typstographe_core::document_types::Metadata::Article(meta),
+            template: typstographe_core::document_types::DocumentType::Article.default_model(),
+            model_id: "article.model.working".into(),
+        };
+        let image = "images/retained.svg";
+        let assets: Assets = [(
+            image.into(),
+            include_bytes!("../../../fixtures/parc.svg")
+                .as_slice()
+                .into(),
+        )]
+        .into_iter()
+        .collect();
+        let node = serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"citation","attrs":{"items":[{"file_id":"books","key":"key"}],"form":"normal"}}]},{"type":"figure","attrs":{"src":image,"alt":"Un parc"}}]})).unwrap();
+        let source = typstographe_core::content::source(&node, &assets).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        Renderer::default()
+            .render(
+                source,
+                assets,
+                1,
+                Some(root.path().into()),
+                Some(&settings),
+                None,
+            )
+            .unwrap();
+        assert_eq!(
+            std::fs::read(root.path().join(reference.path())).unwrap(),
+            reference.contents.as_bytes()
+        );
+        assert!(root.path().join(image).is_file());
+        assert!(root.path().join("capabilities/references.typ").is_file());
+        assert!(root.path().join("article.pdf").is_file());
+        assert!(
+            std::fs::read_to_string(root.path().join("main.typ"))
+                .unwrap()
+                .contains("path(\"bibliography/books.bib\")")
+        );
+    }
 
     fn decoded_png(data: Vec<u8>) -> Vec<u8> {
         let mut reader = png::Decoder::new(std::io::Cursor::new(data))

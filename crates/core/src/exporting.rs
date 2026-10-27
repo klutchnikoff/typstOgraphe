@@ -40,6 +40,29 @@ pub fn write_document(
     format: ExportFormat,
     page_images: bool,
 ) -> Result<(), CoreError> {
+    write_document_inner(document, request, path, format, page_images, false)
+}
+
+/// Structured adapters already retain assets from their tree. Reuse the same
+/// writer without projecting that tree back through the legacy text parser.
+pub fn write_retained_document(
+    document: &PagedDocument,
+    request: &RenderRequest,
+    path: &Path,
+    format: ExportFormat,
+    page_images: bool,
+) -> Result<(), CoreError> {
+    write_document_inner(document, request, path, format, page_images, true)
+}
+
+fn write_document_inner(
+    document: &PagedDocument,
+    request: &RenderRequest,
+    path: &Path,
+    format: ExportFormat,
+    page_images: bool,
+    assets_retained: bool,
+) -> Result<(), CoreError> {
     request.metadata.validate().map_err(CoreError::external)?;
     check_directory(path)?;
     // Préparer les opérations faillibles de compilation avant la première écriture.
@@ -58,7 +81,11 @@ pub fn write_document(
     } else {
         None
     };
-    let assets = if format != ExportFormat::Pdf {
+    let assets = if format == ExportFormat::Pdf {
+        Default::default()
+    } else if assets_retained {
+        request.assets.clone()
+    } else {
         retained_assets(
             &request.source,
             &request.metadata,
@@ -66,8 +93,6 @@ pub fn write_document(
             &request.assets,
             &request.dependencies,
         )?
-    } else {
-        Default::default()
     };
     std::fs::create_dir_all(path).map_err(CoreError::external)?;
     if let Some(pdf) = pdf {
