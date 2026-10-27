@@ -209,8 +209,8 @@ Règles :
 
 ### Bibliothèque Typst éditoriale commune — orientation du 27 octobre 2026
 
-Le type Article et un premier modèle « Article de travail » constituent le
-prochain cas d’usage retenu. Son périmètre couvre auteurs multiples,
+Le type Article et le premier modèle « Article de travail » sont implémentés.
+L’en-tête livré couvre auteurs multiples,
 affiliations partagées, résumés riches en plusieurs langues et mots-clés propres
 à chaque langue. Les champs, obligations et signatures sont désormais précisés dans le
 [contrat Article retenu](article-contract.md), avec affiliations en texte libre
@@ -287,7 +287,7 @@ leur ordre de livraison reste à valider.
 | **Note / mémo** | à créer | objet, de, à, copie, date | pièces jointes |
 | **Support de cours** | à créer | titre, auteur·e·s, UE, année | chapitres, encadrés (définition, exemple, à retenir), bibliographie |
 | **Syllabus** | à créer | intitulé, code UE, responsable·s, crédits, volume horaire | objectifs, prérequis, modalités d’évaluation, calendrier, bibliographie |
-| **Article** | à créer | titre, auteur·e·s (liste d’enregistrements), mots-clés | résumé, notes, figures, tableaux, citations, bibliographie |
+| **Article** | en-tête et modèle de travail livrés ; bibliographie à définir | titre, auteur·e·s (liste d’enregistrements), mots-clés | résumé, notes, figures, tableaux, citations, bibliographie |
 | **Rapport / mémoire** | à créer | titre, auteur·e·s, directeur·rice, établissement, année | page de titre, résumé, sommaire, chapitres, bibliographie, annexes |
 
 Sont repoussés : fiche de TD, sujet d’examen, dossier de projet, rapport

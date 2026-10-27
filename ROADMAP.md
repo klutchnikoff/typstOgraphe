@@ -20,9 +20,9 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** préciser le contrat de l’Article scientifique généraliste,
-puis construire son premier modèle « Article de travail » et les composants
-communs nécessaires à son en-tête.
+**Séquence immédiate :** préciser ensemble les citations bibliographiques et la
+bibliothèque de références de l’Article, à partir du
+[contrat et de l’en-tête désormais implémentés](docs/article-contract.md).
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
 
@@ -198,17 +198,16 @@ vérifiés, avec la même disponibilité dans les interfaces qui exposent la cap
 
 - Accompagner chaque type livré d’un modèle généraliste sobre, utile et sans
   coordonnées ni contenu d’organisation fictifs imposés.
-- Commencer par le modèle « Article de travail », conformément au périmètre
-  retenu, puis reprendre compte-rendu et note/mémo selon le catalogue validé ;
-  vérifier le courrier personnel sur les mêmes critères.
+- Étendre le modèle « Article de travail » aux prochaines capacités validées,
+  puis reprendre compte-rendu et note/mémo selon le catalogue validé ; vérifier
+  le courrier personnel sur les mêmes critères.
 - Pour l’article, le rapport, le cours et le syllabus : définir une recette
   représentative, puis le modèle en même temps que les capacités nécessaires.
-- Construire si nécessaire une bibliothèque Typst éditoriale commune pour les
-  auteurs, affiliations et résumés multilingues, réutilisable par les modèles
-  sans leur imposer une présentation unique. S’inspirer de Pubmatter et de son
-  code libre, sans dépendance imposée ; recevoir les données de notre contrat
-  plutôt que reproduire sa normalisation de multiples formats. Les signatures
-  et la recette restent à valider ; voir l’[orientation détaillée](docs/types-modeles-libertes.md#bibliothèque-typst-éditoriale-commune--orientation-du-27-octobre-2026).
+- Réutiliser et étendre la bibliothèque Typst éditoriale commune, sans imposer
+  une présentation unique aux modèles. Les premiers helpers d’auteurs,
+  affiliations et résumés sont définis dans le [contrat Article](docs/article-contract.md).
+  Valider ensemble les signatures des nouvelles fonctions et leur recette ;
+  inventorier et embarquer chaque dépendance réellement utilisée.
 - Définir le manifeste du modèle : identité, description, mots-clés, type,
   fonction publique, paramètres, défauts, ressources et dépendances.
 - Installer, choisir et retirer des modèles personnels ou d’organisation dans
@@ -349,16 +348,15 @@ premier périmètre. Les propositions non retenues ne deviennent pas des engagem
 
 ## Prochain lot proposé
 
-1. Implémenter le [contrat Article validé](docs/article-contract.md) (**B.1**) :
-   auteurs multiples, affiliations officielles en texte libre, résumés riches
-   multilingues, mots-clés et titre court par langue.
-2. Unifier le contrat structuré entre les adaptateurs (**A.2**), à partir du
-   [rangement de l’application](docs/application-layout.md) désormais établi.
-3. Construire l’Article et son modèle de travail avec les capacités existantes,
-   puis les citations bibliographiques et la bibliothèque de références
-   (**C/D/E**). Développer les fonctions Typst éditoriales communes nécessaires,
-   inspirées des solutions libres pertinentes ; le périmètre administratif
-   restant sera repris ensuite, un type à la fois.
+1. Préciser ensemble les citations bibliographiques et la bibliothèque de
+   références de l’Article : données, import, badge auteur–année, cibles et
+   paramètres de style laissés libres ou imposés par le modèle (**B/C/D/E**).
+2. Poursuivre l’unification du contrat structuré entre les adaptateurs (**A.2**),
+   à partir du [rangement de l’application](docs/application-layout.md).
+   Les schémas de métadonnées Article sont partagés ; les propositions MCP
+   rattachées restent actuellement limitées au corps du document.
+3. Reprendre ensuite le périmètre administratif restant, un type à la fois,
+   avec un modèle utile et une recette représentative.
 4. Engager ACP après stabilisation du contrat documentaire et validation de sa
    maquette (**F**), sans attendre la livraison de tous les types SHS/enseignement.
 

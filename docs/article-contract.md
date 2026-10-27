@@ -82,3 +82,46 @@ Vérifier : trois auteurs, affiliations multiples et partagées, auteur indépen
 correspondant explicite, noms identiques, signature officielle exacte, résumés
 français/anglais avec styles et mots-clés distincts, titre court, réorganisation,
 annulation, éditions concurrentes, sauvegarde/réouverture et export hors ligne.
+
+## Implémentation et utilisation
+
+À la création d’un document, choisir **Article**, puis **Article de travail**.
+L’onglet Général conserve modèle, papier, orientation et langue principale.
+L’onglet En-tête présente les titres de cette langue, puis les auteurs,
+affiliations et ensembles linguistiques. Ajouter une affiliation une seule fois,
+puis la cocher pour chacun de ses auteurs. Les flèches changent l’ordre sans
+changer les identifiants ; les corbeilles demandent confirmation. Une affiliation
+utilisée ne peut être supprimée qu’avec le retrait explicite de ses associations.
+Le résumé possède une zone riche, avec gras, italique et liens via le bandeau
+commun. Les mots-clés sont saisis un par ligne, y compris les expressions longues.
+
+Les collections sont décrites en Rust, traduites par Fluent et présentées par des
+composants génériques. Dans Yjs, chaque enregistrement possède ses champs propres :
+`Y.Text` pour les textes libres, `Y.XmlFragment` pour les zones riches, valeurs
+atomiques pour les booléens, langues, mots-clés et listes d’associations. L’ordre
+est séparé des identités. Les éditions de texte et de champs distincts fusionnent ;
+les changements concurrents d’une même valeur atomique suivent la résolution de
+Yjs. Les incohérences structurelles éventuelles (par exemple une langue ajoutée
+deux fois hors ligne) sont refusées par la validation avant enregistrement/export.
+L’historique commun couvre aussi l’en-tête ; fermer une section ne le réinitialise pas.
+
+La CLI et le MCP autonome découvrent ces mêmes schémas avec `document_types.describe`
+(MCP) et la requête `document_types.list` (CLI). `metadata.set` reçoit la collection
+complète sous forme de tableau JSON avec une garde de révision. Mettre à jour les
+affiliations avant d’y associer les auteurs ; enlever les associations avant de
+supprimer une affiliation. Les champs riches utilisent l’arbre documentaire
+restreint décrit par le schéma, jamais une chaîne de code Typst. Le MCP rattaché
+à l’application peut lire l’en-tête ; ses propositions d’édition restent limitées
+au corps, comme pour les autres types, en attendant l’unification suivante.
+
+Les fichiers communs sont des implémentations originales, sans code repris ni
+paquet Pubmatter embarqué. Ils sont inventoriés dans
+`crates/core/templates/dependencies.json`. La recette teste le rendu Typst réel,
+les identités et associations, les deux langues, l’annulation, les éditions Yjs,
+les parcours clavier Chromium/WebKit, la réouverture et un export recompilé avec
+ses seules dépendances. Aucune capture d’écran n’est produite.
+
+La bibliographie et les badges de citations restent à préciser ensemble. Ce lot
+ne fournit pas encore de correcteur orthographique propre aux zones riches de
+l’en-tête ni de synchronisation vers ces zones depuis l’aperçu. Le correcteur du
+corps et sa synchronisation restent disponibles.

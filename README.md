@@ -12,7 +12,7 @@ un éditeur visuel à gauche, le rendu Typst en temps réel à droite.
 Les modèles prennent en charge la présentation et les conventions de l’organisation.
 
 L’application vise **macOS, Windows et Linux**, avec des fichiers locaux autonomes.
-Le premier modèle utilisable est un **courrier personnel français**.
+Deux modèles sont disponibles : **courrier personnel français** et **article de travail**.
 
 **En développement préliminaire.** L’interface utilise Tauri,
 Tiptap/ProseMirror et Yjs, avec un cœur Rust et Typst embarqué.
