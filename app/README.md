@@ -80,3 +80,11 @@ Un chemin `.typsto` peut être passé au binaire pour ouvrir le fichier au lance
 Dans Général, un fichier `.typ` peut être importé comme modèle embarqué après
 validation par Typst pour le type courant. Il accompagne l’archive et l’export ;
 ce parcours ne constitue pas encore une bibliothèque globale de modèles.
+
+## Palette de commandes
+
+Ouvrir la palette avec Ctrl/Cmd+Maj+P. La recherche conserve le focus pendant
+la navigation avec Haut/Bas ; la commande active est mise en évidence et la
+liste défile sans masquer la recherche. Entrée lance la commande active,
+Échap ferme le panneau et rend le focus à l’éditeur. Les commandes indisponibles
+sont ignorées par les flèches. Tab conserve son rôle de déplacement du focus.
