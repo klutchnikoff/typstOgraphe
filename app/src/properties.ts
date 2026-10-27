@@ -44,6 +44,7 @@ export function propertyPanel(
     label: tr('Supprimer'),
     danger: true,
     run: () => {
+      if (!valid()) return
       const target = bands.target
       if (opened && target && opened.kind !== 'link') api.open(target.from, opened.kind, true)
       else remove()

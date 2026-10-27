@@ -77,6 +77,29 @@ inline accompagnées d’un bandeau. Le générateur `ParameterFields` accepte l
 `x-editor.label_visibility: "accessible"` : le nom accessible du champ est conservé
 sans afficher un libellé qui ferait doublon avec le titre du bandeau.
 
+## Objets intégrés au texte
+
+`inline-objects.ts` reconnaît les nœuds inline atomiques et sélectionnables à partir
+du schéma ProseMirror (les retours simples, non sélectionnables, sont exclus).
+`inlineObjectView` leur donne un badge non éditable, une sélection d’objet et le
+même accès au bandeau par clic, Entrée ou Espace. L’appel de note affiche « Note » ;
+le nom accessible et l’info-bulle donnent sa fonction et son contenu. Cette
+présentation ne change ni le contenu documentaire ni le rendu Typst.
+
+Pour Ctrl/Cmd+Entrée, l’ordre est : bandeau déjà ouvert, objet inline sélectionné
+ou immédiatement voisin du curseur, correction orthographique, puis paramètres du
+lien ou du widget. Un curseur juste avant ou après une note vise donc cette note ;
+dans le mot voisin, il vise toujours la correction. Une sélection de texte n’est
+pas assimilée à l’objet situé à son extrémité. Entre deux objets, celui qui suit
+le curseur est prioritaire pour l’ouverture des paramètres.
+
+Retour arrière juste après un objet et Suppr juste avant ouvrent sa confirmation
+de suppression, sans changer le document. La commande centrale Ctrl/Cmd+Retour
+arrière applique la même priorité à l’objet plutôt qu’au widget qui l’entoure.
+Une sélection explicite d’objet suit ce même chemin. Échap conserve l’objet et
+restitue le curseur ; Entrée confirme, avec possibilité d’annuler ensuite. Le
+bouton « Supprimer » des paramètres d’une note ouvre cette même confirmation.
+
 ## Raccordements
 
 | Zone | Composant commun |
