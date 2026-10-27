@@ -1,6 +1,6 @@
 # Les modèles embarqués et les fixtures Typst doivent être identiques sur les trois OS.
 *.typ text eol=lf
 # Prettier utilise LF ; garder les sources web identiques lors du checkout Windows.
-experiments/web-editor/** text=auto eol=lf
+app/** text=auto eol=lf
 # Préserver les octets des paquets amont, y compris leurs fins de ligne.
 templates/packages/** -text
