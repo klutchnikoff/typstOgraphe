@@ -23,24 +23,29 @@ export interface RecordCollection {
   itemLabel: string
   title_key: string
   language_key?: string
-  primary_fields?: string[]
   fields: RecordField[]
 }
-export type StructuredMetadata = { collections: RecordCollection[] }
+export interface MetadataPanel {
+  id: string
+  collection: string
+  fields?: string[]
+}
+export type StructuredMetadata = { collections: RecordCollection[]; panels?: MetadataPanel[] }
+export type RecordStore = Pick<Provider, 'doc'>
 export type RecordData = Record<string, unknown> & { id: string }
 export type SharedRecord = Y.Map<unknown>
 
-function collections(provider: Provider) {
+function collections(provider: RecordStore) {
   return provider.doc.getMap('settings').get('collections') as
     Y.Map<Y.Map<SharedRecord>> | undefined
 }
-export function recordMap(provider: Provider, definition: RecordCollection) {
+export function recordMap(provider: RecordStore, definition: RecordCollection) {
   return collections(provider)!.get(definition.parameter)!
 }
-function order(provider: Provider, definition: RecordCollection) {
+function order(provider: RecordStore, definition: RecordCollection) {
   return provider.doc.getMap('settings').get(`order:${definition.parameter}`) as Y.Array<string>
 }
-export function recordIds(provider: Provider, definition: RecordCollection) {
+export function recordIds(provider: RecordStore, definition: RecordCollection) {
   const map = recordMap(provider, definition)
   return [...new Set(order(provider, definition).toArray())].filter((id) => map.has(id))
 }
@@ -60,10 +65,8 @@ export function readRecord(record: SharedRecord, definition: RecordCollection): 
     }),
   ]) as RecordData
 }
-function insert(provider: Provider, definition: RecordCollection, value: RecordData) {
-  const record = new Y.Map<unknown>()
+function fillRecord(record: SharedRecord, definition: RecordCollection, value: RecordData) {
   record.set('id', value.id)
-  recordMap(provider, definition).set(value.id, record)
   for (const field of definition.fields) {
     const current = value[field.key] ?? field.default
     if (field.kind === 'rich' || field.kind === 'rich_inline') {
@@ -78,11 +81,37 @@ function insert(provider: Provider, definition: RecordCollection, value: RecordD
       record.set(field.key, new Y.Text(String(current)))
     } else record.set(field.key, structuredClone(current))
   }
-  order(provider, definition).push([value.id])
   return record
 }
+function insert(
+  provider: RecordStore,
+  definition: RecordCollection,
+  value: RecordData,
+  after?: string,
+) {
+  const record = new Y.Map<unknown>()
+  recordMap(provider, definition).set(value.id, record)
+  fillRecord(record, definition, value)
+  const list = order(provider, definition)
+  const index = after ? list.toArray().indexOf(after) : -1
+  list.insert(index < 0 ? list.length : index + 1, [value.id])
+  return record
+}
+
+/** Unpublished additions never enter collaboration, snapshots or the document undo history. */
+export function createRecordDraft(
+  definition: RecordCollection,
+  overrides: Record<string, unknown> = {},
+) {
+  const doc = new Y.Doc()
+  const record = doc.getMap('record')
+  doc.transact(() =>
+    fillRecord(record, definition, { id: crypto.randomUUID(), ...overrides } as RecordData),
+  )
+  return { doc, record, value: () => readRecord(record, definition), destroy: () => doc.destroy() }
+}
 export function initializeRecords(
-  provider: Provider,
+  provider: RecordStore,
   schema: StructuredMetadata | null | undefined,
   values: Record<string, unknown>,
 ) {
@@ -100,7 +129,7 @@ export function initializeRecords(
   }, 'metadata-initialize')
 }
 export function snapshotRecords(
-  provider: Provider,
+  provider: RecordStore,
   schema: StructuredMetadata,
   values: Record<string, unknown>,
 ) {
@@ -111,18 +140,24 @@ export function snapshotRecords(
     )
 }
 export function addRecord(
-  provider: Provider,
+  provider: RecordStore,
   definition: RecordCollection,
   overrides: Record<string, unknown> = {},
+  after?: string,
 ) {
   let record!: SharedRecord
   provider.doc.transact(() => {
-    record = insert(provider, definition, { id: crypto.randomUUID(), ...overrides } as RecordData)
+    record = insert(
+      provider,
+      definition,
+      { id: crypto.randomUUID(), ...overrides } as RecordData,
+      after,
+    )
   }, ySyncPluginKey)
   return record
 }
 export function setRecordField(
-  provider: Provider,
+  provider: RecordStore,
   record: SharedRecord,
   key: string,
   value: unknown,
@@ -150,7 +185,7 @@ export function setRecordField(
   }, ySyncPluginKey)
 }
 export function moveRecord(
-  provider: Provider,
+  provider: RecordStore,
   definition: RecordCollection,
   id: string,
   delta: number,
@@ -166,7 +201,7 @@ export function moveRecord(
   }, ySyncPluginKey)
 }
 export function removeRecord(
-  provider: Provider,
+  provider: RecordStore,
   schema: StructuredMetadata,
   definition: RecordCollection,
   id: string,
@@ -197,7 +232,7 @@ export function removeRecord(
   return true
 }
 export function ensurePrimaryRecords(
-  provider: Provider,
+  provider: RecordStore,
   schema: StructuredMetadata | null | undefined,
   language: string,
 ) {

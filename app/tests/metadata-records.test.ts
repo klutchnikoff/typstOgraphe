@@ -9,6 +9,7 @@ import {
   recordIds,
   setRecordField,
   addRecord,
+  createRecordDraft,
   removeRecord,
   moveRecord,
   type StructuredMetadata,
@@ -124,5 +125,52 @@ it('reordering is separate from stable identities and values; creation and delet
   expect(recordIds(provider, schema.collections[0])).toEqual(['a', id])
   undo.undo()
   expect(recordIds(provider, schema.collections[0])).toEqual(['a'])
+  provider.doc.destroy()
+})
+
+it('pending additions are private; cancellation preserves peer changes and document undo', () => {
+  const provider = setup()
+  const undo = new Y.UndoManager(provider.doc.getMap('settings'), {
+    trackedOrigins: new Set([ySyncPluginKey]),
+  })
+  const before = snapshot(provider)
+  const draft = createRecordDraft(schema.collections[0])
+  setRecordField(draft, draft.record, 'name', 'Nouvel auteur 👩🏽‍🔬')
+  setRecordField(draft, draft.record, 'affiliations', ['f'])
+  expect(snapshot(provider)).toEqual(before)
+  expect(undo.undoStack).toHaveLength(0)
+  const peer = { doc: new Y.Doc() } as Provider
+  Y.applyUpdate(peer.doc, Y.encodeStateAsUpdate(provider.doc), 'peer')
+  setRecordField(peer, recordMap(peer, schema.collections[0]).get('a')!, 'name', 'Collègue')
+  Y.applyUpdate(provider.doc, Y.encodeStateAsUpdate(peer.doc), 'peer')
+  draft.destroy()
+  expect(snapshot(provider).people).toHaveLength(1)
+  expect(snapshot(provider).people[0].name).toBe('Collègue')
+  expect(undo.undoStack).toHaveLength(0)
+  provider.doc.destroy()
+  peer.doc.destroy()
+})
+it('confirming a filled draft inserts after its anchor in a single undoable transaction', () => {
+  const provider = setup()
+  const undo = new Y.UndoManager(provider.doc.getMap('settings'), {
+    trackedOrigins: new Set([ySyncPluginKey]),
+  })
+  const last = addRecord(provider, schema.collections[0], { name: 'Dernier' })
+  undo.clear()
+  const draft = createRecordDraft(schema.collections[0])
+  setRecordField(draft, draft.record, 'name', 'Auteur intermédiaire')
+  setRecordField(draft, draft.record, 'affiliations', ['f'])
+  const id = draft.value().id
+  addRecord(provider, schema.collections[0], draft.value(), 'a')
+  draft.destroy()
+  expect(recordIds(provider, schema.collections[0])).toEqual(['a', id, last.get('id')])
+  expect(snapshot(provider).people[1].name).toBe('Auteur intermédiaire')
+  expect(snapshot(provider).people[1].affiliations).toEqual(['f'])
+  expect(JSON.stringify(snapshot(provider).people[1].summary)).toContain('Résumé')
+  expect(undo.undoStack).toHaveLength(1)
+  undo.undo()
+  expect(recordIds(provider, schema.collections[0])).toEqual(['a', last.get('id')])
+  undo.redo()
+  expect(snapshot(provider).people[1].name).toBe('Auteur intermédiaire')
   provider.doc.destroy()
 })
