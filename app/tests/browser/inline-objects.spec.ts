@@ -249,6 +249,12 @@ test('les numéros suivent les insertions, suppressions et annulations distantes
   await peer.locator('[data-command="insert.footnote"]').click()
   await peer.getByLabel('Texte de la note', { exact: true }).fill('Avant')
   await peer.keyboard.press('Enter')
+  // Explicit parameter edits are confirmed asynchronously. The next actor must
+  // not race a still-pending command when testing numbering rather than rejection.
+  await expect(peer.locator('#properties')).toBeHidden()
+  await expect(page.locator('.footnote-ref .inline-object-label').first()).toHaveAccessibleName(
+    'Note de bas de page 1 : Avant',
+  )
   for (const view of [page, peer])
     await expect(view.locator('.footnote-ref .inline-object-label')).toHaveText([
       'Note 1',
@@ -259,6 +265,7 @@ test('les numéros suivent les insertions, suppressions et annulations distantes
   await expect(field).toHaveValue('B')
   await field.fill('B mise à jour')
   await page.keyboard.press('Enter')
+  await expect(page.locator('#properties')).toBeHidden()
   await expect(peer.locator('.footnote-ref .inline-object-label').nth(2)).toHaveAccessibleName(
     'Note de bas de page 3 : B mise à jour',
   )
@@ -270,6 +277,7 @@ test('les numéros suivent les insertions, suppressions et annulations distantes
       'Note 1',
       'Note 2',
     ])
+  await expect(peer.locator('#properties')).toBeHidden()
   await peer.keyboard.press('Control+z')
   for (const view of [page, peer])
     await expect(view.locator('.footnote-ref .inline-object-label')).toHaveText([

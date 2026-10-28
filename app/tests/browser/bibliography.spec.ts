@@ -92,6 +92,7 @@ test('bibliothèque multi-format, recherche fuzzy, badge, clavier et rendu natif
   await body(page).press('Backspace')
   await page.locator('#apply-properties').click()
   await expect(body(page).locator('.citation-ref')).toHaveCount(0)
+  await expect(page.locator('#properties')).toBeHidden()
   await page.getByRole('button', { name: 'Annuler', exact: true }).click()
   await expect(body(page).locator('.citation-ref')).toHaveCount(1)
   await tab(page, 'general')
