@@ -54,9 +54,13 @@ Mode individuel par défaut, services collaboratifs activés à la demande ;
 le moteur documentaire reste commun.
 
 Le [socle Yrs et de conservation](docs/structured-contract-foundation.md) est en
-place, ainsi que les [premières commandes et cibles multizones](docs/structured-commands.md)
-dans le cœur. Restent les autres commandes et leur historique, le relais de
-frappe avec gestion du refus, le mode individuel allégé, puis la migration CLI/MCP.
+place, ainsi que les [commandes multizones et structurelles](docs/structured-commands.md)
+dans le cœur : insertions/remplacements/suppressions de blocs et items, séparation
+de paragraphes, titres, enregistrements d’en-tête ordonnés et normalisation des
+lignes vides avant publication. Les recettes Rust ↔ Tiptap vérifient les identités
+conservées et une seule étape d’annulation pour chaque lot. Restent les opérations
+fines de tableaux, les autres commandes et leur historique, le relais de frappe
+avec gestion du refus, le mode individuel allégé, puis la migration CLI/MCP.
 
 Converger entre le contenu structuré du nouvel éditeur et les adaptateurs
 historiques : catalogue, commandes, requêtes, erreurs typées et schémas de fichiers.

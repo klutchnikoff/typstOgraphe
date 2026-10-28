@@ -1,4 +1,4 @@
-# Cibles multizones et premières commandes communes — A.2
+# Commandes multizones et opérations structurelles — A.2
 
 Ce lot prolonge le [socle Yrs](structured-contract-foundation.md) selon les
 [décisions validées](structured-contract.md). Il ajoute une API Rust commune,
@@ -11,7 +11,7 @@ Les types publics sont dans `content::commands`. Le schéma JSON de `Command`
 est produit par Schemars depuis les types réellement désérialisés. Les champs
 inconnus et les offsets négatifs sont refusés. `specifications()` annonce le
 périmètre et les identifiants exécutables ; `content::catalogue::describe`
-annonce également le support `shared_core`, avec sa limite aux plages explicites.
+annonce également le support `shared_core`, avec son périmètre d’exécution explicite.
 Ce support ne signifie pas que CLI ou MCP ont déjà migré.
 
 | Commande | Effet dans ce lot |
@@ -24,6 +24,14 @@ Ce support ne signifie pas que CLI ou MCP ont déjà migré.
 | `text.remove_link` | Retirer ses liens en conservant les autres styles |
 | `text.clear` | Retirer les styles d’une plage |
 | `metadata.set` | Modifier un champ simple ou un champ d’enregistrement identifié, sans remplacer sa collection |
+| `block.insert` | Insérer un sous-arbre à une frontière de blocs |
+| `block.replace` | Remplacer explicitement un sous-arbre |
+| `block.remove` | Supprimer un bloc ou un item, en respectant les frontières |
+| `block.split` | Séparer un paragraphe ou un titre au curseur ; la suite devient un paragraphe |
+| `block.paragraph`, `block.heading_1` à `block.heading_3` | Convertir un paragraphe/titre ou changer son niveau |
+| `record.add` | Ajouter un enregistrement avec son identifiant et les valeurs par défaut du type |
+| `record.move` | Changer sa position dans une collection ordonnée |
+| `record.remove` | Supprimer un enregistrement sans détacher silencieusement ses références |
 
 L’insertion n’interprète ni Markdown ni Typst. `marks` est vide par défaut ;
 elle n’hérite pas d’un mode de frappe implicite ni du style voisin. Les styles
@@ -97,6 +105,100 @@ collection entière ; les zones riches utilisent les commandes textuelles.
 Les identifiants publics de champs restent distincts des paramètres Typst et
 des clés internes des valeurs sérialisées.
 
+## Opérations structurelles
+
+Une cible d’arbre contient `root` et `path`. La racine est `{"kind":"body"}`
+ou `{"kind":"record","collection":"localizations","id":"fr","field":"abstract"}`.
+Le chemin vide désigne le conteneur racine ; un chemin non vide désigne un
+élément de son arbre projeté, comme pour les zones textuelles.
+
+`block.insert` reçoit `parent`, `index` et `node`. L’indice est une frontière
+entre les enfants du conteneur, dans l’état privé atteint par le lot ; `node`
+est un sous-arbre du contrat documentaire `Node`, jamais du Typst exécutable.
+Paragraphes, titres, listes simples, descriptions, citations, tableaux et figures
+peuvent ainsi être construits. Les images doivent déjà exister dans les ressources
+de la séance. Les tableaux doivent être rectangulaires et sans cellules fusionnées.
+
+Exemple d’insertion d’une citation au milieu d’un paragraphe :
+
+```json
+[
+  {
+    "id": "block.split",
+    "params": {
+      "target": { "zone": { "kind": "body", "path": [0] }, "from": 4, "to": 4 }
+    }
+  },
+  {
+    "id": "block.insert",
+    "params": {
+      "parent": { "root": { "kind": "body" }, "path": [] },
+      "index": 1,
+      "node": {
+        "type": "quote",
+        "content": [
+          { "type": "paragraph", "content": [{ "type": "text", "text": "Citation" }] },
+          { "type": "quoteAttribution" }
+        ]
+      }
+    }
+  }
+]
+```
+
+Au début d’un paragraphe, on insère directement avant celui-ci ; aucune séparation
+préalable n’est nécessaire. `block.split` exige un curseur, donc `from == to`,
+et refuse les annotations brutes et les zones qui ne sont pas des paragraphes/titres.
+Il fonctionne aussi dans les cellules et les résumés. Un titre d’en-tête ne peut
+pas devenir deux paragraphes : son profil `rich_inline` continue à s’appliquer.
+
+`block.replace` reçoit `target` et `node`, `block.remove` seulement `target`.
+Les racines, cellules, lignes de tableau, badges et zones d’attribution ne sont
+pas supprimables comme des blocs ordinaires. Un item de liste peut être retiré,
+mais un lot ne peut pas laisser une liste vide ; il doit alors retirer son widget.
+La suppression du dernier paragraphe d’une cellule ou d’un champ riche conserve
+un paragraphe vide éditable. La structure finale est contrôlée également lors de
+la réception d’une mise à jour partagée brute, avant publication.
+
+Les conversions `block.paragraph` et `block.heading_*` concernent un seul
+paragraphe/titre. Elles ne transforment pas implicitement une liste ou une image
+en texte. Un changement de niveau conserve le titre et son contenu partagés.
+Le passage paragraphe ↔ titre, comme `block.replace`, renouvelle le sous-arbre
+explicitement transformé. Une séparation conserve le paragraphe et son préfixe ;
+la suite déplacée reçoit de nouveaux objets. Les voisins, cellules englobantes et
+racines privées restent en place. Les styles et les annotations sont conservés
+dans la projection, même lorsque leurs objets doivent être recréés.
+
+Avant publication d’un lot typé, les lignes vides sont normalisées dans le
+candidat : pas de première ligne vide devant du contenu, pas de paragraphes
+vides consécutifs dans le flux, et un point de saisie final dans le corps.
+Les cellules et items gardent leurs frontières. Les résumés suivent le profil
+riche sans paragraphe final imposé. Cette politique Rust est confrontée à celle
+de la frappe immédiate dans Tiptap ; le raccordement de production reste à faire.
+
+## Enregistrements ordonnés d’en-tête
+
+Les collections et leurs champs proviennent des descripteurs du type courant,
+sans table parallèle spécifique aux auteurs ou aux affiliations.
+
+- `record.add` : `collection`, `id` explicite, `values` partiel, `after` facultatif.
+  Sans `after`, ajout en fin. Les champs absents prennent les valeurs du type,
+  y compris les fragments riches. Un identifiant existant, un champ inconnu ou
+  une ancre absente est refusé.
+- `record.move` : `collection`, `id`, `before` facultatif. Sans `before`, placement
+  en fin. Seul l’ordre change ; les cartes, textes et fragments restent les mêmes.
+  Un ordre déjà satisfait ne crée pas de révision.
+- `record.remove` : `collection`, `id`. Toutes ses entrées d’ordre et sa carte sont
+  retirées. Les associations restent explicites : pour supprimer une affiliation
+  utilisée, le lot doit aussi modifier les `affiliation-ids` concernés avec
+  `metadata.set`. Aucun détachement automatique ne masque une perte d’information.
+
+La validation finale contrôle associations, unicité des langues et limites du
+type. Un brouillon peut supprimer sa dernière localisation ; il reste conservable
+mais ne devient pas exportable sans les informations exigées par le type.
+Les fichiers bibliographiques suivent le même contrat d’enregistrements ; leur
+contenu et leurs références continuent à être validés par la bibliothèque existante.
+
 ## Préparation et publication
 
 `SharedSession::prepare_commands(guard, commands)` prépare un candidat isolé.
@@ -104,9 +206,10 @@ La garde associe identité du projet et révision. Chaque étape vise l’état 
 résultant des précédentes ; les chemins des étapes suivantes doivent en tenir
 compte. Aucun réancrage implicite n’est effectué.
 
-Les opérations modifient les objets partagés en place : paragraphes, cellules,
-fragments riches, textes d’enregistrements et annotations conservent leurs
-identités. Les racines privées de la liaison Tiptap sont conservées. Le
+Les éditions textuelles modifient les objets partagés en place : paragraphes,
+cellules, fragments riches, textes d’enregistrements et annotations conservent
+leurs identités. Les exceptions des transformations structurelles sont décrites
+ci-dessus. Les racines privées de la liaison Tiptap sont conservées. Le
 remplacement d’un texte simple préserve son préfixe et son suffixe communs.
 
 La validation structurelle, des métadonnées et des références porte sur l’état
@@ -135,7 +238,8 @@ atomiques, validation finale et opérations sans changement.
 
 Les recettes `npm run test:contract` font exécuter un lot Rust sur un document
 créé par Yjs/Tiptap, puis appliquent sa mise à jour dans le véritable éditeur.
-Elles vérifient les références des objets partagés, les styles sur les badges,
+Elles vérifient aussi les blocs et les collections ordonnées, la stabilité après
+les normalisations différées de l’éditeur, les références des objets partagés, les styles sur les badges,
 les métadonnées et une seule étape d’annulation/rétablissement. Le transport de
 diagnostic reste réservé aux tests ; ce n’est pas une nouvelle voie publique MCP.
 
@@ -143,11 +247,12 @@ Restent dans A.2 :
 
 - Les modes de frappe des participants. Une commande de style sur une plage
   vide retourne actuellement `empty_selection`.
-- Les éditions structurelles de blocs, paragraphes et tableaux. Les retours à
-  la ligne insérés dans une zone riche retournent `structural_edit_required`
-  dans ce premier lot ; les textes bruts conservent leurs retours littéraux.
-- L’ajout, la suppression et le déplacement des enregistrements et ressources,
-  les options et changements de modèle, les autres commandes et requêtes.
+- Les opérations fines sur les lignes/colonnes des tableaux, la fusion de
+  paragraphes et les transformations supplémentaires. Un tableau entier est
+  déjà insérable/remplaçable ; les éditions textuelles de ses cellules sont communes.
+  Les retours riches passent par `block.split` ou des nœuds de retour explicites,
+  pas par des sauts de ligne cachés dans `text.insert`.
+- Les ressources, options et changements de modèle, les autres commandes et requêtes.
 - L’historique commun côté moteur. La recette montre qu’un lot importé dans
   Yjs peut former une seule étape ; elle ne remplace pas la migration des piles
   des participants ni le parcours d’acceptation des propositions.
