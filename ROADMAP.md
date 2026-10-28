@@ -264,6 +264,12 @@ export autonomes, compilables sans téléchargement de paquets.
 **Choix à valider :** les nouvelles interactions et maquettes, les préférences
 réellement utiles, les priorités de raccourcis et les objectifs de performance.
 
+**Prochaine maquette :** dialogue réutilisable pour créer et modifier les auteurs
+et affiliations, centré sur un arrière-plan atténué et légèrement flouté.
+Les principes de brouillon, validation et clavier sont consignés dans
+[`docs/metadata-dialogs.md`](docs/metadata-dialogs.md) ; le raccordement aux
+données attend la validation de la présentation.
+
 ## F — Intégrer l’assistance ACP
 
 L’orientation ACP reste retenue : un client commun aux agents dans l’application,
