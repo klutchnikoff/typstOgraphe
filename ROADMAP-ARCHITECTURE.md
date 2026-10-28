@@ -76,6 +76,13 @@ sémantique accessible. Le parcours Tauri prépare puis publie sous garde dans
 le propriétaire, avec annulation et diffusion aux autres fenêtres. Fusion des
 cellules différée ; migration des autres commandes et CLI/MCP encore à réaliser.
 
+La recherche/remplacement et les corrections orthographiques Tauri rejoignent
+aussi les commandes typées : lots textuels par zones, styles conservés,
+exceptions orthographiques documentaires gardées et annulation unique. Les
+widgets et les remplacements partagent la publication de leur plan et le
+rétablissement de la sélection. Le dictionnaire personnel reste une préférence
+globale. Voir la [recette et les limites](docs/structured-commands.md#rechercheremplacement-et-corrections-raccordés-dans-lapplication).
+
 Converger entre le contenu structuré du nouvel éditeur et les adaptateurs
 historiques : catalogue, commandes, requêtes, erreurs typées et schémas de fichiers.
 Les cibles du nouvel éditeur sont des chemins de blocs/cellules/annotations,
@@ -202,6 +209,13 @@ Ajouter validation/import, provenance, retrait, aperçu et remplacement explicit
 Pour chaque type livré : modèle neutre utile, corpus de test, export hors ligne
 et changement de modèle sans modification du contenu.
 
+**Accessibilité des exports (C/D) :** partager les diagnostics de description
+d’image entre les adaptateurs ; conserver et récupérer les brouillons incomplets,
+mais bloquer leur export accessible tant que la description manque. Activer les
+standards PDF dans l’export commun, vérifier un corpus avec veraPDF en CI et
+compléter par une recette humaine des modèles (ordre de lecture, descriptions,
+titres et tableaux), les contrôles automatiques ne suffisant pas à tout vérifier.
+
 ## E. Interface et réactivité — continu
 
 Conserver les conventions validées des widgets/bandeaux, menus, actions et
@@ -296,20 +310,6 @@ la conservation du brouillon après refus distant, en suspendant les mises à jo
 qui dépendent de la branche refusée. L’annulation Yjs n’efface pas cette branche
 de l’historique CRDT.
 
-**Accessibilité des exports (C/D) :** partager les diagnostics de description
-d’image entre les adaptateurs ; conserver et récupérer les brouillons incomplets,
-mais bloquer leur export accessible tant que la description manque. Activer les
-standards PDF dans l’export commun, vérifier un corpus avec veraPDF en CI et
-compléter par une recette humaine des modèles (ordre de lecture, descriptions,
-titres et tableaux), les contrôles automatiques ne suffisant pas à tout vérifier.
-
-**Relecture (J/F) :** annotations ancrées séparées du contenu, applicables par les
-commandes gardées existantes. Mutualiser la présentation des propositions sans
-perdre l’acceptation atomique des lots d’agent, y compris structurels. La première
-relecture humaine textuelle ne dépend pas d’ACP. Distinguer aperçu confirmé et
-aperçu candidat explicitement signalé ; revérifier le contenu cible avant toute
-acceptation si l’auteur l’a modifié.
-
 Deux parcours à distinguer :
 
 - **Session hébergée depuis le desktop :** processus serveur avec runtime embarqué,
@@ -354,3 +354,12 @@ les changements sont vérifiés et documentés au bon endroit. Une tâche termin
 sort de la roadmap ; ses preuves et décisions vont dans une note ou dans Git.
 Une nouvelle dépendance, un changement de contrat ou un choix graphique structurant
 revient dans la discussion avant d’engager l’implémentation concernée.
+
+## J. Relecture par suggestions — P2
+
+ annotations ancrées séparées du contenu, applicables par les
+commandes gardées existantes. Mutualiser la présentation des propositions sans
+perdre l’acceptation atomique des lots d’agent, y compris structurels. La première
+relecture humaine textuelle ne dépend pas d’ACP. Distinguer aperçu confirmé et
+aperçu candidat explicitement signalé ; revérifier le contenu cible avant toute
+acceptation si l’auteur l’a modifié.

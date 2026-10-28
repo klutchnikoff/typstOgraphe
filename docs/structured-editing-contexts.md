@@ -207,6 +207,11 @@ création d’un nouveau document et sa nouvelle génération. Elles vérifient 
 corps, les champs riches Article, les tableaux, la séparation des contributions,
 le refus, l’export JSON et la reprise après abandon, sans captures d’écran.
 
+La recherche/remplacement et les corrections orthographiques utilisent désormais
+les commandes typées, y compris l’exception documentaire `spelling.ignore`.
+Leur publication et celle des widgets partagent `applyPlannedEdit` : un seul
+delta confirmé et une étape d’historique, sans relais brut supplémentaire.
+
 Restent la migration des autres commandes vers leurs cibles typées communes,
 le report des sélections/styles de l’adaptateur vers les contextes, le mode
 individuel allégé et les adaptateurs CLI/MCP autonome. Le relais des modifications

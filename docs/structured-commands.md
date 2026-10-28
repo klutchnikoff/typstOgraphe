@@ -25,6 +25,7 @@ Ce support ne signifie pas que CLI ou MCP ont déjà migré.
 | `text.link` | Appliquer un lien HTTP, HTTPS ou mailto à une plage |
 | `text.remove_link` | Retirer ses liens en conservant les autres styles |
 | `text.clear` | Retirer les styles d’une plage |
+| `spelling.ignore` | Accepter le mot d’une plage vérifiée pour la langue courante, dans ce document seulement |
 | `metadata.set` | Modifier un champ simple ou un champ d’enregistrement identifié, sans remplacer sa collection |
 | `block.insert` | Insérer un sous-arbre à une frontière de blocs |
 | `block.replace` | Remplacer explicitement un sous-arbre |
@@ -354,6 +355,48 @@ communs ne doit pas introduire un aller-retour avant l’affichage de la saisie.
 Les tests de collaboration attendent la confirmation du bandeau avant d’enchaîner
 une seconde commande ; les tests de concurrence vérifient séparément son refus.
 
+## Recherche/remplacement et corrections raccordés dans l’application
+
+`text-edits.ts` traduit les remplacements de recherche et les suggestions
+orthographiques par la même voie. Les opérations explicites utilisent
+`text.insert` avec styles explicites, ou `text.delete` si le remplacement est
+vide. Le texte est littéral, même s’il contient des caractères de balisage.
+La recherche reste exacte, insensible à la casse par défaut et sans regex.
+
+Un remplacement ne traverse pas de zone, de retour ou de badge. Les plages sont
+vérifiées contre leur texte courant, puis ordonnées de la fin vers le début
+pour conserver leurs offsets UTF-16 dans le candidat. « Tout remplacer » publie
+un seul lot et forme une seule étape d’annulation ; un refus ne publie aucune
+occurrence. La limite actuelle du moteur reste de 256 commandes par lot : au-delà,
+la préparation échoue intégralement, sans fractionnement ni modification partielle.
+
+`applyPlannedEdit` est commun aux widgets et aux remplacements : préparation,
+publication gardée, rétablissement de la sélection et du focus. La projection
+locale sert à prévoir la sélection après l’édition ; seul le delta confirmé du
+propriétaire est installé. Cette projection répare les paragraphes vides selon
+le profil de la zone avant de rétablir le curseur, notamment après suppression
+du premier paragraphe. Les formulaires détachés gardent leur édition locale.
+Un changement de document, de sélection, de requête ou de remplacement pendant
+la préparation annule l’opération. La fermeture ou le remplacement d’un bandeau
+ne permet pas à sa réponse tardive de fermer le suivant. Un refus conserve les
+champs de recherche et le bandeau utilisables, sans mettre la fenêtre en quarantaine.
+
+`spelling.ignore` reçoit `target`, `language` et `word`. Le cœur vérifie la plage,
+le mot attendu et la langue courante prise en charge. Il ajoute une exception
+normalisée par `spelling::word_key`, sans modifier le texte ni les autres
+exceptions ; répéter cette action ne crée pas de révision. Cette édition est
+annulable dans l’historique du participant. Le dictionnaire personnel reste une
+préférence globale, extérieure aux commandes documentaires. L’analyse et les
+suggestions continuent à utiliser Spellbook et les dictionnaires existants.
+
+La recette du lot vérifie les remplacements multizones, les styles, Unicode,
+les badges préservés et les résumés Article sans recréation de leurs fragments.
+Elle couvre une annulation/rétablissement du lot, deux fenêtres synchronisées,
+la conservation d’une saisie concurrente, le refus sans publication partielle,
+le remplacement d’un bandeau en cours de préparation, et le curseur après
+suppression d’un premier paragraphe devenu vide. Ces vérifications ne produisent
+pas de captures d’écran.
+
 ## Enregistrements ordonnés d’en-tête
 
 Les collections et leurs champs proviennent des descripteurs du type courant,
@@ -433,8 +476,8 @@ Restent dans A.2 :
   communs ; la fusion de cellules reste différée.
   Les retours riches passent par `block.split` ou des nœuds de retour explicites,
   pas par des sauts de ligne cachés dans `text.insert`.
-- La recherche/remplacement et l’orthographe, les champs simples
-  et collections d’en-tête, les ressources, options et changements de modèle.
+- Les champs simples et collections d’en-tête, les ressources, options et
+  changements de modèle.
   Ces éditions passent encore par le relais validé lorsqu’elles ne sont pas
   explicitement raccordées aux commandes typées ci-dessus.
 - La conservation durable automatique et la réimportation des brouillons refusés.
