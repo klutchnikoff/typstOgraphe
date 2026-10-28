@@ -1,6 +1,6 @@
 # Plan technique de développement
 
-Révisé le **27 octobre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
+Révisé le **28 octobre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
 et ne conserve que les décisions à prendre et les travaux techniques restants.
 Les anciennes phases, leurs réalisations et leurs inventaires historiques sont
 dans les bilans de docs/ et l’historique Git.
@@ -43,6 +43,15 @@ sans outillage de capture ni références graphiques figées.
 La présentation de l’interface peut maintenant être retravaillée.
 
 ### A.2 Un contrat documentaire structuré
+
+**Décisions validées le 28 octobre 2026 :**
+[contrat structuré et séquence de migration](docs/structured-contract.md).
+Yrs est retenu côté Rust après évaluation ; Yjs reste dans l'éditeur. Cibles par
+zones, garde document/révision pour les commandes différées, en-tête entièrement
+éditable, lots isolés et publication atomique. La frappe locale reste immédiate
+avec confirmation asynchrone et conservation du brouillon en cas de refus.
+Mode individuel par défaut, services collaboratifs activés à la demande ;
+le moteur documentaire reste commun.
 
 Converger entre le contenu structuré du nouvel éditeur et les adaptateurs
 historiques : catalogue, commandes, requêtes, erreurs typées et schémas de fichiers.

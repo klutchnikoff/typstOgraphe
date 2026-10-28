@@ -1,6 +1,6 @@
 # Feuille de route de typstOgraphe
 
-Révisée le **27 octobre 2026**. Objectif : transformer le prototype validé en une
+Révisée le **28 octobre 2026**. Objectif : transformer le prototype validé en une
 application de rédaction utilisable au quotidien, pour l’administration,
 l’enseignement et la recherche en sciences humaines et sociales.
 
@@ -23,6 +23,10 @@ seule poussée par lot, sauf correction nécessaire d’une vérification distan
 **Séquence immédiate :** poursuivre l’unification du contrat structuré entre
 adaptateurs (**A.2**), à partir du [contrat Article](docs/article-contract.md) et
 des [citations et de la bibliothèque locale](docs/article-bibliography.md).
+Les [décisions de contrat et les lots techniques](docs/structured-contract.md)
+sont validés : Yrs côté Rust, cibles structurées, en-tête commun, lots atomiques
+et frappe locale immédiate. Mode individuel par défaut, avec services
+collaboratifs activés à la demande et moteur commun aux deux modes.
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
 
