@@ -10,7 +10,7 @@ use crate::document_types::{
 use serde_json::{Value, json};
 use yrs::{XmlFragment, types::SharedRef};
 
-fn session(kind: DocumentType) -> SharedSession {
+pub(super) fn session(kind: DocumentType) -> SharedSession {
     let mut metadata = Metadata::blank(kind);
     if let Metadata::Article(meta) = &mut metadata {
         meta.authors.push(Author {
@@ -40,22 +40,22 @@ fn session(kind: DocumentType) -> SharedSession {
     )
     .unwrap()
 }
-fn command(id: &str, params: Value) -> Command {
+pub(super) fn command(id: &str, params: Value) -> Command {
     serde_json::from_value(json!({"id":id,"params":params})).unwrap()
 }
-fn target(zone: Value, from: u32, to: u32) -> Value {
+pub(super) fn target(zone: Value, from: u32, to: u32) -> Value {
     json!({"zone":zone,"from":from,"to":to})
 }
-fn body(path: Value, from: u32, to: u32) -> Value {
+pub(super) fn body(path: Value, from: u32, to: u32) -> Value {
     target(json!({"kind":"body","path":path}), from, to)
 }
-fn execute(session: &mut SharedSession, commands: Vec<Command>) -> Publication {
+pub(super) fn execute(session: &mut SharedSession, commands: Vec<Command>) -> Publication {
     let prepared = session
         .prepare_commands(session.guard(), &commands)
         .unwrap();
     session.publish(prepared).unwrap()
 }
-fn fields(session: &SharedSession) -> Value {
+pub(super) fn fields(session: &SharedSession) -> Value {
     serde_json::to_value(&session.state().settings.metadata).unwrap()["fields"].clone()
 }
 

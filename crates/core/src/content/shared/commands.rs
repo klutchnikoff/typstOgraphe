@@ -142,7 +142,7 @@ fn length<T: ReadTxn>(value: &XmlOut, tx: &T) -> u32 {
         _ => 1,
     }
 }
-fn replace_rich(
+pub(super) fn replace_rich(
     parent: &XmlElementRef,
     tx: &mut TransactionMut,
     target: &TextTarget,
@@ -367,6 +367,17 @@ fn format(
 }
 pub(super) fn apply(doc: &Doc, state: &State, command: &Command) -> Result<(), Error> {
     match command {
+        Command::InsertBlock { .. }
+        | Command::ReplaceBlock { .. }
+        | Command::RemoveBlock { .. }
+        | Command::SplitBlock { .. }
+        | Command::Paragraph { .. }
+        | Command::Heading1 { .. }
+        | Command::Heading2 { .. }
+        | Command::Heading3 { .. } => super::structure::apply(doc, state, command),
+        Command::AddRecord { .. } | Command::RemoveRecord { .. } | Command::MoveRecord { .. } => {
+            super::records::apply(doc, state, command)
+        }
         Command::SetField { target, value } => set_field(doc, state, command, target, value),
         Command::Insert {
             target,

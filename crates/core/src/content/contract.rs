@@ -55,6 +55,8 @@ pub enum TargetReason {
     ReversedRange,
     OutOfBounds,
     SplitSurrogate,
+    NotBlock,
+    NotBlockContainer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -64,6 +66,7 @@ pub enum UnavailableReason {
     EmptySelection,
     StructuralEditRequired,
     UnsupportedFieldKind,
+    UnsupportedTransformation,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

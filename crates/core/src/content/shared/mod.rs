@@ -4,10 +4,15 @@ mod command_tests;
 mod commands;
 mod normalization;
 mod projection;
+mod records;
 mod seed;
+mod structure;
+#[cfg(test)]
+mod structure_tests;
 mod targets;
 #[cfg(test)]
 mod tests;
+mod whitespace;
 
 use super::contract::{Error, Guard, State};
 use crate::assets::Assets;
@@ -159,6 +164,7 @@ impl SharedSession {
         }
         let shared = SharedDocument::from_update(bytes)?;
         let state = shared.state()?;
+        structure::validate(&state)?;
         state.validate(&assets)?;
         Ok(Self {
             guard,
@@ -220,6 +226,7 @@ impl SharedSession {
                 }
             })?;
         }
+        whitespace::apply(&candidate.doc, &candidate.state()?)?;
         self.finish_preparation(guard, candidate)
     }
 
@@ -278,6 +285,7 @@ impl SharedSession {
             return Err(Error::StateLimitExceeded);
         }
         let state = candidate.state()?;
+        structure::validate(&state)?;
         state.validate(&self.assets)?;
         if state.settings.metadata.document_type() != self.state.settings.metadata.document_type() {
             return Err(Error::InvalidDocument {

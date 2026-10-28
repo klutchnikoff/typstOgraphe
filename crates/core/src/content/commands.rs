@@ -1,5 +1,5 @@
 //! First typed commands of the multizone contract. No selection, focus or transport state.
-use super::contract::Error;
+use super::{Node, contract::Error};
 use crate::document_types::MetadataField;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -44,6 +44,24 @@ pub enum FieldTarget {
         id: String,
         field: String,
     },
+}
+/// A body tree or one rich record field. No XML identifiers or global positions.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum TreeRoot {
+    Body,
+    Record {
+        collection: String,
+        id: String,
+        field: String,
+    },
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TreeTarget {
+    pub root: TreeRoot,
+    #[serde(default)]
+    pub path: Vec<usize>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -90,6 +108,44 @@ pub enum Command {
     RemoveLink { target: TextTarget },
     #[serde(rename = "text.clear")]
     Clear { target: TextTarget },
+    #[serde(rename = "block.insert")]
+    InsertBlock {
+        parent: TreeTarget,
+        index: u32,
+        node: Node,
+    },
+    #[serde(rename = "block.replace")]
+    ReplaceBlock { target: TreeTarget, node: Node },
+    #[serde(rename = "block.remove")]
+    RemoveBlock { target: TreeTarget },
+    #[serde(rename = "block.split")]
+    SplitBlock { target: TextTarget },
+    #[serde(rename = "block.paragraph")]
+    Paragraph { target: TreeTarget },
+    #[serde(rename = "block.heading_1")]
+    Heading1 { target: TreeTarget },
+    #[serde(rename = "block.heading_2")]
+    Heading2 { target: TreeTarget },
+    #[serde(rename = "block.heading_3")]
+    Heading3 { target: TreeTarget },
+    #[serde(rename = "record.add")]
+    AddRecord {
+        collection: String,
+        id: String,
+        #[serde(default)]
+        values: serde_json::Map<String, Value>,
+        #[serde(default)]
+        after: Option<String>,
+    },
+    #[serde(rename = "record.remove")]
+    RemoveRecord { collection: String, id: String },
+    #[serde(rename = "record.move")]
+    MoveRecord {
+        collection: String,
+        id: String,
+        #[serde(default)]
+        before: Option<String>,
+    },
     #[serde(rename = "metadata.set")]
     SetField { target: FieldTarget, value: Value },
 }
@@ -103,11 +159,33 @@ impl Command {
             Self::Link { .. } => "text.link",
             Self::RemoveLink { .. } => "text.remove_link",
             Self::Clear { .. } => "text.clear",
+            Self::InsertBlock { .. } => "block.insert",
+            Self::ReplaceBlock { .. } => "block.replace",
+            Self::RemoveBlock { .. } => "block.remove",
+            Self::SplitBlock { .. } => "block.split",
+            Self::Paragraph { .. } => "block.paragraph",
+            Self::Heading1 { .. } => "block.heading_1",
+            Self::Heading2 { .. } => "block.heading_2",
+            Self::Heading3 { .. } => "block.heading_3",
+            Self::AddRecord { .. } => "record.add",
+            Self::RemoveRecord { .. } => "record.remove",
+            Self::MoveRecord { .. } => "record.move",
             Self::SetField { .. } => "metadata.set",
         }
     }
 }
 pub const IDS: &[&str] = &[
+    "block.insert",
+    "block.replace",
+    "block.remove",
+    "block.split",
+    "block.paragraph",
+    "block.heading_1",
+    "block.heading_2",
+    "block.heading_3",
+    "record.add",
+    "record.remove",
+    "record.move",
     "text.insert",
     "text.delete",
     "text.bold",
@@ -126,7 +204,7 @@ pub fn specifications() -> Value {
     json!({"version": super::contract::VERSION, "ids": IDS, "command_schema": schema(),
         "target_offsets":"utf16", "execution":"guarded_atomic_batch",
         "adapters_migrated":false,
-        "scope":"Explicit ranges within one zone. Inserted marks are explicit, empty by default. Rich-text line breaks and participant typing styles require later commands."})
+        "scope":"Multizone text, block boundaries, paragraph splitting and ordered header records. Inserted marks are explicit. Participant typing styles and production adapters are not yet migrated."})
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Availability {
