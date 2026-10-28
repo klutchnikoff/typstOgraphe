@@ -13,6 +13,7 @@ import { initializeSettings, settingsFor, setSetting } from '../src/state'
 import { addRecord, setRecordField } from '../src/metadata-records'
 import type { Provider } from '../src/provider'
 import type { Catalogue } from '../src/shell'
+import { formattingBatch } from '../src/formatting'
 
 let child: ChildProcessWithoutNullStreams
 let catalogue: Catalogue
@@ -758,6 +759,76 @@ it('roundtrips table captions and fine grid edits as one undo without replacing 
   undo.redo()
   await probe({ action: 'inspect', update: bytes(original), expected: result.state })
   undo.destroy()
+})
+
+it('executes GUI formatting targets in Rust across body badges and record rich fields', async () => {
+  const original = seed('article')
+  const localization = [
+    ...(original.getMap('settings').get('collections') as Y.Map<Y.Map<Y.Map<unknown>>>)
+      .get('localizations')!
+      .values(),
+  ][0]
+  setRecordField(store(original), localization, 'abstract', {
+    type: 'doc',
+    content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Résumé 😀' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'Autre paragraphe' }] },
+    ],
+  })
+  const editor = createRichZone({
+    profile: 'document',
+    label: 'Body targets',
+    binding: { kind: 'document', document: original },
+  })
+  editors.push(editor)
+  if (!editor.isInitialized)
+    await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+  const root = original.getXmlFragment('default'),
+    paragraph = root.get(1)
+  const fragment = localization.get('abstract') as Y.XmlFragment
+  const field = createRichZone({
+    profile: 'rich-text',
+    label: 'Record targets',
+    binding: {
+      kind: 'fragment',
+      fragment,
+      historyOwner: editor,
+      target: {
+        kind: 'record',
+        collection: 'localizations',
+        id: String(localization.get('id')),
+        field: 'abstract',
+      },
+    },
+  })
+  editors.push(field)
+  if (!field.isInitialized)
+    await new Promise<void>((resolve) => field.once('create', () => resolve()))
+  editor.commands.selectAll()
+  field.commands.selectAll()
+  const commands = [
+    ...formattingBatch(editor, 'text.italic', editor.state.selection),
+    ...formattingBatch(field, 'text.bold', field.state.selection),
+  ]
+  const guard = { document: 'gui-formatting', revision: 0 }
+  const result = await probe({
+    action: 'commands',
+    update: bytes(original),
+    guard,
+    expected: guard,
+    commands,
+  })
+  Y.applyUpdate(original, new Uint8Array(result.update), 'native-formatting')
+  expect(root.get(1)).toBe(paragraph)
+  expect(localization.get('abstract')).toBe(fragment)
+  expect(field.view.dom.querySelector('strong')?.textContent).toBe('Résumé 😀')
+  const marks = documentContent(editor.getJSON()).content![1].content!
+  expect(
+    marks
+      .filter((n) => ['footnote', 'citation'].includes(n.type!))
+      .every((n) => n.marks?.some((m) => m.type === 'italic')),
+  ).toBe(true)
+  await probe({ action: 'inspect', update: bytes(original), expected: state(original) })
 })
 
 it('uses isolated native participant contexts and selective undo in the actual Yjs/Tiptap document', async () => {
