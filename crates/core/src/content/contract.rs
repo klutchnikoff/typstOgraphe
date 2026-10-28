@@ -96,20 +96,17 @@ impl Settings {
         if self.template.len() > 2 * 1024 * 1024 {
             return Err(invalid("template_too_large"));
         }
-        // Embedded models are checked against the Typst contract by the renderer.
-        if self.model_id == "embedded" {
-            return Ok(());
+        // The model source belongs to the project. Its ID records provenance,
+        // not a dependency on the currently installed catalogue revision.
+        if self.model_id.trim().is_empty() || self.model_id.len() > 256 {
+            return Err(invalid("invalid_model_id"));
         }
-        let model = self
+        if let Some(model) = self
             .metadata
             .document_type()
             .models()
-            .find(|m| m.model.id() == self.model_id)
-            .ok_or_else(|| invalid("unknown_model"))?;
-        if model.source != self.template {
-            return Err(invalid("model_source_mismatch"));
-        }
-        if let Some((paper, landscape)) = model.page
+            .find(|m| m.model.id() == self.model_id && m.source == self.template)
+            && let Some((paper, landscape)) = model.page
             && (self.metadata.options().paper != paper
                 || self.metadata.options().landscape != landscape)
         {
@@ -215,17 +212,14 @@ mod tests {
     }
 
     #[test]
-    fn installed_model_identity_cannot_describe_a_different_source() {
+    fn project_model_source_is_independent_of_the_installed_catalogue() {
         let mut settings = Settings::default();
         settings
             .template
             .push_str("\n// A changed model belongs to the project.");
-        assert_eq!(
-            settings.validate().unwrap_err(),
-            Error::InvalidSettings {
-                reason: "model_source_mismatch".into()
-            }
-        );
+        settings.validate().unwrap();
+        settings.model_id = "a.model.no.longer.installed".into();
+        settings.validate().unwrap();
         settings.model_id = "embedded".into();
         settings.validate().unwrap();
     }

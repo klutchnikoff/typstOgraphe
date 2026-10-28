@@ -104,3 +104,17 @@ it('une actualisation partagée conserve les contrôles et le focus, y compris p
   expect(document.activeElement).toBe(model)
   expect([...model.options].some((option) => option.value === 'embedded')).toBe(false)
 })
+
+it('une ancienne copie du modèle reste embarquée sans emprunter les contraintes du catalogue actuel', () => {
+  const { root, view, changeModel } = mount()
+  view.update({ ...settings, template: 'Previous project model' })
+  const model = root.querySelector<HTMLSelectElement>('#document-option-model')!
+  expect(model.value).toBe('embedded')
+  expect(model.selectedOptions[0].text).toBe('Modèle embarqué')
+  expect(root.querySelector<HTMLSelectElement>('#document-option-paper')!.disabled).toBe(false)
+  expect(changeModel).not.toHaveBeenCalled()
+  // A deliberate choice switches to the installed model, even if its original ID is unchanged.
+  model.value = 'personal'
+  model.dispatchEvent(new Event('change'))
+  expect(changeModel).toHaveBeenCalledExactlyOnceWith('personal')
+})

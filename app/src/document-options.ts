@@ -66,13 +66,16 @@ export function documentOptions(
   orientation.select.onchange = () => changeOption('landscape', orientation.select.value === 'true')
   language.select.onchange = () => changeOption('language', language.select.value)
   const update = (current: Settings) => {
-    // An embedded model may already belong to a reopened document, without an import action here.
+    // A saved project keeps its own model, even after the bundled model changes.
+    const bundled = kind.models.find(
+      (model) => model.id === current.modelId && model.source === current.template,
+    )
     const embedded = [...model.select.options].find((option) => option.value === 'embedded')
-    if (current.modelId === 'embedded' && !embedded)
-      model.select.add(new Option(tr('Modèle embarqué'), 'embedded'))
-    else if (current.modelId !== 'embedded') embedded?.remove()
-    if (model.select.value !== current.modelId) model.select.value = current.modelId
-    const page = kind.models.find((model) => model.id === current.modelId)?.fixedPage
+    if (!bundled && !embedded) model.select.add(new Option(tr('Modèle embarqué'), 'embedded'))
+    else if (bundled) embedded?.remove()
+    const selected = bundled ? bundled.id : 'embedded'
+    if (model.select.value !== selected) model.select.value = selected
+    const page = bundled?.fixedPage
     const descriptor = kind.structured?.outline
     outlineRow.hidden = !descriptor || !policy()?.outline
     outline.checked = !!(descriptor && current.metadata.fields[descriptor.parameter])

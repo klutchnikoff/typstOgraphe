@@ -46,6 +46,7 @@ mod tests {
             model_id: Settings::default().model_id,
             ..settings
         };
-        assert!(not_embedded.validate().is_err());
+        not_embedded.validate().unwrap();
+        renderer.validate("Texte", &assets, &not_embedded).unwrap();
     }
 }
