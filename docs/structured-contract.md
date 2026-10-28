@@ -44,7 +44,10 @@ la cible ; les lots ci-dessous distinguent sa mise en œuvre progressive.
 - Les propositions MCP rattachées exigent l'acceptation humaine du lot entier.
   Sauvegarde et export ont leurs opérations et autorisations propres.
 - Le moteur fournit des erreurs structurées et les motifs d'indisponibilité.
-  La traduction, les dialogues et la présentation appartiennent aux adaptateurs.
+  La traduction, les dialogues et la présentation appartiennent aux adaptateurs,
+  via Fluent avec repli anglais. Les erreurs des archives conservent leur cause
+  typée jusqu’à cette frontière ; une validation refusée ne déclenche pas un
+  second lecteur sans reconnaissance explicite du format.
 - La pile d'annulation en séance, la récupération et les snapshots durables ont
   des contrats distincts. Yrs ne persiste pas automatiquement la pile d'annulation.
   La politique de rétention des snapshots reste à décider dans A.4.
@@ -90,3 +93,16 @@ CLI/MCP, restent à réaliser selon la séquence ci-dessous.
 
 Les lots sont livrés par commits cohérents, avec une poussée à la fin du lot.
 Les captures restent suspendues. La clôture d'un lot ne vaut pas clôture de A.2.
+
+## Modèle conservé dans le projet
+
+Le source du modèle enregistré dans le `.typsto` fait foi pour ce projet. Son
+identifiant indique sa provenance ; il ne contraint pas la copie enregistrée à
+rester identique au catalogue de l’application. Une mise à jour ou un retrait
+du modèle fourni ne doit donc pas empêcher l’ouverture d’un projet autonome.
+Le contrat Typst, les ressources et la cohérence de l’état Yjs restent vérifiés.
+
+L’interface n’identifie un modèle comme fourni que si son identifiant **et** son
+source correspondent au catalogue courant. Sinon elle présente « Modèle embarqué »
+et propose toujours de choisir explicitement une version du catalogue. Le simple
+chargement ne remplace ni le modèle du projet ni son historique.

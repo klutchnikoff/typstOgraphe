@@ -340,6 +340,10 @@ identités et droits, transport, stockage, confidentialité, coûts et maintenan
 - Produire des paquets macOS, Windows et Linux, l’association .typsto, l’ouverture
   par un lien d’invitation et une identité d’application stable.
 - Décider signature, notarisation, distribution, mises à jour et reprise sur échec.
+- Généraliser les erreurs typées et leur présentation Fluent dans la langue de
+  l’interface, avec repli anglais. Garder les détails techniques dans les diagnostics.
+  L’ouverture des archives structurées ne doit pas masquer sa cause par un essai
+  systématique de l’ancien lecteur.
 - Faire les recettes natives des trois systèmes : installation, menus, dialogues,
   clavier/IME, presse-papiers, ouverture, fermeture et récupération.
 - Maintenir la CI Rust/web, les tests de contrat et les rapports de couverture ;
