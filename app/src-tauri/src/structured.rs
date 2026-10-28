@@ -42,11 +42,14 @@ pub fn prepare(session: &Session, request: Request) -> Result<Publication, Strin
 
 /// Recheck and publish under the owning session lock, never as an unguarded client relay.
 pub fn commit(session: &mut Session, peer: &str, request: Request) -> Result<Publication, String> {
-    let mut publication = prepare(session, request)?;
-    if publication.changed {
-        let revision = session.relay(peer, &publication.update)?;
-        publication.guard.revision = revision;
-    }
+    session.check_peer(peer, &request.generation)?;
+    // Full checkpoint verification and final guarded execution share the owning lock.
+    prepare(session, request.clone())?;
+    let guard = session.guard();
+    let publication = session
+        .ensure_owner()?
+        .commands(peer, &guard, &request.commands)?;
+    session.record(&publication);
     Ok(publication)
 }
 

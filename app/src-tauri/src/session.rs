@@ -45,6 +45,7 @@ pub struct Checkpoint {
 #[serde(rename_all = "camelCase")]
 pub struct Bootstrap {
     pub generation: String,
+    pub native_editing: bool,
     pub opened: bool,
     pub has_recovery: bool,
     pub initial_path: Option<String>,
@@ -60,6 +61,7 @@ pub struct Bootstrap {
 }
 
 pub struct Session {
+    pub owner: Option<crate::owner::Owner>,
     pub recovery: Option<crate::recovery::Store>,
     pub initial_path: Option<String>,
     pub clean_revision: Option<u64>,
@@ -81,6 +83,7 @@ pub struct Session {
 impl Session {
     pub fn fresh(root: PathBuf) -> Self {
         Self {
+            owner: None,
             recovery: None,
             initial_path: None,
             clean_revision: None,
@@ -186,6 +189,7 @@ impl Session {
         self.initialized = true;
         self.peers.insert(peer.to_owned());
         Bootstrap {
+            native_editing: true,
             generation: self.generation.clone(),
             opened: self.opened,
             has_recovery: if let Some(store) = &self.recovery {
@@ -211,22 +215,116 @@ impl Session {
         }
     }
     pub fn relay(&mut self, peer: &str, update: &[u8]) -> Result<u64, String> {
+        Ok(self.relay_group(peer, update, None, true)?.revision)
+    }
+    pub fn leave(&mut self, peer: &str) {
+        self.offline.remove(peer);
+        self.peers.remove(peer);
+        if let Some(owner) = &mut self.owner {
+            let _ = owner.close(peer);
+        }
+    }
+    pub fn guard(&self) -> typstographe_core::content::contract::Guard {
+        typstographe_core::content::contract::Guard {
+            document: self.generation.clone(),
+            revision: self.revision,
+        }
+    }
+    pub fn check_peer(&self, peer: &str, generation: &str) -> Result<(), String> {
         if !self.peers.contains(peer) {
-            return Err("Fenêtre non rattachée.".into());
+            return Err("Fenêtre non inscrite.".into());
         }
-        if update.is_empty()
-            || update.len() > 4 * 1024 * 1024
-            || self.bytes + update.len() > MAX_UPDATES
-        {
-            return Err(
-                "Limite du journal Yjs atteinte ; enregistrez et relancez le diagnostic.".into(),
-            );
+        if generation != self.generation {
+            return Err(crate::owner::error(
+                typstographe_core::content::contract::Error::WrongDocument,
+            ));
         }
-        self.bytes += update.len();
-        self.restored = None;
-        self.updates.push(update.to_vec());
-        self.revision += 1;
-        Ok(self.revision)
+        Ok(())
+    }
+    pub fn ensure_owner(&mut self) -> Result<&mut crate::owner::Owner, String> {
+        if self.owner.is_none() {
+            let shared =
+                typstographe_core::content::shared::SharedDocument::from_updates(&self.updates)
+                    .map_err(crate::owner::error)?;
+            self.owner = Some(crate::owner::Owner::open(
+                self.guard(),
+                &shared.update(),
+                self.assets.clone(),
+            )?);
+        }
+        Ok(self.owner.as_mut().unwrap())
+    }
+    pub fn receipt(
+        &mut self,
+        peer: &str,
+        update: Vec<u8>,
+    ) -> Result<crate::owner::Receipt, String> {
+        let history = self.ensure_owner()?.snapshot(peer)?;
+        Ok(crate::owner::Receipt {
+            revision: self.revision,
+            update,
+            history,
+        })
+    }
+    pub fn record(&mut self, publication: &typstographe_core::content::shared::Publication) {
+        self.revision = publication.guard.revision;
+        if publication.changed {
+            self.bytes += publication.update.len();
+            self.restored = None;
+            self.settings = publication.state.settings.clone();
+            self.updates.push(publication.update.clone());
+            // Compact only the transport log. Never rebuild durable participant histories.
+            if self.updates.len() > 512 || self.bytes > 4 * 1024 * 1024 {
+                if let Some(owner) = &self.owner {
+                    let checkpoint = owner.update_bytes();
+                    self.bytes = checkpoint.len();
+                    self.updates = vec![checkpoint];
+                }
+            }
+        }
+    }
+    pub fn relay_group(
+        &mut self,
+        peer: &str,
+        update: &[u8],
+        group: Option<u64>,
+        capture: bool,
+    ) -> Result<crate::owner::Receipt, String> {
+        self.check_peer(peer, &self.generation)?;
+        if update.is_empty() || update.len() > 4 * 1024 * 1024 {
+            return Err(crate::owner::error(
+                typstographe_core::content::contract::Error::StateLimitExceeded,
+            ));
+        }
+        if self.updates.is_empty() {
+            // The first complete seed contains body AND settings. Initialization is not an edit.
+            let mut guard = self.guard();
+            guard.revision = guard
+                .revision
+                .checked_add(1)
+                .ok_or("Révision maximale atteinte.")?;
+            self.owner = Some(crate::owner::Owner::open(
+                guard.clone(),
+                update,
+                self.assets.clone(),
+            )?);
+            self.revision = guard.revision;
+            self.bytes = update.len();
+            self.updates.push(update.to_vec());
+            return self.receipt(peer, update.to_vec());
+        }
+        let publication = self.ensure_owner()?.update(peer, update, group, capture)?;
+        self.record(&publication);
+        self.receipt(peer, publication.update)
+    }
+    pub fn history(
+        &mut self,
+        peer: &str,
+        direction: typstographe_core::content::editing::Direction,
+    ) -> Result<crate::owner::Receipt, String> {
+        let publication = self.ensure_owner()?.history(peer, direction)?;
+        self.record(&publication);
+        self.receipt(peer, publication.update)
     }
     pub fn lifecycle(&self, revision: u64) -> Result<(), String> {
         if self.revision != revision {
@@ -244,6 +342,7 @@ impl Session {
         assets: Assets,
         yjs: Vec<u8>,
     ) {
+        self.owner = None;
         self.clean_revision = None;
         self.offline.clear();
         self.generation = uuid::Uuid::new_v4().to_string();
@@ -297,6 +396,9 @@ impl Session {
             return Err("Extension invalide.".into());
         }
         self.assets.insert(path.clone(), data.to_vec().into());
+        if let Some(owner) = &mut self.owner {
+            owner.resources(self.assets.clone())?;
+        }
         Ok(Resource {
             path,
             data: STANDARD.encode(data),
@@ -379,7 +481,6 @@ mod tests {
         let a = s.join("a");
         assert!(a.initialize);
         assert!(!s.join("b").initialize);
-        s.relay("a", &[1, 2]).unwrap();
         let snapshot = Snapshot {
             revision: 1,
             document: a.fixture,
@@ -393,9 +494,11 @@ mod tests {
         )
         .unwrap()
         .update();
+        s.relay("a", &update).unwrap();
         s.save(&snapshot, update.clone()).unwrap();
         let before = std::fs::read(dir.path().join("session.json")).unwrap();
-        s.relay("b", &[3]).unwrap();
+        assert!(s.relay("b", &[3]).is_err());
+        s.revision += 1; // Saving an old snapshot remains forbidden.
         assert!(s.save(&snapshot, vec![3]).is_err());
         assert_eq!(
             before,

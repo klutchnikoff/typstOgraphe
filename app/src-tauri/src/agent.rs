@@ -154,7 +154,7 @@ pub async fn agent_accept(
     p.status = "accepted".into();
     app.emit(
         "web-editor:change",
-        json!({"from":"agent","acceptedBy":window.label(),"revision":revision,"update":update}),
+        json!({"from":"agent","acceptedBy":window.label(),"generation":session.generation,"revision":revision,"update":update}),
     )
     .map_err(|e| e.to_string())?;
     app.emit("agent:changed", ()).map_err(|e| e.to_string())

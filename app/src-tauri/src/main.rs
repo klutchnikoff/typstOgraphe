@@ -5,6 +5,7 @@ mod catalogue;
 mod driver;
 mod files;
 mod menus;
+mod owner;
 mod preferences;
 mod proofing;
 mod recovery;
@@ -35,6 +36,7 @@ struct Bridge {
 #[derive(Clone, serde::Serialize)]
 struct Change {
     from: String,
+    generation: String,
     revision: u64,
     update: Vec<u8>,
 }
@@ -59,23 +61,72 @@ fn relay(
     state: State<Bridge>,
     update: Vec<u8>,
     generation: String,
-) -> Result<u64, String> {
+    group: Option<u64>,
+    capture: Option<bool>,
+) -> Result<owner::Receipt, String> {
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
-    if session.generation != generation {
-        return Err("Le document a été remplacé ; rechargez la fenêtre.".into());
+    session.check_peer(window.label(), &generation)?;
+    let receipt = session.relay_group(window.label(), &update, group, capture.unwrap_or(true))?;
+    if !receipt.update.is_empty() {
+        app.emit(
+            "web-editor:change",
+            Change {
+                from: window.label().into(),
+                generation,
+                revision: receipt.revision,
+                update: receipt.update.clone(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
     }
-    let revision = session.relay(window.label(), &update)?;
-    app.emit(
-        "web-editor:change",
-        Change {
-            from: window.label().into(),
-            revision,
-            update,
-        },
-    )
-    .map_err(|e| e.to_string())?;
-    Ok(revision)
+    Ok(receipt)
 }
+#[tauri::command]
+fn editing_history(
+    window: WebviewWindow,
+    app: tauri::AppHandle,
+    state: State<Bridge>,
+    generation: String,
+    direction: typstographe_core::content::editing::Direction,
+) -> Result<owner::Receipt, String> {
+    let mut session = state.session.lock().map_err(|e| e.to_string())?;
+    session.check_peer(window.label(), &generation)?;
+    let receipt = session.history(window.label(), direction)?;
+    if !receipt.update.is_empty() {
+        app.emit(
+            "web-editor:change",
+            Change {
+                from: window.label().into(),
+                generation,
+                revision: receipt.revision,
+                update: receipt.update.clone(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(receipt)
+}
+#[tauri::command]
+fn editing_context(
+    window: WebviewWindow,
+    state: State<Bridge>,
+    generation: String,
+) -> Result<typstographe_core::content::editing::ContextSnapshot, String> {
+    let mut session = state.session.lock().map_err(|e| e.to_string())?;
+    session.check_peer(window.label(), &generation)?;
+    session.ensure_owner()?.snapshot(window.label())
+}
+#[tauri::command]
+fn reset_editing_context(
+    window: WebviewWindow,
+    state: State<Bridge>,
+    generation: String,
+) -> Result<typstographe_core::content::editing::ContextSnapshot, String> {
+    let mut session = state.session.lock().map_err(|e| e.to_string())?;
+    session.check_peer(window.label(), &generation)?;
+    session.ensure_owner()?.reset(window.label())
+}
+
 #[tauri::command]
 fn prepare_structured_commands(
     state: State<Bridge>,
@@ -100,6 +151,7 @@ fn commit_structured_commands(
             "web-editor:change",
             Change {
                 from: window.label().into(),
+                generation: publication.guard.document.clone(),
                 revision: publication.guard.revision,
                 update: publication.update.clone(),
             },
@@ -477,7 +529,7 @@ fn main() {
             if matches!(event, tauri::WindowEvent::Destroyed) {
                 let state = window.state::<Bridge>();
                 if let Ok(mut session) = state.session.lock() {
-                    session.offline.remove(window.label());
+                    session.leave(window.label());
                 }
                 if let Ok(mut agent) = state.agent.lock() {
                     agent.busy.remove(window.label());
@@ -507,6 +559,7 @@ fn main() {
             preferences::profile_image,
             files::choose_file,
             files::choose_export_folder,
+            files::export_editing_draft,
             files::set_window_title,
             files::quit_app,
             files::save_file,
@@ -533,6 +586,9 @@ fn main() {
             join,
             connection,
             relay,
+            editing_history,
+            editing_context,
+            reset_editing_context,
             prepare_structured_commands,
             commit_structured_commands,
             awareness,

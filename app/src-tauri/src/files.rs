@@ -45,6 +45,45 @@ pub async fn choose_file(app: tauri::AppHandle, save: bool) -> Result<Option<Str
         })
         .transpose()
 }
+/// A refused draft may be invalid, so it is explicitly JSON, never a fake .typsto.
+#[tauri::command]
+pub async fn export_editing_draft(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    state: State<'_, Bridge>,
+    mut draft: serde_json::Value,
+) -> Result<(), String> {
+    if draft["format"] != "typstographe-rejected-draft-v1" {
+        return Err("Format de brouillon invalide.".into());
+    }
+    {
+        let mut session = state.session.lock().map_err(|e| e.to_string())?;
+        if draft["generation"].as_str() == Some(session.generation.as_str()) {
+            draft["rejectedEdition"] =
+                serde_json::to_value(session.ensure_owner()?.draft(window.label())?)
+                    .map_err(|e| e.to_string())?;
+        }
+    }
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .add_filter("JSON", &["json"])
+        .set_file_name("typstographe-draft.json")
+        .save_file(move |path| {
+            let _ = tx.send(path);
+        });
+    let Some(path) = rx.await.map_err(|e| e.to_string())? else {
+        return Ok(());
+    };
+    let path = path.into_path().map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut file = atomic_write_file::AtomicWriteFile::open(path).map_err(|e| e.to_string())?;
+        serde_json::to_writer(&mut file, &draft).map_err(|e| e.to_string())?;
+        file.commit().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
 #[tauri::command]
 pub async fn choose_export_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
@@ -211,10 +250,26 @@ pub fn new_document(
     settings: Settings,
     revision: u64,
 ) -> Result<(), String> {
+    create(
+        &mut *state.session.lock().map_err(|e| e.to_string())?,
+        settings,
+        revision,
+    )?;
+    let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
+    agent.token = None;
+    agent.proposal = None;
+    agent.snapshot = None;
+    app.emit("app:document", ()).map_err(|e| e.to_string())
+}
+/// Same document lifecycle for Tauri and its browser recipe transport.
+pub fn create(
+    session: &mut crate::session::Session,
+    settings: Settings,
+    revision: u64,
+) -> Result<(), String> {
     settings
         .validate()
         .map_err(|e| typstographe_i18n::content_error(&e))?;
-    let mut session = state.session.lock().map_err(|e| e.to_string())?;
     session.lifecycle(revision)?;
     let mut assets = typstographe_core::assets::Assets::default();
     if let Some(signature) = settings.metadata.signature_path() {
@@ -231,11 +286,7 @@ pub fn new_document(
     session.file_lease = None;
     session.replace(document, settings, assets, vec![]);
     session.clean_revision = Some(session.revision);
-    let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    agent.token = None;
-    agent.proposal = None;
-    agent.snapshot = None;
-    app.emit("app:document", ()).map_err(|e| e.to_string())
+    Ok(())
 }
 #[tauri::command]
 pub fn close_document(
@@ -248,6 +299,7 @@ pub fn close_document(
     session.mark_clean()?;
     session.file_lease = None;
     session.opened = false;
+    session.owner = None;
     session.generation = uuid::Uuid::new_v4().to_string();
     session.revision += 1;
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
