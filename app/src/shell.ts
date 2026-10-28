@@ -1,4 +1,5 @@
 import { historyFor } from './editing-history'
+import { runFormatting } from './formatting'
 import { documentContent } from './shared-inline-marks'
 import { bibliographyPanel } from './bibliography-panel'
 import { actionRow, keyboardScope, navigationGroup } from './keyboard-navigation'
@@ -709,10 +710,10 @@ export async function mountShell(s: Shell) {
     'Mod+Shift+G',
   )
   add('text.clear', tr('Effacer la mise en forme'), () => {
-    editor.chain().focus().unsetAllMarks().run()
+    runFormatting(editor, 'text.clear')
   })
   add('text.unlink', tr('Supprimer le lien'), () => {
-    editor.chain().focus().unsetLink().run()
+    runFormatting(editor, 'text.remove_link')
   })
   add('spelling.toggle', tr('Activer / désactiver la correction orthographique'), () =>
     guarded(async () => {

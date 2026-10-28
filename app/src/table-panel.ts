@@ -10,6 +10,7 @@ import { positionAtPath } from './commands'
 import { widgetTarget, widgetContinuation } from './widgets'
 import { executeStructured, type StructuredCommand } from './structured-commands'
 import { tr } from './i18n'
+import { nodePath } from './editor-targets'
 
 export function tableContext(editor: Editor) {
   const target = widgetTarget(editor)
@@ -26,10 +27,6 @@ export function tableContext(editor: Editor) {
 }
 function tree(path: number[]) {
   return { root: { kind: 'body' }, path }
-}
-function pathAt(editor: Editor, pos: number) {
-  const resolved = editor.state.doc.resolve(pos)
-  return Array.from({ length: resolved.depth + 1 }, (_, depth) => resolved.index(depth))
 }
 export function tablePanel(
   editor: Editor,
@@ -179,7 +176,7 @@ export function tablePanel(
         })
       path = [index]
     } else {
-      path = pathAt(editor, anchor.from)
+      path = nodePath(editor, anchor.from)
       const target = tree(path)
       const operation = operations.find(({ id }) => id === draft.action)
       if (operation) {

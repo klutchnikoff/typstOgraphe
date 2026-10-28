@@ -1,5 +1,6 @@
 import { navigationGroup } from './keyboard-navigation'
 import { tr } from './i18n'
+import { runFormatting, type Formatting } from './formatting'
 import { widgetTarget } from './widgets'
 import { isWidgetKind } from './widget-frame'
 import type { Editor, JSONContent } from '@tiptap/core'
@@ -56,13 +57,13 @@ export function createRegistry(
   const registry: Registry = new Map()
   const actions: Record<string, () => void> = {
     'block.paragraph': () => {
-      editor.chain().focus().setParagraph().run()
+      runFormatting(editor, 'block.paragraph')
     },
     'text.bold': () => {
-      editor.chain().focus().toggleBold().run()
+      runFormatting(editor, 'text.bold')
     },
     'text.italic': () => {
-      editor.chain().focus().toggleItalic().run()
+      runFormatting(editor, 'text.italic')
     },
     'text.link': () => properties(editor.state.selection.from, 'link'),
     'block.bullet': () => {
@@ -93,11 +94,7 @@ export function createRegistry(
     const heading = /block.heading_(\d)/.exec(capability.id)
     const run = heading
       ? () => {
-          editor
-            .chain()
-            .focus()
-            .toggleHeading({ level: Number(heading[1]) as 1 | 2 | 3 })
-            .run()
+          runFormatting(editor, capability.id as Formatting)
         }
       : actions[capability.id]
     if (!run) throw new Error(`Capacité sans adaptateur web : ${capability.id}`)

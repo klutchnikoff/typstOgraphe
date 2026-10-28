@@ -13,6 +13,8 @@ import { ySyncPlugin, yUndoPluginKey, ySyncPluginKey } from '@tiptap/y-tiptap'
 import type * as Y from 'yjs'
 import type { Provider } from './provider'
 import { bindEditingHistory, editingProvider, historyFor } from './editing-history'
+import { bindEditorTarget, type RecordRoot } from './editor-targets'
+import { runFormatting } from './formatting'
 import { Plugin } from '@tiptap/pm/state'
 import { ContextBand } from './band-layout'
 import { DocumentInput, SoftBreak, TypstInlineInput } from './editing'
@@ -42,7 +44,7 @@ export function richFieldProfile(kind: 'rich' | 'rich_inline'): EditorialProfile
 
 type Binding =
   | { kind: 'document'; document: Y.Doc; presence?: Provider }
-  | { kind: 'fragment'; fragment: Y.XmlFragment; historyOwner: Editor }
+  | { kind: 'fragment'; fragment: Y.XmlFragment; historyOwner: Editor; target?: RecordRoot }
 type OpenProperties = (pos: number, kind: string, remove?: boolean) => void
 interface ZoneConfiguration {
   imageURL?: (path: string) => string
@@ -315,8 +317,34 @@ export function createRichZone(options: RichZoneOptions): Editor {
       ...richZoneExtensions(profile, { imageURL, properties, presentations, binding }),
       Extension.create({
         name: 'richZoneInteractions',
+        priority: 1600,
         addKeyboardShortcuts() {
           return {
+            'Mod-b': () => {
+              if (this.editor.view.composing) return false
+              runFormatting(this.editor, 'text.bold')
+              return true
+            },
+            'Mod-i': () => {
+              if (this.editor.view.composing) return false
+              runFormatting(this.editor, 'text.italic')
+              return true
+            },
+            ...(policy.widgets
+              ? Object.fromEntries(
+                  ([0, 1, 2, 3] as const).map((level) => [
+                    `Mod-Alt-${level}`,
+                    () => {
+                      if (this.editor.view.composing) return false
+                      runFormatting(
+                        this.editor,
+                        level ? `block.heading_${level}` : 'block.paragraph',
+                      )
+                      return true
+                    },
+                  ]),
+                )
+              : {}),
             'Mod-k': () => {
               if (!openLink || this.editor.view.composing) return false
               if (!this.editor.state.selection.empty || this.editor.isActive('link'))
@@ -363,6 +391,8 @@ export function createRichZone(options: RichZoneOptions): Editor {
     onFocus: () => historyFor(editor)?.stopCapturing(),
     onBlur: () => historyFor(editor)?.stopCapturing(),
   })
+  if (binding?.kind === 'document') bindEditorTarget(editor, { kind: 'body' })
+  else if (binding?.kind === 'fragment' && binding.target) bindEditorTarget(editor, binding.target)
   if (native) bindEditingHistory(editor, native)
   return editor
 }

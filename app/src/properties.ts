@@ -10,6 +10,7 @@ import { removeWidget } from './widgets'
 import { isWidgetKind, widgetLabel } from './widget-frame'
 import { hasSettings, settingsForNode, type Scalar } from './capability-settings'
 import { ParameterFields } from './parameter-fields'
+import { applyFormatting } from './formatting'
 
 export function propertyPanel(
   editor: Editor,
@@ -18,14 +19,17 @@ export function propertyPanel(
   chooseImage: () => void,
   idPrefix = '',
 ) {
+  let pending = false
   const panel = contextPanel({
     id: `${idPrefix}properties`,
     titleId: `${idPrefix}property-title`,
     closeId: `${idPrefix}close-properties`,
     errorId: `${idPrefix}property-error`,
     closeLabel: tr('Fermer les paramètres'),
-    close: () => bands.close(),
-    canConfirm: () => !editor.view.composing,
+    close: () => {
+      if (!pending) bands.close()
+    },
+    canConfirm: () => !pending && !editor.view.composing,
     tabExit: () => editor.view.focus(),
   })
   const form = panel.element
@@ -48,13 +52,15 @@ export function propertyPanel(
       if (!valid()) return
       const target = bands.target
       if (opened && target && opened.kind !== 'link') api.open(target.from, opened.kind, true)
-      else remove()
+      else void remove()
     },
   })
   panel.action({
     id: `${idPrefix}cancel-properties`,
     label: tr('Annuler'),
-    run: () => bands.close(),
+    run: () => {
+      if (!pending) bands.close()
+    },
   })
   const apply = panel.action({
     id: `${idPrefix}apply-properties`,
@@ -88,11 +94,14 @@ export function propertyPanel(
       )
     return !stale
   }
-  function remove() {
+  async function remove() {
+    if (pending) return
     if (!valid()) return
     const { from, to } = bands.target!
-    if (opened!.kind === 'link') editor.chain().setTextSelection({ from, to }).unsetLink().run()
-    else if (isWidgetKind(opened!.kind))
+    if (opened!.kind === 'link') {
+      await changeLink('text.remove_link', { from, to })
+      return
+    } else if (isWidgetKind(opened!.kind))
       removeWidget(editor, { pos: from, node: editor.state.doc.nodeAt(from)! })
     else editor.commands.deleteRange({ from, to })
     close()
@@ -122,10 +131,29 @@ export function propertyPanel(
     hint.textContent =
       contract.conversions.length > 1 ? tr('Ces paramètres concernent la liste entière.') : ''
   }
+  async function changeLink(
+    id: 'text.link' | 'text.remove_link',
+    range: { from: number; to: number },
+    url?: string,
+  ) {
+    pending = true
+    apply.disabled = true
+    removeAction.disabled = true
+    try {
+      await applyFormatting(editor, id, { range, url, focus: false })
+      bands.close(true, editor.state.selection.getBookmark())
+    } catch (error) {
+      panel.error.textContent = error instanceof Error ? error.message : String(error)
+    } finally {
+      pending = false
+      apply.disabled = false
+      removeAction.disabled = false
+    }
+  }
   panel.confirm = () => {
-    if (editor.view.composing || !opened || !valid()) return
+    if (pending || editor.view.composing || !opened || !valid()) return
     if (opened.remove) {
-      remove()
+      void remove()
       return
     }
     const result = fields.read()
@@ -136,11 +164,8 @@ export function propertyPanel(
     const anchor = bands.target!,
       node = editor.state.doc.nodeAt(anchor.from)!
     if (opened.kind === 'link') {
-      editor
-        .chain()
-        .setTextSelection({ from: anchor.from, to: anchor.to })
-        .setLink({ href: String(result.attrs.href) })
-        .run()
+      void changeLink('text.link', { from: anchor.from, to: anchor.to }, String(result.attrs.href))
+      return
     } else {
       const next =
         opened.selected !== opened.kind && listKinds.includes(opened.selected as ListKind)
@@ -155,7 +180,7 @@ export function propertyPanel(
   }
   const api = {
     open(pos: number, kind: string, remove = false) {
-      if (editor.view.composing) return
+      if (pending || editor.view.composing) return
       const contract = settingsForNode(kind, catalogue.entries)
       if (!remove && !hasSettings(contract)) return
       const node = editor.state.doc.nodeAt(pos)

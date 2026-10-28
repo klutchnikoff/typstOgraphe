@@ -149,7 +149,9 @@ export class BandHost {
     this.reveal()
     return true
   }
-  close(focus = true) {
+  // A guarded position-preserving operation can supply its restored bookmark;
+  // ordinary cancellation keeps the continuously mapped opening bookmark.
+  close(focus = true, restored?: SelectionBookmark) {
     if (!this.panel) return
     historyFor(this.historyOwner)?.stopCapturing()
     const anchor = this.target
@@ -167,7 +169,7 @@ export class BandHost {
     if (focus && anchor) {
       this.editor.view.dispatch(
         this.editor.state.tr
-          .setSelection(anchor.bookmark.resolve(this.editor.state.doc))
+          .setSelection((restored || anchor.bookmark).resolve(this.editor.state.doc))
           .scrollIntoView(),
       )
       this.editor.view.focus()

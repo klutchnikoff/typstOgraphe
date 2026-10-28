@@ -19,6 +19,7 @@ export async function executeStructured(
   transport: Transport,
   commands: StructuredCommand[],
   stillCurrent: () => boolean = () => true,
+  installed?: () => void,
 ) {
   const original = Y.encodeStateAsUpdate(provider.doc)
   const selection = editor.state.selection
@@ -84,6 +85,9 @@ export async function executeStructured(
     undo?.stopCapturing()
     Y.applyUpdate(provider.doc, new Uint8Array(publication.update), CONFIRMED_COMMAND)
     undo?.stopCapturing()
+    // Position-preserving operations can restore their local selection before
+    // later remote transactions map it. Never guess old positions over a newer revision.
+    if (provider.revision <= publication.guard.revision) installed?.()
     provider.revision = Math.max(provider.revision, publication.guard.revision)
     if (provider.nativeEditing) {
       // No raw relay: the owner already published this operation. Fetch counters without clearing.

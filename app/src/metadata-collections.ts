@@ -107,6 +107,12 @@ export function metadataCollections(
         owner,
         catalogue,
         String(record.get(definition.language_key || '') || language()),
+        {
+          kind: 'record',
+          collection: definition.parameter,
+          id: String(record.get('id')),
+          field: field.key,
+        },
       )
       return {
         refresh: () =>

@@ -1,4 +1,6 @@
 import { historyFor } from './editing-history'
+import { runFormatting } from './formatting'
+import type { RecordRoot } from './editor-targets'
 import type { Editor } from '@tiptap/core'
 import * as Y from 'yjs'
 import { createRichZone, richZoneProfiles, type EditorialProfile } from './rich-zone'
@@ -18,6 +20,7 @@ export function metadataRich(
   main: Editor,
   catalogue: Catalogue,
   language: string,
+  target: RecordRoot,
 ) {
   const inline = !richZoneProfiles[profile].multiline
   const root = document.createElement('div')
@@ -51,8 +54,7 @@ export function metadataRich(
     button.onclick = () => {
       history?.stopCapturing()
       if (mark === 'link') properties.open(editor.state.selection.from, 'link')
-      else if (mark === 'bold') editor.chain().focus().toggleBold().run()
-      else editor.chain().focus().toggleItalic().run()
+      else runFormatting(editor, mark === 'bold' ? 'text.bold' : 'text.italic')
     }
     tools.append(button)
     buttons.set(mark, button)
@@ -69,7 +71,7 @@ export function metadataRich(
     element: input,
     label,
     language,
-    binding: { kind: 'fragment', fragment, historyOwner: main },
+    binding: { kind: 'fragment', fragment, historyOwner: main, target },
     openLink: (zone) => properties.open(zone.state.selection.from, 'link'),
     onTransaction: ({ editor: current }) => refresh(current),
   })
