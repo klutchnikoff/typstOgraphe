@@ -52,9 +52,10 @@ jobs:
       - run: cargo +stable fmt --all --check
       - run: cargo +stable test --locked -p typstographe
       - run: cargo +stable clippy --locked -p typstographe --all-targets -- -D warnings
-      - name: Browser recipe driver
-        if: runner.os == 'Linux'
+      - name: Functional recipe driver
         run: cargo +stable build --locked -p typstographe
+      - name: Yjs and Yrs shared contract recipes
+        run: npm run test:contract --workspace @typstographe/app
       - name: Browser engines
         if: runner.os == 'Linux'
         run: npx playwright install --with-deps chromium webkit

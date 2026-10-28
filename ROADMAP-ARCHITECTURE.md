@@ -53,6 +53,10 @@ avec confirmation asynchrone et conservation du brouillon en cas de refus.
 Mode individuel par défaut, services collaboratifs activés à la demande ;
 le moteur documentaire reste commun.
 
+Le [socle Yrs et de conservation](docs/structured-contract-foundation.md) est en
+place. Restent les commandes/cibles communes et leur historique, le relais de
+frappe avec gestion du refus, le mode individuel allégé, puis la migration CLI/MCP.
+
 Converger entre le contenu structuré du nouvel éditeur et les adaptateurs
 historiques : catalogue, commandes, requêtes, erreurs typées et schémas de fichiers.
 Les cibles du nouvel éditeur sont des chemins de blocs/cellules/annotations,

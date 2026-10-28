@@ -15,6 +15,7 @@
     "test:preview-native": "npm run test:preview-native --workspace @typstographe/app --",
     "check:format": "npm run check:format --workspace @typstographe/app",
     "check:rust": "cargo clippy --locked -p typstographe --all-targets -- -D warnings",
-    "test:rust": "cargo test --locked -p typstographe"
+    "test:rust": "cargo test --locked -p typstographe",
+    "test:contract": "cargo build --locked -p typstographe && npm run test:contract --workspace @typstographe/app"
   }
 }

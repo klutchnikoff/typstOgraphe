@@ -68,6 +68,11 @@ la cible ; les lots ci-dessous distinguent sa mise en œuvre progressive.
 
 ## Mise en œuvre et critères de sortie
 
+Le [premier lot du socle](structured-contract-foundation.md) est livré : valeurs
+partagées, projection Yrs, préparation/publication gardée et conservation cohérente.
+Les cibles multizones et commandes, puis le branchement du relais et la migration
+CLI/MCP, restent à réaliser selon la séquence ci-dessous.
+
 1. **Socle partagé** : valeurs de réglages et d'instantané dans le cœur,
    gardes/cibles/erreurs structurées, projection Yrs et contrôle de cohérence
    lors de la conservation. Éditions préparées et refus sans mutation publiée.

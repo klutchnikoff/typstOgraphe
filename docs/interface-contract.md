@@ -1,5 +1,10 @@
 # Contrat général des interfaces
 
+**Migration en cours :** ce document décrit le moteur historique. Le
+[contrat structuré A.2](structured-contract.md) fixe les nouvelles cibles et
+responsabilités ; son [socle Yrs](structured-contract-foundation.md) est livré.
+La CLI/MCP autonome et le relais de frappe ne sont pas encore migrés.
+
 Contrat livré à la clôture du chantier K, le 24 octobre 2026. Il décrit la frontière
 commune utilisée par egui, la CLI et MCP, ainsi que la coordination des vues.
 Le registre Rust reste la référence des **49 commandes et 19 requêtes** ; ce guide
