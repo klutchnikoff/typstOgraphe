@@ -370,6 +370,37 @@ fn format(
 }
 pub(super) fn apply(doc: &Doc, state: &State, command: &Command) -> Result<(), Error> {
     match command {
+        Command::IgnoreSpelling {
+            target,
+            language,
+            word,
+        } => {
+            if *language != state.settings.metadata.options().language
+                || !crate::spelling::supported(*language)
+            {
+                return Err(parameter("language"));
+            }
+            let zone = range(doc, state, target)?;
+            let text = zone.info(&doc.transact())?.text;
+            let from = targets::byte_at(&text, target.from)?;
+            let to = targets::byte_at(&text, target.to)?;
+            if &text[from..to] != word || !crate::spelling::is_word(word) {
+                return Err(parameter("word"));
+            }
+            let mut ignored = state.settings.metadata.options().spelling_ignored.clone();
+            if ignored
+                .entry(language.code().into())
+                .or_default()
+                .insert(crate::spelling::word_key(word))
+            {
+                doc.get_or_insert_map("settings").insert(
+                    &mut doc.transact_mut(),
+                    "options.spelling_ignored",
+                    any(&serde_json::to_value(ignored).expect("word lists")),
+                );
+            }
+            Ok(())
+        }
         Command::ReplaceInline { .. } | Command::SetNodeAttrs { .. } => {
             super::objects::apply(doc, state, command)
         }

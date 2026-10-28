@@ -108,6 +108,12 @@ pub enum Command {
     RemoveLink { target: TextTarget },
     #[serde(rename = "text.clear")]
     Clear { target: TextTarget },
+    #[serde(rename = "spelling.ignore")]
+    IgnoreSpelling {
+        target: TextTarget,
+        language: crate::document::DocumentLanguage,
+        word: String,
+    },
     #[serde(rename = "block.insert")]
     InsertBlock {
         parent: TreeTarget,
@@ -191,6 +197,7 @@ impl Command {
             Self::Link { .. } => "text.link",
             Self::RemoveLink { .. } => "text.remove_link",
             Self::Clear { .. } => "text.clear",
+            Self::IgnoreSpelling { .. } => "spelling.ignore",
             Self::InsertBlock { .. } => "block.insert",
             Self::ReplaceBlock { .. } => "block.replace",
             Self::SpliceBlocks { .. } => "block.splice",
@@ -243,6 +250,7 @@ pub const IDS: &[&str] = &[
     "text.link",
     "text.remove_link",
     "text.clear",
+    "spelling.ignore",
     "metadata.set",
 ];
 

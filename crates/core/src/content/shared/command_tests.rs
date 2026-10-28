@@ -60,6 +60,63 @@ pub(super) fn fields(session: &SharedSession) -> Value {
 }
 
 #[test]
+fn spelling_ignore_validates_target_language_and_normalizes_an_idempotent_exception() {
+    let mut s = session(DocumentType::Courrier);
+    execute(
+        &mut s,
+        vec![command(
+            "text.insert",
+            json!({
+                "target":body(json!([2]), 7, 12), "text":"APRÈS"
+            }),
+        )],
+    );
+    let ignore = command(
+        "spelling.ignore",
+        json!({
+        "target":body(json!([2]), 7, 12), "language":"fr", "word":"APRÈS"
+        }),
+    );
+    let before = s.state().document.clone();
+    execute(&mut s, vec![ignore.clone()]);
+    assert_eq!(
+        fields(&s)["options"]["spelling_ignored"]["fr"],
+        json!(["après"])
+    );
+    assert_eq!(s.state().document, before);
+    let revision = s.guard().revision;
+    assert!(!execute(&mut s, vec![ignore]).changed);
+    assert_eq!(s.guard().revision, revision);
+    for (language, word) in [("en", "APRÈS"), ("fr", "avant")] {
+        let bad = command(
+            "spelling.ignore",
+            json!({
+                "target":body(json!([2]),7,12), "language":language, "word":word
+            }),
+        );
+        assert!(s.prepare_commands(s.guard(), &[bad]).is_err());
+        assert_eq!(s.guard().revision, revision);
+    }
+    let before = s.update();
+    let bad_batch = vec![
+        command(
+            "text.insert",
+            json!({
+                "target":body(json!([0]), 0, 0), "text":"Conservé"
+            }),
+        ),
+        command(
+            "spelling.ignore",
+            json!({
+                "target":body(json!([2]), 7, 12), "language":"fr", "word":"ancien"
+            }),
+        ),
+    ];
+    assert!(s.prepare_commands(s.guard(), &bad_batch).is_err());
+    assert_eq!(s.update(), before);
+}
+
+#[test]
 fn text_and_styles_preserve_xml_identity_across_cells_annotations_and_unicode() {
     let mut s = session(DocumentType::Courrier);
     let before = SharedDocument::from_update(&s.update()).unwrap();
