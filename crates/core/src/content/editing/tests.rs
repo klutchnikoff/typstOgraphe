@@ -589,3 +589,87 @@ fn insertion_keeps_its_zone_when_publication_normalizes_surrounding_whitespace()
     assert_eq!(snapshot(&mut s, a).selection, Some(target(&[0], 3, 3)));
     assert!(text(&s).starts_with("Ma Cible"));
 }
+
+fn update_for(s: &EditingSession, text: &str) -> Vec<u8> {
+    let mut replica =
+        SharedSession::open(s.guard().clone(), &s.update(), Assets::default()).unwrap();
+    let prepared = replica
+        .prepare_commands(
+            s.guard(),
+            &[Command::Insert {
+                target: target(&[0], 0, 0),
+                text: text.into(),
+                marks: vec![],
+            }],
+        )
+        .unwrap();
+    replica.publish(prepared).unwrap().update
+}
+#[test]
+fn host_groups_typing_but_remote_sync_and_commands_end_the_group() {
+    let mut s = open();
+    let a = ctx(&mut s);
+    let b = ctx(&mut s);
+    for value in ["one", "two"] {
+        let update = update_for(&s, value);
+        s.execute_grouped_update(&s.guard().clone(), a, &update, 7)
+            .unwrap();
+    }
+    assert_eq!(snapshot(&mut s, a).undo_steps, 1);
+    let before_remote = text(&s);
+    execute(
+        &mut s,
+        b,
+        &[Command::Insert {
+            target: target(&[1], 0, 0),
+            text: "remote".into(),
+            marks: vec![],
+        }],
+    );
+    let update = update_for(&s, "three");
+    s.execute_grouped_update(&s.guard().clone(), a, &update, 7)
+        .unwrap();
+    assert_eq!(snapshot(&mut s, a).undo_steps, 2);
+    history(&mut s, a, Direction::Undo);
+    assert_eq!(text(&s), before_remote.replace("Second", "remoteSecond"));
+    history(&mut s, a, Direction::Undo);
+    assert_eq!(text(&s), "A😀éremoteSecond");
+    history(&mut s, a, Direction::Redo);
+    history(&mut s, a, Direction::Redo);
+    assert!(text(&s).starts_with("threetwoone"));
+}
+#[test]
+fn rejected_typing_preserves_bytes_and_blocks_only_its_context() {
+    use yrs::{XmlElementPrelim, XmlFragment};
+    let mut s = open();
+    let a = ctx(&mut s);
+    let b = ctx(&mut s);
+    let before = s.update();
+    let replica = SharedDocument::from_update(&before).unwrap();
+    let root = replica.doc.get_or_insert_xml_fragment("default");
+    let vector = replica.doc.transact().state_vector();
+    root.insert(
+        &mut replica.doc.transact_mut(),
+        0,
+        XmlElementPrelim::empty("unsupported"),
+    );
+    let update = replica.doc.transact().encode_diff_v1(&vector);
+    assert!(
+        s.execute_grouped_update(&s.guard().clone(), a, &update, 1)
+            .is_err()
+    );
+    assert_eq!(s.update(), before);
+    assert!(snapshot(&mut s, a).pending);
+    assert_eq!(
+        s.rejected_draft(s.guard(), a).unwrap().unwrap().update,
+        update
+    );
+    assert!(
+        s.execute_grouped_update(&s.guard().clone(), a, &update, 2)
+            .is_err()
+    );
+    select(&mut s, b, target(&[0], 0, 0));
+    insert(&mut s, b, "Other");
+    assert!(text(&s).starts_with("Other"));
+    assert!(snapshot(&mut s, a).pending);
+}

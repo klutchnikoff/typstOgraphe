@@ -206,6 +206,12 @@ impl SharedSession {
         self.shared.update()
     }
 
+    pub(in crate::content) fn set_assets(&mut self, assets: Assets) -> Result<(), Error> {
+        self.state.validate(&assets)?;
+        self.assets = assets;
+        Ok(())
+    }
+
     pub(in crate::content) fn difference(&self, other: &SharedDocument) -> Vec<u8> {
         self.shared
             .doc

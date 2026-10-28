@@ -48,6 +48,7 @@ struct Context {
     history: UndoManager,
     owned_insertions: yrs::IdSet,
     confirmed_revision: u64,
+    capture_group: Option<u64>,
     selection: Option<Selection>,
     styles: Vec<Style>,
     rejected: Option<RejectedDraft>,
@@ -56,7 +57,7 @@ impl Context {
     fn open(owner: &SharedSession) -> Result<Self, Error> {
         let local = SharedDocument::from_update(&owner.update())?;
         let mut history = UndoManager::with_options(yrs::undo::Options {
-            capture_timeout_millis: 0,
+            capture_timeout_millis: u64::MAX,
             ..Default::default()
         });
         history.expand_scope(&local.doc, &local.doc.get_or_insert_xml_fragment("default"));
@@ -67,6 +68,7 @@ impl Context {
             history,
             owned_insertions: yrs::IdSet::default(),
             confirmed_revision: owner.guard().revision,
+            capture_group: None,
             selection: None,
             styles: vec![],
             rejected: None,
@@ -84,9 +86,17 @@ impl Context {
         super::shared::apply(&self.local.doc, &owner.difference(&self.local))?;
         self.confirmed_revision = owner.guard().revision;
         self.history.reset();
+        self.capture_group = None;
         Ok(())
     }
     fn receive(&mut self, publication: &Publication) -> Result<(), Error> {
+        self.receive_grouped(publication, None)
+    }
+    fn receive_grouped(
+        &mut self,
+        publication: &Publication,
+        group: Option<u64>,
+    ) -> Result<(), Error> {
         if !publication.changed {
             return Ok(());
         }
@@ -95,7 +105,9 @@ impl Context {
                 reason: e.to_string(),
             })?;
         self.owned_insertions.merge_with(update.insertions(true));
-        self.history.reset();
+        if group.is_none() || self.capture_group != group {
+            self.history.reset();
+        }
         self.local
             .doc
             .transact_mut_with(ORIGIN)
@@ -103,7 +115,10 @@ impl Context {
             .map_err(|e| Error::InvalidSharedState {
                 reason: e.to_string(),
             })?;
-        self.history.reset();
+        self.capture_group = group;
+        if group.is_none() {
+            self.history.reset();
+        }
         self.confirmed_revision = publication.guard.revision;
         self.local.verify(&publication.state)
     }
@@ -316,6 +331,49 @@ impl EditingSession {
         self.contexts.get_mut(&id).unwrap().receive(&publication)?;
         Ok(publication)
     }
+    /// Group identifiers are private to the host/context. The host decides typing
+    /// boundaries; commands and remote synchronization always end a capture.
+    /// A refused update remains private and blocks this context until explicitly closed.
+    pub fn execute_grouped_update(
+        &mut self,
+        guard: &Guard,
+        id: ContextId,
+        update: &[u8],
+        group: u64,
+    ) -> Result<Publication, Error> {
+        self.check(guard, id)?;
+        self.contexts.get_mut(&id).unwrap().sync(&self.owner)?;
+        match self
+            .owner
+            .prepare(guard, &[update.to_vec()])
+            .and_then(|p| self.owner.publish(p))
+        {
+            Ok(publication) => {
+                self.contexts
+                    .get_mut(&id)
+                    .unwrap()
+                    .receive_grouped(&publication, Some(group))?;
+                Ok(publication)
+            }
+            Err(error) => {
+                let proposed = [self.owner.update(), update.to_vec()];
+                let state = SharedDocument::from_updates(&proposed)
+                    .and_then(|d| d.state())
+                    .ok();
+                self.contexts.get_mut(&id).unwrap().rejected = Some(RejectedDraft {
+                    base: guard.clone(),
+                    state,
+                    update: update.to_vec(),
+                    error: error.clone(),
+                });
+                Err(error)
+            }
+        }
+    }
+    /// Resources are retained for the whole editing session, including undo.
+    pub fn set_assets(&mut self, assets: Assets) -> Result<(), Error> {
+        self.owner.set_assets(assets)
+    }
     /// Incoming participant updates use the same final validation but never join
     /// another participant's undo stack. Rejected drafts are left untouched.
     pub fn publish_updates(
@@ -343,6 +401,8 @@ impl EditingSession {
         self.check(guard, id)?;
         let context = self.contexts.get_mut(&id).unwrap();
         context.sync(&self.owner)?;
+        context.history.reset();
+        context.capture_group = None;
         let before = context.local.doc.transact().snapshot();
         match direction {
             Direction::Undo => context.history.undo_blocking(),
