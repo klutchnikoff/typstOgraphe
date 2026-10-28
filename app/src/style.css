@@ -1,3 +1,5 @@
+@import './editor-palette.css';
+
 @font-face {
   font-family: Inter;
   src: url('../../assets/ui/fonts/inter/Inter-Regular.ttf');
@@ -38,8 +40,6 @@
   --accent: #285c77;
   --soft: #e8f0f4;
   --danger: #a83f33;
-  --rust: #a64e2a;
-  --green: #127653;
   --brand-ink: #285c77;
   --brand-name: #25333b;
   --brand-name-accent: #19779e;
@@ -57,8 +57,6 @@
     --accent: #8cc3e0;
     --soft: #26343d;
     --danger: #f09180;
-    --rust: #e4a17c;
-    --green: #8fc7aa;
     --brand-ink: #f8f5ec;
     --brand-name: #8c9ca6;
     --brand-name-accent: #b4e9ff;
@@ -355,7 +353,11 @@ main {
   pointer-events: none;
 }
 .inline-object {
-  color: var(--accent);
+  --badge-ink: var(--accent);
+  --badge-surface: var(--soft);
+  --badge-border: var(--accent);
+  --badge-active-text: var(--panel);
+  color: var(--badge-ink);
   font-family: Inter, system-ui, sans-serif;
   font-size: 0.7em;
   font-weight: 600;
@@ -368,8 +370,8 @@ main {
 .inline-object-label {
   display: inline;
   vertical-align: baseline;
-  background: var(--soft);
-  border: 1px solid var(--accent);
+  background: var(--badge-surface);
+  border: 1px solid var(--badge-border);
   padding: 2px 5px;
   border-radius: 5px;
   cursor: pointer;
@@ -379,12 +381,13 @@ main {
   padding-inline-end: 0.5ex;
 }
 .inline-object-label:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--badge-ink);
   outline-offset: 2px;
 }
 .inline-object-active > .inline-object-label {
-  background: var(--accent);
-  color: var(--panel);
+  background: var(--badge-ink);
+  border-color: var(--badge-ink);
+  color: var(--badge-active-text);
 }
 .ProseMirror-selectednode {
   outline: 2px solid var(--accent);
@@ -1068,8 +1071,6 @@ main {
   --border: #d7dadd;
   --soft: #e8eff3;
   --accent: #276c8c;
-  --rust: #a9441b;
-  --green: #286348;
   --brand-ink: #285c77;
   --brand-name: #25333b;
   --brand-name-accent: #19779e;
@@ -1083,8 +1084,6 @@ main {
   --border: #383e43;
   --soft: #263640;
   --accent: #94cee9;
-  --rust: #ed986e;
-  --green: #8cc9ae;
   --brand-ink: #f8f5ec;
   --brand-name: #8c9ca6;
   --brand-name-accent: #b4e9ff;

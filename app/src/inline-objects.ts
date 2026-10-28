@@ -73,6 +73,7 @@ export function inlineObjectView(options: {
 }) {
   const dom = document.createElement('span')
   dom.className = `inline-object ${options.className || ''}`.trim()
+  dom.dataset.kind = options.kind
   dom.contentEditable = 'false'
   // Keep the browser's insertion boundary outside the painted badge.
   const label = document.createElement('span')

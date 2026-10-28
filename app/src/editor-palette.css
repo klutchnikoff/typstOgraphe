@@ -1,0 +1,65 @@
+/* Editor semantics are independent of the Typst model. Keep every color here,
+   including both system and explicit appearances, to avoid palette drift. */
+:root {
+  --editor-strong-light: #b23816;
+  --editor-emphasis-light: #007347;
+  --editor-strong-dark: #ed986e;
+  --editor-emphasis-dark: #8cc9ae;
+  --note-ink-light: #235f91;
+  --note-surface-light: #eaf3fc;
+  --note-border-light: #6494bc;
+  --note-ink-dark: #add7fb;
+  --note-surface-dark: #24384b;
+  --note-border-dark: #6698c1;
+  --citation-ink-light: #74408f;
+  --citation-surface-light: #f4ecfa;
+  --citation-border-light: #a484b4;
+  --citation-ink-dark: #d8b6f1;
+  --citation-surface-dark: #392b44;
+  --citation-border-dark: #a27bb9;
+
+  --rust: var(--editor-strong-light);
+  --green: var(--editor-emphasis-light);
+  --note-ink: var(--note-ink-light);
+  --note-surface: var(--note-surface-light);
+  --note-border: var(--note-border-light);
+  --citation-ink: var(--citation-ink-light);
+  --citation-surface: var(--citation-surface-light);
+  --citation-border: var(--citation-border-light);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance='light']) {
+    --rust: var(--editor-strong-dark);
+    --green: var(--editor-emphasis-dark);
+    --note-ink: var(--note-ink-dark);
+    --note-surface: var(--note-surface-dark);
+    --note-border: var(--note-border-dark);
+    --citation-ink: var(--citation-ink-dark);
+    --citation-surface: var(--citation-surface-dark);
+    --citation-border: var(--citation-border-dark);
+  }
+}
+:root[data-appearance='dark'] {
+  --rust: var(--editor-strong-dark);
+  --green: var(--editor-emphasis-dark);
+  --note-ink: var(--note-ink-dark);
+  --note-surface: var(--note-surface-dark);
+  --note-border: var(--note-border-dark);
+  --citation-ink: var(--citation-ink-dark);
+  --citation-surface: var(--citation-surface-dark);
+  --citation-border: var(--citation-border-dark);
+}
+/* A new badge can declare these four tokens; unknown kinds retain the shared
+   accent fallback. All kinds keep the same caret, focus and active behavior. */
+.inline-object[data-kind='footnote'] {
+  --badge-ink: var(--note-ink);
+  --badge-surface: var(--note-surface);
+  --badge-border: var(--note-border);
+  --badge-active-text: var(--panel);
+}
+.inline-object[data-kind='citation'] {
+  --badge-ink: var(--citation-ink);
+  --badge-surface: var(--citation-surface);
+  --badge-border: var(--citation-border);
+  --badge-active-text: var(--panel);
+}
