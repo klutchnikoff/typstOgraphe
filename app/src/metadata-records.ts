@@ -8,6 +8,7 @@ import {
 } from '@tiptap/y-tiptap'
 import { richZoneExtensions, richFieldProfile } from './rich-zone'
 import type { Provider } from './provider'
+import { stableJSON } from './provider'
 
 export interface RecordField {
   key: string
@@ -31,6 +32,7 @@ export interface RecordCollection {
   label: string
   itemLabel: string
   title_key: string
+  summary?: string[]
   language_key?: string
   fields: RecordField[]
 }
@@ -38,6 +40,7 @@ export interface MetadataPanel {
   id: string
   collection: string
   fields?: string[]
+  editing?: 'dialog'
 }
 export interface BibliographyDescriptor {
   tab: string
@@ -119,7 +122,7 @@ function insert(
   return record
 }
 
-/** Unpublished additions never enter collaboration, snapshots or the document undo history. */
+/** Unpublished drafts never enter collaboration, snapshots or document undo history. */
 export function createRecordDraft(
   definition: RecordCollection,
   overrides: Record<string, unknown> = {},
@@ -130,6 +133,67 @@ export function createRecordDraft(
     fillRecord(record, definition, { id: crypto.randomUUID(), ...overrides } as RecordData),
   )
   return { doc, record, value: () => readRecord(record, definition), destroy: () => doc.destroy() }
+}
+
+export type RecordEditError = 'changed' | 'missing-reference' | 'duplicate-language'
+
+/** Transitional structured edit: prepare privately, guard the target and publish once.
+ * Keep unrelated peer edits; never silently merge or overwrite an edited record.
+ * The unified Rust command adapter will own this guard when it replaces the web relay.
+ */
+export function prepareRecordEdit(
+  provider: RecordStore,
+  schema: StructuredMetadata,
+  definition: RecordCollection,
+  options: { id?: string; after?: string; defaults?: Record<string, unknown> } = {},
+) {
+  const map = recordMap(provider, definition)
+  const identity = provider.doc.getMap('settings').get('identity')
+  const original = options.id ? map.get(options.id) : undefined
+  const before = original ? readRecord(original, definition) : undefined
+  const fingerprint = stableJSON(before)
+  const draft = createRecordDraft(definition, before || options.defaults)
+  let published = false
+  return {
+    ...draft,
+    commit(): { id: string; error?: never } | { error: RecordEditError } {
+      if (
+        published ||
+        provider.doc.getMap('settings').get('identity') !== identity ||
+        collections(provider)?.get(definition.parameter) !== map ||
+        (options.id &&
+          (!original ||
+            map.get(options.id) !== original ||
+            stableJSON(readRecord(original, definition)) !== fingerprint))
+      )
+        return { error: 'changed' }
+      const value = draft.value()
+      const lang = definition.language_key
+      if (
+        lang &&
+        recordIds(provider, definition).some(
+          (id) => id !== options.id && map.get(id)!.get(lang) === value[lang],
+        )
+      )
+        return { error: 'duplicate-language' }
+      for (const field of definition.fields)
+        if (field.references) {
+          const target = schema.collections.find((item) => item.parameter === field.references)!
+          const ids = recordIds(provider, target)
+          if ((value[field.key] as string[]).some((id) => !ids.includes(id)))
+            return { error: 'missing-reference' }
+        }
+      provider.doc.transact(() => {
+        if (original) {
+          for (const field of definition.fields)
+            if (stableJSON(before![field.key]) !== stableJSON(value[field.key]))
+              setRecordField(provider, original, field.key, value[field.key])
+        } else addRecord(provider, definition, value, options.after)
+      }, ySyncPluginKey)
+      published = true
+      return { id: value.id }
+    },
+  }
 }
 export function initializeRecords(
   provider: RecordStore,
@@ -205,6 +269,8 @@ export function setRecordField(
       const inserted = next.slice(prefix, next.length - suffix).join('')
       if (removed) previous.delete(start, removed)
       if (inserted) previous.insert(start, inserted)
+    } else if (previous instanceof Y.XmlFragment) {
+      prosemirrorJSONToYXmlFragment(getSchema(richZoneExtensions('rich-text')), value, previous)
     } else record.set(key, value)
   }, ySyncPluginKey)
 }

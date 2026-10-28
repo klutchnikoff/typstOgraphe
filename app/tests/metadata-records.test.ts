@@ -10,6 +10,7 @@ import {
   setRecordField,
   addRecord,
   createRecordDraft,
+  prepareRecordEdit,
   removeRecord,
   moveRecord,
   type StructuredMetadata,
@@ -172,5 +173,102 @@ it('confirming a filled draft inserts after its anchor in a single undoable tran
   expect(recordIds(provider, schema.collections[0])).toEqual(['a', last.get('id')])
   undo.redo()
   expect(snapshot(provider).people[1].name).toBe('Auteur intermédiaire')
+  provider.doc.destroy()
+})
+
+it('editing a private draft publishes all changed fields once, with stable identity and one undo', () => {
+  const provider = setup(),
+    definition = schema.collections[0],
+    original = recordMap(provider, definition).get('a')!,
+    before = snapshot(provider),
+    undo = new Y.UndoManager(provider.doc.getMap('settings'), {
+      trackedOrigins: new Set([ySyncPluginKey]),
+    }),
+    edit = prepareRecordEdit(provider, schema, definition, { id: 'a' })
+  let updates = 0
+  provider.doc.on('update', () => updates++)
+  setRecordField(edit, edit.record, 'name', 'Camille 👩🏽‍🔬')
+  setRecordField(edit, edit.record, 'affiliations', [])
+  setRecordField(edit, edit.record, 'summary', rich('Résumé enrichi'))
+  expect(snapshot(provider)).toEqual(before)
+  expect(updates).toBe(0)
+  expect(edit.commit()).toEqual({ id: 'a' })
+  expect(recordMap(provider, definition).get('a')).toBe(original)
+  expect(snapshot(provider).people[0]).toMatchObject({
+    name: 'Camille 👩🏽‍🔬',
+    affiliations: [],
+    summary: rich('Résumé enrichi'),
+  })
+  expect(updates).toBe(1)
+  expect(undo.undoStack).toHaveLength(1)
+  expect(edit.commit()).toEqual({ error: 'changed' })
+  undo.undo()
+  expect(snapshot(provider)).toEqual(before)
+  undo.redo()
+  expect(snapshot(provider).people[0].name).toBe('Camille 👩🏽‍🔬')
+  edit.destroy()
+  provider.doc.destroy()
+})
+
+it.each(['change', 'delete', 'replace', 'document'])(
+  'a concurrent %s cannot be overwritten by an edit draft',
+  (action) => {
+    const provider = setup(),
+      definition = schema.collections[0],
+      edit = prepareRecordEdit(provider, schema, definition, { id: 'a' })
+    setRecordField(edit, edit.record, 'name', 'Saisie privée')
+    if (action === 'change')
+      setRecordField(provider, recordMap(provider, definition).get('a')!, 'name', 'Collègue')
+    else if (action === 'document')
+      provider.doc.getMap('settings').set('identity', 'another-document')
+    else {
+      removeRecord(provider, schema, definition, 'a')
+      if (action === 'replace')
+        addRecord(provider, definition, {
+          id: 'a',
+          name: 'Camille',
+          affiliations: ['f'],
+          summary: rich('Résumé'),
+        })
+    }
+    const before = snapshot(provider)
+    expect(edit.commit()).toEqual({ error: 'changed' })
+    expect(edit.value().name).toBe('Saisie privée')
+    expect(snapshot(provider)).toEqual(before)
+    edit.destroy()
+    provider.doc.destroy()
+  },
+)
+
+it('independent edits refresh referenced records and remain compatible with a private draft', () => {
+  const provider = setup(),
+    edit = prepareRecordEdit(provider, schema, schema.collections[0], { id: 'a' })
+  setRecordField(edit, edit.record, 'name', 'Camille Martin')
+  setRecordField(
+    provider,
+    recordMap(provider, schema.collections[1]).get('f')!,
+    'text',
+    'Signature actualisée',
+  )
+  expect(edit.commit()).toEqual({ id: 'a' })
+  expect(snapshot(provider).affiliations[0].text).toBe('Signature actualisée')
+  edit.destroy()
+  provider.doc.destroy()
+})
+
+it('a deleted reference prevents publication without discarding the draft; clearing it permits confirmation', () => {
+  const provider = setup(),
+    edit = prepareRecordEdit(provider, schema, schema.collections[0])
+  setRecordField(edit, edit.record, 'name', 'Nouvel auteur')
+  setRecordField(edit, edit.record, 'affiliations', ['f'])
+  removeRecord(provider, schema, schema.collections[1], 'f', true)
+  const before = snapshot(provider)
+  expect(edit.commit()).toEqual({ error: 'missing-reference' })
+  expect(snapshot(provider)).toEqual(before)
+  expect(edit.value().name).toBe('Nouvel auteur')
+  setRecordField(edit, edit.record, 'affiliations', [])
+  expect(edit.commit()).toEqual({ id: edit.value().id })
+  expect(snapshot(provider).people[1]).toMatchObject({ name: 'Nouvel auteur', affiliations: [] })
+  edit.destroy()
   provider.doc.destroy()
 })
