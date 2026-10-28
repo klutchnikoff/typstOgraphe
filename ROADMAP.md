@@ -84,6 +84,7 @@ séparation Projets/Document n’en fige pas encore la présentation détaillée
 | **P1, continu** | E — Interface et rédaction | Une édition prévisible, rapide et entièrement utilisable au clavier |
 | **P1** | F — Assistance ACP | Une aide à la rédaction intégrée, avec propositions soumises à validation |
 | **P2** | G — Collaboration | Partage ponctuel depuis un poste, puis service durable d’organisation |
+| **P2** | J — Relecture par suggestions | Corriger et commenter un document sans le modifier, pour les humains comme pour les agents |
 | **P1, continu** | H — Diffusion et qualité | Une application installable, testée et documentée sur les trois systèmes |
 | **P3** | I — Extensions | Grammaire, conversions et capacités spécialisées justifiées par les usages |
 
@@ -207,6 +208,14 @@ sur ce qui est réellement disponible ; une entrée de cette liste ne suffit pas
   imbriquées ; conserver un widget unique pour une liste entière.
 - **Enrichissements ponctuels :** barré, souligné, exposants, indices et séparation
   thématique, sans transformer la barre d’outils en catalogue permanent.
+- **Accessibilité des images — décision du 28 octobre 2026 :** le **texte
+  alternatif est obligatoire** pour toute image. Aujourd’hui le champ est
+  facultatif et vide par défaut ; avec PDF/UA-1, une image sans description fait
+  échouer l’export (« missing alt text »). L’insertion, l’édition, les commandes
+  CLI/MCP et la validation documentaire partagent le même diagnostic. Un brouillon
+  incomplet doit rester insérable, enregistrable et récupérable ; la description
+  manquante est signalée, puis bloque l’export accessible tant qu’elle manque.
+  Un statut « image décorative » n’est pas décidé : à examiner avec la maquette.
 
 Une capacité partagée doit avoir le même contrat et les mêmes interactions
 dans tous les types où elle est disponible. Les modèles en définissent la
@@ -248,9 +257,20 @@ vérifiés, avec la même disponibilité dans les interfaces qui exposent la cap
 **Choix à valider :** format des manifestes et des paquets, paramètres exposés,
 polices et licences d’incorporation, import, stockage et politique de mise à jour.
 
+**Accessibilité des exports :** viser PDF/UA-1, avec un profil PDF/A pour
+l’archivage. Les standards de `typst_pdf` ne sont pas encore activés dans l’export
+(options par défaut) ; les fixtures et l’article d’exemple compilent avec
+`ua-1,a-2b` en ligne de commande. Activer les standards dans l’export, rendre le
+texte alternatif des images obligatoire (voir C) et valider un corpus avec
+veraPDF dans la CI : aucun outil externe n’a encore confirmé la conformité.
+Compléter les contrôles automatiques par une recette humaine de chaque modèle :
+ordre de lecture, descriptions pertinentes, structure des titres et des tableaux.
+Un résultat veraPDF favorable ne vérifie que les critères automatisables.
+
 **Sortie :** création d’un document utilisable avec chaque modèle livré ;
 changement de modèle d’un même type sans altération du contenu ; archive et
-export autonomes, compilables sans téléchargement de paquets.
+export autonomes, compilables sans téléchargement de paquets ; export PDF/UA-1
+validé sur la recette représentative de chaque modèle livré.
 
 ## E — Peaufiner l’interface et les outils de rédaction
 
@@ -340,6 +360,37 @@ embarquée avec runtime, le déploiement sur serveur et l’authentification.
 **Cloudflare reste une option à étudier**, pas une dépendance choisie : distinguer
 relais d’accès au poste et hébergement d’un service persistant.
 
+**Point d’attention : deux niveaux d’arbitrage.** La convergence CRDT ne garantit
+pas la validité documentaire. Valider un candidat fusionné avec l’état confirmé
+courant avant de l’admettre dans l’état d’autorité et de le diffuser : deux
+éditions valides séparément peuvent devenir incohérentes après fusion.
+
+- **Arbitre local (client) :** validation optimiste pendant la frappe, sans
+  attendre le réseau ; elle garde l’édition immédiate et évite d’envoyer la
+  plupart des mises à jour invalides. Elle n’a pas d’autorité sur les autres.
+- **Arbitre d’autorité :** poste hôte en session ponctuelle, serveur en service
+  durable. Il valide avant de diffuser ; les autres participants ne voient que
+  l’état validé.
+
+Les deux niveaux réutilisent le **même moteur Rust**, indépendant de Tauri :
+`EditingSession` et `SharedSession` sont déjà dans `core`. Extraire seulement la
+coordination encore liée à Tauri ; fichiers, fenêtres et transport restent des
+adaptateurs. Le client desktop peut conserver sa validation native. Évaluer la
+compilation `wasm32` et le coût du composant pour un client navigateur avant de
+retenir son déploiement WebAssembly. La compilation Typst reste côté client.
+Comparer un serveur Rust/Yrs à Hocuspocus raccordé à la validation Rust, sans
+imposer un appel distant : module natif, WebAssembly ou processus séparé sont
+à évaluer. Avec Hocuspocus, intercepter avant application du message, et non
+dans un observateur du document déjà modifié.
+
+**À concevoir : refus distant d’une mise à jour déjà appliquée localement.**
+L’annulation Yjs produit une opération inverse ; elle ne retire pas une édition
+refusée de l’historique comme si elle n’avait jamais existé. Prévoir la reconstruction de l’état local
+à partir de l’état de l’arbitre d’autorité, la conservation du brouillon refusé
+(comme pour le refus local) et l’information de l’utilisateur. Ce cas est
+censé rester rare mais doit être correct. Suspendre les mises à jour dépendant
+de la branche refusée jusqu’au rétablissement explicite de l’état confirmé.
+
 **Choix à valider :** premier parcours local/Internet, hôte et disponibilité,
 identités et droits, transport, stockage, confidentialité, coûts et maintenance.
 
@@ -380,6 +431,48 @@ un document utile et retrouve son travail, sans lire le dépôt ni installer Rus
 La reformulation par petit LLM local n’est pas réactivée par ce plan. Un créateur
 graphique de types/modèles, les diaporamas et les posters ne font pas partie du
 premier périmètre. Les propositions non retenues ne deviennent pas des engagements.
+
+## J — Relecture par suggestions — articulée aux types, snapshots et à F
+
+**Piste retenue le 28 octobre 2026, à maquetter avant tout codage.** Un mode
+relecture n’édite pas le texte directement : le relecteur sélectionne une plage ou
+place le curseur, choisit un outil (proposition, correction, remplacement,
+suppression, commentaire/discussion) et saisit son texte. Chaque suggestion est
+un **objet d’annotation ancré**, distinct du contenu ; l’accepter exécute une
+commande documentaire ordinaire sous garde de révision, la refuser la retire
+sans modifier le contenu documentaire partagé. Cette voie évite d’annuler des modifications
+concurrentes dans le CRDT. Elle doit être imparfaite mais utile dès sa première
+version, puis être peaufinée.
+
+- Réutiliser la comparaison à deux colonnes et le calcul de différences des
+  propositions MCP : une proposition d’agent est un ensemble de suggestions dont
+  l’auteur est l’agent. Partager les composants de relecture, tout en conservant
+  l’acceptation ou le refus du lot entier pour les propositions d’agent, y compris
+  leurs opérations structurelles déjà disponibles.
+- Limiter le premier périmètre de relecture humaine aux suggestions de texte dans une zone (insertion,
+  suppression, remplacement, commentaire). Les suggestions structurelles (blocs,
+  tableaux, notes, citations) et le suivi de formatage viennent plus tard.
+- Évaluer comme geste principal « sélectionner puis taper » créant directement
+  une suggestion de remplacement dans un mode relecture clairement signalé ;
+  les outils servent aux autres cas.
+- L’aperçu ordinaire montre le document confirmé, dont les suggestions acceptées
+  font déjà partie. Un aperçu candidat distinct et explicitement identifié peut
+  appliquer les suggestions encore en attente sur un état dérivé, sans les
+  accepter. Un aperçu marqué pour l’auteur reste à décider.
+- Snapshot manuel proposé à l’entrée en relecture ; pas de snapshots automatiques
+  heuristiques.
+- La relecture humaine ne dépend pas de la livraison d’ACP : son contrat commun
+  de suggestions peut être préparé indépendamment et raccordé ensuite aux agents.
+- Une ancre déplacée peut suivre le texte ; une cible dont le contenu a changé
+  doit être revérifiée avant acceptation, sans réapplication aveugle de la suggestion.
+
+**Choix à valider :** stockage des suggestions (état partagé, `.typsto`, export
+qui ignore les suggestions en attente), ancres devenues orphelines après édition de
+l’auteur, suggestions qui se chevauchent, portée par participant ou partagée,
+droits en collaboration, parcours de saisie sur maquette avec de vrais relecteurs.
+
+**Sortie :** un article relu par deux personnes et un agent, suggestions
+acceptées ou refusées, aperçu corrigé compilé, sans modification directe du texte.
 
 ## Prochain lot proposé
 

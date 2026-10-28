@@ -281,6 +281,35 @@ supposer que les fonctions, forfaits et quotas sont identiques entre agents.
 Son protocole n’est pas interchangeable avec un simple serveur y-websocket.
 Réutiliser le même document Yjs et l’historique par participant.
 
+**Arbitrage à deux niveaux :** un arbitre local optimiste (frappe immédiate, sans
+autorité sur les autres) et un arbitre d’autorité (hôte ou serveur) qui valide
+avant admission et diffusion du candidat fusionné avec son état confirmé courant.
+Réutiliser `EditingSession` et `SharedSession`, déjà dans `core`, et extraire la
+coordination encore liée à Tauri en laissant fichiers, fenêtres et transport dans
+les adaptateurs. La validation native convient au desktop ; évaluer compilation
+`wasm32`, poids et performances pour un client navigateur avant de retenir WASM.
+Comparer un serveur Rust/Yrs à Hocuspocus raccordé au même moteur Rust : appel
+distant, module natif, WebAssembly ou processus séparé restent à évaluer.
+Intercepter les messages avant application à l’état d’autorité, pas dans un
+observateur après modification. Concevoir la reconstruction de l’état local et
+la conservation du brouillon après refus distant, en suspendant les mises à jour
+qui dépendent de la branche refusée. L’annulation Yjs n’efface pas cette branche
+de l’historique CRDT.
+
+**Accessibilité des exports (C/D) :** partager les diagnostics de description
+d’image entre les adaptateurs ; conserver et récupérer les brouillons incomplets,
+mais bloquer leur export accessible tant que la description manque. Activer les
+standards PDF dans l’export commun, vérifier un corpus avec veraPDF en CI et
+compléter par une recette humaine des modèles (ordre de lecture, descriptions,
+titres et tableaux), les contrôles automatiques ne suffisant pas à tout vérifier.
+
+**Relecture (J/F) :** annotations ancrées séparées du contenu, applicables par les
+commandes gardées existantes. Mutualiser la présentation des propositions sans
+perdre l’acceptation atomique des lots d’agent, y compris structurels. La première
+relecture humaine textuelle ne dépend pas d’ACP. Distinguer aperçu confirmé et
+aperçu candidat explicitement signalé ; revérifier le contenu cible avant toute
+acceptation si l’auteur l’a modifié.
+
 Deux parcours à distinguer :
 
 - **Session hébergée depuis le desktop :** processus serveur avec runtime embarqué,
