@@ -1,7 +1,7 @@
 # Édition des auteurs et affiliations
 
-Orientation retenue le 28 octobre 2026. La présentation fait l’objet d’une
-maquette interactive avant le raccordement aux données du document.
+Présentation validée et intégrée le 28 octobre 2026, après une maquette
+interactive pour les auteurs et affiliations.
 
 ## Présentation
 
@@ -15,6 +15,8 @@ maquette interactive avant le raccordement aux données du document.
 - Afficher les champs décrits par le contrat du type. Le dialogue fournit
   le titre, la disposition générale, les actions, le focus et le clavier ;
   les formulaires ne doivent pas être dupliqués par type de document.
+  Le panneau déclare `editing: "dialog"` dans son descripteur. Les autres
+  panneaux conservent leur présentation, notamment les titres et résumés.
 - Conserver les résumés riches dans leur onglet, sans généraliser ce dialogue
   à tous les champs éditoriaux.
 
@@ -31,10 +33,36 @@ maquette interactive avant le raccordement aux données du document.
 - Entrée valide depuis un champ simple ; elle conserve son sens de retour à
   la ligne dans un champ multiligne. Ctrl/Cmd+Entrée permet de valider
   explicitement. Aucune validation pendant la préédition IME.
-- Valider publie une seule opération atomique et annulable. Réutiliser la
-  voie commune du moteur et sa protection de concurrence : une modification
-  ou suppression distante ne doit jamais être écrasée silencieusement.
-  Le raccordement précis aux gardes du contrat structuré reste à réaliser.
+- Valider publie une seule transaction atomique et annulable via
+  `prepareRecordEdit`, commun aux ajouts et modifications. Le contrôle porte
+  sur l’identité du document, la collection et l’objet édité (identité et
+  contenu de départ). Une modification ou suppression de cet objet bloque
+  la publication et conserve le brouillon ; les changements indépendants
+  ne sont pas écrasés. Le futur adaptateur Rust du contrat unifié reprendra
+  cette responsabilité lors du remplacement du relais web actuel.
+- Une référence supprimée reste visible, même après décochage, jusqu’à la
+  fermeture du formulaire. La validation exige de retirer explicitement
+  son association ; aucun retrait silencieux et aucune perte de focus.
+
+## Composants et vérifications
+
+`formDialog` encapsule le dialogue natif HTML et réutilise `contextPanel` pour
+le formulaire et ses actions. Les portées clavier communes gèrent la boucle
+Tab, les flèches entre actions, Échap et Ctrl/Cmd+Entrée. Le dialogue natif
+rend l’arrière-plan inactif ; la restitution du focus suit son événement
+`close`, notamment pour WebKit. Les raccourcis documentaires globaux restent
+inactifs pendant un dialogue.
+
+`metadataCollections` réutilise les mêmes contrôles de champs pour les lignes
+éditoriales et les dialogues. Les descripteurs définissent l’ordre des champs
+et les informations de synthèse d’une ligne. Les champs de texte secondaires
+partagent une ligne si la largeur le permet ; titre, texte multiligne et
+associations occupent toute la largeur.
+
+Les tests couvrent les brouillons privés, la validation atomique et son
+annulation, les changements concurrents, la suppression d’une référence,
+les retours multilignes, l’IME, le focus et la géométrie des dialogues en clair
+et sombre sur Chromium et WebKit. Aucune capture d’écran n’est produite.
 
 ## Couleurs sémantiques de l’éditeur
 

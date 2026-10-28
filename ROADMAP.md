@@ -264,11 +264,10 @@ export autonomes, compilables sans téléchargement de paquets.
 **Choix à valider :** les nouvelles interactions et maquettes, les préférences
 réellement utiles, les priorités de raccourcis et les objectifs de performance.
 
-**Prochaine maquette :** dialogue réutilisable pour créer et modifier les auteurs
-et affiliations, centré sur un arrière-plan atténué et légèrement flouté.
-Les principes de brouillon, validation et clavier sont consignés dans
-[`docs/metadata-dialogs.md`](docs/metadata-dialogs.md) ; le raccordement aux
-données attend la validation de la présentation.
+Les auteurs et affiliations utilisent désormais le dialogue réutilisable validé,
+centré sur un arrière-plan atténué et légèrement flouté. Le contrat de saisie,
+les brouillons isolés et les contrôles de concurrence sont décrits dans
+[`docs/metadata-dialogs.md`](docs/metadata-dialogs.md).
 
 ## F — Intégrer l’assistance ACP
 
