@@ -759,3 +759,82 @@ it('roundtrips table captions and fine grid edits as one undo without replacing 
   await probe({ action: 'inspect', update: bytes(original), expected: result.state })
   undo.destroy()
 })
+
+it('uses isolated native participant contexts and selective undo in the actual Yjs/Tiptap document', async () => {
+  const original = seed('article')
+  const element = document.createElement('div')
+  document.body.append(element)
+  const editor = createRichZone({
+    profile: 'document',
+    element,
+    label: 'Participant history contract',
+    binding: { kind: 'document', document: original },
+  })
+  editors.push(editor)
+  if (!editor.isInitialized)
+    await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+  editor.commands.setTextSelection(2) // The GUI cursor is independent of both native contexts.
+  const before = state(original)
+  const localization = (before.settings.metadata.fields.localizations as { id: string }[])[0].id
+  const body = (from: number, to = from) => ({ zone: { kind: 'body', path: [1] }, from, to })
+  const abstract = {
+    zone: {
+      kind: 'record',
+      collection: 'localizations',
+      id: localization,
+      field: 'abstract',
+      path: [0],
+    },
+    from: 0,
+    to: 0,
+  }
+  const result = await probe({
+    action: 'editing',
+    update: bytes(original),
+    guard: { document: 'participant-contract', revision: 0 },
+    contexts: 2,
+    steps: [
+      { op: 'select', actor: 0, target: body(3) },
+      { op: 'style', actor: 0, style: { type: 'bold' }, value: 'on' },
+      { op: 'insert', actor: 0, text: ' Humain ' },
+      { op: 'select', actor: 1, target: body(0) },
+      { op: 'insert', actor: 1, text: 'Agent ' },
+      { op: 'history', actor: 0, direction: 'undo' },
+      { op: 'history', actor: 0, direction: 'redo' },
+      { op: 'select', actor: 0, target: abstract },
+      { op: 'style', actor: 0, style: { type: 'italic' }, value: 'on' },
+      { op: 'insert', actor: 0, text: 'Résumé 日本' },
+      { op: 'history', actor: 0, direction: 'undo' },
+      { op: 'history', actor: 0, direction: 'redo' },
+    ],
+  })
+  expect(result.events[1].contexts[0].typing_styles).toEqual([{ type: 'bold' }])
+  expect(result.events[1].contexts[1].typing_styles).toEqual([])
+  expect(result.events[2].contexts[0].undo_steps).toBe(1)
+  for (const event of result.events) {
+    if (event.publication?.changed) {
+      Y.applyUpdate(original, new Uint8Array(event.publication.update), 'native-confirmation')
+      await probe({ action: 'inspect', update: bytes(original), expected: event.publication.state })
+      expect(editor.state.selection.from).toBe(2)
+    }
+  }
+  expect(editor.view.dom.querySelector('strong')?.textContent).toBeTruthy()
+  expect(editor.view.dom.textContent).toContain('Agent ')
+  expect(editor.view.dom.textContent).toContain(' Humain ')
+  const after = state(original)
+  const localizations = after.settings.metadata.fields.localizations as { abstract: JSONContent }[]
+  expect(JSON.stringify(localizations[0].abstract)).toContain('Résumé 日本')
+  expect(result.events[11].contexts[0].undo_steps).toBe(2)
+  expect(result.events[11].contexts[1].undo_steps).toBe(1)
+  expect(
+    result.events[5].publication.state.document.content[1].content
+      .map((n: JSONContent) => n.text || '')
+      .join(''),
+  ).not.toContain(' Humain ')
+  expect(
+    result.events[5].publication.state.document.content[1].content
+      .map((n: JSONContent) => n.text || '')
+      .join(''),
+  ).toContain('Agent ')
+  await probe({ action: 'inspect', update: bytes(original), expected: result.state })
+})
