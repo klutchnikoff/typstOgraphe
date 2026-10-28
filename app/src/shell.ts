@@ -811,6 +811,7 @@ export async function mountShell(s: Shell) {
   document.addEventListener(
     'keydown',
     (event) => {
+      if (document.querySelector('dialog[open]')) return
       if (event.isComposing) return
       if (!(event.metaKey || event.ctrlKey)) return
       const key = `Mod+${event.shiftKey ? 'Shift+' : ''}${event.key.length === 1 ? event.key.toUpperCase() : event.key}`
@@ -942,6 +943,7 @@ export async function mountShell(s: Shell) {
       window.location.reload()
     })
     await transport.listen<string>('app:command', (id) => {
+      if (document.querySelector('dialog[open]')) return
       const command = commands.get(id)
       if (command?.enabled?.() !== false) command?.run()
     })

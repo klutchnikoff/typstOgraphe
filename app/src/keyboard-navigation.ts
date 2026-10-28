@@ -271,7 +271,9 @@ interface ScopeOptions {
   active?: () => boolean
   priority?: number
   tab?: boolean
+  tabLoop?: boolean
   enterMultiline?: boolean
+  modifiedEnter?: boolean
   tabExit?: () => void
   initialGroup?: () => HTMLElement | null
 }
@@ -286,7 +288,19 @@ export function keyboardScope(root: HTMLElement, options: ScopeOptions) {
   const previous = scopeHandlers.get(root)
   if (previous) root.removeEventListener('keydown', previous)
   const handle = (event: KeyboardEvent) => {
-    if (event.defaultPrevented || !plain(event) || options.active?.() === false) return
+    if (event.defaultPrevented || composing(event) || options.active?.() === false) return
+    if (
+      options.modifiedEnter &&
+      event.key === 'Enter' &&
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      !event.shiftKey
+    ) {
+      consume(event)
+      if (options.canConfirm?.() !== false) options.confirm?.()
+      return
+    }
+    if (!plain(event)) return
     const target = event.target
     if (event.key.startsWith('Arrow') && target === root) {
       const group = options.initialGroup?.()
@@ -301,7 +315,10 @@ export function keyboardScope(root: HTMLElement, options: ScopeOptions) {
       const next = controls[index + (event.shiftKey ? -1 : 1)]
       // Leave the scope at its boundary; the caller may keep an editor bookmark.
       if (!next) {
-        if (options.tabExit) {
+        if (options.tabLoop && controls.length) {
+          consume(event)
+          controls[event.shiftKey ? controls.length - 1 : 0].focus()
+        } else if (options.tabExit) {
           consume(event)
           options.tabExit()
         }

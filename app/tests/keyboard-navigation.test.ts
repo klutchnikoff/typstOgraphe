@@ -131,6 +131,30 @@ it('une portée peut adresser les choix arrivés après son ouverture sans voler
   expect(document.activeElement).toBe(second)
   expect(key(second, 'Tab')).toBe(true)
 })
+
+it('un dialogue boucle Tab, garde les retours multilignes et valide explicitement sans intervenir pendant l’IME', () => {
+  const root = document.createElement('form'),
+    input = document.createElement('input'),
+    textarea = document.createElement('textarea'),
+    cancel = button('Annuler'),
+    validate = button('Valider'),
+    confirm = vi.fn()
+  root.append(input, textarea, cancel, validate)
+  document.body.append(root)
+  keyboardScope(root, { tab: true, tabLoop: true, modifiedEnter: true, confirm })
+  input.focus()
+  key(input, 'Tab', { shiftKey: true })
+  expect(document.activeElement).toBe(validate)
+  key(validate, 'Tab')
+  expect(document.activeElement).toBe(input)
+  expect(key(textarea, 'Enter')).toBe(true)
+  key(textarea, 'Enter', { ctrlKey: true, isComposing: true })
+  key(textarea, 'Enter', { metaKey: true, keyCode: 229 })
+  expect(confirm).not.toHaveBeenCalled()
+  key(textarea, 'Enter', { ctrlKey: true })
+  key(textarea, 'Enter', { metaKey: true })
+  expect(confirm).toHaveBeenCalledTimes(2)
+})
 it('le retrait du bouton focalisé révèle automatiquement le suivant', async () => {
   const row = actionRow(),
     a = button('Un'),

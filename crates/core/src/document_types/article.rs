@@ -353,20 +353,20 @@ pub(super) fn schema() -> serde_json::Value {
     let rich = |key, label, inline| json!({"key":key,"label_key":label,"kind":if inline {"rich_inline"} else {"rich"},"default":RichText::default()});
     json!({"outline":{"parameter":"show_outline","field":"article.show_outline"},"bibliography":{"tab":"bibliography","files":"references","field":"article.references","style":"citation_style","style_field":"article.citation_style"},"panels":[
         {"id":"titles","collection":"localizations","fields":["language","title","subtitle","short-title"]},
-        {"id":"affiliations","collection":"affiliations"},
-        {"id":"authors","collection":"authors"},
+        {"id":"affiliations","collection":"affiliations","editing":"dialog"},
+        {"id":"authors","collection":"authors","editing":"dialog"},
         {"id":"abstracts","collection":"localizations","fields":["language","abstract","keywords"]}
     ],"collections":[
         {"field":"article.references","parameter":"references","label_key":"field-bibliography","item_label_key":"field-reference-file","title_key":"name","schema":schemars::schema_for!(Vec<crate::bibliography::ReferenceFile>),"fields":[
             {"key":"name","label_key":"field-reference-file","kind":"text","default":""},
             {"key":"contents","label_key":"field-reference-source","kind":"source","default":""}
         ]},
-        {"field":"article.authors","parameter":"authors","label_key":"field-article-authors","item_label_key":"article-author","title_key":"name",
+        {"field":"article.authors","parameter":"authors","label_key":"field-article-authors","item_label_key":"article-author","title_key":"name","summary":["email","corresponding"],
          "schema":schemars::schema_for!(Vec<Author>), "fields":[
             {"key":"name","label_key":"field-full-name","kind":"text","default":""},
-            {"key":"affiliation-ids","label_key":"field-article-affiliations","kind":"references","references":"affiliations","default":[]},
             {"key":"email","label_key":"field-email","kind":"text","default":""},
             {"key":"orcid","label_key":"field-orcid","kind":"text","default":""},
+            {"key":"affiliation-ids","label_key":"field-article-affiliations","kind":"references","references":"affiliations","default":[]},
             {"key":"corresponding","label_key":"field-corresponding","kind":"boolean","default":false}
          ]},
         {"field":"article.affiliations","parameter":"affiliations","label_key":"field-article-affiliations","item_label_key":"article-affiliation","title_key":"text",

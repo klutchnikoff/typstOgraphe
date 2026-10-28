@@ -272,6 +272,7 @@ rustButton.addEventListener('click', () =>
 )
 element('statistics').after(rustButton)
 document.addEventListener('keydown', (event) => {
+  if (event.defaultPrevented || event.isComposing || document.querySelector('dialog[open]')) return
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
     event.preventDefault()
     action(save)

@@ -9,6 +9,7 @@ export function contextPanel(options: {
   titleId?: string
   closeId?: string
   errorId?: string
+  modal?: boolean
 }) {
   const element = document.createElement('form')
   element.id = options.id
@@ -93,9 +94,11 @@ export function contextPanel(options: {
     confirm: () => panel.submit(),
     canConfirm: options.canConfirm,
     tab: true,
+    tabLoop: options.modal,
+    modifiedEnter: options.modal,
     tabExit: options.tabExit,
-    enterMultiline: true,
-    priority: 20,
+    enterMultiline: !options.modal,
+    priority: options.modal ? 40 : 20,
     initialGroup: () => initialNavigationGroup(element),
   })
   element.onsubmit = (event) => {

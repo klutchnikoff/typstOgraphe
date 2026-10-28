@@ -5,12 +5,12 @@ import { metadataSection } from './metadata-fields'
 import { metadataRich } from './metadata-rich'
 import { createRichZone, richFieldProfile } from './rich-zone'
 import { contextPanel } from './context-panel'
+import { formDialog } from './form-dialog'
 import { actionRow } from './keyboard-navigation'
 import { icon } from './icons'
 import { tr } from './i18n'
 import {
-  addRecord,
-  createRecordDraft,
+  prepareRecordEdit,
   setRecordField,
   recordMap,
   recordIds,
@@ -58,6 +58,7 @@ export function metadataCollections(
       add: HTMLButtonElement
       draft?: {
         element: HTMLElement
+        floating: boolean
         refresh: () => void
         destroy: () => void
         focus: () => void
@@ -91,6 +92,11 @@ export function metadataCollections(
     const row = document.createElement('div')
     row.className = 'field metadata-record-field'
     row.dataset.recordField = field.key
+    row.dataset.fieldKind = field.kind
+    row.classList.toggle(
+      'metadata-record-wide',
+      field.key === definition.title_key || field.kind !== 'text',
+    )
     container.append(row)
     if (field.kind === 'rich' || field.kind === 'rich_inline') {
       const rich = metadataRich(
@@ -112,18 +118,30 @@ export function metadataCollections(
     label.textContent = field.label
     const id = `record-field-${definition.parameter}-${record.get('id')}-${field.key}`
     label.htmlFor = id
+    label.id = `${id}-label`
     if (field.kind === 'references') {
       const choices = document.createElement('div')
+      // Keep removed choices until this form closes, even after unchecking:
+      // removing a focused checkbox during its change event loses keyboard focus.
+      const missing = new Set<string>()
       choices.className = 'metadata-reference-choices'
+      choices.setAttribute('role', 'group')
+      choices.setAttribute('aria-labelledby', label.id)
       row.append(label, choices)
       return {
         destroy: () => {},
         refresh() {
           const target = definitions.get(field.references!)!
           const ids = recordIds(provider, target)
+          const selected = record.get(field.key) as string[]
+          for (const key of selected) if (!ids.includes(key)) missing.add(key)
+          for (const key of ids) missing.delete(key)
           for (const child of [...choices.children])
-            if (!ids.includes((child as HTMLElement).dataset.reference!)) child.remove()
-          for (const key of ids) {
+            if (
+              ![...ids, ...selected, ...missing].includes((child as HTMLElement).dataset.reference!)
+            )
+              child.remove()
+          for (const key of new Set([...ids, ...selected, ...missing])) {
             let choice = [...choices.children].find(
               (child) => (child as HTMLElement).dataset.reference === key,
             ) as HTMLLabelElement | undefined
@@ -142,9 +160,10 @@ export function metadataCollections(
                 discrete(() => setRecordField(store, record, field.key, [...selected]))
               }
             }
-            choice.querySelector('span')!.textContent =
-              String(recordMap(provider, target).get(key)!.get(target.title_key) || '') ||
-              target.itemLabel
+            const reference = recordMap(provider, target).get(key)
+            choice.querySelector('span')!.textContent = reference
+              ? String(reference.get(target.title_key) || '') || target.itemLabel
+              : `${target.itemLabel} · ${tr('Élément supprimé')}`
             choice.querySelector('input')!.checked = (record.get(field.key) as string[]).includes(
               key,
             )
@@ -181,7 +200,10 @@ export function metadataCollections(
         'aria-description',
         tr('Un mot-clé par ligne ; les expressions peuvent contenir des espaces.'),
       )
-    row.append(label, input)
+    if (field.kind === 'boolean') {
+      label.prepend(input)
+      row.append(label)
+    } else row.append(label, input)
     return {
       destroy: () => {},
       refresh() {
@@ -226,6 +248,11 @@ export function metadataCollections(
     const summary = document.createElement('summary')
     const caption = document.createElement('span')
     caption.className = 'metadata-record-caption'
+    const label = document.createElement('span')
+    label.className = 'metadata-record-label'
+    const detail = document.createElement('small')
+    detail.className = 'metadata-record-detail'
+    label.append(caption, detail)
     const actions = actionRow()
     const fieldsRoot = document.createElement('div')
     fieldsRoot.className = 'metadata-record-fields'
@@ -296,6 +323,12 @@ export function metadataCollections(
       moveRecord(provider, definition, id, 1),
     )
     const edit = button(`${tr('Modifier')} · ${definition.itemLabel}`, 'settings-2', () => {
+      if (panel.editing === 'dialog') {
+        confirm.element.hidden = true
+        element.open = false
+        startDraft(definition, undefined, id, edit)
+        return
+      }
       element.open = !element.open
       if (element.open)
         fieldsRoot
@@ -304,7 +337,16 @@ export function metadataCollections(
     })
     const add = addButton(definition, id)
     actions.append(remove, up, down, edit, add)
-    summary.append(caption, actions)
+    summary.append(label, actions)
+    if (panel.editing === 'dialog') {
+      summary.setAttribute('aria-haspopup', 'dialog')
+      summary.onclick = (event) => {
+        event.preventDefault()
+        confirm.element.hidden = true
+        element.open = false
+        startDraft(definition, undefined, id, summary)
+      }
+    }
     element.append(summary, deletion, fieldsRoot)
     collections.get(definition)!.root.append(element)
     let views: ReturnType<typeof fieldView>[] = [],
@@ -313,7 +355,7 @@ export function metadataCollections(
       const isPrimary =
         !!definition.language_key && record.get(definition.language_key) === language()
       const nextMode = isPrimary ? 'primary' : 'other'
-      if (mode !== nextMode) {
+      if (panel.editing !== 'dialog' && mode !== nextMode) {
         for (const view of views) view.destroy()
         fieldsRoot.replaceChildren()
         mode = nextMode
@@ -325,6 +367,16 @@ export function metadataCollections(
       caption.textContent = definition.language_key
         ? catalogue.languages.find((item) => item.value === value)?.label || definition.itemLabel
         : String(value || definition.itemLabel)
+      caption.title = caption.textContent
+      detail.textContent = (definition.summary || [])
+        .map((key) => {
+          const field = definition.fields.find((item) => item.key === key)
+          const value = record.get(key)
+          return field?.kind === 'boolean' ? (value ? field.label : '') : String(value || '')
+        })
+        .filter(Boolean)
+        .join(' · ')
+      detail.hidden = !detail.textContent
       const ids = recordIds(provider, definition),
         index = ids.indexOf(id)
       up.disabled = index === 0
@@ -357,27 +409,34 @@ export function metadataCollections(
     )
   }
   function focusAdd(definition: RecordCollection, after?: string) {
+    addTarget(definition, after).focus()
+  }
+  function addTarget(definition: RecordCollection, after?: string) {
     const state = collections.get(definition)!
     const row =
       (after && state.views.get(after)) ||
       state.views.get(recordIds(provider, definition).at(-1) || '')
-    const target = row?.element.querySelector<HTMLButtonElement>('[data-record-add]') || state.add
-    target.focus()
+    return row?.element.querySelector<HTMLButtonElement>('[data-record-add]') || state.add
   }
   function addButton(definition: RecordCollection, after?: string) {
     const add = button(`${tr('Ajouter')} · ${definition.itemLabel}`, 'plus', () =>
-      startDraft(definition, after),
+      startDraft(definition, after, undefined, add),
     )
     add.dataset.recordAdd = ''
     return add
   }
-  function startDraft(definition: RecordCollection, after?: string) {
+  function startDraft(
+    definition: RecordCollection,
+    after?: string,
+    editing?: string,
+    trigger?: HTMLElement,
+  ) {
     const state = collections.get(definition)!
     if (state.draft) {
       state.draft.focus()
       return
     }
-    if (cannotAdd(definition)) return
+    if (!editing && cannotAdd(definition)) return
     const langKey = definition.language_key
     const used = recordIds(provider, definition).map((id) =>
       recordMap(provider, definition)
@@ -385,7 +444,11 @@ export function metadataCollections(
         .get(langKey || ''),
     )
     const next = catalogue.languages.find((item) => !used.includes(item.value))?.value
-    const draft = createRecordDraft(definition, langKey ? { [langKey]: next } : {})
+    const draft = prepareRecordEdit(provider, schema, definition, {
+      id: editing,
+      after,
+      defaults: langKey ? { [langKey]: next } : {},
+    })
     // Rich drafts have their own local history. Only confirmation publishes one document transaction.
     const owner = fields(definition).some(
       (field) => field.kind === 'rich' || field.kind === 'rich_inline',
@@ -398,53 +461,65 @@ export function metadataCollections(
         })
       : undefined
     let views: ReturnType<typeof fieldView>[] = []
-    const discard = () => {
+    let returnFocus: HTMLElement | undefined
+    const discard = (saved?: string) => {
       state.draft?.destroy()
       state.draft = undefined
       refresh()
-      focusAdd(definition, after)
+      returnFocus =
+        (editing || !saved) && trigger?.isConnected
+          ? trigger
+          : addTarget(definition, saved || after)
+      returnFocus.focus({ preventScroll: true })
     }
-    const form = contextPanel({
-      id: `add-record-${definition.parameter}`,
-      closeLabel: tr('Annuler'),
-      close: discard,
-      canConfirm: () => true,
-    })
-    form.title.textContent = `${tr('Ajouter')} · ${definition.itemLabel}`
+    const modal = panel.editing === 'dialog'
+    const dialog = modal
+      ? formDialog({
+          id: `edit-record-${definition.parameter}`,
+          title: `${tr(editing ? 'Modifier' : 'Ajouter')} · ${definition.itemLabel}`,
+          cancel: () => discard(),
+          returnFocus: () => returnFocus || trigger,
+        })
+      : undefined
+    const form =
+      dialog ||
+      contextPanel({
+        id: `add-record-${definition.parameter}`,
+        closeLabel: tr('Annuler'),
+        close: () => discard(),
+        canConfirm: () => true,
+      })
+    form.title.textContent = `${tr(editing ? 'Modifier' : 'Ajouter')} · ${definition.itemLabel}`
     form.element.classList.add('metadata-record-draft')
     form.element.hidden = false
     form.element.dataset.after = after || ''
     form.body.classList.add('metadata-record-fields')
-    state.root.append(form.element)
+    if (!modal) state.root.append(form.element)
     views = fields(definition).map((field) =>
       fieldView(form.body, definition, draft.record, field, draft, owner || main),
     )
-    form.action({ label: tr('Annuler'), run: discard })
+    form.action({ label: tr('Annuler'), run: () => discard() })
     form.action({
       label: tr('Valider'),
       primary: true,
       run: () => {
-        const value = draft.value()
-        if (
-          langKey &&
-          recordIds(provider, definition).some(
-            (id) => recordMap(provider, definition).get(id)!.get(langKey) === value[langKey],
+        let result!: ReturnType<typeof draft.commit>
+        discrete(() => {
+          result = draft.commit()
+        })
+        if (result.error) {
+          form.error.textContent = tr(
+            {
+              changed:
+                'Cet élément a été modifié ou supprimé ailleurs. Fermez puis rouvrez le formulaire.',
+              'missing-reference':
+                'Une référence sélectionnée a été supprimée. Vérifiez les associations avant de valider.',
+              'duplicate-language': 'Cette langue est déjà présente.',
+            }[result.error],
           )
-        ) {
-          form.error.textContent = tr('Cette langue est déjà présente.')
           return
         }
-        // References may have been removed by a peer while the form was open.
-        for (const field of definition.fields)
-          if (field.references) {
-            const ids = recordIds(provider, definitions.get(field.references)!)
-            value[field.key] = (value[field.key] as string[]).filter((id) => ids.includes(id))
-          }
-        discrete(() => addRecord(provider, definition, value, after))
-        state.draft?.destroy()
-        state.draft = undefined
-        refresh()
-        focusAdd(definition, value.id)
+        discard(result.id)
       },
     })
     const update = () => {
@@ -453,6 +528,7 @@ export function metadataCollections(
     draft.record.observeDeep(update)
     state.draft = {
       element: form.element,
+      floating: modal,
       refresh: update,
       focus: () =>
         form.body
@@ -463,11 +539,13 @@ export function metadataCollections(
         for (const view of views) view.destroy()
         owner?.destroy()
         draft.destroy()
-        form.element.remove()
+        if (dialog) dialog.destroy()
+        else form.element.remove()
       },
     }
     refresh()
-    state.draft.focus()
+    if (dialog) dialog.open()
+    else state.draft.focus()
   }
   for (const definition of schema.collections.filter(
     (collection) => collection.parameter === panel.collection,
@@ -514,7 +592,7 @@ export function metadataCollections(
         if (previous.nextSibling !== view.element)
           state.root.insertBefore(view.element, previous.nextSibling)
         previous = view.element
-        if (state.draft && id === state.draft.element.dataset.after) {
+        if (state.draft && !state.draft.floating && id === state.draft.element.dataset.after) {
           if (previous.nextSibling !== state.draft.element)
             state.root.insertBefore(state.draft.element, previous.nextSibling)
           previous = state.draft.element
@@ -524,6 +602,7 @@ export function metadataCollections(
         focused.focus({ preventScroll: true })
       if (state.draft) {
         if (
+          !state.draft.floating &&
           !ids.includes(state.draft.element.dataset.after || '') &&
           state.root.lastChild !== state.draft.element
         )
