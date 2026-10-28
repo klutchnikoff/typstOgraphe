@@ -31,8 +31,11 @@ Les [commandes multizones et structurelles du cœur](docs/structured-commands.md
 sont en place, avec les enregistrements d’en-tête ordonnés. Les tableaux avec
 légende et les opérations de lignes/colonnes sont raccordés au cœur depuis Tauri.
 Le [socle de contextes et d’historique par participant](docs/structured-editing-contexts.md)
-est en place dans le cœur et vérifié avec Yjs/Tiptap. Raccorder ces contextes et
-les autres opérations aux adaptateurs, puis le relais de frappe et ses refus.
+est raccordé au relais Tauri : validation asynchrone, historique Rust par fenêtre,
+groupement de frappe et parcours de refus avec export du brouillon. Poursuivre les
+autres commandes typées, le report des sélections/styles, le mode individuel allégé
+et la migration CLI/MCP autonome. Les brouillons refusés restent en mémoire avant
+leur export JSON ; la conservation durable automatique reste à traiter.
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
 

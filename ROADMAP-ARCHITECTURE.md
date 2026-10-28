@@ -61,17 +61,20 @@ lignes vides avant publication. Les recettes Rust ↔ Tiptap vérifient les iden
 conservées et une seule étape d’annulation pour chaque lot. Le
 [socle de contextes et d’historique par participant](docs/structured-editing-contexts.md)
 ajoute des répliques privées durables, des styles/sélections isolés et la validation
-des annulations avant publication. Il est vérifié avec Yjs/Tiptap ; son raccordement
-aux adaptateurs reste à faire. Restent les autres commandes, le relais de frappe
-avec groupement, accusés/refus et brouillons, le mode individuel allégé, puis la
-migration CLI/MCP.
+des annulations avant publication. Il est vérifié avec Yjs/Tiptap et raccordé à
+l’application : frappe immédiate,
+validation asynchrone, groupement et historique Rust unique par fenêtre,
+accusés/refus et export explicite du brouillon avant abandon. Restent les autres
+commandes typées, le report des sélections/styles, le mode individuel allégé, puis
+la migration CLI/MCP autonome. Les brouillons refusés restent en mémoire avant
+leur export JSON ; leur conservation automatique durable reste à traiter.
 
 **Lot en place :** [figures et tableaux](docs/structured-commands.md#figures-et-tableaux--contrat-mis-en-place),
 avec une enveloppe Typst `figure` commune aux images/tableaux, légende facultative,
 édition des lignes/colonnes depuis la cellule active et conservation de la
 sémantique accessible. Le parcours Tauri prépare puis publie sous garde dans
 le propriétaire, avec annulation et diffusion aux autres fenêtres. Fusion des
-cellules différée ; migration CLI/MCP et relais de frappe encore à réaliser.
+cellules différée ; migration des autres commandes et CLI/MCP encore à réaliser.
 
 Converger entre le contenu structuré du nouvel éditeur et les adaptateurs
 historiques : catalogue, commandes, requêtes, erreurs typées et schémas de fichiers.

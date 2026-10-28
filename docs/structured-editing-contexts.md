@@ -3,8 +3,8 @@
 Ce lot ajoute `content::editing::EditingSession` au cœur Rust. Il complète les
 [commandes communes](structured-commands.md) et respecte le
 [contrat structuré](structured-contract.md). Il est exécuté dans les recettes
-Rust et Rust ↔ Yjs/Tiptap ; il ne remplace pas encore les historiques et le relais
-de frappe de l’application, de la CLI ou de MCP.
+Rust et Rust ↔ Yjs/Tiptap, puis raccordé au relais de frappe et à l’historique de
+l’application Tauri. La migration CLI/MCP autonome reste à faire.
 
 ## Propriété des données
 
@@ -26,6 +26,8 @@ L’API commune propose :
   styles propres au contexte ;
 - `execute` : lot de commandes documentaires explicites ;
 - `execute_updates` : lot de mises à jour attribué au contexte par l’hôte ;
+- `execute_grouped_update` : mise à jour de frappe avec groupe explicite et
+  conservation d’un brouillon privé en cas de refus ;
 - `publish_updates` : publications sans attribution à un historique local ;
 - `history` : annulation ou rétablissement du contexte ;
 - `rejected_draft` : consultation d’une proposition privée refusée.
@@ -70,9 +72,10 @@ la pile de rétablissement.
 
 Un lot confirmé est importé dans la réplique en une transaction suivie : une
 seule étape d’annulation couvre toutes ses zones. Les commandes sans changement
-et les refus avant publication ne créent pas d’étape. Le groupement naturel de
-la frappe reste à raccorder avec le relais ; ce lot ne remplace pas ce groupement
-par un délai décidé dans le moteur.
+et les refus avant publication ne créent pas d’étape. Le relais de l’application fournit un identifiant de groupe privé au contexte :
+une pause de 500 ms, un déplacement explicite du curseur, un changement de zone
+ou une action distincte termine le groupe. Le cœur regroupe ces publications
+avec Yrs, sans décider d’un délai de saisie.
 
 La réplique est durable parce qu’un état Yjs transmis ne conserve pas les liens
 internes `redone` de Yrs. Reconstruire le gestionnaire à chaque commande à partir
@@ -82,8 +85,10 @@ suite avec une contribution distante intercalée.
 
 La synchronisation privée est évitée si la révision n’a pas changé. Sinon elle
 importe le différentiel nécessaire, sans reconstruire la réplique ni son
-historique. Aucun coût supplémentaire n’est introduit dans la frappe de
-l’application par ce lot, dont le raccordement de production reste à faire.
+historique. La frappe reste immédiate dans Yjs ; le propriétaire Rust confirme ensuite les
+mises à jour. La validation et les historiques ont un coût en arrière-plan,
+à mesurer sur les documents longs ; aucune latence n’est ajoutée volontairement
+avant l’affichage d’un caractère.
 
 ## Annulation refusée et brouillon privé
 
@@ -113,9 +118,9 @@ En cas de refus :
 
 Aucun rétablissement forcé ou abandon de brouillon n’est automatique. Fermer un
 contexte en abandonne explicitement les données ; l’hôte doit faire confirmer
-cette décision si nécessaire. Le parcours d’examen, de remise en cohérence et de
-reprise de ces brouillons doit être validé et construit avant le raccordement
-à l’interface. Ce mécanisme ne constitue pas un contournement de l’acceptation
+cette décision si nécessaire. Le parcours initial validé conserve la réplique complète dans la fenêtre,
+suspend les envois et propose un export JSON du brouillon, puis un retour à la
+version confirmée après confirmation explicite d’abandon. Ce mécanisme ne constitue pas un contournement de l’acceptation
 humaine des propositions MCP.
 
 Les erreurs de contexte ont le code `editing_context`, avec les motifs `closed`,
@@ -133,9 +138,85 @@ Le transport de diagnostic exécute un scénario de deux participants dans cette
 API. Ses publications sont appliquées au véritable document Yjs/Tiptap ; chaque
 état est relu par Rust et le curseur graphique reste indépendant.
 
-Restent le raccordement aux adaptateurs, le groupement de frappe, le parcours
-utilisateur des brouillons refusés et la vérification d’un seul propriétaire
-d’historique par participant. L’interface conserve son gestionnaire Yjs existant
-jusqu’à cette migration : on ne superpose pas les deux gestionnaires en production.
-Les historiques de séance ne sont pas des snapshots durables et ne sont pas
-rétablis par l’ouverture d’un `.typsto`.
+## Raccordement Tauri livré
+
+Les appels Tauri du propriétaire utilisent le dispatch asynchrone fourni par
+Tauri (`#[tauri::command(async)]`) : validation, verrou et sérialisation de la
+réponse s’exécutent sur ses workers, sans bloquer le thread de l’interface.
+
+La session native conserve un `EditingSession` durable et associe ses contextes
+aux identités des fenêtres inscrites. Le premier état complet contient à la fois
+le corps et les réglages ; son initialisation ne crée pas d’étape d’annulation.
+Changer de document retire le propriétaire précédent. Fermer une fenêtre retire
+son contexte. Le journal de transport peut être compacté sans recréer les
+répliques privées ni perdre les liens `redone` de leurs historiques.
+
+L’insertion native de tableau réutilise aussi la règle commune de continuation
+des widgets : le lot ajoute sa ligne de saisie si nécessaire, avec une seule
+étape d’annulation.
+
+Le relais collecte les transactions Yjs synchrones d’un geste dans une microtâche :
+la validation voit aussi sa réparation d’espacement, sans ajouter de temporisation
+à la frappe. Les lots typés des tableaux publient dans ce même propriétaire. Les
+propositions MCP rattachées restent soumises à acceptation ; leur publication
+rejoint l’historique de la personne qui accepte le lot. Les réparations marquées
+`addToHistory: false` passent par la validation commune sans étape d’annulation.
+
+La préédition IME est retenue localement jusqu’à `compositionend`, y compris ses
+réparations synchrones. Les publications distantes attendent sa fin dans cette
+fenêtre. `flush` refuse de produire un instantané tant qu’une composition est en
+cours, même si elle commence pendant l’attente d’un accusé de réception. Les
+recettes simulent ces événements ; les claviers et IME natifs des trois systèmes
+restent à vérifier manuellement.
+
+La zone principale et les champs riches liés à l’en-tête n’instancient plus de
+`UndoManager` Yjs dans l’application native. Leurs raccourcis, boutons et limites
+de capture passent par `editing-history.ts`, vers l’historique Rust. Les éditeurs
+de brouillons non publiés gardent leur historique local indépendant. Les recettes
+unitaires qui utilisent un faux transport sans propriétaire natif conservent
+également leur gestionnaire Yjs ; ce n’est pas un second historique de production.
+
+Pendant une annulation/rétablissement, les zones et contrôles documentaires sont
+brièvement désactivés, puis le focus de la zone active est restauré s’il n’a pas
+été déplacé ailleurs. Une sauvegarde attend cette publication comme celles de
+la frappe. Un accusé de réception rafraîchit les commandes, sans demander une
+nouvelle compilation du contenu inchangé. Les événements natifs portent aussi
+la génération du document, pour ignorer un événement tardif de l’ancien projet.
+
+Après un refus du relais de frappe ou de l’historique, les envois déjà en attente
+sont arrêtés. Un refus de commande préparée, avant toute mutation locale, conserve
+son fonctionnement gardé sans suspendre la fenêtre. Le document local reste
+éditable, mais sa sauvegarde/export habituels et sa reconnexion automatique sont
+bloqués. Les autres fenêtres continuent à publier. Le bandeau propose :
+
+- **Exporter le brouillon** : JSON explicitement distinct du `.typsto`, avec état
+  Yjs complet, projection lisible, réglages et ressources ; l’export natif ajoute
+  aussi la proposition privée du moteur si elle existe. Une boîte native choisit
+  son emplacement. Ce format de secours n’a pas encore d’importeur graphique.
+- **Revenir à la version confirmée** : confirmation d’abandon, fermeture du contexte
+  privé puis rechargement d’une nouvelle réplique. On ne fusionne jamais l’ancienne
+  réplique refusée dans le document confirmé.
+
+Le brouillon complet reste en mémoire dans la fenêtre tant qu’il n’est pas exporté.
+Ce parcours ne remplace pas une conservation automatique durable des brouillons
+refusés, ni les snapshots de projet. Les historiques ne sont pas rétablis à la
+réouverture du `.typsto`.
+
+Les recettes de navigateur utilisent le vrai propriétaire Rust, y compris la
+création d’un nouveau document et sa nouvelle génération. Elles vérifient le
+corps, les champs riches Article, les tableaux, la séparation des contributions,
+le refus, l’export JSON et la reprise après abandon, sans captures d’écran.
+
+Restent la migration des autres commandes vers leurs cibles typées communes,
+le report des sélections/styles de l’adaptateur vers les contextes, le mode
+individuel allégé et les adaptateurs CLI/MCP autonome. Le relais des modifications
+Yjs de l’interface est déjà validé par le moteur, même lorsque le geste n’utilise
+pas encore une commande typée.
+
+Les contrôles du lot comprennent les tests du workspace Rust, les 168 tests web
+unitaires et les 3 contrôles de langues natives, les 13 recettes de contrat
+Rust ↔ Yjs/Tiptap, Clippy sans avertissement et le formatage. Les 190 scénarios
+Chromium/WebKit ont été vérifiés, avec reprise ciblée des insertions après
+correction du tableau et des contrôles IME après ajout de la recette d’en-tête.
+La compilation native est aussi vérifiée ; ce bilan ne remplace pas une recette
+manuelle des méthodes de saisie et des boîtes système sur les trois OS.

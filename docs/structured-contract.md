@@ -82,9 +82,11 @@ CLI/MCP, restent à réaliser selon la séquence ci-dessous.
 2. **Commandes structurées** : les [cibles multizones et premières commandes](structured-commands.md)
    sont livrées dans le cœur et vérifiées avec Tiptap. Poursuivre corps et en-tête, ressources, catalogue,
    disponibilité et historique communs. Préserver les identités lors des éditions.
-3. **Application** : brancher le moteur sur le relais et les commandes ; traiter
-   accusés de réception, refus, brouillons, IME et mode individuel. Conserver la
-   réactivité et les comportements de l'éditeur.
+3. **Application** : le relais et l’historique par fenêtre sont raccordés au
+   moteur, avec groupement, accusés/refus et export du brouillon avant abandon.
+   Poursuivre les autres commandes typées, le report des sélections/styles et le
+   mode individuel. Conserver la réactivité et les comportements de l’éditeur ;
+   étendre la recette IME aux systèmes réels.
 4. **CLI et MCP** : migrer les opérations et requêtes documentaires, les fichiers
    et les exports ; rendre les capacités découvrables, avec les nouvelles cibles.
 5. **Recette et retrait** : même corpus Courrier/Article sur tous les adaptateurs,
