@@ -1,3 +1,4 @@
+import { historyFor } from './editing-history'
 import { documentContent } from './shared-inline-marks'
 import { bibliographyPanel } from './bibliography-panel'
 import { actionRow, keyboardScope, navigationGroup } from './keyboard-navigation'
@@ -8,7 +9,6 @@ import { tr } from './i18n'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import * as Y from 'yjs'
 import type { Editor } from '@tiptap/core'
-import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import type { Provider, Transport, Resource } from './provider'
 import type { Capability, Registry } from './commands'
 import { icon } from './commands'
@@ -378,7 +378,7 @@ export async function mountShell(s: Shell) {
     dirty = false
     setActive(true)
     await remember(selected)
-    yUndoPluginKey.getState(editor.state)?.undoManager.clear()
+    historyFor(editor)?.clear()
     renderMetadata()
   }
   function create() {
@@ -419,7 +419,7 @@ export async function mountShell(s: Shell) {
         metadata.fields[date.parameter] =
           `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
       }
-      if (s.isTauri) {
+      if (s.isTauri || provider.nativeEditing) {
         if (t.id === 'courrier' && preferences.signature)
           metadata.fields.signature = preferences.signature.path
         guarded(async () => {
@@ -441,7 +441,7 @@ export async function mountShell(s: Shell) {
       }
       path = null
       dirty = false
-      yUndoPluginKey.getState(editor.state)?.undoManager.clear()
+      historyFor(editor)?.clear()
       overlay.close()
       setActive(true)
       renderMetadata()
@@ -515,7 +515,7 @@ export async function mountShell(s: Shell) {
         },
         (key, value) => setSetting(provider, `options.${key}`, value),
         (key, value) => {
-          const history = yUndoPluginKey.getState(editor.state)?.undoManager
+          const history = historyFor(editor)
           history?.stopCapturing()
           setSetting(provider, key, value)
           history?.stopCapturing()
@@ -938,16 +938,16 @@ export async function mountShell(s: Shell) {
           }),
         )
       })
-    await transport.listen('app:document', () => {
-      clearTimeout(recoveryTimer)
-      window.location.reload()
-    })
     await transport.listen<string>('app:command', (id) => {
       if (document.querySelector('dialog[open]')) return
       const command = commands.get(id)
       if (command?.enabled?.() !== false) command?.run()
     })
   }
+  await transport.listen('app:document', () => {
+    clearTimeout(recoveryTimer)
+    window.location.reload()
+  })
   applyPreferences()
   if (s.initialPath) guarded(() => open(s.initialPath!))
   mountAssistance(provider, transport, editor, showPanel, s.message, s.isTauri)

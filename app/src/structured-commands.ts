@@ -1,4 +1,5 @@
 import { tr } from './i18n'
+import { historyFor } from './editing-history'
 import type { Editor } from '@tiptap/core'
 import * as Y from 'yjs'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
@@ -73,12 +74,19 @@ export async function executeStructured(
       provider.doc.getMap('settings').get('identity') !== identity
     )
       return false
-    const undo = yUndoPluginKey.getState(editor.state)?.undoManager
+    const undo = provider.nativeEditing
+      ? undefined
+      : yUndoPluginKey.getState(editor.state)?.undoManager
+    historyFor(editor)?.stopCapturing()
     undo?.addTrackedOrigin(CONFIRMED_COMMAND)
     undo?.stopCapturing()
     Y.applyUpdate(provider.doc, new Uint8Array(publication.update), CONFIRMED_COMMAND)
     undo?.stopCapturing()
     provider.revision = Math.max(provider.revision, publication.guard.revision)
+    if (provider.nativeEditing) {
+      // No raw relay: the owner already published this operation. Fetch counters without clearing.
+      await provider.refreshHistory()
+    }
     return publication.changed
   } finally {
     if (!editor.isDestroyed) editor.setEditable(editable, false)

@@ -1,7 +1,7 @@
+import { historyFor } from './editing-history'
 import { tableCursor } from './table-selection'
 import { tr } from './i18n'
 import { Node, type Editor, type JSONContent } from '@tiptap/core'
-import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import { BulletList, OrderedList } from '@tiptap/extension-list'
 import {
   isWidgetKind,
@@ -158,7 +158,7 @@ export function removeWidget(editor: Editor, target = widgetTarget(editor)) {
     !editor.state.doc.nodeAt(target.pos)?.eq(target.node)
   )
     return false
-  const manager = yUndoPluginKey.getState(editor.state)?.undoManager
+  const manager = historyFor(editor)
   manager?.stopCapturing()
   const removed = editor.commands.deleteRange({
     from: target.pos,
@@ -167,10 +167,15 @@ export function removeWidget(editor: Editor, target = widgetTarget(editor)) {
   manager?.stopCapturing()
   return removed
 }
+/** The continuation slot is an editor policy shared by local and native insertions. */
+export function widgetContinuation(next: PMNode | null): JSONContent | undefined {
+  return next?.type.name === 'paragraph' && next.content.size === 0
+    ? undefined
+    : { type: 'paragraph' }
+}
 export function resumeAfterWidget(tr: Transaction, pos: number) {
-  const next = tr.doc.nodeAt(pos)
-  if (next?.type.name !== 'paragraph' || next.content.size)
-    tr.insert(pos, tr.doc.type.schema.nodes.paragraph.create())
+  const continuation = widgetContinuation(tr.doc.nodeAt(pos))
+  if (continuation) tr.insert(pos, tr.doc.type.schema.nodeFromJSON(continuation))
   tr.setSelection(TextSelection.create(tr.doc, pos + 1))
   return tr
 }

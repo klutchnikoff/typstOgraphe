@@ -888,3 +888,10 @@ content-state-mismatch = Les données enregistrées du projet sont incohérentes
 content-context-pending = Ce contexte d’édition conserve un brouillon privé refusé. Examinez-le avant de continuer.
 content-context-selection = Sélectionnez d’abord une zone de texte dans ce contexte d’édition.
 content-history-conflict = Cette annulation ou ce rétablissement supprimerait une contribution d’un autre participant. Le projet n’a pas changé ; le brouillon privé est conservé.
+
+web-sync-suspended = La synchronisation est suspendue ; votre brouillon est conservé.
+web-unsynced-draft = Brouillon non synchronisé
+web-return-confirmed = Revenir à la version confirmée
+web-export-draft = Exporter le brouillon
+web-discard-draft-question = Abandonner ce brouillon et recharger la version confirmée ? Exportez-le d’abord si vous souhaitez le conserver.
+web-discard-draft = Abandonner le brouillon

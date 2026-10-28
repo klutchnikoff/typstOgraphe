@@ -105,6 +105,7 @@ export function createRegistry(
       ...capability,
       run,
       enabled: () => {
+        if (!editor.isEditable || editor.view.composing) return false
         if (available()?.includes(capability.id) === false) return false
         if (capability.id === 'insert.table')
           return (

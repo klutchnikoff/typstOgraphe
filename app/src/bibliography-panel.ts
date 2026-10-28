@@ -1,6 +1,7 @@
+import { historyFor } from './editing-history'
 import { documentContent } from './shared-inline-marks'
 import type { Editor } from '@tiptap/core'
-import { yUndoPluginKey, ySyncPluginKey } from '@tiptap/y-tiptap'
+import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import type { Provider, Transport } from './provider'
 import type { DocumentType, ModelPolicy } from './shell'
 import { settingsFor, setSetting } from './state'
@@ -34,7 +35,7 @@ export function bibliographyPanel(
   select.setAttribute('aria-label', tr('Style bibliographique'))
   style.append(document.createTextNode(tr('Style bibliographique')), select)
   select.onchange = () => {
-    const history = yUndoPluginKey.getState(editor.state)?.undoManager
+    const history = historyFor(editor)
     history?.stopCapturing()
     setSetting(provider, descriptor.style_field, select.value)
     history?.stopCapturing()
@@ -102,7 +103,7 @@ export function bibliographyPanel(
       await transport.invoke('validate_bibliography', { document, metadata: current.metadata })
       if (!alive || !active()) return false
       check()
-      const history = yUndoPluginKey.getState(editor.state)?.undoManager
+      const history = historyFor(editor)
       history?.stopCapturing()
       provider.doc.transact(commit, ySyncPluginKey)
       history?.stopCapturing()

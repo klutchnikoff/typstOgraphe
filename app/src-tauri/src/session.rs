@@ -217,6 +217,15 @@ impl Session {
     pub fn relay(&mut self, peer: &str, update: &[u8]) -> Result<u64, String> {
         Ok(self.relay_group(peer, update, None, true)?.revision)
     }
+    pub fn connection(&mut self, peer: &str, generation: &str, online: bool) -> Result<(), String> {
+        self.check_peer(peer, generation)?;
+        if online {
+            self.offline.remove(peer);
+        } else {
+            self.offline.insert(peer.into());
+        }
+        Ok(())
+    }
     pub fn leave(&mut self, peer: &str) {
         self.offline.remove(peer);
         self.peers.remove(peer);
@@ -274,12 +283,15 @@ impl Session {
             self.settings = publication.state.settings.clone();
             self.updates.push(publication.update.clone());
             // Compact only the transport log. Never rebuild durable participant histories.
-            if self.updates.len() > 512 || self.bytes > 4 * 1024 * 1024 {
-                if let Some(owner) = &self.owner {
-                    let checkpoint = owner.update_bytes();
-                    self.bytes = checkpoint.len();
-                    self.updates = vec![checkpoint];
-                }
+            let base_bytes = self.updates.first().map_or(0, Vec::len);
+            if (self.updates.len() > 512
+                || self.bytes > MAX_UPDATES
+                || self.bytes.saturating_sub(base_bytes) > 4 * 1024 * 1024)
+                && let Some(owner) = &self.owner
+            {
+                let checkpoint = owner.update_bytes();
+                self.bytes = checkpoint.len();
+                self.updates = vec![checkpoint];
             }
         }
     }

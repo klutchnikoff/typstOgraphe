@@ -1,5 +1,5 @@
+import { historyFor } from './editing-history'
 import { Extension, Node, markInputRule, type Editor, type JSONContent } from '@tiptap/core'
-import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { Plugin, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
@@ -77,12 +77,12 @@ export function insertBlock(
   if (right && ['softBreak', 'hardBreak'].includes(right.firstChild?.type.name || ''))
     right = right.cut(1)
   if (right?.size) nodes.push($to.parent.copy(right))
-  yUndoPluginKey.getState(editor.state)?.undoManager.stopCapturing()
+  historyFor(editor)?.stopCapturing()
   tr.replaceWith(start, end, nodes)
   resumeAfterWidget(tr, inserted + node.nodeSize)
   tr.setSelection(TextSelection.near(tr.doc.resolve(inserted + 1)))
   editor.view.dispatch(tr.scrollIntoView())
-  yUndoPluginKey.getState(editor.state)?.undoManager.stopCapturing()
+  historyFor(editor)?.stopCapturing()
   editor.view.focus()
   return true
 }

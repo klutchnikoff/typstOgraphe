@@ -89,12 +89,15 @@ fn dispatch(
             }
         }
         "connection" => {
-            let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
-            if args["online"].as_bool() == Some(true) {
-                session.offline.remove(peer);
-            } else {
-                session.offline.insert(peer.into());
-            }
+            bridge
+                .session
+                .lock()
+                .map_err(|e| e.to_string())?
+                .connection(
+                    peer,
+                    args["generation"].as_str().unwrap_or(""),
+                    args["online"].as_bool() == Some(true),
+                )?;
             Ok(serde_json::Value::Null)
         }
         "content_catalogue" => Ok(catalogue::content_catalogue()),

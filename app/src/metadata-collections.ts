@@ -1,3 +1,4 @@
+import { historyFor } from './editing-history'
 import type { Editor } from '@tiptap/core'
 import type { Provider } from './provider'
 import type { Catalogue } from './shell'
@@ -24,7 +25,6 @@ import {
   type RecordField,
 } from './metadata-records'
 import * as Y from 'yjs'
-import { yUndoPluginKey } from '@tiptap/y-tiptap'
 
 type View = { record: SharedRecord; element: HTMLElement; refresh: () => void; destroy: () => void }
 
@@ -38,7 +38,7 @@ export function metadataCollections(
   main: Editor,
   language: () => string,
 ) {
-  const history = yUndoPluginKey.getState(main.state)?.undoManager
+  const history = historyFor(main)
   const discrete = (action: () => void) => {
     history?.stopCapturing()
     try {

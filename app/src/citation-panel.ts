@@ -1,7 +1,7 @@
+import { historyFor } from './editing-history'
 import type { Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { TextSelection } from '@tiptap/pm/state'
-import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import { contextPanel } from './context-panel'
 import { navigationGroup, actionRow } from './keyboard-navigation'
 import type { BandHost } from './band-layout'
@@ -183,7 +183,7 @@ export function citationPanel(
       const pos = target.from + replacement.nodeSize
       const next = editor.state.tr.replaceWith(target.from, target.to, replacement)
       editor.view.dispatch(next.setSelection(TextSelection.create(next.doc, pos)).scrollIntoView())
-      yUndoPluginKey.getState(editor.state)?.undoManager.stopCapturing()
+      historyFor(editor)?.stopCapturing()
       editor.view.focus()
     } catch (error) {
       if (opened === state) panel.error.textContent = String(error)

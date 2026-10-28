@@ -9,9 +9,11 @@ import {
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import Caret from '@tiptap/extension-collaboration-caret'
-import { ySyncPlugin, yUndoPluginKey } from '@tiptap/y-tiptap'
+import { ySyncPlugin, yUndoPluginKey, ySyncPluginKey } from '@tiptap/y-tiptap'
 import type * as Y from 'yjs'
 import type { Provider } from './provider'
+import { bindEditingHistory, editingProvider, historyFor } from './editing-history'
+import { Plugin } from '@tiptap/pm/state'
 import { ContextBand } from './band-layout'
 import { DocumentInput, SoftBreak, TypstInlineInput } from './editing'
 import { DocumentWhitespace } from './document-whitespace'
@@ -56,6 +58,14 @@ export function richZoneExtensions(
 ): Extensions {
   const policy = richZoneProfiles[profile]
   const binding = configuration.binding
+  const native =
+    binding?.kind === 'document'
+      ? binding.presence?.nativeEditing
+        ? binding.presence
+        : undefined
+      : binding?.kind === 'fragment'
+        ? editingProvider(binding.historyOwner)
+        : undefined
   const extensions: Extensions = [
     Node.create({ name: 'doc', topNode: true, content: policy.content }),
     ContextBand,
@@ -103,7 +113,14 @@ export function richZoneExtensions(
       : []),
   ]
   if (binding?.kind === 'document') {
-    extensions.push(Collaboration.configure({ document: binding.document, field: 'default' }))
+    if (native)
+      extensions.push(
+        Extension.create({
+          name: 'nativeDocumentSync',
+          addProseMirrorPlugins: () => [ySyncPlugin(binding.document.getXmlFragment('default'))],
+        }),
+      )
+    else extensions.push(Collaboration.configure({ document: binding.document, field: 'default' }))
     if (binding.presence) {
       const provider = binding.presence
       extensions.push(
@@ -129,7 +146,7 @@ export function richZoneExtensions(
             ({ tr, dispatch }) => {
               tr.setMeta('preventDispatch', true)
               if (this.editor.view.composing) return false
-              const history = yUndoPluginKey.getState(binding.historyOwner.state)?.undoManager
+              const history = historyFor(binding.historyOwner)
               if (!(redo ? history?.redoStack.length : history?.undoStack.length)) return false
               if (dispatch) {
                 history!.stopCapturing()
@@ -156,6 +173,83 @@ export function richZoneExtensions(
       }),
     )
   }
+  if (native)
+    extensions.push(
+      Extension.create({
+        name: 'nativeEditingHistory',
+        priority: 1500,
+        addStorage: () => ({
+          compositionToken: 0,
+          compositionTimer: undefined as ReturnType<typeof setTimeout> | undefined,
+        }),
+        addProseMirrorPlugins() {
+          return [
+            new Plugin({
+              props: {
+                handleDOMEvents: {
+                  compositionstart: () => {
+                    clearTimeout(this.storage.compositionTimer)
+                    this.storage.compositionToken = native.beginComposition()
+                    return false
+                  },
+                  compositionend: () => {
+                    // Let ProseMirror flush its DOM observer and the shared whitespace
+                    // repair first. Preedit bytes have never left this Provider.
+                    const token = this.storage.compositionToken
+                    // A committed composition survives unmounting its zone. Its
+                    // token cannot end a newer composition in another field.
+                    this.storage.compositionTimer = setTimeout(
+                      () => native.endComposition(token),
+                      0,
+                    )
+                    return false
+                  },
+                },
+              },
+            }),
+          ]
+        },
+        dispatchTransaction({ transaction, next }) {
+          const remote = transaction.getMeta(ySyncPluginKey)?.isChangeOrigin
+          const typing =
+            transaction.docChanged &&
+            transaction.steps.length === 1 &&
+            transaction.steps[0].toJSON().stepType === 'replace' &&
+            (transaction.steps[0].toJSON().slice?.content || []).every(
+              (node: { type: string }) => node.type === 'text',
+            )
+          const boundary =
+            !remote &&
+            !typing &&
+            (transaction.docChanged || transaction.selectionSet || transaction.storedMarksSet)
+          if (boundary) native.stopCapturing()
+          next(transaction)
+          if (boundary) native.stopCapturing()
+        },
+        addCommands() {
+          const change =
+            (redo: boolean): RawCommands['undo'] =>
+            () =>
+            ({ tr, dispatch }) => {
+              tr.setMeta('preventDispatch', true)
+              if (this.editor.view.composing || !native.canHistory(redo)) return false
+              if (dispatch) void native.history(redo ? 'redo' : 'undo')
+              return true
+            }
+          return { undo: change(false), redo: change(true) }
+        },
+        addKeyboardShortcuts() {
+          return {
+            'Mod-z': () =>
+              this.editor.view.composing ? false : (this.editor.commands.undo(), true),
+            'Mod-Shift-z': () =>
+              this.editor.view.composing ? false : (this.editor.commands.redo(), true),
+            'Mod-y': () =>
+              this.editor.view.composing ? false : (this.editor.commands.redo(), true),
+          }
+        },
+      }),
+    )
   return extensions
 }
 
@@ -193,11 +287,19 @@ export function createRichZone(options: RichZoneOptions): Editor {
     ...lifecycle
   } = options
   const policy = richZoneProfiles[profile]
+  const native =
+    binding?.kind === 'document'
+      ? binding.presence?.nativeEditing
+        ? binding.presence
+        : undefined
+      : binding?.kind === 'fragment'
+        ? editingProvider(binding.historyOwner)
+        : undefined
   const history = () =>
     binding?.kind === 'fragment'
       ? yUndoPluginKey.getState(binding.historyOwner.state)?.undoManager
       : undefined
-  if (binding?.kind === 'fragment') {
+  if (binding?.kind === 'fragment' && !native) {
     const owner = history()
     if (!owner || owner.doc !== binding.fragment.doc)
       throw new Error('A shared rich zone requires an initialized undo owner on the same Y.Doc.')
@@ -258,9 +360,10 @@ export function createRichZone(options: RichZoneOptions): Editor {
         return false
       },
     },
-    onFocus: () => history()?.stopCapturing(),
-    onBlur: () => history()?.stopCapturing(),
+    onFocus: () => historyFor(editor)?.stopCapturing(),
+    onBlur: () => historyFor(editor)?.stopCapturing(),
   })
+  if (native) bindEditingHistory(editor, native)
   return editor
 }
 const ownShortcuts = new Set([

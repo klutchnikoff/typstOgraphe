@@ -1,5 +1,5 @@
+import { historyFor } from './editing-history'
 import type { Editor } from '@tiptap/core'
-import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import * as Y from 'yjs'
 import { createRichZone, richZoneProfiles, type EditorialProfile } from './rich-zone'
 import { BandHost } from './band-layout'
@@ -33,7 +33,7 @@ export function metadataRich(
   heading.append(title, tools)
   root.append(heading, input)
   parent.append(root)
-  const history = yUndoPluginKey.getState(main.state)?.undoManager
+  const history = historyFor(main)
   let properties: ReturnType<typeof propertyPanel>
   const buttons = new Map<string, HTMLButtonElement>()
   let editor!: Editor

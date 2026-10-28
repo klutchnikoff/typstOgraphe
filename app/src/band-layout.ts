@@ -1,5 +1,5 @@
+import { historyFor } from './editing-history'
 import { Extension, type Editor } from '@tiptap/core'
-import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import { Plugin, PluginKey, type SelectionBookmark } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { enclosingWidget, isWidgetKind } from './widget-frame'
@@ -122,7 +122,7 @@ export class BandHost {
     )
       return false
     this.close(false)
-    yUndoPluginKey.getState(this.historyOwner.state)?.undoManager.stopCapturing()
+    historyFor(this.historyOwner)?.stopCapturing()
     const gap = document.createElement('span')
     gap.className = 'interline-band-gap'
     gap.contentEditable = 'false'
@@ -151,7 +151,7 @@ export class BandHost {
   }
   close(focus = true) {
     if (!this.panel) return
-    yUndoPluginKey.getState(this.historyOwner.state)?.undoManager.stopCapturing()
+    historyFor(this.historyOwner)?.stopCapturing()
     const anchor = this.target
     this.observer.unobserve(this.panel)
     this.panel.hidden = true

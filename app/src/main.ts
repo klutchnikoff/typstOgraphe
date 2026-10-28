@@ -1,3 +1,5 @@
+import { draftRecovery } from './draft-recovery'
+import { historyFor } from './editing-history'
 import { documentContent } from './shared-inline-marks'
 import { initializeUI, tr } from './i18n'
 import { type Editor, getSchema, type JSONContent } from '@tiptap/core'
@@ -82,6 +84,7 @@ const rendering = renderQueue(render)
 let scheduledAt = 0
 let onPreview: ((revision: number) => void) | undefined
 let restoringError = false
+let stopping = false
 let statisticsTicket = 0
 let version = 0
 let preview: ReturnType<typeof previewController> | undefined
@@ -111,7 +114,7 @@ let commands: Registry = new Map()
 let contentCatalogue: Catalogue
 
 function refresh() {
-  if (!editor) return
+  if (!editor || stopping) return
   refreshCommands(commands)
   const leaf = (node: import('@tiptap/pm/model').Node) =>
     node.type.name === 'footnote'
@@ -145,6 +148,7 @@ function refresh() {
   connection.setAttribute('aria-pressed', String(provider.online))
 }
 function schedule() {
+  if (stopping) return
   version++
   preview?.invalidate()
   scheduledAt = performance.now()
@@ -156,7 +160,7 @@ function schedule() {
   rendering.request()
 }
 async function render() {
-  if (!editor || !provider.online || restoringError) return
+  if (!editor || !provider.online || provider.composing || restoringError) return
   const localVersion = version
   const inputTime = scheduledAt
   try {
@@ -328,12 +332,15 @@ async function start() {
   const schema = getSchema(
     richZoneExtensions('document', { imageURL: (path) => provider.imageURL(path), presentations }),
   )
-  const bootstrap = await provider.start((fixture) => {
-    const seed = prosemirrorJSONToYDoc(schema, fixture, 'default')
-    const update = Y.encodeStateAsUpdate(seed)
-    seed.destroy()
-    return update
-  })
+  const bootstrap = await provider.start(
+    (fixture) => {
+      const seed = prosemirrorJSONToYDoc(schema, fixture, 'default')
+      const update = Y.encodeStateAsUpdate(seed)
+      seed.destroy()
+      return update
+    },
+    (bootstrap) => initializeSettings(provider, contentCatalogue, bootstrap.settings),
+  )
   editor = createRichZone({
     profile: 'document',
     element: element('editor'),
@@ -386,11 +393,11 @@ async function start() {
     contentCatalogue.entries.find((c) => c.id === 'insert.table')!,
   )
   preview = previewController(editor, provider, host.transport, () => version)
-  initializeSettings(provider, contentCatalogue, bootstrap.settings)
   citations = citationPanel(editor, provider, host.transport, bands)
   let referenceKey = '',
     referenceTicket = 0
   const refreshReferences = () => {
+    if (stopping) return
     const files = referenceFiles(provider),
       key = JSON.stringify(files)
     if (key === referenceKey) return
@@ -465,9 +472,12 @@ async function start() {
         (isTauri && (await host.transport.invoke('diagnostic_mode')))
       ),
   })
-  yUndoPluginKey.getState(editor.state)?.undoManager.addToScope(provider.doc.getMap('settings'))
-  yUndoPluginKey.getState(editor.state)?.undoManager.trackedOrigins.add(ACCEPTED_PROPOSAL)
-  yUndoPluginKey.getState(editor.state)?.undoManager.clear()
+  if (provider.nativeEditing) await provider.clearHistory()
+  else {
+    yUndoPluginKey.getState(editor.state)?.undoManager.addToScope(provider.doc.getMap('settings'))
+    yUndoPluginKey.getState(editor.state)?.undoManager.trackedOrigins.add(ACCEPTED_PROPOSAL)
+    historyFor(editor)?.clear()
+  }
   if (
     bootstrap.restoredDocument &&
     (stableJSON(
@@ -484,6 +494,9 @@ async function start() {
       'L’état Yjs ne correspond pas à l’instantané sauvegardé. La session existante est conservée.',
     )
   }
+  provider.onStatus = () => {
+    if (!stopping) refreshCommands(commands)
+  }
   provider.onChange = () => {
     refresh()
     schedule()
@@ -491,8 +504,21 @@ async function start() {
   provider.onResource = () => {
     if (editor) editor.view.dispatch(editor.state.tr)
   }
+  const lockHistory = provider.onHistoryLock
+  provider.onHistoryLock = (locked) => {
+    if (!locked) document.querySelector<HTMLElement>('.writing')!.inert = false
+    lockHistory(locked)
+    if (locked) document.querySelector<HTMLElement>('.writing')!.inert = true
+  }
+  const recovery = draftRecovery(provider, snapshot, isTauri)
   provider.onError = (error) => {
-    message(String(error), true)
+    recovery.refresh()
+    message(
+      provider.rejected
+        ? tr('La synchronisation est suspendue ; votre brouillon est conservé.')
+        : String(error),
+      true,
+    )
     refresh()
   }
   provider.awareness.on('change', refresh)
@@ -532,6 +558,7 @@ async function start() {
 }
 void start().catch((error) => message(String(error), true))
 window.addEventListener('beforeunload', () => {
+  stopping = true
   preview?.destroy()
   provider.destroy()
 })

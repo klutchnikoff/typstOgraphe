@@ -1691,3 +1691,12 @@ li:has(.interline-band-gap[data-marker])::marker {
   min-width: 0;
   white-space: normal;
 }
+
+.draft-recovery {
+  padding: 0.65rem 1rem;
+  background: var(--panel-bg, Canvas);
+  border-bottom: 1px solid var(--border, GrayText);
+}
+.draft-recovery p {
+  margin: 0 0 0.5rem;
+}

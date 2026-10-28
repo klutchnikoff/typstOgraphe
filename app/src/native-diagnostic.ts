@@ -1,6 +1,6 @@
+import { historyFor } from './editing-history'
 import { documentContent } from './shared-inline-marks'
 import type { Editor, JSONContent } from '@tiptap/core'
-import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import type { Provider, Transport } from './provider'
 import * as Y from 'yjs'
 import { settingsFor } from './state'
@@ -14,7 +14,7 @@ async function until(check: () => boolean | Promise<boolean>, message: string) {
   }
 }
 function append(editor: Editor, text: string) {
-  yUndoPluginKey.getState(editor.state)?.undoManager.stopCapturing()
+  historyFor(editor)?.stopCapturing()
   editor.commands.insertContentAt(editor.state.doc.content.size, {
     type: 'paragraph',
     content: [{ type: 'text', text }],

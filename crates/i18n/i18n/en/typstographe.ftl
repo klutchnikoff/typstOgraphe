@@ -885,3 +885,10 @@ content-state-mismatch = The project’s saved data is inconsistent.
 content-context-pending = This editing context has a rejected private draft. Review it before continuing.
 content-context-selection = Select a text zone in this editing context first.
 content-history-conflict = This undo or redo would remove another participant’s contribution. The project has not changed; the private draft is retained.
+
+web-sync-suspended = Synchronization is paused; your draft is preserved.
+web-unsynced-draft = Unsynced draft
+web-return-confirmed = Return to confirmed version
+web-export-draft = Export draft
+web-discard-draft-question = Discard this draft and reload the confirmed version? Export it first if you wish to keep it.
+web-discard-draft = Discard draft

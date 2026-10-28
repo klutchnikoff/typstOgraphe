@@ -46,7 +46,8 @@ struct Awareness {
     update: Vec<u8>,
 }
 
-#[tauri::command]
+// Tauri dispatches these CPU/lock-bearing calls on its worker pool, never the UI thread.
+#[tauri::command(async)]
 fn join(window: WebviewWindow, state: State<Bridge>) -> Result<Bootstrap, String> {
     Ok(state
         .session
@@ -54,7 +55,7 @@ fn join(window: WebviewWindow, state: State<Bridge>) -> Result<Bootstrap, String
         .map_err(|e| e.to_string())?
         .join(window.label()))
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn relay(
     window: WebviewWindow,
     app: tauri::AppHandle,
@@ -81,7 +82,7 @@ fn relay(
     }
     Ok(receipt)
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn editing_history(
     window: WebviewWindow,
     app: tauri::AppHandle,
@@ -106,7 +107,7 @@ fn editing_history(
     }
     Ok(receipt)
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn editing_context(
     window: WebviewWindow,
     state: State<Bridge>,
@@ -116,7 +117,7 @@ fn editing_context(
     session.check_peer(window.label(), &generation)?;
     session.ensure_owner()?.snapshot(window.label())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn reset_editing_context(
     window: WebviewWindow,
     state: State<Bridge>,
@@ -127,14 +128,14 @@ fn reset_editing_context(
     session.ensure_owner()?.reset(window.label())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn prepare_structured_commands(
     state: State<Bridge>,
     request: structured::Request,
 ) -> Result<typstographe_core::content::shared::Publication, String> {
     structured::prepare(&*state.session.lock().map_err(|e| e.to_string())?, request)
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn commit_structured_commands(
     window: WebviewWindow,
     app: tauri::AppHandle,
@@ -160,16 +161,20 @@ fn commit_structured_commands(
     }
     Ok(publication)
 }
-#[tauri::command]
-fn connection(window: WebviewWindow, state: State<Bridge>, online: bool) -> Result<(), String> {
-    let mut session = state.session.lock().map_err(|e| e.to_string())?;
-    if online {
-        session.offline.remove(window.label());
-    } else {
-        session.offline.insert(window.label().into());
-    }
-    Ok(())
+#[tauri::command(async)]
+fn connection(
+    window: WebviewWindow,
+    state: State<Bridge>,
+    online: bool,
+    generation: String,
+) -> Result<(), String> {
+    state
+        .session
+        .lock()
+        .map_err(|e| e.to_string())?
+        .connection(window.label(), &generation, online)
 }
+
 #[tauri::command]
 fn awareness(window: WebviewWindow, app: tauri::AppHandle, update: Vec<u8>) -> Result<(), String> {
     if update.len() > 64 * 1024 {

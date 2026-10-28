@@ -161,6 +161,8 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let mut session = Session::fresh(temp.path().into());
         seed(&mut session);
+        assert!(session.connection("a", "old-document", false).is_err());
+        assert!(session.offline.is_empty());
         assert_eq!(session.receipt("a", vec![]).unwrap().history.undo_steps, 0);
         for value in ["A", "B"] {
             let update = addition(&session, value);

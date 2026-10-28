@@ -236,5 +236,11 @@
   "Ajouter une colonne à gauche": "web-table-column-before",
   "Ajouter une colonne à droite": "web-table-column-after",
   "Supprimer cette colonne": "web-table-column-remove",
-  "Impossible d’appliquer cette modification.": "web-edit-failed"
+  "Impossible d’appliquer cette modification.": "web-edit-failed",
+  "La synchronisation est suspendue ; votre brouillon est conservé.": "web-sync-suspended",
+  "Brouillon non synchronisé": "web-unsynced-draft",
+  "Revenir à la version confirmée": "web-return-confirmed",
+  "Exporter le brouillon": "web-export-draft",
+  "Abandonner ce brouillon et recharger la version confirmée ? Exportez-le d’abord si vous souhaitez le conserver.": "web-discard-draft-question",
+  "Abandonner le brouillon": "web-discard-draft"
 }

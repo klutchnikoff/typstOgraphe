@@ -1,8 +1,8 @@
+import { historyFor } from './editing-history'
 import { actionRow } from './keyboard-navigation'
 import { tr } from './i18n'
 import { icon } from './icons'
 import { type Editor, type JSONContent } from '@tiptap/core'
-import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import * as Y from 'yjs'
 import { createRichZone } from './rich-zone'
 import { proposalPreview, proposalDetails } from './proposal-preview'
@@ -163,7 +163,7 @@ export function mountAssistance(
         await provider.flush()
         if (provider.revision !== p.revision) throw new Error(tr('Proposition périmée.'))
         const update = prepareProposal(provider, p.stages)
-        yUndoPluginKey.getState(editor.state)?.undoManager.stopCapturing()
+        historyFor(editor)?.stopCapturing()
         await transport.invoke('agent_accept', { id: p.id, update: Array.from(update) })
         message(tr('Lot accepté. Vous pouvez l’annuler en une seule fois.'))
         await show()

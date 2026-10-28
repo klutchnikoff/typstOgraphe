@@ -7,7 +7,7 @@ import type { BandHost } from './band-layout'
 import type { Provider, Transport } from './provider'
 import type { Registry, Capability, TableAction } from './commands'
 import { positionAtPath } from './commands'
-import { widgetTarget } from './widgets'
+import { widgetTarget, widgetContinuation } from './widgets'
 import { executeStructured, type StructuredCommand } from './structured-commands'
 import { tr } from './i18n'
 
@@ -169,6 +169,14 @@ export function tablePanel(
         id: 'insert.table',
         params: { parent: tree([]), index, rows, columns, header: header.checked },
       })
+      const continuation = widgetContinuation(
+        selection.parent.copy(selection.parent.content.cut(selection.parentOffset)),
+      )
+      if (continuation)
+        commands.push({
+          id: 'block.insert',
+          params: { parent: tree([]), index: index + 1, node: continuation },
+        })
       path = [index]
     } else {
       path = pathAt(editor, anchor.from)

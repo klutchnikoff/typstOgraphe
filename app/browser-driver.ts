@@ -80,16 +80,22 @@ export function browserDriver(root: string): Plugin {
             if (publication.changed)
               broadcast('web-editor:change', {
                 from: input.peer,
+                generation: input.args.request.generation,
                 revision: publication.guard.revision,
                 update: publication.update,
               })
           }
-          if (input.command === 'relay')
-            broadcast('web-editor:change', {
-              from: input.peer,
-              revision: result,
-              update: input.args.update,
-            })
+          if (input.command === 'relay' || input.command === 'editing_history') {
+            const receipt = result as { revision: number; update: number[] }
+            if (receipt.update.length)
+              broadcast('web-editor:change', {
+                from: input.peer,
+                generation: input.args.generation,
+                revision: receipt.revision,
+                update: receipt.update,
+              })
+          }
+          if (input.command === 'new_document') broadcast('app:document', null)
           if (input.command === 'awareness')
             broadcast('web-editor:awareness', { from: input.peer, update: input.args.update })
           if (input.command === 'import_image') broadcast('web-editor:asset', result)
