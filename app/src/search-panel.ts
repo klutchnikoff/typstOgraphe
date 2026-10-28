@@ -3,6 +3,7 @@ import type { Editor } from '@tiptap/core'
 import { tr } from './i18n'
 import { searchState } from './proofing'
 import { proofingKey } from './proofing'
+import { replaceText } from './text-edits'
 
 export function navigateSearch(editor: Editor, backwards = false, focus = true) {
   const hits = proofingKey.getState(editor.state)?.hits || []
@@ -48,6 +49,42 @@ export function searchPanel(content: HTMLElement, editor: Editor) {
   const label = document.createElement('label')
   label.append(insensitive, document.createTextNode(tr(' Ignorer la casse')))
   const matches = () => searchState(editor, query.value, insensitive.checked)
+  let pending = false
+  const error = document.createElement('p')
+  error.setAttribute('role', 'alert')
+  const replace = async (hits: ReturnType<typeof matches>) => {
+    if (pending || !hits.length) return
+    const text = replacement.value,
+      originalQuery = query.value,
+      ignoreCase = insensitive.checked
+    const currentPanel = () =>
+      query.isConnected &&
+      content.contains(query) &&
+      !content.closest('[hidden]') &&
+      query.value === originalQuery &&
+      replacement.value === text &&
+      insensitive.checked === ignoreCase
+    pending = true
+    current.disabled = all.disabled = true
+    error.textContent = ''
+    try {
+      await replaceText(
+        editor,
+        hits.map((hit) => ({ ...hit, text })),
+        {
+          focus: false,
+          current: currentPanel,
+        },
+      )
+      if (currentPanel()) fill()
+    } catch (reason) {
+      if (currentPanel())
+        error.textContent = reason instanceof Error ? reason.message : String(reason)
+    } finally {
+      pending = false
+      current.disabled = all.disabled = false
+    }
+  }
   const fill = () => {
     lastDocument = editor.state.doc
     results.replaceChildren()
@@ -61,26 +98,19 @@ export function searchPanel(content: HTMLElement, editor: Editor) {
     }
     navigation.refresh(true)
   }
-  const replacementContent = () =>
-    replacement.value ? { type: 'text', text: replacement.value } : []
   const current = document.createElement('button')
   current.textContent = tr('Remplacer')
   current.onclick = () => {
     const { from, to } = editor.state.selection
     const match = matches().find((hit) => hit.from === from && hit.to === to)
     if (!match) return
-    editor.chain().focus().insertContentAt({ from, to }, replacementContent()).run()
-    fill()
+    void replace([match])
   }
   const all = document.createElement('button')
   all.textContent = tr('Tout remplacer')
   all.className = 'danger'
   all.onclick = () => {
-    const chain = editor.chain()
-    for (const match of matches().reverse())
-      chain.insertContentAt({ from: match.from, to: match.to }, replacementContent())
-    chain.run()
-    fill()
+    void replace(matches())
   }
   query.oninput = fill
   query.onkeydown = (event) => {
@@ -111,6 +141,6 @@ export function searchPanel(content: HTMLElement, editor: Editor) {
   next.textContent = tr('Occurrence suivante')
   next.onclick = () => navigateSearch(editor, false, false)
   actions.prepend(previous, next)
-  content.append(query, replacement, label, actions, results)
+  content.append(query, replacement, label, actions, error, results)
   query.focus()
 }

@@ -1,5 +1,6 @@
+import { Selection, type Transaction } from '@tiptap/pm/state'
 import { tr } from './i18n'
-import { historyFor } from './editing-history'
+import { editingProvider, historyFor } from './editing-history'
 import type { Editor } from '@tiptap/core'
 import * as Y from 'yjs'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
@@ -104,4 +105,51 @@ export async function executeStructured(
   } finally {
     if (!editor.isDestroyed) editor.setEditable(editable, false)
   }
+}
+
+/** A planned local projection and its typed batch share publication, caret and focus rules.
+ * Detached drafts keep local undo; bound zones only install the owner's confirmed delta.
+ */
+export async function applyPlannedEdit(
+  editor: Editor,
+  transaction: Transaction,
+  commands: StructuredCommand[],
+  options: { focus?: boolean; current?: () => boolean; installed?: () => void } = {},
+): Promise<boolean> {
+  if (!editor.isEditable || editor.view.composing || editor.isDestroyed) return false
+  const provider = editingProvider(editor)
+  if (!provider) {
+    historyFor(editor)?.stopCapturing()
+    editor.view.dispatch(transaction.scrollIntoView())
+    historyFor(editor)?.stopCapturing()
+    options.installed?.()
+    if (options.focus !== false) editor.view.focus()
+    return transaction.docChanged
+  }
+  if (!commands.length) return false
+  const focused = document.activeElement
+  const changed = await executeStructured(
+    editor,
+    provider,
+    provider.transport,
+    commands,
+    () =>
+      (!options.current || options.current()) &&
+      [focused, document.body, editor.view.dom].includes(document.activeElement),
+    () => {
+      editor.view.dispatch(
+        editor.state.tr
+          .setSelection(Selection.fromJSON(editor.state.doc, transaction.selection.toJSON()))
+          .scrollIntoView(),
+      )
+      options.installed?.()
+    },
+  )
+  if (
+    options.focus !== false &&
+    !editor.isDestroyed &&
+    [focused, document.body, editor.view.dom].includes(document.activeElement)
+  )
+    editor.view.focus()
+  return changed
 }

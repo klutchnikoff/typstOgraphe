@@ -1,10 +1,10 @@
 import type { Editor, JSONContent } from '@tiptap/core'
-import { Selection, TextSelection, type Transaction } from '@tiptap/pm/state'
+import { TextSelection, type Transaction } from '@tiptap/pm/state'
 import { documentContent } from './shared-inline-marks'
 import { normalizeWhitespace } from './document-whitespace'
-import { editingProvider, historyFor } from './editing-history'
+import { editingProvider } from './editing-history'
 import { editorRoot, nodePath, type TextTarget } from './editor-targets'
-import { executeStructured, type StructuredCommand } from './structured-commands'
+import { applyPlannedEdit, type StructuredCommand } from './structured-commands'
 
 export function treeTarget(editor: Editor, pos: number) {
   const root = editorRoot(editor)
@@ -61,44 +61,10 @@ export async function applyObjectEdit(
   commands?: StructuredCommand[],
   options: { focus?: boolean; current?: () => boolean; installed?: () => void } = {},
 ): Promise<boolean> {
-  if (!editor.isEditable || editor.view.composing || editor.isDestroyed) return false
-  const provider = editingProvider(editor)
-  if (!provider) {
-    historyFor(editor)?.stopCapturing()
-    editor.view.dispatch(transaction.scrollIntoView())
-    historyFor(editor)?.stopCapturing()
-    options.installed?.()
-    if (options.focus !== false) editor.view.focus()
-    return transaction.docChanged
-  }
-  const batch = commands || widgetBatch(editor, transaction)
-  if (!batch.length) return false
-  const focused = document.activeElement
-  const changed = await executeStructured(
-    editor,
-    provider,
-    provider.transport,
-    batch,
-    () =>
-      (!options.current || options.current()) &&
-      [focused, document.body, editor.view.dom].includes(document.activeElement),
-    () => {
-      editor.view.dispatch(
-        editor.state.tr
-          .setSelection(Selection.fromJSON(editor.state.doc, transaction.selection.toJSON()))
-          .scrollIntoView(),
-      )
-      options.installed?.()
-    },
-  )
-  if (
-    options.focus !== false &&
-    !editor.isDestroyed &&
-    [focused, document.body, editor.view.dom].includes(document.activeElement)
-  )
-    editor.view.focus()
-  return changed
+  const batch = commands || (editingProvider(editor) ? widgetBatch(editor, transaction) : [])
+  return applyPlannedEdit(editor, transaction, batch, options)
 }
+
 export function runObjectEdit(
   editor: Editor,
   transaction: Transaction,

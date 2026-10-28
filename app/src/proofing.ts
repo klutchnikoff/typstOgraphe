@@ -5,9 +5,12 @@ import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import type { Transport, Provider } from './provider'
-import { settingsFor, setSetting } from './state'
+import { settingsFor } from './state'
 import type { BandHost } from './band-layout'
 import { contextPanel } from './context-panel'
+import { replaceText } from './text-edits'
+import { inlineTarget } from './object-commands'
+import { executeStructured } from './structured-commands'
 export interface Hit {
   from: number
   to: number
@@ -31,12 +34,15 @@ export function findMatches(doc: PMNode, query: string, ignoreCase: boolean): Hi
   doc.descendants((node, pos) => {
     if (!node.isTextblock) return
     const text = node.textBetween(0, node.content.size, '\n', '\ufffc')
-    for (const match of text.matchAll(pattern))
+    for (const match of text.matchAll(pattern)) {
+      // Object placeholders and returns are boundaries, never replaceable text.
+      if (/[\n\ufffc]/.test(match[0])) continue
       hits.push({
         from: pos + 1 + match.index!,
         to: pos + 1 + match.index! + match[0].length,
         word: match[0],
       })
+    }
     return false
   })
   return hits
@@ -219,6 +225,7 @@ export function mountProofing(
     )
       return
     const ticket = ++requestTicket
+    let pending = false
     const language = String(settingsFor(provider).metadata.fields.options.language)
     const close = () => {
       if (bands.forPanel(panel.element)) bands.close()
@@ -227,7 +234,7 @@ export function mountProofing(
       id: 'proofing-band',
       closeLabel: tr('Fermer la correction'),
       close,
-      canConfirm: () => !editor.view.composing,
+      canConfirm: () => !pending && !editor.view.composing,
       tabExit: () => editor.view.focus(),
     })
     const band = panel.element
@@ -255,20 +262,49 @@ export function mountProofing(
       }
       return range
     }
+    const commit = async (change: (current: () => boolean) => Promise<unknown>) => {
+      if (pending || !valid()) return
+      const current = () => ticket === requestTicket && target() !== null
+      pending = true
+      panel.error.textContent = ''
+      const controls = [
+        ...band.querySelectorAll<HTMLButtonElement>('button:not(.panel-title button)'),
+      ]
+      for (const button of controls) button.disabled = true
+      try {
+        await change(current)
+        if (current()) bands.close(true, editor.state.selection.getBookmark())
+      } catch (reason) {
+        if (current())
+          panel.error.textContent = reason instanceof Error ? reason.message : String(reason)
+      } finally {
+        pending = false
+        for (const button of controls) button.disabled = false
+      }
+    }
     panel.action({
       label: tr('Ignorer dans ce document'),
       run: () => {
-        if (!valid()) return
-        const ignored = structuredClone(
-          (settingsFor(provider).metadata.fields.options.spelling_ignored || {}) as Record<
-            string,
-            string[]
-          >,
+        const range = valid()
+        if (!range) return
+        void commit((current) =>
+          executeStructured(
+            editor,
+            provider,
+            transport,
+            [
+              {
+                id: 'spelling.ignore',
+                params: {
+                  target: inlineTarget(editor, range.from, range.to),
+                  language,
+                  word: issue.word,
+                },
+              },
+            ],
+            current,
+          ),
         )
-        ignored[language] = [...new Set([...(ignored[language] || []), issue.word])]
-        setSetting(provider, 'options.spelling_ignored', ignored)
-        close()
-        check()
       },
     })
     panel.action({
@@ -300,8 +336,12 @@ export function mountProofing(
             run: () => {
               const range = valid()
               if (!range) return
-              editor.commands.insertContentAt(range, { type: 'text', text: suggestion })
-              close()
+              void commit((current) =>
+                replaceText(editor, [{ ...range, word: issue.word, text: suggestion }], {
+                  focus: false,
+                  current,
+                }),
+              )
             },
           })
         })
