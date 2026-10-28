@@ -18,14 +18,17 @@ export async function executeStructured(
   provider: Provider,
   transport: Transport,
   commands: StructuredCommand[],
+  stillCurrent: () => boolean = () => true,
 ) {
   const original = Y.encodeStateAsUpdate(provider.doc)
   const selection = editor.state.selection
+  let committing = false
   const unchanged = () => {
     const current = Y.encodeStateAsUpdate(provider.doc)
     return (
       !editor.isDestroyed &&
       !editor.view.composing &&
+      (committing || stillCurrent()) &&
       selection.eq(editor.state.selection) &&
       original.length === current.length &&
       original.every((value, index) => current[index] === value)
@@ -63,9 +66,8 @@ export async function executeStructured(
   if (!result.changed) return false
   // Keep the validated checkpoint stable only during the final owner commit.
   // The pending band retains focus; typing remains immediate during preparation.
-  const editable = editor.isEditable
-  editor.setEditable(false, false)
-  try {
+  const commit = async () => {
+    check()
     const publication = await invoke('commit_structured_commands').catch((error: unknown) => {
       throw new Error(tr('Le document a changé. Réessayez.'), { cause: error })
     })
@@ -88,6 +90,13 @@ export async function executeStructured(
       await provider.refreshHistory()
     }
     return publication.changed
+  }
+  committing = true // Inert zones may yield focus to body during the final lock.
+  if (provider.nativeEditing) return provider.commitCommand(commit)
+  const editable = editor.isEditable
+  editor.setEditable(false, false)
+  try {
+    return await commit()
   } finally {
     if (!editor.isDestroyed) editor.setEditable(editable, false)
   }

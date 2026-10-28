@@ -274,6 +274,29 @@ export class Provider {
         : this.historyState.undo_steps > 0 || this.queued > 0 || this.buffered.length > 0)
     )
   }
+  /** Final typed publication shares the relay/history queue. Snapshots wait for
+   * its local installation; all bound zones are locked only during this commit.
+   * A refused command is reported to its caller, without quarantining valid input.
+   */
+  async commitCommand<T>(run: () => Promise<T>): Promise<T> {
+    if (this.historyBusy || this.composing) throw new Error(tr('Le document a changé. Réessayez.'))
+    this.historyBusy = true
+    this.onStatus()
+    this.onHistoryLock(true)
+    this.stopCapturing()
+    const operation = this.pending.then(run)
+    this.pending = operation.then(
+      () => {},
+      () => {},
+    )
+    try {
+      return await operation
+    } finally {
+      this.historyBusy = false
+      this.onHistoryLock(false)
+      this.onStatus()
+    }
+  }
   async history(direction: 'undo' | 'redo') {
     if (!this.canHistory(direction === 'redo')) return
     this.historyBusy = true

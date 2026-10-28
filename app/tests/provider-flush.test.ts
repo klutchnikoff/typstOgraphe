@@ -1,6 +1,45 @@
 import { expect, it } from 'vitest'
 import { Provider, type Transport } from '../src/provider'
 
+it('serializes a typed commit with snapshots and unlocks after a refusal without losing the session', async () => {
+  const provider = new Provider('typed', { invoke: async () => {} } as unknown as Transport)
+  provider.online = true
+  const locks: boolean[] = []
+  provider.onHistoryLock = (locked) => locks.push(locked)
+  let finish!: () => void
+  try {
+    const committing = provider.commitCommand(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+    )
+    await Promise.resolve()
+    let saved = false
+    const snapshot = provider.flush().then(() => {
+      saved = true
+    })
+    await Promise.resolve()
+    expect(saved).toBe(false)
+    expect(provider.historyBusy).toBe(true)
+    finish()
+    await committing
+    await snapshot
+    expect(saved).toBe(true)
+    await expect(
+      provider.commitCommand(async () => {
+        throw new Error('stale')
+      }),
+    ).rejects.toThrow('stale')
+    expect(provider.historyBusy).toBe(false)
+    expect(provider.rejected).toBeNull()
+    expect(provider.online).toBe(true)
+    expect(locks).toEqual([true, false, true, false])
+  } finally {
+    provider.destroy()
+  }
+})
+
 it('attend aussi les mises à jour ajoutées pendant un accusé de réception', async () => {
   const replies: ((revision: number) => void)[] = []
   const transport = {
