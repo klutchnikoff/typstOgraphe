@@ -2,8 +2,9 @@
 
 Ce lot prolonge le [socle Yrs](structured-contract-foundation.md) selon les
 [décisions validées](structured-contract.md). Il ajoute une API Rust commune,
-testée avec le véritable éditeur ; il ne raccorde pas encore les adaptateurs
-de production à cette API et ne clôture pas A.2.
+testée avec le véritable éditeur. Le parcours tableaux de Tauri utilise désormais
+cette API ; les autres opérations web et les adaptateurs CLI/MCP restent à migrer.
+Ce lot ne clôture pas A.2.
 
 ## Contrat exécuté
 
@@ -29,6 +30,10 @@ Ce support ne signifie pas que CLI ou MCP ont déjà migré.
 | `block.remove` | Supprimer un bloc ou un item, en respectant les frontières |
 | `block.split` | Séparer un paragraphe ou un titre au curseur ; la suite devient un paragraphe |
 | `block.paragraph`, `block.heading_1` à `block.heading_3` | Convertir un paragraphe/titre ou changer son niveau |
+| `insert.table` | Construire un tableau avec grille et légende facultative à une frontière de blocs |
+| `table.row.insert`, `table.row.remove` | Ajouter ou retirer une ligne à un indice explicite |
+| `table.column.insert`, `table.column.remove` | Ajouter ou retirer une colonne à un indice explicite |
+| `table.header` | Définir le rôle d’en-tête de la première ligne |
 | `record.add` | Ajouter un enregistrement avec son identifiant et les valeurs par défaut du type |
 | `record.move` | Changer sa position dans une collection ordonnée |
 | `record.remove` | Supprimer un enregistrement sans détacher silencieusement ses références |
@@ -176,41 +181,78 @@ Les cellules et items gardent leurs frontières. Les résumés suivent le profil
 riche sans paragraphe final imposé. Cette politique Rust est confrontée à celle
 de la frappe immédiate dans Tiptap ; le raccordement de production reste à faire.
 
-## Prochain lot : figures et tableaux — décisions validées
+## Figures et tableaux — contrat mis en place
 
-Ces décisions décrivent le prochain lot ; elles ne sont pas encore exécutées par
-les commandes communes ni par tous les adaptateurs.
+Les commandes communes et le parcours Tauri exécutent ce contrat. Son exposition
+complète en CLI/MCP dépend toujours de la migration des adaptateurs.
 
-Images et tableaux seront toujours enveloppés dans une `figure` Typst, même sans
-légende. Le contrat partagera légende facultative, référence interne et politique
-de placement ; chaque contenu gardera son édition spécialisée. L’éditeur
-présentera un seul widget, avec l’en-tête et les bandeaux communs existants.
-Le modèle définira la présentation, la numérotation et les valeurs de placement,
-avec personnalisation seulement lorsqu’il l’autorise. Il devra aussi prévoir le
-comportement des tableaux longs sur plusieurs pages.
+Images et tableaux sont toujours enveloppés dans une `figure` Typst, même sans
+légende. La génération partage la légende facultative et la politique
+de placement ; chaque contenu garde son édition spécialisée. L’éditeur
+présente un seul widget, avec l’en-tête et les bandeaux communs existants.
+Le modèle définit la présentation, la numérotation et les valeurs de placement,
+sans réglage de placement par objet dans ce lot. Les références croisées restent
+à réaliser. Les deux modèles fournis rendent les figures de tableaux sécables
+pour les tableaux longs, sans modifier le comportement des images.
 
-La grille conservera les lignes, colonnes, cellules et rôles sémantiques des
-en-têtes. Les dimensions seront choisies à la création. Pendant l’édition, les
-actions viseront la cellule active :
+La grille conserve les lignes, colonnes, cellules et rôles sémantiques des
+en-têtes. Un bandeau de création demande les dimensions et la présence d’une
+ligne d’en-tête. Pendant l’édition, la roue dentée ou les commandes de la palette
+ouvrent le bandeau commun sur la cellule active :
 
 - ajouter une ligne au-dessus ou au-dessous ;
 - supprimer sa ligne ;
 - ajouter une colonne à gauche ou à droite ;
 - supprimer sa colonne.
 
-Ces actions passeront par les commandes documentaires communes et les
-interactions de widget/bandeau déjà retenues, accessibles au clavier. Elles
-respecteront la rectangularité, les frontières entre zones et l’annulation du
-lot. La fusion de cellules est explicitement différée ; aucune cellule fusionnée
-ne sera admise dans ce premier périmètre.
+Les choix et leurs libellés proviennent du catalogue du cœur. Flèches, Entrée et
+Échap utilisent la navigation commune des bandeaux. La corbeille reste dédiée
+au widget entier ; supprimer la dernière ligne ou colonne est indisponible.
+Le premier périmètre reste limité à 100 lignes et 12 colonnes, sans fusion.
+Les cellules suivent les retours du corps : un retour simple reste dans le
+paragraphe ; deux retours le séparent, à l’intérieur de la cellule.
+La légende accepte les styles et contenus en ligne du document. Tab depuis la
+dernière cellule rejoint la légende ; Maj+Tab revient dans la grille ; Tab depuis
+la légende rejoint la ligne de reprise après le widget. L’image et l’attribution
+de citation partagent la même résolution d’annotation et les règles de retour.
+
+Dans le contrat structuré, `tableFigure` contient une grille `table` et une zone
+`tableCaption`. Cette structure est masquée par un seul widget « Tableau » ;
+aucun widget supplémentaire n’entoure la grille. Les images conservent leur
+nœud et leur interface existants. Le parseur HTML construit également cette
+enveloppe lors du collage d’un tableau.
+
+Les paramètres communs sont `parent`/`index` et `rows`/`columns`/`header` pour
+`insert.table`, puis `target` et `index` pour les lignes/colonnes. La cible désigne
+`tableFigure` ; l’indice d’insertion va de zéro au nombre courant de lignes ou
+colonnes. `table.header` reçoit `target` et `enabled`. Les insertions/suppressions
+modifient directement les objets Yrs de la grille et préservent les voisins et
+la légende. Un changement de rôle d’en-tête renouvelle uniquement les cellules
+concernées, dont le texte et les marques sont conservés. Une insertion au-dessus
+de l’en-tête crée une nouvelle ligne d’en-tête et transforme l’ancienne en données.
+
+Le parcours Tauri prépare le lot dans un candidat privé après acquittement des
+relais en cours. Le cœur vérifie que le checkpoint fourni correspond à l’historique
+confirmé du propriétaire. Le client recontrôle document, révision, saisie et curseur ;
+la validation finale réexécute ensuite le lot sous le verrou du propriétaire et
+revérifie la garde avant publication. Un changement concurrent à cette étape
+refuse tout le lot. Pendant ce court engagement final, le bandeau reste en attente
+et la saisie du corps est temporairement indisponible ; la préparation laisse le
+corps éditable. La mise à jour confirmée n’est pas renvoyée dans le relais par le
+client, mais elle rejoint son historique : annuler le lot constitue une seule étape
+et diffuse une modification documentaire normale aux autres fenêtres.
+
+Ce raccordement ciblé ne migre pas encore la frappe générale ni tous les accusés
+et refus des adaptateurs. Aucun outil MCP supplémentaire n’accorde un contournement
+du parcours de propositions soumises à validation.
 
 Accessibilité :
 
-- Le texte alternatif d’une image sera porté par `image(alt: ...)`.
-- Aucun `figure(alt: ...)` ne sera ajouté autour d’un tableau : cela remplacerait
+- Le texte alternatif d’une image est porté par `image(alt: ...)`.
+- Aucun `figure(alt: ...)` n’est ajouté autour d’un tableau : cela remplacerait
   la lecture de ses cellules par la description. Les cellules et leurs en-têtes
-  devront rester accessibles comme un véritable tableau.
-- Les en-têtes de colonnes utiliseront `table.header`. Les en-têtes de lignes
+  restent accessibles comme un véritable tableau.
+- Les en-têtes de colonnes utilisent `table.header`. Les en-têtes de lignes
   nécessitent l’évaluation de l’API Typst actuellement expérimentale
   `pdf.header-cell`, sous le drapeau `a11y-extras`.
 - La cible d’export à préparer est PDF/UA-1, éventuellement combinée à un profil
@@ -293,14 +335,15 @@ Restent dans A.2 :
 
 - Les modes de frappe des participants. Une commande de style sur une plage
   vide retourne actuellement `empty_selection`.
-- Les opérations fines sur les lignes/colonnes des tableaux, la fusion de
-  paragraphes et les transformations supplémentaires. Un tableau entier est
-  déjà insérable/remplaçable ; les éditions textuelles de ses cellules sont communes.
+- La fusion de paragraphes et les transformations supplémentaires. L’insertion,
+  la suppression de lignes/colonnes et les en-têtes de tableaux sont désormais
+  communs ; la fusion de cellules reste différée.
   Les retours riches passent par `block.split` ou des nœuds de retour explicites,
   pas par des sauts de ligne cachés dans `text.insert`.
 - Les ressources, options et changements de modèle, les autres commandes et requêtes.
 - L’historique commun côté moteur. La recette montre qu’un lot importé dans
   Yjs peut former une seule étape ; elle ne remplace pas la migration des piles
   des participants ni le parcours d’acceptation des propositions.
-- Le raccordement du relais de frappe, les accusés/refus et brouillons, le
+- L’extension du raccordement ciblé des tableaux au relais de frappe, aux
+  accusés/refus et brouillons, le
   mode individuel à la demande, puis les adaptateurs CLI et MCP.

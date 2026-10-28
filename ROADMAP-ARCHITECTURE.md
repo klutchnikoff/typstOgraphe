@@ -58,15 +58,16 @@ place, ainsi que les [commandes multizones et structurelles](docs/structured-com
 dans le cœur : insertions/remplacements/suppressions de blocs et items, séparation
 de paragraphes, titres, enregistrements d’en-tête ordonnés et normalisation des
 lignes vides avant publication. Les recettes Rust ↔ Tiptap vérifient les identités
-conservées et une seule étape d’annulation pour chaque lot. Restent les opérations
-fines de tableaux, les autres commandes et leur historique, le relais de frappe
-avec gestion du refus, le mode individuel allégé, puis la migration CLI/MCP.
+conservées et une seule étape d’annulation pour chaque lot. Restent les autres
+commandes et leur historique, le relais de frappe avec gestion du refus, le mode
+individuel allégé, puis la migration CLI/MCP.
 
-**Prochain lot validé :** [figures et tableaux](docs/structured-commands.md#prochain-lot--figures-et-tableaux--décisions-validées),
+**Lot en place :** [figures et tableaux](docs/structured-commands.md#figures-et-tableaux--contrat-mis-en-place),
 avec une enveloppe Typst `figure` commune aux images/tableaux, légende facultative,
 édition des lignes/colonnes depuis la cellule active et conservation de la
-sémantique accessible. Fusion des cellules différée ; le raccordement aux
-commandes communes reste à réaliser.
+sémantique accessible. Le parcours Tauri prépare puis publie sous garde dans
+le propriétaire, avec annulation et diffusion aux autres fenêtres. Fusion des
+cellules différée ; migration CLI/MCP et relais de frappe encore à réaliser.
 
 Converger entre le contenu structuré du nouvel éditeur et les adaptateurs
 historiques : catalogue, commandes, requêtes, erreurs typées et schémas de fichiers.

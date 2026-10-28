@@ -28,9 +28,10 @@ sont validés : Yrs côté Rust, cibles structurées, en-tête commun, lots atom
 et frappe locale immédiate. Mode individuel par défaut, avec services
 collaboratifs activés à la demande et moteur commun aux deux modes.
 Les [commandes multizones et structurelles du cœur](docs/structured-commands.md)
-sont en place, avec les enregistrements d’en-tête ordonnés. Poursuivre les
-opérations fines de tableaux, les contextes/historiques et le raccordement
-des adaptateurs.
+sont en place, avec les enregistrements d’en-tête ordonnés. Les tableaux avec
+légende et les opérations de lignes/colonnes sont raccordés au cœur depuis Tauri.
+Poursuivre les contextes/historiques et le raccordement des autres opérations
+et adaptateurs.
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
 
@@ -185,7 +186,7 @@ restants et les pistes Typst/Universe. Le catalogue exécutable du code fait foi
 sur ce qui est réellement disponible ; une entrée de cette liste ne suffit pas.
 
 - **Premier périmètre :** compléter les tableaux simples selon les
-  [décisions validées pour les figures et tableaux](docs/structured-commands.md#prochain-lot--figures-et-tableaux--décisions-validées) :
+  [décisions validées pour les figures et tableaux](docs/structured-commands.md#figures-et-tableaux--contrat-mis-en-place) :
   enveloppe `figure` commune avec les images, légende facultative, en-têtes
   sémantiques, ajout/suppression de lignes et colonnes autour de la cellule active.
   La présentation et les défauts de placement appartiennent au modèle. La fusion

@@ -12,7 +12,7 @@ de celle du modèle.
 ## Enveloppe et contenu
 
 Gras, italique et liens restent des éléments en ligne. Les listes, descriptions,
-citations, images, P.-S. et P.J. ont une enveloppe de widget commune : fond,
+citations, images, tableaux, P.-S. et P.J. ont une enveloppe de widget commune : fond,
 bordure, espacements, libellé, boutons monochromes et états. La citation garde
 sa bordure gauche, l’image sa miniature et sa légende, la description ses zones
 terme/définition. Les annotations facultatives partagent leur comportement tout
@@ -32,6 +32,14 @@ paramètres publics qui n’ont pas de contrôle directement dans le bloc. Si to
 ses paramètres sont déjà visibles, elle est indisponible avec une explication.
 Légende, attribution et autres zones directes restent dans le widget. Les choix
 typographiques et de présentation imposés par le modèle restent à sa charge.
+
+Les tableaux utilisent un seul widget, avec grille et légende facultative intégrée.
+Leur génération Typst passe par `figure(table(...), caption: ...)`, à partir de la
+même enveloppe native que les images. La roue dentée ouvre les opérations de
+lignes/colonnes et le rôle d’en-tête de la première ligne ; la corbeille concerne
+le tableau entier. Les dimensions se choisissent avant l’insertion. Voir le
+[contrat exécuté](structured-commands.md#figures-et-tableaux--contrat-mis-en-place)
+pour la publication gardée, l’annulation et les limites de ce premier périmètre.
 
 ## Bandeau contextuel unique
 
