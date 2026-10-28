@@ -1,16 +1,19 @@
 import { navigationGroup } from './keyboard-navigation'
 import { getMarkRange, type Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
+import { Selection } from '@tiptap/pm/state'
 import type { BandHost } from './band-layout'
 import { convertList, listKinds, type ListKind } from './editing'
 import { tr } from './i18n'
 import type { Catalogue } from './shell'
 import { contextPanel } from './context-panel'
-import { removeWidget } from './widgets'
 import { isWidgetKind, widgetLabel } from './widget-frame'
 import { hasSettings, settingsForNode, type Scalar } from './capability-settings'
 import { ParameterFields } from './parameter-fields'
 import { applyFormatting } from './formatting'
+import { applyObjectEdit, removeObject, treeTarget } from './object-commands'
+import { editingProvider } from './editing-history'
+import { documentContent } from './shared-inline-marks'
 
 export function propertyPanel(
   editor: Editor,
@@ -78,7 +81,6 @@ export function propertyPanel(
         drafts: Record<string, Scalar | undefined>
       }
     | undefined
-  const close = () => bands.close()
   function valid() {
     const anchor = bands.target,
       current = opened
@@ -101,10 +103,8 @@ export function propertyPanel(
     if (opened!.kind === 'link') {
       await changeLink('text.remove_link', { from, to })
       return
-    } else if (isWidgetKind(opened!.kind))
-      removeWidget(editor, { pos: from, node: editor.state.doc.nodeAt(from)! })
-    else editor.commands.deleteRange({ from, to })
-    close()
+    }
+    await commit((current) => removeObject(editor, from, false, current))
   }
   function render() {
     const current = opened!
@@ -136,14 +136,21 @@ export function propertyPanel(
     range: { from: number; to: number },
     url?: string,
   ) {
+    await commit((current) => applyFormatting(editor, id, { range, url, focus: false, current }))
+  }
+  async function commit(change: (current: () => boolean) => Promise<boolean>) {
+    const state = opened
+    const current = () => opened === state && bands.forPanel(form) !== null
     pending = true
     apply.disabled = true
     removeAction.disabled = true
     try {
-      await applyFormatting(editor, id, { range, url, focus: false })
-      bands.close(true, editor.state.selection.getBookmark())
+      await change(current)
+      if (current()) bands.close(true, editor.state.selection.getBookmark())
+      else if (!bands.isOpen && document.activeElement === document.body) editor.view.focus()
     } catch (error) {
-      panel.error.textContent = error instanceof Error ? error.message : String(error)
+      if (current())
+        panel.error.textContent = error instanceof Error ? error.message : String(error)
     } finally {
       pending = false
       apply.disabled = false
@@ -173,10 +180,34 @@ export function propertyPanel(
           : node.toJSON()
       next.attrs = { ...next.attrs, ...result.attrs }
       const replacement = editor.schema.nodeFromJSON(next)
-      if (!node.eq(replacement))
-        editor.view.dispatch(editor.state.tr.replaceWith(anchor.from, anchor.to, replacement))
+      const conversion = node.type !== replacement.type
+      const transaction = conversion
+        ? editor.state.tr.replaceWith(anchor.from, anchor.to, replacement)
+        : editor.state.tr.setNodeMarkup(anchor.from, undefined, replacement.attrs)
+      // Attribute changes preserve all positions. ProseMirror implements
+      // setNodeMarkup as replacement for atoms and may otherwise drop a node
+      // selection before the badge, or move a caret out of its caption.
+      if (!conversion)
+        transaction.setSelection(
+          Selection.fromJSON(transaction.doc, editor.state.selection.toJSON()),
+        )
+      const commands = editingProvider(editor)
+        ? [
+            {
+              id: conversion ? 'block.replace' : 'node.set_attrs',
+              params: {
+                target: treeTarget(editor, anchor.from),
+                ...(conversion
+                  ? { node: documentContent(replacement.toJSON()) }
+                  : { attrs: result.attrs }),
+              },
+            },
+          ]
+        : undefined
+      void commit((current) =>
+        applyObjectEdit(editor, transaction, commands, { focus: false, current }),
+      )
     }
-    close()
   }
   const api = {
     open(pos: number, kind: string, remove = false) {

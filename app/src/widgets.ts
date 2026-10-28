@@ -1,4 +1,5 @@
-import { historyFor } from './editing-history'
+import { historyFor, editingProvider } from './editing-history'
+import { removeObject } from './object-commands'
 import { tableCursor } from './table-selection'
 import { tr } from './i18n'
 import { Node, type Editor, type JSONContent } from '@tiptap/core'
@@ -160,12 +161,10 @@ export function removeWidget(editor: Editor, target = widgetTarget(editor)) {
     return false
   const manager = historyFor(editor)
   manager?.stopCapturing()
-  const removed = editor.commands.deleteRange({
-    from: target.pos,
-    to: target.pos + target.node.nodeSize,
-  })
-  manager?.stopCapturing()
-  return removed
+  void removeObject(editor, target.pos).catch((error: unknown) =>
+    editingProvider(editor)?.onError(error),
+  )
+  return true
 }
 /** The continuation slot is an editor policy shared by local and native insertions. */
 export function widgetContinuation(next: PMNode | null): JSONContent | undefined {

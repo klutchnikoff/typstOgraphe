@@ -1,4 +1,4 @@
-import { historyFor } from './editing-history'
+import { editingProvider } from './editing-history'
 import type { Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { TextSelection } from '@tiptap/pm/state'
@@ -12,10 +12,9 @@ import {
   type CitationItem,
   type Citation,
 } from './citation-index'
-import { settingsFor } from './state'
 import { tr } from './i18n'
-import { draftGuard } from './snapshot-operation'
 import { documentContent } from './shared-inline-marks'
+import { applyObjectEdit, inlineTarget, treeTarget } from './object-commands'
 
 /** Citation content owns only its fields; placement, focus, Escape and actions use the shared band. */
 export function citationPanel(
@@ -31,7 +30,9 @@ export function citationPanel(
   const panel = contextPanel({
     id: 'citation-properties',
     closeLabel: tr('Annuler'),
-    close: () => bands.close(),
+    close: () => {
+      if (!pending) bands.close()
+    },
     canConfirm: () => !!opened?.items.length && !pending && !editor.view.composing,
     tabExit: () => editor.view.focus(),
   })
@@ -143,7 +144,12 @@ export function citationPanel(
     if (opened && transaction.getMeta('bibliography-index')) void search()
   })
   input.oninput = () => void search()
-  panel.action({ label: tr('Annuler'), run: () => bands.close() })
+  panel.action({
+    label: tr('Annuler'),
+    run: () => {
+      if (!pending) bands.close()
+    },
+  })
   const apply = panel.action({ label: tr('Valider'), primary: true, run: () => panel.submit() })
   panel.confirm = () => {
     void confirm()
@@ -160,31 +166,33 @@ export function citationPanel(
       return
     }
     const attrs = { items: state.items.map((item) => ({ ...item })), form: state.form }
-    const replacement = editor.schema.nodes.citation.create(attrs)
-    const trn = editor.state.tr.replaceWith(target.from, target.to, replacement)
-    const before = editor.state.doc,
-      files = JSON.stringify(referenceFiles(provider))
+    const replacement = editor.schema.nodes.citation.create(attrs, undefined, state.node?.marks)
+    const trn = state.node
+      ? editor.state.tr.setNodeMarkup(target.from, undefined, { ...state.node.attrs, ...attrs })
+      : editor.state.tr.replaceWith(target.from, target.to, replacement)
+    trn.setSelection(TextSelection.create(trn.doc, target.from + replacement.nodeSize))
+    const commands = editingProvider(editor)
+      ? [
+          state.node
+            ? { id: 'node.set_attrs', params: { target: treeTarget(editor, target.from), attrs } }
+            : {
+                id: 'inline.replace',
+                params: {
+                  target: inlineTarget(editor, target.from, target.to),
+                  node: documentContent(replacement.toJSON()),
+                },
+              },
+        ]
+      : undefined
     pending = true
     apply.disabled = true
     panel.body.inert = true
     try {
-      const check = await draftGuard(
-        provider,
-        () => editor.state.doc.eq(before) && files === JSON.stringify(referenceFiles(provider)),
-      )
-      if (opened !== state) return
-      await transport.invoke('validate_bibliography', {
-        document: documentContent(trn.doc.toJSON()),
-        metadata: settingsFor(provider).metadata,
+      await applyObjectEdit(editor, trn, commands, {
+        focus: false,
+        current: () => opened === state,
       })
-      if (opened !== state) return
-      check()
-      bands.close(false)
-      const pos = target.from + replacement.nodeSize
-      const next = editor.state.tr.replaceWith(target.from, target.to, replacement)
-      editor.view.dispatch(next.setSelection(TextSelection.create(next.doc, pos)).scrollIntoView())
-      historyFor(editor)?.stopCapturing()
-      editor.view.focus()
+      bands.close(true, editor.state.selection.getBookmark())
     } catch (error) {
       if (opened === state) panel.error.textContent = String(error)
     } finally {
@@ -195,7 +203,7 @@ export function citationPanel(
   }
   return {
     open(pos?: number) {
-      if (editor.view.composing) return
+      if (pending || editor.view.composing) return
       const node = pos === undefined ? undefined : editor.state.doc.nodeAt(pos)
       if (pos !== undefined && node?.type.name !== 'citation') return
       const selected = {

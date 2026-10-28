@@ -5,6 +5,7 @@ import { Plugin, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { widgetTarget, widgetAnnotation, resumeAfterWidget } from './widgets'
 import { lineBreak } from './document-whitespace'
+import { runObjectEdit } from './object-commands'
 
 /** Shared Typst-style inline input, also used by named editorial zones. */
 export const TypstInlineInput = Extension.create({
@@ -56,6 +57,7 @@ export function insertBlock(
   editor: Editor,
   content: JSONContent,
   range: Range = editor.state.selection,
+  immediate = false,
 ) {
   if (!canInsertBlock(editor, range)) return false
   const tr = editor.state.tr
@@ -81,6 +83,7 @@ export function insertBlock(
   tr.replaceWith(start, end, nodes)
   resumeAfterWidget(tr, inserted + node.nodeSize)
   tr.setSelection(TextSelection.near(tr.doc.resolve(inserted + 1)))
+  if (!immediate) return runObjectEdit(editor, tr)
   editor.view.dispatch(tr.scrollIntoView())
   historyFor(editor)?.stopCapturing()
   editor.view.focus()
@@ -118,11 +121,13 @@ export function insertList(editor: Editor, kind: ListKind) {
               : item.content.toJSON(),
           )
         : convertList(target.node, kind)
-    return editor
-      .chain()
-      .focus()
-      .insertContentAt({ from: target.pos, to: target.pos + target.node.nodeSize }, replacement)
-      .run()
+    const nodes = (Array.isArray(replacement) ? replacement : [replacement]).map((node) =>
+      editor.schema.nodeFromJSON(node),
+    )
+    return runObjectEdit(
+      editor,
+      editor.state.tr.replaceWith(target.pos, target.pos + target.node.nodeSize, nodes),
+    )
   }
   const { from, to, $from, $to } = editor.state.selection
   const content: JSONContent[] = []
@@ -328,7 +333,7 @@ export const DocumentInput = Extension.create({
             if (!editor.schema.nodes[kind]) return false
             const content = listContent(kind)
             if (match[1]) content.attrs = { start: Number(match[1]) }
-            return insertBlock(editor, content, { from: start, to: from })
+            return insertBlock(editor, content, { from: start, to: from }, true)
           },
           decorations(state) {
             const markers: Decoration[] = []

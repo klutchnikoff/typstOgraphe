@@ -51,7 +51,7 @@ export function formattingBatch(
 export async function applyFormatting(
   editor: Editor,
   id: Formatting,
-  options: { range?: Range; url?: string; focus?: boolean } = {},
+  options: { range?: Range; url?: string; focus?: boolean; current?: () => boolean } = {},
 ): Promise<boolean> {
   if (!editor.isEditable || editor.view.composing || editor.isDestroyed) return false
   const current = options.range || editor.state.selection
@@ -79,9 +79,10 @@ export async function applyFormatting(
       // Closing a menu or disabling a submit button can legitimately yield
       // focus to the body/editor. Entering another field cancels preparation.
       () =>
-        document.activeElement === focused ||
-        document.activeElement === document.body ||
-        document.activeElement === editor.view.dom,
+        (!options.current || options.current()) &&
+        (document.activeElement === focused ||
+          document.activeElement === document.body ||
+          document.activeElement === editor.view.dom),
       restore,
     )
     // Styles and paragraph/heading conversion preserve projected positions. Yjs

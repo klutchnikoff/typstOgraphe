@@ -1,6 +1,8 @@
 import { navigationGroup } from './keyboard-navigation'
 import { tr } from './i18n'
 import { runFormatting, type Formatting } from './formatting'
+import { insertInlineObject } from './object-commands'
+import { editingProvider } from './editing-history'
 import { widgetTarget } from './widgets'
 import { isWidgetKind } from './widget-frame'
 import type { Editor, JSONContent } from '@tiptap/core'
@@ -110,7 +112,7 @@ export function createRegistry(
             canInsertBlock(editor) &&
             editor.state.selection.$from.depth === 1
           )
-        if (capability.id === 'insert.citation')
+        if (['insert.citation', 'insert.footnote'].includes(capability.id))
           return (
             editor.state.selection.$from.parent.inlineContent &&
             editor.state.selection.$from.sameParent(editor.state.selection.$to)
@@ -224,7 +226,10 @@ export function positionAtPath(editor: Editor, path: number[]): number {
 }
 export function insertNode(editor: Editor, node: JSONContent) {
   if (node.type && editor.schema.nodes[node.type]?.isBlock) return insertBlock(editor, node)
-  return editor.chain().focus().insertContent(node).run()
+  void insertInlineObject(editor, node).catch((error: unknown) =>
+    editingProvider(editor)?.onError(error),
+  )
+  return true
 }
 
 /** Inline tools transfer focus to their band, never schedule editor.focus() first. */
@@ -235,7 +240,8 @@ export function insertInlineWithSettings(
 ) {
   const node = editor.schema.nodeFromJSON(content)
   if (!node.isInline) return false
-  if (!editor.commands.insertContent(content)) return false
-  open(editor.state.selection.from - node.nodeSize, node.type.name)
+  void insertInlineObject(editor, content, open).catch((error: unknown) =>
+    editingProvider(editor)?.onError(error),
+  )
   return true
 }
