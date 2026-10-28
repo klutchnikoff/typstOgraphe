@@ -34,8 +34,10 @@ Le [socle de contextes et d’historique par participant](docs/structured-editin
 est raccordé au relais Tauri : validation asynchrone, historique Rust par fenêtre,
 groupement de frappe et parcours de refus avec export du brouillon. Les styles,
 liens et titres utilisent les cibles communes depuis les boutons, raccourcis et
-bandeaux, y compris dans les champs riches d’en-tête. Poursuivre les autres
-commandes typées (widgets, objets en ligne, métadonnées et ressources),
+bandeaux, y compris dans les champs riches d’en-tête. Les insertions, conversions,
+paramètres et suppressions des widgets et badges sont également raccordés.
+Poursuivre les autres commandes typées (recherche/remplacement, orthographe,
+métadonnées et ressources),
 le report des sélections/styles, le mode individuel allégé
 et la migration CLI/MCP autonome. Les brouillons refusés restent en mémoire avant
 leur export JSON ; la conservation durable automatique reste à traiter.

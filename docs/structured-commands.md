@@ -2,9 +2,9 @@
 
 Ce lot prolonge le [socle Yrs](structured-contract-foundation.md) selon les
 [décisions validées](structured-contract.md). Il ajoute une API Rust commune,
-testée avec le véritable éditeur. Les tableaux et les commandes de mise en forme
-de Tauri utilisent désormais cette API ; les autres opérations web et les
-adaptateurs CLI/MCP restent à migrer.
+testée avec le véritable éditeur. Les tableaux, la mise en forme, les widgets et
+les objets en ligne de Tauri utilisent désormais cette API ; les autres opérations
+web et les adaptateurs CLI/MCP restent à migrer.
 Ce lot ne clôture pas A.2.
 
 ## Contrat exécuté
@@ -28,6 +28,9 @@ Ce support ne signifie pas que CLI ou MCP ont déjà migré.
 | `metadata.set` | Modifier un champ simple ou un champ d’enregistrement identifié, sans remplacer sa collection |
 | `block.insert` | Insérer un sous-arbre à une frontière de blocs |
 | `block.replace` | Remplacer explicitement un sous-arbre |
+| `block.splice` | Remplacer une suite de blocs d’un conteneur, puis réparer ses frontières une seule fois |
+| `inline.replace` | Remplacer une plage en ligne par un badge de note ou de citation, avec marques explicites |
+| `node.set_attrs` | Modifier en place les paramètres publics d’un widget ou badge, en conservant son contenu et son identité |
 | `block.remove` | Supprimer un bloc ou un item, en respectant les frontières |
 | `block.split` | Séparer un paragraphe ou un titre au curseur ; la suite devient un paragraphe |
 | `block.paragraph`, `block.heading_1` à `block.heading_3` | Convertir un paragraphe/titre ou changer son niveau |
@@ -302,6 +305,51 @@ la connexion et le brouillon du bandeau ; il ne déclenche pas la mise en quaran
 d’une saisie valide. Un lot confirmé ne repasse pas par le relais brut et forme
 une seule étape d’annulation native.
 
+## Widgets et objets en ligne raccordés dans l’application
+
+`object-commands.ts` est l’adaptateur commun des insertions, conversions,
+paramètres et suppressions. La corbeille et Ctrl/Cmd+Retour arrière utilisent
+`removeObject`, tout comme la suppression protégée des badges depuis leur bandeau.
+Les listes simples, listes numérotées et descriptions, citations en bloc, images,
+P.-S./P.J., notes et citations bibliographiques utilisent le propriétaire Rust.
+Les opérations spécialisées de tableau gardent leurs commandes déjà raccordées.
+
+- `block.splice` reçoit `parent`, `index`, `delete_count` et `nodes`. Le planificateur
+  de l’éditeur conserve les règles d’insertion validées (division au curseur,
+  absence de ligne vide avant, ligne de reprise après) puis traduit uniquement
+  la suite de blocs changée. Préfixe et suffixe inchangés conservent leurs objets
+  Yjs/Yrs. Le cœur répare le conteneur après le remplacement complet, sans ligne
+  supplémentaire issue d’un état intermédiaire vide. Les frontières de cellules,
+  rôles de tableau et grammaires de conteneurs restent protégés.
+- `inline.replace` reçoit une cible textuelle dans une seule zone riche et un
+  nœud `footnote` ou `citation`. Les frontières UTF-16 sont contrôlées avant toute
+  modification. Pour insérer un badge au milieu d’un Y.XmlText, seul son suffixe
+  est reconstruit ; paragraphe, autres badges et éléments voisins sont conservés.
+  Les marques du nœud sont explicites. `text.delete` supprime le badge sur sa plage
+  d’une unité ; il n’efface pas le contenu des annotations voisines.
+- `node.set_attrs` reçoit une cible d’arbre et les paramètres modifiés. Les noms,
+  types simples, bornes et énumérations viennent du catalogue des capacités ;
+  les paramètres de structure ou de contenu externe ne deviennent pas des
+  attributs arbitraires. La validation finale contrôle les ressources et les
+  citations bibliographiques. Ni `__marks`, ni les rôles de cellules, ni des clés
+  privées ne peuvent être introduits par cette commande. L’image et sa légende,
+  ou le badge et ses marques, conservent leurs identités.
+
+Les bandeaux gardent leur brouillon pendant la préparation et en cas de refus ;
+remplacer le bandeau annule sa préparation et ne ferme jamais le nouveau panneau.
+une confirmation est une étape d’annulation, sans relais brut supplémentaire.
+Le curseur est rétabli au moment d’installer la réponse, avant les modifications
+distantes suivantes. Les contrôles bibliographiques appartiennent désormais à
+la même validation finale que les autres commandes, sans seconde édition locale
+après une prévalidation indépendante.
+
+La frappe, les retours, les règles « - espace » et « 1. espace », le collage et
+les jointures d’items au clavier restent immédiats via le relais validé. Cette
+exception est volontaire : leur migration éventuelle vers des plans locaux
+communs ne doit pas introduire un aller-retour avant l’affichage de la saisie.
+Les tests de collaboration attendent la confirmation du bandeau avant d’enchaîner
+une seconde commande ; les tests de concurrence vérifient séparément son refus.
+
 ## Enregistrements ordonnés d’en-tête
 
 Les collections et leurs champs proviennent des descripteurs du type courant,
@@ -381,8 +429,7 @@ Restent dans A.2 :
   communs ; la fusion de cellules reste différée.
   Les retours riches passent par `block.split` ou des nœuds de retour explicites,
   pas par des sauts de ligne cachés dans `text.insert`.
-- Les insertions/conversions/suppressions des autres widgets et objets en ligne,
-  leurs paramètres, la recherche/remplacement et l’orthographe, les champs simples
+- La recherche/remplacement et l’orthographe, les champs simples
   et collections d’en-tête, les ressources, options et changements de modèle.
   Ces éditions passent encore par le relais validé lorsqu’elles ne sont pas
   explicitement raccordées aux commandes typées ci-dessus.
