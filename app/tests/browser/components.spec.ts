@@ -47,7 +47,9 @@ test('tous les widgets partagent leur cadre, leur bandeau commun et la suppressi
     window.__spike!.editor.commands.setContent({
       type: 'doc',
       content: [
-        ...fixture.content.filter((node) => ['bulletList', 'table', 'figure'].includes(node.type)),
+        ...fixture.content.filter((node) =>
+          ['bulletList', 'tableFigure', 'figure'].includes(node.type),
+        ),
         { type: 'orderedList', content: [{ type: 'listItem', content: [p] }] },
         {
           type: 'descriptionList',
@@ -74,7 +76,7 @@ test('tous les widgets partagent leur cadre, leur bandeau commun et la suppressi
     'bulletList',
     'orderedList',
     'descriptionList',
-    'table',
+    'tableFigure',
     'figure',
     'quote',
     'postscript',
@@ -85,7 +87,14 @@ test('tous les widgets partagent leur cadre, leur bandeau commun et la suppressi
     await expect(widget.locator(':scope > .band-slot')).toHaveCount(1)
     const panel = page.locator('#properties')
     const settings = widget.getByRole('button', { name: /^Paramètres ·/ })
-    if (['bulletList', 'orderedList', 'descriptionList', 'figure'].includes(kind)) {
+    if (kind === 'tableFigure') {
+      await settings.click()
+      const table = page.locator('#table-properties')
+      await expect(table).toBeVisible()
+      expect(await panelChrome(table)).toEqual(referenceChrome)
+      await page.keyboard.press('Escape')
+      await expect(table).toBeHidden()
+    } else if (['bulletList', 'orderedList', 'descriptionList', 'figure'].includes(kind)) {
       await widget.getByRole('button', { name: /^Paramètres ·/ }).click()
       await expect(panel).toBeVisible()
       expect(await panelChrome(panel)).toEqual(referenceChrome)
@@ -135,7 +144,9 @@ test('tous les widgets partagent leur cadre, leur bandeau commun et la suppressi
     await expect(widget).toHaveCount(0)
     await page.getByRole('button', { name: 'Annuler', exact: true }).click()
     await expect(widget).toHaveCount(1)
-    expect(await page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON()))).toBe(before)
+    await expect
+      .poll(() => page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON())))
+      .toBe(before)
     // The direct shortcut uses the same removal operation as the confirmed band.
     await widget.getByRole('button', { name: /^Supprimer ·/ }).click()
     await page.keyboard.press('Escape')
@@ -150,8 +161,8 @@ test('tous les widgets partagent leur cadre, leur bandeau commun et la suppressi
                 ? 1
                 : kind === 'quote'
                   ? 2
-                  : kind === 'table'
-                    ? 4
+                  : kind === 'tableFigure'
+                    ? 5
                     : 3),
           )
           return false
@@ -162,7 +173,9 @@ test('tous les widgets partagent leur cadre, leur bandeau commun et la suppressi
     await page.keyboard.press('Control+Backspace')
     await expect(widget).toHaveCount(0)
     await page.getByRole('button', { name: 'Annuler', exact: true }).click()
-    expect(await page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON()))).toBe(before)
+    await expect
+      .poll(() => page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON())))
+      .toBe(before)
   }
 })
 
@@ -225,5 +238,7 @@ test('annuler une suppression directe restitue aussi le texte saisi juste avant'
   await page.keyboard.press('Control+Backspace')
   await expect(page.locator('.widget-bulletList')).toHaveCount(0)
   await page.getByRole('button', { name: 'Annuler', exact: true }).click()
-  expect(await page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON()))).toBe(before)
+  await expect
+    .poll(() => page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON())))
+    .toBe(before)
 })

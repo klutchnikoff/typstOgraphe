@@ -13,7 +13,7 @@ it('attend aussi les mises à jour ajoutées pendant un accusé de réception', 
   provider.online = true
   try {
     provider.doc.getText('body').insert(0, 'A')
-    await Promise.resolve()
+    for (let i = 0; i < 3; i++) await Promise.resolve()
     let complete = false
     const flushed = provider.flush().then(() => {
       complete = true
@@ -27,6 +27,160 @@ it('attend aussi les mises à jour ajoutées pendant un accusé de réception', 
     await flushed
     expect(provider.revision).toBe(2)
     expect(complete).toBe(true)
+  } finally {
+    provider.destroy()
+  }
+})
+
+it('conserve toute la frappe après un refus, bloque la file et refuse une reconnexion implicite', async () => {
+  let reject!: (reason: unknown) => void
+  let relays = 0
+  const transport = {
+    invoke: (command: string) => {
+      if (command === 'relay') {
+        relays++
+        return new Promise((_, fail) => {
+          reject = fail
+        })
+      }
+      return Promise.resolve()
+    },
+  } as unknown as Transport
+  const provider = new Provider('test', transport)
+  provider.online = true
+  provider.generation = 'document'
+  try {
+    const text = provider.doc.getText('body')
+    text.insert(0, 'Premier')
+    for (let i = 0; i < 3; i++) await Promise.resolve()
+    text.insert(text.length, ' second')
+    provider.stopCapturing()
+    reject('invalid_document')
+    await expect(provider.flush()).rejects.toThrow('brouillon')
+    text.insert(text.length, ' conservé')
+    expect(relays).toBe(1)
+    expect(text.toString()).toBe('Premier second conservé')
+    expect(provider.draft().update.length).toBeGreaterThan(0)
+    await expect(provider.reconnect()).rejects.toThrow('brouillon')
+    expect(provider.online).toBe(false)
+  } finally {
+    provider.destroy()
+  }
+})
+
+it('regroupe les transactions synchrones avant validation, sans délai de frappe', async () => {
+  const updates: number[][] = []
+  const provider = new Provider('test', {
+    invoke: async (command: string, args: Record<string, unknown>) => {
+      if (command === 'relay') {
+        updates.push(args.update as number[])
+        return updates.length
+      }
+    },
+  } as unknown as Transport)
+  provider.online = true
+  try {
+    let contentChanges = 0
+    provider.onChange = () => {
+      contentChanges++
+    }
+    provider.doc.getText('body').insert(0, 'A')
+    provider.doc.getText('body').insert(1, 'B')
+    expect(provider.doc.getText('body').toString()).toBe('AB')
+    await provider.flush()
+    expect(updates).toHaveLength(1)
+    expect(contentChanges).toBe(2) // The acknowledgment never requests another rendering.
+    expect(provider.revision).toBe(1)
+  } finally {
+    provider.destroy()
+  }
+})
+
+it('ne publie aucune préédition et confirme la composition en un lot', async () => {
+  let relays = 0
+  const provider = new Provider('test', {
+    invoke: async (command: string) => (command === 'relay' ? ++relays : undefined),
+  } as unknown as Transport)
+  provider.online = true
+  try {
+    provider.beginComposition()
+    provider.doc.getText('body').insert(0, 'にほ')
+    for (let i = 0; i < 4; i++) await Promise.resolve()
+    expect(relays).toBe(0)
+    await expect(provider.flush()).rejects.toThrow('saisie')
+    provider.doc.getText('body').insert(2, 'ん')
+    provider.endComposition()
+    await provider.flush()
+    expect(provider.doc.getText('body').toString()).toBe('にほん')
+    expect(relays).toBe(1)
+  } finally {
+    provider.destroy()
+  }
+})
+
+it('une annulation devenue sans effet ne déconnecte pas la fenêtre', async () => {
+  const provider = new Provider('test', {
+    invoke: async () => ({
+      revision: 0,
+      update: [],
+      history: { undo_steps: 0, redo_steps: 0, pending: false },
+    }),
+  } as unknown as Transport)
+  provider.online = true
+  provider.historyState.undo_steps = 1
+  try {
+    await provider.history('undo')
+    expect(provider.rejected).toBeNull()
+    expect(provider.online).toBe(true)
+    expect(provider.historyState.undo_steps).toBe(0)
+  } finally {
+    provider.destroy()
+  }
+})
+
+it('une composition commencée pendant l’attente d’un accusé interdit aussi l’instantané', async () => {
+  let release!: (value: number) => void
+  const provider = new Provider('test', {
+    invoke: (command: string) =>
+      command === 'relay'
+        ? new Promise<number>((resolve) => {
+            release = resolve
+          })
+        : Promise.resolve(),
+  } as unknown as Transport)
+  provider.online = true
+  try {
+    provider.doc.getText('body').insert(0, 'Avant')
+    for (let i = 0; i < 3; i++) await Promise.resolve()
+    const flushed = provider.flush()
+    provider.beginComposition()
+    provider.doc.getText('body').insert(5, 'に')
+    release(1)
+    await expect(flushed).rejects.toThrow('saisie')
+    expect(provider.doc.getText('body').toString()).toBe('Avantに')
+  } finally {
+    provider.destroy()
+  }
+})
+
+it('une fin de composition tardive ne publie pas la préédition de la zone suivante', async () => {
+  let relays = 0
+  const provider = new Provider('test', {
+    invoke: async (command: string) => (command === 'relay' ? ++relays : undefined),
+  } as unknown as Transport)
+  provider.online = true
+  try {
+    const first = provider.beginComposition()
+    provider.doc.getText('body').insert(0, 'A')
+    const second = provider.beginComposition()
+    provider.doc.getText('body').insert(1, 'B')
+    provider.endComposition(first)
+    expect(provider.composing).toBe(true)
+    expect(relays).toBe(0)
+    provider.endComposition(second)
+    await provider.flush()
+    expect(provider.doc.getText('body').toString()).toBe('AB')
+    expect(relays).toBe(1)
   } finally {
     provider.destroy()
   }

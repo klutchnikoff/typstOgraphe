@@ -37,6 +37,19 @@ test.beforeEach(async ({ request }) => {
   expect((await response.json()).error).toBeUndefined()
 })
 
+test.afterEach(async ({ page }, info) => {
+  if (info.status !== info.expectedStatus)
+    console.error(
+      'État de synchronisation :',
+      await page
+        .evaluate(() => ({
+          rejected: window.__spike?.provider.rejected,
+          history: window.__spike?.provider.historyState,
+        }))
+        .catch(() => null),
+    )
+})
+
 test('Article : onglets, auteurs partagés, langues, annulation et fichier autonome', async ({
   page,
   context,
@@ -44,7 +57,10 @@ test('Article : onglets, auteurs partagés, langues, annulation et fichier auton
   test.setTimeout(90_000)
   page.setDefaultTimeout(15_000)
   const errors: string[] = []
-  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('pageerror', (error) => {
+    errors.push(error.message)
+    console.error(error.stack)
+  })
   await create(page)
   const title = page.getByRole('textbox', { name: 'Titre', exact: true })
   await title.fill('Travail universitaire et institutions')

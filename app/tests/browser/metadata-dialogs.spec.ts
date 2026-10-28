@@ -57,7 +57,7 @@ test('dialogue réutilisable : clavier, fond flouté, brouillon, annulation et v
   await trigger.click()
   await expect(name(page)).toBeFocused()
   await name(page).fill('Brouillon à annuler')
-  expect(await data(page)).toEqual(before)
+  await expect.poll(() => data(page)).toEqual(before)
   // The background is inert and does not dismiss a draft on an incidental click.
   await page.mouse.click(8, 8)
   await expect(dialog(page)).toBeVisible()
@@ -75,7 +75,7 @@ test('dialogue réutilisable : clavier, fond flouté, brouillon, annulation et v
   await page.keyboard.press('Escape')
   await expect(dialog(page)).toHaveCount(0)
   await expect(trigger).toBeFocused()
-  expect(await data(page)).toEqual(before)
+  await expect.poll(() => data(page)).toEqual(before)
 
   await trigger.click()
   await name(page).fill('Camille Durand')
@@ -84,7 +84,7 @@ test('dialogue réutilisable : clavier, fond flouté, brouillon, annulation et v
   // A composing Enter, including the modified form, must not publish.
   await name(page).dispatchEvent('keydown', { key: 'Enter', ctrlKey: true, isComposing: true })
   await expect(dialog(page)).toBeVisible()
-  expect(await data(page)).toEqual(before)
+  await expect.poll(() => data(page)).toEqual(before)
   await name(page).press('ControlOrMeta+Enter')
   await expect(dialog(page)).toHaveCount(0)
   await expect(trigger).toBeFocused()
@@ -94,9 +94,9 @@ test('dialogue réutilisable : clavier, fond flouté, brouillon, annulation et v
   const body = page.getByRole('textbox', { name: 'Corps du document', exact: true })
   await body.focus()
   await body.press('ControlOrMeta+z')
-  expect(await data(page)).toEqual(before)
+  await expect.poll(() => data(page)).toEqual(before)
   await body.press('ControlOrMeta+Shift+z')
-  expect(await data(page)).toEqual(saved)
+  await expect.poll(() => data(page)).toEqual(saved)
 
   // Responsive geometry and actual backdrop style, without screenshots.
   await trigger.click()

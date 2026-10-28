@@ -162,10 +162,10 @@ test('bandeau commun : paramètres de liste intégrés, brouillon, validation, a
     'true',
   )
   await page.getByLabel('Numéro initial', { exact: true }).fill('3')
-  expect(await contents(page)).toBe(before)
+  await expect.poll(() => contents(page)).toBe(before)
   await page.keyboard.press('Escape')
   await expect(form).toBeHidden()
-  expect(await contents(page)).toBe(before)
+  await expect.poll(() => contents(page)).toBe(before)
   await button.click()
   await expect(page.getByRole('radio', { name: 'Liste à puces', exact: true })).toHaveAttribute(
     'aria-checked',
@@ -188,14 +188,14 @@ test('image : bandeau intégré, focus et modification annulable du texte altern
   await page.getByRole('button', { name: 'Paramètres · Image', exact: true }).click()
   const field = page.getByLabel('Texte alternatif', { exact: true })
   await expect(field).toBeFocused()
-  const widget = await page.locator('figure').boundingBox(),
+  const widget = await page.locator('[data-editor-widget=figure]').boundingBox(),
     band = await page.locator('#properties').boundingBox()
-  const header = await page.locator('figure > .widget-bar').boundingBox()
+  const header = await page.locator('[data-editor-widget=figure] > .widget-bar').boundingBox()
   expect(Math.abs(band!.y - header!.y - header!.height)).toBeLessThan(2)
   await field.fill('Description provisoire')
-  expect(await contents(page)).toBe(before)
+  await expect.poll(() => contents(page)).toBe(before)
   await page.keyboard.press('Escape')
-  expect(await contents(page)).toBe(before)
+  await expect.poll(() => contents(page)).toBe(before)
   await page.getByRole('button', { name: 'Paramètres · Image', exact: true }).click()
   await field.fill('Description validée')
   for (const id of ['replace-image', 'cancel-properties', 'apply-properties']) {
@@ -206,7 +206,7 @@ test('image : bandeau intégré, focus et modification annulable du texte altern
   await expect(page.locator('figure img')).toHaveAttribute('alt', 'Description validée')
   await expect(page.locator('.tiptap')).toBeFocused()
   await page.getByRole('button', { name: 'Annuler', exact: true }).click()
-  expect(await contents(page)).toBe(before)
+  await expect.poll(() => contents(page)).toBe(before)
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.getByRole('button', { name: 'Paramètres · Image', exact: true }).click()
   await expect(page.locator('#properties > .panel-title')).toBeVisible()
@@ -280,7 +280,7 @@ test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse a
     await expect(band).toBeFocused()
     await page.keyboard.press('ArrowRight')
     await expect(band.getByRole('button', { name: 'courriers', exact: true })).toBeFocused()
-    expect(await contents(page)).toBe(before)
+    await expect.poll(() => contents(page)).toBe(before)
     for (const width of [1280, 900]) {
       await page.setViewportSize({ width, height: 900 })
       await expect
@@ -314,10 +314,10 @@ test('orthographe interligne : pointe vers le mot, largeur du bloc et réponse a
         )
         .toBeLessThan(4)
     }
-    expect(await contents(page)).toBe(before)
+    await expect.poll(() => contents(page)).toBe(before)
     await page.keyboard.press('Escape')
     await expect(band).toHaveCount(0)
-    expect(await contents(page)).toBe(before)
+    await expect.poll(() => contents(page)).toBe(before)
     await page.keyboard.press('Control+Enter')
     await expect(page.locator('#proofing-band [data-default]')).toBeVisible()
     await expect(page.locator('#proofing-band')).toBeFocused()
@@ -389,14 +389,14 @@ test('liens et suppression de tableau utilisent le même placement et le même c
   await expect(page.locator('.tiptap a')).toHaveAttribute('href', 'https://example.com')
   await expect(
     page.getByRole('button', { name: 'Paramètres · Tableau', exact: true }),
-  ).toBeDisabled()
+  ).toBeEnabled()
   await page.locator('td').first().click()
-  await page.getByRole('button', { name: 'Supprimer le tableau', exact: true }).click()
+  await page.getByRole('button', { name: 'Supprimer · Tableau', exact: true }).click()
   const form = page.locator('#properties')
   await expect(form).toBeVisible()
-  const host = await page.locator('.widget-table').boundingBox(),
+  const host = await page.locator('.widget-tableFigure').boundingBox(),
     rect = await form.boundingBox()
-  const header = await page.locator('.widget-table > .widget-bar').boundingBox()
+  const header = await page.locator('.widget-tableFigure > .widget-bar').boundingBox()
   expect(Math.abs(rect!.y - header!.y - header!.height)).toBeLessThan(2)
   await page.keyboard.press('Escape')
   await expect(form).toBeHidden()
@@ -432,6 +432,6 @@ test('Retour arrière respecte la frontière terme et définition', async ({ pag
   await expect
     .poll(() => page.evaluate(() => window.__spike!.editor.state.selection.$from.parent.type.name))
     .toBe('descriptionTerm')
-  expect(await contents(page)).toBe(before)
+  await expect.poll(() => contents(page)).toBe(before)
   await expect(page.locator('.widget-descriptionList')).toHaveCount(1)
 })

@@ -58,10 +58,10 @@ test('rendu réel, bandeau de note, légende et sélection de tableau au clavier
     .fill('Note relue : ê, é, Noël, にほん.')
   await page.getByLabel('Texte de la note', { exact: true }).press('Enter')
   await expect(page.locator('#properties')).toBeHidden()
-  await page.locator('figcaption').click()
+  await page.locator('[data-editor-widget=figure] figcaption').click()
   await page.keyboard.press('Home')
   await page.keyboard.type('Légende : ')
-  await expect(page.locator('figcaption')).toContainText('Légende :')
+  await expect(page.locator('[data-editor-widget=figure] figcaption')).toContainText('Légende :')
   await page.locator('td').first().click()
   await expect
     .poll(() =>
@@ -75,9 +75,14 @@ test('rendu réel, bandeau de note, légende et sélection de tableau au clavier
     )
     .toBe('30')
   await page.keyboard.type(' vérifié')
-  await expect(page.locator('.table-tools')).toBeVisible()
+  await page.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
+  await expect(page.locator('#table-properties')).toBeVisible()
   await expect(page.locator('table')).toContainText('vérifié')
-  await page.getByRole('button', { name: 'Ajouter une ligne', exact: true }).click()
+  await page.getByRole('radio', { name: 'Ajouter une ligne au-dessous', exact: true }).click()
+  await page
+    .locator('#table-properties')
+    .getByRole('button', { name: 'Valider', exact: true })
+    .click()
   await expect(page.locator('tr')).toHaveCount(4)
   await expect(page.locator('#render-status')).not.toContainText('corriger')
   await page.waitForFunction(() =>

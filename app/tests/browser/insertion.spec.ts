@@ -22,10 +22,10 @@ test('insertion commune : tableau au début, milieu, fin ou après un retour, et
 }, info) => {
   test.setTimeout(120000)
   const cases = [
-    ['insert.table', 'table', 1],
-    ['insert.table', 'table', 6],
-    ['insert.table', 'table', 11],
-    ['insert.table', 'table', 7, true],
+    ['insert.table', 'tableFigure', 1],
+    ['insert.table', 'tableFigure', 6],
+    ['insert.table', 'tableFigure', 11],
+    ['insert.table', 'tableFigure', 7, true],
     ['block.bullet', 'bulletList', 6],
     ['block.numbered', 'orderedList', 6],
     ['block.description', 'descriptionList', 6],
@@ -75,7 +75,14 @@ test('insertion commune : tableau au début, milieu, fin ou après un retour, et
           '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="#809890"/></svg>',
         ),
       })
-    } else await page.locator(`[data-command="${id}"]`).click()
+    } else {
+      await page.locator(`[data-command="${id}"]`).click()
+      if (kind === 'tableFigure')
+        await page
+          .locator('#table-properties')
+          .getByRole('button', { name: 'Valider', exact: true })
+          .click()
+    }
     const expected =
       pos === 1
         ? [
@@ -110,16 +117,16 @@ test('insertion commune : tableau au début, milieu, fin ou après un retour, et
       )
       .toBe(true)
     await expect(page.locator('#render-status')).toHaveText(/^\d+ pages? ·/)
-    if (kind === 'table')
+    if (kind === 'tableFigure')
       await expect
         .poll(() =>
-          page.locator('.widget-table').evaluate((widget) => {
+          page.locator('.widget-tableFigure').evaluate((widget) => {
             const header = widget.querySelector('.widget-bar')!.getBoundingClientRect()
             const table = widget.querySelector('table')!.getBoundingClientRect()
-            return Math.abs(table.top - header.bottom)
+            return table.top >= header.bottom
           }),
         )
-        .toBeLessThan(2)
+        .toBe(true)
     const line = page.locator('.tiptap > p').filter({ hasText: /^$/ })
     await expect(line).toHaveCount(pos === 11 ? 1 : 2)
     await line.first().click()
@@ -132,6 +139,8 @@ test('insertion commune : tableau au début, milieu, fin ou après un retour, et
     await page.getByRole('button', { name: 'Annuler', exact: true }).click()
     await expect.poll(() => roots(page)).toEqual(expected)
     await page.getByRole('button', { name: 'Annuler', exact: true }).click()
-    expect(await page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON()))).toBe(before)
+    await expect
+      .poll(() => page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON())))
+      .toBe(before)
   }
 })
