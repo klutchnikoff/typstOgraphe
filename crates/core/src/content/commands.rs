@@ -77,7 +77,7 @@ pub enum Switch {
     On,
     Off,
 }
-/// Explicit ranges for this first lot. A typing style will belong to a participant context.
+/// Explicit documentary ranges. Participant typing styles live in content::editing.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "id", content = "params", deny_unknown_fields)]
 pub enum Command {

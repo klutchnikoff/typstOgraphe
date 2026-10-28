@@ -3,6 +3,7 @@ pub mod archive;
 pub mod catalogue;
 pub mod commands;
 pub mod contract;
+pub mod editing;
 pub mod editorial;
 pub mod legacy;
 mod mapping;

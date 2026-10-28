@@ -12,6 +12,8 @@ pub const VERSION: u32 = 1;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
 #[serde(tag = "code", rename_all = "snake_case")]
 pub enum Error {
+    #[error("editing_context: {reason}")]
+    EditingContext { reason: String },
     #[error("invalid_target: {reason:?}")]
     InvalidTarget { reason: TargetReason },
     #[error("invalid_parameters: {parameter}")]

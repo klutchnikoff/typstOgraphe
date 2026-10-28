@@ -882,3 +882,6 @@ content-settings-mismatch = The saved document settings and editing state do not
 content-source-mismatch = The saved Typst source does not match the structured document.
 content-bibliography-mismatch = The bibliography files do not match the document’s references.
 content-state-mismatch = The project’s saved data is inconsistent.
+content-context-pending = This editing context has a rejected private draft. Review it before continuing.
+content-context-selection = Select a text zone in this editing context first.
+content-history-conflict = This undo or redo would remove another participant’s contribution. The project has not changed; the private draft is retained.

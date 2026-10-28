@@ -25,6 +25,13 @@ pub fn content_error_with(loader: &FluentLanguageLoader, error: &Error) -> Strin
         Error::UnsupportedContractVersion { version } => {
             return arg("content-contract-version", "version", version.to_string());
         }
+        Error::EditingContext { reason } => match reason.as_str() {
+            "closed" => "engine-edit-context-closed",
+            "pending_draft" => "content-context-pending",
+            "selection_required" => "content-context-selection",
+            "history_conflict" => "content-history-conflict",
+            _ => "content-state-mismatch",
+        },
         Error::InvalidTarget { .. } => "content-invalid-target",
         Error::InvalidSharedState { .. } | Error::IncompleteSharedState => {
             "content-shared-state-invalid"
@@ -106,6 +113,35 @@ mod tests {
                 }),
             );
             assert!(message.contains(phrase), "{message}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod editing_tests {
+    use super::*;
+    #[test]
+    fn context_and_history_errors_use_fluent_in_both_languages_and_fallback() {
+        for language in ["fr", "en", "de"] {
+            let loader = crate::loader_for(&[language.parse().unwrap()]);
+            for reason in [
+                "closed",
+                "pending_draft",
+                "selection_required",
+                "history_conflict",
+            ] {
+                let message = content_error_with(
+                    &loader,
+                    &Error::EditingContext {
+                        reason: reason.into(),
+                    },
+                );
+                assert!(
+                    !message.contains(reason) && !message.contains("EditingContext"),
+                    "{message}"
+                );
+                assert!(!message.is_empty());
+            }
         }
     }
 }

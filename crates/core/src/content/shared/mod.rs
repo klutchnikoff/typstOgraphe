@@ -1,9 +1,9 @@
 //! Yjs-compatible state owned by Rust. Shared types never cross this boundary.
 #[cfg(test)]
 mod command_tests;
-mod commands;
+pub(super) mod commands;
 mod normalization;
-mod projection;
+pub(super) mod projection;
 mod records;
 mod seed;
 mod structure;
@@ -12,7 +12,7 @@ mod structure_tests;
 #[cfg(test)]
 mod table_tests;
 mod tables;
-mod targets;
+pub(super) mod targets;
 #[cfg(test)]
 mod tests;
 mod whitespace;
@@ -25,7 +25,7 @@ use yrs::{Doc, OffsetKind, Options, ReadTxn, StateVector, Transact, Update};
 pub const MAX_STATE_BYTES: usize = 32 * 1024 * 1024;
 
 pub struct SharedDocument {
-    doc: Doc,
+    pub(super) doc: Doc,
 }
 fn document() -> Doc {
     // Preserve deleted content while undo and snapshot retention are being coordinated.
@@ -39,7 +39,7 @@ fn document() -> Doc {
     doc.get_or_insert_map("settings");
     doc
 }
-fn apply(doc: &Doc, bytes: &[u8]) -> Result<(), Error> {
+pub(super) fn apply(doc: &Doc, bytes: &[u8]) -> Result<(), Error> {
     if bytes.is_empty() || bytes.len() > MAX_STATE_BYTES {
         return Err(Error::StateLimitExceeded);
     }
@@ -204,6 +204,13 @@ impl SharedSession {
     }
     pub fn update(&self) -> Vec<u8> {
         self.shared.update()
+    }
+
+    pub(in crate::content) fn difference(&self, other: &SharedDocument) -> Vec<u8> {
+        self.shared
+            .doc
+            .transact()
+            .encode_diff_v1(&other.doc.transact().state_vector())
     }
 
     pub fn inspect_zone(

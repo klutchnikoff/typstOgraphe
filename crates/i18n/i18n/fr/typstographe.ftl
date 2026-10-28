@@ -885,3 +885,6 @@ content-settings-mismatch = Les paramètres enregistrés et l’état d’éditi
 content-source-mismatch = Le source Typst enregistré ne correspond pas au document structuré.
 content-bibliography-mismatch = Les fichiers bibliographiques ne correspondent pas aux références du document.
 content-state-mismatch = Les données enregistrées du projet sont incohérentes.
+content-context-pending = Ce contexte d’édition conserve un brouillon privé refusé. Examinez-le avant de continuer.
+content-context-selection = Sélectionnez d’abord une zone de texte dans ce contexte d’édition.
+content-history-conflict = Cette annulation ou ce rétablissement supprimerait une contribution d’un autre participant. Le projet n’a pas changé ; le brouillon privé est conservé.

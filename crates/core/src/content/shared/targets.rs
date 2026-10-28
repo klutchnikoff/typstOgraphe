@@ -8,10 +8,10 @@ use yrs::{
     XmlFragmentRef, XmlOut,
 };
 
-pub(super) fn invalid(reason: TargetReason) -> Error {
+pub(in crate::content) fn invalid(reason: TargetReason) -> Error {
     Error::InvalidTarget { reason }
 }
-pub(super) fn element<T: ReadTxn>(
+pub(in crate::content) fn element<T: ReadTxn>(
     root: XmlFragmentRef,
     tx: &T,
     path: &[usize],
@@ -45,7 +45,7 @@ pub(super) fn element<T: ReadTxn>(
     }
     Err(invalid(TargetReason::MissingNode))
 }
-pub(super) fn record<T: ReadTxn>(
+pub(in crate::content) fn record<T: ReadTxn>(
     _doc: &Doc,
     tx: &T,
     state: &State,
@@ -94,7 +94,7 @@ pub(super) fn record<T: ReadTxn>(
     };
     Ok((record, descriptor))
 }
-pub(super) enum Resolved {
+pub(in crate::content) enum Resolved {
     Rich(XmlElementRef),
     Text(yrs::TextRef),
     Scalar {
@@ -104,7 +104,7 @@ pub(super) enum Resolved {
     },
     Annotation(XmlElementRef),
 }
-pub(super) fn field<T: ReadTxn>(
+pub(in crate::content) fn field<T: ReadTxn>(
     doc: &Doc,
     tx: &T,
     state: &State,
@@ -159,7 +159,11 @@ pub(super) fn field<T: ReadTxn>(
         }
     }
 }
-pub(super) fn resolve(doc: &Doc, state: &State, zone: &TextZone) -> Result<Resolved, Error> {
+pub(in crate::content) fn resolve(
+    doc: &Doc,
+    state: &State,
+    zone: &TextZone,
+) -> Result<Resolved, Error> {
     let tx = doc.transact();
     let body = tx
         .get_xml_fragment("default")
@@ -240,7 +244,7 @@ fn rich(value: XmlElementRef) -> Result<Resolved, Error> {
     Ok(Resolved::Rich(value))
 }
 impl Resolved {
-    pub(super) fn info<T: ReadTxn>(&self, tx: &T) -> Result<ZoneInfo, Error> {
+    pub(in crate::content) fn info<T: ReadTxn>(&self, tx: &T) -> Result<ZoneInfo, Error> {
         let text = match self {
             Self::Rich(element) => super::projection::xml(element.children(tx), tx, 1, &mut 0)?
                 .into_iter()
@@ -266,7 +270,7 @@ impl Resolved {
         })
     }
 }
-pub(super) fn byte_at(text: &str, offset: u32) -> Result<usize, Error> {
+pub(in crate::content) fn byte_at(text: &str, offset: u32) -> Result<usize, Error> {
     let mut count = 0;
     for (index, ch) in text.char_indices() {
         if count == offset {

@@ -30,7 +30,7 @@ fn value<T: ReadTxn>(out: Out, tx: &T) -> Result<Value, Error> {
         _ => Err(invalid("expected_scalar_value")),
     }
 }
-pub(super) fn xml<T: ReadTxn>(
+pub(in crate::content) fn xml<T: ReadTxn>(
     items: impl Iterator<Item = XmlOut>,
     tx: &T,
     depth: usize,

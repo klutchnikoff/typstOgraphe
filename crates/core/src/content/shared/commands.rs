@@ -51,6 +51,9 @@ fn attributes(marks: &[Style]) -> Result<Attrs, Error> {
     }
     Ok(result)
 }
+pub(in crate::content) fn validate_styles(marks: &[Style]) -> Result<(), Error> {
+    attributes(marks).map(|_| ())
+}
 fn range(doc: &Doc, state: &State, target: &TextTarget) -> Result<Resolved, Error> {
     if target.from > target.to {
         return Err(targets::invalid(TargetReason::ReversedRange));
