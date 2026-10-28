@@ -4,6 +4,7 @@ use serde_json::Value;
 use typstographe_core::{
     assets::Assets,
     content::{
+        commands::{Command, TextZone},
         contract::{Error, Guard, State},
         shared::{SharedDocument, SharedSession},
     },
@@ -12,6 +13,17 @@ use typstographe_core::{
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 enum Request {
+    Commands {
+        update: Vec<u8>,
+        guard: Guard,
+        expected: Guard,
+        commands: Vec<Command>,
+    },
+    Zone {
+        update: Vec<u8>,
+        guard: Guard,
+        zone: TextZone,
+    },
     Initialize {
         state: State,
     },
@@ -29,6 +41,26 @@ enum Request {
 pub fn run(args: Value, assets: &Assets) -> Result<Value, String> {
     fn execute(request: Request, assets: &Assets) -> Result<Value, Error> {
         let (shared, state) = match request {
+            Request::Commands {
+                update,
+                guard,
+                expected,
+                commands,
+            } => {
+                let mut session = SharedSession::open(guard, &update, assets.clone())?;
+                let prepared = session.prepare_commands(&expected, &commands)?;
+                return Ok(serde_json::to_value(session.publish(prepared)?).expect("publication"));
+            }
+            Request::Zone {
+                update,
+                guard,
+                zone,
+            } => {
+                let session = SharedSession::open(guard.clone(), &update, assets.clone())?;
+                return Ok(
+                    serde_json::to_value(session.inspect_zone(&guard, &zone)?).expect("zone")
+                );
+            }
             Request::Initialize { state } => {
                 state.validate(assets)?;
                 (SharedDocument::from_state(&state)?, state)

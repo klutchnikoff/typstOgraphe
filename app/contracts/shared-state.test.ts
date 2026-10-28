@@ -345,3 +345,135 @@ it('publishes a validated differential readable by Yjs, and rejects an obsolete 
     }),
   ).rejects.toContain('stale_revision')
 })
+
+it('executes one native multizone batch in the actual editor, preserving identities and one undo step', async () => {
+  const original = seed('article')
+  const collections = catalogue.types.find((t) => t.id === 'article')!.structured!.collections
+  const author = addRecord(
+    store(original),
+    collections.find((c) => c.parameter === 'authors')!,
+    { id: 'camille', name: 'Camille' },
+  )
+  const authorName = author.get('name')
+  const root = original.getXmlFragment('default')
+  const paragraph = root.get(1) as Y.XmlElement
+  const note = paragraph
+    .toArray()
+    .find((v) => v instanceof Y.XmlElement && v.nodeName === 'footnote')
+  const localizations = (
+    original.getMap('settings').get('collections') as Y.Map<Y.Map<Y.Map<unknown>>>
+  ).get('localizations')!
+  const localized = [...localizations.values()][0]
+  const localizedId = localized.get('id') as string
+  const abstract = localized.get('abstract')
+  const element = document.createElement('div')
+  document.body.append(element)
+  const editor = createRichZone({
+    profile: 'document',
+    element,
+    label: 'Native multizone',
+    binding: { kind: 'document', document: original },
+  })
+  editors.push(editor)
+  if (!editor.isInitialized)
+    await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+  const before = state(original)
+  const origin = Symbol('confirmed-native-command')
+  const undo = new Y.UndoManager([root, original.getMap('settings')], {
+    trackedOrigins: new Set([origin]),
+  })
+  const guard = { document: 'multizone', revision: 0 }
+  const range = (zone: unknown, from: number, to: number) => ({ zone, from, to })
+  const commands = [
+    {
+      id: 'text.insert',
+      params: {
+        target: range({ kind: 'annotation', path: [1, 2] }, 0, 'Une note é😀'.length),
+        text: 'Note revue 日本',
+      },
+    },
+    {
+      id: 'text.insert',
+      params: { target: range({ kind: 'body', path: [4, 0, 0, 0] }, 0, 7), text: 'Cellule revue' },
+    },
+    {
+      id: 'metadata.set',
+      params: {
+        target: { kind: 'record', collection: 'authors', id: 'camille', field: 'name' },
+        value: 'Camille Martin',
+      },
+    },
+    {
+      id: 'text.insert',
+      params: {
+        target: range(
+          {
+            kind: 'record',
+            collection: 'localizations',
+            id: localizedId,
+            field: 'abstract',
+            path: [0],
+          },
+          0,
+          0,
+        ),
+        text: 'Résumé natif 😀',
+        marks: [{ type: 'italic' }],
+      },
+    },
+    { id: 'text.clear', params: { target: range({ kind: 'body', path: [1] }, 0, 3) } },
+    {
+      id: 'text.italic',
+      params: { target: range({ kind: 'body', path: [1] }, 12, 14), value: 'on' },
+    },
+  ]
+  const outcome = await probe({
+    action: 'commands',
+    update: bytes(original),
+    guard,
+    expected: guard,
+    commands,
+  })
+  expect(outcome.guard.revision).toBe(1)
+  Y.applyUpdate(original, new Uint8Array(outcome.update), origin)
+  expect(root.get(1)).toBe(paragraph)
+  expect(paragraph.toArray()).toContain(note)
+  expect(author.get('name')).toBe(authorName)
+  expect(localized.get('abstract')).toBe(abstract)
+  expect(undo.undoStack).toHaveLength(1)
+  expect(editor.view.dom.querySelector('td')?.textContent).toBe('Cellule revue')
+  expect(author.get('name')?.toString()).toBe('Camille Martin')
+  const atoms = documentContent(editor.getJSON()).content![1].content!.filter((n) =>
+    ['footnote', 'citation'].includes(n.type!),
+  )
+  expect(atoms).toHaveLength(2)
+  expect(atoms.every((n) => n.marks?.some((m) => m.type === 'italic'))).toBe(true)
+  expect(atoms[0].attrs?.text).toBe('Note revue 日本')
+  await probe({ action: 'inspect', update: bytes(original), expected: state(original) })
+  undo.undo()
+  await probe({ action: 'inspect', update: bytes(original), expected: before })
+  undo.redo()
+  expect(editor.view.dom.querySelector('td')?.textContent).toBe('Cellule revue')
+  undo.destroy()
+})
+
+it('native styles remove hashed link attributes and an explicit plain insertion cannot inherit them', async () => {
+  const original = seed('courrier')
+  const guard = { document: 'style-contract', revision: 0 }
+  const range = (from: number, to: number) => ({ zone: { kind: 'body', path: [1] }, from, to })
+  const result = await probe({
+    action: 'commands',
+    update: bytes(original),
+    guard,
+    expected: guard,
+    commands: [
+      { id: 'text.remove_link', params: { target: range(7, 12) } },
+      { id: 'text.insert', params: { target: range(1, 1), text: 'plain' } },
+    ],
+  })
+  Y.applyUpdate(original, new Uint8Array(result.update))
+  const content = state(original).document.content![1].content!
+  expect(content.some((node) => node.marks?.some((mark) => mark.type === 'link'))).toBe(false)
+  expect(content.find((node) => node.text?.includes('plain'))?.marks?.length || 0).toBe(0)
+  await probe({ action: 'inspect', update: bytes(original), expected: state(original) })
+})
