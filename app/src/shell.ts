@@ -22,7 +22,13 @@ import { recoveryPanel } from './recovery-panel'
 import type { StructuredMetadata } from './metadata-records'
 import { metadataCollections } from './metadata-collections'
 import { richZoneOwnsShortcut } from './rich-zone'
-import { metadataFields, metadataSection, refreshMetadataFields } from './metadata-fields'
+import {
+  metadataFields,
+  metadataSection,
+  refreshMetadataFields,
+  destroyMetadataFields,
+} from './metadata-fields'
+import { metadataCommands } from './metadata-commands'
 import { documentOptions } from './document-options'
 import { withCurrentSnapshot } from './snapshot-operation'
 export interface ModelPolicy {
@@ -172,6 +178,7 @@ export async function mountShell(s: Shell) {
   let tab: string | null = null
   let generalOptions: ReturnType<typeof documentOptions> | undefined
   let recordPanel: { refresh: () => void; destroy: () => void } | undefined
+  const metadataEditor = metadataCommands(editor, provider)
   const policies = new Map<string, ModelPolicy>(),
     loadingPolicies = new Set<string>()
   const currentPolicy = (): ModelPolicy | undefined => {
@@ -277,7 +284,7 @@ export async function mountShell(s: Shell) {
     header.dataset.document = title
   }
   function confirmDiscard(next: () => void) {
-    if (!active || !dirty) {
+    if (!active || (!dirty && !metadataEditor.dirty())) {
       next()
       return
     }
@@ -295,6 +302,7 @@ export async function mountShell(s: Shell) {
         'danger',
         () => {
           overlay.close()
+          metadataEditor.discardAll()
           next()
         },
       ],
@@ -461,9 +469,16 @@ export async function mountShell(s: Shell) {
     if (tab !== 'general' && !kind.groups.some((group) => group.id === tab)) tab = null
     $('document-type-label').textContent = kind.settingsHeading
     const tabs = $('metadata-tabs')
-    tabs.replaceChildren()
-    for (const group of [{ id: 'general', label: tr('Général') }, ...kind.groups]) {
-      const button = document.createElement('button')
+    const groups = [{ id: 'general', label: tr('Général') }, ...kind.groups]
+    if (
+      tabs.children.length !== groups.length ||
+      groups.some((group, index) => tabs.children[index]?.id !== `metadata-tab-${group.id}`)
+    )
+      tabs.replaceChildren()
+    for (const group of groups) {
+      const button =
+        tabs.querySelector<HTMLButtonElement>(`#metadata-tab-${group.id}`) ||
+        document.createElement('button')
       button.textContent = group.label
       button.id = `metadata-tab-${group.id}`
       button.setAttribute('aria-pressed', String(tab === group.id))
@@ -471,7 +486,7 @@ export async function mountShell(s: Shell) {
         tab = tab === group.id ? null : group.id
         renderMetadata()
       }
-      tabs.append(button)
+      if (!button.parentElement) tabs.append(button)
     }
     const content = $('metadata-content')
     content.hidden = tab === null
@@ -492,9 +507,11 @@ export async function mountShell(s: Shell) {
       refreshMetadataFields(content, current.metadata.fields)
       return
     }
+    generalOptions?.destroy()
     generalOptions = undefined
     recordPanel?.destroy()
     recordPanel = undefined
+    destroyMetadataFields(content)
     content.dataset.identity = identity
     content.dataset.documentType = kind.id
     content.dataset.tab = tab || ''
@@ -518,10 +535,18 @@ export async function mountShell(s: Shell) {
         (key, value) => {
           const history = historyFor(editor)
           history?.stopCapturing()
-          setSetting(provider, key, value)
+          metadataEditor.set(
+            { kind: 'metadata', field: key },
+            value,
+            () =>
+              settingsFor(provider).metadata.fields[
+                kind.fields.find((field) => field.field === key)!.parameter
+              ],
+          )
           history?.stopCapturing()
         },
         currentPolicy,
+        { commands: metadataEditor, read: () => settingsFor(provider) },
       )
     } else if (kind.structured?.bibliography?.tab === tab) {
       recordPanel = bibliographyPanel(content, provider, editor, transport, kind, currentPolicy)
@@ -542,8 +567,24 @@ export async function mountShell(s: Shell) {
     } else {
       const group = kind.groups.find((group) => group.id === tab)
       if (group)
-        metadataFields(content, group, kind.fields, current.metadata.fields, (field, value) =>
-          setSetting(provider, field, value),
+        metadataFields(
+          content,
+          group,
+          kind.fields,
+          current.metadata.fields,
+          (field, value) =>
+            metadataEditor.set(
+              { kind: 'metadata', field },
+              value,
+              () =>
+                settingsFor(provider).metadata.fields[
+                  kind.fields.find((item) => item.field === field)!.parameter
+                ],
+            ),
+          {
+            commands: metadataEditor,
+            read: (field) => settingsFor(provider).metadata.fields[field.parameter],
+          },
         )
     }
     if (tab === 'sender') {
@@ -898,6 +939,12 @@ export async function mountShell(s: Shell) {
     )
   }
   let metadataRefreshQueued = false
+  document.addEventListener('metadata:draft', () => {
+    if (metadataEditor.dirty()) {
+      dirty = true
+      updateTitle()
+    }
+  })
   settings.observeDeep(() => {
     dirty = true
     scheduleRecovery()

@@ -95,6 +95,7 @@ it('native fields isolate IME and keep their draft and caret during another fiel
   await expect(s.controller.flush()).rejects.toThrow('Terminez la saisie')
   input.dispatchEvent(new CompositionEvent('compositionend'))
   await vi.waitFor(() => expect(native.calls).toHaveLength(1))
+  expect(native.calls[0].value).toBe('にほん')
   input.value = 'にほん 😀'
   input.dispatchEvent(new Event('input'))
   input.setSelectionRange(3, 3)

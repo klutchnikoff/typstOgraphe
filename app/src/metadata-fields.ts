@@ -1,6 +1,8 @@
 import { tr } from './i18n'
 import { icon } from './icons'
 import type { Field, MetadataGroup } from './shell'
+import type { MetadataCommands } from './metadata-commands'
+import { bindMetadataInput, metadataInputBinding } from './metadata-input'
 
 type Section = MetadataGroup['sections'][number]
 type ChangeField = (field: string, value: string) => void
@@ -23,7 +25,12 @@ export function metadataSection(section: Pick<Section, 'id' | 'label' | 'layout'
 }
 
 /** Every type uses the same control and auxiliary actions for each field kind. */
-function metadataControl(definition: Field, value: string, change: ChangeField) {
+function metadataControl(
+  definition: Field,
+  value: string,
+  change: ChangeField,
+  editInput: ChangeField = change,
+) {
   const controls = document.createElement('div')
   controls.className = 'metadata-field-controls'
   const input = definition.multiline
@@ -36,7 +43,7 @@ function metadataControl(definition: Field, value: string, change: ChangeField) 
   input.value = value
   input.oninput = () => {
     refreshMetadataActions(input)
-    change(definition.field, input.value)
+    editInput(definition.field, input.value)
   }
   controls.append(input)
   if (definition.kind === 'date') {
@@ -70,12 +77,17 @@ function metadataControl(definition: Field, value: string, change: ChangeField) 
 }
 
 /** Accessible label and control row shared by compact and editorial layouts. */
-function metadataField(definition: Field, value: string, change: ChangeField) {
+function metadataField(
+  definition: Field,
+  value: string,
+  change: ChangeField,
+  editInput: ChangeField = change,
+) {
   const row = document.createElement('div')
   row.className = 'field'
   const label = document.createElement('label')
   label.textContent = definition.label
-  const { controls, input } = metadataControl(definition, value, change)
+  const { controls, input } = metadataControl(definition, value, change, editInput)
   label.htmlFor = input.id
   row.append(label, controls)
   return row
@@ -88,9 +100,24 @@ export function metadataFields(
   definitions: Field[],
   values: Record<string, unknown>,
   change: ChangeField,
+  binding?: { commands: MetadataCommands; read: (field: Field) => unknown },
 ) {
-  const append = (container: HTMLElement, definition: Field) =>
-    container.append(metadataField(definition, String(values[definition.parameter] ?? ''), change))
+  const append = (container: HTMLElement, definition: Field) => {
+    const row = metadataField(
+      definition,
+      String(values[definition.parameter] ?? ''),
+      change,
+      binding ? () => {} : change,
+    )
+    container.append(row)
+    if (binding)
+      bindMetadataInput(
+        row.querySelector('input, textarea')!,
+        binding.commands,
+        { kind: 'metadata', field: definition.field },
+        () => binding.read(definition),
+      )
+  }
   if (!group.sections.length) {
     for (const definition of definitions.filter((field) => field.group === group.id))
       append(parent, definition)
@@ -116,6 +143,12 @@ export function refreshMetadataFields(parent: HTMLElement, values: Record<string
   for (const input of parent.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
     '[data-metadata-parameter]',
   )) {
+    const binding = metadataInputBinding(input)
+    if (binding) {
+      binding.refresh()
+      refreshMetadataActions(input)
+      continue
+    }
     const value = String(values[input.dataset.metadataParameter!] ?? '')
     if (input.value === value) {
       refreshMetadataActions(input)
@@ -133,4 +166,10 @@ export function refreshMetadataFields(parent: HTMLElement, values: Record<string
         direction || undefined,
       )
   }
+}
+export function destroyMetadataFields(parent: HTMLElement) {
+  for (const input of parent.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+    '[data-metadata-parameter]',
+  ))
+    metadataInputBinding(input)?.destroy()
 }

@@ -9,6 +9,7 @@ import {
 import { richZoneExtensions, richFieldProfile } from './rich-zone'
 import type { Provider } from './provider'
 import { stableJSON } from './provider'
+import type { StructuredCommand } from './structured-commands'
 
 export interface RecordField {
   key: string
@@ -137,9 +138,8 @@ export function createRecordDraft(
 
 export type RecordEditError = 'changed' | 'missing-reference' | 'duplicate-language'
 
-/** Transitional structured edit: prepare privately, guard the target and publish once.
- * Keep unrelated peer edits; never silently merge or overwrite an edited record.
- * The unified Rust command adapter will own this guard when it replaces the web relay.
+/** A private draft produces a typed plan; only the Rust owner may publish it.
+ * Preserve unrelated peer edits and refuse changes to this record or its identity.
  */
 export function prepareRecordEdit(
   provider: RecordStore,
@@ -153,45 +153,92 @@ export function prepareRecordEdit(
   const before = original ? readRecord(original, definition) : undefined
   const fingerprint = stableJSON(before)
   const draft = createRecordDraft(definition, before || options.defaults)
-  let published = false
+  const validate = (): RecordEditError | undefined => {
+    if (
+      provider.doc.getMap('settings').get('identity') !== identity ||
+      collections(provider)?.get(definition.parameter) !== map ||
+      (options.id &&
+        (!original ||
+          map.get(options.id) !== original ||
+          stableJSON(readRecord(original, definition)) !== fingerprint))
+    )
+      return 'changed'
+    const value = draft.value()
+    const lang = definition.language_key
+    if (
+      lang &&
+      recordIds(provider, definition).some(
+        (id) => id !== options.id && map.get(id)!.get(lang) === value[lang],
+      )
+    )
+      return 'duplicate-language'
+    for (const field of definition.fields)
+      if (field.references) {
+        const target = schema.collections.find((item) => item.parameter === field.references)!
+        const ids = recordIds(provider, target)
+        if ((value[field.key] as string[]).some((id) => !ids.includes(id)))
+          return 'missing-reference'
+      }
+  }
   return {
     ...draft,
-    commit(): { id: string; error?: never } | { error: RecordEditError } {
-      if (
-        published ||
-        provider.doc.getMap('settings').get('identity') !== identity ||
-        collections(provider)?.get(definition.parameter) !== map ||
-        (options.id &&
-          (!original ||
-            map.get(options.id) !== original ||
-            stableJSON(readRecord(original, definition)) !== fingerprint))
-      )
-        return { error: 'changed' }
-      const value = draft.value()
-      const lang = definition.language_key
-      if (
-        lang &&
-        recordIds(provider, definition).some(
-          (id) => id !== options.id && map.get(id)!.get(lang) === value[lang],
-        )
-      )
-        return { error: 'duplicate-language' }
-      for (const field of definition.fields)
-        if (field.references) {
-          const target = schema.collections.find((item) => item.parameter === field.references)!
-          const ids = recordIds(provider, target)
-          if ((value[field.key] as string[]).some((id) => !ids.includes(id)))
-            return { error: 'missing-reference' }
+    plan() {
+      const error = validate()
+      if (error) return { error }
+      const value = draft.value(),
+        commands: StructuredCommand[] = []
+      if (!original) {
+        const { id, ...values } = value
+        commands.push({
+          id: 'record.add',
+          params: {
+            collection: definition.parameter,
+            id,
+            values,
+            ...(options.after ? { after: options.after } : {}),
+          },
+        })
+      } else
+        for (const field of definition.fields) {
+          if (stableJSON(before![field.key]) === stableJSON(value[field.key])) continue
+          if (field.kind === 'rich' || field.kind === 'rich_inline') {
+            commands.push({
+              id: 'block.splice',
+              params: {
+                parent: {
+                  root: {
+                    kind: 'record',
+                    collection: definition.parameter,
+                    id: value.id,
+                    field: field.key,
+                  },
+                  path: [],
+                },
+                index: 0,
+                delete_count: (before![field.key] as { content: unknown[] }).content.length,
+                nodes: (value[field.key] as { content: unknown[] }).content,
+              },
+            })
+          } else
+            commands.push({
+              id: 'metadata.set',
+              params: {
+                target: {
+                  kind: 'record',
+                  collection: definition.parameter,
+                  id: value.id,
+                  field: field.key,
+                },
+                value: value[field.key],
+              },
+            })
         }
-      provider.doc.transact(() => {
-        if (original) {
-          for (const field of definition.fields)
-            if (stableJSON(before![field.key]) !== stableJSON(value[field.key]))
-              setRecordField(provider, original, field.key, value[field.key])
-        } else addRecord(provider, definition, value, options.after)
-      }, ySyncPluginKey)
-      published = true
-      return { id: value.id }
+      const frozen = stableJSON(value)
+      return {
+        id: value.id,
+        commands,
+        current: () => !validate() && stableJSON(draft.value()) === frozen,
+      }
     },
   }
 }
@@ -273,53 +320,6 @@ export function setRecordField(
       prosemirrorJSONToYXmlFragment(getSchema(richZoneExtensions('rich-text')), value, previous)
     } else record.set(key, value)
   }, ySyncPluginKey)
-}
-export function moveRecord(
-  provider: RecordStore,
-  definition: RecordCollection,
-  id: string,
-  delta: number,
-) {
-  const list = order(provider, definition),
-    ids = list.toArray(),
-    index = ids.indexOf(id),
-    next = index + delta
-  if (index < 0 || next < 0 || next >= ids.length) return
-  provider.doc.transact(() => {
-    list.delete(index, 1)
-    list.insert(next, [id])
-  }, ySyncPluginKey)
-}
-export function removeRecord(
-  provider: RecordStore,
-  schema: StructuredMetadata,
-  definition: RecordCollection,
-  id: string,
-  detach = false,
-) {
-  const linked = schema.collections.flatMap((collection) =>
-    collection.fields
-      .filter((field) => field.references === definition.parameter)
-      .flatMap((field) =>
-        recordIds(provider, collection).flatMap((key) => {
-          const record = recordMap(provider, collection).get(key)!
-          return ((record.get(field.key) as string[]) || []).includes(id) ? [{ record, field }] : []
-        }),
-      ),
-  )
-  if (linked.length && !detach) return false
-  provider.doc.transact(() => {
-    for (const { record, field } of linked)
-      record.set(
-        field.key,
-        (record.get(field.key) as string[]).filter((key) => key !== id),
-      )
-    const list = order(provider, definition)
-    for (let index = list.length - 1; index >= 0; index--)
-      if (list.get(index) === id) list.delete(index, 1)
-    recordMap(provider, definition).delete(id)
-  }, ySyncPluginKey)
-  return true
 }
 export function ensurePrimaryRecords(
   provider: RecordStore,

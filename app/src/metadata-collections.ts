@@ -10,13 +10,14 @@ import { formDialog } from './form-dialog'
 import { actionRow } from './keyboard-navigation'
 import { icon } from './icons'
 import { tr } from './i18n'
+import { metadataCommands } from './metadata-commands'
+import { bindMetadataInput } from './metadata-input'
+import { moveRecordCommands, removeRecordCommands } from './metadata-record-commands'
 import {
   prepareRecordEdit,
   setRecordField,
   recordMap,
   recordIds,
-  moveRecord,
-  removeRecord,
   type StructuredMetadata,
   type MetadataPanel,
   type RecordStore,
@@ -39,6 +40,7 @@ export function metadataCollections(
   language: () => string,
 ) {
   const history = historyFor(main)
+  const commands = metadataCommands(main, provider)
   const discrete = (action: () => void) => {
     history?.stopCapturing()
     try {
@@ -134,12 +136,23 @@ export function metadataCollections(
       choices.setAttribute('role', 'group')
       choices.setAttribute('aria-labelledby', label.id)
       row.append(label, choices)
-      return {
-        destroy: () => {},
+      const publicTarget = {
+        kind: 'record' as const,
+        collection: definition.parameter,
+        id: String(record.get('id')),
+        field: field.key,
+      }
+      const selectedValues = () =>
+        (store === provider
+          ? commands.value(publicTarget, record.get(field.key))
+          : record.get(field.key)) as string[]
+      let stop = () => {}
+      const view = {
+        destroy: () => stop(),
         refresh() {
           const target = definitions.get(field.references!)!
           const ids = recordIds(provider, target)
-          const selected = record.get(field.key) as string[]
+          const selected = selectedValues()
           for (const key of selected) if (!ids.includes(key)) missing.add(key)
           for (const key of ids) missing.delete(key)
           for (const child of [...choices.children])
@@ -160,22 +173,33 @@ export function metadataCollections(
               choice.append(checkbox, caption)
               choices.append(choice)
               checkbox.onchange = () => {
-                const selected = new Set(record.get(field.key) as string[])
+                const selected = new Set(selectedValues())
                 if (checkbox.checked) selected.add(key)
                 else selected.delete(key)
-                discrete(() => setRecordField(store, record, field.key, [...selected]))
+                if (store === provider)
+                  commands.set(
+                    {
+                      kind: 'record',
+                      collection: definition.parameter,
+                      id: String(record.get('id')),
+                      field: field.key,
+                    },
+                    [...selected],
+                    () => record.get(field.key),
+                  )
+                else discrete(() => setRecordField(store, record, field.key, [...selected]))
               }
             }
             const reference = recordMap(provider, target).get(key)
             choice.querySelector('span')!.textContent = reference
               ? String(reference.get(target.title_key) || '') || target.itemLabel
               : `${target.itemLabel} · ${tr('Élément supprimé')}`
-            choice.querySelector('input')!.checked = (record.get(field.key) as string[]).includes(
-              key,
-            )
+            choice.querySelector('input')!.checked = selectedValues().includes(key)
           }
         },
       }
+      if (store === provider) stop = commands.watch(() => view.refresh())
+      return view
     }
     const input =
       field.kind === 'multiline' || field.kind === 'tokens'
@@ -196,6 +220,7 @@ export function metadataCollections(
           : field.kind === 'tokens'
             ? input.value.split('\n').filter((s) => s.trim() !== '')
             : input.value
+      if (store === provider) return // The common native-field binding owns live publication and IME.
       const update = () => setRecordField(store, record, field.key, value)
       if (field.kind === 'boolean' || field.kind === 'language') discrete(update)
       else update()
@@ -210,10 +235,36 @@ export function metadataCollections(
       label.prepend(input)
       row.append(label)
     } else row.append(label, input)
+    input.dataset.fieldKind = field.kind
+    const binding =
+      store === provider
+        ? bindMetadataInput(
+            input,
+            commands,
+            {
+              kind: 'record',
+              collection: definition.parameter,
+              id: String(record.get('id')),
+              field: field.key,
+            },
+            () => record.get(field.key),
+            () =>
+              field.kind === 'boolean'
+                ? (input as HTMLInputElement).checked
+                : field.kind === 'tokens'
+                  ? input.value.split('\n').filter((value) => value.trim() !== '')
+                  : input.value,
+            (value) =>
+              field.kind === 'tokens'
+                ? ((value as string[]) || []).join('\n')
+                : String(value ?? ''),
+          )
+        : undefined
     return {
-      destroy: () => {},
+      destroy: () => binding?.destroy(),
       refresh() {
-        if (field.kind === 'boolean')
+        if (binding) binding.refresh()
+        else if (field.kind === 'boolean')
           (input as HTMLInputElement).checked = Boolean(record.get(field.key))
         else {
           const current =
@@ -262,6 +313,7 @@ export function metadataCollections(
     const actions = actionRow()
     const fieldsRoot = document.createElement('div')
     fieldsRoot.className = 'metadata-record-fields'
+    let removing = false
     const deletion = document.createElement('div')
     deletion.className = 'metadata-record-deletion'
     const confirm = contextPanel({
@@ -298,19 +350,28 @@ export function metadataCollections(
           confirm.error.textContent = tr('L’ensemble de la langue principale doit être conservé.')
           return
         }
-        let removed = false
-        discrete(() => {
-          removed = removeRecord(provider, schema, definition, id, check.checked)
-        })
-        if (!removed) {
+        if (removing) return
+        const batch = removeRecordCommands(provider, schema, definition, id, check.checked)
+        if (!batch) {
           detach.hidden = false
           confirm.error.textContent = tr(
             'Cette affiliation est utilisée. Confirmez le retrait de ses associations.',
           )
           return
         }
-        refresh()
-        focusAdd(definition)
+        removing = true
+        void commands
+          .run(batch, () => root.isConnected && !confirm.element.hidden)
+          .then(() => {
+            refresh()
+            focusAdd(definition)
+          })
+          .catch((error: unknown) => {
+            if (confirm.element.isConnected) confirm.error.textContent = String(error)
+          })
+          .finally(() => {
+            removing = false
+          })
       },
     })
     deletion.append(confirm.element)
@@ -322,11 +383,21 @@ export function metadataCollections(
       confirm.element.hidden = false
       confirm.focus()
     })
-    const up = button(`${tr('Monter')} · ${definition.itemLabel}`, 'chevron-up', () =>
-      moveRecord(provider, definition, id, -1),
+    const up = button(
+      `${tr('Monter')} · ${definition.itemLabel}`,
+      'chevron-up',
+      () =>
+        void commands
+          .run(moveRecordCommands(provider, definition, id, -1), () => root.isConnected)
+          .catch(provider.onError),
     )
-    const down = button(`${tr('Descendre')} · ${definition.itemLabel}`, 'chevron-down', () =>
-      moveRecord(provider, definition, id, 1),
+    const down = button(
+      `${tr('Descendre')} · ${definition.itemLabel}`,
+      'chevron-down',
+      () =>
+        void commands
+          .run(moveRecordCommands(provider, definition, id, 1), () => root.isConnected)
+          .catch(provider.onError),
     )
     const edit = button(`${tr('Modifier')} · ${definition.itemLabel}`, 'settings-2', () => {
       if (panel.editing === 'dialog') {
@@ -505,14 +576,13 @@ export function metadataCollections(
       fieldView(form.body, definition, draft.record, field, draft, owner || main),
     )
     form.action({ label: tr('Annuler'), run: () => discard() })
-    form.action({
+    let pending = false
+    const submit = form.action({
       label: tr('Valider'),
       primary: true,
       run: () => {
-        let result!: ReturnType<typeof draft.commit>
-        discrete(() => {
-          result = draft.commit()
-        })
+        if (pending) return
+        const result = draft.plan()
         if (result.error) {
           form.error.textContent = tr(
             {
@@ -525,7 +595,30 @@ export function metadataCollections(
           )
           return
         }
-        discard(result.id)
+        pending = true
+        submit.disabled = true
+        const focused = document.activeElement as HTMLElement | null
+        form.body.inert = true
+        const active = () => state.draft?.element === form.element && form.element.isConnected
+        void commands
+          .run(result.commands!, () => active() && result.current!())
+          .then(() => {
+            if (active()) discard(result.id)
+          })
+          .catch((error: unknown) => {
+            if (active())
+              form.error.textContent = error instanceof Error ? error.message : String(error)
+          })
+          .finally(() => {
+            pending = false
+            submit.disabled = false
+            form.body.inert = false
+            if (
+              active() &&
+              (document.activeElement === document.body || document.activeElement === form.element)
+            )
+              focused?.focus({ preventScroll: true })
+          })
       },
     })
     const update = () => {

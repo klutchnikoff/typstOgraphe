@@ -1,11 +1,11 @@
-import { historyFor } from './editing-history'
+import { metadataCommands } from './metadata-commands'
+import type { StructuredCommand } from './structured-commands'
+import { bindMetadataInput } from './metadata-input'
 import { documentContent } from './shared-inline-marks'
 import type { Editor } from '@tiptap/core'
-import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import type { Provider, Transport } from './provider'
 import type { DocumentType, ModelPolicy } from './shell'
-import { settingsFor, setSetting } from './state'
-import { addRecord, removeRecord, recordMap, setRecordField } from './metadata-records'
+import { settingsFor } from './state'
 import { referenceFiles, type ReferenceFile } from './citation-index'
 import { contextPanel } from './context-panel'
 import { actionRow } from './keyboard-navigation'
@@ -21,6 +21,7 @@ export function bibliographyPanel(
   kind: DocumentType,
   policy: () => ModelPolicy | undefined,
 ) {
+  const commands = metadataCommands(editor, provider)
   const schema = kind.structured!,
     descriptor = schema.bibliography!
   const definition = schema.collections.find(
@@ -35,10 +36,11 @@ export function bibliographyPanel(
   select.setAttribute('aria-label', tr('Style bibliographique'))
   style.append(document.createTextNode(tr('Style bibliographique')), select)
   select.onchange = () => {
-    const history = historyFor(editor)
-    history?.stopCapturing()
-    setSetting(provider, descriptor.style_field, select.value)
-    history?.stopCapturing()
+    commands.set(
+      { kind: 'metadata', field: descriptor.style_field },
+      select.value,
+      () => settingsFor(provider).metadata.fields[descriptor.style],
+    )
   }
   const rows = document.createElement('div'),
     actions = actionRow(),
@@ -82,7 +84,11 @@ export function bibliographyPanel(
       add.focus()
     },
   })
-  const publish = async (next: ReferenceFile[], commit: () => void, active = () => true) => {
+  const publish = async (
+    next: ReferenceFile[],
+    batch: StructuredCommand[],
+    active = () => true,
+  ) => {
     if (busy) return false
     busy = true
     refresh()
@@ -103,10 +109,14 @@ export function bibliographyPanel(
       await transport.invoke('validate_bibliography', { document, metadata: current.metadata })
       if (!alive || !active()) return false
       check()
-      const history = historyFor(editor)
-      history?.stopCapturing()
-      provider.doc.transact(commit, ySyncPluginKey)
-      history?.stopCapturing()
+      await commands.run(
+        batch,
+        () =>
+          alive &&
+          active() &&
+          before === JSON.stringify(referenceFiles(provider)) &&
+          editor.state.doc.eq(editor.schema.nodeFromJSON(document)),
+      )
       confirm.element.hidden = true
       refresh()
       return true
@@ -137,7 +147,7 @@ export function bibliographyPanel(
       }
       void publish(
         referenceFiles(provider).filter((f) => f.id !== file.id),
-        () => removeRecord(provider, schema, definition, file.id),
+        [{ id: 'record.remove', params: { collection: definition.parameter, id: file.id } }],
         () => removing === file && !confirm.element.hidden,
       ).then((ok) => {
         if (ok) add.focus()
@@ -172,18 +182,30 @@ export function bibliographyPanel(
       const next = previous
         ? referenceFiles(provider).map((file) => (file.id === previous.id ? files[0] : file))
         : [...referenceFiles(provider), ...files]
-      await publish(next, () => {
-        if (previous) {
-          const record = recordMap(provider, definition).get(previous.id)!
-          setRecordField(provider, record, 'name', files[0].name)
-          setRecordField(provider, record, 'contents', files[0].contents)
-        } else for (const file of files) addRecord(provider, definition, file)
-      })
+      const batch: StructuredCommand[] = previous
+        ? ['name', 'contents'].map((field) => ({
+            id: 'metadata.set',
+            params: {
+              target: { kind: 'record', collection: definition.parameter, id: previous.id, field },
+              value: files[0][field as 'name' | 'contents'],
+            },
+          }))
+        : files.map(({ id, ...values }) => ({
+            id: 'record.add',
+            params: { collection: definition.parameter, id, values },
+          }))
+      await publish(next, batch)
     } catch (error) {
       if (alive) status.textContent = String(error)
     }
   }
   root.append(style, rows, actions, input, confirm.element, status)
+  const styleBinding = bindMetadataInput(
+    select,
+    commands,
+    { kind: 'metadata', field: descriptor.style_field },
+    () => settingsFor(provider).metadata.fields[descriptor.style],
+  )
   function refresh() {
     add.disabled = busy
     select.disabled = busy
@@ -200,6 +222,7 @@ export function bibliographyPanel(
     }
     const current = String(settingsFor(provider).metadata.fields[descriptor.style])
     select.value = allowed.includes(current) ? current : allowed[0] || ''
+    styleBinding.refresh()
     const files = referenceFiles(provider)
     for (const child of [...rows.children])
       if (!files.some((file) => file.id === (child as HTMLElement).dataset.fileId)) child.remove()
@@ -248,6 +271,7 @@ export function bibliographyPanel(
     refresh,
     destroy() {
       alive = false
+      styleBinding.destroy()
       root.remove()
     },
   }

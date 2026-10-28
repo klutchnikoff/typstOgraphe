@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import * as Y from 'yjs'
 import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import type { Provider } from '../src/provider'
+import { removeRecordCommands, moveRecordCommands } from '../src/metadata-record-commands'
 import {
   initializeRecords,
   snapshotRecords,
@@ -11,8 +12,6 @@ import {
   addRecord,
   createRecordDraft,
   prepareRecordEdit,
-  removeRecord,
-  moveRecord,
   type StructuredMetadata,
 } from '../src/metadata-records'
 
@@ -96,36 +95,30 @@ it('independent field and text edits converge, including Unicode and a named ric
   a.doc.destroy()
   b.doc.destroy()
 })
-it('used affiliations require explicit detachment and one undo restores records and links', () => {
+it('used affiliations require explicit detachment in the atomic deletion plan', () => {
   const provider = setup(),
-    undo = new Y.UndoManager(provider.doc.getMap('settings'), {
-      trackedOrigins: new Set([ySyncPluginKey]),
-    })
-  expect(removeRecord(provider, schema, schema.collections[1], 'f')).toBe(false)
-  expect(snapshot(provider).people[0].affiliations).toEqual(['f'])
-  expect(removeRecord(provider, schema, schema.collections[1], 'f', true)).toBe(true)
-  expect(snapshot(provider).people[0].affiliations).toEqual([])
-  expect(snapshot(provider).affiliations).toEqual([])
-  undo.undo()
-  expect(snapshot(provider).people[0].affiliations).toEqual(['f'])
-  expect(snapshot(provider).affiliations[0].text).toContain('IRMAR')
+    before = snapshot(provider)
+  expect(removeRecordCommands(provider, schema, schema.collections[1], 'f')).toBeNull()
+  const commands = removeRecordCommands(provider, schema, schema.collections[1], 'f', true)!
+  expect(commands.map((command) => command.id)).toEqual(['metadata.set', 'record.remove'])
+  expect(commands[0].params).toMatchObject({
+    target: { kind: 'record', collection: 'people', id: 'a', field: 'affiliations' },
+    value: [],
+  })
+  expect(snapshot(provider)).toEqual(before)
   provider.doc.destroy()
 })
-it('reordering is separate from stable identities and values; creation and deletion are undoable', () => {
-  const provider = setup(),
-    undo = new Y.UndoManager(provider.doc.getMap('settings'), {
-      trackedOrigins: new Set([ySyncPluginKey]),
-    })
+it('reordering translates visible positions to stable ID anchors without modifying records', () => {
+  const provider = setup()
   const second = addRecord(provider, schema.collections[0], { name: 'Camille' }),
     id = second.get('id') as string
-  undo.stopCapturing()
-  moveRecord(provider, schema.collections[0], id, -1)
-  expect(recordIds(provider, schema.collections[0])).toEqual([id, 'a'])
-  expect(snapshot(provider).people.map((p) => p.name)).toEqual(['Camille', 'Camille'])
-  undo.undo()
+  expect(moveRecordCommands(provider, schema.collections[0], id, -1)).toEqual([
+    { id: 'record.move', params: { collection: 'people', id, before: 'a' } },
+  ])
+  expect(moveRecordCommands(provider, schema.collections[0], 'a', 1)).toEqual([
+    { id: 'record.move', params: { collection: 'people', id: 'a' } },
+  ])
   expect(recordIds(provider, schema.collections[0])).toEqual(['a', id])
-  undo.undo()
-  expect(recordIds(provider, schema.collections[0])).toEqual(['a'])
   provider.doc.destroy()
 })
 
@@ -176,36 +169,28 @@ it('confirming a filled draft inserts after its anchor in a single undoable tran
   provider.doc.destroy()
 })
 
-it('editing a private draft publishes all changed fields once, with stable identity and one undo', () => {
+it('editing a private draft builds a typed plan without publishing any field', () => {
   const provider = setup(),
     definition = schema.collections[0],
-    original = recordMap(provider, definition).get('a')!,
     before = snapshot(provider),
-    undo = new Y.UndoManager(provider.doc.getMap('settings'), {
-      trackedOrigins: new Set([ySyncPluginKey]),
-    }),
     edit = prepareRecordEdit(provider, schema, definition, { id: 'a' })
   let updates = 0
   provider.doc.on('update', () => updates++)
   setRecordField(edit, edit.record, 'name', 'Camille 👩🏽‍🔬')
   setRecordField(edit, edit.record, 'affiliations', [])
   setRecordField(edit, edit.record, 'summary', rich('Résumé enrichi'))
+  const plan = edit.plan()
+  expect(plan.id).toBe('a')
+  expect(plan.commands?.map((command) => command.id)).toEqual([
+    'metadata.set',
+    'metadata.set',
+    'block.splice',
+  ])
+  expect(plan.current?.()).toBe(true)
   expect(snapshot(provider)).toEqual(before)
   expect(updates).toBe(0)
-  expect(edit.commit()).toEqual({ id: 'a' })
-  expect(recordMap(provider, definition).get('a')).toBe(original)
-  expect(snapshot(provider).people[0]).toMatchObject({
-    name: 'Camille 👩🏽‍🔬',
-    affiliations: [],
-    summary: rich('Résumé enrichi'),
-  })
-  expect(updates).toBe(1)
-  expect(undo.undoStack).toHaveLength(1)
-  expect(edit.commit()).toEqual({ error: 'changed' })
-  undo.undo()
-  expect(snapshot(provider)).toEqual(before)
-  undo.redo()
-  expect(snapshot(provider).people[0].name).toBe('Camille 👩🏽‍🔬')
+  setRecordField(edit, edit.record, 'name', 'Autre saisie')
+  expect(plan.current?.()).toBe(false)
   edit.destroy()
   provider.doc.destroy()
 })
@@ -222,7 +207,7 @@ it.each(['change', 'delete', 'replace', 'document'])(
     else if (action === 'document')
       provider.doc.getMap('settings').set('identity', 'another-document')
     else {
-      removeRecord(provider, schema, definition, 'a')
+      recordMap(provider, definition).delete('a')
       if (action === 'replace')
         addRecord(provider, definition, {
           id: 'a',
@@ -232,7 +217,7 @@ it.each(['change', 'delete', 'replace', 'document'])(
         })
     }
     const before = snapshot(provider)
-    expect(edit.commit()).toEqual({ error: 'changed' })
+    expect(edit.plan()).toEqual({ error: 'changed' })
     expect(edit.value().name).toBe('Saisie privée')
     expect(snapshot(provider)).toEqual(before)
     edit.destroy()
@@ -250,7 +235,7 @@ it('independent edits refresh referenced records and remain compatible with a pr
     'text',
     'Signature actualisée',
   )
-  expect(edit.commit()).toEqual({ id: 'a' })
+  expect(edit.plan()).toMatchObject({ id: 'a' })
   expect(snapshot(provider).affiliations[0].text).toBe('Signature actualisée')
   edit.destroy()
   provider.doc.destroy()
@@ -261,14 +246,15 @@ it('a deleted reference prevents publication without discarding the draft; clear
     edit = prepareRecordEdit(provider, schema, schema.collections[0])
   setRecordField(edit, edit.record, 'name', 'Nouvel auteur')
   setRecordField(edit, edit.record, 'affiliations', ['f'])
-  removeRecord(provider, schema, schema.collections[1], 'f', true)
+  recordMap(provider, schema.collections[1]).delete('f')
+  setRecordField(provider, recordMap(provider, schema.collections[0]).get('a')!, 'affiliations', [])
   const before = snapshot(provider)
-  expect(edit.commit()).toEqual({ error: 'missing-reference' })
+  expect(edit.plan()).toEqual({ error: 'missing-reference' })
   expect(snapshot(provider)).toEqual(before)
   expect(edit.value().name).toBe('Nouvel auteur')
   setRecordField(edit, edit.record, 'affiliations', [])
-  expect(edit.commit()).toEqual({ id: edit.value().id })
-  expect(snapshot(provider).people[1]).toMatchObject({ name: 'Nouvel auteur', affiliations: [] })
+  expect(edit.plan()).toMatchObject({ id: edit.value().id, commands: [{ id: 'record.add' }] })
+  expect(snapshot(provider)).toEqual(before)
   edit.destroy()
   provider.doc.destroy()
 })

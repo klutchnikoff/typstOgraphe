@@ -1,6 +1,8 @@
 import { tr } from './i18n'
 import type { Catalogue, DocumentType, ModelPolicy } from './shell'
 import type { Settings } from './state'
+import type { MetadataCommands } from './metadata-commands'
+import { bindMetadataInput } from './metadata-input'
 
 /** General settings expose only options the active model lets the author change. */
 export function documentOptions(
@@ -12,6 +14,7 @@ export function documentOptions(
   changeOption: (key: string, value: string | boolean) => void,
   changeField: (key: string, value: boolean) => void = () => {},
   policy: () => ModelPolicy | undefined = () => undefined,
+  binding?: { commands: MetadataCommands; read: () => Settings },
 ) {
   const root = document.createElement('div')
   root.className = 'document-options'
@@ -61,6 +64,18 @@ export function documentOptions(
     if (descriptor) changeField(descriptor.field, outline.checked)
   }
   parent.append(root)
+  const descriptor = kind.structured?.outline
+  const outlineBinding =
+    binding && descriptor
+      ? bindMetadataInput(
+          outline,
+          binding.commands,
+          { kind: 'metadata', field: descriptor.field },
+          () => binding.read().metadata.fields[descriptor.parameter],
+          () => outline.checked,
+        )
+      : undefined
+  if (outlineBinding) outline.onchange = null
   model.select.onchange = () => changeModel(model.select.value)
   paper.select.onchange = () => changeOption('paper', paper.select.value)
   orientation.select.onchange = () => changeOption('landscape', orientation.select.value === 'true')
@@ -78,7 +93,8 @@ export function documentOptions(
     const page = bundled?.fixedPage
     const descriptor = kind.structured?.outline
     outlineRow.hidden = !descriptor || !policy()?.outline
-    outline.checked = !!(descriptor && current.metadata.fields[descriptor.parameter])
+    if (outlineBinding) outlineBinding.refresh()
+    else outline.checked = !!(descriptor && current.metadata.fields[descriptor.parameter])
     const options = current.metadata.fields.options
     for (const [control, value] of [
       [paper, String(options.paper)],
@@ -92,5 +108,5 @@ export function documentOptions(
       language.select.value = String(options.language)
   }
   update(settings)
-  return { update }
+  return { update, destroy: () => outlineBinding?.destroy() }
 }

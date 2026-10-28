@@ -508,7 +508,8 @@ async function start() {
   provider.onHistoryLock = (locked) => {
     if (!locked) document.querySelector<HTMLElement>('.writing')!.inert = false
     lockHistory(locked)
-    if (locked) document.querySelector<HTMLElement>('.writing')!.inert = true
+    if (locked && !document.activeElement?.closest('#metadata-content'))
+      document.querySelector<HTMLElement>('.writing')!.inert = true
   }
   const recovery = draftRecovery(provider, snapshot, isTauri)
   provider.onError = (error) => {

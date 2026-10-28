@@ -41,9 +41,10 @@ export function bindMetadataInput(
     commands.composing(input, true)
   }
   const end = () => {
+    const value = parse()
     composing = false
+    commands.set(target, value, read)
     commands.composing(input, false)
-    update()
   }
   const refresh = () => {
     const reason = commands.error(target)

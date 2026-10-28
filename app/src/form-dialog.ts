@@ -30,7 +30,11 @@ export function formDialog(options: {
   // lifecycle has finished, including when the original add button disappeared.
   element.addEventListener('close', () => {
     const target = options.returnFocus()
-    if (target?.isConnected && !document.querySelector('dialog[open]'))
+    if (
+      target?.isConnected &&
+      !document.querySelector('dialog[open]') &&
+      (document.activeElement === document.body || element.contains(document.activeElement))
+    )
       target.focus({ preventScroll: true })
   })
   return {
