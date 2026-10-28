@@ -10,6 +10,7 @@ rust-version = "1.92"
 publish = false
 
 [workspace.dependencies]
+yrs = { version = "=0.28.0", features = ["small-client", "sync"] }
 hayagriva = "=0.10.1"
 strsim = "=0.11.1"
 typstographe-mcp = { path = "crates/mcp" }

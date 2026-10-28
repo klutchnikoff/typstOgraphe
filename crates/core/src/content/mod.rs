@@ -1,12 +1,14 @@
 //! Contenu structuré indépendant des bibliothèques graphiques.
 pub mod archive;
 pub mod catalogue;
+pub mod contract;
 pub mod editorial;
 pub mod legacy;
 mod mapping;
 pub use mapping::source_mapped;
 pub mod operations;
 mod schema;
+pub mod shared;
 pub use schema::{Mark, Node, source};
 
 /// Conserver seulement les ressources du contenu, de la signature et du modèle.

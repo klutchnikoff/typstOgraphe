@@ -29,14 +29,7 @@ impl Resource {
         Ok(bytes)
     }
 }
-#[derive(Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Snapshot {
-    pub revision: u64,
-    pub document: Node,
-    #[serde(default)]
-    pub settings: Option<crate::settings::Settings>,
-}
+pub use typstographe_core::content::contract::Snapshot;
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Checkpoint {
@@ -150,7 +143,15 @@ impl Session {
         // Le source de récupération est un cache : régénérer depuis le schéma validé.
         schema::source(&checkpoint.document, &session.assets)?;
         session.bytes = checkpoint.update.len();
-        checkpoint.settings.validate()?;
+        checkpoint.settings.validate().map_err(|e| e.to_string())?;
+        typstographe_core::content::shared::SharedDocument::from_update(&checkpoint.update)
+            .and_then(|shared| {
+                shared.verify(&typstographe_core::content::contract::State::new(
+                    checkpoint.document.clone(),
+                    checkpoint.settings.clone(),
+                ))
+            })
+            .map_err(|e| e.to_string())?;
         session.settings = checkpoint.settings;
         session.updates.push(checkpoint.update);
         session.restored = Some(checkpoint.document);
@@ -258,7 +259,7 @@ impl Session {
             return Err("stale".into());
         }
         let settings = snapshot.settings.as_ref().unwrap_or(&self.settings);
-        settings.validate()?;
+        settings.validate().map_err(|e| e.to_string())?;
         typstographe_core::bibliography::validate_document(&snapshot.document, &settings.metadata)?;
         schema::source(&snapshot.document, &self.assets)
     }
@@ -301,6 +302,17 @@ impl Session {
         if update.is_empty() || update.len() > MAX_UPDATES {
             return Err("État Yjs invalide.".into());
         }
+        typstographe_core::content::shared::SharedDocument::from_update(&update)
+            .and_then(|shared| {
+                shared.verify(&typstographe_core::content::contract::State::new(
+                    snapshot.document.clone(),
+                    snapshot
+                        .settings
+                        .clone()
+                        .unwrap_or_else(|| self.settings.clone()),
+                ))
+            })
+            .map_err(|e| e.to_string())?;
         let checkpoint = Checkpoint {
             schema: SCHEMA.into(),
             document: snapshot.document.clone(),
@@ -368,7 +380,15 @@ mod tests {
             document: a.fixture,
             settings: None,
         };
-        s.save(&snapshot, vec![1, 2]).unwrap();
+        let update = typstographe_core::content::shared::SharedDocument::from_state(
+            &typstographe_core::content::contract::State::new(
+                snapshot.document.clone(),
+                s.settings.clone(),
+            ),
+        )
+        .unwrap()
+        .update();
+        s.save(&snapshot, update.clone()).unwrap();
         let before = std::fs::read(dir.path().join("session.json")).unwrap();
         s.relay("b", &[3]).unwrap();
         assert!(s.save(&snapshot, vec![3]).is_err());
@@ -379,7 +399,7 @@ mod tests {
         let mut reopened = Session::open(dir.path().into()).unwrap();
         let restored = reopened.join("c");
         assert!(!restored.initialize);
-        assert_eq!(restored.updates, vec![vec![1, 2]]);
+        assert_eq!(restored.updates, vec![update]);
         assert!(restored.restored_document.is_some());
     }
     #[test]

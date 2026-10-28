@@ -1,0 +1,240 @@
+//! Yjs-compatible state owned by Rust. Shared types never cross this boundary.
+mod normalization;
+mod projection;
+mod seed;
+#[cfg(test)]
+mod tests;
+
+use super::contract::{Error, Guard, State};
+use crate::assets::Assets;
+use yrs::updates::decoder::Decode;
+use yrs::{Doc, OffsetKind, Options, ReadTxn, StateVector, Transact, Update};
+
+pub const MAX_STATE_BYTES: usize = 32 * 1024 * 1024;
+
+pub struct SharedDocument {
+    doc: Doc,
+}
+fn document() -> Doc {
+    // Preserve deleted content while undo and snapshot retention are being coordinated.
+    let options = Options {
+        offset_kind: OffsetKind::Utf16,
+        skip_gc: true,
+        ..Options::default()
+    };
+    let doc = Doc::with_options(options);
+    doc.get_or_insert_xml_fragment("default");
+    doc.get_or_insert_map("settings");
+    doc
+}
+fn apply(doc: &Doc, bytes: &[u8]) -> Result<(), Error> {
+    if bytes.is_empty() || bytes.len() > MAX_STATE_BYTES {
+        return Err(Error::StateLimitExceeded);
+    }
+    let update = Update::decode_v1(bytes).map_err(|e| Error::InvalidSharedState {
+        reason: e.to_string(),
+    })?;
+    doc.transact_mut()
+        .apply_update(update)
+        .map_err(|e| Error::InvalidSharedState {
+            reason: e.to_string(),
+        })
+}
+fn complete(doc: &Doc) -> Result<(), Error> {
+    let tx = doc.transact();
+    if tx.store().pending_update().is_some() || tx.store().pending_ds().is_some() {
+        Err(Error::IncompleteSharedState)
+    } else {
+        Ok(())
+    }
+}
+impl SharedDocument {
+    /// A saved state must be self-contained; pending differential dependencies are refused.
+    pub fn from_update(bytes: &[u8]) -> Result<Self, Error> {
+        let doc = document();
+        apply(&doc, bytes)?;
+        complete(&doc)?;
+        Ok(Self { doc })
+    }
+    /// Bootstrap a new project once. Editing an existing state must preserve its identities.
+    pub fn from_state(state: &State) -> Result<Self, Error> {
+        if state.version != super::contract::VERSION {
+            return Err(Error::UnsupportedContractVersion {
+                version: state.version,
+            });
+        }
+        state.settings.validate()?;
+        if state.document.kind != "doc"
+            || state.document.text.is_some()
+            || !state.document.marks.is_empty()
+        {
+            return Err(Error::InvalidDocument {
+                reason: "invalid_root".into(),
+            });
+        }
+        let doc = document();
+        seed::write(&doc, state)?;
+        Ok(Self { doc })
+    }
+    pub fn state(&self) -> Result<State, Error> {
+        projection::read(&self.doc)
+    }
+    pub fn update(&self) -> Vec<u8> {
+        self.doc
+            .transact()
+            .encode_state_as_update_v1(&StateVector::default())
+    }
+    /// Compare projections, allowing only documented editor representation defaults.
+    pub fn verify(&self, expected: &State) -> Result<(), Error> {
+        if expected.version != super::contract::VERSION {
+            return Err(Error::UnsupportedContractVersion {
+                version: expected.version,
+            });
+        }
+        let actual = self.state()?;
+        if normalization::node(&actual.document) != normalization::node(&expected.document) {
+            return Err(Error::InconsistentState {
+                field: "document".into(),
+            });
+        }
+        if normalization::settings(&actual.settings) != normalization::settings(&expected.settings)
+        {
+            return Err(Error::InconsistentState {
+                field: "settings".into(),
+            });
+        }
+        Ok(())
+    }
+}
+
+/// Empty bytes mean a new project not yet initialized by an editor, never a second state.
+pub fn verify_or_initialize(state: &State, bytes: &[u8]) -> Result<Vec<u8>, Error> {
+    let shared = if bytes.is_empty() {
+        SharedDocument::from_state(state)?
+    } else {
+        SharedDocument::from_update(bytes)?
+    };
+    shared.verify(state)?;
+    let update = shared.update();
+    if update.len() > MAX_STATE_BYTES {
+        return Err(Error::StateLimitExceeded);
+    }
+    Ok(update)
+}
+
+/// A private candidate cannot be changed by an adapter after validation.
+pub struct PreparedUpdate {
+    guard: Guard,
+    candidate: SharedDocument,
+    state: State,
+    update: Vec<u8>,
+    changed: bool,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct Publication {
+    pub guard: Guard,
+    pub changed: bool,
+    pub state: State,
+    pub update: Vec<u8>,
+}
+
+/// Confirmed documentary state. Host-specific focus, participants and transports live elsewhere.
+pub struct SharedSession {
+    guard: Guard,
+    shared: SharedDocument,
+    state: State,
+    assets: Assets,
+}
+impl SharedSession {
+    pub fn open(guard: Guard, bytes: &[u8], assets: Assets) -> Result<Self, Error> {
+        if guard.document.is_empty() {
+            return Err(Error::InvalidDocument {
+                reason: "empty_document_identity".into(),
+            });
+        }
+        let shared = SharedDocument::from_update(bytes)?;
+        let state = shared.state()?;
+        state.validate(&assets)?;
+        Ok(Self {
+            guard,
+            shared,
+            state,
+            assets,
+        })
+    }
+    pub fn guard(&self) -> &Guard {
+        &self.guard
+    }
+    pub fn state(&self) -> &State {
+        &self.state
+    }
+    pub fn update(&self) -> Vec<u8> {
+        self.shared.update()
+    }
+
+    /// Validate only the final batch, permitting intermediate private states.
+    /// The original shared document is never mutated by a failed or stale preparation.
+    pub fn prepare(&self, guard: &Guard, updates: &[Vec<u8>]) -> Result<PreparedUpdate, Error> {
+        guard.check(&self.guard)?;
+        let total = updates
+            .iter()
+            .try_fold(0usize, |n, u| n.checked_add(u.len()))
+            .ok_or(Error::StateLimitExceeded)?;
+        if total > MAX_STATE_BYTES {
+            return Err(Error::StateLimitExceeded);
+        }
+        let original = self.shared.update();
+        let candidate = SharedDocument::from_update(&original)?;
+        let before = candidate.doc.transact().state_vector();
+        let before_snapshot = candidate.doc.transact().snapshot();
+        for bytes in updates {
+            apply(&candidate.doc, bytes)?;
+        }
+        complete(&candidate.doc)?;
+        let full = candidate.update();
+        if full.len() > MAX_STATE_BYTES {
+            return Err(Error::StateLimitExceeded);
+        }
+        let state = candidate.state()?;
+        state.validate(&self.assets)?;
+        if state.settings.metadata.document_type() != self.state.settings.metadata.document_type() {
+            return Err(Error::InvalidDocument {
+                reason: "document_type_changed".into(),
+            });
+        }
+        let update = candidate.doc.transact().encode_diff_v1(&before);
+        let changed = before_snapshot != candidate.doc.transact().snapshot();
+        Ok(PreparedUpdate {
+            guard: guard.clone(),
+            changed,
+            state,
+            candidate,
+            update,
+        })
+    }
+    /// Publication is synchronous under the host's session lock; no file IO or callbacks.
+    pub fn publish(&mut self, prepared: PreparedUpdate) -> Result<Publication, Error> {
+        prepared.guard.check(&self.guard)?;
+        if prepared.changed {
+            let revision = self
+                .guard
+                .revision
+                .checked_add(1)
+                .ok_or(Error::StateLimitExceeded)?;
+            self.shared = prepared.candidate;
+            self.state = prepared.state;
+            self.guard.revision = revision;
+        }
+        Ok(Publication {
+            guard: self.guard.clone(),
+            changed: prepared.changed,
+            state: self.state.clone(),
+            update: if prepared.changed {
+                prepared.update
+            } else {
+                vec![]
+            },
+        })
+    }
+}

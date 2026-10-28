@@ -1,3 +1,4 @@
+import { documentContent } from '../src/shared-inline-marks'
 import { afterEach, expect, it } from 'vitest'
 import { Editor, type JSONContent } from '@tiptap/core'
 import { richZoneExtensions } from '../src/rich-zone'
@@ -51,7 +52,8 @@ it('numérote dans l’ordre du document, y compris les citations et cellules, s
     'Note de bas de page 3 : C',
   ])
   editor.state.doc.descendants((node) => {
-    if (node.type.name === 'footnote') expect(Object.keys(node.attrs)).toEqual(['text'])
+    if (node.type.name === 'footnote')
+      expect(Object.keys(documentContent(node.toJSON()).attrs!)).toEqual(['text'])
   })
   expect(editor.getHTML()).not.toContain('data-inline-number')
   const decorations = inlineObjectNumberingKey.getState(editor.state)

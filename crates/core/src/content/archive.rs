@@ -29,6 +29,16 @@ struct Manifest {
     model_id: String,
 }
 impl Archive {
+    pub fn state(&self) -> super::contract::State {
+        super::contract::State::new(
+            self.document.clone(),
+            super::contract::Settings {
+                metadata: self.metadata.clone(),
+                template: self.template.clone(),
+                model_id: self.model_id.clone(),
+            },
+        )
+    }
     pub fn validate(&self) -> Result<String, String> {
         self.metadata.validate()?;
         crate::bibliography::validate_document(&self.document, &self.metadata)?;
@@ -45,7 +55,15 @@ impl Archive {
         {
             return Err("Signature interne absente.".into());
         }
-        source(&self.document, &self.assets)
+        let source = source(&self.document, &self.assets)?;
+        let state = self.state();
+        state.settings.validate().map_err(|e| e.to_string())?;
+        if !self.yjs.is_empty() {
+            super::shared::SharedDocument::from_update(&self.yjs)
+                .and_then(|shared| shared.verify(&state))
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(source)
     }
     pub fn save(&self, lease: &mut DocumentLease) -> Result<(), String> {
         let body = self.validate()?;
@@ -58,6 +76,11 @@ impl Archive {
         )?;
         lease.check().map_err(|e| e.to_string())?;
         let references = crate::bibliography::resources(&self.metadata);
+        let yjs = if self.yjs.is_empty() {
+            super::shared::verify_or_initialize(&self.state(), &[]).map_err(|e| e.to_string())?
+        } else {
+            self.yjs.clone()
+        };
         let entries = [
             (
                 "manifest.json",
@@ -76,7 +99,7 @@ impl Archive {
                 serde_json::to_vec(&self.metadata).unwrap(),
             ),
             ("modele.typ", self.template.as_bytes().to_vec()),
-            ("state.yjs", self.yjs.clone()),
+            ("state.yjs", yjs),
         ];
         let size: usize = entries
             .iter()
@@ -229,7 +252,7 @@ mod tests {
     fn fixture() -> Archive {
         let metadata = Metadata::blank(crate::document_types::DocumentType::Courrier);
         let template = metadata.document_type().default_model();
-        Archive{document:serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Un texte é😀"},{"type":"footnote","attrs":{"text":"Une note."}}]}]})).unwrap(),metadata,dependencies:crate::packages::for_template(&template),template,model_id:"courrier.model.personal".into(),assets:Assets::default(),yjs:vec![0,0]}
+        Archive{document:serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Un texte é😀"},{"type":"footnote","attrs":{"text":"Une note."}}]}]})).unwrap(),metadata,dependencies:crate::packages::for_template(&template),template,model_id:"courrier.model.personal".into(),assets:Assets::default(),yjs:vec![]}
     }
     #[test]
     fn saving_prunes_deleted_images_without_mutating_live_resources() {
@@ -259,7 +282,11 @@ mod tests {
         let restored = Archive::read(&path).unwrap();
         assert_eq!(restored.document, archive.document);
         assert_eq!(restored.metadata, archive.metadata);
-        assert_eq!(restored.yjs, archive.yjs);
+        assert!(!restored.yjs.is_empty());
+        super::super::shared::SharedDocument::from_update(&restored.yjs)
+            .unwrap()
+            .verify(&archive.state())
+            .unwrap();
         assert!(DocumentLease::acquire(&path).is_err());
         std::fs::write(&path, b"modification externe").unwrap();
         assert!(archive.save(&mut lease).is_err());
@@ -275,6 +302,70 @@ mod tests {
         let before = std::fs::read(&path).unwrap();
         archive.document.kind = "unknown".into();
         assert!(archive.save(&mut lease).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+
+    #[test]
+    fn inconsistent_shared_state_cannot_be_saved_or_opened_even_with_valid_typst_caches() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("consistent.typsto");
+        let mut lease = DocumentLease::acquire(&path).unwrap();
+        fixture().save(&mut lease).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let mut changed = Archive::read(&path).unwrap();
+        changed.document.content[0].content[0].text = Some("A different document".into());
+        assert!(
+            changed
+                .save(&mut lease)
+                .unwrap_err()
+                .contains("inconsistent_state: document")
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+
+        // The tree and its Typst cache agree; only the shared state is inconsistent.
+        let corrupt = dir.path().join("inconsistent.typsto");
+        let mut original = ZipArchive::new(std::io::Cursor::new(&before)).unwrap();
+        let mut writer = ZipWriter::new(std::fs::File::create(&corrupt).unwrap());
+        for index in 0..original.len() {
+            let mut entry = original.by_index(index).unwrap();
+            let mut data = Vec::new();
+            entry.read_to_end(&mut data).unwrap();
+            match entry.name() {
+                "document.json" => data = serde_json::to_vec(&changed.document).unwrap(),
+                "contenu.typ" => {
+                    data = source(&changed.document, &changed.assets)
+                        .unwrap()
+                        .into_bytes()
+                }
+                _ => (),
+            }
+            writer
+                .start_file(entry.name(), SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(&data).unwrap();
+        }
+        writer.finish().unwrap();
+        assert!(
+            Archive::read(&corrupt)
+                .err()
+                .unwrap()
+                .contains("inconsistent_state: document")
+        );
+
+        let mut changed = Archive::read(&path).unwrap();
+        changed
+            .metadata
+            .set_field_value(
+                crate::document_types::MetadataField::RecipientName,
+                serde_json::json!("Another recipient"),
+            )
+            .unwrap();
+        assert!(
+            changed
+                .save(&mut lease)
+                .unwrap_err()
+                .contains("inconsistent_state: settings")
+        );
         assert_eq!(std::fs::read(&path).unwrap(), before);
     }
 }

@@ -12,6 +12,7 @@ mod rendering;
 mod schema;
 mod session;
 mod settings;
+mod shared_diagnostic;
 
 use rendering::{Preview, Renderer};
 use session::{Bootstrap, Resource, Session, Snapshot};

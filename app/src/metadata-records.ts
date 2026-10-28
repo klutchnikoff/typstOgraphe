@@ -1,3 +1,4 @@
+import { documentContent } from './shared-inline-marks'
 import * as Y from 'yjs'
 import { getSchema } from '@tiptap/core'
 import {
@@ -77,7 +78,7 @@ export function readRecord(record: SharedRecord, definition: RecordCollection): 
       return [
         field.key,
         value instanceof Y.XmlFragment
-          ? yXmlFragmentToProsemirrorJSON(value)
+          ? documentContent(yXmlFragmentToProsemirrorJSON(value))
           : value instanceof Y.Text
             ? value.toString()
             : (value ?? field.default),

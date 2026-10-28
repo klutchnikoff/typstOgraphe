@@ -1,3 +1,4 @@
+import { documentContent } from './shared-inline-marks'
 import { initializeUI, tr } from './i18n'
 import { type Editor, getSchema, type JSONContent } from '@tiptap/core'
 import { EditorState } from '@tiptap/pm/state'
@@ -204,7 +205,7 @@ async function render() {
 function snapshot() {
   return {
     revision: provider.revision,
-    document: editor.getJSON(),
+    document: documentContent(editor.getJSON()),
     settings: settingsFor(provider),
   }
 }
@@ -460,10 +461,12 @@ async function start() {
   if (
     bootstrap.restoredDocument &&
     (stableJSON(
-      normalizeWhitespace(
-        EditorState.create({ doc: schema.nodeFromJSON(bootstrap.restoredDocument) }).tr,
-      ).doc.toJSON(),
-    ) !== stableJSON(normalizeWhitespace(editor.state.tr).doc.toJSON()) ||
+      documentContent(
+        normalizeWhitespace(
+          EditorState.create({ doc: schema.nodeFromJSON(bootstrap.restoredDocument) }).tr,
+        ).doc.toJSON(),
+      ),
+    ) !== stableJSON(documentContent(normalizeWhitespace(editor.state.tr).doc.toJSON())) ||
       stableJSON(bootstrap.settings) !== stableJSON(settingsFor(provider)))
   ) {
     restoringError = true

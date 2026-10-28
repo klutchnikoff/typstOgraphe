@@ -252,12 +252,17 @@ pub fn recovery_discard(app: tauri::AppHandle, state: State<Bridge>) -> Result<(
 mod tests {
     use super::*;
     fn checkpoint() -> Checkpoint {
-        let document = serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Brouillon conservé"}]}]})).unwrap();
+        let document: crate::schema::Node = serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Brouillon conservé"}]}]})).unwrap();
+        let update = typstographe_core::content::shared::SharedDocument::from_state(
+            &typstographe_core::content::contract::State::new(document.clone(), Default::default()),
+        )
+        .unwrap()
+        .update();
         Checkpoint {
             schema: "typstographe-web-editor-v1".into(),
             source: String::new(),
             document,
-            update: vec![0, 0],
+            update,
             resources: vec![],
             settings: Default::default(),
         }
@@ -316,14 +321,14 @@ mod tests {
             document: session.fixture.clone().unwrap(),
             settings: Some(session.settings.clone()),
         };
-        session.save(&snapshot, vec![0, 0]).unwrap();
+        session.save(&snapshot, checkpoint().update).unwrap();
         assert!(!session.root.join("session.json").exists());
         session.revision += 1;
         let snapshot = crate::session::Snapshot {
             revision: session.revision,
             ..snapshot
         };
-        session.save(&snapshot, vec![0, 0]).unwrap();
+        session.save(&snapshot, checkpoint().update).unwrap();
         assert!(session.root.join("session.json").exists());
     }
     #[test]

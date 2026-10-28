@@ -1,3 +1,4 @@
+import { documentContent } from './shared-inline-marks'
 import type { Editor, JSONContent } from '@tiptap/core'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import type { Provider, Transport } from './provider'
@@ -68,7 +69,7 @@ export async function nativeDiagnostic(
       }
     }
     if (provider.online) await provider.flush()
-    return { text: editor.getText(), document: editor.getJSON() }
+    return { text: editor.getText(), document: documentContent(editor.getJSON()) }
   }
   await transport.listen<Event>('web-editor:diagnostic', (event) => {
     if (event.step === 'ready') ready = event.from
@@ -104,7 +105,7 @@ export async function nativeDiagnostic(
     if (mode === 'restore') {
       if (
         !editor.getText().includes('NATIVE-CAMILLE') ||
-        !JSON.stringify(editor.getJSON()).includes('Note relue à deux')
+        !JSON.stringify(documentContent(editor.getJSON())).includes('Note relue à deux')
       )
         throw new Error('Reprise native incomplète.')
       steps.push('Réouverture native : Typst, état Yjs, note et ressources cohérents.')
@@ -130,7 +131,7 @@ export async function nativeDiagnostic(
       steps.push('Annulation locale et rétablissement sans supprimer le travail du voisin.')
       await command('annotations')
       await until(
-        () => JSON.stringify(editor.getJSON()).includes('Note relue à deux'),
+        () => JSON.stringify(documentContent(editor.getJSON())).includes('Note relue à deux'),
         'Annotation distante absente.',
       )
       const paragraph = await transport.invoke<JSONContent>('prepare_rust_edit')
@@ -147,7 +148,7 @@ export async function nativeDiagnostic(
       await transport.invoke('publish_snapshot', {
         snapshot: {
           revision: provider.revision,
-          document: editor.getJSON(),
+          document: documentContent(editor.getJSON()),
           settings: settingsFor(provider),
         },
       })
@@ -190,7 +191,7 @@ export async function nativeDiagnostic(
         path: `${bootstrap.sessionPath}/courrier.typsto`,
         snapshot: {
           revision: provider.revision,
-          document: editor.getJSON(),
+          document: documentContent(editor.getJSON()),
           settings: settingsFor(provider),
         },
         update: Array.from(Y.encodeStateAsUpdate(provider.doc)),
@@ -200,7 +201,7 @@ export async function nativeDiagnostic(
       await save()
       await send('main', 'progress', { phase: 'before export' })
       const path = await transport.invoke<string>('export_document', {
-        snapshot: { revision: provider.revision, document: editor.getJSON() },
+        snapshot: { revision: provider.revision, document: documentContent(editor.getJSON()) },
       })
       await send('main', 'progress', { phase: 'export complete' })
       steps.push(`Sauvegarde atomique et export PDF/Typst réel : ${path}`)

@@ -15,6 +15,7 @@ import type { Provider } from './provider'
 import { ContextBand } from './band-layout'
 import { DocumentInput, SoftBreak, TypstInlineInput } from './editing'
 import { DocumentWhitespace } from './document-whitespace'
+import { SharedInlineMarks } from './shared-inline-marks'
 import { documentExtensions } from './document-zone-extensions'
 import { inlineObjectKey } from './inline-objects'
 import { widgetKey } from './widgets'
@@ -59,6 +60,7 @@ export function richZoneExtensions(
     Node.create({ name: 'doc', topNode: true, content: policy.content }),
     ContextBand,
     SoftBreak,
+    SharedInlineMarks,
     TypstInlineInput,
     ...(policy.multiline
       ? [

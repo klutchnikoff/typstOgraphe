@@ -509,7 +509,7 @@ mod tests {
             template,
             model_id: Model::ArticleWorking.id().into(),
             assets: Default::default(),
-            yjs: vec![0,0],
+            yjs: vec![],
         };
         let mut lease = crate::DocumentLease::acquire(&path).unwrap();
         archive.save(&mut lease).unwrap();

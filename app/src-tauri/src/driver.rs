@@ -37,6 +37,10 @@ fn dispatch(
     let peer = request["peer"].as_str().ok_or("Participant absent.")?;
     let command = request["command"].as_str().ok_or("Commande absente.")?;
     match command {
+        "diagnostic_shared_state" => shared_diagnostic::run(
+            args.clone(),
+            &bridge.session.lock().map_err(|e| e.to_string())?.assets,
+        ),
         "bibliography_index" | "bibliography_search" => {
             let files = serde_json::from_value(args["files"].clone()).map_err(|e| e.to_string())?;
             serde_json::to_value(if command == "bibliography_index" {

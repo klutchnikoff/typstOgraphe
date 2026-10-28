@@ -1,3 +1,4 @@
+import { documentContent } from './shared-inline-marks'
 import type { Editor, JSONContent } from '@tiptap/core'
 import type { Provider, Transport } from './provider'
 import { requestPreview, type Encoding, type Preview } from './preview-frame'
@@ -54,7 +55,7 @@ export async function nativePreviewPerformance(
       editing = false
     }
   }
-  const fixture = editor.getJSON()
+  const fixture = documentContent(editor.getJSON())
   const text =
     'Madame, Monsieur, je vous remercie de bien vouloir examiner ce courrier. Les informations demandées seront transmises dès réception des pièces justificatives. Nous restons disponibles pour toute précision complémentaire.'
   const paragraph = (value: string): JSONContent => ({

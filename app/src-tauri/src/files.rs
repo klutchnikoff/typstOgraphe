@@ -165,7 +165,7 @@ pub async fn open_file(
             template: archive.template.clone(),
             model_id: archive.model_id.clone(),
         };
-        settings.validate()?;
+        settings.validate().map_err(|e| e.to_string())?;
         renderer.validate(&archive.validate()?, &archive.assets, &settings)?;
         let resources: Vec<_> = archive
             .assets
@@ -213,7 +213,7 @@ pub fn new_document(
     settings: Settings,
     revision: u64,
 ) -> Result<(), String> {
-    settings.validate()?;
+    settings.validate().map_err(|e| e.to_string())?;
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
     session.lifecycle(revision)?;
     let mut assets = typstographe_core::assets::Assets::default();

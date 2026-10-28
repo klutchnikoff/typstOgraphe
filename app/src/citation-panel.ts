@@ -15,6 +15,7 @@ import {
 import { settingsFor } from './state'
 import { tr } from './i18n'
 import { draftGuard } from './snapshot-operation'
+import { documentContent } from './shared-inline-marks'
 
 /** Citation content owns only its fields; placement, focus, Escape and actions use the shared band. */
 export function citationPanel(
@@ -173,7 +174,7 @@ export function citationPanel(
       )
       if (opened !== state) return
       await transport.invoke('validate_bibliography', {
-        document: trn.doc.toJSON(),
+        document: documentContent(trn.doc.toJSON()),
         metadata: settingsFor(provider).metadata,
       })
       if (opened !== state) return

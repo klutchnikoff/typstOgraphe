@@ -1,3 +1,4 @@
+import { documentContent } from './shared-inline-marks'
 import type { Editor } from '@tiptap/core'
 import { yUndoPluginKey, ySyncPluginKey } from '@tiptap/y-tiptap'
 import type { Provider, Transport } from './provider'
@@ -88,7 +89,7 @@ export function bibliographyPanel(
     confirm.error.textContent = ''
     const before = JSON.stringify(referenceFiles(provider)),
       current = settingsFor(provider),
-      document = editor.getJSON()
+      document = documentContent(editor.getJSON())
     current.metadata.fields[descriptor.files] = next
     try {
       const check = await draftGuard(

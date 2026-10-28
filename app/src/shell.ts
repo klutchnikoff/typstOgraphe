@@ -1,3 +1,4 @@
+import { documentContent } from './shared-inline-marks'
 import { bibliographyPanel } from './bibliography-panel'
 import { actionRow, keyboardScope, navigationGroup } from './keyboard-navigation'
 import { commandPalette } from './command-palette'
@@ -333,7 +334,7 @@ export async function mountShell(s: Shell) {
       () => ({
         snapshot: {
           revision: provider.revision,
-          document: editor.getJSON(),
+          document: documentContent(editor.getJSON()),
           settings: settingsFor(provider),
         },
         update: Array.from(Y.encodeStateAsUpdate(provider.doc)),
@@ -678,7 +679,7 @@ export async function mountShell(s: Shell) {
           provider,
           () => ({
             revision: provider.revision,
-            document: editor.getJSON(),
+            document: documentContent(editor.getJSON()),
             settings: settingsFor(provider),
           }),
           (snapshot) =>
@@ -885,7 +886,7 @@ export async function mountShell(s: Shell) {
           await transport.invoke('recover', {
             snapshot: {
               revision: provider.revision,
-              document: editor.getJSON(),
+              document: documentContent(editor.getJSON()),
               settings: settingsFor(provider),
             },
             update: Array.from(Y.encodeStateAsUpdate(provider.doc)),
