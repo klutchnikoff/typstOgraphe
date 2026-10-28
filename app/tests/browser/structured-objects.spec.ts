@@ -1,12 +1,26 @@
 import { expect, test, type Page } from '@playwright/test'
 
+const errors = new WeakMap<Page, string[]>()
+
 test.beforeEach(async ({ page, request }) => {
+  const recorded: string[] = []
+  errors.set(page, recorded)
+  page.on('pageerror', (error) => recorded.push(error.stack || error.message))
   const reset = await request.post('/__spike/invoke', {
     data: { command: 'reset', peer: 'main', args: {} },
   })
   expect((await reset.json()).error).toBeUndefined()
   await page.goto('/?client=main')
   await page.waitForFunction(() => window.__spike?.ready)
+})
+test.afterEach(async ({ page }) => {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  )
+  expect(errors.get(page)).toEqual([])
 })
 const body = (page: Page) => page.getByRole('textbox', { name: 'Corps du document', exact: true })
 function publications(page: Page) {
@@ -171,6 +185,10 @@ test('note : insertion UTF-16, paramètres en place, suppression protégée et a
         .includes((window as any).__savedNote)
     }),
   ).toBe(true)
+  await body(page).press('ControlOrMeta+Enter')
+  await expect(field).toBeFocused()
+  await expect(field).toHaveValue('Une note revue')
+  await field.press('Escape')
   await body(page).press('Backspace')
   await expect(page.locator('#property-title')).toHaveText('Supprimer la note de bas de page')
   await page.locator('#apply-properties').click()

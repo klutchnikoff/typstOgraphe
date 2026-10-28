@@ -1,7 +1,7 @@
 import { navigationGroup } from './keyboard-navigation'
 import { getMarkRange, type Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
-import { Selection } from '@tiptap/pm/state'
+import { NodeSelection, Selection, TextSelection } from '@tiptap/pm/state'
 import type { BandHost } from './band-layout'
 import { convertList, listKinds, type ListKind } from './editing'
 import { tr } from './i18n'
@@ -187,10 +187,14 @@ export function propertyPanel(
       // Attribute changes preserve all positions. ProseMirror implements
       // setNodeMarkup as replacement for atoms and may otherwise drop a node
       // selection before the badge, or move a caret out of its caption.
-      if (!conversion)
+      if (!conversion) {
+        const selection = editor.state.selection
         transaction.setSelection(
-          Selection.fromJSON(transaction.doc, editor.state.selection.toJSON()),
+          selection instanceof NodeSelection && selection.node.isInline
+            ? TextSelection.create(transaction.doc, selection.to)
+            : Selection.fromJSON(transaction.doc, selection.toJSON()),
         )
+      }
       const commands = editingProvider(editor)
         ? [
             {

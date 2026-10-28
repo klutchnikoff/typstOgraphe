@@ -339,7 +339,11 @@ Les bandeaux gardent leur brouillon pendant la préparation et en cas de refus ;
 remplacer le bandeau annule sa préparation et ne ferme jamais le nouveau panneau.
 une confirmation est une étape d’annulation, sans relais brut supplémentaire.
 Le curseur est rétabli au moment d’installer la réponse, avant les modifications
-distantes suivantes. Les contrôles bibliographiques appartiennent désormais à
+distantes suivantes. Après validation d’un badge cliqué, il revient à sa droite :
+le badge reste actif pour Ctrl/Cmd+Entrée et Retour arrière ouvre sa suppression.
+Un appel depuis le texte conserve sa sélection ; modifier les paramètres ne doit
+pas faire reculer le curseur sur le caractère précédent ni sortir d’une légende.
+Les contrôles bibliographiques appartiennent désormais à
 la même validation finale que les autres commandes, sans seconde édition locale
 après une prévalidation indépendante.
 
