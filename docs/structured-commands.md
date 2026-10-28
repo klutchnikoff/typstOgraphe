@@ -2,8 +2,9 @@
 
 Ce lot prolonge le [socle Yrs](structured-contract-foundation.md) selon les
 [décisions validées](structured-contract.md). Il ajoute une API Rust commune,
-testée avec le véritable éditeur. Le parcours tableaux de Tauri utilise désormais
-cette API ; les autres opérations web et les adaptateurs CLI/MCP restent à migrer.
+testée avec le véritable éditeur. Les tableaux et les commandes de mise en forme
+de Tauri utilisent désormais cette API ; les autres opérations web et les
+adaptateurs CLI/MCP restent à migrer.
 Ce lot ne clôture pas A.2.
 
 ## Contrat exécuté
@@ -242,9 +243,10 @@ corps éditable. La mise à jour confirmée n’est pas renvoyée dans le relais
 client, mais elle rejoint son historique : annuler le lot constitue une seule étape
 et diffuse une modification documentaire normale aux autres fenêtres.
 
-Ce raccordement ciblé ne migre pas encore la frappe générale ni tous les accusés
-et refus des adaptateurs. Aucun outil MCP supplémentaire n’accorde un contournement
-du parcours de propositions soumises à validation.
+La frappe générale est également confirmée par le propriétaire Rust, selon le
+[contrat des contextes d’édition](structured-editing-contexts.md). Aucun outil MCP
+supplémentaire n’accorde un contournement du parcours de propositions soumises à
+validation.
 
 Accessibilité :
 
@@ -263,6 +265,42 @@ Références : [figure](https://typst.app/docs/reference/model/figure/),
 [table](https://typst.app/docs/reference/model/table/),
 [en-têtes accessibles](https://typst.app/docs/reference/pdf/header-cell/) et
 [guide d’accessibilité](https://typst.app/docs/guides/accessibility/).
+
+## Mise en forme raccordée dans l’application
+
+Les boutons, la palette, les raccourcis et les outils des champs riches passent
+par `formatting.ts`. Les liens utilisent cette même voie depuis leur bandeau.
+
+| Action de l’interface | Commande commune |
+| --- | --- |
+| Gras et italique sur une sélection | `text.bold`, `text.italic`, avec état explicite |
+| Effacer la mise en forme | `text.clear` |
+| Valider ou retirer un lien | `text.link`, `text.remove_link` ; `text.unlink` reste le nom du menu |
+| Paragraphe et titres | `block.paragraph`, `block.heading_1` à `block.heading_3` |
+
+`editor-targets.ts` traduit la sélection ProseMirror en chemins de l’arbre public
+et plages UTF-16. Une sélection traversant plusieurs paragraphes, cellules,
+légendes, attributions ou termes/définitions devient un lot atomique de plages
+distinctes. Les badges et retours internes comptent chacun pour une unité ; le
+texte affiché de leur libellé ne participe pas au calcul. Les champs riches
+d’en-tête portent leur collection, identifiant d’enregistrement et nom de champ ;
+leur position dans la liste ou leur libellé traduit ne sert jamais d’adresse.
+
+La sélection et le focus restent locaux. Une conversion de titre préserve la
+sélection même si l’identité XML du bloc change. Au curseur, gras et italique
+modifient seulement le style de la frappe suivante ; aucune commande de plage
+vide n’est envoyée au cœur. Les brouillons de formulaires détachés restent locaux
+jusqu’à leur validation ; le raccordement de leur publication est un lot distinct.
+
+Les commandes explicites suivent préparation et publication gardées. La frappe,
+les règles textuelles et le collage restent immédiats via le relais validé :
+ils ne sont pas artificiellement découpés en commandes différées de mise en forme.
+Le court engagement final utilise la même file que le relais et l’historique,
+verrouille toutes les zones montées de la fenêtre et retarde les instantanés
+jusqu’à l’installation de la réponse. Un refus de commande conserve le document,
+la connexion et le brouillon du bandeau ; il ne déclenche pas la mise en quarantaine
+d’une saisie valide. Un lot confirmé ne repasse pas par le relais brut et forme
+une seule étape d’annulation native.
 
 ## Enregistrements ordonnés d’en-tête
 
@@ -333,8 +371,9 @@ diagnostic reste réservé aux tests ; ce n’est pas une nouvelle voie publique
 
 Restent dans A.2 :
 
-- Le raccordement des [contextes de frappe](structured-editing-contexts.md) aux
-  adaptateurs. Leur sélection et leurs styles sont désormais communs dans le cœur.
+- Le report des sélections et styles privés de l’interface vers les
+  [contextes de frappe](structured-editing-contexts.md), puis leur raccordement
+  aux adaptateurs autonomes. Leur sélection et leurs styles sont communs dans le cœur.
   Les commandes de style à cible explicite continuent de refuser une plage vide ;
   les styles de frappe appartiennent à l’API de contexte.
 - La fusion de paragraphes et les transformations supplémentaires. L’insertion,
@@ -342,12 +381,13 @@ Restent dans A.2 :
   communs ; la fusion de cellules reste différée.
   Les retours riches passent par `block.split` ou des nœuds de retour explicites,
   pas par des sauts de ligne cachés dans `text.insert`.
-- Les ressources, options et changements de modèle, les autres commandes et requêtes.
-- Le raccordement de l’historique commun côté moteur aux adaptateurs. Le
-  [socle de contextes](structured-editing-contexts.md) exécute les lots et annulations
-  par participant, avec répliques durables et brouillons refusés conservés. Restent
-  le groupement de frappe, le parcours de résolution des brouillons et la migration
-  des propriétaires d’historique, sans doubler les piles en production.
-- L’extension du raccordement ciblé des tableaux au relais de frappe, aux
-  accusés/refus et brouillons, le
-  mode individuel à la demande, puis les adaptateurs CLI et MCP.
+- Les insertions/conversions/suppressions des autres widgets et objets en ligne,
+  leurs paramètres, la recherche/remplacement et l’orthographe, les champs simples
+  et collections d’en-tête, les ressources, options et changements de modèle.
+  Ces éditions passent encore par le relais validé lorsqu’elles ne sont pas
+  explicitement raccordées aux commandes typées ci-dessus.
+- La conservation durable automatique et la réimportation des brouillons refusés.
+  Le groupement de frappe, l’IME, l’historique natif par fenêtre et le parcours
+  export/abandon sont raccordés dans Tauri.
+- Le mode individuel allégé et la migration documentaire autonome de CLI/MCP,
+  avec catalogue, disponibilité et requêtes communs.

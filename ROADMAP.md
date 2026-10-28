@@ -32,8 +32,11 @@ sont en place, avec les enregistrements d’en-tête ordonnés. Les tableaux ave
 légende et les opérations de lignes/colonnes sont raccordés au cœur depuis Tauri.
 Le [socle de contextes et d’historique par participant](docs/structured-editing-contexts.md)
 est raccordé au relais Tauri : validation asynchrone, historique Rust par fenêtre,
-groupement de frappe et parcours de refus avec export du brouillon. Poursuivre les
-autres commandes typées, le report des sélections/styles, le mode individuel allégé
+groupement de frappe et parcours de refus avec export du brouillon. Les styles,
+liens et titres utilisent les cibles communes depuis les boutons, raccourcis et
+bandeaux, y compris dans les champs riches d’en-tête. Poursuivre les autres
+commandes typées (widgets, objets en ligne, métadonnées et ressources),
+le report des sélections/styles, le mode individuel allégé
 et la migration CLI/MCP autonome. Les brouillons refusés restent en mémoire avant
 leur export JSON ; la conservation durable automatique reste à traiter.
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,

@@ -73,8 +73,10 @@ la cible ; les lots ci-dessous distinguent sa mise en œuvre progressive.
 
 Le [premier lot du socle](structured-contract-foundation.md) est livré : valeurs
 partagées, projection Yrs, préparation/publication gardée et conservation cohérente.
-Les cibles multizones et commandes, puis le branchement du relais et la migration
-CLI/MCP, restent à réaliser selon la séquence ci-dessous.
+Les cibles multizones et commandes sont livrées dans le cœur. Le relais et
+l’historique Tauri y sont raccordés, ainsi que les tableaux, styles, liens et
+titres. Les autres commandes de l’interface et les adaptateurs CLI/MCP restent
+à migrer selon la séquence ci-dessous.
 
 1. **Socle partagé** : valeurs de réglages et d'instantané dans le cœur,
    gardes/cibles/erreurs structurées, projection Yrs et contrôle de cohérence
