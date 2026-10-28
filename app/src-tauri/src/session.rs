@@ -143,7 +143,10 @@ impl Session {
         // Le source de récupération est un cache : régénérer depuis le schéma validé.
         schema::source(&checkpoint.document, &session.assets)?;
         session.bytes = checkpoint.update.len();
-        checkpoint.settings.validate().map_err(|e| e.to_string())?;
+        checkpoint
+            .settings
+            .validate()
+            .map_err(|e| typstographe_i18n::content_error(&e))?;
         typstographe_core::content::shared::SharedDocument::from_update(&checkpoint.update)
             .and_then(|shared| {
                 shared.verify(&typstographe_core::content::contract::State::new(
@@ -151,7 +154,7 @@ impl Session {
                     checkpoint.settings.clone(),
                 ))
             })
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| typstographe_i18n::content_error(&e))?;
         session.settings = checkpoint.settings;
         session.updates.push(checkpoint.update);
         session.restored = Some(checkpoint.document);
@@ -259,7 +262,9 @@ impl Session {
             return Err("stale".into());
         }
         let settings = snapshot.settings.as_ref().unwrap_or(&self.settings);
-        settings.validate().map_err(|e| e.to_string())?;
+        settings
+            .validate()
+            .map_err(|e| typstographe_i18n::content_error(&e))?;
         typstographe_core::bibliography::validate_document(&snapshot.document, &settings.metadata)?;
         schema::source(&snapshot.document, &self.assets)
     }

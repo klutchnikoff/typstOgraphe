@@ -94,7 +94,7 @@ impl Renderer {
         world
             .validate_model(source, &settings.metadata, &settings.template)
             .map(|_| ())
-            .map_err(|e| e.to_string())
+            .map_err(|e| typstographe_i18n::error(&e))
     }
     pub fn render(
         &self,

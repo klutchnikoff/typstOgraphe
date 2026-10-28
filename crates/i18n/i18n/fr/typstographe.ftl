@@ -127,7 +127,7 @@ source-heading-depth = Seuls les titres de niveaux 1 à 3 sont pris en charge.
 source-computed-call = Appel calculé non pris en charge.
 source-nested-blocks = Les blocs imbriqués ne sont pas pris en charge dans ce prototype.
 storage-file-too-large = Le fichier de courrier dépasse la taille autorisée.
-storage-file-count = l’archive doit contenir les cinq fichiers du document, avec au plus 4 096 fichiers au total
+storage-file-count = L’archive contient trop de fichiers ou sa structure est incomplète (4 096 fichiers maximum).
 storage-unknown-entry = fichier inconnu ou présent plusieurs fois dans l’archive
 storage-invalid-size = taille d’archive invalide
 storage-expanded-too-large = le contenu décompressé dépasse 64 Mio
@@ -866,3 +866,22 @@ web-table-column-after = Ajouter une colonne à droite
 web-table-column-remove = Supprimer cette colonne
 
 web-edit-failed = Impossible d’appliquer cette modification.
+
+# Projets structurés : traduire les causes à la frontière de l’adaptateur.
+storage-project-error = Impossible de lire ou d’enregistrer ce projet : { $error }
+storage-unexpected-entry = Fichier inattendu dans l’archive : { $name }.
+storage-duplicate-entry = Un fichier apparaît plusieurs fois dans l’archive : { $name }.
+storage-missing-entry = Un fichier nécessaire au projet est absent : { $name }.
+content-invalid-target = La position sélectionnée n’est plus disponible. Sélectionnez de nouveau le passage.
+content-invalid-parameter = Valeur incorrecte pour le paramètre « { $parameter } ».
+content-command-unavailable = La commande « { $command } » ne peut pas s’appliquer à cette sélection.
+content-contract-version = Ce document utilise un format structuré non pris en charge (version { $version }).
+content-shared-state-invalid = L’état d’édition enregistré est incomplet ou illisible.
+content-signature-missing = L’image de signature est absente du projet.
+content-document-invalid = Le document contient des éléments invalides ou non pris en charge.
+content-settings-invalid = Les paramètres du document sont invalides.
+content-document-mismatch = Le document enregistré et son état d’édition ne correspondent pas.
+content-settings-mismatch = Les paramètres enregistrés et l’état d’édition ne correspondent pas.
+content-source-mismatch = Le source Typst enregistré ne correspond pas au document structuré.
+content-bibliography-mismatch = Les fichiers bibliographiques ne correspondent pas aux références du document.
+content-state-mismatch = Les données enregistrées du projet sont incohérentes.

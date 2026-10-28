@@ -99,7 +99,7 @@ pub async fn save_file(
         let mut lease = if s.file_lease.as_ref().is_some_and(|l| l.path() == canonical) {
             s.file_lease.as_ref().unwrap().clone()
         } else {
-            DocumentLease::acquire(&canonical).map_err(|e| e.to_string())?
+            DocumentLease::acquire(&canonical).map_err(|e| typstographe_i18n::command_error(&e))?
         };
         let archive = Archive {
             document: snapshot.document,
@@ -110,7 +110,9 @@ pub async fn save_file(
             dependencies: typstographe_core::packages::for_template(&settings.template),
             yjs: update,
         };
-        archive.save(&mut lease)?;
+        archive
+            .save(&mut lease)
+            .map_err(|e| typstographe_i18n::archive_error(&e))?;
         s.file_lease = Some(lease);
         s.mark_clean()?;
         Ok(())
@@ -143,30 +145,26 @@ pub async fn open_file(
             .cloned()
             .map(Ok)
             .unwrap_or_else(|| DocumentLease::acquire(&path))
-            .map_err(|e| e.to_string())?;
-        let archive = match Archive::read(&path) {
-            Ok(archive) => archive,
-            Err(structured_error) => {
-                let legacy = typstographe_core::storage::read(&path)
-                    .map_err(|e| format!("{structured_error}\n{e}"))?;
-                Archive {
-                    document: typstographe_core::content::legacy::import(&legacy.source)?,
-                    metadata: legacy.metadata,
-                    model_id: "courrier.model.personal".into(),
-                    template: legacy.template,
-                    assets: legacy.assets,
-                    dependencies: legacy.dependencies,
-                    yjs: vec![],
-                }
-            }
-        };
+            .map_err(|e| typstographe_i18n::command_error(&e))?;
+        let archive = read_project(&path).map_err(|e| {
+            eprintln!("Project open failed: {e}");
+            typstographe_i18n::archive_error(&e)
+        })?;
         let settings = Settings {
             metadata: archive.metadata.clone(),
             template: archive.template.clone(),
             model_id: archive.model_id.clone(),
         };
-        settings.validate().map_err(|e| e.to_string())?;
-        renderer.validate(&archive.validate()?, &archive.assets, &settings)?;
+        settings
+            .validate()
+            .map_err(|e| typstographe_i18n::content_error(&e))?;
+        renderer.validate(
+            &archive
+                .validate()
+                .map_err(|e| typstographe_i18n::archive_error(&e))?,
+            &archive.assets,
+            &settings,
+        )?;
         let resources: Vec<_> = archive
             .assets
             .iter()
@@ -213,7 +211,9 @@ pub fn new_document(
     settings: Settings,
     revision: u64,
 ) -> Result<(), String> {
-    settings.validate().map_err(|e| e.to_string())?;
+    settings
+        .validate()
+        .map_err(|e| typstographe_i18n::content_error(&e))?;
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
     session.lifecycle(revision)?;
     let mut assets = typstographe_core::assets::Assets::default();
@@ -255,4 +255,94 @@ pub fn close_document(
     agent.proposal = None;
     agent.snapshot = None;
     app.emit("app:document", ()).map_err(|e| e.to_string())
+}
+
+/// Select a reader by the recognized format, never by failure of validation.
+pub(crate) fn read_project(
+    path: &std::path::Path,
+) -> Result<Archive, typstographe_core::content::archive::Error> {
+    use typstographe_core::content::{archive::Error, contract};
+    match Archive::read(path) {
+        Err(Error::LegacyFormat) => {
+            let legacy = typstographe_core::storage::read(path)?;
+            Ok(Archive {
+                document: typstographe_core::content::legacy::import(&legacy.source)
+                    .map_err(|reason| contract::Error::InvalidDocument { reason })?,
+                metadata: legacy.metadata,
+                model_id: "embedded".into(),
+                template: legacy.template,
+                assets: legacy.assets,
+                dependencies: legacy.dependencies,
+                yjs: vec![],
+            })
+        }
+        result => result,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use typstographe_core::content::{archive::Error, contract, shared::SharedDocument};
+
+    #[test]
+    fn existing_article_opens_and_compiles_with_its_original_model_and_history() {
+        let path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/article-working.typsto");
+        let before = std::fs::read(&path).unwrap();
+        let archive = read_project(&path).unwrap();
+        SharedDocument::from_update(&archive.yjs)
+            .unwrap()
+            .verify(&archive.state())
+            .unwrap();
+        crate::rendering::Renderer::default()
+            .validate(
+                &archive.validate().unwrap(),
+                &archive.assets,
+                &archive.state().settings,
+            )
+            .unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+    #[test]
+    fn reader_selection_is_by_format_and_keeps_the_actual_structured_cause() {
+        let dir = tempfile::tempdir().unwrap();
+        let legacy = dir.path().join("legacy.typsto");
+        typstographe_core::storage::save(
+            &legacy,
+            &typstographe_core::storage::StoredDocument::blank(
+                typstographe_core::document_types::DocumentType::Courrier,
+            ),
+        )
+        .unwrap();
+        assert!(matches!(Archive::read(&legacy), Err(Error::LegacyFormat)));
+        read_project(&legacy).unwrap().validate().unwrap();
+
+        let original =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/article-working.typsto");
+        let corrupt = dir.path().join("corrupt.typsto");
+        let mut source = zip::ZipArchive::new(std::fs::File::open(original).unwrap()).unwrap();
+        let mut writer = zip::ZipWriter::new(std::fs::File::create(&corrupt).unwrap());
+        for index in 0..source.len() {
+            let mut entry = source.by_index(index).unwrap();
+            let mut bytes = vec![];
+            entry.read_to_end(&mut bytes).unwrap();
+            if entry.name() == "contenu.typ" {
+                bytes = b"A conflicting source".to_vec();
+            }
+            writer
+                .start_file(entry.name(), zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(&bytes).unwrap();
+        }
+        writer.finish().unwrap();
+        let error = read_project(&corrupt).err().unwrap();
+        assert!(
+            matches!(&error, Error::Content(contract::Error::InconsistentState { field }) if field == "source")
+        );
+        let message = typstographe_i18n::archive_error(&error);
+        assert!(!message.contains("StorageError"));
+        assert!(!message.contains("UnknownEntry"));
+    }
 }

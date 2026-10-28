@@ -65,7 +65,7 @@ source-heading-depth = Only heading levels 1–3 are supported.
 source-computed-call = Computed function calls are not supported.
 source-nested-blocks = Nested blocks are not supported in this prototype.
 storage-file-too-large = The letter file exceeds the size limit.
-storage-file-count = the archive must contain the five document files, with at most 4,096 files in total
+storage-file-count = The archive contains too many files or its structure is incomplete (4,096 files maximum).
 storage-unknown-entry = unknown or duplicate file in the archive
 storage-invalid-size = invalid archive size
 storage-expanded-too-large = the expanded content exceeds 64 MiB
@@ -863,3 +863,22 @@ web-table-column-after = Insert column right
 web-table-column-remove = Delete this column
 
 web-edit-failed = Unable to apply this change.
+
+# Structured projects: translate causes at the adapter boundary.
+storage-project-error = Unable to read or save this project: { $error }
+storage-unexpected-entry = Unexpected file in the archive: { $name }.
+storage-duplicate-entry = A file occurs more than once in the archive: { $name }.
+storage-missing-entry = A required project file is missing: { $name }.
+content-invalid-target = The selected position is no longer available. Select the passage again.
+content-invalid-parameter = Invalid value for the parameter “{ $parameter }”.
+content-command-unavailable = The command “{ $command }” cannot be applied to this selection.
+content-contract-version = This document uses an unsupported structured format (version { $version }).
+content-shared-state-invalid = The saved editing state is incomplete or unreadable.
+content-signature-missing = The signature image is missing from the project.
+content-document-invalid = The document contains invalid or unsupported content.
+content-settings-invalid = The document settings are invalid.
+content-document-mismatch = The saved document and its editing state do not match.
+content-settings-mismatch = The saved document settings and editing state do not match.
+content-source-mismatch = The saved Typst source does not match the structured document.
+content-bibliography-mismatch = The bibliography files do not match the document’s references.
+content-state-mismatch = The project’s saved data is inconsistent.

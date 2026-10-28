@@ -4,6 +4,7 @@ use crate::{
     DocumentLease,
     assets::{Assets, MAX_DOCUMENT_BYTES},
     document_types::Metadata,
+    errors::{CoreError, StorageError},
     packages::Dependencies,
 };
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,28 @@ use std::{
     path::Path,
 };
 use zip::{ZipArchive, ZipWriter, write::SimpleFileOptions};
+/// Typed causes survive until an adapter renders them through Fluent.
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("{0}")]
+    Content(#[from] super::contract::Error),
+    #[error("{0}")]
+    Core(#[from] CoreError),
+    #[error("{0}")]
+    Access(#[from] crate::engine::CommandError),
+    #[error("legacy_format")]
+    LegacyFormat,
+}
+impl From<StorageError> for Error {
+    fn from(error: StorageError) -> Self {
+        Self::Core(error.into())
+    }
+}
+impl Error {
+    fn document(reason: String) -> Self {
+        super::contract::Error::InvalidDocument { reason }.into()
+    }
+}
 #[derive(Clone)]
 pub struct Archive {
     pub document: Node,
@@ -26,6 +49,7 @@ pub struct Archive {
 struct Manifest {
     format: String,
     version: u32,
+    #[serde(default)]
     model_id: String,
 }
 impl Archive {
@@ -39,33 +63,36 @@ impl Archive {
             },
         )
     }
-    pub fn validate(&self) -> Result<String, String> {
-        self.metadata.validate()?;
-        crate::bibliography::validate_document(&self.document, &self.metadata)?;
-        crate::packages::validate(&self.template, &self.dependencies).map_err(|e| e.to_string())?;
+    pub fn validate(&self) -> Result<String, Error> {
+        self.metadata.validate().map_err(Error::document)?;
+        crate::bibliography::validate_document(&self.document, &self.metadata)
+            .map_err(Error::document)?;
+        crate::packages::validate(&self.template, &self.dependencies)?;
         for (path, data) in &self.assets {
             if !crate::assets::valid_path(path) {
-                return Err("Chemin de ressource invalide.".into());
+                return Err(StorageError::UnexpectedEntry { name: path.clone() }.into());
             }
             crate::assets::decode(data, path.rsplit('.').next().unwrap_or(""))
-                .map_err(|e| e.to_string())?;
+                .map_err(CoreError::from)?;
         }
         if let Some(signature) = self.metadata.signature_path()
             && !self.assets.contains_key(signature)
         {
-            return Err("Signature interne absente.".into());
+            return Err(StorageError::ImageResourceMissing {
+                path: signature.into(),
+            }
+            .into());
         }
-        let source = source(&self.document, &self.assets)?;
+        let source = source(&self.document, &self.assets).map_err(Error::document)?;
         let state = self.state();
-        state.settings.validate().map_err(|e| e.to_string())?;
+        state.settings.validate()?;
         if !self.yjs.is_empty() {
             super::shared::SharedDocument::from_update(&self.yjs)
-                .and_then(|shared| shared.verify(&state))
-                .map_err(|e| e.to_string())?;
+                .and_then(|shared| shared.verify(&state))?;
         }
         Ok(source)
     }
-    pub fn save(&self, lease: &mut DocumentLease) -> Result<(), String> {
+    pub fn save(&self, lease: &mut DocumentLease) -> Result<(), Error> {
         let body = self.validate()?;
         let assets = super::retained_assets(
             &self.document,
@@ -73,11 +100,12 @@ impl Archive {
             &self.template,
             &self.assets,
             &self.dependencies,
-        )?;
-        lease.check().map_err(|e| e.to_string())?;
+        )
+        .map_err(Error::document)?;
+        lease.check()?;
         let references = crate::bibliography::resources(&self.metadata);
         let yjs = if self.yjs.is_empty() {
-            super::shared::verify_or_initialize(&self.state(), &[]).map_err(|e| e.to_string())?
+            super::shared::verify_or_initialize(&self.state(), &[])?
         } else {
             self.yjs.clone()
         };
@@ -111,7 +139,7 @@ impl Archive {
         if size as u64 > MAX_DOCUMENT_BYTES
             || assets.len() + self.dependencies.len() + references.len() + entries.len() > 4096
         {
-            return Err("Document trop volumineux.".into());
+            return Err(StorageError::LetterTooLarge.into());
         }
         let mut options = atomic_write_file::AtomicWriteFile::options();
         options.read(true);
@@ -122,40 +150,44 @@ impl Archive {
             options.mode(0o600);
             options
         };
-        let mut temporary = options.open(lease.path()).map_err(|e| e.to_string())?;
+        let mut temporary = options.open(lease.path()).map_err(CoreError::external)?;
         {
             let mut zip = ZipWriter::new(&mut temporary);
             let options =
                 SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
             for (name, data) in &entries {
-                zip.start_file(*name, options).map_err(|e| e.to_string())?;
-                zip.write_all(data).map_err(|e| e.to_string())?;
+                zip.start_file(*name, options)
+                    .map_err(CoreError::external)?;
+                zip.write_all(data).map_err(CoreError::external)?;
             }
             for (name, data) in assets
                 .iter()
                 .chain(self.dependencies.iter())
                 .chain(references.iter())
             {
-                zip.start_file(name, options).map_err(|e| e.to_string())?;
-                zip.write_all(data).map_err(|e| e.to_string())?;
+                zip.start_file(name, options).map_err(CoreError::external)?;
+                zip.write_all(data).map_err(CoreError::external)?;
             }
-            zip.finish().map_err(|e| e.to_string())?;
+            zip.finish().map_err(CoreError::external)?;
         }
-        lease.check().map_err(|e| e.to_string())?;
-        let fingerprint = lease
-            .prepare_fingerprint(temporary.as_file_mut())
-            .map_err(|e| e.to_string())?;
-        temporary.commit().map_err(|e| e.to_string())?;
+        lease.check()?;
+        let fingerprint = lease.prepare_fingerprint(temporary.as_file_mut())?;
+        temporary.commit().map_err(CoreError::external)?;
         lease.record_fingerprint(fingerprint);
         Ok(())
     }
-    pub fn read(path: &Path) -> Result<Self, String> {
-        let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
-        if file.metadata().map_err(|e| e.to_string())?.len() > MAX_DOCUMENT_BYTES + 2 * 1024 * 1024
+    pub fn read(path: &Path) -> Result<Self, Error> {
+        let file = std::fs::File::open(path).map_err(|e| StorageError::OpenFailed {
+            error: e.to_string(),
+        })?;
+        if file.metadata().map_err(CoreError::external)?.len()
+            > MAX_DOCUMENT_BYTES + 2 * 1024 * 1024
         {
-            return Err("Archive trop volumineuse.".into());
+            return Err(StorageError::FileTooLarge.into());
         }
-        let mut zip = ZipArchive::new(file).map_err(|e| e.to_string())?;
+        let mut zip = ZipArchive::new(file).map_err(|e| StorageError::ZipUnreadable {
+            error: e.to_string(),
+        })?;
         let allowed = [
             "manifest.json",
             "document.json",
@@ -166,49 +198,69 @@ impl Archive {
             "state.yjs",
         ];
         if zip.len() > 4096 {
-            return Err("Trop de fichiers.".into());
+            return Err(StorageError::FileCount.into());
         }
         let mut files = std::collections::BTreeMap::new();
         let mut total = 0;
         for index in 0..zip.len() {
-            let entry = zip.by_index(index).map_err(|e| e.to_string())?;
+            let entry = zip.by_index(index).map_err(CoreError::external)?;
             let name = entry.name().to_owned();
             if !allowed.contains(&name.as_str())
                 && !crate::assets::valid_path(&name)
                 && !crate::packages::valid_path(&name)
                 && !crate::bibliography::valid_path(&name)
             {
-                return Err("Entrée inconnue.".into());
+                return Err(StorageError::UnexpectedEntry { name }.into());
             }
             total += entry.size();
             if total > MAX_DOCUMENT_BYTES {
-                return Err("Archive décompressée trop volumineuse.".into());
+                return Err(StorageError::ExpandedTooLarge.into());
             }
             let mut bytes = Vec::new();
             entry
                 .take(MAX_DOCUMENT_BYTES + 1)
                 .read_to_end(&mut bytes)
-                .map_err(|e| e.to_string())?;
-            if files.insert(name, bytes).is_some() {
-                return Err("Entrée dupliquée.".into());
+                .map_err(CoreError::external)?;
+            if files.contains_key(&name) {
+                return Err(StorageError::DuplicateEntry { name }.into());
             }
+            files.insert(name, bytes);
         }
         let get = |name: &str| {
             files
                 .get(name)
                 .map(Vec::as_slice)
-                .ok_or_else(|| format!("Entrée absente : {name}"))
+                .ok_or_else(|| StorageError::MissingEntry { name: name.into() })
         };
-        let manifest: Manifest =
-            serde_json::from_slice(get("manifest.json")?).map_err(|e| e.to_string())?;
+        let manifest: Manifest = serde_json::from_slice(get("manifest.json")?).map_err(|e| {
+            StorageError::ManifestUnreadable {
+                error: e.to_string(),
+            }
+        })?;
+        if manifest.format == "typstOgraphe" && manifest.version == 9 {
+            return Err(Error::LegacyFormat);
+        }
         if manifest.format != "typstOgraphe" || manifest.version != 10 {
-            return Err("Version structurée non prise en charge.".into());
+            return Err(StorageError::Unsupported.into());
         }
         let result = Self {
-            document: serde_json::from_slice(get("document.json")?).map_err(|e| e.to_string())?,
-            metadata: serde_json::from_slice(get("metadonnees.json")?)
-                .map_err(|e| e.to_string())?,
-            template: String::from_utf8(get("modele.typ")?.to_vec()).map_err(|e| e.to_string())?,
+            document: serde_json::from_slice(get("document.json")?).map_err(|e| {
+                StorageError::EntryUnreadable {
+                    name: "document.json".into(),
+                    error: e.to_string(),
+                }
+            })?,
+            metadata: serde_json::from_slice(get("metadonnees.json")?).map_err(|e| {
+                StorageError::MetadataUnreadable {
+                    error: e.to_string(),
+                }
+            })?,
+            template: String::from_utf8(get("modele.typ")?.to_vec()).map_err(|e| {
+                StorageError::EntryUnreadable {
+                    name: "modele.typ".into(),
+                    error: e.to_string(),
+                }
+            })?,
             model_id: manifest.model_id,
             yjs: get("state.yjs")?.to_vec(),
             assets: files
@@ -235,12 +287,19 @@ impl Archive {
                 .get(path)
                 .is_none_or(|saved| saved.as_slice() != data.as_ref())
         }) {
-            return Err("Ressources bibliographiques incohérentes.".into());
+            return Err(super::contract::Error::InconsistentState {
+                field: "bibliography".into(),
+            }
+            .into());
         }
-        if result.validate()?.as_bytes() != get("contenu.typ")?
-            || result.metadata.main_source().as_bytes() != get("main.typ")?
-        {
-            return Err("Archive incohérente.".into());
+        if result.validate()?.as_bytes() != get("contenu.typ")? {
+            return Err(super::contract::Error::InconsistentState {
+                field: "source".into(),
+            }
+            .into());
+        }
+        if result.metadata.main_source().as_bytes() != get("main.typ")? {
+            return Err(StorageError::MainMismatch.into());
         }
         Ok(result)
     }
@@ -253,6 +312,32 @@ mod tests {
         let metadata = Metadata::blank(crate::document_types::DocumentType::Courrier);
         let template = metadata.document_type().default_model();
         Archive{document:serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Un texte é😀"},{"type":"footnote","attrs":{"text":"Une note."}}]}]})).unwrap(),metadata,dependencies:crate::packages::for_template(&template),template,model_id:"courrier.model.personal".into(),assets:Assets::default(),yjs:vec![]}
+    }
+    #[test]
+    fn saved_model_snapshot_remains_self_contained_after_catalogue_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("snapshot.typsto");
+        let mut archive = fixture();
+        archive
+            .template
+            .push_str("\n// A project-pinned version of the bundled model.\n");
+        archive.yjs = super::super::shared::SharedDocument::from_state(&archive.state())
+            .unwrap()
+            .update();
+        let mut lease = DocumentLease::acquire(&path).unwrap();
+        archive.save(&mut lease).unwrap();
+        let saved = Archive::read(&path).unwrap();
+        assert_eq!(saved.template, archive.template);
+        assert_eq!(saved.model_id, archive.model_id);
+        assert_eq!(saved.yjs, archive.yjs);
+        assert_eq!(saved.document, archive.document);
+        assert_eq!(saved.metadata, archive.metadata);
+        // Changing only the archive model cannot conceal divergence in its shared state.
+        let mut changed = saved;
+        changed.template.push_str("\n// divergent checkpoint");
+        assert!(
+            matches!(changed.validate(), Err(Error::Content(super::super::contract::Error::InconsistentState { field })) if field == "settings")
+        );
     }
     #[test]
     fn saving_prunes_deleted_images_without_mutating_live_resources() {
@@ -318,6 +403,7 @@ mod tests {
             changed
                 .save(&mut lease)
                 .unwrap_err()
+                .to_string()
                 .contains("inconsistent_state: document")
         );
         assert_eq!(std::fs::read(&path).unwrap(), before);
@@ -349,6 +435,7 @@ mod tests {
             Archive::read(&corrupt)
                 .err()
                 .unwrap()
+                .to_string()
                 .contains("inconsistent_state: document")
         );
 
@@ -364,6 +451,7 @@ mod tests {
             changed
                 .save(&mut lease)
                 .unwrap_err()
+                .to_string()
                 .contains("inconsistent_state: settings")
         );
         assert_eq!(std::fs::read(&path).unwrap(), before);

@@ -411,7 +411,13 @@ mod tests {
             unreachable!()
         };
         m.references.remove(0);
-        assert!(broken.validate().unwrap_err().contains("bourdieu1980"));
+        assert!(
+            broken
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("bourdieu1980")
+        );
         assert_eq!(
             source(&restored.document, &restored.assets).unwrap(),
             restored.validate().unwrap()
@@ -498,7 +504,8 @@ mod tests {
                 Archive::read(&output)
                     .err()
                     .unwrap()
-                    .contains("bibliographiques incohérentes"),
+                    .to_string()
+                    .contains("inconsistent_state: bibliography"),
                 "{alteration}"
             );
         }

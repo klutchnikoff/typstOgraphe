@@ -3,6 +3,14 @@
 //! Les catalogues sont embarqués ; le cœur ne dépend pas de ce module.
 #[path = "errors.rs"]
 mod command_errors;
+mod content_errors;
+pub use content_errors::{archive_error_with, content_error_with};
+pub fn archive_error(error: &typstographe_core::content::archive::Error) -> String {
+    archive_error_with(loader(), error)
+}
+pub fn content_error(error: &typstographe_core::content::contract::Error) -> String {
+    content_error_with(loader(), error)
+}
 pub use command_errors::command_error_with;
 #[cfg(test)]
 use typstographe_core::annotations;

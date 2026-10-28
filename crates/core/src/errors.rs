@@ -87,6 +87,9 @@ error_family! { StorageError {
     ReplaceFailed { error: String } => "storage-replace-failed";
     TemporaryFailed { error: String } => "storage-temporary-failed";
     UnknownEntry => "storage-unknown-entry";
+    UnexpectedEntry { name: String } => "storage-unexpected-entry";
+    DuplicateEntry { name: String } => "storage-duplicate-entry";
+    MissingEntry { name: String } => "storage-missing-entry";
     Unsupported => "storage-unsupported";
     ZipUnreadable { error: String } => "storage-zip-unreadable";
 } }
