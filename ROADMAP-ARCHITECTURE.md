@@ -62,6 +62,12 @@ conservées et une seule étape d’annulation pour chaque lot. Restent les opé
 fines de tableaux, les autres commandes et leur historique, le relais de frappe
 avec gestion du refus, le mode individuel allégé, puis la migration CLI/MCP.
 
+**Prochain lot validé :** [figures et tableaux](docs/structured-commands.md#prochain-lot--figures-et-tableaux--décisions-validées),
+avec une enveloppe Typst `figure` commune aux images/tableaux, légende facultative,
+édition des lignes/colonnes depuis la cellule active et conservation de la
+sémantique accessible. Fusion des cellules différée ; le raccordement aux
+commandes communes reste à réaliser.
+
 Converger entre le contenu structuré du nouvel éditeur et les adaptateurs
 historiques : catalogue, commandes, requêtes, erreurs typées et schémas de fichiers.
 Les cibles du nouvel éditeur sont des chemins de blocs/cellules/annotations,

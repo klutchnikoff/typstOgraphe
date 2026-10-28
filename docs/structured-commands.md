@@ -176,6 +176,52 @@ Les cellules et items gardent leurs frontières. Les résumés suivent le profil
 riche sans paragraphe final imposé. Cette politique Rust est confrontée à celle
 de la frappe immédiate dans Tiptap ; le raccordement de production reste à faire.
 
+## Prochain lot : figures et tableaux — décisions validées
+
+Ces décisions décrivent le prochain lot ; elles ne sont pas encore exécutées par
+les commandes communes ni par tous les adaptateurs.
+
+Images et tableaux seront toujours enveloppés dans une `figure` Typst, même sans
+légende. Le contrat partagera légende facultative, référence interne et politique
+de placement ; chaque contenu gardera son édition spécialisée. L’éditeur
+présentera un seul widget, avec l’en-tête et les bandeaux communs existants.
+Le modèle définira la présentation, la numérotation et les valeurs de placement,
+avec personnalisation seulement lorsqu’il l’autorise. Il devra aussi prévoir le
+comportement des tableaux longs sur plusieurs pages.
+
+La grille conservera les lignes, colonnes, cellules et rôles sémantiques des
+en-têtes. Les dimensions seront choisies à la création. Pendant l’édition, les
+actions viseront la cellule active :
+
+- ajouter une ligne au-dessus ou au-dessous ;
+- supprimer sa ligne ;
+- ajouter une colonne à gauche ou à droite ;
+- supprimer sa colonne.
+
+Ces actions passeront par les commandes documentaires communes et les
+interactions de widget/bandeau déjà retenues, accessibles au clavier. Elles
+respecteront la rectangularité, les frontières entre zones et l’annulation du
+lot. La fusion de cellules est explicitement différée ; aucune cellule fusionnée
+ne sera admise dans ce premier périmètre.
+
+Accessibilité :
+
+- Le texte alternatif d’une image sera porté par `image(alt: ...)`.
+- Aucun `figure(alt: ...)` ne sera ajouté autour d’un tableau : cela remplacerait
+  la lecture de ses cellules par la description. Les cellules et leurs en-têtes
+  devront rester accessibles comme un véritable tableau.
+- Les en-têtes de colonnes utiliseront `table.header`. Les en-têtes de lignes
+  nécessitent l’évaluation de l’API Typst actuellement expérimentale
+  `pdf.header-cell`, sous le drapeau `a11y-extras`.
+- La cible d’export à préparer est PDF/UA-1, éventuellement combinée à un profil
+  PDF/A compatible pour l’archivage. Ce choix ne signifie pas que l’export courant
+  vérifie déjà la conformité ; les modèles et les métadonnées devront la permettre.
+
+Références : [figure](https://typst.app/docs/reference/model/figure/),
+[table](https://typst.app/docs/reference/model/table/),
+[en-têtes accessibles](https://typst.app/docs/reference/pdf/header-cell/) et
+[guide d’accessibilité](https://typst.app/docs/guides/accessibility/).
+
 ## Enregistrements ordonnés d’en-tête
 
 Les collections et leurs champs proviennent des descripteurs du type courant,

@@ -184,9 +184,13 @@ L’[inventaire des capacités](docs/capabilities-inventory.md) contient les bes
 restants et les pistes Typst/Universe. Le catalogue exécutable du code fait foi
 sur ce qui est réellement disponible ; une entrée de cette liste ne suffit pas.
 
-- **Premier périmètre :** compléter les tableaux simples selon les manques
-  vérifiés, notamment légende, alignements et contenus autorisés ; terminer la
-  recette des notes de bas de page. Leur base existe : ne pas les réimplémenter.
+- **Premier périmètre :** compléter les tableaux simples selon les
+  [décisions validées pour les figures et tableaux](docs/structured-commands.md#prochain-lot--figures-et-tableaux--décisions-validées) :
+  enveloppe `figure` commune avec les images, légende facultative, en-têtes
+  sémantiques, ajout/suppression de lignes et colonnes autour de la cellule active.
+  La présentation et les défauts de placement appartiennent au modèle. La fusion
+  de cellules est différée. Terminer aussi la recette des notes de bas de page ;
+  leur base existe : ne pas les réimplémenter.
 - **Documents SHS :** citations bibliographiques et bibliothèque de références,
   renvois vers titres/figures/tableaux, numérotation, sommaire et annexes.
 - **Selon les types retenus :** encadrés sémantiques, listes de tâches et listes
