@@ -9,6 +9,7 @@ type SnapshotSession = Pick<Provider, 'doc' | 'generation' | 'flush'>
 export async function draftGuard(
   provider: SnapshotSession & Pick<Provider, 'revision'>,
   unchanged: () => boolean,
+  includeDocumentEdits = true,
 ): Promise<() => void> {
   const generation = provider.generation,
     identity = provider.doc.getMap('settings').get('identity')
@@ -20,7 +21,7 @@ export async function draftGuard(
     )
       throw new Error(tr('Le document a changé. Réessayez.'))
   }
-  await provider.flush()
+  await provider.flush(includeDocumentEdits)
   check()
   const revision = provider.revision
   return () => {

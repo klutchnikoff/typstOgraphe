@@ -41,10 +41,10 @@ export function historyFor(editor: Editor) {
       void provider.clearHistory().catch(provider.onError)
     },
     undo: () => {
-      void provider.history('undo')
+      void provider.history('undo').catch(provider.onError)
     },
     redo: () => {
-      void provider.history('redo')
+      void provider.history('redo').catch(provider.onError)
     },
     get undoStack() {
       return { length: Number(provider.canHistory()) }

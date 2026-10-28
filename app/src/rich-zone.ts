@@ -235,7 +235,7 @@ export function richZoneExtensions(
             ({ tr, dispatch }) => {
               tr.setMeta('preventDispatch', true)
               if (this.editor.view.composing || !native.canHistory(redo)) return false
-              if (dispatch) void native.history(redo ? 'redo' : 'undo')
+              if (dispatch) void native.history(redo ? 'redo' : 'undo').catch(native.onError)
               return true
             }
           return { undo: change(false), redo: change(true) }

@@ -21,7 +21,19 @@ export async function executeStructured(
   commands: StructuredCommand[],
   stillCurrent: () => boolean = () => true,
   installed?: () => void,
+  policy: { guardSelection?: boolean; flushMetadata?: boolean; lockEditors?: boolean } = {},
 ) {
+  if (policy.flushMetadata !== false && provider.documentEdits) {
+    const document = editor.state.doc,
+      selection = editor.state.selection
+    await provider.documentEdits.flush()
+    if (
+      editor.isDestroyed ||
+      !document.eq(editor.state.doc) ||
+      !selection.eq(editor.state.selection)
+    )
+      throw new Error(tr('Le document a changé. Réessayez.'))
+  }
   const original = Y.encodeStateAsUpdate(provider.doc)
   const selection = editor.state.selection
   let committing = false
@@ -31,12 +43,12 @@ export async function executeStructured(
       !editor.isDestroyed &&
       !editor.view.composing &&
       (committing || stillCurrent()) &&
-      selection.eq(editor.state.selection) &&
+      (policy.guardSelection === false || selection.eq(editor.state.selection)) &&
       original.length === current.length &&
       original.every((value, index) => current[index] === value)
     )
   }
-  const check = await draftGuard(provider, unchanged)
+  const check = await draftGuard(provider, unchanged, false)
   const request = {
     generation: provider.generation,
     revision: provider.revision,
@@ -97,7 +109,7 @@ export async function executeStructured(
     return publication.changed
   }
   committing = true // Inert zones may yield focus to body during the final lock.
-  if (provider.nativeEditing) return provider.commitCommand(commit)
+  if (provider.nativeEditing) return provider.commitCommand(commit, policy.lockEditors !== false)
   const editable = editor.isEditable
   editor.setEditable(false, false)
   try {
