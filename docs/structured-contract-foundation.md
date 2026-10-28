@@ -93,8 +93,9 @@ sur macOS ; la réussite distante des autres systèmes se lit dans la CI.
 
 ## Suite du chantier
 
-Les commandes typées communes, leurs cibles multizones, disponibilité, requêtes
-et historique restent à migrer. Le relais de frappe actuel n'est pas encore
+Le [lot suivant](structured-commands.md) ajoute les premières commandes typées
+communes, leurs cibles multizones et leur disponibilité dans le cœur. Les autres
+commandes, requêtes et l'historique restent à migrer. Le relais de frappe actuel n'est pas encore
 remplacé par `SharedSession` : ce remplacement doit livrer ensemble confirmation,
 refus et conservation du brouillon, puis l'activation à la demande des services
 de présence/collaboration. Le mode individuel allégé est une décision validée,

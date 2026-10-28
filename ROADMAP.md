@@ -27,6 +27,9 @@ Les [décisions de contrat et les lots techniques](docs/structured-contract.md)
 sont validés : Yrs côté Rust, cibles structurées, en-tête commun, lots atomiques
 et frappe locale immédiate. Mode individuel par défaut, avec services
 collaboratifs activés à la demande et moteur commun aux deux modes.
+Les [premières commandes multizones du cœur](docs/structured-commands.md) sont
+en place ; poursuivre les opérations structurelles, les contextes/historiques
+et le raccordement des adaptateurs.
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
 

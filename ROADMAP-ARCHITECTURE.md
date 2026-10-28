@@ -54,7 +54,8 @@ Mode individuel par défaut, services collaboratifs activés à la demande ;
 le moteur documentaire reste commun.
 
 Le [socle Yrs et de conservation](docs/structured-contract-foundation.md) est en
-place. Restent les commandes/cibles communes et leur historique, le relais de
+place, ainsi que les [premières commandes et cibles multizones](docs/structured-commands.md)
+dans le cœur. Restent les autres commandes et leur historique, le relais de
 frappe avec gestion du refus, le mode individuel allégé, puis la migration CLI/MCP.
 
 Converger entre le contenu structuré du nouvel éditeur et les adaptateurs

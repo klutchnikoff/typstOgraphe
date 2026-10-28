@@ -76,7 +76,8 @@ CLI/MCP, restent à réaliser selon la séquence ci-dessous.
 1. **Socle partagé** : valeurs de réglages et d'instantané dans le cœur,
    gardes/cibles/erreurs structurées, projection Yrs et contrôle de cohérence
    lors de la conservation. Éditions préparées et refus sans mutation publiée.
-2. **Commandes structurées** : corps et en-tête, ressources, catalogue,
+2. **Commandes structurées** : les [cibles multizones et premières commandes](structured-commands.md)
+   sont livrées dans le cœur et vérifiées avec Tiptap. Poursuivre corps et en-tête, ressources, catalogue,
    disponibilité et historique communs. Préserver les identités lors des éditions.
 3. **Application** : brancher le moteur sur le relais et les commandes ; traiter
    accusés de réception, refus, brouillons, IME et mode individuel. Conserver la
