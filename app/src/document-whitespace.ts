@@ -33,7 +33,7 @@ export function normalizeWhitespace(tr: Transaction, trailingParagraph = true) {
     parent.forEach((node, offset, index) => {
       const pos = start + offset
       if (
-        ['doc', 'quote'].includes(parent.type.name) &&
+        ['doc', 'quote', 'tableCell', 'tableHeader'].includes(parent.type.name) &&
         emptyParagraph(node) &&
         emptyParagraph(parent.maybeChild(index + 1))
       ) {
@@ -110,7 +110,7 @@ function normalizeSharedWhitespace(
           previous = current
         })
         indices.reverse().forEach((index) => node.delete(index, 1))
-      } else visit(node, node.nodeName === 'quote')
+      } else visit(node, ['quote', 'tableCell', 'tableHeader'].includes(node.nodeName))
     }
   }
   root.doc!.transact((transaction) => {

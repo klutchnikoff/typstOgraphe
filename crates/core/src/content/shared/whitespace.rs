@@ -57,7 +57,14 @@ fn visit(parent: &XmlFragmentRef, tx: &mut yrs::TransactionMut, flow: bool) {
                 element.remove(tx, index);
             }
         } else {
-            visit(&fragment(element), tx, element.tag().as_ref() == "quote");
+            visit(
+                &fragment(element),
+                tx,
+                matches!(
+                    element.tag().as_ref(),
+                    "quote" | "tableCell" | "tableHeader"
+                ),
+            );
         }
     }
 }

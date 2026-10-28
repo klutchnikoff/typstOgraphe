@@ -258,7 +258,7 @@ describe('deux éditeurs structurés et deux Y.Doc indépendants', () => {
     expect(a.provider.doc).not.toBe(b.provider.doc)
     expect(stableJSON(a.editor.getJSON())).toBe(stableJSON(b.editor.getJSON()))
     expect(a.editor.getText().match(/Madame, Monsieur/g)).toHaveLength(1)
-    expect(a.editor.getJSON().content?.some((node) => node.type === 'table')).toBe(true)
+    expect(a.editor.getJSON().content?.some((node) => node.type === 'tableFigure')).toBe(true)
     expect(a.editor.getHTML()).toContain('data-footnote')
     expect(a.editor.getHTML()).toContain('<figcaption>')
   })

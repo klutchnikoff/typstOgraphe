@@ -26,9 +26,15 @@ function create() {
         paragraph('A'),
         { type: 'quote', content: [paragraph('B'), { type: 'quoteAttribution' }] },
         {
-          type: 'table',
+          type: 'tableFigure',
           content: [
-            { type: 'tableRow', content: [{ type: 'tableCell', content: [paragraph('C')] }] },
+            {
+              type: 'table',
+              content: [
+                { type: 'tableRow', content: [{ type: 'tableCell', content: [paragraph('C')] }] },
+              ],
+            },
+            { type: 'tableCaption' },
           ],
         },
       ],

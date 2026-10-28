@@ -335,7 +335,15 @@ export function keyboardScope(root: HTMLElement, options: ScopeOptions) {
       if (target instanceof HTMLTextAreaElement && !options.enterMultiline) return
       if (target instanceof HTMLButtonElement) {
         consume(event)
-        if (available(target)) target.click()
+        if (available(target)) {
+          if (
+            target.getAttribute('role') === 'radio' &&
+            options.confirm &&
+            options.canConfirm?.() !== false
+          )
+            options.confirm()
+          else target.click()
+        }
       } else if (options.confirm && options.canConfirm?.() !== false) {
         consume(event)
         options.confirm()

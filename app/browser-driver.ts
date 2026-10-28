@@ -71,6 +71,19 @@ export function browserDriver(root: string): Plugin {
             requests.set(id, { resolve, reject })
             child.stdin.write(JSON.stringify({ ...input, id }) + '\n')
           })
+          if (input.command === 'commit_structured_commands') {
+            const publication = result as {
+              changed: boolean
+              guard: { revision: number }
+              update: number[]
+            }
+            if (publication.changed)
+              broadcast('web-editor:change', {
+                from: input.peer,
+                revision: publication.guard.revision,
+                update: publication.update,
+              })
+          }
           if (input.command === 'relay')
             broadcast('web-editor:change', {
               from: input.peer,

@@ -93,6 +93,15 @@ pub fn content_catalogue() -> Value {
                 }
             }
             value["editor"] = catalogue::editor(capability.id);
+            if let Some(actions) = value["editor"]
+                .get_mut("actions")
+                .and_then(Value::as_array_mut)
+            {
+                for action in actions {
+                    action["label"] =
+                        json!(text(action["label_key"].as_str().expect("action label")));
+                }
+            }
             value
         })
         .collect();
@@ -190,7 +199,14 @@ mod tests {
                 }
             }
             assert_eq!(localized, catalogue::parameters(id));
-            assert_eq!(entry["editor"], catalogue::editor(id));
+            let mut editor = entry["editor"].clone();
+            if let Some(actions) = editor.get_mut("actions").and_then(Value::as_array_mut) {
+                for action in actions {
+                    assert_eq!(action["label"], text(action["label_key"].as_str().unwrap()));
+                    action.as_object_mut().unwrap().remove("label");
+                }
+            }
+            assert_eq!(editor, catalogue::editor(id));
         }
     }
 }

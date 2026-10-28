@@ -222,5 +222,19 @@
   "Afficher le sommaire": "field-show-outline",
   "Chicago auteur–date": "web-chicago-author-date",
   "IEEE (numérique)": "web-ieee",
-  "Supprimer la citation": "web-delete-citation"
+  "Supprimer la citation": "web-delete-citation",
+  "Lignes": "web-table-rows",
+  "Colonnes": "web-table-columns",
+  "Ligne": "web-table-row",
+  "Colonne": "web-table-column",
+  "Première ligne d’en-tête": "web-table-header",
+  "Modifier le tableau": "web-table-edit",
+  "Dimensions de tableau invalides.": "web-table-invalid-dimensions",
+  "Ajouter une ligne au-dessus": "web-table-row-before",
+  "Ajouter une ligne au-dessous": "web-table-row-after",
+  "Supprimer cette ligne": "web-table-row-remove",
+  "Ajouter une colonne à gauche": "web-table-column-before",
+  "Ajouter une colonne à droite": "web-table-column-after",
+  "Supprimer cette colonne": "web-table-column-remove",
+  "Impossible d’appliquer cette modification.": "web-edit-failed"
 }

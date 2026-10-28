@@ -282,3 +282,19 @@ it('Échap ferme le menu puis le panneau avant que l’éditeur ne consomme la t
     dispose()
   }
 })
+
+it('Entrée valide le bandeau depuis un choix radio, sans seulement réactiver ce choix', () => {
+  const panel = document.createElement('form'),
+    choice = button('Une option'),
+    confirm = vi.fn(),
+    select = vi.fn()
+  choice.role = 'radio'
+  choice.onclick = select
+  panel.append(choice)
+  document.body.append(panel)
+  keyboardScope(panel, { confirm })
+  choice.focus()
+  key(choice, 'Enter')
+  expect(confirm).toHaveBeenCalledOnce()
+  expect(select).not.toHaveBeenCalled()
+})

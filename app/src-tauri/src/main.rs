@@ -13,6 +13,7 @@ mod schema;
 mod session;
 mod settings;
 mod shared_diagnostic;
+mod structured;
 
 use rendering::{Preview, Renderer};
 use session::{Bootstrap, Resource, Session, Snapshot};
@@ -74,6 +75,38 @@ fn relay(
     )
     .map_err(|e| e.to_string())?;
     Ok(revision)
+}
+#[tauri::command]
+fn prepare_structured_commands(
+    state: State<Bridge>,
+    request: structured::Request,
+) -> Result<typstographe_core::content::shared::Publication, String> {
+    structured::prepare(&*state.session.lock().map_err(|e| e.to_string())?, request)
+}
+#[tauri::command]
+fn commit_structured_commands(
+    window: WebviewWindow,
+    app: tauri::AppHandle,
+    state: State<Bridge>,
+    request: structured::Request,
+) -> Result<typstographe_core::content::shared::Publication, String> {
+    let publication = structured::commit(
+        &mut *state.session.lock().map_err(|e| e.to_string())?,
+        window.label(),
+        request,
+    )?;
+    if publication.changed {
+        app.emit(
+            "web-editor:change",
+            Change {
+                from: window.label().into(),
+                revision: publication.guard.revision,
+                update: publication.update.clone(),
+            },
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(publication)
 }
 #[tauri::command]
 fn connection(window: WebviewWindow, state: State<Bridge>, online: bool) -> Result<(), String> {
@@ -500,6 +533,8 @@ fn main() {
             join,
             connection,
             relay,
+            prepare_structured_commands,
+            commit_structured_commands,
             awareness,
             preview,
             preview_frame,
@@ -537,6 +572,6 @@ mod tests {
         assert!(export.join("images/parc.svg").exists());
         let body = std::fs::read_to_string(export.join("contenu.typ")).unwrap();
         assert!(body.contains("#footnote"));
-        assert!(body.contains("#table"));
+        assert!(body.contains("table(columns:"));
     }
 }

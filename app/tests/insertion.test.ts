@@ -19,7 +19,7 @@ function editor(content: string | JSONContent, pos = 1) {
   return value
 }
 const widgets = [
-  'table',
+  'tableFigure',
   'figure',
   'quote',
   'bulletList',
@@ -29,7 +29,11 @@ const widgets = [
   'attachment',
 ] as const
 function widget(e: Editor, kind: (typeof widgets)[number]): JSONContent {
-  if (kind === 'table') return createTable(e.schema, 3, 2, true).toJSON()
+  if (kind === 'tableFigure')
+    return {
+      type: kind,
+      content: [createTable(e.schema, 3, 2, true).toJSON(), { type: 'tableCaption' }],
+    }
   if (kind === 'figure') return { type: kind, attrs: { src: 'images/test.svg', alt: 'Image' } }
   if (kind === 'quote')
     return { type: kind, content: [{ type: 'paragraph' }, { type: 'quoteAttribution' }] }
@@ -109,10 +113,10 @@ it('un retour simple ne laisse pas de ligne vide avant le tableau', () => {
     },
     7,
   )
-  insertBlock(e, widget(e, 'table'))
+  insertBlock(e, widget(e, 'tableFigure'))
   expect(lines(e)).toEqual([
     ['paragraph', 'Avant'],
-    ['table', ''],
+    ['tableFigure', ''],
     ['paragraph', ''],
     ['paragraph', 'Après'],
     ['paragraph', ''],
@@ -137,7 +141,7 @@ it('le texte non sélectionné conserve sa mise en forme de part et d’autre', 
 })
 it('ne sort pas implicitement d’une cellule pour insérer un autre widget', () => {
   const e = editor('<p></p>')
-  insertBlock(e, widget(e, 'table'))
+  insertBlock(e, widget(e, 'tableFigure'))
   const before = e.getJSON()
   expect(canInsertBlock(e)).toBe(false)
   expect(insertBlock(e, widget(e, 'quote'))).toBe(false)

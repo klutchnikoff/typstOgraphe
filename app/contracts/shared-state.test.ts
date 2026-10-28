@@ -37,7 +37,7 @@ function doc(update?: number[]) {
   return value
 }
 function fixture(article: boolean): JSONContent {
-  return {
+  const document: JSONContent = {
     type: 'doc',
     content: [
       { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Un titre' }] },
@@ -108,6 +108,12 @@ function fixture(article: boolean): JSONContent {
       { type: 'paragraph' },
     ],
   }
+  document.content = document.content!.map((node) =>
+    node.type === 'table'
+      ? { type: 'tableFigure', content: [node, { type: 'tableCaption' }] }
+      : node,
+  )
+  return document
 }
 function seed(type: 'courrier' | 'article') {
   const kind = catalogue.types.find((t) => t.id === type)!
@@ -394,7 +400,10 @@ it('executes one native multizone batch in the actual editor, preserving identit
     },
     {
       id: 'text.insert',
-      params: { target: range({ kind: 'body', path: [4, 0, 0, 0] }, 0, 7), text: 'Cellule revue' },
+      params: {
+        target: range({ kind: 'body', path: [4, 0, 0, 0, 0] }, 0, 7),
+        text: 'Cellule revue',
+      },
     },
     {
       id: 'metadata.set',
@@ -665,6 +674,88 @@ it('adds, reorders and removes native header records with rich fields and a sing
   expect(authors.has('alex')).toBe(false)
   undo.undo()
   await new Promise((resolve) => setTimeout(resolve, 10))
+  await probe({ action: 'inspect', update: bytes(original), expected: result.state })
+  undo.destroy()
+})
+
+it('roundtrips table captions and fine grid edits as one undo without replacing untouched shared cells', async () => {
+  const original = seed('courrier')
+  const element = document.createElement('div')
+  document.body.append(element)
+  const editor = createRichZone({
+    profile: 'document',
+    element,
+    label: 'Table contract',
+    binding: { kind: 'document', document: original },
+  })
+  editors.push(editor)
+  if (!editor.isInitialized)
+    await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+  const guard = { document: 'table-contract', revision: 0 }
+  const inserted = await probe({
+    action: 'commands',
+    update: bytes(original),
+    guard,
+    expected: guard,
+    commands: [
+      {
+        id: 'insert.table',
+        params: { parent: { root: { kind: 'body' } }, index: 1, rows: 2, columns: 2, header: true },
+      },
+    ],
+  })
+  Y.applyUpdate(original, new Uint8Array(inserted.update))
+  const before = state(original)
+  const root = original.getXmlFragment('default')
+  const figure = root.get(1) as Y.XmlElement,
+    grid = figure.get(0) as Y.XmlElement,
+    caption = figure.get(1)
+  const row = grid.get(1) as Y.XmlElement,
+    cell = row.get(1)
+  const origin = Symbol('table-batch')
+  const undo = new Y.UndoManager(root, { trackedOrigins: new Set([origin]) })
+  const target = { root: { kind: 'body' }, path: [1] }
+  const result = await probe({
+    action: 'commands',
+    update: bytes(original),
+    guard: inserted.guard,
+    expected: inserted.guard,
+    commands: [
+      {
+        id: 'text.insert',
+        params: {
+          target: { zone: { kind: 'body', path: [1, 1] }, from: 0, to: 0 },
+          text: 'Résultats 日本',
+          marks: [{ type: 'italic' }],
+        },
+      },
+      {
+        id: 'text.insert',
+        params: {
+          target: { zone: { kind: 'body', path: [1, 0, 1, 1, 0] }, from: 0, to: 0 },
+          text: 'é😀',
+        },
+      },
+      { id: 'table.row.insert', params: { target, index: 1 } },
+      { id: 'table.column.insert', params: { target, index: 1 } },
+    ],
+  })
+  Y.applyUpdate(original, new Uint8Array(result.update), origin)
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  expect(root.get(1)).toBe(figure)
+  expect(figure.get(0)).toBe(grid)
+  expect(figure.get(1)).toBe(caption)
+  expect(grid.get(2)).toBe(row)
+  expect(row.get(2)).toBe(cell)
+  expect(editor.view.dom.querySelector('[data-table] figcaption em')?.textContent).toBe(
+    'Résultats 日本',
+  )
+  expect(editor.view.dom.querySelector('[data-table]')!.querySelectorAll('tr')).toHaveLength(3)
+  expect(undo.undoStack).toHaveLength(1)
+  await probe({ action: 'inspect', update: bytes(original), expected: result.state })
+  undo.undo()
+  await probe({ action: 'inspect', update: bytes(original), expected: before })
+  undo.redo()
   await probe({ action: 'inspect', update: bytes(original), expected: result.state })
   undo.destroy()
 })

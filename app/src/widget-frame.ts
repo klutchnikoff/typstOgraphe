@@ -13,7 +13,7 @@ const labels = {
   orderedList: 'Liste numérotée',
   postscript: 'P.-S.',
   attachment: 'P.J.',
-  table: 'Tableau',
+  tableFigure: 'Tableau',
 } as const
 export type WidgetKind = keyof typeof labels
 export type WidgetAction = (pos: number, kind: WidgetKind, remove?: boolean) => void

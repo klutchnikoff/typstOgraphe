@@ -48,54 +48,71 @@
       ]
     },
     {
-      "type": "table",
+      "type": "tableFigure",
       "content": [
         {
-          "type": "tableRow",
+          "type": "table",
           "content": [
             {
-              "type": "tableHeader",
+              "type": "tableRow",
               "content": [
-                { "type": "paragraph", "content": [{ "type": "text", "text": "Équipement" }] }
+                {
+                  "type": "tableHeader",
+                  "content": [
+                    { "type": "paragraph", "content": [{ "type": "text", "text": "Équipement" }] }
+                  ]
+                },
+                {
+                  "type": "tableHeader",
+                  "content": [
+                    { "type": "paragraph", "content": [{ "type": "text", "text": "Quantité" }] }
+                  ]
+                }
               ]
             },
             {
-              "type": "tableHeader",
+              "type": "tableRow",
               "content": [
-                { "type": "paragraph", "content": [{ "type": "text", "text": "Quantité" }] }
+                {
+                  "type": "tableCell",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [{ "type": "text", "text": "Places assises" }]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "content": [
+                    { "type": "paragraph", "content": [{ "type": "text", "text": "30" }] }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableRow",
+              "content": [
+                {
+                  "type": "tableCell",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [{ "type": "text", "text": "Vidéoprojecteur" }]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "1" }] }]
+                }
               ]
             }
           ]
         },
         {
-          "type": "tableRow",
-          "content": [
-            {
-              "type": "tableCell",
-              "content": [
-                { "type": "paragraph", "content": [{ "type": "text", "text": "Places assises" }] }
-              ]
-            },
-            {
-              "type": "tableCell",
-              "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "30" }] }]
-            }
-          ]
-        },
-        {
-          "type": "tableRow",
-          "content": [
-            {
-              "type": "tableCell",
-              "content": [
-                { "type": "paragraph", "content": [{ "type": "text", "text": "Vidéoprojecteur" }] }
-              ]
-            },
-            {
-              "type": "tableCell",
-              "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "1" }] }]
-            }
-          ]
+          "type": "tableCaption",
+          "content": [{ "type": "text", "text": "Équipements nécessaires à la rencontre." }]
         }
       ]
     },

@@ -1,3 +1,4 @@
+import { tableCursor } from './table-selection'
 import { tr } from './i18n'
 import { Node, type Editor, type JSONContent } from '@tiptap/core'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
@@ -173,6 +174,15 @@ export function resumeAfterWidget(tr: Transaction, pos: number) {
   tr.setSelection(TextSelection.create(tr.doc, pos + 1))
   return tr
 }
+/** One annotation address for image captions, table captions and quote attributions. */
+export function widgetAnnotation(target: { node: PMNode; pos: number }) {
+  if (target.node.type.name === 'figure') return { kind: 'figure', position: target.pos + 1 }
+  if (['quote', 'tableFigure'].includes(target.node.type.name))
+    return {
+      kind: target.node.lastChild!.type.name,
+      position: target.pos + target.node.nodeSize - target.node.lastChild!.nodeSize,
+    }
+}
 export function widgetKey(editor: Editor, event: KeyboardEvent): boolean {
   if (event.isComposing || editor.view.composing) return false
   const { $from } = editor.state.selection
@@ -184,12 +194,34 @@ export function widgetKey(editor: Editor, event: KeyboardEvent): boolean {
   }
   if (event.key === 'Tab') {
     const target = widgetTarget(editor)
-    if (target && ['quote', 'figure'].includes(target.node.type.name)) {
+    if (target && ['quote', 'figure', 'tableFigure'].includes(target.node.type.name)) {
+      if (target.node.type.name === 'tableFigure') {
+        const cursor = tableCursor(editor)
+        const inCaption = cursor.parent.type.name === 'tableCaption'
+        const grid = target.node.firstChild!
+        let row = -1,
+          column = -1
+        for (let depth = 1; depth <= cursor.depth; depth++) {
+          if (cursor.node(depth).type.name === 'tableRow') row = cursor.index(depth - 1)
+          if (['tableCell', 'tableHeader'].includes(cursor.node(depth).type.name))
+            column = cursor.index(depth - 1)
+        }
+        if (
+          !inCaption &&
+          (event.shiftKey ||
+            row !== grid.childCount - 1 ||
+            column !== grid.lastChild!.childCount - 1)
+        )
+          return false
+        if (inCaption && event.shiftKey) {
+          event.preventDefault()
+          return editor.commands.setTextSelection(
+            TextSelection.near(editor.state.doc.resolve(target.pos + 1 + grid.nodeSize), -1).from,
+          )
+        }
+      }
       event.preventDefault()
-      const annotation =
-        target.node.type.name === 'figure'
-          ? target.pos + 1
-          : target.pos + target.node.nodeSize - target.node.lastChild!.nodeSize
+      const annotation = widgetAnnotation(target)!.position
       if (editor.state.selection.from < annotation) {
         return editor.commands.setTextSelection(annotation)
       }

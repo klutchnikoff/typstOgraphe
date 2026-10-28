@@ -24,6 +24,7 @@ import { withCurrentSnapshot } from './snapshot-operation'
 import { installMenus } from './menus'
 import { BandHost } from './band-layout'
 import { propertyPanel } from './properties'
+import { tablePanel } from './table-panel'
 import { insertBlock } from './editing'
 import { inlineObjectTarget } from './inline-objects'
 import { activeInlineObject } from './inline-object-focus'
@@ -76,6 +77,7 @@ const provider = new Provider(host.id, host.transport)
 let editor: Editor
 let properties: ReturnType<typeof propertyPanel> | undefined
 let citations: ReturnType<typeof citationPanel> | undefined
+let tables: ReturnType<typeof tablePanel> | undefined
 const rendering = renderQueue(render)
 let scheduledAt = 0
 let onPreview: ((revision: number) => void) | undefined
@@ -100,39 +102,17 @@ function propertyTarget(): { pos: number; kind: string } | undefined {
     : undefined
 }
 function openProperties(pos: number, kind: string, remove = false) {
-  if (kind === 'citation' && !remove) citations?.open(pos)
+  if (kind === 'tableFigure' && !remove) tables?.open(pos)
+  else if (kind === 'citation' && !remove) citations?.open(pos)
   else properties?.open(pos, kind, remove)
 }
 
 let commands: Registry = new Map()
 let contentCatalogue: Catalogue
-const tableTools = document.createElement('div')
-tableTools.className = 'table-tools'
-tableTools.dataset.active = 'false'
-for (const [label, command] of [
-  [tr('Ajouter une ligne'), 'addRowAfter'],
-  [tr('Retirer la ligne'), 'deleteRow'],
-  [tr('Ajouter une colonne'), 'addColumnAfter'],
-  [tr('Retirer la colonne'), 'deleteColumn'],
-  [tr('Supprimer le tableau'), 'deleteTable'],
-] as const) {
-  const button = document.createElement('button')
-  button.type = 'button'
-  button.textContent = label
-  button.addEventListener('click', () => {
-    if (command === 'deleteTable') {
-      const target = widgetTarget(editor)
-      if (target?.node.type.name === 'table') openProperties(target.pos, 'table', true)
-    } else editor.chain().focus()[command]().run()
-  })
-  tableTools.append(button)
-}
-element('toolbar').after(tableTools)
 
 function refresh() {
   if (!editor) return
   refreshCommands(commands)
-  tableTools.dataset.active = String(editor.isActive('table'))
   const leaf = (node: import('@tiptap/pm/model').Node) =>
     node.type.name === 'footnote'
       ? `\n${node.attrs.text || ''}\n`
@@ -398,6 +378,13 @@ async function start() {
   properties = propertyPanel(editor, bands, contentCatalogue, () =>
     element<HTMLInputElement>('image-file').click(),
   )
+  tables = tablePanel(
+    editor,
+    bands,
+    provider,
+    host.transport,
+    contentCatalogue.entries.find((c) => c.id === 'insert.table')!,
+  )
   preview = previewController(editor, provider, host.transport, () => version)
   initializeSettings(provider, contentCatalogue, bootstrap.settings)
   citations = citationPanel(editor, provider, host.transport, bands)
@@ -430,7 +417,9 @@ async function start() {
     () => element<HTMLInputElement>('image-file').click(),
     () => documentType(provider).capabilities,
     () => citations?.open(),
+    () => tables?.open(),
   )
+  tables.register(commands)
   commands.set('context.open', {
     id: 'context.open',
     label: tr('Paramètres'),

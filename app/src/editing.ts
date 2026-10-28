@@ -3,7 +3,7 @@ import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { Plugin, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import { widgetTarget, resumeAfterWidget } from './widgets'
+import { widgetTarget, widgetAnnotation, resumeAfterWidget } from './widgets'
 import { lineBreak } from './document-whitespace'
 
 /** Shared Typst-style inline input, also used by named editorial zones. */
@@ -205,7 +205,7 @@ function lineAhead(editor: Editor) {
   if (lineBreak($from.nodeAfter)) return $from.pos + $from.nodeAfter!.nodeSize
   if (!$from.parent.isTextblock || $from.parentOffset !== $from.parent.content.size) return null
   const parent = $from.node($from.depth - 1)
-  if (!['doc', 'quote'].includes(parent.type.name)) return null
+  if (!['doc', 'quote', 'tableCell', 'tableHeader'].includes(parent.type.name)) return null
   const index = $from.index($from.depth - 1) + 1,
     next = parent.maybeChild(index)
   if (next?.type.name !== 'paragraph') return null
@@ -246,6 +246,23 @@ export const DocumentInput = Extension.create({
         if (atDocumentStart(this.editor)) return true
         const { selection } = this.editor.state,
           { $from } = selection
+        const widget = widgetTarget(this.editor)
+        if (widget && widgetAnnotation(widget)?.kind === $from.parent.type.name) {
+          if (selection.empty && (!$from.parent.content.size || lineBreak($from.nodeBefore))) {
+            const tr = this.editor.state.tr
+            if (lineBreak($from.nodeBefore)) tr.delete($from.pos - 1, $from.pos)
+            this.editor.view.dispatch(
+              resumeAfterWidget(
+                tr,
+                tr.mapping.map(widget.pos + widget.node.nodeSize),
+              ).scrollIntoView(),
+            )
+            return true
+          }
+          if (selection.empty && lineBreak($from.nodeAfter))
+            return this.editor.commands.setTextSelection($from.pos + 1)
+          return this.editor.commands.insertContent({ type: 'softBreak' })
+        }
         if ($from.parent.type.name !== 'paragraph') return false
         if (
           selection.empty &&
@@ -266,7 +283,7 @@ export const DocumentInput = Extension.create({
           return true
         }
         const parent = $from.node($from.depth - 1).type.name
-        if (!['doc', 'quote'].includes(parent)) return false
+        if (!['doc', 'quote', 'tableCell', 'tableHeader'].includes(parent)) return false
         if (!$from.parent.content.size && selection.empty) return true
         const ahead = lineAhead(this.editor)
         if (ahead !== null) {

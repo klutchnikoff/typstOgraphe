@@ -151,6 +151,25 @@ fn dispatch(
             serde_json::to_value(bridge.session.lock().map_err(|e| e.to_string())?.join(peer))
                 .map_err(|e| e.to_string())
         }
+        "commit_structured_commands" => {
+            let request =
+                serde_json::from_value(args["request"].clone()).map_err(|e| e.to_string())?;
+            serde_json::to_value(structured::commit(
+                &mut *bridge.session.lock().map_err(|e| e.to_string())?,
+                peer,
+                request,
+            )?)
+            .map_err(|e| e.to_string())
+        }
+        "prepare_structured_commands" => {
+            let request =
+                serde_json::from_value(args["request"].clone()).map_err(|e| e.to_string())?;
+            serde_json::to_value(structured::prepare(
+                &*bridge.session.lock().map_err(|e| e.to_string())?,
+                request,
+            )?)
+            .map_err(|e| e.to_string())
+        }
         "relay" => {
             let update: Vec<u8> =
                 serde_json::from_value(args["update"].clone()).map_err(|e| e.to_string())?;

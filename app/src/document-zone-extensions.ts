@@ -6,7 +6,7 @@ import {
   type Extensions,
 } from '@tiptap/core'
 import { ListItem } from '@tiptap/extension-list'
-import { TableKit, Table, TableView } from '@tiptap/extension-table'
+import { TableKit, Table } from '@tiptap/extension-table'
 import { simpleWidgets } from './widgets'
 import { widgetFrame, type WidgetPresentations } from './widget-frame'
 import { tr } from './i18n'
@@ -43,19 +43,41 @@ export function documentExtensions(
       },
     }),
     TableKit.configure({ table: false }),
-    Table.extend({
-      addNodeView() {
-        return ({ node, view, getPos }) => {
-          const table = new TableView(node, this.options.cellMinWidth, view)
-          const frame = widgetFrame('table', getPos, properties, table.dom, presentations.table)
-          table.ignoreMutation = frame.content(
-            table.contentDOM,
-            table.ignoreMutation.bind(table),
-          ).ignoreMutation
-          return table
-        }
-      },
-    }).configure({ resizable: false }),
+    Table.extend({ group: '' }).configure({ resizable: false }),
+    Node.create({
+      name: 'tableFigure',
+      group: 'block',
+      content: 'table tableCaption',
+      isolating: true,
+      defining: true,
+      parseHTML: () => [{ tag: 'figure[data-table]' }],
+      renderHTML: () => ['figure', { 'data-table': '' }, 0],
+      addNodeView:
+        () =>
+        ({ getPos }) => {
+          const frame = widgetFrame(
+            'tableFigure',
+            getPos,
+            properties,
+            document.createElement('figure'),
+            presentations.tableFigure,
+          )
+          const body = document.createElement('div')
+          frame.dom.dataset.table = ''
+          frame.dom.append(body)
+          return { dom: frame.dom, ...frame.content(body) }
+        },
+    }),
+    Node.create({
+      name: 'tableCaption',
+      content: 'inline*',
+      parseHTML: () => [{ tag: 'figcaption[data-table-caption]' }],
+      renderHTML: () => [
+        'figcaption',
+        { 'data-table-caption': '', 'data-placeholder': tr('Légende facultative') },
+        0,
+      ],
+    }),
     Node.create({
       name: 'citation',
       group: 'inline',

@@ -33,6 +33,7 @@ export interface Transport {
 }
 const REMOTE = 'remote-relay'
 const BOOTSTRAP = 'bootstrap'
+export const CONFIRMED_COMMAND = { confirmedCommand: true }
 export const ACCEPTED_PROPOSAL = { acceptedProposal: true }
 interface Change {
   from: string
@@ -63,7 +64,13 @@ export class Provider {
     readonly transport: Transport,
   ) {
     this.doc.on('update', (update: Uint8Array, origin: unknown) => {
-      if (origin !== REMOTE && origin !== BOOTSTRAP && origin !== ACCEPTED_PROPOSAL && this.online)
+      if (
+        origin !== REMOTE &&
+        origin !== BOOTSTRAP &&
+        origin !== ACCEPTED_PROPOSAL &&
+        origin !== CONFIRMED_COMMAND &&
+        this.online
+      )
         this.send(update)
       this.onChange()
     })

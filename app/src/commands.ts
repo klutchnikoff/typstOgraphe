@@ -1,6 +1,5 @@
 import { navigationGroup } from './keyboard-navigation'
 import { tr } from './i18n'
-import { createTable } from '@tiptap/extension-table'
 import { widgetTarget } from './widgets'
 import { isWidgetKind } from './widget-frame'
 import type { Editor, JSONContent } from '@tiptap/core'
@@ -13,6 +12,14 @@ import {
   listKinds,
   type ListKind,
 } from './editing'
+export interface TableAction {
+  id: string
+  label: string
+  command: string
+  axis: 'row' | 'column'
+  offset: number
+  remove: boolean
+}
 export interface Capability {
   id: string
   label: string
@@ -23,7 +30,7 @@ export interface Capability {
   mark: string | null
   letter_only: boolean
   parameters: Parameters
-  editor?: { conversion_group?: string }
+  editor?: { conversion_group?: string; actions?: TableAction[] }
 }
 export interface PublicCommand {
   id: string
@@ -44,6 +51,7 @@ export function createRegistry(
   image: () => void,
   available: () => string[] | undefined = () => undefined,
   citation: () => void = () => {},
+  table: () => void = () => {},
 ): Registry {
   const registry: Registry = new Map()
   const actions: Record<string, () => void> = {
@@ -70,9 +78,7 @@ export function createRegistry(
       insertQuote(editor)
     },
     'insert.image': image,
-    'insert.table': () => {
-      insertBlock(editor, createTable(editor.schema, 3, 2, true).toJSON())
-    },
+    'insert.table': table,
     'insert.citation': citation,
     'insert.footnote': () =>
       insertInlineWithSettings(editor, { type: 'footnote', attrs: { text: '' } }, properties),
@@ -100,6 +106,12 @@ export function createRegistry(
       run,
       enabled: () => {
         if (available()?.includes(capability.id) === false) return false
+        if (capability.id === 'insert.table')
+          return (
+            editor.state.selection.empty &&
+            canInsertBlock(editor) &&
+            editor.state.selection.$from.depth === 1
+          )
         if (capability.id === 'insert.citation')
           return (
             editor.state.selection.$from.parent.inlineContent &&

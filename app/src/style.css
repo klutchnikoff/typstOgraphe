@@ -193,24 +193,6 @@ main {
   font-size: 12px;
   border-bottom: 1px solid var(--border);
 }
-.table-tools {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  white-space: nowrap;
-  gap: 2px;
-  padding: 6px 12px;
-  background: var(--soft);
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
-}
-.table-tools button {
-  flex-shrink: 0;
-}
-.table-tools[data-active='false'] {
-  visibility: hidden;
-  pointer-events: none;
-}
 .splitter {
   background: var(--border);
   border: 2px solid var(--bg);
@@ -1432,9 +1414,6 @@ li:has(.interline-band-gap[data-marker])::marker {
 .tiptap dl {
   margin: 0.35em 0;
 }
-.table-tools[data-active='false'] {
-  display: none;
-}
 .context-band:focus-visible {
   outline: none;
 }
@@ -1675,4 +1654,40 @@ li:has(.interline-band-gap[data-marker])::marker {
 .citation-selected-row > input {
   flex: 1;
   min-width: 0;
+}
+
+.table-dimensions,
+.table-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.table-dimensions label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.table-dimensions input {
+  width: 5em;
+}
+.table-header-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.table-header-choice input {
+  width: auto;
+}
+
+.tiptap .widget-tableFigure [data-widget-body] {
+  padding: 10px;
+}
+
+.table-actions {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
+}
+
+.table-actions button {
+  min-width: 0;
+  white-space: normal;
 }

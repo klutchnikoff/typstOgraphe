@@ -835,3 +835,31 @@ web-bibliographic-citation = Bibliographic citation
 web-chicago-author-date = Chicago author–date
 web-ieee = IEEE (numeric)
 web-delete-citation = Delete citation
+
+web-table-rows = Rows
+
+web-table-columns = Columns
+
+web-table-row = Row
+
+web-table-column = Column
+
+web-table-header = Header row
+
+web-table-edit = Edit table
+
+web-table-invalid-dimensions = Invalid table dimensions.
+
+web-table-row-before = Insert row above
+
+web-table-row-after = Insert row below
+
+web-table-row-remove = Delete this row
+
+web-table-column-before = Insert column left
+
+web-table-column-after = Insert column right
+
+web-table-column-remove = Delete this column
+
+web-edit-failed = Unable to apply this change.
