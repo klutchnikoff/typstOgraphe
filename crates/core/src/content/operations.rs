@@ -531,34 +531,15 @@ pub fn apply(
             if !(1..=100).contains(&rows) || !(1..=12).contains(&columns) {
                 return Err("Dimensions de tableau invalides.".into());
             }
-            node(
-                "table",
-                (0..rows)
-                    .map(|row| {
-                        node(
-                            "tableRow",
-                            (0..columns)
-                                .map(|_| {
-                                    node(
-                                        if row == 0
-                                            && call
-                                                .params
-                                                .get("header")
-                                                .and_then(Value::as_bool)
-                                                .unwrap_or(true)
-                                        {
-                                            "tableHeader"
-                                        } else {
-                                            "tableCell"
-                                        },
-                                        vec![node("paragraph", vec![])],
-                                    )
-                                })
-                                .collect(),
-                        )
-                    })
-                    .collect(),
+            super::tables::create(
+                rows as u32,
+                columns as u32,
+                call.params
+                    .get("header")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(true),
             )
+            .map_err(|e| e.to_string())?
         }
         _ => return Err(format!("Commande structurée inconnue : {}", call.id)),
     };

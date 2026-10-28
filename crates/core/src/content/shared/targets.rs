@@ -228,6 +228,7 @@ fn rich(value: XmlElementRef) -> Result<Resolved, Error> {
         "paragraph"
             | "heading"
             | "figure"
+            | "tableCaption"
             | "descriptionTerm"
             | "descriptionDefinition"
             | "quoteAttribution"

@@ -168,11 +168,11 @@ pub const ALL: &[Capability] = &[
         "cmd-insert-table",
         "table-2",
         "insert",
-        Some("table"),
+        Some("tableFigure"),
         None,
         false,
         false,
-        "Rectangular table, 1–12 columns and 1–100 rows. No merged cells; header row optional."
+        "Table figure with an optional rich caption, 1–12 columns and 1–100 rows. No merged cells; header row optional."
     ),
     capability!(
         "insert.citation",
@@ -272,6 +272,16 @@ pub fn parameters(id: &str) -> Value {
 /// Optional parameters default to panel controls. Body/structure/creation bindings
 /// prevent duplicating controls already provided elsewhere by the editor.
 pub fn editor(id: &str) -> Value {
+    if id == "insert.table" {
+        return json!({"actions":[
+            {"id":"table.row.remove","label_key":"web-table-row-remove","command":"table.row.remove","axis":"row","offset":0,"remove":true},
+            {"id":"table.row.before","label_key":"web-table-row-before","command":"table.row.insert","axis":"row","offset":0,"remove":false},
+            {"id":"table.row.after","label_key":"web-table-row-after","command":"table.row.insert","axis":"row","offset":1,"remove":false},
+            {"id":"table.column.remove","label_key":"web-table-column-remove","command":"table.column.remove","axis":"column","offset":0,"remove":true},
+            {"id":"table.column.before","label_key":"web-table-column-before","command":"table.column.insert","axis":"column","offset":0,"remove":false},
+            {"id":"table.column.after","label_key":"web-table-column-after","command":"table.column.insert","axis":"column","offset":1,"remove":false}
+        ]});
+    }
     find(id)
         .filter(|capability| capability.group == "lists")
         .map(|capability| json!({"conversion_group":capability.group}))

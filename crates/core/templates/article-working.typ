@@ -15,6 +15,7 @@
   let hairline = 0.35pt + luma(72%)
 
   set document(title: full-title, author: authors.map(a => a.name), keywords: if primary == none { () } else { primary.keywords })
+  show figure.where(kind: table): set block(breakable: true)
   set text(font: "Libertinus Serif", size: 11pt, lang: options.language, fill: ink)
   set page(
     paper: options.paper, flipped: options.landscape,

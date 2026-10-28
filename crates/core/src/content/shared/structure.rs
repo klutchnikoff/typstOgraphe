@@ -28,7 +28,9 @@ fn block(kind: &str) -> bool {
             | "descriptionList"
             | "quote"
             | "figure"
+            | "tableCaption"
             | "table"
+            | "tableFigure"
             | "postscript"
             | "attachment"
     )
@@ -46,6 +48,7 @@ fn shape(node: &Node, depth: usize, count: &mut usize) -> Result<(), Error> {
         "paragraph"
         | "heading"
         | "figure"
+        | "tableCaption"
         | "descriptionTerm"
         | "descriptionDefinition"
         | "quoteAttribution"
@@ -69,6 +72,7 @@ fn shape(node: &Node, depth: usize, count: &mut usize) -> Result<(), Error> {
                 && kinds.last() == Some(&"quoteAttribution")
                 && kinds[..kinds.len() - 1].iter().all(|k| *k == "paragraph")
         }
+        "tableFigure" => kinds == ["table", "tableCaption"],
         "table" => !kinds.is_empty() && kinds.iter().all(|k| *k == "tableRow"),
         "tableRow" => {
             !kinds.is_empty()

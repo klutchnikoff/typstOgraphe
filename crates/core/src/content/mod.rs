@@ -10,6 +10,7 @@ pub use mapping::source_mapped;
 pub mod operations;
 mod schema;
 pub mod shared;
+pub mod tables;
 pub use schema::{Mark, Node, source};
 
 /// Conserver seulement les ressources du contenu, de la signature et du modèle.

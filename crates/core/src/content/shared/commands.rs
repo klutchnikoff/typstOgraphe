@@ -367,6 +367,12 @@ fn format(
 }
 pub(super) fn apply(doc: &Doc, state: &State, command: &Command) -> Result<(), Error> {
     match command {
+        Command::InsertTable { .. }
+        | Command::InsertTableRow { .. }
+        | Command::RemoveTableRow { .. }
+        | Command::InsertTableColumn { .. }
+        | Command::RemoveTableColumn { .. }
+        | Command::TableHeader { .. } => super::tables::apply(doc, state, command),
         Command::InsertBlock { .. }
         | Command::ReplaceBlock { .. }
         | Command::RemoveBlock { .. }

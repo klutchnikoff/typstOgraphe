@@ -128,6 +128,24 @@ pub enum Command {
     Heading2 { target: TreeTarget },
     #[serde(rename = "block.heading_3")]
     Heading3 { target: TreeTarget },
+    #[serde(rename = "insert.table")]
+    InsertTable {
+        parent: TreeTarget,
+        index: u32,
+        rows: u32,
+        columns: u32,
+        header: bool,
+    },
+    #[serde(rename = "table.row.insert")]
+    InsertTableRow { target: TreeTarget, index: u32 },
+    #[serde(rename = "table.row.remove")]
+    RemoveTableRow { target: TreeTarget, index: u32 },
+    #[serde(rename = "table.column.insert")]
+    InsertTableColumn { target: TreeTarget, index: u32 },
+    #[serde(rename = "table.column.remove")]
+    RemoveTableColumn { target: TreeTarget, index: u32 },
+    #[serde(rename = "table.header")]
+    TableHeader { target: TreeTarget, enabled: bool },
     #[serde(rename = "record.add")]
     AddRecord {
         collection: String,
@@ -167,6 +185,12 @@ impl Command {
             Self::Heading1 { .. } => "block.heading_1",
             Self::Heading2 { .. } => "block.heading_2",
             Self::Heading3 { .. } => "block.heading_3",
+            Self::InsertTable { .. } => "insert.table",
+            Self::InsertTableRow { .. } => "table.row.insert",
+            Self::RemoveTableRow { .. } => "table.row.remove",
+            Self::InsertTableColumn { .. } => "table.column.insert",
+            Self::RemoveTableColumn { .. } => "table.column.remove",
+            Self::TableHeader { .. } => "table.header",
             Self::AddRecord { .. } => "record.add",
             Self::RemoveRecord { .. } => "record.remove",
             Self::MoveRecord { .. } => "record.move",
@@ -175,6 +199,12 @@ impl Command {
     }
 }
 pub const IDS: &[&str] = &[
+    "insert.table",
+    "table.row.insert",
+    "table.row.remove",
+    "table.column.insert",
+    "table.column.remove",
+    "table.header",
     "block.insert",
     "block.replace",
     "block.remove",

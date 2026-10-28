@@ -9,6 +9,9 @@ mod seed;
 mod structure;
 #[cfg(test)]
 mod structure_tests;
+#[cfg(test)]
+mod table_tests;
+mod tables;
 mod targets;
 #[cfg(test)]
 mod tests;
@@ -64,6 +67,26 @@ impl SharedDocument {
         apply(&doc, bytes)?;
         complete(&doc)?;
         Ok(Self { doc })
+    }
+    /// Reassemble a confirmed relay log before projecting it; intermediate updates
+    /// may depend on later entries or lack settings during bootstrap.
+    pub fn from_updates(updates: &[Vec<u8>]) -> Result<Self, Error> {
+        let total = updates
+            .iter()
+            .try_fold(0usize, |n, u| n.checked_add(u.len()))
+            .ok_or(Error::StateLimitExceeded)?;
+        if total > MAX_STATE_BYTES {
+            return Err(Error::StateLimitExceeded);
+        }
+        let doc = document();
+        for bytes in updates {
+            apply(&doc, bytes)?;
+        }
+        complete(&doc)?;
+        Ok(Self { doc })
+    }
+    pub fn same_history(&self, other: &Self) -> bool {
+        self.doc.transact().snapshot() == other.doc.transact().snapshot()
     }
     /// Bootstrap a new project once. Editing an existing state must preserve its identities.
     pub fn from_state(state: &State) -> Result<Self, Error> {

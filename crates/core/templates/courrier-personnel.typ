@@ -40,6 +40,7 @@
     nl: (postscript: "P.S.", attachments: "Bijlagen", subject: "Onderwerp", reference: "Referentie", date-prefix: "op "),
   ).at(options.language)
   set document(title: objet, author: expediteur)
+  show figure.where(kind: table): set block(breakable: true)
   set text(font: "Libertinus Serif", size: 11pt, lang: options.language, fill: black)
   set par(justify: false, leading: 0.55em, spacing: 0.95em, first-line-indent: 0pt)
   set heading(numbering: none)

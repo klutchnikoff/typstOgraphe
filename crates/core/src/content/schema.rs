@@ -141,18 +141,22 @@ fn block(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
                 return Err("Image interne absente ou chemin invalide.".into());
             }
             let alt = typst_string(node.string("alt")?);
-            let caption = inline(&node.content, mapped)?;
-            let caption = if caption.is_empty() {
-                String::new()
-            } else {
-                format!(", caption: [{caption}]")
-            };
-            format!(
-                "#figure(image({}, alt: {alt}){caption})",
-                typst_string(path)
-            )
+            figure(
+                &format!("image({}, alt: {alt})", typst_string(path)),
+                &node.content,
+                mapped,
+            )?
         }
-        "table" => table(node, assets, mapped)?,
+        "table" => table_figure(node, &[], assets, mapped)?,
+        "tableFigure" => {
+            if node.content.len() != 2
+                || node.content[0].kind != "table"
+                || node.content[1].kind != "tableCaption"
+            {
+                return Err("Tableau et légende attendus.".into());
+            }
+            table_figure(&node.content[0], &node.content[1].content, assets, mapped)?
+        }
         "quote" => {
             let annotation = node
                 .content
@@ -194,6 +198,30 @@ fn block(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
         other => return Err(format!("Structure non prise en charge : {other}")),
     })
 }
+fn table_figure(
+    node: &Node,
+    caption: &[Node],
+    assets: &Assets,
+    mapped: bool,
+) -> Result<String, String> {
+    let grid = table(node, assets, mapped)?;
+    figure(
+        grid.strip_prefix('#').expect("table expression"),
+        caption,
+        mapped,
+    )
+}
+/// Common native figure envelope; accessibility descriptions remain on the image body.
+fn figure(body: &str, caption: &[Node], mapped: bool) -> Result<String, String> {
+    let caption = inline(caption, mapped)?;
+    let option = if caption.is_empty() {
+        String::new()
+    } else {
+        format!(", caption: [{caption}]")
+    };
+    Ok(format!("#figure({body}{option})"))
+}
+
 fn table(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
     let width = node.content.first().map_or(0, |r| r.content.len());
     if !(1..=12).contains(&width) || node.content.len() > 100 {
