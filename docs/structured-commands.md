@@ -333,17 +333,21 @@ diagnostic reste réservé aux tests ; ce n’est pas une nouvelle voie publique
 
 Restent dans A.2 :
 
-- Les modes de frappe des participants. Une commande de style sur une plage
-  vide retourne actuellement `empty_selection`.
+- Le raccordement des [contextes de frappe](structured-editing-contexts.md) aux
+  adaptateurs. Leur sélection et leurs styles sont désormais communs dans le cœur.
+  Les commandes de style à cible explicite continuent de refuser une plage vide ;
+  les styles de frappe appartiennent à l’API de contexte.
 - La fusion de paragraphes et les transformations supplémentaires. L’insertion,
   la suppression de lignes/colonnes et les en-têtes de tableaux sont désormais
   communs ; la fusion de cellules reste différée.
   Les retours riches passent par `block.split` ou des nœuds de retour explicites,
   pas par des sauts de ligne cachés dans `text.insert`.
 - Les ressources, options et changements de modèle, les autres commandes et requêtes.
-- L’historique commun côté moteur. La recette montre qu’un lot importé dans
-  Yjs peut former une seule étape ; elle ne remplace pas la migration des piles
-  des participants ni le parcours d’acceptation des propositions.
+- Le raccordement de l’historique commun côté moteur aux adaptateurs. Le
+  [socle de contextes](structured-editing-contexts.md) exécute les lots et annulations
+  par participant, avec répliques durables et brouillons refusés conservés. Restent
+  le groupement de frappe, le parcours de résolution des brouillons et la migration
+  des propriétaires d’historique, sans doubler les piles en production.
 - L’extension du raccordement ciblé des tableaux au relais de frappe, aux
   accusés/refus et brouillons, le
   mode individuel à la demande, puis les adaptateurs CLI et MCP.

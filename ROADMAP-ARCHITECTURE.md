@@ -58,9 +58,13 @@ place, ainsi que les [commandes multizones et structurelles](docs/structured-com
 dans le cœur : insertions/remplacements/suppressions de blocs et items, séparation
 de paragraphes, titres, enregistrements d’en-tête ordonnés et normalisation des
 lignes vides avant publication. Les recettes Rust ↔ Tiptap vérifient les identités
-conservées et une seule étape d’annulation pour chaque lot. Restent les autres
-commandes et leur historique, le relais de frappe avec gestion du refus, le mode
-individuel allégé, puis la migration CLI/MCP.
+conservées et une seule étape d’annulation pour chaque lot. Le
+[socle de contextes et d’historique par participant](docs/structured-editing-contexts.md)
+ajoute des répliques privées durables, des styles/sélections isolés et la validation
+des annulations avant publication. Il est vérifié avec Yjs/Tiptap ; son raccordement
+aux adaptateurs reste à faire. Restent les autres commandes, le relais de frappe
+avec groupement, accusés/refus et brouillons, le mode individuel allégé, puis la
+migration CLI/MCP.
 
 **Lot en place :** [figures et tableaux](docs/structured-commands.md#figures-et-tableaux--contrat-mis-en-place),
 avec une enveloppe Typst `figure` commune aux images/tableaux, légende facultative,

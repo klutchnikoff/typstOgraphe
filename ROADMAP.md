@@ -30,8 +30,9 @@ collaboratifs activés à la demande et moteur commun aux deux modes.
 Les [commandes multizones et structurelles du cœur](docs/structured-commands.md)
 sont en place, avec les enregistrements d’en-tête ordonnés. Les tableaux avec
 légende et les opérations de lignes/colonnes sont raccordés au cœur depuis Tauri.
-Poursuivre les contextes/historiques et le raccordement des autres opérations
-et adaptateurs.
+Le [socle de contextes et d’historique par participant](docs/structured-editing-contexts.md)
+est en place dans le cœur et vérifié avec Yjs/Tiptap. Raccorder ces contextes et
+les autres opérations aux adaptateurs, puis le relais de frappe et ses refus.
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
 
