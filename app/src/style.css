@@ -218,6 +218,14 @@ main {
   border: 2px solid var(--bg);
   cursor: col-resize;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.resizing-columns,
+.resizing-columns * {
+  cursor: col-resize !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
 }
 .splitter:hover,
 .splitter:focus-visible {
