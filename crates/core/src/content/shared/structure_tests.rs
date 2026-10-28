@@ -7,6 +7,144 @@ use yrs::{Map, XmlFragment, types::SharedRef};
 fn tree(path: &[usize]) -> Value {
     json!({"root":{"kind":"body"},"path":path})
 }
+#[test]
+fn inline_objects_split_styled_unicode_text_and_preserve_existing_objects() {
+    let mut s = session(DocumentType::Courrier);
+    execute(
+        &mut s,
+        vec![command("text.bold", json!({"target":body(json!([0]),0,6)}))],
+    );
+    let before = SharedDocument::from_update(&s.update()).unwrap();
+    let root = before.doc.transact().get_xml_fragment("default").unwrap();
+    let paragraph = root.get(&before.doc.transact(), 0).unwrap().id();
+    let note = yrs::XmlOut::Element(
+        targets::element(root.clone(), &before.doc.transact(), &[2, 1]).unwrap(),
+    )
+    .id();
+    execute(
+        &mut s,
+        vec![
+            command(
+                "inline.replace",
+                json!({"target":body(json!([0]),3,4),"node":{"type":"footnote","attrs":{"text":"Insérée 日本"},"marks":[{"type":"italic"}]}}),
+            ),
+            command(
+                "node.set_attrs",
+                json!({"target":tree(&[2,1]),"attrs":{"text":"Note revue 😀"}}),
+            ),
+        ],
+    );
+    let content = &s.state.document.content[0].content;
+    assert_eq!(content[0].text.as_deref(), Some("A😀"));
+    assert_eq!(content[1].kind, "footnote");
+    assert_eq!(content[1].marks[0].kind, "italic");
+    assert_eq!(content[2].text.as_deref(), Some("日本"));
+    assert_eq!(content[2].marks[0].kind, "bold");
+    let after = SharedDocument::from_update(&s.update()).unwrap();
+    let root = after.doc.transact().get_xml_fragment("default").unwrap();
+    assert_eq!(root.get(&after.doc.transact(), 0).unwrap().id(), paragraph);
+    assert_eq!(
+        yrs::XmlOut::Element(targets::element(root, &after.doc.transact(), &[2, 1]).unwrap()).id(),
+        note
+    );
+    let publication = execute(
+        &mut s,
+        vec![command(
+            "node.set_attrs",
+            json!({"target":tree(&[2,1]),"attrs":{"text":"Note revue 😀"}}),
+        )],
+    );
+    assert!(!publication.changed);
+}
+#[test]
+fn a_boundary_splice_repairs_once_and_preserves_unaffected_neighbors() {
+    let mut s = session(DocumentType::Courrier);
+    let before = SharedDocument::from_update(&s.update()).unwrap();
+    let root = before.doc.transact().get_xml_fragment("default").unwrap();
+    let neighbor = root.get(&before.doc.transact(), 2).unwrap().id();
+    execute(
+        &mut s,
+        vec![command(
+            "block.splice",
+            json!({"parent":tree(&[]),"index":0,"delete_count":2,"nodes":[{"type":"quote","content":[paragraph("Citation"),{"type":"quoteAttribution"}]}]}),
+        )],
+    );
+    assert_eq!(s.state.document.content[0].kind, "quote");
+    assert_eq!(
+        s.state.document.content[1].content[0].text.as_deref(),
+        Some("Avant")
+    );
+    let after = SharedDocument::from_update(&s.update()).unwrap();
+    assert_eq!(
+        after
+            .doc
+            .transact()
+            .get_xml_fragment("default")
+            .unwrap()
+            .get(&after.doc.transact(), 1)
+            .unwrap()
+            .id(),
+        neighbor
+    );
+    execute(
+        &mut s,
+        vec![command(
+            "block.splice",
+            json!({"parent":tree(&[]),"index":0,"delete_count":3,"nodes":[]}),
+        )],
+    );
+    assert_eq!(s.state.document.content.len(), 1);
+    assert_eq!(s.state.document.content[0].kind, "paragraph");
+}
+#[test]
+fn object_commands_refuse_invalid_boundaries_private_attributes_and_bibliography_atomically() {
+    let s = session(DocumentType::Courrier);
+    for step in [
+        command(
+            "inline.replace",
+            json!({"target":body(json!([0]),2,2),"node":{"type":"footnote","attrs":{"text":"Note"}}}),
+        ),
+        command(
+            "inline.replace",
+            json!({"target":body(json!([0]),1,1),"node":paragraph("Interdit")}),
+        ),
+        command(
+            "node.set_attrs",
+            json!({"target":tree(&[2,1]),"attrs":{"__marks":[]}}),
+        ),
+        command(
+            "node.set_attrs",
+            json!({"target":tree(&[2,1]),"attrs":{"text":42}}),
+        ),
+        command(
+            "node.set_attrs",
+            json!({"target":tree(&[1,0,0]),"attrs":{"colspan":2}}),
+        ),
+        command(
+            "block.splice",
+            json!({"parent":tree(&[]),"index":1,"delete_count":99,"nodes":[]}),
+        ),
+    ] {
+        assert_rollback(
+            &s,
+            vec![
+                command(
+                    "node.set_attrs",
+                    json!({"target":tree(&[2,1]),"attrs":{"text":"Ne pas publier"}}),
+                ),
+                step,
+            ],
+        );
+    }
+    let article = session(DocumentType::Article);
+    assert_rollback(
+        &article,
+        vec![command(
+            "inline.replace",
+            json!({"target":body(json!([0]),1,1),"node":{"type":"citation","attrs":{"items":[{"file_id":"absent","key":"missing","supplement":""}],"form":"normal"}}}),
+        )],
+    );
+}
 fn abstract_tree(s: &SharedSession, path: &[usize]) -> Value {
     json!({"root":{"kind":"record","collection":"localizations","id":fields(s)["localizations"][0]["id"],"field":"abstract"},"path":path})
 }

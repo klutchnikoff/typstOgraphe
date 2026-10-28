@@ -54,7 +54,7 @@ fn attributes(marks: &[Style]) -> Result<Attrs, Error> {
 pub(in crate::content) fn validate_styles(marks: &[Style]) -> Result<(), Error> {
     attributes(marks).map(|_| ())
 }
-fn range(doc: &Doc, state: &State, target: &TextTarget) -> Result<Resolved, Error> {
+pub(super) fn range(doc: &Doc, state: &State, target: &TextTarget) -> Result<Resolved, Error> {
     if target.from > target.to {
         return Err(targets::invalid(TargetReason::ReversedRange));
     }
@@ -370,6 +370,9 @@ fn format(
 }
 pub(super) fn apply(doc: &Doc, state: &State, command: &Command) -> Result<(), Error> {
     match command {
+        Command::ReplaceInline { .. } | Command::SetNodeAttrs { .. } => {
+            super::objects::apply(doc, state, command)
+        }
         Command::InsertTable { .. }
         | Command::InsertTableRow { .. }
         | Command::RemoveTableRow { .. }
@@ -377,6 +380,7 @@ pub(super) fn apply(doc: &Doc, state: &State, command: &Command) -> Result<(), E
         | Command::RemoveTableColumn { .. }
         | Command::TableHeader { .. } => super::tables::apply(doc, state, command),
         Command::InsertBlock { .. }
+        | Command::SpliceBlocks { .. }
         | Command::ReplaceBlock { .. }
         | Command::RemoveBlock { .. }
         | Command::SplitBlock { .. }

@@ -3,6 +3,7 @@
 mod command_tests;
 pub(super) mod commands;
 mod normalization;
+mod objects;
 pub(super) mod projection;
 mod records;
 mod seed;

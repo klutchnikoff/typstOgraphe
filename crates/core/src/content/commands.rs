@@ -116,6 +116,20 @@ pub enum Command {
     },
     #[serde(rename = "block.replace")]
     ReplaceBlock { target: TreeTarget, node: Node },
+    #[serde(rename = "block.splice")]
+    SpliceBlocks {
+        parent: TreeTarget,
+        index: u32,
+        delete_count: u32,
+        nodes: Vec<Node>,
+    },
+    #[serde(rename = "inline.replace")]
+    ReplaceInline { target: TextTarget, node: Node },
+    #[serde(rename = "node.set_attrs")]
+    SetNodeAttrs {
+        target: TreeTarget,
+        attrs: serde_json::Map<String, Value>,
+    },
     #[serde(rename = "block.remove")]
     RemoveBlock { target: TreeTarget },
     #[serde(rename = "block.split")]
@@ -179,6 +193,9 @@ impl Command {
             Self::Clear { .. } => "text.clear",
             Self::InsertBlock { .. } => "block.insert",
             Self::ReplaceBlock { .. } => "block.replace",
+            Self::SpliceBlocks { .. } => "block.splice",
+            Self::ReplaceInline { .. } => "inline.replace",
+            Self::SetNodeAttrs { .. } => "node.set_attrs",
             Self::RemoveBlock { .. } => "block.remove",
             Self::SplitBlock { .. } => "block.split",
             Self::Paragraph { .. } => "block.paragraph",
@@ -207,6 +224,9 @@ pub const IDS: &[&str] = &[
     "table.header",
     "block.insert",
     "block.replace",
+    "block.splice",
+    "inline.replace",
+    "node.set_attrs",
     "block.remove",
     "block.split",
     "block.paragraph",
@@ -234,7 +254,7 @@ pub fn specifications() -> Value {
     json!({"version": super::contract::VERSION, "ids": IDS, "command_schema": schema(),
         "target_offsets":"utf16", "execution":"guarded_atomic_batch",
         "adapters_migrated":false,
-        "scope":"Multizone text, block boundaries, paragraph splitting and ordered header records. Inserted marks are explicit. Participant typing styles and production adapters are not yet migrated."})
+        "scope":"Multizone text, blocks, inline objects, public node attributes and ordered header records. Inserted marks are explicit. Tauri formatting, widgets and participant history use the shared owner; standalone adapters are not yet migrated."})
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Availability {

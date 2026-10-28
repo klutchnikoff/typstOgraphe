@@ -1,5 +1,5 @@
 //! Explicit subtree edits. XML tags are immutable: replacement renews only that subtree.
-use super::{projection, seed, targets};
+use super::{normalization, projection, seed, targets};
 use crate::content::{
     Node,
     commands::{Command, TextTarget, TextZone, TreeRoot, TreeTarget},
@@ -121,7 +121,7 @@ pub(super) fn validate(state: &State) -> Result<(), Error> {
     }
     Ok(())
 }
-fn root(doc: &Doc, state: &State, target: &TreeRoot) -> Result<XmlFragmentRef, Error> {
+pub(super) fn root(doc: &Doc, state: &State, target: &TreeRoot) -> Result<XmlFragmentRef, Error> {
     let tx = doc.transact();
     match target {
         TreeRoot::Body => tx
@@ -217,7 +217,7 @@ fn repair(doc: &Doc, parent: &XmlFragmentRef, top: bool) -> Result<(), Error> {
 fn top(target: &TreeTarget) -> bool {
     target.path.is_empty()
 }
-fn new_subtree(node: &Node) -> Result<(), Error> {
+pub(super) fn new_subtree(node: &Node) -> Result<(), Error> {
     fn public(node: &Node) -> bool {
         !node
             .attrs
@@ -307,6 +307,40 @@ fn replace(
         repair(doc, &parent, top(&parent_target))?;
     }
     Ok(())
+}
+fn splice(
+    doc: &Doc,
+    state: &State,
+    parent: &TreeTarget,
+    index: u32,
+    delete_count: u32,
+    nodes: &[Node],
+) -> Result<(), Error> {
+    for node in nodes {
+        new_subtree(node)?;
+    }
+    let root = container(doc, state, parent)?;
+    let len = root.len(&doc.transact());
+    if index > len || delete_count > len - index {
+        return Err(targets::invalid(TargetReason::OutOfBounds));
+    }
+    // A splice is one boundary operation; repair only its final container.
+    let before = projection::xml(root.children(&doc.transact()), &doc.transact(), 1, &mut 0)?;
+    if before[index as usize..(index + delete_count) as usize]
+        .iter()
+        .map(normalization::node)
+        .eq(nodes.iter().map(normalization::node))
+    {
+        return Ok(());
+    }
+    {
+        let mut tx = doc.transact_mut();
+        if delete_count > 0 {
+            root.remove_range(&mut tx, index, delete_count);
+        }
+        seed::children(root.clone(), &mut tx, nodes, index, 1, &mut 0)?;
+    }
+    repair(doc, &root, top(parent))
 }
 fn convert(
     doc: &Doc,
@@ -419,6 +453,12 @@ fn split(doc: &Doc, state: &State, target: &TextTarget) -> Result<(), Error> {
 }
 pub(super) fn apply(doc: &Doc, state: &State, command: &Command) -> Result<(), Error> {
     match command {
+        Command::SpliceBlocks {
+            parent,
+            index,
+            delete_count,
+            nodes,
+        } => splice(doc, state, parent, *index, *delete_count, nodes),
         Command::InsertBlock {
             parent,
             index,
