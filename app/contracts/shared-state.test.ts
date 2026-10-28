@@ -477,3 +477,194 @@ it('native styles remove hashed link attributes and an explicit plain insertion 
   expect(content.find((node) => node.text?.includes('plain'))?.marks?.length || 0).toBe(0)
   await probe({ action: 'inspect', update: bytes(original), expected: state(original) })
 })
+
+it('applies native structural edits in Tiptap without rebuilding neighbors and undoes the whole batch', async () => {
+  const original = seed('article')
+  const root = original.getXmlFragment('default')
+  const originalHeading = root.get(0)
+  const originalParagraph = root.get(1)
+  const table = root.get(4)
+  const element = document.createElement('div')
+  document.body.append(element)
+  const editor = createRichZone({
+    profile: 'document',
+    element,
+    label: 'Structures',
+    binding: { kind: 'document', document: original },
+  })
+  editors.push(editor)
+  if (!editor.isInitialized)
+    await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+  const before = state(original)
+  const origin = Symbol('native-structure')
+  const undo = new Y.UndoManager(root, { trackedOrigins: new Set([origin]) })
+  const tree = (path: number[]) => ({ root: { kind: 'body' }, path })
+  const paragraph = (text: string) => ({ type: 'paragraph', content: [{ type: 'text', text }] })
+  const guard = { document: 'structures', revision: 0 }
+  const result = await probe({
+    action: 'commands',
+    update: bytes(original),
+    guard,
+    expected: guard,
+    commands: [
+      {
+        id: 'block.split',
+        params: { target: { zone: { kind: 'body', path: [1] }, from: 3, to: 3 } },
+      },
+      {
+        id: 'block.insert',
+        params: {
+          parent: tree([]),
+          index: 2,
+          node: {
+            type: 'bulletList',
+            content: [{ type: 'listItem', content: [paragraph('Premier item')] }],
+          },
+        },
+      },
+      {
+        id: 'block.insert',
+        params: {
+          parent: tree([2]),
+          index: 1,
+          node: { type: 'listItem', content: [paragraph('Second item')] },
+        },
+      },
+      { id: 'block.heading_3', params: { target: tree([0]) } },
+      { id: 'block.remove', params: { target: tree([4]) } },
+    ],
+  })
+  Y.applyUpdate(original, new Uint8Array(result.update), origin)
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  expect(root.get(0)).toBe(originalHeading)
+  expect(root.get(1)).toBe(originalParagraph)
+  expect(root.toArray()).toContain(table)
+  expect(editor.view.dom.querySelectorAll('li')).toHaveLength(2)
+  expect(editor.view.dom.querySelector('h3')?.textContent).toBe('Un titre')
+  expect(documentContent(editor.getJSON())).toEqual(state(original).document)
+  await probe({ action: 'inspect', update: bytes(original), expected: result.state })
+  expect(undo.undoStack).toHaveLength(1)
+  undo.undo()
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  await probe({ action: 'inspect', update: bytes(original), expected: before })
+  expect(root.get(0)).toBe(originalHeading)
+  expect(root.get(1)).toBe(originalParagraph)
+  undo.redo()
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  await probe({ action: 'inspect', update: bytes(original), expected: result.state })
+  expect(editor.view.dom.querySelectorAll('li')).toHaveLength(2)
+  undo.destroy()
+})
+
+it('adds, reorders and removes native header records with rich fields and a single undo step', async () => {
+  const original = seed('article')
+  const settings = original.getMap('settings')
+  const collections = settings.get('collections') as Y.Map<Y.Map<Y.Map<unknown>>>
+  const authors = collections.get('authors')!
+  const definition = catalogue.types.find((t) => t.id === 'article')!.structured!
+  const authorDefinition = definition.collections.find((c) => c.parameter === 'authors')!
+  const author = addRecord(store(original), authorDefinition, { id: 'camille', name: 'Camille' })
+  const originalName = author.get('name')
+  const localizations = collections.get('localizations')!
+  const localized = [...localizations.values()][0]
+  const id = localized.get('id') as string
+  const abstract = localized.get('abstract') as Y.XmlFragment
+  const element = document.createElement('div')
+  document.body.append(element)
+  const ownerElement = document.createElement('div')
+  document.body.append(ownerElement)
+  const historyOwner = createRichZone({
+    profile: 'document',
+    element: ownerElement,
+    label: 'Body',
+    binding: { kind: 'document', document: original },
+  })
+  editors.push(historyOwner)
+  const editor = createRichZone({
+    profile: 'rich-text',
+    element,
+    label: 'Abstract',
+    binding: { kind: 'fragment', fragment: abstract, historyOwner },
+  })
+  editors.push(editor)
+  if (!editor.isInitialized)
+    await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+  const before = state(original)
+  const origin = Symbol('native-records')
+  const undo = new Y.UndoManager(settings, { trackedOrigins: new Set([origin]) })
+  const guard = { document: 'records', revision: 0 }
+  const result = await probe({
+    action: 'commands',
+    update: bytes(original),
+    guard,
+    expected: guard,
+    commands: [
+      {
+        id: 'record.add',
+        params: {
+          collection: 'affiliations',
+          id: 'irmar',
+          values: { text: 'Univ Rennes, CNRS, IRMAR' },
+        },
+      },
+      {
+        id: 'record.add',
+        params: {
+          collection: 'authors',
+          id: 'alex',
+          after: 'camille',
+          values: { name: 'Alex 日本', 'affiliation-ids': ['irmar'] },
+        },
+      },
+      { id: 'record.move', params: { collection: 'authors', id: 'alex', before: 'camille' } },
+      {
+        id: 'block.insert',
+        params: {
+          parent: {
+            root: { kind: 'record', collection: 'localizations', id, field: 'abstract' },
+            path: [],
+          },
+          index: 1,
+          node: {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Résumé partagé', marks: [{ type: 'italic' }] }],
+          },
+        },
+      },
+    ],
+  })
+  Y.applyUpdate(original, new Uint8Array(result.update), origin)
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  expect(authors.get('camille')).toBe(author)
+  expect(author.get('name')).toBe(originalName)
+  expect(localized.get('abstract')).toBe(abstract)
+  expect(editor.view.dom.querySelector('em')?.textContent).toBe('Résumé partagé')
+  const alex = authors.get('alex')!
+  expect(alex.get('name')).toBeInstanceOf(Y.Text)
+  expect((state(original).settings.metadata.fields.authors as { id: string }[])[0].id).toBe('alex')
+  expect(undo.undoStack).toHaveLength(1)
+  await probe({ action: 'inspect', update: bytes(original), expected: result.state })
+  undo.undo()
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  await probe({ action: 'inspect', update: bytes(original), expected: before })
+  undo.redo()
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  await probe({ action: 'inspect', update: bytes(original), expected: result.state })
+  const next = await probe({
+    action: 'commands',
+    update: bytes(original),
+    guard: result.guard,
+    expected: result.guard,
+    commands: [
+      { id: 'record.remove', params: { collection: 'authors', id: 'alex' } },
+      { id: 'record.remove', params: { collection: 'affiliations', id: 'irmar' } },
+    ],
+  })
+  undo.stopCapturing()
+  Y.applyUpdate(original, new Uint8Array(next.update), origin)
+  expect(authors.has('alex')).toBe(false)
+  undo.undo()
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  await probe({ action: 'inspect', update: bytes(original), expected: result.state })
+  undo.destroy()
+})
