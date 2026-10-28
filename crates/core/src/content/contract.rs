@@ -12,6 +12,17 @@ pub const VERSION: u32 = 1;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
 #[serde(tag = "code", rename_all = "snake_case")]
 pub enum Error {
+    #[error("invalid_target: {reason:?}")]
+    InvalidTarget { reason: TargetReason },
+    #[error("invalid_parameters: {parameter}")]
+    InvalidParameters { parameter: String },
+    #[error("command_unavailable: {command}, {reason:?}")]
+    CommandUnavailable {
+        command: String,
+        reason: UnavailableReason,
+    },
+    #[error("batch_failed: {index}: {cause}")]
+    BatchFailed { index: usize, cause: Box<Error> },
     #[error("unsupported_contract_version: {version}")]
     UnsupportedContractVersion { version: u32 },
     #[error("invalid_shared_state: {reason}")]
@@ -30,6 +41,29 @@ pub enum Error {
     StaleRevision { expected: u64, actual: u64 },
     #[error("state_limit_exceeded")]
     StateLimitExceeded,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TargetReason {
+    MissingNode,
+    NotTextZone,
+    MissingField,
+    MissingRecord,
+    MissingCollection,
+    UnexpectedPath,
+    ReversedRange,
+    OutOfBounds,
+    SplitSurrogate,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UnavailableReason {
+    PlainTextOnly,
+    EmptySelection,
+    StructuralEditRequired,
+    UnsupportedFieldKind,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

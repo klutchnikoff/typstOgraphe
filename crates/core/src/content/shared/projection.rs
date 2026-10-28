@@ -12,6 +12,17 @@ pub(super) fn invalid(reason: impl Into<String>) -> Error {
         reason: reason.into(),
     }
 }
+pub(super) fn mark_name(key: &str) -> &str {
+    key.rsplit_once("--")
+        .filter(|(_, suffix)| {
+            suffix.len() == 8
+                && suffix
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || b"+/=".contains(&c))
+        })
+        .map(|(name, _)| name)
+        .unwrap_or(key)
+}
 fn value<T: ReadTxn>(out: Out, tx: &T) -> Result<Value, Error> {
     match out {
         Out::Any(v) => serde_json::to_value(v).map_err(|e| invalid(e.to_string())),
@@ -66,16 +77,7 @@ pub(super) fn xml<T: ReadTxn>(
                         .flat_map(|attrs| attrs.iter())
                     {
                         // y-tiptap permits attributed mark keys with an eight-character hash.
-                        let name = key
-                            .rsplit_once("--")
-                            .filter(|(_, suffix)| {
-                                suffix.len() == 8
-                                    && suffix
-                                        .bytes()
-                                        .all(|c| c.is_ascii_alphanumeric() || b"+/=".contains(&c))
-                            })
-                            .map(|(name, _)| name)
-                            .unwrap_or(key);
+                        let name = mark_name(key);
                         marks.push(Mark {
                             kind: name.into(),
                             attrs: Some(

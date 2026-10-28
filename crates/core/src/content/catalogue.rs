@@ -232,7 +232,8 @@ pub fn describe(id: &str) -> Option<Value> {
     let c = find(id)?;
     Some(
         json!({"capability":c,"parameters":parameters(id),"editor":editor(id),
-        "implementations":{"structured_web":true,"legacy_engine":c.legacy,"legacy_mcp":c.legacy},
+        "implementations":{"structured_web":true,"shared_core":super::commands::IDS.contains(&c.id),"legacy_engine":c.legacy,"legacy_mcp":c.legacy},
+        "shared_core_scope":super::commands::IDS.contains(&c.id).then_some("Explicit multizone ranges only in this lot. Typing styles, structural edits and adapter migration are not implemented by this flag."),
         "guidance":"Semantics are shared. Availability and execution are adapter-specific: documentation alone never grants execution. Models change presentation, not the capability contract."}),
     )
 }

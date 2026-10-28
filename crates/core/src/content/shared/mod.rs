@@ -1,7 +1,11 @@
 //! Yjs-compatible state owned by Rust. Shared types never cross this boundary.
+#[cfg(test)]
+mod command_tests;
+mod commands;
 mod normalization;
 mod projection;
 mod seed;
+mod targets;
 #[cfg(test)]
 mod tests;
 
@@ -173,6 +177,75 @@ impl SharedSession {
         self.shared.update()
     }
 
+    pub fn inspect_zone(
+        &self,
+        guard: &Guard,
+        zone: &super::commands::TextZone,
+    ) -> Result<super::commands::ZoneInfo, Error> {
+        guard.check(&self.guard)?;
+        targets::resolve(&self.shared.doc, &self.state, zone)?.info(&self.shared.doc.transact())
+    }
+
+    /// Typed commands share the same guarded publication as incoming shared updates.
+    /// A batch sees its previous steps; only its final candidate is published.
+    pub fn prepare_commands(
+        &self,
+        guard: &Guard,
+        commands: &[super::commands::Command],
+    ) -> Result<PreparedUpdate, Error> {
+        guard.check(&self.guard)?;
+        if commands.len() > 256 {
+            return Err(Error::StateLimitExceeded);
+        }
+        let mut size = 0usize;
+        for command in commands {
+            size = size
+                .checked_add(
+                    serde_json::to_vec(command)
+                        .expect("command serialization")
+                        .len(),
+                )
+                .ok_or(Error::StateLimitExceeded)?;
+            if size > MAX_STATE_BYTES {
+                return Err(Error::StateLimitExceeded);
+            }
+        }
+        let candidate = SharedDocument::from_update(&self.shared.update())?;
+        for (index, command) in commands.iter().enumerate() {
+            let state = candidate.state()?;
+            commands::apply(&candidate.doc, &state, command).map_err(|cause| {
+                Error::BatchFailed {
+                    index,
+                    cause: Box::new(cause),
+                }
+            })?;
+        }
+        self.finish_preparation(guard, candidate)
+    }
+
+    /// Same resolver, parameter validation and final validation as execution.
+    /// This is a query; no candidate can be published and no revision is reserved.
+    pub fn availability(
+        &self,
+        guard: &Guard,
+        command: &super::commands::Command,
+    ) -> super::commands::Availability {
+        let reason = self
+            .prepare_commands(guard, std::slice::from_ref(command))
+            .err()
+            .map(|error| {
+                if let Error::BatchFailed { cause, .. } = error {
+                    *cause
+                } else {
+                    error
+                }
+            });
+        super::commands::Availability {
+            enabled: reason.is_none(),
+            reason,
+        }
+    }
+
     /// Validate only the final batch, permitting intermediate private states.
     /// The original shared document is never mutated by a failed or stale preparation.
     pub fn prepare(&self, guard: &Guard, updates: &[Vec<u8>]) -> Result<PreparedUpdate, Error> {
@@ -186,11 +259,19 @@ impl SharedSession {
         }
         let original = self.shared.update();
         let candidate = SharedDocument::from_update(&original)?;
-        let before = candidate.doc.transact().state_vector();
-        let before_snapshot = candidate.doc.transact().snapshot();
         for bytes in updates {
             apply(&candidate.doc, bytes)?;
         }
+        self.finish_preparation(guard, candidate)
+    }
+
+    fn finish_preparation(
+        &self,
+        guard: &Guard,
+        candidate: SharedDocument,
+    ) -> Result<PreparedUpdate, Error> {
+        let before = self.shared.doc.transact().state_vector();
+        let before_snapshot = self.shared.doc.transact().snapshot();
         complete(&candidate.doc)?;
         let full = candidate.update();
         if full.len() > MAX_STATE_BYTES {
