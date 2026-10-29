@@ -4,6 +4,11 @@ Lot du **27 octobre 2026**, après l’[inventaire préalable](egui-retirement.m
 Tauri est désormais la seule interface graphique compilée. Les modifications
 de présentation restent un travail distinct, à discuter ensuite.
 
+**Complément du 29 octobre 2026 :** le moteur de projection plate, ses sessions
+et le lecteur des archives egui sont également supprimés. Les garanties utiles
+sont reprises dans les tests structurés ; voir le [bilan des adaptateurs](structured-adapters.md).
+Le reste de ce document décrit le premier retrait du 27 octobre.
+
 ## Retrait et conservation
 
 - Suppression de `crates/app/`, de ses vues, du tampon plat, de sa galerie et

@@ -4,7 +4,8 @@ Ce lot prolonge le [socle Yrs](structured-contract-foundation.md) selon les
 [décisions validées](structured-contract.md). Il ajoute une API Rust commune,
 testée avec le véritable éditeur. Les tableaux, la mise en forme, les widgets et
 les objets en ligne, l’en-tête, les ressources, les options et les modèles de Tauri
-utilisent désormais cette API ; les adaptateurs CLI/MCP autonomes restent à migrer.
+utilisent désormais cette API. Les adaptateurs CLI/MCP ont depuis été migrés :
+voir le [bilan des adaptateurs structurés](structured-adapters.md).
 Ce lot ne clôture pas A.2.
 
 ## Contrat exécuté
@@ -14,7 +15,8 @@ est produit par Schemars depuis les types réellement désérialisés. Les champ
 inconnus et les offsets négatifs sont refusés. `specifications()` annonce le
 périmètre et les identifiants exécutables ; `content::catalogue::describe`
 annonce également le support `shared_core`, avec son périmètre d’exécution explicite.
-Ce support ne signifie pas que CLI ou MCP ont déjà migré.
+Cette mention décrivait le périmètre de ce lot intermédiaire ; CLI et MCP
+utilisent maintenant la même façade.
 
 | Commande | Effet dans ce lot |
 | --- | --- |

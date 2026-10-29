@@ -1,9 +1,9 @@
 # Contrat général des interfaces
 
-**Migration en cours :** ce document décrit le moteur historique. Le
-[contrat structuré A.2](structured-contract.md) fixe les nouvelles cibles et
-responsabilités ; son [socle Yrs](structured-contract-foundation.md) est livré.
-La CLI/MCP autonome et le relais de frappe ne sont pas encore migrés.
+**Archive historique :** ce moteur et le lecteur de ses archives ont été retirés
+le 29 octobre 2026. Le [contrat courant](../interface-contract.md) et le
+[bilan des adaptateurs structurés](../structured-adapters.md) décrivent
+l’implémentation actuelle.
 
 Contrat livré à la clôture du chantier K, le 24 octobre 2026. Il décrit la frontière
 commune utilisée par egui, la CLI et MCP, ainsi que la coordination des vues.

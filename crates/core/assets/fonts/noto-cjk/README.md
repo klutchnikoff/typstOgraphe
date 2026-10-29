@@ -25,10 +25,10 @@ Les notices de copyright figurent également dans les métadonnées des fontes.
 La licence est embarquée avec les binaires et copiée dans les exports qui utilisent
 ces fontes. Leur ajout représente environ **33,5 Mo** de ressources non compressées.
 
-`src/fonts.rs` fournit ces mêmes données à egui et à Typst. Les fontes de texte
-latin et de mathématiques restent celles de `typst-assets` 0.15.1, déjà fixé dans
-`Cargo.toml`. Noto CJK arrive en dernier recours dans l’éditeur et conserve une
-variante grasse distincte. Aucun chargement de police système ni téléchargement
+`src/fonts.rs` fournit ces données à Typst ; la feuille de style Tauri charge
+les mêmes fichiers pour le secours CJK de l’éditeur. Les fontes de texte latin
+et de mathématiques de Typst restent celles de `typst-assets` 0.15.1, déjà fixé
+dans `Cargo.toml`. Noto CJK conserve une variante grasse distincte. Aucun chargement de police système ni téléchargement
 n’est nécessaire à l’exécution.
 
 Un export de sources contenant des glyphes CJK inclut uniquement les variantes

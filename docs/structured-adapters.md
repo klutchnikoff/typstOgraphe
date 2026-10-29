@@ -10,8 +10,10 @@ Les restrictions du catalogue de capacités par type sont contrôlées dans le c
 y compris pour un nœud générique ou une archive : un P.-S. ne peut pas contourner
 le type Article en utilisant `block.insert`.
 
-Le moteur historique reste dans le cœur avec ses tests et ses catalogues archivés,
-mais il ne sert plus de chemin d’exécution à ces adaptateurs.
+Le moteur de projection plate et le lecteur des archives egui sont supprimés.
+`protocol` conserve les valeurs partagées des adaptateurs (erreurs, formats
+d’export et limite des lots), indépendamment du moteur structuré. Les anciens
+catalogues et bilans restent archivés à titre de référence.
 
 Tauri conserve son propriétaire vivant et ses contextes par fenêtre. Le MCP
 rattaché prépare ses appels dans ce même propriétaire. Les sélecteurs sont résolus
@@ -275,3 +277,60 @@ le défaut avant correction. La série finale complète passe avec la correction
 Clippy workspace/toutes cibles avec `-D warnings`, rustfmt, Prettier, construction
 web/du binaire Tauri, frontière des dépendances et garde-fous de taille passent.
 Aucune capture ni sollicitation d'un agent externe n'a été nécessaire.
+
+
+## Retrait du moteur de projection plate — 29 octobre 2026
+
+Le cœur ne compile plus le moteur `engine`, sa session, `ViewSync`, le parseur
+éditable de Typst, la récupération egui ou le lecteur de ses archives. Les erreurs,
+formats d’export et limite des lots utiles aux adaptateurs sont extraits dans
+`protocol`, sans réexport ni pont de compatibilité. Le lecteur structuré refuse
+les anciennes versions ; aucun document egui n’a à être conservé ou converti à
+ce stade du développement.
+
+Les outils encore utiles sont conservés : échappement Typst des valeurs littérales,
+carte du source pour l’aperçu, décodeur d’images, statistiques Unicode, dictionnaires,
+compilation Typst, export autonome, polices et licences. Le worker natif actuel
+reste le seul ordonnanceur de rendu ; l’ancien worker, les vignettes RGBA egui et
+les exemples de source compilés sans appelant disparaissent. Les sources Typst
+d’exemple restent disponibles comme références. Les erreurs sans émetteur et
+27 messages Fluent propres aux anciens parcours sont retirés.
+
+Les anciennes recettes ne sont pas conservées pour maintenir artificiellement
+le nombre de tests. Leurs garanties utiles sont reprises sur les objets actuels :
+
+- rejet des archives corrompues, incomplètes, de version incompatible, aux chemins
+  interdits ou dépassant les limites de taille et de nombre d’entrées ; cohérence
+  du source généré, des métadonnées, du modèle et des dépendances ;
+- ouverture, sauvegarde, réouverture et export des types intégrés avec leurs
+  modèles réels, validation de signature et ressources autonomes ;
+- glyphes CJK et polices exportées, dimensions de page, langue et paragraphes,
+  échappement des métadonnées et du texte littéral, reprise après erreur Typst ;
+- sélection et navigation dans le véritable rendu Typst : Unicode, liens, styles,
+  répétitions, ligatures et surlignage sur plusieurs pages ;
+- décodage PNG/JPEG/SVG, rétention des images utilisées par le corps et le modèle,
+  dictionnaires, offsets et comptage Unicode.
+
+Les tests structurés et natifs des lots précédents continuent de vérifier
+l’historique, les contextes, les propositions MCP, les verrous et la conservation
+du travail. Le total Rust passe de **494 à 257** après retrait des recettes du
+moteur abandonné ; cette baisse du nombre ne mesure pas une perte de garanties
+de l’application actuelle. Le lot enlève environ **20 400 lignes nettes** dans
+les répertoires Rust, tests compris. Les rapports, résultats d’essais, références
+visuelles et exemples `.typsto` existants sont conservés.
+
+Validation locale : **257 tests Rust**, **208 tests web et 3 tests de langues**,
+**20 recettes Rust ↔ Yjs**, **14 parcours Chromium/WebKit**, construction du
+binaire Tauri et du web de production, Clippy workspace/toutes cibles avec `-D warnings`, rustfmt, Prettier, **9 tests des
+gardes d’architecture**, limites de taille et frontière des dépendances réussis.
+Le diagnostic de performance natif reste ignoré par défaut. La CI contrôle
+désormais strictement la taille de tous les modules Rust de production, sans
+exception pour des répertoires retirés. La couverture distante devra être relue
+avec son nouveau dénominateur : le moteur supprimé était lui-même bien couvert.
+
+
+Les parcours navigateur reprennent la conservation d’un brouillon refusé,
+la préédition, la sauvegarde entre fenêtres et les préférences concurrentes.
+La recette de sélection entre blocs dans un document long, en échec dans la CI
+Linux précédente (`0f79046`), est également rejouée avec succès sur Chromium et
+WebKit locaux. Ce succès local ne remplace pas son prochain contrôle Linux.
