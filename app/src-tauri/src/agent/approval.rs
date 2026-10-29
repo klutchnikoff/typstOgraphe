@@ -4,6 +4,7 @@ use crate::session::Session;
 use std::sync::Mutex;
 use typstographe_core::{assets::Assets, content::shared::Publication};
 
+#[cfg(any(test, feature = "recipe-driver"))]
 pub(crate) fn accept(
     session: &Mutex<Session>,
     agent: &Mutex<AgentState>,

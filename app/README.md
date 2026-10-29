@@ -51,12 +51,13 @@ npm run check:format
 npm run build:web
 npm run test:rust
 npm run check:rust
-cargo build --locked --offline -p typstographe
+cargo build --locked --offline -p typstographe --features recipe-driver
 npm run test:browser
 ```
 
 Les recettes de navigateur utilisent un port et une session séparés de la
-rédaction. `npm run test:native` vérifie le parcours natif avec une session
+rédaction. Leur transport STDIO (`--stdio`) n’existe que dans un binaire construit
+avec `--features recipe-driver` ; l’application distribuée le refuse. `npm run test:native` vérifie le parcours natif avec une session
 isolée ; `npm run test:preview-native` mesure le binaire optimisé. Voir la
 [méthode de mesure](../docs/tauri-preview-performance.md).
 

@@ -3,6 +3,7 @@ mod approval;
 mod invitation;
 mod transport;
 use crate::{Bridge, session::Session, settings::Settings};
+#[cfg(any(test, feature = "recipe-driver"))]
 pub(crate) use approval::accept;
 use serde::Serialize;
 use serde_json::{Value, json};

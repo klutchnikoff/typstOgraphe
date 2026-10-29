@@ -50,10 +50,13 @@ jobs:
       - run: npm test
       - run: npm run build:web
       - run: cargo +stable fmt --all --check
-      - run: cargo +stable test --locked -p typstographe
-      - run: cargo +stable clippy --locked -p typstographe --all-targets -- -D warnings
+      - run: cargo +stable test --locked -p typstographe --features recipe-driver
+      - name: Clippy, distributed and recipe builds
+        run: |
+          cargo +stable clippy --locked -p typstographe --all-targets -- -D warnings
+          cargo +stable clippy --locked -p typstographe --all-targets --features recipe-driver -- -D warnings
       - name: Functional recipe driver
-        run: cargo +stable build --locked -p typstographe
+        run: cargo +stable build --locked -p typstographe --features recipe-driver
       - name: Yjs and Yrs shared contract recipes
         run: npm run test:contract --workspace @typstographe/app
       - name: Browser engines

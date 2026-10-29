@@ -12,6 +12,8 @@ workspace = true
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+# STDIO transport for the browser and contract recipes; never in distributed builds.
+recipe-driver = []
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
