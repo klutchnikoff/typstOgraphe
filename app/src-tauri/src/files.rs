@@ -1,12 +1,9 @@
-use crate::{
-    Bridge,
-    session::{Resource, Snapshot},
-    settings::Settings,
-};
+mod persistence;
+use crate::{Bridge, session::Snapshot, settings::Settings};
 use std::path::PathBuf;
 use tauri::{Emitter, State};
 use tauri_plugin_dialog::DialogExt;
-use typstographe_core::{DocumentLease, content::archive::Archive};
+use typstographe_core::content::archive::Archive;
 #[tauri::command]
 pub fn quit_app(app: tauri::AppHandle, state: State<Bridge>) -> Result<(), String> {
     state
@@ -109,52 +106,13 @@ pub async fn save_file(
     let session = state.session.clone();
     let renderer = state.renderer.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        if path.extension().and_then(|e| e.to_str()) != Some("typsto") {
-            return Err("Extension .typsto attendue.".into());
-        }
-        let (source, assets, settings) = {
-            let s = session.lock().map_err(|e| e.to_string())?;
-            (
-                s.validate(&snapshot)?,
-                s.assets.clone(),
-                snapshot
-                    .settings
-                    .clone()
-                    .unwrap_or_else(|| s.settings.clone()),
-            )
-        };
-        renderer.validate(&source, &assets, &settings)?;
-        let mut s = session.lock().map_err(|e| e.to_string())?;
-        s.validate(&snapshot)?;
-        let canonical = if path.exists() {
-            path.canonicalize()
-        } else {
-            path.parent()
-                .unwrap_or_else(|| std::path::Path::new("."))
-                .canonicalize()
-                .map(|p| p.join(path.file_name().unwrap_or_default()))
-        }
-        .map_err(|e| e.to_string())?;
-        let mut lease = if s.file_lease.as_ref().is_some_and(|l| l.path() == canonical) {
-            s.file_lease.as_ref().unwrap().clone()
-        } else {
-            DocumentLease::acquire(&canonical).map_err(|e| typstographe_i18n::command_error(&e))?
-        };
-        let archive = Archive {
-            document: snapshot.document,
-            metadata: settings.metadata,
-            template: settings.template.clone(),
-            model_id: settings.model_id,
-            assets,
-            dependencies: typstographe_core::packages::for_template(&settings.template),
-            yjs: update,
-        };
-        archive
-            .save(&mut lease)
-            .map_err(|e| typstographe_i18n::archive_error(&e))?;
-        s.file_lease = Some(lease);
-        s.mark_clean()?;
-        Ok(())
+        persistence::save_project(
+            &session,
+            &path,
+            snapshot,
+            update,
+            |source, assets, settings| renderer.validate(source, assets, settings),
+        )
     })
     .await
     .map_err(|e| e.to_string())?
@@ -173,74 +131,21 @@ pub async fn open_file(
         .lifecycle(revision)?;
     let renderer = state.renderer.clone();
     state.agent.lock().map_err(|e| e.to_string())?.token = None;
-    tauri::async_runtime::spawn_blocking(move || {
-        let canonical = path.canonicalize().map_err(|e| e.to_string())?;
-        let lease = session
-            .lock()
-            .map_err(|e| e.to_string())?
-            .file_lease
-            .as_ref()
-            .filter(|lease| lease.path() == canonical)
-            .cloned()
-            .map(Ok)
-            .unwrap_or_else(|| DocumentLease::acquire(&path))
-            .map_err(|e| typstographe_i18n::command_error(&e))?;
-        let archive = read_project(&path).map_err(|e| {
-            eprintln!("Project open failed: {e}");
-            typstographe_i18n::archive_error(&e)
-        })?;
-        let settings = Settings {
-            metadata: archive.metadata.clone(),
-            template: archive.template.clone(),
-            model_id: archive.model_id.clone(),
-        };
-        settings
-            .validate()
-            .map_err(|e| typstographe_i18n::content_error(&e))?;
-        renderer.validate(
-            &archive
-                .validate()
-                .map_err(|e| typstographe_i18n::archive_error(&e))?,
-            &archive.assets,
-            &settings,
-        )?;
-        let resources: Vec<_> = archive
-            .assets
-            .iter()
-            .map(|(path, data)| {
-                use base64::Engine;
-                Resource {
-                    path: path.clone(),
-                    data: base64::engine::general_purpose::STANDARD.encode(data),
-                }
-            })
-            .collect();
-        {
-            let mut current = session.lock().map_err(|e| e.to_string())?;
-            current.lifecycle(revision)?;
-            current.mark_clean()?;
-            current.file_lease = Some(lease);
-            current.replace(
-                archive.document.clone(),
-                settings.clone(),
-                archive.assets,
-                archive.yjs.clone(),
-            );
-            current.clean_revision = Some(current.revision);
-        }
-        let _ = crate::preferences::remember(&app, &path);
-        app.emit("app:document", path.to_string_lossy().as_ref())
-            .map_err(|e| e.to_string())?;
-        let response = serde_json::json!({
-            "document":archive.document,
-            "settings":settings,
-            "resources":resources,
-            "yjs":archive.yjs,
-        });
-        Ok(response)
+    let opened_path = path.clone();
+    let response = tauri::async_runtime::spawn_blocking(move || {
+        persistence::open_project(
+            &session,
+            &opened_path,
+            revision,
+            |source, assets, settings| renderer.validate(source, assets, settings),
+        )
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())??;
+    let _ = crate::preferences::remember(&app, &path);
+    app.emit("app:document", path.to_string_lossy().as_ref())
+        .map_err(|e| e.to_string())?;
+    Ok(response)
 }
 
 #[tauri::command]
@@ -400,3 +305,8 @@ mod tests {
         assert!(!message.contains("UnknownEntry"));
     }
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[path = "files/persistence_tests.rs"]
+mod persistence_tests;

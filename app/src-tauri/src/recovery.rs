@@ -320,14 +320,14 @@ mod tests {
             document: session.fixture.clone().unwrap(),
             settings: Some(session.settings.clone()),
         };
-        session.save(&snapshot, checkpoint().update).unwrap();
+        session.save(&snapshot, session.updates[0].clone()).unwrap();
         assert!(!session.root.join("session.json").exists());
         session.revision += 1;
         let snapshot = crate::session::Snapshot {
             revision: session.revision,
             ..snapshot
         };
-        session.save(&snapshot, checkpoint().update).unwrap();
+        session.save(&snapshot, session.updates[0].clone()).unwrap();
         assert!(session.root.join("session.json").exists());
     }
     #[test]
@@ -368,6 +368,132 @@ mod tests {
                 .list()
                 .unwrap()
                 .is_empty()
+        );
+    }
+    fn working(base: &std::path::Path) -> crate::session::Session {
+        let mut s = crate::session::Session::managed(base.into()).unwrap();
+        let mut cp = checkpoint();
+        cp.document.content[0].content[0].text = Some("Travail courant à préserver".into());
+        cp.update = typstographe_core::content::shared::SharedDocument::from_state(
+            &typstographe_core::content::contract::State::new(
+                cp.document.clone(),
+                cp.settings.clone(),
+            ),
+        )
+        .unwrap()
+        .update();
+        s.replace(cp.document, cp.settings, Default::default(), cp.update);
+        s.join("human");
+        s.ensure_owner().unwrap().snapshot("human").unwrap();
+        let snapshot = crate::session::Snapshot {
+            revision: s.revision,
+            document: s.fixture.clone().unwrap(),
+            settings: Some(s.settings.clone()),
+        };
+        s.save(&snapshot, s.updates[0].clone()).unwrap();
+        s
+    }
+    fn preserved(s: &mut crate::session::Session) -> serde_json::Value {
+        let context = s.ensure_owner().unwrap().snapshot("human").unwrap();
+        serde_json::json!({"guard":s.guard(),"updates":s.updates,"settings":s.settings,
+            "document":s.owner.as_ref().unwrap().state(),"history":context,"clean":s.clean_revision})
+    }
+    #[test]
+    fn invalid_shared_checkpoint_restoration_keeps_the_current_work_and_the_original_copy() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = Store::new(dir.path().into()).unwrap();
+        let id = old
+            .directory
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let mut cp = checkpoint();
+        cp.document.content[0].content[0].text = Some("Visible content disagrees with Yjs".into());
+        let path = old.write(cp, "Corrupt but valid JSON".into()).unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        drop(old);
+        let mut s = working(dir.path());
+        let current = std::fs::read(s.root.join("session.json")).unwrap();
+        let state = preserved(&mut s);
+        assert!(restore(&mut s, &id).is_err());
+        assert_eq!(preserved(&mut s), state);
+        assert_eq!(std::fs::read(path).unwrap(), bytes);
+        assert_eq!(std::fs::read(s.root.join("session.json")).unwrap(), current);
+    }
+    #[test]
+    fn recovery_copy_write_failure_precedes_publication_and_can_be_retried_without_losing_either_draft()
+     {
+        let dir = tempfile::tempdir().unwrap();
+        let old = Store::new(dir.path().into()).unwrap();
+        let id = old
+            .directory
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let path = old.write(checkpoint(), "À récupérer".into()).unwrap();
+        let candidate = std::fs::read(&path).unwrap();
+        drop(old);
+        let mut s = working(dir.path());
+        let state = preserved(&mut s);
+        let current_path = s.root.join("session.json");
+        let current = std::fs::read(&current_path).unwrap();
+        let backup = s.root.join("current.backup");
+        std::fs::rename(&current_path, &backup).unwrap();
+        std::fs::create_dir(&current_path).unwrap(); // Portable deterministic IO failure.
+        assert!(restore(&mut s, &id).is_err());
+        assert_eq!(preserved(&mut s), state);
+        assert_eq!(std::fs::read(&path).unwrap(), candidate);
+        assert_eq!(std::fs::read(&backup).unwrap(), current);
+        std::fs::remove_dir(&current_path).unwrap();
+        std::fs::rename(&backup, &current_path).unwrap();
+        restore(&mut s, &id).unwrap();
+        assert!(!path.exists());
+        let restored: Record =
+            serde_json::from_slice(&std::fs::read(&current_path).unwrap()).unwrap();
+        assert_eq!(restored.name, "À récupérer");
+        assert_eq!(restored.checkpoint.document, s.fixture.clone().unwrap());
+        assert_eq!(s.clean_revision, None);
+        assert_ne!(
+            s.guard(),
+            serde_json::from_value(state["guard"].clone()).unwrap()
+        );
+    }
+    #[cfg(unix)]
+    #[test]
+    fn recovery_symlinks_cannot_read_or_delete_an_external_draft() {
+        use std::os::unix::fs::symlink;
+        let dir = tempfile::tempdir().unwrap();
+        let old = Store::new(dir.path().into()).unwrap();
+        let id = old
+            .directory
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let slot = old.directory.clone();
+        drop(old);
+        let external = dir.path().join("external.json");
+        let bytes = serde_json::to_vec(&checkpoint()).unwrap();
+        std::fs::write(&external, &bytes).unwrap();
+        symlink(&external, slot.join("session.json")).unwrap();
+        let s = working(dir.path());
+        assert!(s.recovery.as_ref().unwrap().claim(&id).is_err());
+        assert!(s.recovery.as_ref().unwrap().list().unwrap().is_empty());
+        assert_eq!(std::fs::read(&external).unwrap(), bytes);
+        std::fs::remove_file(slot.join("session.json")).unwrap();
+        let elsewhere = dir.path().join("external-directory");
+        std::fs::rename(&slot, &elsewhere).unwrap();
+        std::fs::write(elsewhere.join("session.json"), &bytes).unwrap();
+        symlink(&elsewhere, &slot).unwrap();
+        assert!(s.recovery.as_ref().unwrap().claim(&id).is_err());
+        assert_eq!(
+            std::fs::read(elsewhere.join("session.json")).unwrap(),
+            bytes
         );
     }
 }

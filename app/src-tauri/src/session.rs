@@ -396,23 +396,34 @@ impl Session {
             })
             .collect()
     }
-    pub fn save(&self, snapshot: &Snapshot, update: Vec<u8>) -> Result<PathBuf, String> {
+    pub fn checkpoint(&self, snapshot: &Snapshot, update: Vec<u8>) -> Result<Checkpoint, String> {
         let source = self.validate(snapshot)?;
         if update.is_empty() || update.len() > MAX_UPDATES {
             return Err("État Yjs invalide.".into());
         }
-        typstographe_core::content::shared::SharedDocument::from_update(&update)
-            .and_then(|shared| {
-                shared.verify(&typstographe_core::content::contract::State::new(
-                    snapshot.document.clone(),
-                    snapshot
-                        .settings
-                        .clone()
-                        .unwrap_or_else(|| self.settings.clone()),
-                ))
-            })
-            .map_err(|e| e.to_string())?;
-        let checkpoint = Checkpoint {
+        let verify = || {
+            use typstographe_core::content::{
+                contract::{Error, State},
+                shared::SharedDocument,
+            };
+            let supplied = SharedDocument::from_update(&update)?;
+            let confirmed = SharedDocument::from_updates(&self.updates)?;
+            if !confirmed.same_history(&supplied) {
+                return Err(Error::InconsistentState {
+                    field: "checkpoint".into(),
+                });
+            }
+            confirmed.verify(&supplied.state()?)?;
+            supplied.verify(&State::new(
+                snapshot.document.clone(),
+                snapshot
+                    .settings
+                    .clone()
+                    .unwrap_or_else(|| self.settings.clone()),
+            ))
+        };
+        verify().map_err(|e| typstographe_i18n::content_error(&e))?;
+        Ok(Checkpoint {
             schema: SCHEMA.into(),
             document: snapshot.document.clone(),
             source,
@@ -422,7 +433,10 @@ impl Session {
                 .settings
                 .clone()
                 .unwrap_or_else(|| self.settings.clone()),
-        };
+        })
+    }
+    pub fn save(&self, snapshot: &Snapshot, update: Vec<u8>) -> Result<PathBuf, String> {
+        let checkpoint = self.checkpoint(snapshot, update)?;
         if let Some(store) = &self.recovery {
             if self.clean_revision == Some(snapshot.revision) {
                 return Ok(self.root.join("session.json"));
