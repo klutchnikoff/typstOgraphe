@@ -1280,3 +1280,57 @@ it('immutable images and signatures share one guarded batch and remain available
   expect(body.toArray().every((node, index) => node === nodes[index])).toBe(true)
   expect(state(original).settings.metadata.fields.signature).toBe(resource.path)
 })
+
+it('attached MCP accepts the same typed lot into the existing Yjs tree and human history', async () => {
+  const original = seed('article')
+  await call('reset', {})
+  const joined = await call('join', {})
+  const generation = joined.generation
+  await call('relay', { generation, update: bytes(original), capture: false })
+  const body = original.getXmlFragment('default')
+  const nodes = body.toArray()
+  const agent = (method: string, params: unknown) => call('diagnostic_agent', { method, params })
+  const inspect = await agent('document.inspect', {})
+  const before = state(original)
+  const selection = {
+    kind: 'text',
+    anchor: { zone: { kind: 'body', path: [1] }, offset: 1 },
+    head: { zone: { kind: 'body', path: [1] }, offset: 1 },
+  }
+  // Agent navigation stays private; it is never translated into human focus.
+  await agent('context.set', { document: inspect.document, selection, typing_styles: [] })
+  const pending = await agent('proposals.submit', {
+    document: inspect.document,
+    request_id: 'contract-one',
+    summary: 'Un ajout localisé',
+    steps: [
+      {
+        id: 'text.insert',
+        params: {
+          target: { zone: { kind: 'body', path: [1] }, from: 1, to: 1 },
+          text: ' Ajout ',
+          marks: [{ type: 'italic' }],
+        },
+      },
+      {
+        id: 'insert.table',
+        params: { parent: { root: { kind: 'body' } }, index: 2, rows: 1, columns: 2, header: true },
+      },
+    ],
+  })
+  expect((await agent('document.inspect', {})).outcome.state).toEqual(inspect.outcome.state)
+  const publication = await call('diagnostic_agent_accept', { id: pending.outcome.id })
+  expect(publication.guard.revision).toBe(inspect.document.guard.revision + 1)
+  Y.applyUpdate(original, new Uint8Array(publication.update))
+  expect(body.toArray()[0]).toBe(nodes[0])
+  expect(body.toArray()[1]).toBe(nodes[1])
+  await probe({ action: 'inspect', update: bytes(original), expected: publication.state })
+  expect(state(original).settings).toEqual(before.settings)
+  expect((await call('editing_context', { generation })).undo_steps).toBe(1)
+  const undo = await call('editing_history', { generation, direction: 'undo' })
+  Y.applyUpdate(original, new Uint8Array(undo.update))
+  expect(state(original)).toEqual(before)
+  const redo = await call('editing_history', { generation, direction: 'redo' })
+  Y.applyUpdate(original, new Uint8Array(redo.update))
+  await probe({ action: 'inspect', update: bytes(original), expected: publication.state })
+})

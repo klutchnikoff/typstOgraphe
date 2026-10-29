@@ -10,7 +10,6 @@ import {
   type Bootstrap,
   type Transport,
 } from '../src/provider'
-import { prepareProposal } from '../src/assistance'
 import fixture from '../fixture.json'
 
 class Host {
@@ -154,17 +153,20 @@ describe('deux éditeurs structurés et deux Y.Doc indépendants', () => {
       b = await client(host, 'peer-1')
     await flush(a, b)
     a.editor.commands.setTextSelection(3)
-    const before = stableJSON(a.editor.getJSON()),
-      next = structuredClone(a.editor.getJSON())
-    next.content!.push({
-      type: 'paragraph',
-      attrs: undefined,
-      content: [{ type: 'text', text: 'PROPOSITION VALIDÉE', marks: [] }],
-    })
+    const before = stableJSON(a.editor.getJSON())
     const manager = yUndoPluginKey.getState(a.editor.state)!.undoManager
     manager.trackedOrigins.add(ACCEPTED_PROPOSAL)
     manager.stopCapturing()
-    const update = prepareProposal(a.provider, [next])
+    // Simulate the confirmed owner delta, never a browser-generated proposal.
+    const draft = new Y.Doc()
+    Y.applyUpdate(draft, Y.encodeStateAsUpdate(a.provider.doc))
+    const paragraph = new Y.XmlElement('paragraph')
+    const text = new Y.XmlText()
+    text.insert(0, 'PROPOSITION VALIDÉE')
+    paragraph.insert(0, [text])
+    draft.getXmlFragment('default').push([paragraph])
+    const update = Y.encodeStateAsUpdate(draft, Y.encodeStateVector(a.provider.doc))
+    draft.destroy()
     host.updates.push(Array.from(update))
     host.revision++
     host.emit('web-editor:change', {

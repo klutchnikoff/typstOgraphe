@@ -213,6 +213,7 @@ impl Session {
             settings: self.settings.clone(),
         }
     }
+    #[cfg(test)]
     pub fn relay(&mut self, peer: &str, update: &[u8]) -> Result<u64, String> {
         Ok(self.relay_group(peer, update, None, true)?.revision)
     }

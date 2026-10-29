@@ -149,6 +149,7 @@ pub fn bridge(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         })
 }
 pub fn active_path() -> Result<PathBuf, std::io::Error> {
+    #[cfg(not(target_os = "windows"))]
     let home =
         home::home_dir().ok_or_else(|| std::io::Error::other("Home directory unavailable"))?;
     #[cfg(target_os = "macos")]

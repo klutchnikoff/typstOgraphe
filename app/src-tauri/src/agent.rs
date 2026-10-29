@@ -14,8 +14,10 @@ use std::{
 };
 use tauri::{Emitter, State};
 use typstographe_core::content::{
-    Node, catalogue,
-    operations::{Call, Target},
+    Node,
+    api::{self, Call},
+    catalogue,
+    contract::{Guard, State as ContentState},
 };
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,12 +26,14 @@ pub struct Proposal {
     pub request_id: String,
     pub summary: String,
     pub revision: u64,
+    pub generation: String,
     pub status: String,
     pub before: Node,
     pub after: Node,
-    pub stages: Vec<Node>,
     #[serde(skip_serializing)]
     pub settings: Settings,
+    #[serde(skip_serializing)]
+    pub steps: Vec<Call>,
 }
 #[derive(Default)]
 pub struct AgentState {
@@ -68,7 +72,11 @@ pub fn agent_state(state: State<Bridge>) -> Result<Value, String> {
 }
 #[tauri::command]
 pub fn agent_revoke(state: State<Bridge>) -> Result<(), String> {
+    let mut session = state.session.lock().map_err(|e| e.to_string())?;
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
+    if let Some(owner) = &mut session.owner {
+        owner.close(&agent_peer(&agent))?;
+    }
     agent.token = None;
     agent.proposal = None;
     agent.seen.clear();
@@ -107,7 +115,6 @@ pub async fn agent_accept(
     app: tauri::AppHandle,
     state: State<'_, Bridge>,
     id: String,
-    update: Vec<u8>,
 ) -> Result<(), String> {
     let (candidate, assets) = {
         let session = state.session.lock().map_err(|e| e.to_string())?;
@@ -147,11 +154,9 @@ pub async fn agent_accept(
         p.status = "stale".into();
         return Err("Proposition périmée : relisez le document.".into());
     }
-    if update.is_empty() {
-        return Err("Aucune édition à accepter.".into());
-    }
-    let revision = session.relay(window.label(), &update)?;
-    p.status = "accepted".into();
+    let publication = commit_accepted(&mut session, &mut agent, &id, window.label())?;
+    let revision = publication.guard.revision;
+    let update = publication.update;
     app.emit(
         "web-editor:change",
         json!({"from":"agent","acceptedBy":window.label(),"generation":session.generation,"revision":revision,"update":update}),
@@ -182,7 +187,11 @@ pub fn agent_invite(app: tauri::AppHandle, state: State<Bridge>) -> Result<Value
         .map_err(|e| e.to_string())?;
     out.commit().map_err(|e| e.to_string())?;
     {
+        let mut session = state.session.lock().map_err(|e| e.to_string())?;
         let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
+        if let Some(owner) = &mut session.owner {
+            owner.close(&agent_peer(&agent))?;
+        }
         agent.token = Some(invitation.token.clone());
         agent.proposal = None;
         agent.seen.clear();
@@ -241,13 +250,13 @@ fn serve_connection(
     }
     let response = (|| {
         let request: Value = serde_json::from_str(&line).map_err(|e| e.to_string())?;
-        let s = session.lock().map_err(|e| e.to_string())?;
+        let mut s = session.lock().map_err(|e| e.to_string())?;
         let mut a = agent.lock().map_err(|e| e.to_string())?;
         if a.token.is_none() || a.token.as_deref() != request["token"].as_str() {
             return Err("Invitation absente ou révoquée.".to_owned());
         }
         let result = dispatch(
-            &s,
+            &mut s,
             &mut a,
             request["method"].as_str().unwrap_or(""),
             &request["params"],
@@ -259,63 +268,102 @@ fn serve_connection(
     })();
     let value = match response {
         Ok(value) => json!({"result":value}),
-        Err(error) => json!({"error":error}),
+        Err(error) => {
+            let value = serde_json::from_str::<Value>(&error)
+                .unwrap_or_else(|_| json!({"code":"unavailable","message":error}));
+            json!({"error":value})
+        }
     };
     let _ = writeln!(stream, "{value}");
 }
 fn validate_step(step: &Call) -> Result<(), String> {
-    static VALIDATORS: std::sync::OnceLock<
-        std::collections::BTreeMap<String, jsonschema::Validator>,
-    > = std::sync::OnceLock::new();
-    let validators = VALIDATORS.get_or_init(|| {
-        typstographe_core::content::operations::specifications()
-            .into_iter()
-            .map(|spec| {
-                (
-                    spec["id"].as_str().unwrap().into(),
-                    jsonschema::validator_for(&spec["params_schema"])
-                        .expect("shared command schema"),
-                )
-            })
-            .collect()
-    });
-    validators
-        .get(&step.id)
-        .ok_or("Commande inconnue.")?
-        .validate(&step.params)
-        .map_err(|e| e.to_string())
+    if !typstographe_mcp::attached_step(step) {
+        return Err("Capability unavailable in attached body proposals".into());
+    }
+    api::check_params(&step.id, &step.params)
+        .map_err(|e| serde_json::to_string(&api::error_value(&e)).unwrap())
 }
-fn dispatch(
-    session: &Session,
+fn reference(session: &Session) -> Value {
+    json!({"id":session.generation,"guard":session.guard()})
+}
+fn check_reference(session: &Session, params: &Value) -> Result<(), String> {
+    if params["document"]["id"] != session.generation {
+        return Err("Foreign document reference".into());
+    }
+    let guard: Guard =
+        serde_json::from_value(params["document"]["guard"].clone()).map_err(|e| e.to_string())?;
+    guard
+        .check(&session.guard())
+        .map_err(|e| serde_json::to_string(&e).unwrap())
+}
+fn agent_peer(state: &AgentState) -> String {
+    format!("agent:{}", state.token.as_deref().unwrap_or("diagnostic"))
+}
+pub(crate) fn commit_accepted(
+    session: &mut Session,
+    state: &mut AgentState,
+    id: &str,
+    peer: &str,
+) -> Result<typstographe_core::content::shared::Publication, String> {
+    session.check_peer(peer, &session.generation)?;
+    if !state.busy.is_empty() {
+        return Err("Composition IME en cours.".into());
+    }
+    let p = state
+        .proposal
+        .as_mut()
+        .filter(|p| {
+            p.id == id
+                && p.status == "pending"
+                && p.revision == session.revision
+                && p.generation == session.generation
+        })
+        .ok_or("Proposition périmée.")?;
+    let guard = session.guard();
+    let publication = session.ensure_owner()?.calls(peer, &guard, &p.steps)?;
+    session.record(&publication);
+    p.status = "accepted".into();
+    Ok(publication)
+}
+pub(crate) fn dispatch(
+    session: &mut Session,
     state: &mut AgentState,
     method: &str,
     params: &Value,
 ) -> Result<Value, String> {
-    if method == "capabilities.list" {
-        return Ok(
-            json!({"entries":catalogue::ALL,"commands":typstographe_core::content::operations::specifications(),"target":{"path":"Indices of child nodes, from document.structure; refresh after edits.","from":"UTF-16 offset inside an inline text zone, never split a surrogate pair.","to":"Exclusive end; equal to from for insertion."},"editing":"Submit steps in proposals.submit. Never publish, save, export or approve directly."}),
-        );
+    if method != "resource.read" {
+        typstographe_mcp::validate_request(true, method, params)
+            .map_err(|e| serde_json::to_string(&api::error_value(&e)).unwrap())?;
+    } else if params
+        .as_object()
+        .is_none_or(|p| p.len() != 1 || !p.get("uri").is_some_and(Value::is_string))
+    {
+        return Err("Expected resource URI".into());
     }
-    if method == "document_types.list" {
-        return Ok(
-            json!({"entries":crate::catalogue::content_catalogue()["types"].as_array().unwrap().iter().map(|t|json!({"id":t["id"],"label":t["label"],"canCreate":t["canCreate"],"fields":t["fields"],"structured_metadata":t["structured"],"editing":"Metadata is readable; attached proposals currently edit body content only."})).collect::<Vec<_>>()}),
-        );
+    if state
+        .proposal
+        .as_ref()
+        .is_some_and(|p| p.generation != session.generation)
+    {
+        return Err("Document replaced; reconnect invitation".into());
     }
-    if method == "capabilities.describe" {
-        let id = params["id"].as_str().ok_or("ID absent.")?;
-        return typstographe_core::content::operations::specifications()
-            .into_iter()
-            .find(|entry| entry["id"] == id)
-            .ok_or_else(|| "Capacité inconnue.".into());
+    if method != "proposals.submit" && params.get("document").is_some() {
+        check_reference(session, params)?;
     }
+    let outcome = dispatch_outcome(session, state, method, params)?;
+    Ok(
+        json!({"version":1,"ok":true,"document":reference(session),"outcome":outcome,"permissions":{"proposals":true,"filesystem":false,"direct_edit_enabled":false,"human_approval_required":true}}),
+    )
+}
+fn dispatch_outcome(
+    session: &mut Session,
+    state: &mut AgentState,
+    method: &str,
+    params: &Value,
+) -> Result<Value, String> {
     if method == "proposals.get" || method == "proposals.cancel" {
         let mut p = proposal(state, session.revision)
-            .filter(|p| {
-                params
-                    .get("proposal")
-                    .and_then(Value::as_str)
-                    .is_none_or(|id| p.id == id)
-            })
+            .filter(|p| params["proposal"] == p.id)
             .ok_or("Proposition absente.")?;
         if method == "proposals.cancel" && p.status == "pending" {
             p.status = "cancelled".into();
@@ -323,424 +371,190 @@ fn dispatch(
         }
         return Ok(json!(p));
     }
-    let snapshot = state
-        .snapshot
-        .as_ref()
-        .filter(|s| s.revision == session.revision)
-        .ok_or("Document en cours de saisie : relire après publication de l'instantané.")?
-        .clone();
-    match method {
-        "bibliography.search" => {
-            let settings = snapshot.settings.as_ref().unwrap_or(&session.settings);
-            let typstographe_core::document_types::Metadata::Article(meta) = &settings.metadata
-            else {
-                return Err("Capability unavailable for this type".into());
-            };
-            let entries = typstographe_core::bibliography::index(&meta.references)?;
-            Ok(
-                json!({"revision":snapshot.revision,"entries":typstographe_core::bibliography::search(&entries,params["query"].as_str().unwrap_or(""))}),
-            )
-        }
-        "document.inspect" | "document.structure" => Ok(
-            json!({"revision":snapshot.revision,"document":snapshot.document,"metadata":snapshot.settings.as_ref().map(|s|&s.metadata),"permissions":{"proposals":true,"filesystem":false},"capabilities":catalogue::for_type(snapshot.settings.as_ref().unwrap_or(&session.settings).metadata.document_type()).collect::<Vec<_>>()}),
-        ),
-        "proposals.submit" => {
-            if !state.busy.is_empty() {
-                return Err("Composition IME en cours : aucune proposition différée.".into());
-            }
-            let request_id = params["request_id"]
-                .as_str()
-                .filter(|s| !s.is_empty() && s.len() <= 128)
-                .ok_or("request_id attendu.")?;
-            let fingerprint = {
-                use sha2::{Digest, Sha256};
-                Sha256::digest(serde_json::to_vec(params).map_err(|e| e.to_string())?)
-                    .iter()
-                    .map(|byte| format!("{byte:02x}"))
-                    .collect::<String>()
-            };
-            proposal(state, session.revision);
-            if let Some((previous_fingerprint, previous)) = state.seen.get(request_id) {
-                if previous_fingerprint != &fingerprint {
-                    return Err("request_id déjà utilisé pour un lot différent.".into());
-                }
-                return Ok(state
-                    .proposal
-                    .as_ref()
-                    .filter(|p| p.request_id == request_id)
-                    .map(|p| json!(p))
-                    .unwrap_or_else(|| previous.clone()));
-            }
-            if state.seen.len() >= 64 {
-                return Err(
-                    "Limite de propositions atteinte : reconnectez une nouvelle invitation.".into(),
-                );
-            }
-            if params["revision"].as_u64() != Some(snapshot.revision) {
-                return Err("Révision périmée.".into());
-            }
-            if proposal(state, session.revision).is_some_and(|p| p.status == "pending") {
-                return Err("Une proposition attend déjà votre décision.".into());
-            }
-            let steps: Vec<Call> =
-                serde_json::from_value(params["steps"].clone()).map_err(|e| e.to_string())?;
-            if steps.is_empty() || steps.len() > 128 {
-                return Err("Lot limité à 128 étapes.".into());
-            }
-            let mut after = snapshot.document.clone();
-            let settings = snapshot
-                .settings
-                .clone()
-                .unwrap_or_else(|| session.settings.clone());
-            let mut context: Target = typstographe_core::content::operations::end_target(&after);
-            let mut stages = vec![];
-            let mut typing_marks = vec![];
-            let mut stage_bytes = 0;
-            for step in steps {
-                validate_step(&step)?;
-                typstographe_core::content::operations::apply(
-                    &mut after,
-                    &step,
-                    &mut context,
-                    &mut typing_marks,
-                    settings.metadata.document_type(),
-                )?;
-                crate::schema::source(&after, &session.assets)?;
-                typstographe_core::bibliography::validate_document(&after, &settings.metadata)?;
-                stage_bytes += serde_json::to_vec(&after).map_err(|e| e.to_string())?.len();
-                if stage_bytes > 8 * 1024 * 1024 {
-                    return Err(
-                        "Proposition trop volumineuse : utilisez des lots plus courts.".into(),
-                    );
-                }
-                stages.push(after.clone())
-            }
-            let summary = params["summary"]
-                .as_str()
-                .unwrap_or("Proposition de rédaction");
-            if summary.len() > 2048 {
-                return Err("Résumé trop volumineux.".into());
-            }
-            let p = Proposal {
-                id: uuid::Uuid::new_v4().to_string(),
-                request_id: request_id.into(),
-                summary: summary.into(),
-                revision: snapshot.revision,
-                status: "pending".into(),
-                before: snapshot.document,
-                after,
-                stages,
-                settings,
-            };
-            if let Some(previous) = &state.proposal
-                && let Some((_, receipt)) = state.seen.get_mut(&previous.request_id)
-            {
-                *receipt = json!({"id":previous.id,"revision":previous.revision,"status":previous.status,"requestId":previous.request_id});
-            }
-            state.seen.insert(request_id.into(), (fingerprint,json!({"id":p.id,"revision":p.revision,"status":p.status,"requestId":p.request_id})));
-            state.proposal = Some(p.clone());
-            Ok(json!(p))
-        }
-        _ => Err("Outil inconnu ou non autorisé dans l'application.".into()),
+    if method == "document_types.list" {
+        return Ok(api::types());
     }
+    if method == "document_types.describe" {
+        let kind = serde_json::from_value(params["type"].clone()).map_err(|e| e.to_string())?;
+        return Ok(api::type_description(kind));
+    }
+    if method == "commands.list" {
+        let mut c = api::catalogue();
+        for entry in c["entries"].as_array_mut().unwrap() {
+            entry["attached_direct"] = json!(typstographe_mcp::attached_support(
+                entry["id"].as_str().unwrap()
+            ));
+            entry["attached_proposal"] = json!(
+                entry["batch_step"] == true
+                    && typstographe_mcp::attached_id(entry["id"].as_str().unwrap())
+            );
+        }
+        return Ok(c);
+    }
+    if method == "capabilities.describe" {
+        return api::describe(params["id"].as_str().ok_or("ID absent")?)
+            .ok_or_else(|| "Unknown capability".into());
+    }
+    if method == "resource.read" {
+        let uri = params["uri"].as_str().unwrap_or("");
+        return match uri {
+            "typstographe://guide" => {
+                Ok(json!({"instructions":typstographe_mcp::instructions(true)}))
+            }
+            "typstographe://types" => Ok(api::types()),
+            "typstographe://commands" => {
+                dispatch_outcome(session, state, "commands.list", &json!({}))
+            }
+            "typstographe://content-capabilities" => {
+                Ok(json!({"entries":catalogue::ALL,"commands":api::catalogue()}))
+            }
+            "typstographe://document" => {
+                dispatch_outcome(session, state, "document.inspect", &json!({}))
+            }
+            "typstographe://models" => {
+                let p = json!({"document":reference(session)});
+                dispatch_outcome(session, state, "models.list", &p)
+            }
+            _ => Err("Unknown resource".into()),
+        };
+    }
+    if method != "document.inspect"
+        && method != "proposals.submit"
+        && method != "spelling.suggestions"
+    {
+        check_reference(session, params)?
+    }
+    let confirmed: ContentState = session.ensure_owner()?.state().clone();
+    if method == "document.inspect" {
+        let peer = agent_peer(state);
+        let context = session.ensure_owner()?.snapshot(&peer)?;
+        return Ok(
+            json!({"guard":session.guard(),"state":confirmed,"document_type":confirmed.settings.metadata.document_type(),"context":context}),
+        );
+    }
+    if method == "context.get" {
+        return session
+            .ensure_owner()?
+            .snapshot(&agent_peer(state))
+            .map(|s| json!(s));
+    }
+    if method == "context.set" {
+        if !state.busy.is_empty()
+            || proposal(state, session.revision).is_some_and(|p| p.status == "pending")
+        {
+            return Err("Editing context is busy".into());
+        }
+        let selection =
+            serde_json::from_value(params["selection"].clone()).map_err(|e| e.to_string())?;
+        let styles =
+            serde_json::from_value(params["typing_styles"].clone()).map_err(|e| e.to_string())?;
+        let guard = session.guard();
+        return session
+            .ensure_owner()?
+            .navigate(&agent_peer(state), &guard, selection, styles)
+            .map(|s| json!(s));
+    }
+    if method == "proposals.submit" {
+        let request_id = params["request_id"]
+            .as_str()
+            .filter(|s| !s.is_empty() && s.len() <= 128)
+            .ok_or("request_id attendu")?;
+        let fingerprint = {
+            use sha2::{Digest, Sha256};
+            Sha256::digest(serde_json::to_vec(params).map_err(|e| e.to_string())?)
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<String>()
+        };
+        proposal(state, session.revision);
+        if let Some((previous, response)) = state.seen.get(request_id) {
+            if previous != &fingerprint {
+                return Err("request_id déjà utilisé pour un lot différent.".into());
+            }
+            return Ok(state
+                .proposal
+                .as_ref()
+                .filter(|p| p.request_id == request_id)
+                .map(|p| json!(p))
+                .unwrap_or_else(|| response.clone()));
+        }
+        if !state.busy.is_empty() {
+            return Err("Composition IME en cours : aucune proposition différée.".into());
+        }
+        check_reference(session, params)?;
+        if state.seen.len() >= 64
+            || state
+                .proposal
+                .as_ref()
+                .is_some_and(|p| p.status == "pending")
+        {
+            return Err("Limite de propositions atteinte ou lot en attente.".into());
+        }
+        let steps: Vec<Call> =
+            serde_json::from_value(params["steps"].clone()).map_err(|e| e.to_string())?;
+        if steps.is_empty() || steps.len() > 128 {
+            return Err("Lot limité à 128 étapes.".into());
+        }
+        for step in &steps {
+            validate_step(step)?;
+        }
+        let guard = session.guard();
+        let prepared = session
+            .ensure_owner()?
+            .prepare_agent_calls(&guard, &steps)?;
+        let after = prepared.state().clone();
+        let summary = params["summary"]
+            .as_str()
+            .unwrap_or("Proposition de rédaction");
+        if summary.len() > 2048 {
+            return Err("Résumé trop volumineux.".into());
+        }
+        let p = Proposal {
+            id: uuid::Uuid::new_v4().to_string(),
+            request_id: request_id.into(),
+            summary: summary.into(),
+            revision: session.revision,
+            generation: session.generation.clone(),
+            status: "pending".into(),
+            before: confirmed.document,
+            after: after.document.clone(),
+            settings: after.settings,
+            steps,
+        };
+        if serde_json::to_vec(&p).map_err(|e| e.to_string())?.len() > 8 * 1024 * 1024 {
+            return Err("Proposal exceeds review size limit".into());
+        }
+        if let Some(previous) = &state.proposal
+            && let Some((_, receipt)) = state.seen.get_mut(&previous.request_id)
+        {
+            *receipt = json!({"id":previous.id,"revision":previous.revision,"status":previous.status,"requestId":previous.request_id});
+        }
+        state.seen.insert(
+            request_id.into(),
+            (
+                fingerprint,
+                json!({"id":p.id,"revision":p.revision,"status":p.status,"requestId":p.request_id}),
+            ),
+        );
+        state.proposal = Some(p.clone());
+        return Ok(json!(p));
+    }
+    if !typstographe_mcp::attached_support(method) {
+        return Err("Tool unavailable in attached mode".into());
+    }
+    let mut p = params.clone();
+    p.as_object_mut()
+        .ok_or("Expected parameters")?
+        .remove("document");
+    api::check_params(method, &p)
+        .map_err(|e| serde_json::to_string(&api::error_value(&e)).unwrap())?;
+    api::query_state(&confirmed, &session.assets, method, &p)
+        .map_err(|e| serde_json::to_string(&e).unwrap())
 }
 
-#[derive(Clone)]
-struct McpClient {
-    invitation: Arc<Invitation>,
-}
-impl McpClient {
-    async fn request(&self, method: String, params: Value) -> Result<Value, String> {
-        let invitation = self.invitation.clone();
-        tokio::task::spawn_blocking(move || {
-            let mut stream = TcpStream::connect(&invitation.address).map_err(|e| e.to_string())?;
-            stream
-                .set_read_timeout(Some(std::time::Duration::from_secs(30)))
-                .map_err(|e| e.to_string())?;
-            writeln!(
-                stream,
-                "{}",
-                json!({"token":invitation.token,"method":method,"params":params})
-            )
-            .map_err(|e| e.to_string())?;
-            let mut line = String::new();
-            BufReader::new(stream.take(16 * 1024 * 1024))
-                .read_line(&mut line)
-                .map_err(|e| e.to_string())?;
-            let value: Value = serde_json::from_str(&line).map_err(|e| e.to_string())?;
-            if let Some(error) = value["error"].as_str() {
-                Err(error.into())
-            } else {
-                Ok(value["result"].clone())
-            }
-        })
-        .await
-        .map_err(|e| e.to_string())?
-    }
-}
-use rmcp::{ErrorData, RoleServer, ServerHandler, ServiceExt, model::*, service::RequestContext};
-fn tools() -> Vec<Tool> {
-    let definitions = [
-        (
-            "document_types.list",
-            "List the application's document types; availability is explicit.",
-            json!({}),
-        ),
-        (
-            "document.inspect",
-            "Read current published document, revision and capabilities.",
-            json!({}),
-        ),
-        (
-            "bibliography.search",
-            "Find published project references by fuzzy title/author search. Use file_id and key in insert.citation/citation.set proposal steps. This never reads external files.",
-            json!({"query":{"type":"string"}}),
-        ),
-        (
-            "document.structure",
-            "Read the structured tree. Build target.path from child indices; offsets are UTF-16 within a text zone.",
-            json!({}),
-        ),
-        (
-            "capabilities.list",
-            "List shared capabilities and target rules.",
-            json!({}),
-        ),
-        (
-            "capabilities.describe",
-            "Describe a shared capability.",
-            json!({"id":{"type":"string"}}),
-        ),
-        (
-            "proposals.submit",
-            "Prepare a whole lot for explicit human review. Returns pending, never published. Return control to the human; do not poll.",
-            json!({"revision":{"type":"integer"},"request_id":{"type":"string"},"summary":{"type":"string"},"steps":{"type":"array","items":{"type":"object","properties":{"id":{"type":"string"},"params":{"type":"object"}},"required":["id","params"],"additionalProperties":false}}}),
-        ),
-        (
-            "proposals.get",
-            "Read the status of a proposal.",
-            json!({"proposal":{"type":"string"}}),
-        ),
-        (
-            "proposals.cancel",
-            "Withdraw your pending proposal; cannot undo acceptance.",
-            json!({"proposal":{"type":"string"}}),
-        ),
-    ];
-    definitions
-        .into_iter()
-        .map(|(name, description, properties)| {
-            let mut schema =
-                json!({"type":"object","properties":properties,"additionalProperties":false});
-            if name == "proposals.submit" {
-                schema["required"] = json!(["revision", "request_id", "steps"])
-            } else if name == "capabilities.describe" {
-                schema["required"] = json!(["id"])
-            }
-            Tool::new(
-                name,
-                description,
-                Arc::new(schema.as_object().unwrap().clone()),
-            )
-        })
-        .collect()
-}
-impl ServerHandler for McpClient {
-    fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build()).with_server_info(Implementation::new("typstographe-web",env!("CARGO_PKG_VERSION"))).with_instructions("You are attached to typstOgraphe's structured editor. Discover document.inspect and capabilities.list. Use child-index paths from document.structure and the latest revision. Propose literal content via proposals.submit, never raw Typst. Edits are pending until the human accepts the entire lot. No tool may approve, save, export, read preferences or move the human selection. Return control after a proposal. Any published edit makes it stale. On failure refresh rather than guessing. No skill or repository access is required.")
-    }
-    async fn list_tools(
-        &self,
-        _: Option<PaginatedRequestParams>,
-        _: RequestContext<RoleServer>,
-    ) -> Result<ListToolsResult, ErrorData> {
-        Ok(ListToolsResult {
-            tools: tools(),
-            ..Default::default()
-        })
-    }
-    fn get_tool(&self, name: &str) -> Option<Tool> {
-        tools().into_iter().find(|tool| tool.name == name)
-    }
-    async fn call_tool(
-        &self,
-        request: CallToolRequestParams,
-        _: RequestContext<RoleServer>,
-    ) -> Result<CallToolResponse, ErrorData> {
-        let method = request.name.into_owned();
-        if self.get_tool(&method).is_none() {
-            return Err(ErrorData::invalid_params("Unknown tool", None));
-        }
-        let result = match self
-            .request(method, json!(request.arguments.unwrap_or_default()))
-            .await
-        {
-            Ok(value) => CallToolResult::structured(value),
-            Err(error) => CallToolResult::structured_error(json!({"error":error})),
-        };
-        Ok(result.into())
-    }
-}
 pub fn serve(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-    let invitation: Invitation = serde_json::from_slice(&std::fs::read(path)?)?;
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?;
-    runtime.block_on(async {
-        let server = McpClient {
-            invitation: Arc::new(invitation),
-        }
-        .serve(rmcp::transport::stdio())
-        .await?;
-        server.waiting().await?;
-        Ok(())
-    })
+    typstographe_mcp::local::bridge(&path)
 }
 
 #[cfg(test)]
-#[cfg_attr(coverage_nightly, coverage(off))]
-mod tests {
-    use super::*;
-    fn fixture() -> (tempfile::TempDir, Session, AgentState) {
-        let root = tempfile::tempdir().unwrap();
-        let mut session = Session::open(root.path().into()).unwrap();
-        let bootstrap = session.join("human");
-        let snapshot = Snapshot {
-            revision: session.revision,
-            document: bootstrap.fixture,
-            settings: Some(session.settings.clone()),
-        };
-        (
-            root,
-            session,
-            AgentState {
-                snapshot: Some(snapshot),
-                ..Default::default()
-            },
-        )
-    }
-    #[test]
-    fn proposal_arguments_are_validated_against_the_shared_schemas() {
-        for (id, params) in [
-            ("text.bold", json!({"value":"guess"})),
-            ("insert.table", json!({"rows":-2})),
-            ("text.insert", json!({"text":"Hello","unexpected":true})),
-            ("text.select", json!({"target":{"path":[-1]}})),
-        ] {
-            assert!(
-                validate_step(&Call {
-                    id: id.into(),
-                    params
-                })
-                .is_err(),
-                "{id}"
-            );
-        }
-    }
-    #[test]
-    fn discovery_and_proposals_use_shared_contracts_without_human_approval_tools() {
-        let (_root, session, mut state) = fixture();
-        let entries = dispatch(&session, &mut state, "capabilities.list", &json!({})).unwrap();
-        assert_eq!(
-            entries["commands"],
-            json!(typstographe_core::content::operations::specifications())
-        );
-        assert!(tools().iter().all(|t| !t.name.contains("accept")
-            && !t.name.contains("save")
-            && !t.name.contains("export")));
-        let before = serde_json::to_value(&state.snapshot.as_ref().unwrap().document).unwrap();
-        let params = json!({"request_id":"unique","revision":0,"steps":[{"id":"text.insert","params":{"text":"Essai administratif."}}]});
-        let first = dispatch(&session, &mut state, "proposals.submit", &params).unwrap();
-        assert_eq!(first["status"], "pending");
-        assert_eq!(
-            serde_json::to_value(&state.snapshot.as_ref().unwrap().document).unwrap(),
-            before
-        );
-        assert_eq!(
-            dispatch(&session, &mut state, "proposals.submit", &params).unwrap()["id"],
-            first["id"]
-        );
-        let mut conflict = params.clone();
-        conflict["steps"][0]["params"]["text"] = json!("Différent");
-        assert!(dispatch(&session, &mut state, "proposals.submit", &conflict).is_err());
-        dispatch(&session, &mut state, "proposals.cancel", &json!({})).unwrap();
-        assert_eq!(
-            dispatch(&session, &mut state, "proposals.submit", &params).unwrap()["status"],
-            "cancelled"
-        );
-    }
-    #[test]
-    fn failed_lots_stale_revisions_and_ime_never_publish_partial_edits() {
-        let (_root, mut session, mut state) = fixture();
-        let bad = json!({"request_id":"bad","revision":0,"steps":[{"id":"text.insert","params":{"text":"First"}},{"id":"files.save","params":{}}]});
-        assert!(dispatch(&session, &mut state, "proposals.submit", &bad).is_err());
-        assert!(state.proposal.is_none());
-        assert!(state.seen.is_empty());
-        assert_eq!(session.revision, 0);
-        state.busy.insert("human".into());
-        let valid = json!({"request_id":"valid","revision":0,"steps":[{"id":"text.insert","params":{"text":"Only after approval"}}]});
-        assert!(dispatch(&session, &mut state, "proposals.submit", &valid).is_err());
-        state.busy.clear();
-        dispatch(&session, &mut state, "proposals.submit", &valid).unwrap();
-        session.revision += 1;
-        assert_eq!(
-            dispatch(&session, &mut state, "proposals.get", &json!({})).unwrap()["status"],
-            "stale"
-        );
-        assert!(dispatch(&session, &mut state, "document.structure", &json!({})).is_err());
-    }
-
-    #[test]
-    fn citation_discovery_and_atomic_proposals_resolve_project_references() {
-        let (_root, session, mut state) = fixture();
-        assert!(dispatch(&session, &mut state, "bibliography.search", &json!({})).is_err());
-        let mut meta = typstographe_core::document_types::article::Metadata::demo();
-        meta.references
-            .push(typstographe_core::bibliography::ReferenceFile {
-            id: "books".into(),
-            name: "books.bib".into(),
-            contents:
-                "@book{bourdieu1980,author={Bourdieu, Pierre},title={Le sens pratique},year={1980}}"
-                    .into(),
-        });
-        let snapshot = state.snapshot.as_mut().unwrap();
-        snapshot.document =
-            serde_json::from_value(json!({"type":"doc","content":[{"type":"paragraph"}]})).unwrap();
-        snapshot.settings = Some(Settings {
-            metadata: typstographe_core::document_types::Metadata::Article(meta),
-            template: typstographe_core::document_types::DocumentType::Article.default_model(),
-            model_id: "article.model.working".into(),
-        });
-        let found = dispatch(
-            &session,
-            &mut state,
-            "bibliography.search",
-            &json!({"query":"sens bordieu"}),
-        )
-        .unwrap();
-        assert_eq!(found["entries"][0]["file_id"], "books");
-        assert_eq!(found["entries"][0]["key"], "bourdieu1980");
-        let citation = json!({"items":[{"file_id":"books","key":"bourdieu1980","supplement":"p. 23"}],"form":"normal"});
-        let mut lot = json!({"request_id":"citation","revision":0,"steps":[{"id":"insert.citation","params":citation},{"id":"citation.set","params":{"target":{"path":[0,0]},"items":[{"file_id":"books","key":"bourdieu1980"}],"form":"prose"}}]});
-        let mut invalid = lot.clone();
-        invalid["steps"][0]["params"]["items"][0]["key"] = json!("absent");
-        assert!(
-            dispatch(&session, &mut state, "proposals.submit", &invalid)
-                .unwrap_err()
-                .contains("absent")
-        );
-        assert!(state.proposal.is_none());
-        // A failed lot has not consumed its id nor published any partial node.
-        let before = state.snapshot.as_ref().unwrap().document.clone();
-        let proposed = dispatch(&session, &mut state, "proposals.submit", &lot).unwrap();
-        assert_eq!(proposed["status"], "pending");
-        assert_eq!(
-            proposed["after"]["content"][0]["content"][0]["attrs"]["form"],
-            "prose"
-        );
-        assert_eq!(state.snapshot.as_ref().unwrap().document, before);
-        assert_eq!(session.revision, 0);
-        lot["steps"][0]["params"]["items"][0]["key"] = json!("different");
-        assert!(dispatch(&session, &mut state, "proposals.submit", &lot).is_err());
-    }
-}
+mod tests;

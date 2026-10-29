@@ -37,6 +37,27 @@ fn dispatch(
     let peer = request["peer"].as_str().ok_or("Participant absent.")?;
     let command = request["command"].as_str().ok_or("Commande absente.")?;
     match command {
+        "diagnostic_agent" => {
+            let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
+            let mut agent = bridge.agent.lock().map_err(|e| e.to_string())?;
+            agent::dispatch(
+                &mut session,
+                &mut agent,
+                args["method"].as_str().ok_or("Method absent")?,
+                &args["params"],
+            )
+        }
+        "diagnostic_agent_accept" => {
+            let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
+            let mut agent = bridge.agent.lock().map_err(|e| e.to_string())?;
+            let publication = agent::commit_accepted(
+                &mut session,
+                &mut agent,
+                args["id"].as_str().ok_or("ID absent")?,
+                peer,
+            )?;
+            serde_json::to_value(publication).map_err(|e| e.to_string())
+        }
         "diagnostic_shared_state" => shared_diagnostic::run(
             args.clone(),
             &bridge.session.lock().map_err(|e| e.to_string())?.assets,

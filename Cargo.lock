@@ -6465,7 +6465,6 @@ dependencies = [
  "base64 0.22.1",
  "jsonschema",
  "png",
- "rmcp",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -6478,6 +6477,7 @@ dependencies = [
  "typst-svg",
  "typstographe-core",
  "typstographe-i18n",
+ "typstographe-mcp",
  "uuid",
  "zip",
 ]

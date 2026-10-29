@@ -50,6 +50,50 @@ impl Owner {
         self.peers.insert(peer.into(), id);
         Ok(id)
     }
+    pub fn state(&self) -> &typstographe_core::content::contract::State {
+        self.engine.state()
+    }
+    pub fn prepare_agent_calls(
+        &self,
+        guard: &Guard,
+        calls: &[typstographe_core::content::api::Call],
+    ) -> Result<typstographe_core::content::shared::PreparedUpdate, String> {
+        self.engine
+            .prepare_resolved_calls(guard, calls, |state, call| {
+                let command = typstographe_core::content::api::resolve_call(state, call)?;
+                if !typstographe_mcp::attached_command(&command) {
+                    return Err(typstographe_core::content::api::invalid(
+                        "attached_body_target",
+                    ));
+                }
+                Ok(command)
+            })
+            .map_err(error)
+    }
+    pub fn calls(
+        &mut self,
+        peer: &str,
+        guard: &Guard,
+        calls: &[typstographe_core::content::api::Call],
+    ) -> Result<Publication, String> {
+        let id = self.context(peer)?;
+        let prepared = self.engine.prepare_calls(guard, calls).map_err(error)?;
+        self.engine
+            .publish_prepared(guard, id, prepared)
+            .map_err(error)
+    }
+    pub fn navigate(
+        &mut self,
+        peer: &str,
+        guard: &Guard,
+        selection: Option<Selection>,
+        styles: Vec<Style>,
+    ) -> Result<ContextSnapshot, String> {
+        let id = self.context(peer)?;
+        self.engine
+            .set_context(guard, id, selection, styles)
+            .map_err(error)
+    }
     pub fn assets(&self) -> &Assets {
         self.engine.assets()
     }

@@ -3,8 +3,6 @@ import { actionRow } from './keyboard-navigation'
 import { tr } from './i18n'
 import { icon } from './icons'
 import { type Editor, type JSONContent } from '@tiptap/core'
-import * as Y from 'yjs'
-import { createRichZone } from './rich-zone'
 import { proposalPreview, proposalDetails } from './proposal-preview'
 import type { Provider, Transport } from './provider'
 interface Proposal {
@@ -14,37 +12,6 @@ interface Proposal {
   status: string
   before: JSONContent
   after: JSONContent
-  stages: JSONContent[]
-}
-export function prepareProposal(provider: Provider, stages: JSONContent[]): Uint8Array {
-  const draft = new Y.Doc()
-  Y.applyUpdate(draft, Y.encodeStateAsUpdate(provider.doc))
-  const editor = createRichZone({
-    profile: 'document',
-    element: document.createElement('div'),
-    label: tr('Proposition'),
-    imageURL: (path) => provider.imageURL(path),
-    binding: { kind: 'document', document: draft },
-  })
-  try {
-    for (const stage of stages) {
-      const next = editor.schema.nodeFromJSON(stage)
-      next.check()
-      const before = editor.state.doc
-      const start = before.content.findDiffStart(next.content)
-      if (start === null) continue
-      const end = before.content.findDiffEnd(next.content)
-      if (!end) continue
-      const overlap = start - Math.min(end.a, end.b)
-      const oldEnd = end.a + Math.max(0, overlap),
-        newEnd = end.b + Math.max(0, overlap)
-      editor.view.dispatch(editor.state.tr.replace(start, oldEnd, next.slice(start, newEnd)))
-    }
-    return Y.encodeStateAsUpdate(draft, Y.encodeStateVector(provider.doc))
-  } finally {
-    editor.destroy()
-    draft.destroy()
-  }
 }
 export function mountAssistance(
   provider: Provider,
@@ -162,9 +129,8 @@ export function mountAssistance(
           throw new Error(tr('Terminez la saisie en cours avant de décider.'))
         await provider.flush()
         if (provider.revision !== p.revision) throw new Error(tr('Proposition périmée.'))
-        const update = prepareProposal(provider, p.stages)
         historyFor(editor)?.stopCapturing()
-        await transport.invoke('agent_accept', { id: p.id, update: Array.from(update) })
+        await transport.invoke('agent_accept', { id: p.id })
         message(tr('Lot accepté. Vous pouvez l’annuler en une seule fois.'))
         await show()
       })().catch((error) => message(String(error), true))

@@ -20,12 +20,12 @@ const RESOURCES: [(&str, &str, &str); 6] = [
     (
         "commands",
         "Documented command catalogue",
-        "Complete capability documentation, effective MCP schemas and current availability/authorization.",
+        "Common structured operation schemas. Effective invocation schemas are exposed by tools/list; permissions are checked separately.",
     ),
     (
         "document",
         "Current document",
-        "Coherent current snapshot: document reference, state, text, structure, metadata and content source. No model source or binary assets.",
+        "Coherent confirmed structured state, guard, metadata and zones. Includes the embedded model source as part of settings; no binary assets.",
     ),
     (
         "models",
