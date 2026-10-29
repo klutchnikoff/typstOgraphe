@@ -216,6 +216,11 @@ impl EditingSession {
         target: Option<TextTarget>,
     ) -> Result<(), Error> {
         self.check(guard, id)?;
+        if target.as_ref().is_some_and(|t| t.from > t.to) {
+            return Err(super::shared::targets::invalid(
+                super::contract::TargetReason::ReversedRange,
+            ));
+        }
         let context = self.contexts.get_mut(&id).unwrap();
         context.sync(&self.owner)?;
         let selection = target

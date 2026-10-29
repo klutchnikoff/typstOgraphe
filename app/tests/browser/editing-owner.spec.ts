@@ -134,7 +134,11 @@ test('la validation IME survit au retrait immédiat de la zone riche d’en-têt
   await page.getByRole('button', { name: 'Fichier', exact: true }).click()
   await page.locator('[data-command="document.new"]').click()
   await page.locator('dialog select').first().selectOption('article')
-  await page.getByRole('button', { name: 'Créer', exact: true }).click()
+  await Promise.all([
+    page.waitForEvent('domcontentloaded'),
+    page.getByRole('button', { name: 'Créer', exact: true }).click(),
+  ])
+  await page.waitForFunction(() => window.__spike?.ready)
   await page.locator('#metadata-tab-titles').click()
   const title = page.getByRole('textbox', { name: 'Titre', exact: true })
   await title.fill('Titre ')

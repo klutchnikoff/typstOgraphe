@@ -80,6 +80,13 @@ fn contexts_selections_styles_and_lifetimes_never_modify_the_shared_document() {
     assert!(snapshot(&mut s, b).typing_styles.is_empty());
     let before = snapshot(&mut s, a);
     assert!(matches!(
+        s.select(&guard, a, Some(target(&[0], 4, 1))),
+        Err(Error::InvalidTarget {
+            reason: TargetReason::ReversedRange
+        })
+    ));
+    assert_eq!(snapshot(&mut s, a), before);
+    assert!(matches!(
         s.select(&guard, a, Some(target(&[0], 2, 2))),
         Err(Error::InvalidTarget {
             reason: TargetReason::SplitSurrogate
