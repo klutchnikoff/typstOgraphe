@@ -561,4 +561,53 @@ mod tests {
             }
         }
     }
+    fn abandoned_slot(base: &std::path::Path) -> (String, PathBuf) {
+        let old = Store::new(base.into()).unwrap();
+        let id = old
+            .directory
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        let path = old.directory.join("session.json");
+        drop(old);
+        (id, path)
+    }
+    #[test]
+    fn a_bare_checkpoint_from_before_per_process_slots_is_offered_under_a_default_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let (id, path) = abandoned_slot(dir.path());
+        std::fs::write(&path, serde_json::to_vec(&checkpoint()).unwrap()).unwrap();
+        let store = Store::new(dir.path().into()).unwrap();
+        let entries = store.list().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, id);
+        assert_eq!(entries[0].name, "Document récupéré");
+        assert_eq!(entries[0].saved_at, 0);
+        assert!(entries[0].error.is_none());
+    }
+    #[test]
+    fn oversized_copies_are_listed_as_errors_and_non_canonical_references_are_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        let (id, path) = abandoned_slot(dir.path());
+        // Sparse on the supported file systems: the size check reads at most one extra byte.
+        std::fs::File::create(&path)
+            .unwrap()
+            .set_len(MAX_DOCUMENT_BYTES + 1)
+            .unwrap();
+        let store = Store::new(dir.path().into()).unwrap();
+        let entries = store.list().unwrap();
+        assert_eq!(
+            entries[0].error.as_deref(),
+            Some("Copie de récupération trop volumineuse.")
+        );
+        let upper = id.to_uppercase();
+        assert_ne!(upper, id);
+        assert_eq!(
+            store.claim(&upper).err().as_deref(),
+            Some("Référence de récupération invalide.")
+        );
+        assert!(store.claim(&id).is_ok());
+    }
 }
