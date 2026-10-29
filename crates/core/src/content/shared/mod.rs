@@ -11,7 +11,7 @@ mod seed;
 mod settings;
 #[cfg(test)]
 mod settings_tests;
-mod structure;
+pub(super) mod structure;
 #[cfg(test)]
 mod structure_tests;
 #[cfg(test)]
@@ -222,6 +222,23 @@ impl SharedSession {
             .doc
             .transact()
             .encode_diff_v1(&other.doc.transact().state_vector())
+    }
+
+    /// Compact Yjs/Yrs causal frontier, including deletions. A state vector alone
+    /// cannot distinguish two checkpoints separated only by a deletion.
+    pub(in crate::content) fn check_frontier(&self, bytes: &[u8]) -> Result<(), Error> {
+        if bytes.len() > MAX_STATE_BYTES {
+            return Err(Error::StateLimitExceeded);
+        }
+        let supplied = yrs::Snapshot::decode_v1(bytes).map_err(|e| Error::InvalidSharedState {
+            reason: e.to_string(),
+        })?;
+        if supplied != self.shared.doc.transact().snapshot() {
+            return Err(Error::InconsistentState {
+                field: "checkpoint".into(),
+            });
+        }
+        Ok(())
     }
 
     pub fn inspect_zone(

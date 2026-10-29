@@ -1,7 +1,7 @@
 //! Relative positions are private. Public commands still use guarded zone paths.
 use crate::content::{
     commands::{TextTarget, TextZone},
-    contract::{Error, TargetReason},
+    contract::{Error, State, TargetReason},
     shared::{
         SharedDocument,
         targets::{self, Resolved},
@@ -18,7 +18,7 @@ enum Position {
     Scalar(u32),
 }
 #[derive(Clone)]
-pub(super) struct Selection {
+pub(super) struct Range {
     zone: TextZone,
     identity: Option<StickyIndex>,
     from: Position,
@@ -87,7 +87,11 @@ fn point<T: ReadTxn>(
         _ => Ok(Position::Scalar(offset)),
     }
 }
-fn path<T: ReadTxn>(root: XmlFragmentRef, tx: &T, id: &yrs::BranchID) -> Option<Vec<usize>> {
+pub(super) fn path<T: ReadTxn>(
+    root: XmlFragmentRef,
+    tx: &T,
+    id: &yrs::BranchID,
+) -> Option<Vec<usize>> {
     let mut index = 0;
     for child in root.children(tx) {
         let width =
@@ -148,12 +152,16 @@ fn resolve_point<T: ReadTxn>(point: &Position, zone: &Resolved, tx: &T) -> Resul
         _ => Err(lost()),
     }
 }
-impl Selection {
-    pub(super) fn capture(doc: &SharedDocument, target: &TextTarget) -> Result<Self, Error> {
+impl Range {
+    pub(super) fn capture(
+        doc: &SharedDocument,
+        state: &State,
+        target: &TextTarget,
+    ) -> Result<Self, Error> {
         if target.from > target.to {
             return Err(targets::invalid(TargetReason::ReversedRange));
         }
-        let resolved = targets::resolve(&doc.doc, &doc.state()?, &target.zone)?;
+        let resolved = targets::resolve(&doc.doc, state, &target.zone)?;
         let tx = doc.doc.transact();
         let info = resolved.info(&tx)?;
         targets::byte_at(&info.text, target.from)?;
@@ -190,8 +198,11 @@ impl Selection {
             },
         })
     }
-    pub(super) fn resolve_zone(&self, doc: &SharedDocument) -> Result<TextZone, Error> {
-        let state = doc.state()?;
+    pub(super) fn resolve_zone(
+        &self,
+        doc: &SharedDocument,
+        state: &State,
+    ) -> Result<TextZone, Error> {
         let mut zone = self.zone.clone();
         if let Some(identity) = &self.identity {
             let tx = doc.doc.transact();
@@ -206,7 +217,7 @@ impl Selection {
                     field,
                     ..
                 } => {
-                    let (map, _) = targets::record(&doc.doc, &tx, &state, collection, id, field)?;
+                    let (map, _) = targets::record(&doc.doc, &tx, state, collection, id, field)?;
                     match map.get(&tx, field) {
                         Some(Out::YXmlFragment(root)) => root,
                         _ => return Err(lost()),
@@ -224,9 +235,9 @@ impl Selection {
         }
         Ok(zone)
     }
-    pub(super) fn resolve(&self, doc: &SharedDocument) -> Result<TextTarget, Error> {
-        let zone = self.resolve_zone(doc)?;
-        let resolved = targets::resolve(&doc.doc, &doc.state()?, &zone)?;
+    pub(super) fn resolve(&self, doc: &SharedDocument, state: &State) -> Result<TextTarget, Error> {
+        let zone = self.resolve_zone(doc, state)?;
+        let resolved = targets::resolve(&doc.doc, state, &zone)?;
         let tx = doc.doc.transact();
         let info = resolved.info(&tx)?;
         if let Some(identity) = &self.field_identity {

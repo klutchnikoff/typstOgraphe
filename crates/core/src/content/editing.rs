@@ -2,6 +2,8 @@
 //! Each participant keeps a durable Yrs replica: wire checkpoints do not encode
 //! the internal redone links required by successive undo/redo operations.
 mod anchors;
+mod selection;
+pub use selection::{Selection, TextPoint};
 #[cfg(test)]
 mod tests;
 use super::{
@@ -10,7 +12,7 @@ use super::{
     shared::{Publication, SharedDocument, SharedSession},
 };
 use crate::assets::Assets;
-use anchors::Selection;
+use selection::AnchoredSelection;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use yrs::{ReadTxn, Transact, UndoManager};
@@ -29,7 +31,7 @@ pub enum Direction {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ContextSnapshot {
     pub guard: Guard,
-    pub selection: Option<TextTarget>,
+    pub selection: Option<Selection>,
     pub selection_lost: bool,
     pub typing_styles: Vec<Style>,
     pub undo_steps: usize,
@@ -49,7 +51,7 @@ struct Context {
     owned_insertions: yrs::IdSet,
     confirmed_revision: u64,
     capture_group: Option<u64>,
-    selection: Option<Selection>,
+    selection: Option<AnchoredSelection>,
     styles: Vec<Style>,
     rejected: Option<RejectedDraft>,
 }
@@ -193,7 +195,7 @@ impl EditingSession {
             context
                 .selection
                 .as_ref()
-                .and_then(|s| s.resolve(&context.local).ok())
+                .and_then(|s| s.resolve(&context.local, self.owner.state()).ok())
         } else {
             None
         };
@@ -218,10 +220,59 @@ impl EditingSession {
         context.sync(&self.owner)?;
         let selection = target
             .as_ref()
-            .map(|t| Selection::capture(&context.local, t))
+            .map(|t| {
+                AnchoredSelection::capture(
+                    &context.local,
+                    self.owner.state(),
+                    &Selection::from(t.clone()),
+                )
+            })
             .transpose()?;
         context.selection = selection;
         Ok(())
+    }
+    /// Replace the participant's view state atomically. No publication, revision,
+    /// undo entry or shared awareness is produced by navigation/stored marks.
+    pub fn check_frontier(&self, guard: &Guard, frontier: &[u8]) -> Result<(), Error> {
+        guard.check(self.guard())?;
+        self.owner.check_frontier(frontier)
+    }
+    pub fn set_context(
+        &mut self,
+        guard: &Guard,
+        id: ContextId,
+        selection: Option<Selection>,
+        styles: Vec<Style>,
+    ) -> Result<ContextSnapshot, Error> {
+        self.check(guard, id)?;
+        super::shared::commands::validate_styles(&styles)?;
+        let context = self.contexts.get_mut(&id).unwrap();
+        context.sync(&self.owner)?;
+        let anchored = selection
+            .as_ref()
+            .map(|s| AnchoredSelection::capture(&context.local, self.owner.state(), s))
+            .transpose()?;
+        if !styles.is_empty() {
+            let target = selection
+                .as_ref()
+                .ok_or_else(|| Error::EditingContext {
+                    reason: "selection_required".into(),
+                })?
+                .head_target()?;
+            if !self
+                .owner
+                .inspect_zone(guard, &target.zone)?
+                .supports_styles
+            {
+                return Err(Error::CommandUnavailable {
+                    command: "typing.style".into(),
+                    reason: UnavailableReason::PlainTextOnly,
+                });
+            }
+        }
+        context.selection = anchored;
+        context.styles = styles;
+        self.context(guard, id)
     }
     pub fn typing_style(
         &mut self,
@@ -235,7 +286,9 @@ impl EditingSession {
         let context = self.contexts.get_mut(&id).unwrap();
         context.sync(&self.owner)?;
         if let Some(selection) = &context.selection {
-            let target = selection.resolve(&context.local)?;
+            let target = selection
+                .resolve(&context.local, self.owner.state())?
+                .text_target()?;
             let info = self.owner.inspect_zone(guard, &target.zone)?;
             if !info.supports_styles {
                 return Err(Error::CommandUnavailable {
@@ -282,7 +335,8 @@ impl EditingSession {
             .ok_or_else(|| Error::EditingContext {
                 reason: "selection_required".into(),
             })?
-            .resolve(&context.local)?;
+            .resolve(&context.local, self.owner.state())?
+            .text_target()?;
         let supports = self
             .owner
             .inspect_zone(guard, &target.zone)?
@@ -310,14 +364,16 @@ impl EditingSession {
             .selection
             .as_ref()
             .unwrap()
-            .resolve_zone(&context.local)?;
-        context.selection = Some(Selection::capture(
+            .text_zone(&context.local, self.owner.state())?;
+        context.selection = Some(AnchoredSelection::capture(
             &context.local,
+            self.owner.state(),
             &TextTarget {
                 zone,
                 from: offset,
                 to: offset,
-            },
+            }
+            .into(),
         )?);
         Ok(publication)
     }

@@ -121,7 +121,11 @@ pub(super) fn validate(state: &State) -> Result<(), Error> {
     }
     Ok(())
 }
-pub(super) fn root(doc: &Doc, state: &State, target: &TreeRoot) -> Result<XmlFragmentRef, Error> {
+pub(in crate::content) fn root(
+    doc: &Doc,
+    state: &State,
+    target: &TreeRoot,
+) -> Result<XmlFragmentRef, Error> {
     let tx = doc.transact();
     match target {
         TreeRoot::Body => tx
