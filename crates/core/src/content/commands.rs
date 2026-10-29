@@ -36,6 +36,9 @@ pub struct TextTarget {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum FieldTarget {
+    Option {
+        name: OptionName,
+    },
     Metadata {
         field: MetadataField,
     },
@@ -44,6 +47,34 @@ pub enum FieldTarget {
         id: String,
         field: String,
     },
+}
+/// General document options; values remain JSON, checked against their Rust types.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OptionName {
+    Paper,
+    Landscape,
+    Language,
+    BulletMarker,
+    SpellingIgnored,
+}
+impl OptionName {
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Paper => "paper",
+            Self::Landscape => "landscape",
+            Self::Language => "language",
+            Self::BulletMarker => "bullet_marker",
+            Self::SpellingIgnored => "spelling_ignored",
+        }
+    }
+}
+/// Validated immutable image bytes, separate from the shared text/history.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ImageResource {
+    pub path: String,
+    pub data: Vec<u8>,
 }
 /// A body tree or one rich record field. No XML identifiers or global positions.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -81,6 +112,12 @@ pub enum Switch {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "id", content = "params", deny_unknown_fields)]
 pub enum Command {
+    #[serde(rename = "resource.add")]
+    AddResource { resource: ImageResource },
+    #[serde(rename = "document.set_signature")]
+    SetSignature { path: Option<String> },
+    #[serde(rename = "document.set_model")]
+    SetModel { model_id: String, source: String },
     #[serde(rename = "text.insert")]
     Insert {
         target: TextTarget,
@@ -190,6 +227,9 @@ pub enum Command {
 impl Command {
     pub fn id(&self) -> &'static str {
         match self {
+            Self::AddResource { .. } => "resource.add",
+            Self::SetSignature { .. } => "document.set_signature",
+            Self::SetModel { .. } => "document.set_model",
             Self::Insert { .. } => "text.insert",
             Self::Delete { .. } => "text.delete",
             Self::Bold { .. } => "text.bold",
@@ -223,6 +263,9 @@ impl Command {
     }
 }
 pub const IDS: &[&str] = &[
+    "resource.add",
+    "document.set_signature",
+    "document.set_model",
     "insert.table",
     "table.row.insert",
     "table.row.remove",

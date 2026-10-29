@@ -101,6 +101,9 @@ fn set_field(
     target: &FieldTarget,
     value: &Value,
 ) -> Result<(), Error> {
+    if let crate::content::commands::FieldTarget::Option { name } = target {
+        return super::settings::set_option(doc, state, *name, value);
+    }
     let (map, key, before, kind) = targets::field(doc, &doc.transact(), state, target)?;
     let valid = match kind.as_str() {
         "text" | "multiline" | "source" | "language" => value.is_string(),
@@ -370,6 +373,12 @@ fn format(
 }
 pub(super) fn apply(doc: &Doc, state: &State, command: &Command) -> Result<(), Error> {
     match command {
+        Command::SetModel { .. } | Command::SetSignature { .. } => {
+            super::settings::apply(doc, state, command)
+        }
+        Command::AddResource { .. } => {
+            unreachable!("resource commands are prepared with their private assets")
+        }
         Command::IgnoreSpelling {
             target,
             language,

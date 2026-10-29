@@ -6,7 +6,11 @@ mod normalization;
 mod objects;
 pub(super) mod projection;
 mod records;
+mod resources;
 mod seed;
+mod settings;
+#[cfg(test)]
+mod settings_tests;
 mod structure;
 #[cfg(test)]
 mod structure_tests;
@@ -162,10 +166,13 @@ pub struct PreparedUpdate {
     state: State,
     update: Vec<u8>,
     changed: bool,
+    assets: Assets,
+    resources: Vec<super::commands::ImageResource>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Publication {
+    pub resources: Vec<super::commands::ImageResource>,
     pub guard: Guard,
     pub changed: bool,
     pub state: State,
@@ -206,11 +213,8 @@ impl SharedSession {
     pub fn update(&self) -> Vec<u8> {
         self.shared.update()
     }
-
-    pub(in crate::content) fn set_assets(&mut self, assets: Assets) -> Result<(), Error> {
-        self.state.validate(&assets)?;
-        self.assets = assets;
-        Ok(())
+    pub fn assets(&self) -> &Assets {
+        &self.assets
     }
 
     pub(in crate::content) fn difference(&self, other: &SharedDocument) -> Vec<u8> {
@@ -254,17 +258,21 @@ impl SharedSession {
             }
         }
         let candidate = SharedDocument::from_update(&self.shared.update())?;
+        let mut assets = self.assets.clone();
         for (index, command) in commands.iter().enumerate() {
             let state = candidate.state()?;
-            commands::apply(&candidate.doc, &state, command).map_err(|cause| {
-                Error::BatchFailed {
-                    index,
-                    cause: Box::new(cause),
-                }
+            let result = if let super::commands::Command::AddResource { resource } = command {
+                resources::add(&mut assets, resource)
+            } else {
+                commands::apply(&candidate.doc, &state, command)
+            };
+            result.map_err(|cause| Error::BatchFailed {
+                index,
+                cause: Box::new(cause),
             })?;
         }
         whitespace::apply(&candidate.doc, &candidate.state()?)?;
-        self.finish_preparation(guard, candidate)
+        self.finish_preparation_with_assets(guard, candidate, assets)
     }
 
     /// Same resolver, parameter validation and final validation as execution.
@@ -314,6 +322,14 @@ impl SharedSession {
         guard: &Guard,
         candidate: SharedDocument,
     ) -> Result<PreparedUpdate, Error> {
+        self.finish_preparation_with_assets(guard, candidate, self.assets.clone())
+    }
+    fn finish_preparation_with_assets(
+        &self,
+        guard: &Guard,
+        candidate: SharedDocument,
+        assets: Assets,
+    ) -> Result<PreparedUpdate, Error> {
         let before = self.shared.doc.transact().state_vector();
         let before_snapshot = self.shared.doc.transact().snapshot();
         complete(&candidate.doc)?;
@@ -323,16 +339,32 @@ impl SharedSession {
         }
         let state = candidate.state()?;
         structure::validate(&state)?;
-        state.validate(&self.assets)?;
+        state.validate(&assets)?;
         if state.settings.metadata.document_type() != self.state.settings.metadata.document_type() {
             return Err(Error::InvalidDocument {
                 reason: "document_type_changed".into(),
             });
         }
+        if state.settings.template != self.state.settings.template
+            || state.settings.model_id != self.state.settings.model_id
+        {
+            settings::validate_model(&state, &assets)?;
+        }
         let update = candidate.doc.transact().encode_diff_v1(&before);
-        let changed = before_snapshot != candidate.doc.transact().snapshot();
+        let resources: Vec<_> = assets
+            .iter()
+            .filter(|(path, _)| !self.assets.contains_key(*path))
+            .map(|(path, data)| super::commands::ImageResource {
+                path: path.clone(),
+                data: data.to_vec(),
+            })
+            .collect();
+        let changed =
+            before_snapshot != candidate.doc.transact().snapshot() || !resources.is_empty();
         Ok(PreparedUpdate {
             guard: guard.clone(),
+            assets,
+            resources,
             changed,
             state,
             candidate,
@@ -348,11 +380,13 @@ impl SharedSession {
                 .revision
                 .checked_add(1)
                 .ok_or(Error::StateLimitExceeded)?;
+            self.assets = prepared.assets;
             self.shared = prepared.candidate;
             self.state = prepared.state;
             self.guard.revision = revision;
         }
         Ok(Publication {
+            resources: prepared.resources,
             guard: self.guard.clone(),
             changed: prepared.changed,
             state: self.state.clone(),

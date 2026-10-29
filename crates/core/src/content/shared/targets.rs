@@ -111,6 +111,7 @@ pub(in crate::content) fn field<T: ReadTxn>(
     target: &FieldTarget,
 ) -> Result<(MapRef, String, Value, String), Error> {
     match target {
+        FieldTarget::Option { .. } => Err(invalid(TargetReason::MissingField)),
         FieldTarget::Metadata { field } => {
             let descriptor = state
                 .settings

@@ -146,6 +146,9 @@ impl EditingSession {
     pub fn state(&self) -> &State {
         self.owner.state()
     }
+    pub fn assets(&self) -> &Assets {
+        self.owner.assets()
+    }
     pub fn update(&self) -> Vec<u8> {
         self.owner.update()
     }
@@ -369,10 +372,6 @@ impl EditingSession {
                 Err(error)
             }
         }
-    }
-    /// Resources are retained for the whole editing session, including undo.
-    pub fn set_assets(&mut self, assets: Assets) -> Result<(), Error> {
-        self.owner.set_assets(assets)
     }
     /// Incoming participant updates use the same final validation but never join
     /// another participant's undo stack. Rejected drafts are left untouched.
