@@ -219,9 +219,13 @@ it('ignores late responses from another zone and never quarantines a refused nav
   p.updateEditingContext({}, () => view(1))
   await new Promise((resolve) => setTimeout(resolve, 0))
   p.updateEditingContext({}, () => ({ ...view(3), typing_styles: [{ type: 'italic' }] }))
-  answer(history(calls[0].args.request))
+  answer({
+    ...history(calls[0].args.request),
+    availability: { 'text.bold': { enabled: false, reason: 'body_required' } },
+  })
   await p.flushEditingContext()
   expect(p.historyState.selection).toBeUndefined()
+  expect(p.historyState.availability).toBeUndefined()
   expect(calls).toHaveLength(2)
   expect(p.rejected).toBeNull()
   expect(p.online).toBe(true)

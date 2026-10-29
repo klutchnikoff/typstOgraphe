@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/core'
 import type { Capability } from './commands'
+import { ySyncPluginKey } from '@tiptap/y-tiptap'
 
 const owners = new WeakMap<Editor, Editor>()
 const current = new WeakMap<Editor, Editor>()
@@ -26,22 +27,32 @@ export function commandCapabilities(editor: Editor) {
 export function bindCommandContext(editor: Editor, owner = editor, openLink?: () => void) {
   owners.set(editor, owner)
   if (openLink) links.set(editor, openLink)
-  const focus = () => {
+  const activate = () => {
     lost.delete(owner)
     current.set(owner, editor)
-    document.dispatchEvent(new Event('commands:refresh'))
+    document.dispatchEvent(new CustomEvent('commands:refresh', { detail: editor }))
   }
-  editor.on('focus', focus)
+  editor.on('focus', activate)
   // Badges and widget headers can open a band before the text view receives
   // focus. Their explicit pointer/keyboard activation still selects this zone.
-  editor.view.dom.addEventListener('pointerdown', focus, true)
-  editor.view.dom.addEventListener('click', focus, true)
-  editor.on('transaction', () => {
+  editor.view.dom.addEventListener('pointerdown', activate, true)
+  editor.view.dom.addEventListener('click', activate, true)
+  editor.on('transaction', ({ transaction }) => {
+    // Explicit local selection (preview, search, command) is also a target
+    // choice. Mapping a remote update or normalizing text is never such a choice.
+    if (
+      transaction.selectionSet &&
+      !transaction.docChanged &&
+      !transaction.getMeta(ySyncPluginKey)?.isChangeOrigin
+    ) {
+      activate()
+      return
+    }
     if (current.get(owner) === editor) document.dispatchEvent(new Event('commands:refresh'))
   })
   editor.on('destroy', () => {
-    editor.view.dom.removeEventListener('pointerdown', focus, true)
-    editor.view.dom.removeEventListener('click', focus, true)
+    editor.view.dom.removeEventListener('pointerdown', activate, true)
+    editor.view.dom.removeEventListener('click', activate, true)
     if (current.get(owner) === editor) {
       current.delete(owner)
       if (owner !== editor) lost.add(owner)

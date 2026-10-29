@@ -50,7 +50,11 @@ export function mountCommandSurfaces(options: {
       return refused('body_required')
     return editingAvailability(target, !command.id.startsWith('history.'))
   })
-  const refresh = () => refreshCommands(commands)
+  const refresh = (event?: Event) => {
+    if (event instanceof CustomEvent && event.detail === commandEditor(editor))
+      nativeTextField = false
+    refreshCommands(commands)
+  }
   const focused = (event: FocusEvent) => {
     const target = event.target
     if (target instanceof Element && target.closest('[data-rich-zone-profile]'))
@@ -102,7 +106,7 @@ export function mountCommandSurfaces(options: {
   document.addEventListener('focusin', focused)
   document.addEventListener('commands:availability', syncNative)
   window.addEventListener('focus', foreground)
-  const observer = new MutationObserver(refresh)
+  const observer = new MutationObserver(() => refresh())
   observer.observe(document.body, {
     subtree: true,
     attributes: true,

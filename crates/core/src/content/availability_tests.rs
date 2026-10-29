@@ -92,3 +92,29 @@ fn rich_header_contexts_share_styles_but_never_offer_body_objects() {
         Some(Reason::NoSelection)
     );
 }
+
+#[test]
+fn structural_selections_do_not_turn_document_boundaries_into_inline_insertion_points() {
+    let mut s = Session::new();
+    s.execute("document.new", json!({"type":"article"}))
+        .unwrap();
+    let a = context(&mut s, json!({"kind":"all","root":{"kind":"body"}}))["availability"].clone();
+    assert_eq!(a["text.bold"]["enabled"], true);
+    assert_eq!(a["block.heading_1"]["enabled"], true);
+    assert_eq!(a["insert.footnote"]["reason"], "text_required");
+    let a = context(
+        &mut s,
+        json!({"kind":"node","target":{"root":{"kind":"body"},"path":[0]}}),
+    )["availability"]
+        .clone();
+    assert_eq!(a["block.heading_1"]["enabled"], false);
+    s.execute(
+        "insert.table",
+        json!({"parent":{"root":{"kind":"body"},"path":[]},"index":0,"rows":1,"columns":2,"header":true}),
+    )
+    .unwrap();
+    let a = context(&mut s, json!({"kind":"cells","anchor":{"root":{"kind":"body"},"path":[0,0,0,0]},"head":{"root":{"kind":"body"},"path":[0,0,0,1]}}))["availability"].clone();
+    assert_eq!(a["text.bold"]["enabled"], true);
+    assert_eq!(a["insert.footnote"]["reason"], "text_required");
+    assert_eq!(a["block.heading_1"]["reason"], "top_level_required");
+}
