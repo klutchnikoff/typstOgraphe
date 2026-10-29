@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use typstographe_core::{
     assets::Assets,
     content::{
-        commands::Command,
+        commands::{Command, Style},
         contract::{Error, Guard},
-        editing::{ContextId, ContextSnapshot, Direction, EditingSession},
+        editing::{ContextId, ContextSnapshot, Direction, EditingSession, Selection},
         shared::Publication,
     },
 };
@@ -19,6 +19,15 @@ pub struct Receipt {
     pub revision: u64,
     pub update: Vec<u8>,
     pub history: ContextSnapshot,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ContextRequest {
+    pub generation: String,
+    pub revision: u64,
+    pub frontier: Vec<u8>,
+    pub selection: Option<Selection>,
+    pub typing_styles: Vec<Style>,
 }
 pub fn error(error: Error) -> String {
     serde_json::to_string(&error).expect("typed content error")
@@ -51,6 +60,23 @@ impl Owner {
         let id = self.context(peer)?;
         self.engine
             .context(&self.engine.guard().clone(), id)
+            .map_err(error)
+    }
+    pub fn set_context(
+        &mut self,
+        peer: &str,
+        request: ContextRequest,
+    ) -> Result<ContextSnapshot, String> {
+        let guard = Guard {
+            document: request.generation,
+            revision: request.revision,
+        };
+        self.engine
+            .check_frontier(&guard, &request.frontier)
+            .map_err(error)?;
+        let id = self.context(peer)?;
+        self.engine
+            .set_context(&guard, id, request.selection, request.typing_styles)
             .map_err(error)
     }
     pub fn reset(&mut self, peer: &str) -> Result<ContextSnapshot, String> {
@@ -155,6 +181,76 @@ mod tests {
             )
             .unwrap();
         replica.publish(prepared).unwrap().update
+    }
+    fn view_request(session: &Session, offset: u32) -> ContextRequest {
+        use typstographe_core::content::editing::TextPoint;
+        let frontier = SharedDocument::from_updates(&session.updates)
+            .unwrap()
+            .frontier();
+        let point = TextPoint {
+            zone: TextZone::Body { path: vec![0] },
+            offset,
+        };
+        ContextRequest {
+            generation: session.generation.clone(),
+            revision: session.revision,
+            frontier,
+            selection: Some(Selection::Text {
+                anchor: point.clone(),
+                head: point,
+            }),
+            typing_styles: vec![Style::Bold],
+        }
+    }
+    #[test]
+    fn view_updates_are_guarded_private_and_cannot_create_a_document_revision() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut session = Session::fresh(temp.path().into());
+        seed(&mut session);
+        let bytes = session.updates.clone();
+        let revision = session.revision;
+        let request = view_request(&session, 2);
+        let selected = session
+            .ensure_owner()
+            .unwrap()
+            .set_context("a", request)
+            .unwrap();
+        assert_eq!(selected.typing_styles, vec![Style::Bold]);
+        assert_eq!(selected.undo_steps, 0);
+        assert!(
+            session
+                .ensure_owner()
+                .unwrap()
+                .snapshot("b")
+                .unwrap()
+                .selection
+                .is_none()
+        );
+        assert_eq!(session.revision, revision);
+        assert_eq!(session.updates, bytes);
+        let mut stale = view_request(&session, 0);
+        stale.revision -= 1;
+        assert!(
+            session
+                .ensure_owner()
+                .unwrap()
+                .set_context("a", stale)
+                .is_err()
+        );
+        let mut different = view_request(&session, 0);
+        different.frontier = vec![0, 0];
+        assert!(
+            session
+                .ensure_owner()
+                .unwrap()
+                .set_context("a", different)
+                .is_err()
+        );
+        assert_eq!(
+            session.ensure_owner().unwrap().snapshot("a").unwrap(),
+            selected
+        );
+        assert_eq!(session.updates, bytes);
     }
     #[test]
     fn native_owner_confirms_typing_once_and_keeps_histories_separate() {

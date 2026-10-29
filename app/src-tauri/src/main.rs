@@ -119,6 +119,16 @@ fn editing_context(
     session.ensure_owner()?.snapshot(window.label())
 }
 #[tauri::command(async)]
+fn set_editing_context(
+    window: WebviewWindow,
+    state: State<Bridge>,
+    request: owner::ContextRequest,
+) -> Result<typstographe_core::content::editing::ContextSnapshot, String> {
+    let mut session = state.session.lock().map_err(|e| e.to_string())?;
+    session.check_peer(window.label(), &request.generation)?;
+    session.ensure_owner()?.set_context(window.label(), request)
+}
+#[tauri::command(async)]
 fn reset_editing_context(
     window: WebviewWindow,
     state: State<Bridge>,
@@ -603,6 +613,7 @@ fn main() {
             relay,
             editing_history,
             editing_context,
+            set_editing_context,
             reset_editing_context,
             prepare_structured_commands,
             commit_structured_commands,

@@ -121,6 +121,12 @@ impl SharedDocument {
             .transact()
             .encode_state_as_update_v1(&StateVector::default())
     }
+    /// Compact causal checkpoint, compatible with Yjs encodeSnapshot. Contains
+    /// clocks and deletion intervals, never the document's text or resources.
+    pub fn frontier(&self) -> Vec<u8> {
+        use yrs::updates::encoder::Encode;
+        self.doc.transact().snapshot().encode_v1()
+    }
     /// Compare projections, allowing only documented editor representation defaults.
     pub fn verify(&self, expected: &State) -> Result<(), Error> {
         if expected.version != super::contract::VERSION {

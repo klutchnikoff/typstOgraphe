@@ -215,6 +215,14 @@ fn dispatch(
             session.check_peer(peer, args["generation"].as_str().unwrap_or(""))?;
             serde_json::to_value(session.ensure_owner()?.snapshot(peer)?).map_err(|e| e.to_string())
         }
+        "set_editing_context" => {
+            let request: owner::ContextRequest =
+                serde_json::from_value(args["request"].clone()).map_err(|e| e.to_string())?;
+            let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
+            session.check_peer(peer, &request.generation)?;
+            serde_json::to_value(session.ensure_owner()?.set_context(peer, request)?)
+                .map_err(|e| e.to_string())
+        }
         "reset_editing_context" => {
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
             session.check_peer(peer, args["generation"].as_str().unwrap_or(""))?;

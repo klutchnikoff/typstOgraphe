@@ -28,7 +28,7 @@ pub fn content_error_with(loader: &FluentLanguageLoader, error: &Error) -> Strin
         Error::EditingContext { reason } => match reason.as_str() {
             "closed" => "engine-edit-context-closed",
             "pending_draft" => "content-context-pending",
-            "selection_required" => "content-context-selection",
+            "selection_required" | "text_selection_required" => "content-context-selection",
             "history_conflict" => "content-history-conflict",
             _ => "content-state-mismatch",
         },
@@ -128,6 +128,7 @@ mod editing_tests {
                 "closed",
                 "pending_draft",
                 "selection_required",
+                "text_selection_required",
                 "history_conflict",
             ] {
                 let message = content_error_with(

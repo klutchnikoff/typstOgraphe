@@ -231,12 +231,13 @@ impl EditingSession {
         context.selection = selection;
         Ok(())
     }
-    /// Replace the participant's view state atomically. No publication, revision,
-    /// undo entry or shared awareness is produced by navigation/stored marks.
+    /// Verify the causal checkpoint before accepting revision-relative view paths.
     pub fn check_frontier(&self, guard: &Guard, frontier: &[u8]) -> Result<(), Error> {
         guard.check(self.guard())?;
         self.owner.check_frontier(frontier)
     }
+    /// Replace the participant's view state atomically. No publication, revision,
+    /// undo entry or shared awareness is produced by navigation/stored marks.
     pub fn set_context(
         &mut self,
         guard: &Guard,
