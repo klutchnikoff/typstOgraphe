@@ -142,13 +142,15 @@ impl Session {
                 return Err("Ressource dupliquée.".into());
             }
         }
-        // Le source de récupération est un cache : régénérer depuis le schéma validé.
-        schema::source(&checkpoint.document, &session.assets)?;
-        session.bytes = checkpoint.update.len();
-        checkpoint
-            .settings
-            .validate()
+        // Recovery is an untrusted document, not only a matching Yjs projection.
+        let state = typstographe_core::content::contract::State::new(
+            checkpoint.document.clone(),
+            checkpoint.settings.clone(),
+        );
+        state
+            .validate(&session.assets)
             .map_err(|e| typstographe_i18n::content_error(&e))?;
+        session.bytes = checkpoint.update.len();
         typstographe_core::content::shared::SharedDocument::from_update(&checkpoint.update)
             .and_then(|shared| {
                 shared.verify(&typstographe_core::content::contract::State::new(

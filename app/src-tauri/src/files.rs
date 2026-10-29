@@ -202,13 +202,7 @@ pub fn close_document(
     revision: u64,
 ) -> Result<(), String> {
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
-    session.lifecycle(revision)?;
-    session.mark_clean()?;
-    session.file_lease = None;
-    session.opened = false;
-    session.owner = None;
-    session.generation = uuid::Uuid::new_v4().to_string();
-    session.revision += 1;
+    persistence::close_project(&mut session, revision)?;
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
     agent.token = None;
     agent.proposal = None;

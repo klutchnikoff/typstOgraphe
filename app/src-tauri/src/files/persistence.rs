@@ -129,3 +129,15 @@ pub(super) fn open_project(
     });
     Ok(response)
 }
+
+/// Explicitly confirmed document closure. Refusal must precede cleanup.
+pub(super) fn close_project(session: &mut Session, revision: u64) -> Result<(), String> {
+    session.lifecycle(revision)?;
+    session.mark_clean()?;
+    session.file_lease = None;
+    session.opened = false;
+    session.owner = None;
+    session.generation = uuid::Uuid::new_v4().to_string();
+    session.revision += 1;
+    Ok(())
+}

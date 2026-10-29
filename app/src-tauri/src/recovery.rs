@@ -496,4 +496,69 @@ mod tests {
             bytes
         );
     }
+    fn signed_checkpoint() -> Checkpoint {
+        use base64::Engine;
+        let mut cp = checkpoint();
+        let typstographe_core::document_types::Metadata::Courrier(meta) = &mut cp.settings.metadata
+        else {
+            unreachable!()
+        };
+        meta.signature = Some("images/signature.svg".into());
+        cp.resources = vec![crate::session::Resource {
+            path: "images/signature.svg".into(),
+            data: base64::engine::general_purpose::STANDARD
+                .encode(include_bytes!("../../../fixtures/signature.svg")),
+        }];
+        cp.update = typstographe_core::content::shared::SharedDocument::from_state(
+            &typstographe_core::content::contract::State::new(
+                cp.document.clone(),
+                cp.settings.clone(),
+            ),
+        )
+        .unwrap()
+        .update();
+        cp
+    }
+    #[test]
+    fn restoration_requires_signature_bytes_before_replacing_work_and_preserves_valid_resources() {
+        for missing in [true, false] {
+            let dir = tempfile::tempdir().unwrap();
+            let old = Store::new(dir.path().into()).unwrap();
+            let id = old
+                .directory
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .to_owned();
+            let mut cp = signed_checkpoint();
+            if missing {
+                cp.resources.clear();
+            }
+            let expected = cp.clone();
+            let path = old.write(cp, "Courrier signé".into()).unwrap();
+            let original = std::fs::read(&path).unwrap();
+            drop(old);
+            let mut s = working(dir.path());
+            let before = preserved(&mut s);
+            let recovery = std::fs::read(s.root.join("session.json")).unwrap();
+            let result = restore(&mut s, &id);
+            if missing {
+                assert!(result.is_err(), "a missing signature must not be published");
+                assert_eq!(preserved(&mut s), before);
+                assert_eq!(std::fs::read(path).unwrap(), original);
+                assert_eq!(
+                    std::fs::read(s.root.join("session.json")).unwrap(),
+                    recovery
+                );
+            } else {
+                result.unwrap();
+                assert!(!path.exists());
+                assert_eq!(s.settings, expected.settings);
+                assert_eq!(s.resources()[0].data, expected.resources[0].data);
+                let state = s.ensure_owner().unwrap().state();
+                assert_eq!(state.document, expected.document);
+            }
+        }
+    }
 }

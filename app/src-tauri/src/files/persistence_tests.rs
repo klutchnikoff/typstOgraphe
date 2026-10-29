@@ -380,3 +380,8 @@ fn failed_recovery_cleanup_cannot_discard_the_open_document_or_original_draft() 
     assert!(DocumentLease::acquire(&f.path()).is_err());
     assert!(DocumentLease::acquire(&other.path()).is_ok());
 }
+
+#[path = "lifecycle_tests.rs"]
+mod lifecycle_tests;
+#[path = "resource_tests.rs"]
+mod resource_tests;
