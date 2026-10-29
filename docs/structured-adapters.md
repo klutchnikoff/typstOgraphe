@@ -334,3 +334,19 @@ la préédition, la sauvegarde entre fenêtres et les préférences concurrentes
 La recette de sélection entre blocs dans un document long, en échec dans la CI
 Linux précédente (`0f79046`), est également rejouée avec succès sur Chromium et
 WebKit locaux. Ce succès local ne remplace pas son prochain contrôle Linux.
+
+### Analyse de la baisse de couverture et seconde passe
+
+La mesure du premier retrait est de **77,92 %**, contre **84,05 %** auparavant.
+Les fichiers entièrement supprimés étaient couverts à **93,19 %**. La comparaison
+par module et les pertes de couverture sur le code conservé sont détaillées dans
+[l’analyse de couverture](coverage-retirement.md). Celle-ci conduit à retirer les
+mutateurs et helpers restants sans appelant, puis à compléter les garanties de
+compilation des modèles et d’export des formats actuels.
+
+Le défaut de sélection entre paragraphes a aussi été reproduit avec un décalage
+entre le DOM et ProseMirror, puis corrigé dans le gestionnaire partagé. Les tests
+de régression échouaient avant le correctif. Cette passe est validée localement
+par **259 tests Rust**, **210 tests web et 3 tests de langues**, **20 recettes
+Rust ↔ Yjs** et **6 parcours Chromium/WebKit** ; sa validation Linux et la nouvelle
+mesure de couverture restent à confirmer par la prochaine CI.
