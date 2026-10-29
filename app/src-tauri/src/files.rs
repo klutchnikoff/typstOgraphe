@@ -260,7 +260,6 @@ pub fn new_document(
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
     agent.token = None;
     agent.proposal = None;
-    agent.snapshot = None;
     app.emit("app:document", ()).map_err(|e| e.to_string())
 }
 /// Same document lifecycle for Tauri and its browser recipe transport.
@@ -308,7 +307,6 @@ pub fn close_document(
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
     agent.token = None;
     agent.proposal = None;
-    agent.snapshot = None;
     app.emit("app:document", ()).map_err(|e| e.to_string())
 }
 

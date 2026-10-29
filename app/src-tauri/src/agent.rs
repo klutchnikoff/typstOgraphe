@@ -1,9 +1,5 @@
 //! Assistance locale : découverte et propositions, jamais d'édition directe.
-use crate::{
-    Bridge,
-    session::{Session, Snapshot},
-    settings::Settings,
-};
+use crate::{Bridge, session::Session, settings::Settings};
 use serde::Serialize;
 use serde_json::{Value, json};
 use std::{
@@ -41,15 +37,7 @@ pub struct AgentState {
     pub token: Option<String>,
     pub proposal: Option<Proposal>,
     pub seen: std::collections::BTreeMap<String, (String, Value)>,
-    pub snapshot: Option<Snapshot>,
     pub busy: std::collections::BTreeSet<String>,
-}
-#[tauri::command]
-pub fn publish_snapshot(state: State<Bridge>, snapshot: Snapshot) -> Result<(), String> {
-    let session = state.session.lock().map_err(|e| e.to_string())?;
-    session.validate(&snapshot)?;
-    state.agent.lock().map_err(|e| e.to_string())?.snapshot = Some(snapshot);
-    Ok(())
 }
 fn proposal(state: &mut AgentState, revision: u64) -> Option<Proposal> {
     if let Some(p) = &mut state.proposal

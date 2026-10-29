@@ -45,22 +45,35 @@ export async function proposeThroughMcp(binary, invitation) {
     const list = await request('tools/list')
     if (list.tools.some((t) => /accept|save|export/.test(t.name)))
       throw new Error('Permissions excessives')
-    const contracts = await call('capabilities.list')
-    if (!contracts.commands.some((c) => c.id === 'insert.table'))
+    const contracts = await call('commands.list')
+    if (!contracts.outcome.entries.some((c) => c.id === 'insert.table'))
       throw new Error('Catalogue incomplet')
-    const snapshot = await call('document.structure')
+    const inspected = await call('document.inspect')
+    const snapshot = await call('document.structure', { document: inspected.document })
+    const zone = snapshot.outcome.zones.filter((z) => z.zone.kind === 'body').at(-1)
+    if (!zone) throw new Error('Zone du corps introuvable')
     const proposal = await call('proposals.submit', {
-      revision: snapshot.revision,
+      document: snapshot.document,
       request_id: 'native-mcp',
       summary: 'Lot de recette MCP',
       steps: [
-        { id: 'text.bold', params: { value: 'on' } },
-        { id: 'text.insert', params: { text: ' NATIVE-MCP' } },
-        { id: 'text.bold', params: { value: 'off' } },
+        {
+          id: 'text.insert',
+          params: {
+            target: { zone: zone.zone, from: zone.length, to: zone.length },
+            text: ' NATIVE-MCP',
+            marks: [{ type: 'bold' }],
+          },
+        },
       ],
     })
-    if (proposal.status !== 'pending') throw new Error('Publication sans validation humaine')
-    return { tools: list.tools.map((t) => t.name), proposal: proposal.id, status: proposal.status }
+    if (proposal.outcome.status !== 'pending')
+      throw new Error('Publication sans validation humaine')
+    return {
+      tools: list.tools.map((t) => t.name),
+      proposal: proposal.outcome.id,
+      status: proposal.outcome.status,
+    }
   } catch (error) {
     throw new Error(String(error) + ' ' + log)
   } finally {

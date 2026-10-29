@@ -50,8 +50,6 @@ fn discovery_matches_the_shared_catalogue_and_cannot_approve_or_write_files() {
         inspect["outcome"]["state"],
         json!(s.owner.as_ref().unwrap().state())
     );
-    // Reads use the confirmed owner directly, not a deferred frontend snapshot.
-    assert!(a.snapshot.is_none());
 }
 #[test]
 fn accepted_proposal_uses_common_edits_one_revision_and_human_history_without_raw_delta() {

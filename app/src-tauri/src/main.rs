@@ -220,11 +220,6 @@ fn recover(state: State<Bridge>, snapshot: Snapshot, update: Vec<u8>) -> Result<
 async fn preview(state: State<'_, Bridge>, snapshot: Snapshot) -> Result<Preview, String> {
     let session = state.session.clone();
     let renderer = state.renderer.clone();
-    {
-        let session = state.session.lock().map_err(|e| e.to_string())?;
-        session.validate(&snapshot)?;
-        state.agent.lock().map_err(|e| e.to_string())?.snapshot = Some(snapshot.clone());
-    }
     tauri::async_runtime::spawn_blocking(move || {
         let (source, assets, settings) = {
             let session = session.lock().map_err(|e| e.to_string())?;
@@ -263,11 +258,6 @@ async fn preview_frame(
 ) -> Result<tauri::ipc::Response, String> {
     let session = state.session.clone();
     let renderer = state.renderer.clone();
-    {
-        let session = session.lock().map_err(|e| e.to_string())?;
-        session.validate(&snapshot)?;
-        state.agent.lock().map_err(|e| e.to_string())?.snapshot = Some(snapshot.clone());
-    }
     let bytes = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, String> {
         let (source, assets, settings) = {
             let session = session.lock().map_err(|e| e.to_string())?;
@@ -595,7 +585,6 @@ fn main() {
             bibliography::model_policy,
             files::new_document,
             files::close_document,
-            agent::publish_snapshot,
             agent::agent_state,
             agent::agent_invite,
             agent::agent_revoke,

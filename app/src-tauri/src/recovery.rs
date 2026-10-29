@@ -235,7 +235,6 @@ pub fn recovery_restore(
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
     agent.token = None;
     agent.proposal = None;
-    agent.snapshot = None;
     app.emit("app:document", ()).map_err(|e| e.to_string())
 }
 #[tauri::command]

@@ -145,13 +145,6 @@ export async function nativeDiagnostic(
       steps.push('Notes/légendes et commande préparée par Rust partagées par le même circuit.')
       await pause(300)
       await provider.flush()
-      await transport.invoke('publish_snapshot', {
-        snapshot: {
-          revision: provider.revision,
-          document: documentContent(editor.getJSON()),
-          settings: settingsFor(provider),
-        },
-      })
       await transport.invoke('agent_invite')
       await until(async () => {
         const state = await transport.invoke<{ proposal?: { status: string } }>('agent_state')
