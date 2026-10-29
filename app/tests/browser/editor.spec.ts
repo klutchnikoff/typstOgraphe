@@ -1,3 +1,4 @@
+import { recordSelection } from './selection-diagnostic'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { writeFile } from 'node:fs/promises'
@@ -149,6 +150,7 @@ test('deux vues fusionnent hors ligne, annulation locale, sauvegarde et commande
 test('sélection entre blocs et saisie sur un document plus long', async ({ page }, testInfo) => {
   test.setTimeout(120_000)
   await ready(page, 'main')
+  const diagnostic = process.env.TOG_SELECTION_DIAGNOSTIC ? await recordSelection(page) : undefined
   // Sélection réelle du navigateur, puis remplacement entre deux paragraphes.
   await page.evaluate(() => {
     const e = window.__spike!.editor
@@ -162,18 +164,22 @@ test('sélection entre blocs et saisie sur un document plus long', async ({ page
     e.commands.setTextSelection(1)
     e.view.focus()
   })
-  await page.keyboard.down('Shift')
-  for (let i = 0; i < 20; i++) await page.keyboard.press('ArrowRight')
-  await page.keyboard.up('Shift')
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          window.__spike!.editor.state.selection.$from.parent !==
-          window.__spike!.editor.state.selection.$to.parent,
-      ),
-    )
-    .toBe(true)
+  try {
+    await page.keyboard.down('Shift')
+    for (let i = 0; i < 20; i++) await page.keyboard.press('ArrowRight')
+    await page.keyboard.up('Shift')
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            window.__spike!.editor.state.selection.$from.parent !==
+            window.__spike!.editor.state.selection.$to.parent,
+        ),
+      )
+      .toBe(true)
+  } finally {
+    await diagnostic?.(testInfo)
+  }
   await page.keyboard.type('Remplacement')
   await expect(page.locator('.tiptap')).toContainText('Remplacement')
   await page.evaluate(() => {
