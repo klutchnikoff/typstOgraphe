@@ -428,7 +428,9 @@ export const DocumentInput = Extension.create({
                         marker.setAttribute('aria-hidden', 'true')
                         return marker
                       },
-                      { side: -1 },
+                      // Reuse the same decorative DOM across status/focus transactions.
+                      // Replacing it can reset a native selection not yet read by PM.
+                      { side: -1, key: 'paragraph-marker' },
                     ),
                   )
                 if (node.childCount) visit(node, pos + 1 + offset)

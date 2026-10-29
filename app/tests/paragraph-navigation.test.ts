@@ -104,3 +104,29 @@ it.each(['document', 'rich-text'] as const)(
     editor.view.dom.remove()
   },
 )
+
+it.each(['document', 'rich-text'] as const)(
+  'un rafraîchissement sans édition préserve les marques ¶ et la sélection native (%s)',
+  (profile) => {
+    const { editor, first } = create(profile)
+    document.body.append(editor.view.dom)
+    editor.view.focus()
+    editor.commands.setTextSelection({ from: first, to: first + 1 })
+    const paragraph = editor.view.dom.querySelector('p')!
+    const text = paragraph.firstChild!
+    const marker = editor.view.dom.querySelector('.paragraph-marker')!
+    const dom = document.getSelection()!
+    dom.setBaseAndExtent(text, 0, text, 4)
+    const before = editor.getJSON()
+    // Native selectionchange is still queued. A focus/status/decoration refresh
+    // must not replace a purely decorative node and reset the browser's range.
+    editor.view.dispatch(editor.state.tr.setMeta('status-refresh', true))
+    expect(dom.focusOffset).toBe(4)
+    expect(editor.view.dom.querySelector('.paragraph-marker')).toBe(marker)
+    expect(dom.anchorNode).toBe(text)
+    expect(dom.anchorOffset).toBe(0)
+    expect(dom.focusNode).toBe(text)
+    expect(editor.getJSON()).toEqual(before)
+    editor.view.dom.remove()
+  },
+)
