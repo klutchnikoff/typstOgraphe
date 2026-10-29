@@ -335,11 +335,29 @@ export const DocumentInput = Extension.create({
               !['ArrowLeft', 'ArrowRight'].includes(event.key)
             )
               return false
-            const { selection } = view.state
-            if (!(selection instanceof TextSelection) || (!event.shiftKey && !selection.empty))
-              return false
-            const { $head } = selection
+            let selection = view.state.selection
+            if (!(selection instanceof TextSelection)) return false
             const backwards = event.key === 'ArrowLeft'
+            // Native selectionchange may still be queued when the next keydown
+            // arrives. Crossing from a stale PM head would reset an ongoing
+            // Shift+Arrow selection, especially on Chromium/Linux.
+            if (view.hasFocus()) {
+              const dom = view.dom.ownerDocument.getSelection()
+              if (
+                !dom?.anchorNode ||
+                !dom.focusNode ||
+                !view.dom.contains(dom.anchorNode) ||
+                !view.dom.contains(dom.focusNode)
+              )
+                return false
+              selection = TextSelection.between(
+                view.state.doc.resolve(view.posAtDOM(dom.anchorNode, dom.anchorOffset)),
+                view.state.doc.resolve(view.posAtDOM(dom.focusNode, dom.focusOffset)),
+                backwards ? -1 : 1,
+              )
+            }
+            if (!event.shiftKey && !selection.empty) return false
+            const { $head } = selection
             if (
               $head.parent.type.name !== 'paragraph' ||
               $head.parentOffset !== (backwards ? 0 : $head.parent.content.size)

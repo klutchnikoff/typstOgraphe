@@ -70,3 +70,37 @@ it('laisse au navigateur les déplacements internes, par mot, la réduction de s
   expect(press(editor, 'ArrowRight')).toBe(false)
   expect(editor.state.selection.from).toBe(first + 5)
 })
+
+it.each(['document', 'rich-text'] as const)(
+  'utilise la sélection DOM courante si ProseMirror est encore en retard (%s)',
+  (profile) => {
+    const { editor, first, second } = create(profile)
+    document.body.append(editor.view.dom)
+    editor.view.focus()
+    const [before, after] = Array.from(editor.view.dom.querySelectorAll('p')).map(
+      (p) => p.firstChild!,
+    )
+    const dom = document.getSelection()!
+    // selectionchange is asynchronous. The native caret has already crossed
+    // the marker, while PM still holds the previous end-of-paragraph selection.
+    editor.commands.setTextSelection({ from: first, to: first + 5 })
+    dom.setBaseAndExtent(before, 0, after, 2)
+    expect(editor.state.selection.head).toBe(first + 5)
+    expect(press(editor, 'ArrowRight', { shiftKey: true })).toBe(false)
+    expect(dom.focusNode).toBe(after)
+    expect(dom.focusOffset).toBe(2)
+    // Conversely, a native caret at the boundary must cross even when PM's
+    // previous selection is still inside the paragraph.
+    editor.commands.setTextSelection({ from: first, to: first + 3 })
+    dom.setBaseAndExtent(before, 0, before, 5)
+    expect(press(editor, 'ArrowRight', { shiftKey: true })).toBe(true)
+    expect(editor.state.selection.anchor).toBe(first)
+    expect(editor.state.selection.head).toBe(second)
+    editor.commands.setTextSelection({ from: second + 5, to: second + 2 })
+    dom.setBaseAndExtent(after, 5, after, 0)
+    expect(press(editor, 'ArrowLeft', { shiftKey: true })).toBe(true)
+    expect(editor.state.selection.anchor).toBe(second + 5)
+    expect(editor.state.selection.head).toBe(first + 5)
+    editor.view.dom.remove()
+  },
+)
