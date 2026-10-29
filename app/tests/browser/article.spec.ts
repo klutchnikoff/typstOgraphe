@@ -91,6 +91,7 @@ test('Article : onglets, auteurs partagés, langues, annulation et fichier auton
     .nth(1)
     .getByRole('button', { name: 'Monter · Auteur', exact: true })
     .click()
+  await page.evaluate(() => window.__spike!.provider.flush())
   await authors.locator('summary').first().click()
   await expect(draft(page).getByLabel('Auteur correspondant')).not.toBeChecked()
   await page.keyboard.press('Escape')

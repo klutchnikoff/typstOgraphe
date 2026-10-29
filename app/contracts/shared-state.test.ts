@@ -10,7 +10,8 @@ import { prosemirrorJSONToYXmlFragment, yXmlFragmentToProsemirrorJSON } from '@t
 import * as Y from 'yjs'
 import { createRichZone, richZoneExtensions } from '../src/rich-zone'
 import { initializeSettings, settingsFor, setSetting } from '../src/state'
-import { addRecord, setRecordField } from '../src/metadata-records'
+import { addRecord, setRecordField, prepareRecordEdit, recordMap } from '../src/metadata-records'
+import { moveRecordCommands, removeRecordCommands } from '../src/metadata-record-commands'
 import type { Provider } from '../src/provider'
 import type { Catalogue } from '../src/shell'
 import { formattingBatch } from '../src/formatting'
@@ -762,6 +763,98 @@ it('roundtrips table captions and fine grid edits as one undo without replacing 
   undo.redo()
   await probe({ action: 'inspect', update: bytes(original), expected: result.state })
   undo.destroy()
+})
+
+it('publishes actual header form plans, reorders stable records and undoes explicit reference detachment', async () => {
+  const original = seed('article'),
+    storeValue = store(original)
+  const definitions = catalogue.types.find((type) => type.id === 'article')!.structured!
+  const authors = definitions.collections.find((definition) => definition.parameter === 'authors')!
+  const affiliations = definitions.collections.find(
+    (definition) => definition.parameter === 'affiliations',
+  )!
+  const localizations = definitions.collections.find(
+    (definition) => definition.parameter === 'localizations',
+  )!
+  const settings = original.getMap('settings')
+  let guard = { document: 'header-form-contract', revision: 0 }
+  const origin = Symbol('header-command'),
+    undo = new Y.UndoManager(settings, { trackedOrigins: new Set([origin]) })
+  const publish = async (commands: unknown[]) => {
+    const result = await probe({
+      action: 'commands',
+      update: bytes(original),
+      guard,
+      expected: guard,
+      commands,
+    })
+    Y.applyUpdate(original, new Uint8Array(result.update), origin)
+    guard = result.guard
+    undo.stopCapturing()
+    return result
+  }
+  const confirm = async (
+    definition: typeof authors,
+    fields: Record<string, unknown>,
+    id?: string,
+  ) => {
+    const draft = prepareRecordEdit(storeValue, definitions, definition, { id })
+    try {
+      for (const [field, value] of Object.entries(fields))
+        setRecordField(draft, draft.record, field, value)
+      const plan = draft.plan()
+      expect(plan.error).toBeUndefined()
+      await publish(plan.commands!)
+      return plan.id!
+    } finally {
+      draft.destroy()
+    }
+  }
+  try {
+    const aff = await confirm(affiliations, { text: 'Univ Rennes, CNRS, IRMAR' })
+    const first = await confirm(authors, { name: 'Camille 😀', 'affiliation-ids': [aff] })
+    const second = await confirm(authors, { name: 'Alex 日本' })
+    const firstMap = recordMap(storeValue, authors).get(first)!
+    const name = firstMap.get('name')
+    await confirm(authors, { name: 'Dr Camille 😀', email: 'camille@example.org' }, first)
+    expect(recordMap(storeValue, authors).get(first)).toBe(firstMap)
+    expect(firstMap.get('name')).toBe(name)
+    await publish(moveRecordCommands(storeValue, authors, second, -1))
+    expect(
+      (settingsFor(storeValue).metadata.fields.authors as { id: string }[]).map(
+        (author) => author.id,
+      ),
+    ).toEqual([second, first])
+    const localization = [...recordMap(storeValue, localizations).values()][0]
+    const fragment = localization.get('abstract')
+    await confirm(
+      localizations,
+      {
+        abstract: {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Résumé relu', marks: [{ type: 'italic' }] }],
+            },
+          ],
+        },
+      },
+      String(localization.get('id')),
+    )
+    expect(localization.get('abstract')).toBe(fragment)
+    expect(removeRecordCommands(storeValue, definitions, affiliations, aff)).toBeNull()
+    const before = state(original)
+    const removal = removeRecordCommands(storeValue, definitions, affiliations, aff, true)!
+    expect(removal.map((command) => command.id)).toEqual(['metadata.set', 'record.remove'])
+    await publish(removal)
+    expect(settingsFor(storeValue).metadata.fields.affiliations as unknown[]).toHaveLength(0)
+    undo.undo()
+    expect(state(original)).toEqual(before)
+    await probe({ action: 'inspect', update: bytes(original), expected: before })
+  } finally {
+    undo.destroy()
+  }
 })
 
 it('executes GUI formatting targets in Rust across body badges and record rich fields', async () => {

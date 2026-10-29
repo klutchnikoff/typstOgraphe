@@ -91,6 +91,7 @@ test('en-tête partagé, focus conservé, export Typst et sauvegarde sans duplic
   const recipient = page.getByLabel('Destinataire', { exact: true })
   await recipient.focus()
   await recipient.evaluate((input: HTMLInputElement) => input.setSelectionRange(3, 3))
+  await page.evaluate(() => window.__spike!.provider.flush())
   await peer.getByLabel('Objet', { exact: true }).fill('Objet relu ensemble')
   await expect(page.getByLabel('Objet', { exact: true })).toHaveValue('Objet relu ensemble')
   await expect(recipient).toBeFocused()

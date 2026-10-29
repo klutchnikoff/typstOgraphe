@@ -9,8 +9,11 @@ const add = (page: Page, kind: string) =>
     .getByRole('button', { name: `Ajouter · ${kind}`, exact: true })
     .last()
     .click()
-const confirm = (page: Page) =>
-  dialog(page).getByRole('button', { name: 'Valider', exact: true }).click()
+const confirm = async (page: Page) => {
+  await dialog(page).getByRole('button', { name: 'Valider', exact: true }).click()
+  await page.waitForFunction(() => window.__spike?.ready)
+  await page.evaluate(() => window.__spike!.provider.flush())
+}
 const name = (page: Page) => dialog(page).getByLabel('Nom complet', { exact: true })
 const data = (page: Page) =>
   page.evaluate(() =>
