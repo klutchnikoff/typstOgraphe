@@ -4,6 +4,12 @@ use i18n_embed::fluent::FluentLanguageLoader;
 use std::collections::HashMap;
 
 pub fn command_error_with(loader: &FluentLanguageLoader, error: &CommandError) -> String {
+    if let Some(content) = error.params.get("content").and_then(|v| {
+        serde_json::from_value::<typstographe_core::content::contract::Error>(v.clone()).ok()
+    }) {
+        return super::content_errors::content_error_with(loader, &content);
+    }
+
     if error.reason() == "batch_step"
         && let Ok(cause) = serde_json::from_value::<CommandError>(error.params["error"].clone())
     {

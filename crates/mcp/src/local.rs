@@ -1,288 +1,168 @@
-//! Local attachment. IO threads exchange requests; only the UI thread borrows Engine.
-pub mod discovery;
-mod endpoint;
-mod files;
-mod render;
-pub use files::FileEvent;
-#[cfg(test)]
-#[cfg_attr(coverage_nightly, coverage(off))]
-mod tests;
-mod transport;
-
-use crate::mcp::proposals::Proposals;
-use crate::mcp::{Host, Operation, Request};
+//! Fixed MCP bridge to a native app invitation. No project is opened by the bridge.
+use rmcp::{ErrorData, RoleServer, ServerHandler, ServiceExt, model::*, service::RequestContext};
+use serde::Deserialize;
+use serde_json::{Value, json};
 use std::{
-    io,
-    path::Path,
-    sync::{
-        Arc,
-        atomic::{AtomicU8, Ordering},
-    },
+    io::{BufRead, BufReader, Read, Write},
+    net::{SocketAddr, TcpStream},
+    path::{Path, PathBuf},
+    sync::Arc,
 };
-use tokio::sync::mpsc;
-use tokio_util::sync::CancellationToken;
-use typstographe_core::engine::{EditContext, Engine, TargetGuard};
-
-/// Explicit invitation for published reads and human-reviewed proposals on one document.
-/// Optional exact-file saving and export roots are fixed at creation for one client.
-/// Dropping it revokes the channel and removes its private invitation file.
-pub struct LocalSession {
-    advertisement: Option<discovery::Advertisement>,
-    invitation: endpoint::Invitation,
-    receiver: mpsc::Receiver<Request>,
-    shutdown: CancellationToken,
-    status: Arc<AtomicU8>,
-    guard: TargetGuard,
-    id: String,
-    context: EditContext,
-    proposals: Proposals,
-    files: crate::mcp::file_grant::FileGrant,
-    export: Option<files::PendingExport>,
-    render_read: Option<render::PendingRead>,
-    file_events: Vec<FileEvent>,
-    wake: Arc<dyn Fn() + Send + Sync>,
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Invitation {
+    address: String,
+    token: String,
 }
-impl LocalSession {
-    pub fn start(engine: &mut Engine, wake: Arc<dyn Fn() + Send + Sync>) -> io::Result<Self> {
-        Self::start_with_files(engine, wake, false, None)
+#[derive(Clone)]
+struct Client {
+    invitation: Arc<Invitation>,
+}
+impl Client {
+    async fn request(&self, method: String, params: Value) -> Result<Value, ErrorData> {
+        let invitation = self.invitation.clone();
+        tokio::task::spawn_blocking(move || -> Result<Value, std::io::Error> {
+            let address: SocketAddr = invitation.address.parse().map_err(std::io::Error::other)?;
+            if !address.ip().is_loopback() || invitation.token.len() < 16 {
+                return Err(std::io::Error::other("Invalid local invitation"));
+            }
+            let mut stream =
+                TcpStream::connect_timeout(&address, std::time::Duration::from_secs(5))?;
+            stream.set_read_timeout(Some(std::time::Duration::from_secs(60)))?;
+            stream.set_write_timeout(Some(std::time::Duration::from_secs(10)))?;
+            writeln!(
+                stream,
+                "{}",
+                json!({"token":invitation.token,"method":method,"params":params})
+            )?;
+            let mut line = String::new();
+            BufReader::new(stream.take(32 * 1024 * 1024 + 1)).read_line(&mut line)?;
+            if line.len() > 32 * 1024 * 1024 {
+                return Err(std::io::Error::other("Reply too large"));
+            }
+            serde_json::from_str(&line).map_err(std::io::Error::other)
+        })
+        .await
+        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?
+        .map_err(|e| ErrorData::internal_error(e.to_string(), None))
     }
-    pub fn start_with_files(
-        engine: &mut Engine,
-        wake: Arc<dyn Fn() + Send + Sync>,
-        save_current: bool,
-        export_root: Option<std::path::PathBuf>,
-    ) -> io::Result<Self> {
-        if !engine.is_open() {
-            return Err(io::Error::other("No document open"));
-        }
-        let files = crate::mcp::file_grant::FileGrant::new(engine, save_current, export_root)
-            .map_err(io::Error::other)?;
-        let invitation = endpoint::Invitation::new()?;
-        let (sender, receiver) = mpsc::channel(16);
-        let shutdown = CancellationToken::new();
-        let status = Arc::new(AtomicU8::new(0));
-        let (ready, started) = std::sync::mpsc::sync_channel(1);
-        let endpoint = invitation.data.clone();
-        let stop = shutdown.clone();
-        let state = status.clone();
-        let repaint = wake.clone();
-        std::thread::Builder::new()
-            .name("mcp-attachment".into())
-            .spawn(move || {
-                let result = transport::listen(
-                    endpoint,
-                    sender,
-                    stop.clone(),
-                    state.clone(),
-                    repaint.clone(),
-                    ready.clone(),
-                );
-                state.store(2, Ordering::Release);
-                stop.cancel();
-                repaint();
-                if let Err(error) = result {
-                    let _ = ready.send(Err(error));
-                }
-            })?;
-        started.recv().map_err(io::Error::other)??;
-        // A context has no source, revision, history or focus effects. Its lifetime
-        // is tied to this invitation, never to an individual incoming request.
-        let context = engine
-            .create_edit_context(engine.target_guard(), None)
-            .map_err(io::Error::other)?;
-        Ok(Self {
-            advertisement: None,
-            invitation,
-            receiver,
-            shutdown,
-            status,
-            guard: engine.target_guard(),
-            id: uuid::Uuid::new_v4().to_string(),
-            context,
-            proposals: Default::default(),
-            files,
-            export: None,
-            render_read: None,
-            file_events: Vec::new(),
-            wake,
+}
+impl ServerHandler for Client {
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_resources()
+                .build(),
+        )
+        .with_server_info(Implementation::new(
+            "typstographe",
+            env!("CARGO_PKG_VERSION"),
+        ))
+        .with_instructions(crate::instructions(true))
+    }
+    async fn list_tools(
+        &self,
+        _: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ListToolsResult, ErrorData> {
+        Ok(ListToolsResult {
+            tools: crate::tools(true),
+            ..Default::default()
         })
     }
-    pub fn invitation_path(&self) -> &Path {
-        self.invitation.path()
+    fn get_tool(&self, name: &str) -> Option<Tool> {
+        crate::tools(true).into_iter().find(|t| t.name == name)
     }
-    /// Called only by an explicitly authorized GUI invitation. Tests and explicit
-    /// --attach owners remain isolated unless they deliberately publish here.
-    pub fn advertise(&mut self, directory: &Path) -> io::Result<()> {
-        if self.finished() || self.connected() || self.advertisement.is_some() {
-            return Err(io::Error::other("Invitation cannot be advertised now"));
+    async fn call_tool(
+        &self,
+        r: CallToolRequestParams,
+        _: RequestContext<RoleServer>,
+    ) -> Result<CallToolResponse, ErrorData> {
+        if self.get_tool(&r.name).is_none() {
+            return Err(ErrorData::invalid_params("Unknown tool", None));
         }
-        self.advertisement = Some(discovery::Advertisement::publish(
-            directory,
-            self.invitation_path(),
-        )?);
-        Ok(())
-    }
-    pub fn connected(&self) -> bool {
-        self.status.load(Ordering::Acquire) == 1
-    }
-    pub fn finished(&self) -> bool {
-        self.status.load(Ordering::Acquire) == 2 || self.shutdown.is_cancelled()
-    }
-    /// Call after native text publication. Reads observe a single published revision.
-    /// Returns false after disconnect/revoke or if the document was closed/replaced.
-    pub fn poll(&mut self, engine: &mut Engine) -> bool {
-        self.poll_with_input(engine, false)
-    }
-    pub fn review(&self) -> Option<&crate::ProposalReview> {
-        self.proposals.review()
-    }
-    /// Native diagnostic/front-end preparation uses the same portable submission
-    /// path as MCP. This never approves or publishes a candidate.
-    pub fn prepare_proposal(
-        &mut self,
-        engine: &Engine,
-        request_id: &str,
-        steps: Vec<typstographe_core::engine::Call>,
-    ) -> Result<serde_json::Value, typstographe_core::engine::CommandError> {
-        if self.finished() {
-            return Err(crate::mcp::proposals::error("Invitation ended"));
+        let reply = self
+            .request(r.name.into_owned(), json!(r.arguments.unwrap_or_default()))
+            .await?;
+        Ok(if let Some(error) = reply.get("error") {
+            CallToolResult::structured_error(json!({"version":1,"ok":false,"error":error}))
+        } else {
+            CallToolResult::structured(reply["result"].clone())
         }
-        let params = serde_json::json!({"document":{"id":self.id,"guard":engine.target_guard()},"request_id":request_id,"steps":steps});
-        self.proposals.dispatch(
-            engine,
-            &self.context,
-            &self.id,
-            "proposals.submit",
-            params.as_object().expect("object").clone(),
-            false,
-        )
+        .into())
     }
-    pub fn proposal_status(&self, id: &str) -> Option<crate::ProposalStatus> {
-        self.proposals.status(id)
+    async fn list_resources(
+        &self,
+        _: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ListResourcesResult, ErrorData> {
+        Ok(ListResourcesResult {
+            resources: crate::mcp::resources_list(),
+            ..Default::default()
+        })
     }
-    /// Explicit trusted UI handoff. No MCP call can capture the human selection.
-    pub fn capture_selection(
-        &mut self,
-        engine: &mut Engine,
-        selection: typstographe_core::engine::SelectionTarget,
-        busy: bool,
-    ) -> Result<(), typstographe_core::engine::CommandError> {
-        if self.finished()
-            || busy
-            || self.proposals.review().is_some()
-            || engine.target_guard().document_id != self.guard.document_id
-        {
-            return Err(crate::mcp::proposals::error(
-                "Selection cannot be handed off now",
+    async fn read_resource(
+        &self,
+        r: ReadResourceRequestParams,
+        _: RequestContext<RoleServer>,
+    ) -> Result<ReadResourceResponse, ErrorData> {
+        let reply = self
+            .request("resource.read".into(), json!({"uri":r.uri}))
+            .await?;
+        if let Some(e) = reply.get("error") {
+            return Err(ErrorData::internal_error(
+                "Cannot read resource",
+                Some(e.clone()),
             ));
         }
-        engine.select_in_context(&self.context, selection)?;
-        Ok(())
-    }
-    /// Trusted human-facing decision; never routed from incoming MCP operations.
-    pub fn decide(
-        &mut self,
-        engine: &mut Engine,
-        id: &str,
-        accept: bool,
-        busy: bool,
-    ) -> Result<Option<typstographe_core::engine::Outcome>, typstographe_core::engine::CommandError>
-    {
-        if self.finished() || engine.target_guard().document_id != self.guard.document_id {
-            return Err(crate::mcp::proposals::error("Invitation ended"));
-        }
-        self.proposals
-            .decide(engine, &self.context, id, accept, busy)
-    }
-    pub fn poll_with_input(&mut self, engine: &mut Engine, busy: bool) -> bool {
-        if self.finished()
-            || !engine.is_open()
-            || engine.target_guard().document_id != self.guard.document_id
-        {
-            self.advertisement = None;
-            self.shutdown.cancel();
-            return false;
-        }
-        if self.connected() {
-            self.advertisement = None;
-        }
-        self.proposals.refresh(engine, &self.context);
-        self.poll_file_export(engine, busy);
-        self.poll_render_read(engine);
-        // Bounded work per frame; the transport also has bounded backpressure.
-        for _ in 0..16 {
-            let Ok(request) = self.receiver.try_recv() else {
-                break;
-            };
-            if request.reply.is_closed()
-                || request.cancel.is_cancelled()
-                || self.shutdown.is_cancelled()
-            {
-                continue;
-            }
-            if let Operation::Tool { name, .. } = &request.operation
-                && render::handles(name)
-            {
-                let Operation::Tool { name, arguments } = request.operation else {
-                    unreachable!()
-                };
-                self.begin_render_read(engine, name, arguments, request.reply, request.cancel);
-                continue;
-            }
-            if let Operation::Tool { name, .. } = &request.operation
-                && name == "document.export"
-            {
-                let Operation::Tool { arguments, .. } = request.operation else {
-                    unreachable!()
-                };
-                self.begin_file_export(engine, arguments, request.reply, request.cancel, busy);
-                continue;
-            }
-            let result = Host::attached_proposals(
-                engine,
-                self.id.clone(),
-                self.context.clone(),
-                &mut self.proposals,
-                busy,
+        Ok(ReadResourceResult::new(vec![
+            ResourceContents::text(
+                serde_json::to_string_pretty(&reply["result"]).unwrap(),
+                r.uri,
             )
-            .and_then(|host| {
-                let mut host = host.with_files(self.files.clone());
-                let result = match request.operation {
-                    Operation::Tool { name, arguments } => host.dispatch(&name, arguments),
-                    Operation::Resource { uri } => host.resource(&uri),
-                };
-                self.file_events
-                    .extend(host.take_saved().into_iter().map(FileEvent::Saved));
-                result
-            });
-            let _ = request.reply.send(result);
-        }
-        true
+            .with_mime_type("application/json"),
+        ])
+        .into())
     }
 }
-impl Drop for LocalSession {
-    fn drop(&mut self) {
-        self.advertisement = None;
-        self.shutdown.cancel();
+pub fn bridge(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let metadata = std::fs::symlink_metadata(path)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 8192 {
+        return Err("Invalid invitation file".into());
     }
-}
-
-/// Start the ordinary MCP stdio bridge using an invitation created by the application.
-/// No document is opened and no autonomous Engine is constructed by the bridge.
-pub fn bridge(path: &Path) -> io::Result<()> {
-    let endpoint = endpoint::read(path)?;
-    let runtime = tokio::runtime::Builder::new_current_thread()
+    let invitation: Invitation = serde_json::from_slice(&std::fs::read(path)?)?;
+    let address: SocketAddr = invitation.address.parse()?;
+    if !address.ip().is_loopback() || invitation.token.len() < 16 {
+        return Err("Invalid local invitation".into());
+    }
+    let client = Client {
+        invitation: Arc::new(invitation),
+    };
+    tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .build()?;
-    let result = runtime.block_on(transport::bridge(endpoint));
-    // Tokio stdin uses an uncancellable blocking read. When the application
-    // revokes the socket, do not wait for the MCP client to close stdin too.
-    // This runtime belongs exclusively to the short-lived CLI bridge process.
-    runtime.shutdown_background();
-    result
+        .build()?
+        .block_on(async {
+            let server = client.serve(rmcp::transport::stdio()).await?;
+            server.waiting().await?;
+            Ok(())
+        })
 }
-
-/// One resolution and one connection. Never follow a later invitation or retry.
-pub fn bridge_active() -> io::Result<()> {
-    bridge(&discovery::resolve(&discovery::directory()?)?)
+pub fn active_path() -> Result<PathBuf, std::io::Error> {
+    let home =
+        home::home_dir().ok_or_else(|| std::io::Error::other("Home directory unavailable"))?;
+    #[cfg(target_os = "macos")]
+    let base = home.join("Library/Application Support");
+    #[cfg(target_os = "windows")]
+    let base = std::env::var_os("APPDATA")
+        .map(PathBuf::from)
+        .ok_or_else(|| std::io::Error::other("APPDATA unavailable"))?;
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let base = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home.join(".config"));
+    Ok(base.join("org.typstographe.web-editor-spike/invitation.json"))
+}
+pub fn bridge_active() -> Result<(), Box<dyn std::error::Error>> {
+    bridge(&active_path()?)
 }

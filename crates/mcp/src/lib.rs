@@ -1,12 +1,10 @@
-//! Adaptateur MCP partagé par la CLI autonome et l’application.
-//! Les transports et les sélecteurs restent en aval du cœur.
+//! Structured MCP adapter. Documentary logic belongs to content::api in the core.
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 pub mod args;
-mod calls;
+pub mod local;
 mod mcp;
 pub mod targets;
-pub use calls::compile_render;
-pub use mcp::proposals::{ProposalReview, ProposalStatus};
-pub use mcp::serve;
+pub use mcp::catalogue::{attached_command, attached_id, attached_step, attached_support, tools};
+pub use mcp::{instructions, serve};
 
-pub mod local;
+pub use mcp::validation::check as validate_request;

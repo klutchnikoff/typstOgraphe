@@ -1,127 +1,138 @@
-use super::{policy, types::*};
-use crate::args::Target;
+use super::types::DocumentRef;
 use rmcp::model::{Tool, ToolAnnotations};
-use schemars::JsonSchema;
-use serde_json::{Map, Value, json};
-use std::sync::{Arc, OnceLock};
-use typstographe_core::engine::*;
-
-pub fn tools() -> &'static [Tool] {
-    static TOOLS: OnceLock<Vec<Tool>> = OnceLock::new();
-    TOOLS.get_or_init(|| {
-        let mut tools: Vec<_> = catalogue().iter().filter(|s| policy::exposed(s)).map(|spec| {
-            let mut schema = spec.params_schema.clone();
-            if spec.id.as_str() == "document.batch" {
-                // Le cœur garde Call.params ouvert (Value) ; MCP accepte déjà
-                // uniquement des objets, avant de résoudre les sélecteurs.
-                schema["$defs"]["Call"]["properties"]["params"] = json!({
-                    "type":"object", "additionalProperties":true,
-                    "description":"Parameters of the named editing tool, including its optional selector; omit document and guard inside steps. See capabilities.describe for that tool."
-                });
+use serde_json::json;
+use std::sync::Arc;
+use typstographe_core::content::api;
+pub fn tools(attached: bool) -> Vec<Tool> {
+    let mut entries:Vec<_>=api::catalogue()["entries"].as_array().unwrap().iter().filter(|s|!attached||attached_support(s["id"].as_str().unwrap())).map(|spec|{
+        let id=spec["id"].as_str().unwrap();let mut schema=spec["params_schema"].clone();
+        let reference=serde_json::to_value(schemars::schema_for!(DocumentRef)).unwrap();
+        for (key,value) in reference["$defs"].as_object().unwrap(){schema["$defs"][key]=value.clone();}
+        schema["properties"]["document"]=json!({"$ref":"#/$defs/DocumentRef"});
+        let mut doc=reference;doc.as_object_mut().unwrap().remove("$schema");doc.as_object_mut().unwrap().remove("$defs");schema["$defs"]["DocumentRef"]=doc;
+        if !matches!(id,"document.inspect"|"document.new"|"document.open"|"commands.list"|"document_types.list"|"document_types.describe"|"capabilities.describe"|"spelling.suggestions") {schema.as_object_mut().unwrap().entry("required").or_insert_with(||json!([])).as_array_mut().unwrap().push(json!("document"));}
+        let mut tool=Tool::new(id.to_owned(),format!("{} Pass the latest outer document reference to document calls. See capabilities.describe. Attached edits require a whole-lot human-approved proposal.",spec["description"].as_str().unwrap()),Arc::new(schema.as_object().unwrap().clone()));
+        tool.annotations=Some(ToolAnnotations::new().read_only(api::is_query(id)).open_world(false));tool
+    }).collect();
+    if attached {
+        let defs = serde_json::to_value(schemars::schema_for!(DocumentRef)).unwrap();
+        for (name, description, properties, required) in [
+            (
+                "proposals.submit",
+                "Prepare a body-editing lot; only the human can accept it. One pending lot, idempotent request_id. Header/resources/files are not editable in attached mode yet.",
+                json!({"document":{"$ref":"#/$defs/DocumentRef"},"request_id":{"type":"string","minLength":1,"maxLength":128},"summary":{"type":"string","maxLength":2048},"steps":api::describe("document.batch").unwrap()["params_schema"]["properties"]["steps"]}),
+                json!(["document", "request_id", "steps"]),
+            ),
+            (
+                "proposals.get",
+                "Read proposal status; return control to the human after submitting, do not poll.",
+                json!({"proposal":{"type":"string"}}),
+                json!(["proposal"]),
+            ),
+            (
+                "proposals.cancel",
+                "Cancel your own pending proposal. Never approves or publishes.",
+                json!({"proposal":{"type":"string"}}),
+                json!(["proposal"]),
+            ),
+        ] {
+            let mut schema = json!({"type":"object","properties":properties,"required":required,"additionalProperties":false,"$defs":defs["$defs"]});
+            let mut d = defs.clone();
+            d.as_object_mut().unwrap().remove("$defs");
+            d.as_object_mut().unwrap().remove("$schema");
+            schema["$defs"]["DocumentRef"] = d;
+            if name == "proposals.submit" {
+                schema["properties"]["steps"]["maxItems"] = json!(128);
             }
-            schema.as_object_mut().expect("schema object").entry("properties").or_insert_with(|| json!({}));
-            schema["properties"].as_object_mut().expect("properties").remove("guard");
-            if let Some(required) = schema.get_mut("required").and_then(Value::as_array_mut) {
-                required.retain(|key| key != "guard");
-            }
-            add_property::<DocumentRef>(&mut schema,"document");
-            let selector = supports_selector(spec);
-            if selector { add_property::<Target>(&mut schema,"selector"); }
-            // Le résolveur MCP peut fournir ces champs depuis un sélecteur,
-            // et compiler le rendu si l’appelant ne l’a pas fourni.
-            if let Some(required) = schema.get_mut("required").and_then(Value::as_array_mut) {
-                required.retain(|key| key != "render");
-                if selector {
-                    let resolved: Vec<_> = required.iter().filter(|k| matches!(k.as_str(), Some("target" | "issue" | "occurrence"))).cloned().collect();
-                    required.retain(|key| !resolved.contains(key));
-                    if !resolved.is_empty() { schema["oneOf"] = json!([{ "required":resolved }, { "required":["selector"] }]); }
-                }
-            }
-            if selector {
-                let conflicts: Vec<_> = ["target", "issue", "occurrence"].into_iter()
-                    .filter(|key| !schema["properties"][key].is_null())
-                    .map(|key| json!({"not":{"required":["selector",key]}})).collect();
-                if !conflicts.is_empty() {schema["allOf"] = json!(conflicts);}
-            }
-            if needs_document(spec) {
-                schema.as_object_mut().expect("object").entry("required")
-                    .or_insert_with(|| json!([])).as_array_mut().expect("required").push(json!("document"));
-            }
-            let mut tool = Tool::new(spec.id.as_str().to_owned(), format!("{} Supply document from the latest response; guard is prepared by the adapter. See capabilities.describe for details. File paths require declared server roots; discover current permissions with document.inspect.", spec.description), object(schema));
-            tool.annotations = Some(ToolAnnotations::new().read_only(spec.family == Family::Query).open_world(false));
-            tool
-        }).collect();
-        tools.extend([
-            extra::<DescribeType>("document_types.describe", "Describe a type: purpose, fields, required export fields, capabilities and brief visual model cards."),
-            extra::<DescribeCapability>("capabilities.describe", "Describe a capability from the shared registry: typed parameters, defaults, examples, effects and prototype support."),
-            extra::<RenderPage>("render.page", "Render one page as an inline PNG, without creating files. Page numbers start at 1; the document reference must be current."),
-        ]);
-        tools.sort_by(|a,b| a.name.cmp(&b.name));
-        tools
-    })
-}
-pub fn needs_document(spec: &CommandSpec) -> bool {
-    spec.availability != AvailabilityRule::Always
-}
-pub(super) fn for_session(attached: bool) -> &'static [Tool] {
-    if !attached {
-        return tools();
-    }
-    static ATTACHED: OnceLock<Vec<Tool>> = OnceLock::new();
-    ATTACHED.get_or_init(|| {
-        let mut result = tools().to_vec();
-        for tool in &mut result {
-            let attached = match tool.name.as_ref() {
-                "text.select"=>Some("Attached mode: navigate only the agent's editing context, without changing the human selection, focus, document or history. Current means the agent's own selection. Requires a current document reference. Refused during input/dialogues or while a proposal awaits review; selectors remain available inside proposals."),
-                "document.save" => Some("Attached mode: save only the current file explicitly authorized in permissions.attached_files.current_file. Omit path. No Save As or GUI dialog. Saves published content only, not a pending proposal. Requires a fresh document reference; denied during IME/dialogues."),
-                "document.export" => Some("Attached mode: export published content only to a new/empty directory below permissions.attached_files.export_roots. Preparation runs in the background; revision, authorization and interruption are rechecked before writing. No automatic retry. The response identifies the exported snapshot; refresh document.inspect afterwards. Never marks the document saved."),
-                _ => None,
-            };
-            if let Some(description) = attached { tool.description = Some(description.into()); }
-        }
-        result.extend(super::proposals::tools());
-        result.sort_by(|a, b| a.name.cmp(&b.name));
-        result
-    })
-}
-pub(super) fn extra<P: JsonSchema>(name: &'static str, description: &'static str) -> Tool {
-    let mut tool = Tool::new(
-        name,
-        description,
-        object(serde_json::to_value(schemars::schema_for!(P)).expect("schema")),
-    );
-    tool.annotations = Some(ToolAnnotations::new().read_only(true).open_world(false));
-    tool
-}
-fn object(schema: Value) -> Arc<Map<String, Value>> {
-    Arc::new(schema.as_object().expect("schema object").clone())
-}
-fn add_property<P: JsonSchema>(schema: &mut Value, name: &str) {
-    let mut added = serde_json::to_value(schemars::schema_for!(P)).expect("schema");
-    if let Some(definitions) = added
-        .as_object_mut()
-        .expect("schema object")
-        .remove("$defs")
-    {
-        let root = schema
-            .as_object_mut()
-            .expect("schema object")
-            .entry("$defs")
-            .or_insert_with(|| json!({}))
-            .as_object_mut()
-            .expect("definitions");
-        for (key, value) in definitions.as_object().expect("definitions") {
-            if let Some(previous) = root.insert(key.clone(), value.clone()) {
-                assert_eq!(previous, *value, "shared schema definition");
-            }
+            let mut tool = Tool::new(
+                name,
+                description,
+                Arc::new(schema.as_object().unwrap().clone()),
+            );
+            tool.annotations = Some(
+                ToolAnnotations::new()
+                    .read_only(name == "proposals.get")
+                    .open_world(false),
+            );
+            entries.push(tool);
         }
     }
-    added.as_object_mut().expect("object").remove("$schema");
-    schema["properties"][name] = added;
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
+    entries
 }
 
-pub fn supports_selector(spec: &CommandSpec) -> bool {
-    ["target", "occurrence", "issue", "position"]
-        .iter()
-        .any(|key| !spec.params_schema["properties"][key].is_null())
+pub fn attached_support(id: &str) -> bool {
+    (api::is_query(id) && !id.starts_with("render.") && id != "commands.available")
+        || id == "context.set"
+}
+pub fn attached_id(id: &str) -> bool {
+    matches!(
+        id,
+        "text.insert"
+            | "text.delete"
+            | "text.bold"
+            | "text.italic"
+            | "text.link"
+            | "text.remove_link"
+            | "text.clear"
+            | "inline.replace"
+            | "block.insert"
+            | "block.replace"
+            | "block.splice"
+            | "node.set_attrs"
+            | "block.remove"
+            | "block.split"
+            | "block.paragraph"
+            | "block.heading_1"
+            | "block.heading_2"
+            | "block.heading_3"
+            | "insert.table"
+            | "table.row.insert"
+            | "table.row.remove"
+            | "table.column.insert"
+            | "table.column.remove"
+            | "table.header"
+    )
+}
+pub fn attached_step(call: &api::Call) -> bool {
+    if !attached_id(&call.id) {
+        return false;
+    }
+    match serde_json::from_value(serde_json::to_value(call).unwrap()) {
+        Ok(command) => attached_command(&command),
+        Err(_) => call.params.get("selector").is_some(),
+    }
+}
+pub fn attached_command(command: &typstographe_core::content::commands::Command) -> bool {
+    use typstographe_core::content::commands::*;
+    match command {
+        Command::Insert { target, .. }
+        | Command::Delete { target }
+        | Command::Bold { target, .. }
+        | Command::Italic { target, .. }
+        | Command::Link { target, .. }
+        | Command::RemoveLink { target }
+        | Command::Clear { target }
+        | Command::ReplaceInline { target, .. }
+        | Command::SplitBlock { target } => matches!(
+            target.zone,
+            TextZone::Body { .. } | TextZone::Annotation { .. }
+        ),
+        Command::InsertBlock { parent, .. }
+        | Command::SpliceBlocks { parent, .. }
+        | Command::InsertTable { parent, .. } => parent.root == TreeRoot::Body,
+        Command::ReplaceBlock { target, .. }
+        | Command::SetNodeAttrs { target, .. }
+        | Command::RemoveBlock { target }
+        | Command::Paragraph { target }
+        | Command::Heading1 { target }
+        | Command::Heading2 { target }
+        | Command::Heading3 { target }
+        | Command::InsertTableRow { target, .. }
+        | Command::RemoveTableRow { target, .. }
+        | Command::InsertTableColumn { target, .. }
+        | Command::RemoveTableColumn { target, .. }
+        | Command::TableHeader { target, .. } => target.root == TreeRoot::Body,
+        _ => false,
+    }
 }

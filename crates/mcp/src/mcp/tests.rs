@@ -1,389 +1,171 @@
 use super::*;
-
+fn run(h: &mut host::Host, id: &str, p: Value) -> Value {
+    h.dispatch(id, p.as_object().unwrap().clone())
+        .unwrap()
+        .value
+}
+fn error(h: &mut host::Host, id: &str, p: Value) -> Value {
+    api::error_value(
+        &h.dispatch(id, p.as_object().unwrap().clone())
+            .err()
+            .expect("refused"),
+    )
+}
+fn insertion() -> Value {
+    json!({"id":"text.insert","params":{"target":{"zone":{"kind":"body","path":[0]},"from":0,"to":0},"text":"Bonjour 😀"}})
+}
+#[test]
+fn every_advertised_schema_resolves_and_unknown_params_are_rejected() {
+    for attached in [false, true] {
+        let tools = catalogue::tools(attached);
+        let names: Vec<_> = tools.iter().map(|t| t.name.as_ref()).collect();
+        assert!(names.windows(2).all(|w| w[0] < w[1]));
+        for t in tools {
+            jsonschema::validator_for(&json!(t.input_schema))
+                .unwrap_or_else(|e| panic!("{}: {e}", t.name));
+        }
+    }
+    assert!(validation::check(true, "commands.list", &json!({"extra":true})).is_err());
+    assert!(
+        validation::check(
+            true,
+            "proposals.submit",
+            &json!({"document":{},"request_id":"x","steps":[]})
+        )
+        .is_err()
+    );
+    assert!(validation::check(true, "document.save", &json!({})).is_err());
+}
+#[test]
+fn strict_references_atomic_batches_and_participant_history_share_the_owner() {
+    let mut h = host::Host::new(vec![], vec![], false).unwrap();
+    let r = run(&mut h, "document.new", json!({"type":"courrier"}));
+    let doc = r["document"].clone();
+    assert_eq!(
+        error(
+            &mut h,
+            "document.batch",
+            json!({"document":doc,"steps":[insertion(),{"id":"text.delete","params":{"target":{"zone":{"kind":"body","path":[50]},"from":0,"to":1}}}]})
+        )["code"],
+        "batch_failed"
+    );
+    assert_eq!(run(&mut h, "document.inspect", json!({}))["document"], doc);
+    let changed = run(
+        &mut h,
+        "document.batch",
+        json!({"document":doc,"steps":[insertion()]}),
+    );
+    assert_ne!(changed["document"], doc);
+    assert_eq!(
+        error(&mut h, "document.text", json!({"document":doc}))["code"],
+        "stale_revision"
+    );
+    let undone = run(
+        &mut h,
+        "history.undo",
+        json!({"document":changed["document"]}),
+    );
+    assert_eq!(
+        run(
+            &mut h,
+            "document.text",
+            json!({"document":undone["document"]})
+        )["outcome"]["text"],
+        ""
+    );
+}
+#[test]
+fn roots_read_only_and_save_failure_never_publish_a_lot() {
+    let d = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let mut h = host::Host::new(vec![d.path().into()], vec![d.path().into()], false).unwrap();
+    let r = run(&mut h, "document.new", json!({"type":"courrier"}));
+    let doc = r["document"].clone();
+    error(
+        &mut h,
+        "document.batch",
+        json!({"document":doc,"steps":[insertion()],"save":{"kind":"as","path":outside.path().join("denied.typsto")}}),
+    );
+    assert_eq!(run(&mut h, "document.inspect", json!({}))["document"], doc);
+    assert!(std::fs::read_dir(outside.path()).unwrap().next().is_none());
+    let path = d.path().join("new.typsto");
+    run(
+        &mut h,
+        "document.batch",
+        json!({"document":doc,"steps":[insertion()],"save":{"kind":"as","path":path}}),
+    );
+    let mut reader = host::Host::new(vec![d.path().into()], vec![], true).unwrap();
+    let r = run(
+        &mut reader,
+        "document.open",
+        json!({"path":path,"read_only":true}),
+    );
+    assert_eq!(
+        error(
+            &mut reader,
+            "text.insert",
+            json!({"document":r["document"],"target":{"zone":{"kind":"body","path":[0]},"from":0,"to":0},"text":"No"})
+        )["params"]["reason"],
+        "mcp_read_only"
+    );
+    assert_eq!(
+        run(
+            &mut reader,
+            "document.text",
+            json!({"document":r["document"]})
+        )["outcome"]["text"],
+        "Bonjour 😀\n"
+    );
+}
+#[cfg(unix)]
+#[test]
+fn symlink_escape_and_lock_sidecar_are_denied_before_file_access() {
+    use std::os::unix::fs::symlink;
+    let d = tempfile::tempdir().unwrap();
+    let out = tempfile::tempdir().unwrap();
+    let roots = roots::Roots::new(vec![d.path().into()], vec![d.path().into()]).unwrap();
+    symlink(out.path(), d.path().join("escape")).unwrap();
+    assert!(roots.write(&d.path().join("escape/file.typsto")).is_err());
+    std::fs::write(d.path().join("project.typsto"), "sentinel").unwrap();
+    symlink(
+        out.path().join("victim"),
+        d.path().join(".project.typsto.lock"),
+    )
+    .unwrap();
+    assert!(
+        roots
+            .document_write(&d.path().join("project.typsto"))
+            .is_err()
+    );
+    assert!(!out.path().join("victim").exists());
+    assert!(roots.write(&d.path().join("../outside")).is_err());
+}
 #[tokio::test]
-async fn protocol_cancellation_closes_the_queued_reply_before_any_owner_dispatch() {
-    use std::{sync::Arc, time::Duration};
+async fn cancellation_before_dispatch_drops_a_queued_request() {
+    use std::time::Duration;
     let (sender, mut receiver) = mpsc::channel(16);
     let (client_io, server_io) = tokio::io::duplex(65536);
     let (server, client) = tokio::join!(
-        Server::attached(sender, Arc::new(|| {})).serve(server_io),
+        Server { sender }.serve(server_io),
         ClientConfig::default().serve(client_io)
     );
     let server = server.unwrap();
     let client = client.unwrap();
     let peer = client.peer().clone();
     let pending = tokio::spawn(async move {
-        peer.call_tool_once(CallToolRequestParams::new("document.save"))
+        peer.call_tool_once(CallToolRequestParams::new("document.inspect"))
             .await
     });
     let mut request = tokio::time::timeout(Duration::from_secs(5), receiver.recv())
         .await
         .unwrap()
         .unwrap();
-    assert!(!request.reply.is_closed());
-    pending.abort(); // rmcp's client guard sends notifications/cancelled when the future is dropped.
+    pending.abort();
     assert!(pending.await.unwrap_err().is_cancelled());
     tokio::time::timeout(Duration::from_secs(5), request.reply.closed())
         .await
         .unwrap();
-    assert!(request.reply.is_closed());
     assert!(request.cancel.is_cancelled());
     client.cancel().await.unwrap();
     server.cancel().await.unwrap();
-}
-use serde_json::json;
-use typstographe_core::engine::{Engine, ErrorCode};
-
-fn run(host: &mut host::Host, id: &str, args: Value) -> Value {
-    host.dispatch(id, args.as_object().unwrap().clone())
-        .unwrap()
-        .value
-}
-fn created(host: &mut host::Host) -> Value {
-    run(
-        host,
-        "document.new",
-        json!({"type":"courrier","model":"courrier.model.personal"}),
-    )["document"]
-        .clone()
-}
-fn state(host: &mut host::Host) -> Value {
-    run(host, "document.inspect", json!({}))
-}
-
-#[test]
-fn tools_are_generated_from_the_registry_and_local_schema_references_resolve() {
-    let tools = catalogue::tools();
-    assert_eq!(
-        tools.len(),
-        typstographe_core::engine::catalogue()
-            .iter()
-            .filter(|s| policy::exposed(s))
-            .count()
-            + 3
-    );
-    let names: Vec<_> = tools.iter().map(|t| t.name.as_ref()).collect();
-    assert!(names.windows(2).all(|w| w[0] < w[1]));
-    fn refs(value: &Value, root: &Value) {
-        match value {
-            Value::Object(map) => {
-                if let Some(path) = map
-                    .get("$ref")
-                    .and_then(Value::as_str)
-                    .and_then(|r| r.strip_prefix('#'))
-                {
-                    assert!(root.pointer(path).is_some(), "unresolved {path}");
-                }
-                for value in map.values() {
-                    refs(value, root);
-                }
-            }
-            Value::Array(values) => {
-                for value in values {
-                    refs(value, root);
-                }
-            }
-            _ => {}
-        }
-    }
-    for tool in tools {
-        let schema = json!(tool.input_schema);
-        refs(&schema, &schema);
-        assert_eq!(schema["additionalProperties"], false);
-        assert!(schema["properties"]["guard"].is_null());
-        if let Some(image) = schema.get("$defs").and_then(|d| d.get("ImageInput")) {
-            assert!(
-                serde_json::to_string(image)
-                    .unwrap()
-                    .contains("\"const\":\"path\"")
-            );
-        }
-    }
-    assert!(names.contains(&"document.open"));
-    assert!(names.contains(&"document.save"));
-    assert!(names.contains(&"document.batch"));
-    assert!(names.contains(&"render.page"));
-}
-
-#[test]
-fn types_and_models_are_self_describing_without_exposing_a_model_contract() {
-    let mut host = host::Host::new(false);
-    let types = run(&mut host, "document_types.list", json!({}));
-    assert_eq!(types["outcome"]["types"][1]["can_create"], false);
-    let model = &types["outcome"]["types"][0]["models"][0];
-    assert!(model["description"].as_str().unwrap().contains("DL"));
-    assert!(model["keywords"].as_array().unwrap().len() > 2);
-    assert!(model["fixed_page"].is_null());
-    let kind = run(
-        &mut host,
-        "document_types.describe",
-        json!({"document_type":"courrier"}),
-    );
-    assert!(
-        kind["outcome"]["fields"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|f| f["field"] == "letter.date")
-    );
-    assert!(
-        kind["outcome"]["capabilities"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|id| id == "letter.insert_postscript")
-    );
-    let doc = run(
-        &mut host,
-        "capabilities.describe",
-        json!({"id":"text.insert"}),
-    );
-    assert!(
-        doc["outcome"]["details"]
-            .as_str()
-            .unwrap()
-            .contains("literal")
-    );
-    assert!(!doc["outcome"]["examples"].as_array().unwrap().is_empty());
-    let denied = run(
-        &mut host,
-        "capabilities.describe",
-        json!({"id":"document.save"}),
-    );
-    assert_eq!(denied["outcome"]["prototype_support"]["exposed"], true);
-    assert_eq!(denied["outcome"]["prototype_support"]["authorized"], false);
-    assert_eq!(resources::list().len(), 6);
-    let types = host.resource("typstographe://types").unwrap().value;
-    assert_eq!(types["outcome"]["types"][0]["id"], "courrier");
-    assert!(!resources::known("file:///etc/passwd"));
-}
-
-#[test]
-fn independent_handles_and_revision_guards_protect_persistent_sessions() {
-    let mut host = host::Host::new(false);
-    let doc = created(&mut host);
-    let mut other = host::Host::new(false);
-    let foreign = created(&mut other);
-    let error = host
-        .dispatch(
-            "text.insert",
-            json!({"document":foreign,"text":"Non"})
-                .as_object()
-                .unwrap()
-                .clone(),
-        )
-        .err()
-        .unwrap();
-    assert_eq!(error.reason(), "mcp_document_foreign");
-    let first = run(
-        &mut host,
-        "text.insert",
-        json!({"document":doc,"text":"Élodie"}),
-    );
-    assert!(first["document"]["guard"]["revision"].as_u64() > doc["guard"]["revision"].as_u64());
-    assert_eq!(
-        host.dispatch(
-            "text.insert",
-            json!({"document":doc,"text":"Non"})
-                .as_object()
-                .unwrap()
-                .clone()
-        )
-        .err()
-        .unwrap()
-        .reason(),
-        "stale_revision"
-    );
-    assert_eq!(
-        host.dispatch(
-            "text.insert",
-            json!({"text":"Non"}).as_object().unwrap().clone()
-        )
-        .err()
-        .unwrap()
-        .reason(),
-        "mcp_document_required"
-    );
-    let current = state(&mut host)["document"].clone();
-    assert_eq!(
-        run(&mut host, "document.text", json!({"document":current}))["outcome"]["text"],
-        "Élodie"
-    );
-    let error = host
-        .dispatch(
-            "document.new",
-            json!({"document":current,"type":"courrier","model":"courrier.model.personal"})
-                .as_object()
-                .unwrap()
-                .clone(),
-        )
-        .err()
-        .unwrap();
-    assert_eq!(error.reason(), "unsaved_changes");
-    let replacement = run(
-        &mut host,
-        "document.new",
-        json!({"document":current,"type":"courrier","model":"courrier.model.personal","discard_changes":true}),
-    );
-    assert_ne!(replacement["document"]["id"], current["id"]);
-}
-
-#[test]
-fn a_resolved_batch_is_one_transaction_and_a_late_failure_preserves_the_whole_state() {
-    let mut host = host::Host::new(false);
-    let document = created(&mut host);
-    let before = state(&mut host);
-    let error = host
-        .dispatch(
-            "document.batch",
-            json!({"document":document,"steps":[
-                {"id":"text.insert","params":{"text":"Temporaire Élodie"}},
-                {"id":"text.bold","params":{"selector":{"select":"Absent"}}}
-            ]})
-            .as_object()
-            .unwrap()
-            .clone(),
-        )
-        .err()
-        .unwrap();
-    assert_eq!(error.params["step"], 1);
-    assert_eq!(state(&mut host), before);
-    let result = run(
-        &mut host,
-        "document.batch",
-        json!({"document":document,"steps":[
-            {"id":"text.insert","params":{"text":"Bonjour Élodie."}},
-            {"id":"text.bold","params":{"value":"on","selector":{"select":"Élodie"}}},
-            {"id":"letter.insert_postscript","params":{}},
-            {"id":"text.insert","params":{"text":"Une précision."}}
-        ]}),
-    );
-    let document = result["document"].clone();
-    assert!(
-        run(&mut host, "document.text", json!({"document":document}))["outcome"]["text"]
-            .as_str()
-            .unwrap()
-            .contains("Une précision.")
-    );
-    let undone = run(&mut host, "edit.undo", json!({"document":document}));
-    assert_eq!(
-        run(
-            &mut host,
-            "document.text",
-            json!({"document":undone["document"]})
-        )["outcome"]["text"],
-        ""
-    );
-    let redo = run(
-        &mut host,
-        "edit.redo",
-        json!({"document":undone["document"]}),
-    );
-    let source = run(
-        &mut host,
-        "document.source",
-        json!({"document":redo["document"]}),
-    );
-    assert!(
-        source["outcome"]["source"]
-            .as_str()
-            .unwrap()
-            .contains("Élodie")
-    );
-    let before = state(&mut host);
-    let error=host.dispatch("insert.image",json!({"document":redo["document"],"selector":{"select":"Élodie"},"image":{"kind":"embedded","extension":"svg","data":"invalid base64"}}).as_object().unwrap().clone()).err().unwrap();
-    assert!(matches!(
-        error.code,
-        ErrorCode::InvalidParams | ErrorCode::Document
-    ));
-    assert_eq!(state(&mut host), before);
-}
-
-#[test]
-fn all_filesystem_variants_and_read_only_mutations_are_refused_before_publication() {
-    let mut host = host::Host::new(false);
-    let document = created(&mut host);
-    let before = state(&mut host);
-    for (id, params) in [
-        (
-            "document.new",
-            json!({"type":"courrier","model":"courrier.model.personal","discard_changes":true,"signature":{"kind":"path","path":"/etc/passwd"}}),
-        ),
-        (
-            "insert.image",
-            json!({"image":{"kind":"path","path":"missing.svg"}}),
-        ),
-        (
-            "document.set_signature",
-            json!({"image":{"kind":"path","path":"../signature.svg"}}),
-        ),
-        (
-            "document.set_model",
-            json!({"model":{"kind":"path","path":"anything.typ"}}),
-        ),
-        ("document.open", json!({"path":"anything.typsto"})),
-        ("document.save", json!({})),
-        (
-            "document.batch",
-            json!({"steps":[{"id":"text.insert","params":{"text":"Non"}}],"save":{"kind":"as","path":"anything.typsto"}}),
-        ),
-        (
-            "document.batch",
-            json!({"steps":[{"id":"text.insert","params":{"text":"Non"}},{"id":"insert.image","params":{"image":{"kind":"path","path":"missing.svg"}}}]}),
-        ),
-    ] {
-        let mut params = params.as_object().unwrap().clone();
-        params.insert("document".into(), document.clone());
-        let error = host.dispatch(id, params).err().unwrap();
-        assert_eq!(error.code, ErrorCode::Unavailable, "{id}: {error}");
-        assert_eq!(state(&mut host), before, "{id}");
-    }
-    let mut readonly = host::Host::new(true);
-    assert_eq!(
-        readonly
-            .dispatch(
-                "document.new",
-                json!({"type":"courrier","model":"courrier.model.personal"})
-                    .as_object()
-                    .unwrap()
-                    .clone()
-            )
-            .err()
-            .unwrap()
-            .reason(),
-        "mcp_read_only"
-    );
-    assert!(
-        !run(&mut readonly, "document_types.list", json!({}))["outcome"]["types"]
-            .as_array()
-            .unwrap()
-            .is_empty()
-    );
-}
-
-#[test]
-fn unknown_parameters_and_oversized_requests_are_refused_without_implicit_edits() {
-    let mut host = host::Host::new(false);
-    let document = created(&mut host);
-    let before = state(&mut host);
-    for args in [
-        json!({"document":document,"text":"Non","unexpected":true}),
-        json!({"document":document,"text":"Non","guard":document["guard"]}),
-        json!({"document":document,"text":"x".repeat(typstographe_core::engine::MAX_BATCH_BYTES)}),
-    ] {
-        assert_eq!(
-            host.dispatch("text.insert", args.as_object().unwrap().clone())
-                .err()
-                .unwrap()
-                .code,
-            ErrorCode::InvalidParams
-        );
-        assert_eq!(state(&mut host), before);
-    }
-    assert_eq!(
-        Engine::command_documentation("missing")
-            .unwrap_err()
-            .reason(),
-        "unknown_command"
-    );
 }
