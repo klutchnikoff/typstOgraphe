@@ -58,7 +58,7 @@ mesure reste inchangé ; le prochain taux doit être lu après ces changements.
 
 ## Échec Tauri : sélection entre paragraphes
 
-Les deux dernières CI échouaient sur le même parcours Chromium/Linux ; les
+Les premières CI après le retrait échouaient sur le même parcours Chromium/Linux ; les
 253 autres parcours passaient. Le parcours concerné traverse deux paragraphes
 avec Maj + Flèche droite puis remplace la sélection.
 
@@ -82,3 +82,40 @@ Chromium/WebKit** sur la sélection et les contextes privés. Clippy workspace/t
 cibles avec `-D warnings`, constructions web et native, rustfmt, Prettier, limites
 de taille, frontière des dépendances et les 9 tests des gardes passent. La
 validation Linux du correctif et la nouvelle mesure dépendent de la CI suivante.
+
+
+### Cause complète : identité des décorations ¶
+
+La CI de `a6e3a27` échouait encore : le premier correctif ne protégeait que le
+franchissement d’une frontière de paragraphe. Une recette Linux courte sur une
+branche de diagnostic a reproduit **deux échecs sur cinq** et joint les positions
+DOM/ProseMirror et les piles des réécritures de sélection. Elle montre une
+réinitialisation au milieu d’un paragraphe lors d’une transaction de rafraîchissement,
+non un défaut de la compilation Rust ni un résultat suffisant à attribuer au seul
+rappel de focus de ProseMirror.
+
+Les décorations ¶ avaient un nouveau constructeur DOM à chaque calcul et aucune
+clé de comparaison. ProseMirror les considérait donc comme différentes, même lors
+d’un rafraîchissement sans modification du texte. Leur remplacement déclenchait
+une réécriture de la sélection depuis l’état de l’éditeur. Dans l’un des échecs,
+le navigateur avait sélectionné huit caractères, l’état n’en avait encore reçu que
+deux : le rafraîchissement ramenait la sélection à deux caractères.
+
+Une clé stable `paragraph-marker`, prévue par `Decoration.widget`, permet
+maintenant de réutiliser le DOM décoratif. Les deux nouvelles recettes du corps
+et d’une zone riche simulent directement ce décalage puis une transaction sans
+édition. Avant correction, la plage native et l’identité du marqueur sont perdues ;
+après correction, elles sont conservées. Aucun délai d’attente n’est ajouté au
+parcours de sélection, aucune touche n’est ralentie et aucune assertion n’est retirée.
+
+L’instrumentation des événements reste disponible dans la recette navigateur avec
+`TOG_SELECTION_DIAGNOSTIC=1`. Elle produit un fichier JSON via `testInfo.outputPath`
+et une pièce jointe Playwright, sans capture d’écran. Le workflow spécifique à la
+branche temporaire n’est pas repris sur `main`.
+
+Validation complémentaire avant la poussée finale : **212 tests web et 3 tests
+de langues**, **8 parcours locaux Chromium/WebKit**, construction web et Prettier
+réussis. La [recette ciblée Linux](https://github.com/klutchnikoff/typstOgraphe/actions/runs/40873904345)
+passe **cinq fois avec instrumentation puis cinq fois sans instrumentation**, sur
+le même runner que celui qui avait reproduit deux échecs sur cinq avant correction.
+La CI complète de `main` est lancée après cette vérification.

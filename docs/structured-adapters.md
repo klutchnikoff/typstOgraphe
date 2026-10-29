@@ -350,3 +350,13 @@ de régression échouaient avant le correctif. Cette passe est validée localeme
 par **259 tests Rust**, **210 tests web et 3 tests de langues**, **20 recettes
 Rust ↔ Yjs** et **6 parcours Chromium/WebKit** ; sa validation Linux et la nouvelle
 mesure de couverture restent à confirmer par la prochaine CI.
+
+La CI suivante a confirmé que le premier correctif de sélection était insuffisant.
+La recette Linux instrumentée a identifié le remplacement des décorations ¶ lors
+de transactions sans édition : ce remplacement pouvait remettre une sélection
+native en cours à une position périmée. Une clé stable de `Decoration.widget`
+conserve maintenant leur DOM. Deux tests déterministes vérifient la plage native
+et l’identité du marqueur dans le corps et une zone riche. La recette Linux passe
+ensuite dix fois (cinq avec diagnostics, cinq sans), ainsi que les 212 tests web,
+3 tests de langues et 8 parcours Chromium/WebKit locaux. Le détail et les preuves
+CI figurent dans [l’analyse du diagnostic](coverage-retirement.md).
