@@ -203,7 +203,7 @@ impl Archive {
         let mut total = 0;
         for index in 0..zip.len() {
             let entry = zip.by_index(index).map_err(CoreError::external)?;
-            let name = entry.name().to_owned();
+            let name = entry.name().map_err(CoreError::external)?.into_owned();
             if !allowed.contains(&name.as_str())
                 && !crate::assets::valid_path(&name)
                 && !crate::packages::valid_path(&name)
@@ -413,7 +413,8 @@ mod tests {
             let mut entry = original.by_index(index).unwrap();
             let mut data = Vec::new();
             entry.read_to_end(&mut data).unwrap();
-            match entry.name() {
+            let name = entry.name().unwrap().into_owned();
+            match name.as_str() {
                 "document.json" => data = serde_json::to_vec(&changed.document).unwrap(),
                 "contenu.typ" => {
                     data = source(&changed.document, &changed.assets)
@@ -423,7 +424,7 @@ mod tests {
                 _ => (),
             }
             writer
-                .start_file(entry.name(), SimpleFileOptions::default())
+                .start_file(name, SimpleFileOptions::default())
                 .unwrap();
             writer.write_all(&data).unwrap();
         }

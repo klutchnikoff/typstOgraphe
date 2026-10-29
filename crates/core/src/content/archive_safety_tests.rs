@@ -26,7 +26,7 @@ fn rewrite(path: &Path, change: impl FnOnce(&mut Vec<(String, Vec<u8>)>)) {
         let mut entry = zip.by_index(i).unwrap();
         let mut data = vec![];
         entry.read_to_end(&mut data).unwrap();
-        entries.push((entry.name().into(), data));
+        entries.push((entry.name().unwrap().into_owned(), data));
     }
     drop(zip);
     change(&mut entries);

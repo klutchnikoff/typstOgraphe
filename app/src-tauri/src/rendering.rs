@@ -269,21 +269,32 @@ fn preview_png(width: u32, height: u32, rgba: &[u8]) -> Result<Vec<u8>, String> 
     }
     Ok(data)
 }
+/// A stale request fails; a preview rendered for another revision answers nothing.
+fn current_sync<T>(
+    session: &Mutex<crate::session::Session>,
+    renderer: &Renderer,
+    revision: u64,
+    query: impl FnOnce(&typstographe_core::navigation::RenderSync) -> Option<T>,
+) -> Result<Option<T>, String> {
+    let session = session.lock().map_err(|e| e.to_string())?;
+    if session.revision != revision {
+        return Err("stale".into());
+    }
+    let cache = renderer.1.lock().map_err(|e| e.to_string())?;
+    Ok(cache
+        .as_ref()
+        .filter(|sync| sync.revision == revision)
+        .and_then(query))
+}
 #[tauri::command]
 pub fn sync_forward(
     state: tauri::State<crate::Bridge>,
     revision: u64,
     position: usize,
 ) -> Result<Option<typstographe_core::navigation::PagePoint>, String> {
-    let session = state.session.lock().map_err(|e| e.to_string())?;
-    if session.revision != revision {
-        return Err("stale".into());
-    }
-    let cache = state.renderer.1.lock().map_err(|e| e.to_string())?;
-    Ok(cache
-        .as_ref()
-        .filter(|sync| sync.revision == revision)
-        .and_then(|sync| sync.forward(position)))
+    current_sync(&state.session, &state.renderer, revision, |sync| {
+        sync.forward(position)
+    })
 }
 #[tauri::command]
 pub fn sync_backward(
@@ -291,15 +302,9 @@ pub fn sync_backward(
     revision: u64,
     location: typstographe_core::navigation::PagePoint,
 ) -> Result<Option<usize>, String> {
-    let session = state.session.lock().map_err(|e| e.to_string())?;
-    if session.revision != revision {
-        return Err("stale".into());
-    }
-    let cache = state.renderer.1.lock().map_err(|e| e.to_string())?;
-    Ok(cache
-        .as_ref()
-        .filter(|sync| sync.revision == revision)
-        .and_then(|sync| sync.backward(location)))
+    current_sync(&state.session, &state.renderer, revision, |sync| {
+        sync.backward(location)
+    })
 }
 #[tauri::command]
 pub fn sync_selection(
@@ -308,16 +313,10 @@ pub fn sync_selection(
     from: usize,
     to: usize,
 ) -> Result<Vec<typstographe_core::navigation::SelectionHighlight>, String> {
-    let session = state.session.lock().map_err(|e| e.to_string())?;
-    if session.revision != revision {
-        return Err("stale".into());
-    }
-    let cache = state.renderer.1.lock().map_err(|e| e.to_string())?;
-    Ok(cache
-        .as_ref()
-        .filter(|sync| sync.revision == revision)
-        .map(|sync| sync.selection_highlights_exact(from..to))
-        .unwrap_or_default())
+    current_sync(&state.session, &state.renderer, revision, |sync| {
+        Some(sync.selection_highlights_exact(from..to))
+    })
+    .map(Option::unwrap_or_default)
 }
 
 #[cfg(test)]
@@ -453,6 +452,145 @@ mod tests {
             assert_eq!(header["pages"][0]["length"], expected.len());
             assert_eq!(&packet[8 + length..], expected);
         }
+    }
+
+    fn small_pages() -> crate::settings::Settings {
+        crate::settings::Settings {
+            template: "#let courrier(body, ..options) = {\nset page(width: 40pt, height: 30pt, margin: 0pt)\nbody\n}".into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn frame_packets_index_every_page_for_each_native_encoding() {
+        let source = "Un\n#pagebreak()\nDeux";
+        for encoding in [Encoding::Png, Encoding::Svg, Encoding::Rgba] {
+            let packet = Renderer::default()
+                .frame(
+                    source.into(),
+                    Assets::default(),
+                    7,
+                    &small_pages(),
+                    SourceMap::default(),
+                    encoding,
+                )
+                .unwrap();
+            assert_eq!(&packet[..4], b"TOG1");
+            let length = u32::from_le_bytes(packet[4..8].try_into().unwrap()) as usize;
+            let header: serde_json::Value = serde_json::from_slice(&packet[8..8 + length]).unwrap();
+            let body = &packet[8 + length..];
+            assert_eq!(header["preview"]["revision"], 7);
+            assert_eq!(
+                header["preview"]["pageSizes"],
+                serde_json::json!([[40.0, 30.0], [40.0, 30.0]])
+            );
+            let pages = header["pages"].as_array().unwrap();
+            assert_eq!(pages.len(), 2);
+            let mut offset = 0;
+            for page in pages {
+                assert_eq!(page["offset"], offset);
+                let size = page["length"].as_u64().unwrap() as usize;
+                let bytes = &body[offset..offset + size];
+                let (width, height) = (
+                    page["width"].as_u64().unwrap(),
+                    page["height"].as_u64().unwrap(),
+                );
+                match encoding {
+                    Encoding::Png => {
+                        assert_eq!(decoded_png(bytes.to_vec()).len() as u64, width * height * 4)
+                    }
+                    Encoding::Rgba => assert_eq!(size as u64, width * height * 4),
+                    Encoding::Svg => {
+                        assert_eq!((width, height), (0, 0));
+                        assert!(std::str::from_utf8(bytes).unwrap().starts_with("<svg"));
+                    }
+                    Encoding::Dataurl => unreachable!(),
+                }
+                offset += size;
+            }
+            assert_eq!(offset, body.len());
+        }
+    }
+
+    #[test]
+    fn incomplete_metadata_or_invalid_source_writes_nothing_and_keeps_the_previous_sync() {
+        let renderer = Renderer::default();
+        renderer
+            .frame(
+                "Valide".into(),
+                Assets::default(),
+                1,
+                &small_pages(),
+                SourceMap::default(),
+                Encoding::Rgba,
+            )
+            .unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let article = typstographe_core::document_types::DocumentType::Article;
+        let settings = crate::settings::Settings {
+            metadata: typstographe_core::document_types::Metadata::blank(article),
+            template: article.default_model(),
+            model_id: "article.model.working".into(),
+        };
+        assert!(!settings.metadata.ready_for_export());
+        assert!(
+            renderer
+                .render(
+                    "Texte".into(),
+                    Assets::default(),
+                    2,
+                    Some(root.path().into()),
+                    Some(&settings),
+                    Some(SourceMap::default())
+                )
+                .is_err()
+        );
+        assert!(
+            renderer
+                .frame(
+                    "#let".into(),
+                    Assets::default(),
+                    3,
+                    &small_pages(),
+                    SourceMap::default(),
+                    Encoding::Rgba
+                )
+                .is_err()
+        );
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
+        assert_eq!(renderer.1.lock().unwrap().as_ref().unwrap().revision, 1);
+    }
+
+    #[test]
+    fn synchronisation_refuses_stale_requests_and_ignores_a_preview_of_another_revision() {
+        let session = Mutex::new(crate::session::Session::fresh(PathBuf::new()));
+        let renderer = Renderer::default();
+        let current = session.lock().unwrap().revision;
+        let query = |_: &typstographe_core::navigation::RenderSync| Some(());
+        assert_eq!(current_sync(&session, &renderer, current, query), Ok(None));
+        renderer
+            .frame(
+                "Texte".into(),
+                Assets::default(),
+                current,
+                &small_pages(),
+                SourceMap::default(),
+                Encoding::Rgba,
+            )
+            .unwrap();
+        assert_eq!(
+            current_sync(&session, &renderer, current, query),
+            Ok(Some(()))
+        );
+        assert_eq!(
+            current_sync(&session, &renderer, current + 1, query),
+            Err("stale".into())
+        );
+        session.lock().unwrap().revision += 1;
+        assert_eq!(
+            current_sync(&session, &renderer, current + 1, query),
+            Ok(None)
+        );
     }
 
     /// No timing threshold in CI. Measure the current pipeline with warm caches.

@@ -467,7 +467,7 @@ mod tests {
                 let mut entry = original.by_index(index).unwrap();
                 let mut data = vec![];
                 entry.read_to_end(&mut data).unwrap();
-                (entry.name().to_owned(), data)
+                (entry.name().unwrap().into_owned(), data)
             })
             .collect();
         drop(original);

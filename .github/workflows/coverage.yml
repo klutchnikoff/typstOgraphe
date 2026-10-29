@@ -35,6 +35,9 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run build:web
+      # Unit tests of the web editor; graphical recipes are not measured.
+      - name: Web unit test coverage
+        run: npm run test:coverage
       # Nightly is used only here to exclude test implementations via coverage(off).
       # The application and the three-platform CI continue to use stable Rust.
       - name: Coverage toolchain
@@ -67,7 +70,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: coverage-report
-          path: output/coverage/
+          path: |
+            output/coverage/
+            output/coverage-web/
           if-no-files-found: error
           retention-days: 30
 
@@ -88,6 +93,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: coverage
-          publish_dir: coverage-report/badge
+          publish_dir: coverage-report/coverage/badge
           enable_jekyll: true
           commit_message: Update coverage badge

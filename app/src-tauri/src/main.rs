@@ -3,6 +3,7 @@ use base64::Engine as _;
 mod agent;
 mod bibliography;
 mod catalogue;
+#[cfg(feature = "recipe-driver")]
 mod driver;
 mod files;
 mod menus;
@@ -14,6 +15,7 @@ mod rendering;
 mod schema;
 mod session;
 mod settings;
+#[cfg(feature = "recipe-driver")]
 mod shared_diagnostic;
 mod structured;
 
@@ -505,6 +507,11 @@ fn main() {
             );
         }
     }
+    #[cfg(not(feature = "recipe-driver"))]
+    if stdio {
+        eprintln!("--stdio exige un binaire de recette construit avec --features recipe-driver.");
+        std::process::exit(2);
+    }
     if stdio || diagnostic.is_some() {
         typstographe_i18n::initialize(&["fr".parse().expect("French locale")]);
     }
@@ -520,6 +527,7 @@ fn main() {
         diagnostic,
         agent: Arc::new(Mutex::new(agent::AgentState::default())),
     };
+    #[cfg(feature = "recipe-driver")]
     if stdio {
         driver::run(bridge);
         return;

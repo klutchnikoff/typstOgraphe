@@ -3,6 +3,7 @@ mod approval;
 mod invitation;
 mod transport;
 use crate::{Bridge, session::Session, settings::Settings};
+#[cfg(any(test, feature = "recipe-driver"))]
 pub(crate) use approval::accept;
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -157,32 +158,42 @@ pub fn agent_invite(app: tauri::AppHandle, state: State<Bridge>) -> Result<Value
     let endpoint = invitation.address.clone();
     let binary = std::env::current_exe().map_err(|e| e.to_string())?;
     std::thread::spawn(move || {
-        listener.set_nonblocking(true).ok();
-        loop {
-            if agent
-                .lock()
-                .map(|a| a.token.as_ref() != Some(&token))
-                .unwrap_or(true)
-            {
-                break;
-            }
-            match listener.accept() {
-                Ok((stream, _)) => {
-                    let session = session.clone();
-                    let agent = agent.clone();
-                    let app = app.clone();
-                    std::thread::spawn(move || serve_connection(stream, session, agent, app));
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    std::thread::sleep(std::time::Duration::from_millis(80))
-                }
-                Err(_) => break,
-            }
-        }
+        let connections = agent.clone();
+        accept_while_invited(&listener, &connections, &token, |stream| {
+            let session = session.clone();
+            let agent = agent.clone();
+            let app = app.clone();
+            std::thread::spawn(move || serve_connection(stream, session, agent, app));
+        })
     });
     Ok(
         json!({"binary":binary,"arguments":["--mcp","--invitation",file],"endpoint":endpoint,"permissions":{"proposals":true,"filesystem":false,"approval":"whole-lot human acceptance only"}}),
     )
+}
+/// Stops accepting connections as soon as this invitation is revoked or replaced.
+fn accept_while_invited(
+    listener: &TcpListener,
+    agent: &Mutex<AgentState>,
+    token: &str,
+    mut serve: impl FnMut(TcpStream),
+) {
+    listener.set_nonblocking(true).ok();
+    loop {
+        if agent
+            .lock()
+            .map(|a| a.token.as_deref() != Some(token))
+            .unwrap_or(true)
+        {
+            break;
+        }
+        match listener.accept() {
+            Ok((stream, _)) => serve(stream),
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                std::thread::sleep(std::time::Duration::from_millis(80))
+            }
+            Err(_) => break,
+        }
+    }
 }
 fn serve_connection(
     stream: TcpStream,

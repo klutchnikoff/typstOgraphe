@@ -12,6 +12,8 @@ workspace = true
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+# STDIO transport for the browser and contract recipes; never in distributed builds.
+recipe-driver = []
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -20,7 +22,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tokio = { version = "1", features = ["sync", "rt", "net", "io-util", "time"] }
-zip = { version = "6", default-features = false, features = ["deflate"] }
+zip.workspace = true
 typstographe-mcp = { workspace = true }
 uuid.workspace = true
 typstographe-core = { workspace = true }
