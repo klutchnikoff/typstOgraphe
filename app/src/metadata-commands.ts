@@ -35,7 +35,11 @@ export class MetadataCommands {
   ) {
     this.generation = provider.generation
     this.identity = provider.doc.getMap('settings').get('identity')
-    provider.documentEdits = { flush: () => this.flush(), dirty: () => this.dirty() }
+    provider.documentEdits = {
+      flush: () => this.flush(),
+      dirty: () => this.dirty(),
+      draft: () => this.draft(),
+    }
   }
   private checkDocument() {
     const identity = this.provider.doc.getMap('settings').get('identity')
@@ -61,6 +65,10 @@ export class MetadataCommands {
   }
   error(target: FieldTarget) {
     return this.drafts.get(key(target))?.error
+  }
+  draft() {
+    this.checkDocument()
+    return [...this.drafts.values()].map(({ target, value }) => structuredClone({ target, value }))
   }
   dirty() {
     this.checkDocument()

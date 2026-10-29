@@ -526,12 +526,19 @@ export async function mountShell(s: Shell) {
         (id) => {
           const selected = kind.models.find((model) => model.id === id)
           if (!selected) return
-          const next = settingsFor(provider)
-          next.modelId = selected.id
-          next.template = selected.source
-          setDocument(provider, next)
+          guarded(async () => {
+            await provider.flush()
+            const next = settingsFor(provider)
+            next.modelId = selected.id
+            next.template = selected.source
+            setDocument(provider, next)
+          })
         },
-        (key, value) => setSetting(provider, `options.${key}`, value),
+        (key, value) =>
+          guarded(async () => {
+            await provider.flush()
+            setSetting(provider, `options.${key}`, value)
+          }),
         (key, value) => {
           const history = historyFor(editor)
           history?.stopCapturing()
@@ -925,7 +932,9 @@ export async function mountShell(s: Shell) {
     recoveryTimer = setTimeout(
       () =>
         void guarded(async () => {
-          await provider.flush()
+          // Recovery protects the confirmed body even while a native field needs
+          // a decision. Manual save/export still wait for every field draft.
+          await provider.flush(false)
           await transport.invoke('recover', {
             snapshot: {
               revision: provider.revision,

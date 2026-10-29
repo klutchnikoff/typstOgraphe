@@ -1,6 +1,6 @@
 import { tr } from './i18n'
 import type { FieldTarget, MetadataCommands } from './metadata-commands'
-import { actionRow } from './keyboard-navigation'
+import { actionRow, keyboardScope } from './keyboard-navigation'
 
 type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
 const bindings = new WeakMap<Control, { refresh: () => void; destroy: () => void }>()
@@ -15,6 +15,7 @@ export function bindMetadataInput(
 ) {
   let composing = false
   const status = document.createElement('div')
+  status.style.gridColumn = '1 / -1'
   const error = document.createElement('p')
   error.role = 'alert'
   status.hidden = true
@@ -32,7 +33,13 @@ export function bindMetadataInput(
   retry.className = 'primary'
   actions.append(cancel, retry)
   status.append(error, actions)
-  ;(input.closest('.field') || input.parentElement!.parentElement!).append(status)
+  const root = input.closest<HTMLElement>('.field') || input.parentElement!.parentElement!
+  root.append(status)
+  keyboardScope(root, {
+    active: () => !!commands.error(target),
+    close: () => cancel.click(),
+    confirm: () => retry.click(),
+  })
   const update = () => {
     if (!composing) commands.set(target, parse(), read)
   }

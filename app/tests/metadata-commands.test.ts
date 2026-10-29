@@ -4,6 +4,7 @@ import type { Editor } from '@tiptap/core'
 import type { Provider } from '../src/provider'
 import { MetadataCommands } from '../src/metadata-commands'
 import { bindMetadataInput } from '../src/metadata-input'
+import { installKeyboardNavigation } from '../src/keyboard-navigation'
 
 const native = vi.hoisted(() => ({ calls: [] as { value: unknown; finish: () => void }[] }))
 vi.mock('../src/structured-commands', () => ({
@@ -73,6 +74,7 @@ it('retains refused input, blocks snapshots and never retries over a peer edit w
   native.calls[0].finish()
   await expect(s.controller.flush()).rejects.toThrow('Le document a changé')
   expect(s.controller.value(s.target, s.read())).toBe('Mon brouillon')
+  expect(s.controller.draft()).toEqual([{ target: s.target, value: 'Mon brouillon' }])
   expect(s.read()).toBe('Modification distante')
   expect(native.calls).toHaveLength(1)
   s.controller.discard(s.target)
@@ -117,4 +119,30 @@ it('discarding an in-flight field cancels its preparation and releases the snaps
   await s.controller.flush()
   expect(s.read()).toBe('Initial')
   expect(s.controller.dirty()).toBe(false)
+})
+
+it('Escape discards a refused native field without closing its enclosing metadata panel', async () => {
+  installKeyboardNavigation()
+  const s = setup(),
+    row = document.createElement('div'),
+    input = document.createElement('input')
+  row.className = 'field'
+  row.append(input)
+  document.body.append(row)
+  const binding = bindMetadataInput(input, s.controller, s.target, s.read)
+  input.value = 'Mon texte'
+  input.dispatchEvent(new Event('input'))
+  await vi.waitFor(() => expect(native.calls).toHaveLength(1))
+  s.map.set('name', 'Texte confirmé')
+  native.calls[0].finish()
+  await expect(s.controller.flush()).rejects.toThrow()
+  input.focus()
+  input.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+  )
+  expect(input.value).toBe('Texte confirmé')
+  expect(input.getAttribute('aria-invalid')).toBe('false')
+  expect(document.activeElement).toBe(input)
+  await s.controller.flush()
+  binding.destroy()
 })

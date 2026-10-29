@@ -1,6 +1,60 @@
 import { expect, it } from 'vitest'
 import { Provider, type Transport } from '../src/provider'
 
+it('can checkpoint confirmed state while a native field draft awaits a decision', async () => {
+  const provider = new Provider('confirmed', { invoke: async () => {} } as unknown as Transport)
+  provider.online = true
+  provider.documentEdits = {
+    dirty: () => true,
+    flush: async () => {
+      throw new Error('champ refusé')
+    },
+    draft: () => [{ target: { kind: 'metadata', field: 'letter.subject' }, value: 'À conserver' }],
+  }
+  try {
+    await expect(provider.flush()).rejects.toThrow('champ refusé')
+    await expect(provider.flush(false)).resolves.toBeUndefined()
+    expect(provider.rejected).toBeNull()
+    expect(provider.draft().headerDrafts).toEqual([
+      { target: { kind: 'metadata', field: 'letter.subject' }, value: 'À conserver' },
+    ])
+  } finally {
+    provider.destroy()
+  }
+})
+
+it('a scalar header commit keeps rich zones editable while snapshots still await confirmation', async () => {
+  const provider = new Provider('native-field', { invoke: async () => {} } as unknown as Transport)
+  provider.online = true
+  const locks: boolean[] = []
+  provider.onHistoryLock = (value) => locks.push(value)
+  let finish!: () => void
+  try {
+    const operation = provider.commitCommand(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        }),
+      false,
+    )
+    await Promise.resolve()
+    let saved = false
+    const snapshot = provider.flush().then(() => {
+      saved = true
+    })
+    await Promise.resolve()
+    expect(saved).toBe(false)
+    expect(locks).toEqual([])
+    finish()
+    await operation
+    await snapshot
+    expect(saved).toBe(true)
+    expect(locks).toEqual([])
+  } finally {
+    provider.destroy()
+  }
+})
+
 it('serializes a typed commit with snapshots and unlocks after a refusal without losing the session', async () => {
   const provider = new Provider('typed', { invoke: async () => {} } as unknown as Transport)
   provider.online = true

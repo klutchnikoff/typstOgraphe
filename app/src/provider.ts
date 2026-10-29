@@ -68,7 +68,7 @@ export class Provider {
   generation = ''
   onChange = () => {}
   onStatus = () => {}
-  documentEdits?: { flush: () => Promise<void>; dirty: () => boolean }
+  documentEdits?: { flush: () => Promise<void>; dirty: () => boolean; draft?: () => unknown }
   onResource = () => {}
   onError = (_error: unknown) => {}
   nativeEditing = false
@@ -367,6 +367,7 @@ export class Provider {
       confirmedRevision: this.revision,
       update: Array.from(Y.encodeStateAsUpdate(this.doc)),
       resources: [...this.resources.values()],
+      headerDrafts: this.documentEdits?.draft?.(),
     }
   }
   private sendAwareness(clients: number[]) {

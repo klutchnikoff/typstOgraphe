@@ -595,9 +595,9 @@ export function metadataCollections(
           )
           return
         }
+        const focused = document.activeElement as HTMLElement | null
         pending = true
         submit.disabled = true
-        const focused = document.activeElement as HTMLElement | null
         form.body.inert = true
         const active = () => state.draft?.element === form.element && form.element.isConnected
         void commands
@@ -615,7 +615,9 @@ export function metadataCollections(
             form.body.inert = false
             if (
               active() &&
-              (document.activeElement === document.body || document.activeElement === form.element)
+              (document.activeElement === document.body ||
+                document.activeElement === form.element ||
+                document.activeElement === dialog?.dialog)
             )
               focused?.focus({ preventScroll: true })
           })
