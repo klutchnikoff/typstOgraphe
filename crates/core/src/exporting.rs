@@ -1,9 +1,6 @@
 //! Écriture commune des exports ; aucune mutation de la session documentaire.
 use crate::errors::{CoreError, ExportError, StorageError, TemplateError};
-use crate::{
-    protocol::ExportFormat,
-    rendering::{RenderRequest, retained_assets},
-};
+use crate::{protocol::ExportFormat, rendering::RenderRequest};
 use std::path::Path;
 use typst_layout::PagedDocument;
 
@@ -31,37 +28,14 @@ pub fn check_directory(path: &Path) -> Result<(), CoreError> {
     }
 }
 
-/// Le contrat ne promet pas une transaction multi-fichiers. On refuse toute cible
-/// non vide et on utilise create_new pour ne jamais écraser un fichier existant.
+/// Export an already validated structured document and its retained resources.
+/// Existing files are never replaced; this is not a multi-file transaction.
 pub fn write_document(
     document: &PagedDocument,
     request: &RenderRequest,
     path: &Path,
     format: ExportFormat,
     page_images: bool,
-) -> Result<(), CoreError> {
-    write_document_inner(document, request, path, format, page_images, false)
-}
-
-/// Structured adapters already retain assets from their tree. Reuse the same
-/// writer without projecting that tree back through the legacy text parser.
-pub fn write_retained_document(
-    document: &PagedDocument,
-    request: &RenderRequest,
-    path: &Path,
-    format: ExportFormat,
-    page_images: bool,
-) -> Result<(), CoreError> {
-    write_document_inner(document, request, path, format, page_images, true)
-}
-
-fn write_document_inner(
-    document: &PagedDocument,
-    request: &RenderRequest,
-    path: &Path,
-    format: ExportFormat,
-    page_images: bool,
-    assets_retained: bool,
 ) -> Result<(), CoreError> {
     request.metadata.validate().map_err(CoreError::external)?;
     check_directory(path)?;
@@ -83,16 +57,8 @@ fn write_document_inner(
     };
     let assets = if format == ExportFormat::Pdf {
         Default::default()
-    } else if assets_retained {
-        request.assets.clone()
     } else {
-        retained_assets(
-            &request.source,
-            &request.metadata,
-            &request.template,
-            &request.assets,
-            &request.dependencies,
-        )?
+        request.assets.clone()
     };
     std::fs::create_dir_all(path).map_err(CoreError::external)?;
     if let Some(pdf) = pdf {

@@ -47,23 +47,6 @@ error_family! { PackageError {
     ResourceMissing { path: String } => "package-resource-missing";
 } }
 
-error_family! { RecoveryError {
-    WorkerStopped => "recovery-worker-stopped";
-} }
-
-error_family! { SourceError {
-    ComputedCall => "source-computed-call";
-    HeadingDepth => "source-heading-depth";
-    ImageSignature => "source-image-signature";
-    LetterNoteSignature => "source-letter-note-signature";
-    NestedBlocks => "source-nested-blocks";
-    QuoteSignature => "source-quote-signature";
-    SyntaxError => "source-syntax-error";
-    Unreadable => "source-unreadable";
-    UnsupportedFunction { name: String } => "source-unsupported-function";
-    UnsupportedNode { kind: String } => "source-unsupported-node";
-} }
-
 error_family! { SpellingError {
     NoDictionary { language: String } => "spelling-no-dictionary-detail";
 } }
@@ -106,8 +89,6 @@ error_family! { TemplateError {
 pub enum CoreError {
     ExportError(ExportError),
     PackageError(PackageError),
-    RecoveryError(RecoveryError),
-    SourceError(SourceError),
     SpellingError(SpellingError),
     StorageError(StorageError),
     TemplateError(TemplateError),
@@ -130,8 +111,6 @@ impl CoreError {
         let mut contracts = Vec::new();
         contracts.extend(ExportError::contracts());
         contracts.extend(PackageError::contracts());
-        contracts.extend(RecoveryError::contracts());
-        contracts.extend(SourceError::contracts());
         contracts.extend(SpellingError::contracts());
         contracts.extend(StorageError::contracts());
         contracts.extend(TemplateError::contracts());
@@ -160,8 +139,6 @@ impl CoreError {
         match self {
             Self::ExportError(e) => e.message_key(),
             Self::PackageError(e) => e.message_key(),
-            Self::RecoveryError(e) => e.message_key(),
-            Self::SourceError(e) => e.message_key(),
             Self::SpellingError(e) => e.message_key(),
             Self::StorageError(e) => e.message_key(),
             Self::TemplateError(e) => e.message_key(),
@@ -178,8 +155,6 @@ impl CoreError {
         match self {
             Self::ExportError(e) => e.arguments(),
             Self::PackageError(e) => e.arguments(),
-            Self::RecoveryError(e) => e.arguments(),
-            Self::SourceError(e) => e.arguments(),
             Self::SpellingError(e) => e.arguments(),
             Self::StorageError(e) => e.arguments(),
             Self::TemplateError(e) => e.arguments(),
@@ -201,8 +176,6 @@ impl CoreError {
         let mut samples = Vec::new();
         samples.extend(ExportError::samples());
         samples.extend(PackageError::samples());
-        samples.extend(RecoveryError::samples());
-        samples.extend(SourceError::samples());
         samples.extend(SpellingError::samples());
         samples.extend(StorageError::samples());
         samples.extend(TemplateError::samples());
@@ -247,14 +220,14 @@ mod tests {
         }
         let error = CoreError::from(StorageError::Invalid {
             error: Box::new(
-                SourceError::UnsupportedFunction {
-                    name: "inconnue".into(),
+                PackageError::ResourceMissing {
+                    path: "inconnue".into(),
                 }
                 .into(),
             ),
         });
         assert!(
-            matches!(error.cause(),Some(CoreError::SourceError(SourceError::UnsupportedFunction { name })) if name == "inconnue")
+            matches!(error.cause(),Some(CoreError::PackageError(PackageError::ResourceMissing { path })) if path == "inconnue")
         );
     }
 }

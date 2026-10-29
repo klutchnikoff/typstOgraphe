@@ -12,8 +12,6 @@ pub fn content_error(error: &typstographe_core::content::contract::Error) -> Str
     content_error_with(loader(), error)
 }
 pub use command_errors::command_error_with;
-#[cfg(test)]
-use typstographe_core::annotations;
 use typstographe_core::{document, document_types, errors, protocol};
 pub fn command_error(error: &crate::protocol::CommandError) -> String {
     command_error_with(loader(), error)
@@ -308,10 +306,7 @@ mod tests {
                     .into_iter()
                     .map(|language| language.label_key()),
             );
-            keys.extend([
-                crate::annotations::AnnotationKind::ImageCaption.placeholder_key(),
-                crate::annotations::AnnotationKind::QuoteAttribution.placeholder_key(),
-            ]);
+            keys.extend(["image-caption-placeholder", "quote-attribution-placeholder"]);
             for key in keys {
                 assert_eq!(
                     catalog.get(key),
@@ -324,11 +319,11 @@ mod tests {
 
     #[test]
     fn nested_error_localization_keeps_unicode_parameters_and_machine_payload_identical() {
-        use crate::errors::{CoreError, SourceError, StorageError};
+        use crate::errors::{CoreError, PackageError, StorageError};
         let error = CoreError::from(StorageError::Invalid {
             error: Box::new(
-                SourceError::UnsupportedFunction {
-                    name: "fonction_Élodie_日本".into(),
+                PackageError::ResourceMissing {
+                    path: "fonction_Élodie_日本".into(),
                 }
                 .into(),
             ),
@@ -339,7 +334,7 @@ mod tests {
         assert_ne!(french, english);
         for message in [&french, &english] {
             assert!(message.contains("fonction_Élodie_日本"));
-            assert!(!message.contains("SourceError"));
+            assert!(!message.contains("PackageError"));
         }
         assert_eq!(serde_json::to_value(error).unwrap(), payload);
     }

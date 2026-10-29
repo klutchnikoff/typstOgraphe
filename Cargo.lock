@@ -6522,7 +6522,6 @@ dependencies = [
  "strsim",
  "tempfile",
  "thiserror 2.0.21",
- "time",
  "typst",
  "typst-assets",
  "typst-eval",

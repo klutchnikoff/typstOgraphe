@@ -64,9 +64,6 @@ fn archive_error(error: super::archive::Error) -> CommandError {
             };
             CommandError::with_cause(code, "structured_archive", e)
         }
-        super::archive::Error::LegacyFormat => {
-            CommandError::new(ErrorCode::Document, "structured_archive_required")
-        }
     }
 }
 pub fn check_params(id: &str, params: &Value) -> Result<(), CommandError> {

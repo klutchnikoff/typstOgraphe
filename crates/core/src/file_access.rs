@@ -56,19 +56,17 @@ pub(crate) fn canonical_target(path: &Path) -> Result<PathBuf, CommandError> {
 }
 
 #[derive(Clone)]
-pub(crate) struct Binding {
-    pub target: PathBuf,
+struct Binding {
+    target: PathBuf,
     expected: Option<Fingerprint>,
     // Arc ne partage que le verrou OS, jamais une session ou une empreinte mutable.
-    lease: Option<Arc<File>>,
+    _lease: Arc<File>,
 }
 
 impl Binding {
-    pub fn acquire(path: &Path, read_only: bool) -> Result<Self, CommandError> {
+    fn acquire(path: &Path) -> Result<Self, CommandError> {
         let target = canonical_target(path)?;
-        let lease = if read_only {
-            None
-        } else {
+        let lease = {
             let mut name = std::ffi::OsString::from(".");
             name.push(target.file_name().expect("canonical file name"));
             name.push(".lock");
@@ -88,26 +86,15 @@ impl Binding {
                 }
                 TryLockError::Error(error) => io_error(error),
             })?;
-            Some(Arc::new(file))
+            Arc::new(file)
         };
         Ok(Self {
             target,
             expected: None,
-            lease,
+            _lease: lease,
         })
     }
 
-    pub fn read(&mut self) -> Result<crate::storage::StoredDocument, CommandError> {
-        let mut file = File::open(&self.target).map_err(io_error)?;
-        let expected = fingerprint(&mut file).map_err(io_error)?;
-        file.rewind().map_err(io_error)?;
-        let stored = crate::storage::read_file(file)
-            .map_err(|e| CommandError::with_cause(ErrorCode::Io, "file_open", e))?;
-        self.expected = Some(expected);
-        Ok(stored)
-    }
-
-    /// Pour un constructeur à données explicites, capturer l’état disque s’il existe.
     pub fn observe(&mut self) -> Result<(), CommandError> {
         self.expected = match File::open(&self.target) {
             Ok(mut file) => Some(fingerprint(&mut file).map_err(io_error)?),
@@ -126,21 +113,18 @@ impl Binding {
         Ok(())
     }
 
-    pub fn owns_lock(&self) -> bool {
-        self.lease.is_some()
-    }
     pub fn saved(&mut self, fingerprint: Fingerprint) {
         self.expected = Some(fingerprint);
     }
 }
 
 /// Garde de fichier réutilisable par les adaptateurs structurés. Le verrou et
-/// l'empreinte suivent la même politique que le moteur documentaire historique.
+/// l'empreinte protègent l'archive pendant son remplacement atomique.
 #[derive(Clone)]
 pub struct DocumentLease(Binding);
 impl DocumentLease {
     pub fn acquire(path: &Path) -> Result<Self, CommandError> {
-        let mut binding = Binding::acquire(path, false)?;
+        let mut binding = Binding::acquire(path)?;
         binding.observe()?;
         Ok(Self(binding))
     }

@@ -6,7 +6,6 @@ pub mod commands;
 pub mod contract;
 pub mod editing;
 pub mod editorial;
-pub mod legacy;
 mod mapping;
 pub use mapping::source_mapped;
 mod schema;

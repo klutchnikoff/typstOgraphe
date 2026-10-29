@@ -22,8 +22,6 @@ pub enum Error {
     Core(#[from] CoreError),
     #[error("{0}")]
     Access(#[from] crate::protocol::CommandError),
-    #[error("legacy_format")]
-    LegacyFormat,
 }
 impl From<StorageError> for Error {
     fn from(error: StorageError) -> Self {
@@ -238,9 +236,6 @@ impl Archive {
                 error: e.to_string(),
             }
         })?;
-        if manifest.format == "typstOgraphe" && manifest.version == 9 {
-            return Err(Error::LegacyFormat);
-        }
         if manifest.format != "typstOgraphe" || manifest.version != 10 {
             return Err(StorageError::Unsupported.into());
         }
@@ -459,3 +454,8 @@ mod tests {
         assert_eq!(std::fs::read(&path).unwrap(), before);
     }
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[path = "archive_safety_tests.rs"]
+mod safety_tests;

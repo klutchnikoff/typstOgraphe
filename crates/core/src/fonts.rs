@@ -81,7 +81,6 @@ mod tests {
     #[test]
     fn cjk_source_exports_include_only_used_faces_and_the_license() {
         use crate::{
-            document::Document,
             document_types::{DocumentType, Metadata},
             rendering,
         };
@@ -94,19 +93,26 @@ mod tests {
             let root = tempfile::tempdir().unwrap();
             let directory = root.path().join("export");
             let mut world = rendering::TypstWorld::default();
-            let document = Document::from_source(source).unwrap();
             let template = "#let courrier(..args, body) = body";
             let request = rendering::RenderRequest {
-                revision: 1,
-                source: document.source().into(),
-                source_map: document.source_map.clone(),
+                source: source.into(),
+
                 metadata: Metadata::demo(DocumentType::Courrier),
                 template: template.into(),
                 assets: Default::default(),
                 dependencies: crate::packages::for_template(template),
-                export_dir: Some(directory.clone()),
             };
-            rendering::render(&mut world, &request).unwrap();
+            let document = world
+                .compile_with_template(source, &request.metadata, template)
+                .unwrap();
+            crate::exporting::write_document(
+                &document,
+                &request,
+                &directory,
+                crate::protocol::ExportFormat::Both,
+                true,
+            )
+            .unwrap();
             assert!(directory.join("courrier.pdf").exists());
             assert!(directory.join("main.typ").exists());
             assert_eq!(directory.join("fonts").exists(), !expected.is_empty());

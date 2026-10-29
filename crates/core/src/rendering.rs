@@ -1,18 +1,8 @@
 //! Moteur Typst embarqué : fichiers virtuels et polices embarquées, sans réseau.
+use crate::document_types::{Metadata, ModelPresentation};
 use crate::errors::{CoreError, TemplateError};
-use crate::{
-    document::SourceMap,
-    document_types::{Metadata, ModelPresentation},
-    navigation::RenderSync,
-};
 use comemo::Track;
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-    sync::mpsc,
-    thread,
-    time::{Duration as StdDuration, Instant},
-};
+use std::collections::HashMap;
 use typst::{
     Library, LibraryExt, World, WorldExt,
     diag::{FileError, FileResult},
@@ -294,16 +284,13 @@ impl typst_ide::IdeWorld for TypstWorld {
 
 #[derive(Clone)]
 pub struct RenderRequest {
-    pub revision: u64,
     pub source: String,
     pub assets: crate::assets::Assets,
     pub dependencies: crate::packages::Dependencies,
-    pub source_map: SourceMap,
+
     pub metadata: Metadata,
     pub template: String,
-    pub export_dir: Option<PathBuf>,
 }
-pub use crate::assets::RgbaImage as PageImage;
 
 /// Même rasterisation pour une page demandée par un adaptateur et les PNG d’export.
 pub(crate) fn page_png(
@@ -319,47 +306,6 @@ pub(crate) fn page_png(
                 .map_err(CoreError::external)
         })
         .transpose()
-}
-
-pub struct Rendered {
-    pub pages: Vec<PageImage>,
-    pub sync: RenderSync,
-    pub elapsed: StdDuration,
-    pub export_dir: Option<PathBuf>,
-    pub presentation: ModelPresentation,
-}
-pub struct PreviewRequest {
-    pub guard: crate::session::TargetGuard,
-    pub request: RenderRequest,
-}
-pub struct RenderResponse {
-    pub guard: crate::session::TargetGuard,
-    pub result: Result<Rendered, CoreError>,
-    pub is_export: bool,
-}
-
-/// Ressources à écrire, sans modifier le document ni ses instantanés d’annulation.
-/// Les chemins déclarés dans le modèle restent disponibles, même dans une branche
-/// inactive. Pour les chemins calculés, Typst vérifie que retirer un lot ne change
-/// ni la compilation ni son résultat (pages et métadonnées).
-pub fn retained_assets(
-    source: &str,
-    metadata: &Metadata,
-    template: &str,
-    assets: &crate::assets::Assets,
-    dependencies: &crate::packages::Dependencies,
-) -> Result<crate::assets::Assets, CoreError> {
-    if assets.is_empty() {
-        return Ok(assets.clone());
-    }
-    let document = crate::document::Document::from_source(source)?;
-    let required: std::collections::BTreeSet<_> = document
-        .view
-        .images
-        .values()
-        .map(|image| image.path.clone())
-        .collect();
-    retained_assets_for_paths(source, metadata, template, assets, dependencies, required)
 }
 
 /// Même rétention pour un adaptateur qui possède déjà les chemins de ses objets.
@@ -448,140 +394,11 @@ pub fn retained_assets_for_paths(
 
 /// Même compilation Typst pour le worker natif et la requête sans UI. La
 /// rasterisation et les écritures éventuelles appartiennent à leurs adaptateurs.
-pub(crate) fn compile_request(
-    world: &mut TypstWorld,
-    request: &RenderRequest,
-) -> Result<(PagedDocument, ModelPresentation), CoreError> {
-    crate::packages::validate(&request.template, &request.dependencies)?;
-    world.set_assets(&request.assets);
-    world.set_dependencies(&request.dependencies);
-    let document =
-        world.compile_with_template(&request.source, &request.metadata, &request.template)?;
-    let presentation = world.model_presentation(&request.template)?;
-    Ok((document, presentation))
-}
-
-pub fn render(world: &mut TypstWorld, request: &RenderRequest) -> Result<Rendered, CoreError> {
-    let start = Instant::now();
-    let (document, presentation) = compile_request(world, request)?;
-    if let Some(path) = &request.export_dir {
-        crate::exporting::write_document(
-            &document,
-            request,
-            path,
-            crate::engine::ExportFormat::Both,
-            true,
-        )?;
-    }
-    let mut pages = vec![];
-    for page in document.pages() {
-        let pixmap = typst_render::render(page, &typst_render::RenderOptions::default());
-        pages.push(PageImage {
-            size: [pixmap.width() as usize, pixmap.height() as usize],
-            rgba: pixmap.data().to_vec(),
-        });
-    }
-    comemo::evict(10);
-    Ok(Rendered {
-        presentation,
-        pages,
-        sync: RenderSync::new(
-            request.revision,
-            world.clone(),
-            document,
-            request.source_map.clone(),
-        ),
-        elapsed: start.elapsed(),
-        export_dir: request.export_dir.clone(),
-    })
-}
-/// Un unique worker conserve les caches Typst. Les demandes d'aperçu devenues
-/// obsolètes sont coalescées. Une demande d'export n'est jamais abandonnée.
-pub struct RenderWorker {
-    pub sender: mpsc::Sender<PreviewRequest>,
-    pub receiver: mpsc::Receiver<RenderResponse>,
-}
-impl RenderWorker {
-    pub fn spawn(wake: std::sync::Arc<dyn Fn() + Send + Sync>) -> Self {
-        let (sender, requests) = mpsc::channel::<PreviewRequest>();
-        let (results, receiver) = mpsc::channel();
-        thread::Builder::new()
-            .name("typst-render".into())
-            .stack_size(16 * 1024 * 1024)
-            .spawn(move || {
-                let mut world = TypstWorld::default();
-                while let Ok(mut request) = requests.recv() {
-                    let mut exports = Vec::new();
-                    while let Ok(next) = requests.try_recv() {
-                        if request.request.export_dir.is_some() {
-                            exports.push(request);
-                        }
-                        request = next;
-                    }
-                    exports.push(request);
-                    for request in exports {
-                        let response = RenderResponse {
-                            guard: request.guard,
-                            is_export: request.request.export_dir.is_some(),
-                            result: render(&mut world, &request.request),
-                        };
-                        if results.send(response).is_err() {
-                            return;
-                        }
-                        wake();
-                    }
-                }
-            })
-            .expect("création du thread Typst");
-        Self { sender, receiver }
-    }
-}
-
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod asset_tests {
     use super::*;
     use crate::{assets::Assets, document_types::DocumentType};
-
-    #[test]
-    fn worker_wakes_a_non_graphical_caller_for_success_and_failure_with_the_request_guard() {
-        let (notify, notified) = mpsc::channel();
-        let worker = RenderWorker::spawn(std::sync::Arc::new(move || {
-            notify.send(()).unwrap();
-        }));
-        let stored = crate::storage::StoredDocument::blank(DocumentType::Courrier);
-        let document = crate::document::Document::from_source("Noël écrit.").unwrap();
-        let guard =
-            crate::session::Session::new(stored.clone(), document.clone(), None, 7).target_guard();
-        for valid in [true, false] {
-            worker
-                .sender
-                .send(PreviewRequest {
-                    guard,
-                    request: RenderRequest {
-                        revision: guard.revision,
-                        source: document.source().into(),
-                        source_map: document.source_map.clone(),
-                        metadata: stored.metadata.clone(),
-                        template: if valid {
-                            stored.template.clone()
-                        } else {
-                            "#let courrier(".into()
-                        },
-                        assets: stored.assets.clone(),
-                        dependencies: stored.dependencies.clone(),
-                        export_dir: None,
-                    },
-                })
-                .unwrap();
-            // Le réveil suit la publication de la réponse, que le calcul réussisse ou non.
-            notified.recv_timeout(StdDuration::from_secs(30)).unwrap();
-            let response = worker.receiver.try_recv().unwrap();
-            assert_eq!(response.guard, guard);
-            assert_eq!(response.result.is_ok(), valid);
-            assert!(!response.is_export);
-        }
-    }
 
     #[test]
     fn pruning_preserves_model_dependencies_computed_paths_and_shared_images() {
@@ -605,12 +422,13 @@ mod asset_tests {
         let source = "#figure(image(\"images/shared.svg\"), caption: [Un parc.])";
         let expected: Vec<String> = vec!["images/future.svg".into(), "images/shared.svg".into()];
         for body in [source, "Texte sans image.", source, ""] {
-            let retained = retained_assets(
+            let retained = retained_assets_for_paths(
                 body,
                 &metadata,
                 &template,
                 &assets,
                 &crate::packages::for_template(&template),
+                Default::default(),
             )
             .unwrap();
             assert_eq!(retained.keys().cloned().collect::<Vec<_>>(), expected);
@@ -633,12 +451,13 @@ mod asset_tests {
                 .into(),
         );
         assert_eq!(
-            retained_assets(
+            retained_assets_for_paths(
                 "",
                 &Metadata::demo(DocumentType::Courrier),
                 "#let courrier(..args) = panic(\"modèle à réparer\")",
                 &assets,
                 &Default::default(),
+                Default::default(),
             )
             .unwrap(),
             assets

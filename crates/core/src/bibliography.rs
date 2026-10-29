@@ -373,14 +373,11 @@ mod tests {
             crate::exporting::write_document(
                 &compiled,
                 &RenderRequest {
-                    revision: 1,
                     source: body,
                     metadata,
                     template: template.clone(),
                     assets: Default::default(),
                     dependencies: dependencies.clone(),
-                    source_map: map,
-                    export_dir: None,
                 },
                 &export,
                 crate::protocol::ExportFormat::Both,

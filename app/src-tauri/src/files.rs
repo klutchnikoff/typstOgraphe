@@ -3,6 +3,7 @@ use crate::{Bridge, session::Snapshot, settings::Settings};
 use std::path::PathBuf;
 use tauri::{Emitter, State};
 use tauri_plugin_dialog::DialogExt;
+#[cfg(test)]
 use typstographe_core::content::archive::Archive;
 #[tauri::command]
 pub fn quit_app(app: tauri::AppHandle, state: State<Bridge>) -> Result<(), String> {
@@ -209,29 +210,6 @@ pub fn close_document(
     app.emit("app:document", ()).map_err(|e| e.to_string())
 }
 
-/// Select a reader by the recognized format, never by failure of validation.
-pub(crate) fn read_project(
-    path: &std::path::Path,
-) -> Result<Archive, typstographe_core::content::archive::Error> {
-    use typstographe_core::content::{archive::Error, contract};
-    match Archive::read(path) {
-        Err(Error::LegacyFormat) => {
-            let legacy = typstographe_core::storage::read(path)?;
-            Ok(Archive {
-                document: typstographe_core::content::legacy::import(&legacy.source)
-                    .map_err(|reason| contract::Error::InvalidDocument { reason })?,
-                metadata: legacy.metadata,
-                model_id: "embedded".into(),
-                template: legacy.template,
-                assets: legacy.assets,
-                dependencies: legacy.dependencies,
-                yjs: vec![],
-            })
-        }
-        result => result,
-    }
-}
-
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
@@ -244,7 +222,7 @@ mod tests {
         let path =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/article-working.typsto");
         let before = std::fs::read(&path).unwrap();
-        let archive = read_project(&path).unwrap();
+        let archive = Archive::read(&path).unwrap();
         SharedDocument::from_update(&archive.yjs)
             .unwrap()
             .verify(&archive.state())
@@ -259,18 +237,25 @@ mod tests {
         assert_eq!(std::fs::read(&path).unwrap(), before);
     }
     #[test]
-    fn reader_selection_is_by_format_and_keeps_the_actual_structured_cause() {
+    fn old_formats_are_refused_and_structured_validation_keeps_its_actual_cause() {
         let dir = tempfile::tempdir().unwrap();
         let legacy = dir.path().join("legacy.typsto");
-        typstographe_core::storage::save(
-            &legacy,
-            &typstographe_core::storage::StoredDocument::blank(
-                typstographe_core::document_types::DocumentType::Courrier,
-            ),
-        )
-        .unwrap();
-        assert!(matches!(Archive::read(&legacy), Err(Error::LegacyFormat)));
-        read_project(&legacy).unwrap().validate().unwrap();
+        let mut writer = zip::ZipWriter::new(std::fs::File::create(&legacy).unwrap());
+        writer
+            .start_file("manifest.json", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer
+            .write_all(br#"{"format":"typstOgraphe","version":9}"#)
+            .unwrap();
+        writer.finish().unwrap();
+        assert!(matches!(
+            Archive::read(&legacy),
+            Err(Error::Core(
+                typstographe_core::errors::CoreError::StorageError(
+                    typstographe_core::errors::StorageError::Unsupported
+                )
+            ))
+        ));
 
         let original =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/article-working.typsto");
@@ -290,7 +275,7 @@ mod tests {
             writer.write_all(&bytes).unwrap();
         }
         writer.finish().unwrap();
-        let error = read_project(&corrupt).err().unwrap();
+        let error = Archive::read(&corrupt).err().unwrap();
         assert!(
             matches!(&error, Error::Content(contract::Error::InconsistentState { field }) if field == "source")
         );

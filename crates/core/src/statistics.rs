@@ -1,8 +1,7 @@
 //! Comptage du texte éditable, indépendant du modèle et du rendu Typst.
-use crate::document::{IMAGE_OBJECT, Projection};
+const IMAGE_OBJECT: char = '\u{fffc}';
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::ops::Range;
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -36,46 +35,10 @@ impl TextStatistics {
     }
 }
 
-/// Données dérivées en mémoire : les totaux ne sont recomptés qu’après édition,
-/// la sélection seulement quand elle change. Aucun changement du format Typst.
-#[derive(Default)]
-pub struct Counter {
-    revision: Option<u64>,
-    total: TextStatistics,
-    selected: Option<(Range<usize>, TextStatistics)>,
-}
-
-impl Counter {
-    pub fn counts(
-        &mut self,
-        revision: u64,
-        view: &Projection,
-        range: Range<usize>,
-    ) -> (TextStatistics, Option<TextStatistics>) {
-        if self.revision != Some(revision) {
-            self.total = TextStatistics::count(&view.text);
-            self.selected = None;
-            self.revision = Some(revision);
-        }
-        if range.is_empty() {
-            self.selected = None;
-        } else if !self
-            .selected
-            .as_ref()
-            .is_some_and(|(previous, _)| *previous == range)
-        {
-            let text = &view.text[view.byte_index(range.start)..view.byte_index(range.end)];
-            self.selected = Some((range, TextStatistics::count(text)));
-        }
-        (self.total, self.selected.as_ref().map(|(_, stats)| *stats))
-    }
-}
-
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
-    use crate::document::Document;
 
     #[test]
     fn unicode_counts_graphemes_and_words_with_explicit_punctuation_conventions() {
@@ -100,35 +63,5 @@ mod tests {
                 "{text:?}"
             );
         }
-    }
-
-    #[test]
-    fn counts_only_authored_text_and_updates_selection_and_document_revisions() {
-        let mut document = Document::from_source("= Été\n\n#figure(image(\"images/parc.svg\", alt: \"Ce texte alternatif ne compte pas\"), caption: [Le parc.])\n\n#quote(block: true, attribution: [Élodie])[Une idée.]\n\n/ Échéance: Vendredi").unwrap();
-        let mut counter = Counter::default();
-        let expected =
-            TextStatistics::count("Été\nLe parc.\nUne idée.\nÉlodie\nÉchéance\tVendredi");
-        let (total, selected) = counter.counts(1, &document.view, 0..0);
-        assert_eq!(total, expected);
-        assert_eq!(selected, None);
-        assert_eq!(
-            counter.counts(1, &document.view, 0..3).1,
-            Some(TextStatistics {
-                words: 1,
-                signs: 3,
-                signs_without_spaces: 3
-            })
-        );
-        let end = document.view.len();
-        assert_eq!(counter.counts(1, &document.view, 0..end).1, Some(total));
-        document.view.insert_text(" Très bien.", end);
-        let updated = counter.counts(2, &document.view, 0..0);
-        assert_eq!(updated.0.words, total.words + 2);
-        assert_eq!(updated.0.signs, total.signs + 11);
-        assert_eq!(
-            updated.0.signs_without_spaces,
-            total.signs_without_spaces + 9
-        );
-        assert_eq!(updated.1, None);
     }
 }

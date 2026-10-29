@@ -1,5 +1,4 @@
 //! Native project IO: validate outside the session lock, recheck before publication.
-use super::read_project;
 use crate::{
     session::{Resource, Session, Snapshot},
     settings::Settings,
@@ -78,7 +77,7 @@ pub(super) fn open_project(
         .map(Ok)
         .unwrap_or_else(|| DocumentLease::acquire(path))
         .map_err(|e| typstographe_i18n::command_error(&e))?;
-    let archive = read_project(path).map_err(|e| {
+    let archive = Archive::read(path).map_err(|e| {
         eprintln!("Project open failed: {e}");
         typstographe_i18n::archive_error(&e)
     })?;

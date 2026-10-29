@@ -69,7 +69,6 @@ pub fn archive_error_with(loader: &FluentLanguageLoader, error: &archive::Error)
         archive::Error::Content(error) => content_error_with(loader, error),
         archive::Error::Core(error) => error_with(loader, error),
         archive::Error::Access(error) => command_error_with(loader, error),
-        archive::Error::LegacyFormat => loader.get("storage-unsupported"),
     };
     loader.get_args("storage-project-error", HashMap::from([("error", detail)]))
 }

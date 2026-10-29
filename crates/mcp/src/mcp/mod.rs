@@ -14,7 +14,7 @@ pub mod validation;
 use rmcp::{ErrorData, RoleServer, ServerHandler, ServiceExt, model::*, service::RequestContext};
 use serde_json::{Map, Value, json};
 use tokio::sync::{mpsc, oneshot};
-use typstographe_core::{content::api, engine::CommandError};
+use typstographe_core::{content::api, protocol::CommandError};
 pub fn instructions(attached: bool) -> String {
     let common = "Discover document_types.list and commands.list, then document_types.describe and capabilities.describe. All operations use the same structured Rust contract as the editor. Document targets are zone paths in the current guard; text offsets are UTF-16, inline objects count as one. Never reuse a target after edits without reading again. Commands and queries expose actual parameter schemas. Use literal prose, never Typst markup: text.insert carries explicit marks (bold/italic/link); text.bold/italic format a nonempty typed range. Documentary batches contain only typed edits (not context operations); one final validation, one undo entry. Selector conveniences resolve exact text on the evolving draft, without regex or fuzzy search. Header collections use stable record IDs. Models are interchangeable visual presentations; metadata/options remain subject to the type/model contract. Read resources for the guide, types, commands, document and models. No skill or repository access is required.";
     format!(

@@ -526,14 +526,11 @@ mod tests {
             .unwrap();
         let export = dir.path().join("Export");
         let request = crate::rendering::RenderRequest {
-            revision: 1,
             source: body,
             metadata: restored.metadata,
             template: restored.template,
             assets: restored.assets,
             dependencies: restored.dependencies,
-            source_map: Default::default(),
-            export_dir: None,
         };
         crate::exporting::write_document(
             &document,

@@ -1,4 +1,4 @@
-//! Correspondances immuables du rendu : octets Typst, caractères egui et points
+//! Correspondances immuables du rendu : octets Typst, positions éditoriales et points
 //! de page. Un instantané n'est utilisable que pour sa révision de document.
 use crate::{
     document::SourceMap,
@@ -47,13 +47,6 @@ pub struct RenderSync {
 }
 
 impl RenderSync {
-    pub(crate) fn page_png(
-        &self,
-        index: usize,
-    ) -> Result<Option<Vec<u8>>, crate::errors::CoreError> {
-        crate::rendering::page_png(&self.document, index)
-    }
-
     pub fn new(revision: u64, world: TypstWorld, document: PagedDocument, map: SourceMap) -> Self {
         let mut anchors = Vec::new();
         let mut frames = Vec::new();
@@ -284,3 +277,8 @@ fn collect_anchors(
         }
     }
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[path = "navigation_tests.rs"]
+mod tests;

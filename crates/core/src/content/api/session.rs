@@ -511,16 +511,14 @@ impl Session {
         })?;
         let document = self.compile()?;
         let request = RenderRequest {
-            revision: self.guard().unwrap().revision,
             source,
-            source_map: Default::default(),
+
             metadata: a.metadata,
             template: a.template,
             assets,
             dependencies: a.dependencies,
-            export_dir: None,
         };
-        crate::exporting::write_retained_document(&document, &request, directory, format, images)
+        crate::exporting::write_document(&document, &request, directory, format, images)
             .map_err(|e| CommandError::with_cause(ErrorCode::Io, "file_export", e))?;
         Ok(json!({"directory":directory,"guard":self.guard(),"format":format,"page_images":images}))
     }

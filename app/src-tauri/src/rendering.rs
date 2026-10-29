@@ -155,14 +155,12 @@ impl Renderer {
         }
         let template = settings.template.clone();
         let request = RenderRequest {
-            revision,
             source: source.clone(),
             assets,
             dependencies: typstographe_core::packages::for_template(&template),
-            source_map: SourceMap::default(),
+
             metadata: settings.metadata.clone(),
             template,
-            export_dir: None,
         };
         let start = Instant::now();
         let mut timings = PreviewTimings::default();
@@ -179,7 +177,7 @@ impl Renderer {
         timings.compile_ms = milliseconds(compile_start);
         let export_start = Instant::now();
         if let Some(path) = export {
-            typstographe_core::exporting::write_retained_document(
+            typstographe_core::exporting::write_document(
                 &document,
                 &request,
                 &path,
@@ -457,8 +455,7 @@ mod tests {
         }
     }
 
-    /// No timing threshold in CI. Both adapters use the same source, assets,
-    /// model, raster options and debug profile; compilation caches stay alive.
+    /// No timing threshold in CI. Measure the current pipeline with warm caches.
     #[test]
     #[ignore = "Local performance diagnostic; run explicitly with --ignored --nocapture"]
     fn profile_preview_pipeline() {
@@ -479,7 +476,6 @@ mod tests {
                     .into(),
             );
             let renderer = Renderer::default();
-            let mut world = TypstWorld::default();
             for iteration in 0..9 {
                 let mut document = document.clone();
                 document.content.push(serde_json::from_value(serde_json::json!({"type":"paragraph","content":[{"type":"text","text":format!("Mesure numéro {iteration}.")}]})).unwrap());
@@ -487,46 +483,22 @@ mod tests {
                 let (source, map) =
                     typstographe_core::content::source_mapped(&document, &assets).unwrap();
                 let projection_ms = milliseconds(projection_start);
-                let request = RenderRequest {
-                    revision: iteration,
-                    source: source.clone(),
-                    assets: assets.clone(),
-                    dependencies: typstographe_core::packages::for_template(&settings.template),
-                    source_map: map.clone(),
-                    metadata: settings.metadata.clone(),
-                    template: settings.template.clone(),
-                    export_dir: None,
-                };
-                let core = |world: &mut TypstWorld| {
-                    typstographe_core::rendering::render(world, &request).unwrap()
-                };
-                let web = || {
-                    renderer
-                        .render(
-                            source.clone(),
-                            assets.clone(),
-                            iteration,
-                            None,
-                            Some(&settings),
-                            Some(map.clone()),
-                        )
-                        .unwrap()
-                };
-                let (legacy, preview) = if iteration % 2 == 0 {
-                    let legacy = core(&mut world);
-                    (legacy, web())
-                } else {
-                    let preview = web();
-                    (core(&mut world), preview)
-                };
+                let preview = renderer
+                    .render(
+                        source,
+                        assets.clone(),
+                        iteration,
+                        None,
+                        Some(&settings),
+                        Some(map),
+                    )
+                    .unwrap();
                 println!(
                     "PROFILE {}",
                     serde_json::json!({
                         "case":name,"iteration":iteration,"projectionMs":projection_ms,
-                        "legacyMs":legacy.elapsed.as_secs_f64()*1000.0,
                         "webMs":preview.elapsed_ms,"stages":preview.timings,
-                        "pages":preview.pages.len(),"dimensions":legacy.pages.iter().map(|p|p.size).collect::<Vec<_>>(),
-                        "rgbaBytes":legacy.pages.iter().map(|p|p.rgba.len()).sum::<usize>(),
+                        "pages":preview.pages.len(),"dimensions":preview.page_sizes,
                         "dataUrlBytes":preview.pages.iter().map(|p|p.len()).sum::<usize>(),
                     })
                 );

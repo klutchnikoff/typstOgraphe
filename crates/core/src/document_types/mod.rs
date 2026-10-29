@@ -336,11 +336,8 @@ impl<T> ModelContract<T> {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
-    use crate::{
-        document::Document,
-        rendering::{RenderRequest, TypstWorld},
-        storage::{self, StoredDocument},
-    };
+    use crate::content::api::{Call, Session};
+    use serde_json::json;
     #[test]
     fn every_type_validates_its_model_archives_exports_and_rejects_wrong_contracts() {
         let dir = tempfile::tempdir().unwrap();
@@ -348,38 +345,21 @@ mod tests {
             .into_iter()
             .filter(|kind| kind.can_create())
         {
-            let mut letter = StoredDocument::demo(kind);
-            letter.source.push_str("\n\n#quote(block: true, attribution: [Service])[Une citation.]\n\n/ Échéance: Vendredi\n\n#figure(image(\"images/parc.svg\"), caption: [Un parc.])");
-            letter.assets.insert(
-                "images/parc.svg".into(),
-                include_bytes!("../../../../fixtures/parc.svg")
-                    .as_slice()
-                    .into(),
-            );
-            let mut world = TypstWorld::default();
-            world.set_assets(&letter.assets);
-            world
-                .validate_model(&letter.source, &letter.metadata, &letter.template)
+            let mut session = Session::new();
+            session
+                .execute(
+                    "document.new",
+                    json!({"type":kind,"metadata":Metadata::demo(kind)}),
+                )
                 .unwrap();
+            session.batch(&[Call { id:"text.insert".into(), params:json!({"target":{"zone":{"kind":"body","path":[0]},"from":0,"to":0},"text":"Texte commun 日本 et caractères # [] * littéraux."}) }],None).unwrap();
+            let expected = session.state().unwrap().clone();
+            let mut world = crate::rendering::TypstWorld::default();
             let blank = Metadata::blank(kind);
             assert!(!blank.ready_for_export());
-            world.validate_model("", &blank, &letter.template).unwrap();
-            let other = if kind == DocumentType::Courrier {
-                DocumentType::CompteRendu
-            } else {
-                DocumentType::Courrier
-            };
-            assert!(
-                world
-                    .validate_model(
-                        &letter.source,
-                        &letter.metadata,
-                        &format!("#let {}(..args) = []", other.composition_function())
-                    )
-                    .unwrap_err()
-                    .to_string()
-                    .contains(kind.composition_function())
-            );
+            world
+                .validate_model("", &blank, &expected.settings.template)
+                .unwrap();
             assert!(
                 world
                     .validate_model(
@@ -390,26 +370,18 @@ mod tests {
                     .is_err()
             );
             let archive = dir.path().join(format!("{}.typsto", kind.file_stem()));
-            storage::save(&archive, &letter).unwrap();
-            let restored = storage::read(&archive).unwrap();
-            assert_eq!(restored, letter);
-            let document = Document::from_source(&restored.source).unwrap();
+            session.save_as(&archive).unwrap();
+            session.execute("document.close", json!({})).unwrap();
+            session
+                .execute("document.open", json!({"path":archive}))
+                .unwrap();
+            assert_eq!(session.state().unwrap(), &expected);
             let export = dir.path().join(kind.file_stem());
-            crate::rendering::render(
-                &mut world,
-                &RenderRequest {
-                    revision: 1,
-                    source: restored.source,
-                    source_map: document.source_map,
-                    metadata: restored.metadata,
-                    template: restored.template,
-                    assets: restored.assets,
-                    dependencies: restored.dependencies.clone(),
-                    export_dir: Some(export.clone()),
-                },
-            )
-            .unwrap();
+            session
+                .export(&export, crate::protocol::ExportFormat::Both, true)
+                .unwrap();
             assert!(export.join(format!("{}.pdf", kind.file_stem())).exists());
+            assert!(export.join("main.typ").exists());
         }
     }
 }

@@ -9,10 +9,6 @@ description = "Moteur documentaire et rendu Typst, sans interface graphique"
 [lints]
 workspace = true
 
-[features]
-# Synchronisation des workers pour les tests inter-crates ; aucune session mutable.
-test-support = []
-
 [dependencies]
 jsonschema = { version = "=0.60.1", default-features = false }
 yrs.workspace = true
@@ -39,7 +35,6 @@ zip.workspace = true
 tempfile.workspace = true
 rust-embed.workspace = true
 atomic-write-file.workspace = true
-time.workspace = true
 chrono.workspace = true
 regex.workspace = true
 spellbook.workspace = true
