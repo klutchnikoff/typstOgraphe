@@ -1,6 +1,6 @@
 //! Verrou coopératif stable malgré le remplacement atomique de l’archive.
 //! Ne jamais supprimer le compagnon : deux inodes permettraient deux détenteurs.
-use crate::engine::{CommandError, ErrorCode};
+use crate::protocol::{CommandError, ErrorCode};
 use sha2::{Digest, Sha256};
 use std::{
     fs::{File, OpenOptions, TryLockError},

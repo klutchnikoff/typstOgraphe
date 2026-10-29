@@ -3,7 +3,7 @@ use serde_json::json;
 use std::path::PathBuf;
 use typstographe_core::{
     content::api::Session,
-    engine::{CommandError, ErrorCode},
+    protocol::{CommandError, ErrorCode},
 };
 use typstographe_i18n::tr;
 pub fn create(

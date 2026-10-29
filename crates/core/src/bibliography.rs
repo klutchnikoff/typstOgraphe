@@ -383,7 +383,7 @@ mod tests {
                     export_dir: None,
                 },
                 &export,
-                crate::engine::ExportFormat::Both,
+                crate::protocol::ExportFormat::Both,
                 false,
             )
             .unwrap();

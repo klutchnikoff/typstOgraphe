@@ -10,8 +10,8 @@ use crate::{
     DocumentLease,
     assets::Assets,
     document_types::{DocumentType, Metadata},
-    engine::{CommandError, ErrorCode, ExportFormat},
     packages,
+    protocol::{CommandError, ErrorCode, ExportFormat},
     rendering::{RenderRequest, TypstWorld},
 };
 use serde::Deserialize;

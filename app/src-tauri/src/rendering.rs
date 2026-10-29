@@ -183,7 +183,7 @@ impl Renderer {
                 &document,
                 &request,
                 &path,
-                typstographe_core::engine::ExportFormat::Both,
+                typstographe_core::protocol::ExportFormat::Both,
                 false,
             )
             .map_err(|e| e.to_string())?;

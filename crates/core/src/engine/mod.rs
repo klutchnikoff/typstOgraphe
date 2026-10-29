@@ -45,6 +45,7 @@ mod typing;
 mod validation;
 mod validation_types;
 pub use crate::position_map::PositionMap;
+pub use crate::protocol::ExportFormat;
 pub use crate::session::{Caret, Selection, SelectionTarget, TargetGuard};
 use crate::{
     document::{Projection, edits::EditError},

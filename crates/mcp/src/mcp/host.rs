@@ -3,7 +3,7 @@ use super::{roots::Roots, types::*};
 use serde_json::{Map, Value, json};
 use typstographe_core::{
     content::api::{self, Session},
-    engine::{CommandError, ErrorCode},
+    protocol::{CommandError, ErrorCode},
 };
 pub struct Host {
     pub session: Session,

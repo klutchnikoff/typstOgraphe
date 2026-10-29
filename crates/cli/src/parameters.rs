@@ -2,9 +2,9 @@
 use crate::args::Parameters;
 use serde_json::{Map, Value};
 use std::{fs::File, io::Read, path::Path};
-use typstographe_core::engine::{CommandError, ErrorCode};
+use typstographe_core::protocol::{CommandError, ErrorCode};
 
-pub const MAX_PARAMETERS_BYTES: usize = typstographe_core::engine::MAX_BATCH_BYTES;
+pub const MAX_PARAMETERS_BYTES: usize = typstographe_core::protocol::MAX_BATCH_BYTES;
 
 impl Parameters {
     pub fn load(self) -> Result<Map<String, Value>, CommandError> {

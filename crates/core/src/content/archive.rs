@@ -21,7 +21,7 @@ pub enum Error {
     #[error("{0}")]
     Core(#[from] CoreError),
     #[error("{0}")]
-    Access(#[from] crate::engine::CommandError),
+    Access(#[from] crate::protocol::CommandError),
     #[error("legacy_format")]
     LegacyFormat,
 }

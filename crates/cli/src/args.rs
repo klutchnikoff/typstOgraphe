@@ -141,7 +141,7 @@ pub enum Format {
     Typst,
     Both,
 }
-impl From<Format> for typstographe_core::engine::ExportFormat {
+impl From<Format> for typstographe_core::protocol::ExportFormat {
     fn from(value: Format) -> Self {
         match value {
             Format::Pdf => Self::Pdf,

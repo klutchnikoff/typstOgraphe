@@ -1,7 +1,7 @@
 //! Écriture commune des exports ; aucune mutation de la session documentaire.
 use crate::errors::{CoreError, ExportError, StorageError, TemplateError};
 use crate::{
-    engine::ExportFormat,
+    protocol::ExportFormat,
     rendering::{RenderRequest, retained_assets},
 };
 use std::path::Path;

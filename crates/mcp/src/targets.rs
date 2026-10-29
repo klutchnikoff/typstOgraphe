@@ -1,6 +1,6 @@
 use crate::args::Target;
 use serde_json::Value;
-use typstographe_core::engine::{CommandError, ErrorCode};
+use typstographe_core::protocol::{CommandError, ErrorCode};
 pub fn portable(value: &Value) -> Result<(), CommandError> {
     let forbidden = match value {
         Value::Object(map) => {

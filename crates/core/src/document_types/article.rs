@@ -539,7 +539,7 @@ mod tests {
             &document,
             &request,
             &export,
-            crate::engine::ExportFormat::Both,
+            crate::protocol::ExportFormat::Both,
             false,
         )
         .unwrap();

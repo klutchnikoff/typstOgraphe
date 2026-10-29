@@ -91,7 +91,7 @@ fn main() -> ExitCode {
             report.text,
         ),
         Err(error) => {
-            let exit = if error.code == typstographe_core::engine::ErrorCode::Io {
+            let exit = if error.code == typstographe_core::protocol::ErrorCode::Io {
                 3
             } else {
                 1

@@ -5,8 +5,8 @@ use crate::{
         commands::{TextTarget, TextZone},
         contract::State,
     },
-    engine::{CommandError, ErrorCode},
     navigation::{PagePoint, RenderSync},
+    protocol::{CommandError, ErrorCode},
 };
 use serde_json::{Value, json};
 fn ranges(state: &State) -> Vec<(TextZone, usize, usize)> {

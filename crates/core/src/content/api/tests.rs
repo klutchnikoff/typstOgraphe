@@ -242,7 +242,7 @@ fn drafts_are_valid_without_required_export_fields_and_models_are_embedded() {
     let dir = tempfile::tempdir().unwrap();
     let output = dir.path().join("export");
     assert!(
-        s.export(&output, crate::engine::ExportFormat::Pdf, false)
+        s.export(&output, crate::protocol::ExportFormat::Pdf, false)
             .is_err()
     );
     assert!(!output.exists());
@@ -393,7 +393,7 @@ fn admitted_images_signatures_and_figures_share_retention_and_runtime_undo() {
     assert_eq!(Archive::read(&file).unwrap().assets.len(), 1);
     s.export(
         &dir.path().join("export"),
-        crate::engine::ExportFormat::Both,
+        crate::protocol::ExportFormat::Both,
         false,
     )
     .unwrap();

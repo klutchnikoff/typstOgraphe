@@ -14,7 +14,7 @@ use args::{Action, CatalogueAction, Cli};
 use serde_json::{Value, json};
 use typstographe_core::{
     content::api::{self},
-    engine::{CommandError, ErrorCode},
+    protocol::{CommandError, ErrorCode},
 };
 use typstographe_i18n::tr;
 use typstographe_mcp::targets;

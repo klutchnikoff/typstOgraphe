@@ -7,7 +7,7 @@ mod render;
 mod session;
 pub use super::commands::MAX_BATCH_STEPS;
 use super::contract::Error;
-use crate::engine::{CommandError, ErrorCode};
+use crate::protocol::{CommandError, ErrorCode};
 pub use catalogue::{catalogue, describe, is_query, type_description, types};
 pub use queries::run as query_state;
 pub use queries::{find, resolve_call, zones};

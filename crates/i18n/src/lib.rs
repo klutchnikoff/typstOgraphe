@@ -14,8 +14,8 @@ pub fn content_error(error: &typstographe_core::content::contract::Error) -> Str
 pub use command_errors::command_error_with;
 #[cfg(test)]
 use typstographe_core::annotations;
-use typstographe_core::{document, document_types, engine, errors};
-pub fn command_error(error: &crate::engine::CommandError) -> String {
+use typstographe_core::{document, document_types, errors, protocol};
+pub fn command_error(error: &crate::protocol::CommandError) -> String {
     command_error_with(loader(), error)
 }
 use i18n_embed::{fluent::FluentLanguageLoader, unic_langid::LanguageIdentifier};
@@ -376,8 +376,8 @@ mod tests {
     #[test]
     fn command_errors_preserve_codes_reasons_causes_and_localize_nested_batches() {
         use crate::{
-            engine::{CommandError, ErrorCode},
             errors::{CoreError, StorageError},
+            protocol::{CommandError, ErrorCode},
         };
         let cause = CoreError::from(StorageError::ImageResourceMissing {
             path: "images/Élodie.svg".into(),

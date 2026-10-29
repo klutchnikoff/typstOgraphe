@@ -6,7 +6,7 @@ use serde_json::{Map, Value, json};
 use std::path::PathBuf;
 use typstographe_core::{
     content::api::{self, Session},
-    engine::{CommandError, ErrorCode},
+    protocol::{CommandError, ErrorCode},
 };
 use typstographe_i18n::tr;
 pub fn params(mut params: Map<String, Value>, target: Target) -> Result<Value, CommandError> {

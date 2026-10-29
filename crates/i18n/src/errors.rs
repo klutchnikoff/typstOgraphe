@@ -1,5 +1,5 @@
 //! Mise en phrases commune des erreurs du moteur ; utilisable par tous les fronts.
-use crate::engine::{CommandError, ErrorCode};
+use crate::protocol::{CommandError, ErrorCode};
 use i18n_embed::fluent::FluentLanguageLoader;
 use std::collections::HashMap;
 

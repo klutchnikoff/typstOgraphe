@@ -4,7 +4,7 @@ use serde_json::json;
 use std::io::{self, Write};
 
 pub const MAX_BATCH_STEPS: usize = 256;
-pub const MAX_BATCH_BYTES: usize = 4 * 1024 * 1024;
+pub use crate::protocol::MAX_BATCH_BYTES;
 pub const MAX_BATCH_RESOURCE_BYTES: usize = crate::assets::MAX_DOCUMENT_BYTES as usize;
 
 /// Compter sans allouer une deuxième copie du JSON (notamment des images base64).

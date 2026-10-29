@@ -18,6 +18,7 @@ pub mod fonts;
 mod identity;
 pub mod navigation;
 pub mod packages;
+pub mod protocol;
 pub mod recovery;
 pub mod rendering;
 pub mod search;

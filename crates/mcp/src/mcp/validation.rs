@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::{collections::BTreeMap, sync::OnceLock};
 use typstographe_core::{
     content::api,
-    engine::{CommandError, ErrorCode},
+    protocol::{CommandError, ErrorCode},
 };
 pub fn check(attached: bool, id: &str, params: &Value) -> Result<(), CommandError> {
     static DIRECT: OnceLock<BTreeMap<String, jsonschema::Validator>> = OnceLock::new();

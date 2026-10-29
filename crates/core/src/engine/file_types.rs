@@ -1,5 +1,5 @@
 //! Paramètres documentaires : chemins explicites, gardes et décision de remplacement.
-use super::{ImageInput, TargetGuard};
+use super::{ExportFormat, ImageInput, TargetGuard};
 use crate::document_types::{DocumentType, MetadataField};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -58,14 +58,6 @@ pub struct SaveAsParams {
     pub path: PathBuf,
     #[serde(default)]
     pub overwrite: bool,
-}
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ExportFormat {
-    Pdf,
-    Typst,
-    #[default]
-    Both,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

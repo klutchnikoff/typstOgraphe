@@ -1,7 +1,7 @@
 //! Autorisations de chemins de l’adaptateur, indépendantes des verrous du cœur.
 use serde_json::{Value, json};
 use std::path::{Component, Path, PathBuf};
-use typstographe_core::engine::{CommandError, ErrorCode};
+use typstographe_core::protocol::{CommandError, ErrorCode};
 
 #[derive(Clone)]
 pub struct Roots {
