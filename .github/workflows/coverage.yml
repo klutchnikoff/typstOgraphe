@@ -51,6 +51,10 @@ jobs:
             target
           key: coverage-linux-nightly-${{ hashFiles('Cargo.lock') }}
           restore-keys: coverage-linux-nightly-
+      # --no-report preserves old artifacts. A restored target cache must not
+      # contribute binaries/profiles from previous revisions to this report.
+      - name: Clean previous workspace coverage
+        run: cargo +nightly llvm-cov clean --workspace
       - name: Run instrumented tests
         run: cargo +nightly llvm-cov --locked --workspace --no-report
       - name: Generate reports
