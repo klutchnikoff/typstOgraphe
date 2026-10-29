@@ -481,3 +481,6 @@ fn semantic_type_restrictions_cannot_be_bypassed_by_generic_nodes_or_archives() 
         .unwrap();
     new("courrier").batch(&[step], None).unwrap();
 }
+
+#[path = "guarantee_tests.rs"]
+mod guarantees;

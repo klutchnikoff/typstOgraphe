@@ -930,3 +930,6 @@ fn a_stale_view_and_plain_field_styles_cannot_partially_replace_private_state() 
     assert!(after.typing_styles.is_empty());
     assert_eq!(after.undo_steps, before.undo_steps);
 }
+
+#[path = "guarantee_tests.rs"]
+mod guarantees;
