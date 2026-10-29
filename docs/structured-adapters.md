@@ -203,3 +203,75 @@ seconde fenêtre, avant la composition ; la recette isolée puis la série compl
 ont réussi au nouvel essai. Clippy workspace/toutes cibles avec `-D warnings`,
 formatage, production web et garde-fous d'architecture passent. Les dialogues de
 fichiers du système ne sont pas automatisés par ces parcours navigateur.
+
+## Garanties complémentaires — ressources, décisions et cibles
+
+Le lot suivant ajoute **20 tests Rust**, centrés sur les résultats observables :
+
+- Une image avec légende et une signature survivent aux sauvegardes et à la
+  réouverture. Leur suppression retire les octets de l'archive ; Annuler les
+  rétablit depuis la mémoire de séance. Une ressource inutilisée n'est pas
+  conservée dans le projet.
+- Un Article conserve son fichier bibliographique original, y compris ses
+  commentaires, sa citation et son image après réouverture et compilation Typst.
+- La création et la fermeture refusées gardent document, verrou et récupération.
+  Une erreur de nettoyage est levée avant remplacement ; une fermeture confirmée
+  libère le verrou et invalide les anciennes références de fenêtre. Une nouvelle
+  signature doit être présente et décodable avant création.
+- Les reprises d'une requête MCP après acceptation, refus, annulation ou péremption
+  ne publient rien et conservent le reçu terminal après une nouvelle proposition.
+  Un identifiant réutilisé avec d'autres étapes est refusé. Les limites d'étapes
+  et de résumé ne consomment pas la place de relecture.
+- Un échec d'écriture de l'invitation garde l'invitation et le lot précédents.
+  Le renouvellement invalide l'ancien jeton, y compris sur un socket déjà
+  connecté, sans modifier le document. Le fichier d'invitation conserve ses
+  permissions privées sur Unix ; son écriture reste hors du verrou documentaire.
+- Une cible de note suit les insertions Unicode. Une note, une cellule ou une
+  légende supprimée fait perdre la sélection : une insertion ultérieure est
+  refusée, sans se reporter sur un voisin. Le curseur entre deux notes reste
+  entre les badges.
+- La recherche retrouve des cibles UTF-16 exactes dans le corps, les notes,
+  cellules, légendes et résumés. Leur remplacement en un lot est annulable en
+  une fois ; une plage coupant une paire de substituts Unicode est refusée.
+  La recherche bibliographique utilise auteurs et titres sans changer le projet.
+- Préférences corrompues, trop volumineuses, signature invalide et écriture refusée
+  ne remplacent pas les données enregistrées. Les projets récents sont bornés et
+  dédoublonnés sans perdre profil, signature ou dictionnaire personnel.
+- Le raccordement orthographique natif fournit les bons indices UTF-16 après un
+  emoji ou un accent combiné, distingue les segments et respecte les mots ignorés.
+  Il traite les langues indisponibles, suggestions et limites de requête.
+
+Une régression a été confirmée avant correction : une récupération dont le texte
+et Yjs concordaient pouvait être publiée malgré une signature absente des
+ressources. La restauration remplaçait alors le travail courant avant de constater
+que le propriétaire ne pouvait pas s'ouvrir. `Session::from_checkpoint` appelle
+maintenant la validation structurelle commune de l'état avec ses ressources,
+avant toute publication. Cette validation reste distincte des champs obligatoires
+pour l'export : les brouillons incomplets sont admis.
+
+Les extractions de fermeture, d'installation d'invitation et de gestion des récents
+réutilisent les mêmes fonctions dans l'application et les tests. Les dialogues
+natifs, une panne électrique réelle et le clavier IME du système ne sont pas
+simulés par ces tests. Le code de test reste exclu de la mesure de couverture.
+
+La recette navigateur des préférences a révélé un second défaut. Pendant
+l'enregistrement du panneau, une modification de largeur pouvait réécrire
+l'ancien thème et l'ancienne taille. Le défaut est reproduit en retenant la réponse
+d'enregistrement puis en modifiant la largeur ; le test échouait avec « system »
+au lieu de « dark ». Toutes les écritures de préférences d'une fenêtre passent
+maintenant par une file commune d'instantanés immuables. Les producteurs voient
+les nouveaux réglages pendant l'écriture, avant de préparer une autre demande.
+Un échec est rapporté à l'appelant sans bloquer les demandes suivantes. Cette
+sérialisation ne constitue pas une synchronisation des préférences entre fenêtres.
+Deux tests web vérifient l'ordre, l'immuabilité et la reprise après erreur ; la
+régression navigateur vérifie la largeur, le thème et la taille après réouverture.
+
+Validation locale finale : **494 tests Rust** réussis (diagnostic de performance
+natif toujours ignoré par défaut), **208 tests web et 3 tests de langues natives**,
+**20 recettes Rust ↔ Yjs**, **12 parcours Chromium/WebKit**. Ces derniers incluent
+la régression déterministe de concurrence des préférences. Le premier passage
+WebKit des préférences avait échoué ; le test isolant ce chevauchement a confirmé
+le défaut avant correction. La série finale complète passe avec la correction.
+Clippy workspace/toutes cibles avec `-D warnings`, rustfmt, Prettier, construction
+web/du binaire Tauri, frontière des dépendances et garde-fous de taille passent.
+Aucune capture ni sollicitation d'un agent externe n'a été nécessaire.
