@@ -33,7 +33,7 @@ typst-pdf = "=0.15.1"
 typst-syntax = "=0.15.1"
 comemo = "0.5"
 png = "0.18"
-zip = { version = "6", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 tempfile = "3"
 i18n-embed = { version = "0.16", features = ["fluent-system", "desktop-requester"] }
 i18n-embed-fl = "0.10"

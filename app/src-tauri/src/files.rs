@@ -266,11 +266,12 @@ mod tests {
             let mut entry = source.by_index(index).unwrap();
             let mut bytes = vec![];
             entry.read_to_end(&mut bytes).unwrap();
-            if entry.name() == "contenu.typ" {
+            let name = entry.name().unwrap().into_owned();
+            if name == "contenu.typ" {
                 bytes = b"A conflicting source".to_vec();
             }
             writer
-                .start_file(entry.name(), zip::write::SimpleFileOptions::default())
+                .start_file(name, zip::write::SimpleFileOptions::default())
                 .unwrap();
             writer.write_all(&bytes).unwrap();
         }
