@@ -1,4 +1,5 @@
 import { actionRow, keyboardScope, navigationGroup } from './keyboard-navigation'
+import { readImage } from './resource-commands'
 import { tr } from './i18n'
 import type { Catalogue } from './shell'
 import type { Resource, Transport } from './provider'
@@ -133,12 +134,7 @@ export function preferencesPanel(
         profile: Object.fromEntries([...profileInputs].map(([key, input]) => [key, input.value])),
       }
       const file = signature.files?.[0]
-      if (file) {
-        next.signature = await transport.invoke<Resource>('profile_image', {
-          extension: file.name.split('.').pop(),
-          data: Array.from(new Uint8Array(await file.arrayBuffer())),
-        })
-      }
+      if (file) next.signature = await readImage(transport, file)
       await onSave(next)
     })().catch(failed)
   }

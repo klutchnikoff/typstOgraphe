@@ -53,13 +53,12 @@ export function canInsertBlock(editor: Editor, range: Range = editor.state.selec
   })
 }
 /** One insertion policy for every widget: split at the cursor, no empty line before, one after. */
-export function insertBlock(
+export function planBlockInsertion(
   editor: Editor,
   content: JSONContent,
   range: Range = editor.state.selection,
-  immediate = false,
 ) {
-  if (!canInsertBlock(editor, range)) return false
+  if (!canInsertBlock(editor, range)) return undefined
   const tr = editor.state.tr
   const $from = tr.doc.resolve(range.from),
     $to = tr.doc.resolve(range.to)
@@ -83,6 +82,16 @@ export function insertBlock(
   tr.replaceWith(start, end, nodes)
   resumeAfterWidget(tr, inserted + node.nodeSize)
   tr.setSelection(TextSelection.near(tr.doc.resolve(inserted + 1)))
+  return tr
+}
+export function insertBlock(
+  editor: Editor,
+  content: JSONContent,
+  range: Range = editor.state.selection,
+  immediate = false,
+) {
+  const tr = planBlockInsertion(editor, content, range)
+  if (!tr) return false
   if (!immediate) return runObjectEdit(editor, tr)
   editor.view.dispatch(tr.scrollIntoView())
   historyFor(editor)?.stopCapturing()

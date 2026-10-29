@@ -5,6 +5,11 @@ import { executeStructured, type StructuredCommand } from './structured-commands
 import { tr } from './i18n'
 
 export type FieldTarget =
+  | {
+      kind: 'option'
+      name: 'paper' | 'landscape' | 'language' | 'bullet_marker' | 'spelling_ignored'
+    }
+  | { kind: 'model' }
   | { kind: 'metadata'; field: string }
   | { kind: 'record'; collection: string; id: string; field: string }
 type Draft = {
@@ -61,7 +66,8 @@ export class MetadataCommands {
   }
   value(target: FieldTarget, confirmed: unknown) {
     this.checkDocument()
-    return this.drafts.get(key(target))?.value ?? confirmed
+    const draft = this.drafts.get(key(target))
+    return draft ? draft.value : confirmed
   }
   error(target: FieldTarget) {
     return this.drafts.get(key(target))?.error
@@ -125,8 +131,11 @@ export class MetadataCommands {
               this.provider.transport,
               [
                 {
-                  id: 'metadata.set',
-                  params: { target: draft.target, value },
+                  id: draft.target.kind === 'model' ? 'document.set_model' : 'metadata.set',
+                  params:
+                    draft.target.kind === 'model'
+                      ? (value as Record<string, unknown>)
+                      : { target: draft.target, value },
                 },
               ],
               () => this.drafts.get(id) === draft,

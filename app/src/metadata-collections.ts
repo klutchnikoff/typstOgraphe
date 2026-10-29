@@ -432,6 +432,8 @@ export function metadataCollections(
       const isPrimary =
         !!definition.language_key && record.get(definition.language_key) === language()
       const nextMode = isPrimary ? 'primary' : 'other'
+      if (mode && mode !== nextMode && !element.contains(document.activeElement))
+        element.open = isPrimary
       if (panel.editing !== 'dialog' && mode !== nextMode) {
         for (const view of views) view.destroy()
         fieldsRoot.replaceChildren()

@@ -4,12 +4,14 @@ import type { Node as PMNode } from '@tiptap/pm/model'
 import { NodeSelection, Selection, TextSelection } from '@tiptap/pm/state'
 import type { BandHost } from './band-layout'
 import { convertList, listKinds, type ListKind } from './editing'
+import { resourceCommand, type ImageResource } from './resource-commands'
 import { tr } from './i18n'
 import type { Catalogue } from './shell'
 import { contextPanel } from './context-panel'
 import { isWidgetKind, widgetLabel } from './widget-frame'
 import { hasSettings, settingsForNode, type Scalar } from './capability-settings'
 import { ParameterFields } from './parameter-fields'
+import type { StructuredCommand } from './structured-commands'
 import { applyFormatting } from './formatting'
 import { applyObjectEdit, removeObject, treeTarget } from './object-commands'
 import { editingProvider } from './editing-history'
@@ -78,6 +80,7 @@ export function propertyPanel(
         node: PMNode
         original: string
         remove: boolean
+        resource?: ImageResource
         drafts: Record<string, Scalar | undefined>
       }
     | undefined
@@ -195,7 +198,7 @@ export function propertyPanel(
             : Selection.fromJSON(transaction.doc, selection.toJSON()),
         )
       }
-      const commands = editingProvider(editor)
+      const commands: StructuredCommand[] | undefined = editingProvider(editor)
         ? [
             {
               id: conversion ? 'block.replace' : 'node.set_attrs',
@@ -208,6 +211,7 @@ export function propertyPanel(
             },
           ]
         : undefined
+      if (commands && opened.resource) commands.unshift(resourceCommand(opened.resource))
       void commit((current) =>
         applyObjectEdit(editor, transaction, commands, { focus: false, current }),
       )
@@ -276,8 +280,14 @@ export function propertyPanel(
       )
       opened = current
     },
-    replaceImage(path: string) {
-      return !!opened && !opened.remove && valid() && fields.replaceImage(path)
+    imageReplacement() {
+      if (!opened || opened.kind !== 'figure' || opened.remove) return undefined
+      const current = opened
+      return (resource: ImageResource) => {
+        if (opened !== current || !valid() || !fields.replaceImage(resource.path))
+          throw new Error(tr('Le document a changé. Réessayez.'))
+        opened.resource = resource
+      }
     },
   }
   return api

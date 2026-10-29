@@ -88,6 +88,7 @@ export class Provider {
   private disposers: (() => void)[] = []
   private joining = true
   private incoming: Change[] = []
+  private incomingResources: (Resource & { generation?: string })[] = []
 
   constructor(
     readonly id: string,
@@ -141,8 +142,13 @@ export class Provider {
       ),
     )
     this.disposers.push(
-      await this.transport.listen<Resource>('web-editor:asset', (resource) =>
-        this.addResource(resource),
+      await this.transport.listen<Resource & { generation?: string }>(
+        'web-editor:asset',
+        (resource) => {
+          if (this.joining) this.incomingResources.push(resource)
+          else if (!resource.generation || resource.generation === this.generation)
+            this.addResource(resource)
+        },
       ),
     )
     const bootstrap = await this.transport.invoke<Bootstrap>('join')
@@ -172,6 +178,10 @@ export class Provider {
   }
   private finishJoin() {
     this.joining = false
+    for (const resource of this.incomingResources)
+      if (!resource.generation || resource.generation === this.generation)
+        this.addResource(resource)
+    this.incomingResources = []
     for (const event of this.incoming) this.apply(event)
     this.incoming = []
   }
@@ -376,7 +386,8 @@ export class Provider {
       .catch(this.onError)
   }
   addResource(resource: Resource) {
-    this.resources.set(resource.path, resource)
+    if (this.resources.get(resource.path)?.data === resource.data) return
+    this.resources.set(resource.path, { path: resource.path, data: resource.data })
     this.onResource()
   }
   imageURL(path: string): string {

@@ -16,6 +16,7 @@ import { icon } from './commands'
 import { mountAssistance } from './assistance'
 import { mountProofing, searchState, navigateSpelling } from './proofing'
 import type { BandHost } from './band-layout'
+import { prepareImage, resourceCommand } from './resource-commands'
 import { documentType, settingsFor, setSetting, setDocument, type Settings } from './state'
 import { welcomeBrand } from './welcome-brand'
 import { recoveryPanel } from './recovery-panel'
@@ -435,6 +436,7 @@ export async function mountShell(s: Shell) {
           await provider.flush()
           await transport.invoke('new_document', {
             settings: { metadata, template: m.source, modelId: m.id },
+            resources: t.id === 'courrier' && preferences.signature ? [preferences.signature] : [],
             revision: provider.revision,
           })
         })
@@ -523,37 +525,8 @@ export async function mountShell(s: Shell) {
         kind,
         catalogue,
         current,
-        (id) => {
-          const selected = kind.models.find((model) => model.id === id)
-          if (!selected) return
-          guarded(async () => {
-            await provider.flush()
-            const next = settingsFor(provider)
-            next.modelId = selected.id
-            next.template = selected.source
-            setDocument(provider, next)
-          })
-        },
-        (key, value) =>
-          guarded(async () => {
-            await provider.flush()
-            setSetting(provider, `options.${key}`, value)
-          }),
-        (key, value) => {
-          const history = historyFor(editor)
-          history?.stopCapturing()
-          metadataEditor.set(
-            { kind: 'metadata', field: key },
-            value,
-            () =>
-              settingsFor(provider).metadata.fields[
-                kind.fields.find((field) => field.field === key)!.parameter
-              ],
-          )
-          history?.stopCapturing()
-        },
-        currentPolicy,
         { commands: metadataEditor, read: () => settingsFor(provider) },
+        currentPolicy,
       )
     } else if (kind.structured?.bibliography?.tab === tab) {
       recordPanel = bibliographyPanel(content, provider, editor, transport, kind, currentPolicy)
@@ -604,8 +577,16 @@ export async function mountShell(s: Shell) {
         button.textContent = label
         button.onclick = () => {
           const value = useDefault ? preferences.signature?.path || null : null
-          if (value && preferences.signature) provider.addResource(preferences.signature)
-          setSetting(provider, 'signature', value)
+          const before = settingsFor(provider).metadata.fields.signature
+          guarded(() =>
+            metadataEditor.run(
+              [
+                ...(value && preferences.signature ? [resourceCommand(preferences.signature)] : []),
+                { id: 'document.set_signature', params: { path: value } },
+              ],
+              () => settingsFor(provider).metadata.fields.signature === before,
+            ),
+          )
         }
         actions.append(button)
       }
@@ -617,12 +598,16 @@ export async function mountShell(s: Shell) {
         guarded(async () => {
           const file = image.files?.[0]
           if (!file) return
-          const resource = await transport.invoke<Resource>('import_image', {
-            extension: file.name.split('.').pop(),
-            data: Array.from(new Uint8Array(await file.arrayBuffer())),
-          })
-          provider.addResource(resource)
-          setSetting(provider, 'signature', resource.path)
+          const before = settingsFor(provider).metadata.fields.signature
+          const resource = await prepareImage(provider, transport, file)
+          await metadataEditor.run(
+            [
+              resourceCommand(resource),
+              { id: 'document.set_signature', params: { path: resource.path } },
+            ],
+            () => settingsFor(provider).metadata.fields.signature === before,
+          )
+          image.value = ''
         })
       const signature = metadataSection({
         id: 'signature',
@@ -777,7 +762,11 @@ export async function mountShell(s: Shell) {
     navigateSpelling(editor, true)
   })
   add('spelling.reset', tr('Réexaminer les mots ignorés'), () =>
-    setSetting(provider, 'options.spelling_ignored', {}),
+    metadataEditor.set(
+      { kind: 'option', name: 'spelling_ignored' },
+      {},
+      () => settingsFor(provider).metadata.fields.options.spelling_ignored,
+    ),
   )
   add('ui.information', tr('Paramètres du document'), () => {
     tab = tab ? null : 'general'

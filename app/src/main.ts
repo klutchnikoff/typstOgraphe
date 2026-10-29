@@ -27,7 +27,9 @@ import { installMenus } from './menus'
 import { BandHost } from './band-layout'
 import { propertyPanel } from './properties'
 import { tablePanel } from './table-panel'
-import { insertBlock } from './editing'
+import { planBlockInsertion } from './editing'
+import { applyObjectEdit, widgetBatch } from './object-commands'
+import { prepareImage, resourceCommand } from './resource-commands'
 import { inlineObjectTarget } from './inline-objects'
 import { activeInlineObject } from './inline-object-focus'
 import { citationPanel } from './citation-panel'
@@ -229,17 +231,27 @@ element<HTMLInputElement>('image-file').addEventListener('change', (event) =>
   action(async () => {
     const file = (event.target as HTMLInputElement).files?.[0]
     if (!file) return
-    const extension = file.name.split('.').pop()?.toLowerCase() || ''
-    const resource = await host.transport.invoke<Resource>('import_image', {
-      extension,
-      data: Array.from(new Uint8Array(await file.arrayBuffer())),
-    })
-    provider.addResource(resource)
-    if (properties?.replaceImage(resource.path)) {
+    const document = editor.state.doc,
+      selection = editor.state.selection,
+      replacement = properties?.imageReplacement()
+    const resource = await prepareImage(provider, host.transport, file)
+    if (!document.eq(editor.state.doc) || !selection.eq(editor.state.selection))
+      throw new Error(tr('Le document a changé. Réessayez.'))
+    if (replacement) {
+      replacement(resource)
       element<HTMLInputElement>('image-file').value = ''
       return
     }
-    insertBlock(editor, { type: 'figure', attrs: { src: resource.path, alt: '' }, content: [] })
+    const transaction = planBlockInsertion(editor, {
+      type: 'figure',
+      attrs: { src: resource.path, alt: '' },
+      content: [],
+    })
+    if (transaction)
+      await applyObjectEdit(editor, transaction, [
+        resourceCommand(resource),
+        ...widgetBatch(editor, transaction),
+      ])
     element<HTMLInputElement>('image-file').value = ''
   }),
 )

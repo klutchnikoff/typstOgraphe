@@ -5,6 +5,7 @@ import type { Editor } from '@tiptap/core'
 import * as Y from 'yjs'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import { CONFIRMED_COMMAND, type Provider, type Transport } from './provider'
+import { installResources, type ImageResource } from './resource-commands'
 import { draftGuard } from './snapshot-operation'
 
 export interface StructuredCommand {
@@ -57,7 +58,12 @@ export async function executeStructured(
   }
   const identity = provider.doc.getMap('settings').get('identity')
   const invoke = (command: string) =>
-    transport.invoke<{ update: number[]; changed: boolean; guard: { revision: number } }>(command, {
+    transport.invoke<{
+      update: number[]
+      changed: boolean
+      guard: { revision: number }
+      resources?: ImageResource[]
+    }>(command, {
       request,
     })
   const result = await invoke('prepare_structured_commands').catch((error: unknown) => {
@@ -96,6 +102,7 @@ export async function executeStructured(
     historyFor(editor)?.stopCapturing()
     undo?.addTrackedOrigin(CONFIRMED_COMMAND)
     undo?.stopCapturing()
+    installResources(provider, publication.resources || [])
     Y.applyUpdate(provider.doc, new Uint8Array(publication.update), CONFIRMED_COMMAND)
     undo?.stopCapturing()
     // Position-preserving operations can restore their local selection before

@@ -10,11 +10,8 @@ export function documentOptions(
   kind: DocumentType,
   catalogue: Catalogue,
   settings: Settings,
-  changeModel: (id: string) => void,
-  changeOption: (key: string, value: string | boolean) => void,
-  changeField: (key: string, value: boolean) => void = () => {},
+  binding: { commands: MetadataCommands; read: () => Settings },
   policy: () => ModelPolicy | undefined = () => undefined,
-  binding?: { commands: MetadataCommands; read: () => Settings },
 ) {
   const root = document.createElement('div')
   root.className = 'document-options'
@@ -37,7 +34,11 @@ export function documentOptions(
     select.id = title.htmlFor
     for (const item of items) select.add(new Option(item.label, item.value))
     control.append(select)
-    column.append(title, control)
+    const field = document.createElement('div')
+    field.className = 'field'
+    field.style.display = 'contents'
+    field.append(title, control)
+    column.append(field)
     return { select, control, title }
   }
   const model = choice(
@@ -59,54 +60,82 @@ export function documentOptions(
   outlineRow.className = 'document-option-checkbox'
   outlineRow.append(outline, document.createTextNode(tr('Afficher le sommaire')))
   right.append(outlineRow)
-  outline.onchange = () => {
-    const descriptor = kind.structured?.outline
-    if (descriptor) changeField(descriptor.field, outline.checked)
-  }
   parent.append(root)
   const descriptor = kind.structured?.outline
-  const outlineBinding =
-    binding && descriptor
-      ? bindMetadataInput(
-          outline,
-          binding.commands,
-          { kind: 'metadata', field: descriptor.field },
-          () => binding.read().metadata.fields[descriptor.parameter],
-          () => outline.checked,
+  const outlineBinding = descriptor
+    ? bindMetadataInput(
+        outline,
+        binding.commands,
+        { kind: 'metadata', field: descriptor.field },
+        () => binding.read().metadata.fields[descriptor.parameter],
+        () => outline.checked,
+      )
+    : undefined
+  const optionBindings = [
+    bindMetadataInput(
+      model.select,
+      binding.commands,
+      { kind: 'model' },
+      () => ({ model_id: binding.read().modelId, source: binding.read().template }),
+      () => {
+        const selected = kind.models.find((m) => m.id === model.select.value)!
+        return { model_id: selected.id, source: selected.source }
+      },
+      (value) => {
+        const selected = value as { model_id: string; source: string }
+        return (
+          kind.models.find((m) => m.id === selected.model_id && m.source === selected.source)?.id ||
+          'embedded'
         )
-      : undefined
-  if (outlineBinding) outline.onchange = null
-  model.select.onchange = () => changeModel(model.select.value)
-  paper.select.onchange = () => changeOption('paper', paper.select.value)
-  orientation.select.onchange = () => changeOption('landscape', orientation.select.value === 'true')
-  language.select.onchange = () => changeOption('language', language.select.value)
+      },
+    ),
+    bindMetadataInput(
+      paper.select,
+      binding.commands,
+      { kind: 'option', name: 'paper' },
+      () => binding.read().metadata.fields.options.paper,
+    ),
+    bindMetadataInput(
+      orientation.select,
+      binding.commands,
+      { kind: 'option', name: 'landscape' },
+      () => binding.read().metadata.fields.options.landscape,
+      () => orientation.select.value === 'true',
+    ),
+    bindMetadataInput(
+      language.select,
+      binding.commands,
+      { kind: 'option', name: 'language' },
+      () => binding.read().metadata.fields.options.language,
+    ),
+  ]
   const update = (current: Settings) => {
     // A saved project keeps its own model, even after the bundled model changes.
     const bundled = kind.models.find(
       (model) => model.id === current.modelId && model.source === current.template,
     )
     const embedded = [...model.select.options].find((option) => option.value === 'embedded')
-    if (!bundled && !embedded) model.select.add(new Option(tr('Modèle embarqué'), 'embedded'))
-    else if (bundled) embedded?.remove()
-    const selected = bundled ? bundled.id : 'embedded'
-    if (model.select.value !== selected) model.select.value = selected
+    if (!bundled && !embedded) {
+      const option = new Option(tr('Modèle embarqué'), 'embedded')
+      option.disabled = true
+      model.select.add(option)
+    } else if (bundled) embedded?.remove()
     const page = bundled?.fixedPage
     const descriptor = kind.structured?.outline
     outlineRow.hidden = !descriptor || !policy()?.outline
-    if (outlineBinding) outlineBinding.refresh()
-    else outline.checked = !!(descriptor && current.metadata.fields[descriptor.parameter])
-    const options = current.metadata.fields.options
-    for (const [control, value] of [
-      [paper, String(options.paper)],
-      [orientation, String(options.landscape)],
-    ] as const) {
-      if (control.select.value !== value) control.select.value = value
+    outlineBinding?.refresh()
+    for (const control of [paper, orientation]) {
       control.title.hidden = control.control.hidden = !!page
       control.select.disabled = !!page
     }
-    if (language.select.value !== String(options.language))
-      language.select.value = String(options.language)
+    for (const binding of optionBindings) binding.refresh()
   }
   update(settings)
-  return { update, destroy: () => outlineBinding?.destroy() }
+  return {
+    update,
+    destroy: () => {
+      outlineBinding?.destroy()
+      for (const binding of optionBindings) binding.destroy()
+    },
+  }
 }
