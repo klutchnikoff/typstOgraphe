@@ -82,8 +82,9 @@ adaptateurs CLI/MCP restent à migrer selon la séquence ci-dessous.
    gardes/cibles/erreurs structurées, projection Yrs et contrôle de cohérence
    lors de la conservation. Éditions préparées et refus sans mutation publiée.
 2. **Commandes structurées** : les [cibles multizones et premières commandes](structured-commands.md)
-   sont livrées dans le cœur et vérifiées avec Tiptap. Poursuivre corps et en-tête, ressources, catalogue,
-   disponibilité et historique communs. Préserver les identités lors des éditions.
+   sont livrées dans le cœur et vérifiées avec Tiptap, y compris l’en-tête, les
+   ressources, les options et les modèles. Poursuivre les transformations restantes,
+   le catalogue et la disponibilité communs. Préserver les identités lors des éditions.
 3. **Application** : le relais et l’historique par fenêtre sont raccordés au
    moteur, avec groupement, accusés/refus et export du brouillon avant abandon.
    Poursuivre les autres commandes typées, le report des sélections/styles et le

@@ -322,7 +322,7 @@ pub fn specifications() -> Value {
     json!({"version": super::contract::VERSION, "ids": IDS, "command_schema": schema(),
         "target_offsets":"utf16", "execution":"guarded_atomic_batch",
         "adapters_migrated":false,
-        "scope":"Multizone text, blocks, inline objects, public node attributes and ordered header records. Inserted marks are explicit. Tauri formatting, widgets and participant history use the shared owner; standalone adapters are not yet migrated."})
+        "scope":"Multizone text, blocks, inline objects, header records, immutable image resources, document options, signatures and Typst models. Inserted marks are explicit. Tauri commands and participant history use the shared owner; standalone adapters are not yet migrated."})
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Availability {

@@ -3,8 +3,8 @@
 Ce lot prolonge le [socle Yrs](structured-contract-foundation.md) selon les
 [décisions validées](structured-contract.md). Il ajoute une API Rust commune,
 testée avec le véritable éditeur. Les tableaux, la mise en forme, les widgets et
-les objets en ligne de Tauri utilisent désormais cette API ; les autres opérations
-web et les adaptateurs CLI/MCP restent à migrer.
+les objets en ligne, l’en-tête, les ressources, les options et les modèles de Tauri
+utilisent désormais cette API ; les adaptateurs CLI/MCP autonomes restent à migrer.
 Ce lot ne clôture pas A.2.
 
 ## Contrat exécuté
@@ -26,7 +26,10 @@ Ce support ne signifie pas que CLI ou MCP ont déjà migré.
 | `text.remove_link` | Retirer ses liens en conservant les autres styles |
 | `text.clear` | Retirer les styles d’une plage |
 | `spelling.ignore` | Accepter le mot d’une plage vérifiée pour la langue courante, dans ce document seulement |
-| `metadata.set` | Modifier un champ simple ou un champ d’enregistrement identifié, sans remplacer sa collection |
+| `metadata.set` | Modifier un champ simple, un champ d’enregistrement identifié ou une option générale typée |
+| `resource.add` | Admettre une image immuable avec le lot qui l’utilise, sans écriture de fichier |
+| `document.set_signature` | Affecter une ressource image à la signature du courrier, ou retirer la signature avec `path: null` |
+| `document.set_model` | Valider et installer le source Typst et son identifiant de provenance en conservant les branches documentaires |
 | `block.insert` | Insérer un sous-arbre à une frontière de blocs |
 | `block.replace` | Remplacer explicitement un sous-arbre |
 | `block.splice` | Remplacer une suite de blocs d’un conteneur, puis réparer ses frontières une seule fois |
@@ -463,9 +466,8 @@ Les fonctions locales d’initialisation et de manipulation des brouillons ne so
 pas utilisées pour publier ces éditions d’en-tête ; les anciennes méthodes de
 publication directe, de déplacement et de suppression de collections ont été
 retirées. Sommaire et style bibliographique utilisent aussi `metadata.set`.
-Les options de page/langue, le changement de modèle et les ressources restent
-un lot distinct ; les contrôles de modèle et d’options attendent déjà les champs
-en cours de confirmation pour ne pas recopier un en-tête dépassé.
+Les options de page/langue, le changement de modèle et les ressources rejoignent
+également les commandes communes, selon le contrat ci-dessous.
 
 Recette du lot : 186 tests web unitaires et trois contrôles des langues natives,
 17 contrats Rust ↔ Yjs/Tiptap, tests du workspace Rust et Clippy. Les parcours
@@ -473,6 +475,64 @@ Chromium/WebKit couvrent les en-têtes, la concurrence, la conservation des
 brouillons, l’IME, les changements de modèle et les commandes voisines. Les
 tests de formulaires attendent la confirmation asynchrone et la fin du démarrage
 de la fenêtre avant de lire l’état diagnostique.
+
+## Ressources, options et modèles raccordés dans l’application
+
+`metadata.set` accepte une cible `{"kind":"option","name":"paper"}` et une valeur
+JSON contrôlée par les types Rust : `paper`, `landscape`, `language`,
+`bullet_marker` et `spelling_ignored`. Les sélecteurs de l’onglet Général utilisent
+le même gestionnaire de saisie locale, de confirmation, de refus et de décision
+explicite que les champs d’en-tête. Chaque champ possède son périmètre clavier ;
+les touches natives des listes déroulantes restent disponibles. Les actions de
+revalidation/annulation s’atteignent par Tab et les flèches de leur groupe.
+Un changement de langue crée seulement les enregistrements linguistiques manquants,
+dans le même lot annulable ; il ne remplace ni les titres ni les résumés existants.
+
+`document.set_model` reçoit `model_id` et `source`. Il modifie la base scalaire du
+modèle sans réinitialiser l’identité du document, les collections, leurs textes
+partagés ou les fragments riches. Le contrat Typst et les dépendances contrôlées
+sont vérifiés hors ligne par compilation du candidat. Cette vérification s’applique
+aussi à un changement de modèle issu d’une mise à jour Yjs brute ou de l’historique.
+Les options conservées ne sont pas réinitialisées ; les éventuels réglages de page
+imposés par un modèle fourni exact sont appliqués avec lui. L’interface des futurs
+régimes libre/restreint/imposé reste dans B : ce lot ne la déclare pas achevée.
+Le changement de modèle entre dans l’historique commun comme une seule opération.
+
+`prepare_image` est une préparation pure, commune au profil global et au document :
+lecture par l’adaptateur, décodage par le cœur et chemin déterministe. Les octets
+circulent en base64, avec limite vérifiée avant décodage ; ils ne sont pas placés
+dans Yjs. Cette préparation n’ajoute rien aux ressources du propriétaire et ne
+diffuse aucun événement. Le profil reste global jusqu’à son incorporation explicite
+ou à la création d’un courrier qui reçoit une copie autonome de sa signature.
+
+L’insertion d’image publie `resource.add` avec le plan structurel ; le remplacement
+la conserve dans le bandeau privé jusqu’à Valider et publie `resource.add` avec
+`node.set_attrs`. La signature utilise `resource.add` puis
+`document.set_signature` dans le même lot. Le candidat garde sa propre copie du
+répertoire de ressources, qui n’est admise qu’après la dernière vérification de
+la garde. Un chemin existant ne peut recevoir d’autres octets ; réadmettre la même
+image est sans effet. Refus, garde périmée et annulation du bandeau ne laissent
+aucune image importée dans la session confirmée.
+
+La publication retourne les nouvelles ressources ; les transports les livrent
+avant la mise à jour documentaire. Les événements sont filtrés par génération,
+y compris pendant le rattachement d’une fenêtre. Le destinataire conserve seulement
+le chemin et les données, sans recopier l’enveloppe de transport dans les fichiers.
+Les ressources admises restent disponibles pendant la séance pour annuler/rétablir.
+La sauvegarde et l’export continuent de filtrer celles requises par l’état courant
+et son modèle ; les snapshots durables restent à définir dans A.3/A.4.
+
+Recettes : import annulé sans ressource diffusée, signature du profil et du document,
+refus concurrent de sélecteur avec revalidation au clavier, changement de modèle
+avec conservation des fragments Article, une annulation par lot, sauvegarde et
+réouverture, ressource utilisée seulement par le modèle et compilation de l’archive
+hors ligne. Les contrats Rust ↔ Yjs couvrent également langue/modèle et signature.
+
+Validation locale du lot : tests du workspace Rust (354 tests du cœur),
+187 tests web et trois contrôles des langues natives, 19 contrats Rust ↔ Yjs,
+68 parcours Chromium/WebKit, compilation web/native, Clippy et contrôles de format.
+Aucune capture, vidéo ou trace n’est produite. Le contrôle de performance ignoré
+reste un diagnostic séparé ; cette recette ne fixe pas de nouveau budget de latence.
 
 ## Préparation et publication
 
@@ -530,9 +590,6 @@ Restent dans A.2 :
   communs ; la fusion de cellules reste différée.
   Les retours riches passent par `block.split` ou des nœuds de retour explicites,
   pas par des sauts de ligne cachés dans `text.insert`.
-- Les ressources, options générales et changements de modèle.
-  Ces éditions passent encore par le relais validé lorsqu’elles ne sont pas
-  explicitement raccordées aux commandes typées ci-dessus.
 - La conservation durable automatique et la réimportation des brouillons refusés.
   Le groupement de frappe, l’IME, l’historique natif par fenêtre et le parcours
   export/abandon sont raccordés dans Tauri.

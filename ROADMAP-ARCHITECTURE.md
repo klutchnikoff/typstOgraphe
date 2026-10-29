@@ -1,6 +1,6 @@
 # Plan technique de développement
 
-Révisé le **28 octobre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
+Révisé le **29 octobre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
 et ne conserve que les décisions à prendre et les travaux techniques restants.
 Les anciennes phases, leurs réalisations et leurs inventaires historiques sont
 dans les bilans de docs/ et l’historique Git.
@@ -93,6 +93,15 @@ Les onglets restent stables pendant les mises à jour. Voir le
 La récupération protège l’état confirmé ; l’export JSON du brouillon comprend
 les champs natifs en attente. Leur conservation durable et leur réimportation
 restent à traiter avec A.3.
+
+Les ressources, les options générales et les modèles Tauri rejoignent aussi ce
+contrat : images et signature admises avec leur lot, préparation sans effet de
+bord, ressources immuables conservées pour l’annulation et modèles vérifiés hors
+ligne sans reconstruire l’en-tête. Les sélecteurs utilisent la confirmation et
+les refus communs ; changer la langue conserve les zones riches existantes.
+Le profil reste global jusqu’à son incorporation explicite. Voir les
+[garanties et recettes](docs/structured-commands.md#ressources-options-et-modèles-raccordés-dans-lapplication).
+Les régimes de paramètres de modèle de B et les snapshots de A.3/A.4 restent distincts.
 
 Converger entre le contenu structuré du nouvel éditeur et les adaptateurs
 historiques : catalogue, commandes, requêtes, erreurs typées et schémas de fichiers.
