@@ -64,9 +64,10 @@ ajoute des répliques privées durables, des styles/sélections isolés et la va
 des annulations avant publication. Il est vérifié avec Yjs/Tiptap et raccordé à
 l’application : frappe immédiate,
 validation asynchrone, groupement et historique Rust unique par fenêtre,
-accusés/refus et export explicite du brouillon avant abandon. Restent les transformations supplémentaires, le mode individuel allégé et
-le raccordement global de la disponibilité. Les brouillons refusés restent en mémoire avant
-leur export JSON ; leur conservation automatique durable reste à traiter.
+accusés/refus et export explicite du brouillon avant abandon. Restent les
+transformations supplémentaires et le mode individuel allégé. Les brouillons
+refusés restent en mémoire avant leur export JSON ; leur conservation automatique
+durable reste à traiter.
 
 Les sélections et styles de frappe Tauri sont désormais raccordés à ces contextes :
 points UTF-16 multizones et direction, sélections de widgets/badges et de cellules,
@@ -125,10 +126,21 @@ seule annulation humaine ; elle ne reconstruit plus une édition dans le navigat
 Le périmètre rattaché reste le corps/cellules/annotations, sans en-tête, ressources
 ou fichiers modifiables tant que la relecture ne les présente pas.
 
-Restent dans A.2 les transformations supplémentaires, le mode individuel allégé
-et le raccordement global de la disponibilité. Les schémas et la validation des
-éditions sont communs ; les autorisations restent propres à chaque adaptateur.
+Restent dans A.2 les transformations supplémentaires et le mode individuel
+allégé. Les schémas et la validation des éditions sont communs ; les autorisations
+restent propres à chaque adaptateur.
 Aucun canal ne contourne les frontières entre zones.
+
+**Disponibilité raccordée :** les réponses de contexte du cœur exposent les
+capacités possibles et leurs raisons d’indisponibilité pour la sélection du
+participant, sans publication, compilation ni requête supplémentaire. L’interface
+réutilise la politique du catalogue pour son retour immédiat, puis une réponse
+native uniquement si sa garde et sa sélection correspondent encore à la zone.
+Le registre garde les appels des boutons, menus web/natifs, palette et raccourcis ;
+la dernière zone riche active reste la cible pendant l’ouverture d’un menu.
+Les contraintes d’interface (IME, modal, lecture seule, déconnexion, brouillon
+refusé) restent distinctes des paramètres documentaires et des permissions
+CLI/MCP. Voir le [contrat de disponibilité](docs/structured-editing-contexts.md#disponibilité-des-interactions--29-octobre-2026).
 
 ### A.3 Conservation et publication
 
