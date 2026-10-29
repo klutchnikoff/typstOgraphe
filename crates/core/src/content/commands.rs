@@ -125,6 +125,8 @@ pub enum Switch {
     On,
     Off,
 }
+pub const MAX_BATCH_STEPS: usize = 256;
+
 /// Explicit documentary ranges. Participant typing styles live in content::editing.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "id", content = "params", deny_unknown_fields)]
@@ -321,8 +323,8 @@ pub fn schema() -> Value {
 pub fn specifications() -> Value {
     json!({"version": super::contract::VERSION, "ids": IDS, "command_schema": schema(),
         "target_offsets":"utf16", "execution":"guarded_atomic_batch",
-        "adapters_migrated":false,
-        "scope":"Multizone text, blocks, inline objects, header records, immutable image resources, document options, signatures and Typst models. Inserted marks are explicit. Tauri commands and participant history use the shared owner; standalone adapters are not yet migrated."})
+        "adapters_migrated":true,
+        "scope":"Multizone text, blocks, inline objects, header records, immutable image resources, document options, signatures and Typst models. Inserted marks are explicit. Tauri commands and participant history use the shared owner; CLI and MCP use this same owner through content::api."})
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Availability {

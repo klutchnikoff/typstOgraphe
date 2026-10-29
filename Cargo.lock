@@ -6536,6 +6536,7 @@ dependencies = [
  "chrono",
  "comemo",
  "hayagriva",
+ "jsonschema",
  "png",
  "regex",
  "resvg",

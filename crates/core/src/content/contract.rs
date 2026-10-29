@@ -168,7 +168,7 @@ impl State {
 }
 
 /// Session identity and revision, never a persistent file path or a Yjs client ID.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Guard {
     pub document: String,

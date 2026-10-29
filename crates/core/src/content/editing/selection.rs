@@ -9,7 +9,7 @@ use crate::content::{
 use serde::{Deserialize, Serialize};
 use yrs::{Assoc, StickyIndex, Transact};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TextPoint {
     pub zone: TextZone,
@@ -24,7 +24,7 @@ impl TextPoint {
         }
     }
 }
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Selection {
     Text {

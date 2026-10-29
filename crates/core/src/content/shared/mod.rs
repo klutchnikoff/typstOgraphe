@@ -176,6 +176,21 @@ pub struct PreparedUpdate {
     resources: Vec<super::commands::ImageResource>,
 }
 
+impl PreparedUpdate {
+    pub fn changed(&self) -> bool {
+        self.changed
+    }
+    pub fn state(&self) -> &State {
+        &self.state
+    }
+    pub fn checkpoint(&self) -> Vec<u8> {
+        self.candidate.update()
+    }
+    pub fn assets<'a>(&'a self, original: &'a Assets) -> &'a Assets {
+        self.assets.as_ref().unwrap_or(original)
+    }
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Publication {
     pub resources: Vec<super::commands::ImageResource>,
@@ -264,7 +279,7 @@ impl SharedSession {
         commands: &[super::commands::Command],
     ) -> Result<PreparedUpdate, Error> {
         guard.check(&self.guard)?;
-        if commands.len() > 256 {
+        if commands.len() > super::commands::MAX_BATCH_STEPS {
             return Err(Error::StateLimitExceeded);
         }
         let mut size = 0usize;
@@ -280,15 +295,37 @@ impl SharedSession {
                 return Err(Error::StateLimitExceeded);
             }
         }
+        self.prepare_resolved(guard, commands, |_, command| Ok(command.clone()))
+    }
+    /// Resolve convenience selectors on the evolving isolated draft. Resolution
+    /// never executes a second editing implementation; only the final candidate validates.
+    pub fn prepare_resolved<T>(
+        &self,
+        guard: &Guard,
+        steps: &[T],
+        mut resolve: impl FnMut(&State, &T) -> Result<super::commands::Command, Error>,
+    ) -> Result<PreparedUpdate, Error> {
+        guard.check(self.guard())?;
+        if steps.len() > super::commands::MAX_BATCH_STEPS {
+            return Err(Error::StateLimitExceeded);
+        }
         let candidate = SharedDocument::from_update(&self.shared.update())?;
         let mut assets = None;
-        for (index, command) in commands.iter().enumerate() {
-            let state = candidate.state()?;
-            let result = if let super::commands::Command::AddResource { resource } = command {
-                resources::add(assets.get_or_insert_with(|| self.assets.clone()), resource)
-            } else {
-                commands::apply(&candidate.doc, &state, command)
-            };
+        let mut bytes = 0usize;
+        for (index, step) in steps.iter().enumerate() {
+            let result = (|| {
+                let state = candidate.state()?;
+                let command = resolve(&state, step)?;
+                bytes += serde_json::to_vec(&command).expect("command").len();
+                if bytes > MAX_STATE_BYTES {
+                    return Err(Error::StateLimitExceeded);
+                }
+                if let super::commands::Command::AddResource { resource } = &command {
+                    resources::add(assets.get_or_insert_with(|| self.assets.clone()), resource)
+                } else {
+                    commands::apply(&candidate.doc, &state, &command)
+                }
+            })();
             result.map_err(|cause| Error::BatchFailed {
                 index,
                 cause: Box::new(cause),

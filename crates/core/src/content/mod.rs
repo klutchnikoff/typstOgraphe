@@ -1,4 +1,5 @@
 //! Contenu structuré indépendant des bibliothèques graphiques.
+pub mod api;
 pub mod archive;
 pub mod catalogue;
 pub mod commands;

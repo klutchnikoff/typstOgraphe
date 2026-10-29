@@ -326,6 +326,37 @@ impl EditingSession {
         self.contexts.get_mut(&id).unwrap().receive(&publication)?;
         Ok(publication)
     }
+    pub fn prepare_calls(
+        &self,
+        guard: &Guard,
+        calls: &[super::api::Call],
+    ) -> Result<super::shared::PreparedUpdate, Error> {
+        self.owner
+            .prepare_resolved(guard, calls, super::api::resolve_call)
+    }
+    pub fn prepare_resolved_calls(
+        &self,
+        guard: &Guard,
+        calls: &[super::api::Call],
+        resolve: impl FnMut(&State, &super::api::Call) -> Result<Command, Error>,
+    ) -> Result<super::shared::PreparedUpdate, Error> {
+        self.owner.prepare_resolved(guard, calls, resolve)
+    }
+    pub fn publish_prepared(
+        &mut self,
+        guard: &Guard,
+        id: ContextId,
+        prepared: super::shared::PreparedUpdate,
+    ) -> Result<Publication, Error> {
+        self.check(guard, id)?;
+        self.contexts.get_mut(&id).unwrap().sync(&self.owner)?;
+        let publication = self.owner.publish(prepared)?;
+        self.contexts.get_mut(&id).unwrap().receive(&publication)?;
+        Ok(publication)
+    }
+    pub fn availability(&self, guard: &Guard, command: &Command) -> super::commands::Availability {
+        self.owner.availability(guard, command)
+    }
     pub fn insert(
         &mut self,
         guard: &Guard,
