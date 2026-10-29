@@ -284,6 +284,16 @@ frontière adaptée, en conservant édition, métadonnées et composition en mé
 Ce diagnostic ne lance pas un chantier Web et ne remet pas en cause les choix natifs.
 Trace de l’échec CI : `output/phase-5-files-ci-linux.log`.
 
+**Mise à jour du 29 octobre 2026 :** l’échec `getrandom` n’apparaît plus ; la seule
+erreur restante était `yrs::undo::Options::default()`, absent en WebAssembly parce
+qu’il utilise l’horloge système. Les historiques de participants utilisent désormais
+une horloge constante (le groupement est explicite). **Le contrôle devient bloquant**
+sur Linux pour empêcher toute régression silencieuse. Il prouve seulement la
+compilation : fichiers, verrous, récupération et dates (`chrono::Local::now`) restent
+natifs, et les aléas de yrs (`fastrand`, sans `getrandom` adapté au Web) devront être
+vérifiés à l’exécution avant tout client Web collaboratif, car des identifiants de
+client identiques casseraient la convergence.
+
 ## Suite
 
 La prochaine phase est la **phase 4 : CLI**. Ses choix principaux et son premier
