@@ -46,6 +46,9 @@ jobs:
           key: desktop-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: desktop-${{ runner.os }}-
       - run: npm ci
+      - name: npm advisories
+        if: runner.os == 'Linux'
+        run: npm audit --audit-level=moderate
       - run: npm run check:format
       - run: npm test
       - run: npm run build:web

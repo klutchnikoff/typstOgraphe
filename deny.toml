@@ -1,0 +1,51 @@
+# Dependency policy checked in CI with cargo-deny: security advisories,
+# licences of distributed code and origin of every crate.
+
+[graph]
+all-features = true
+
+[advisories]
+# Unmaintained crates are reported for review without blocking a build.
+unmaintained = "workspace"
+yanked = "deny"
+ignore = [
+    # quick-xml 0.38 comes from Typst 0.15.1 → hayagriva 0.10.1 → citationberg 0.7.0,
+    # which requires ^0.38.1 and has no later release (October 2026). Both are
+    # denial-of-service issues when parsing a CSL style; remove these entries
+    # with the next Typst upgrade.
+    { id = "RUSTSEC-2026-0194", reason = "quick-xml pinned by citationberg 0.7.0 through Typst 0.15.1" },
+    { id = "RUSTSEC-2026-0195", reason = "quick-xml pinned by citationberg 0.7.0 through Typst 0.15.1" },
+]
+
+[licenses]
+# Permissive licences, plus MPL-2.0 (file-level copyleft: cssparser, selectors,
+# spellbook). An OR expression is accepted when one of its terms is listed here.
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "MIT",
+    "MIT-0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.9
+
+[licenses.private]
+# The workspace crates are not published and carry no licence yet.
+ignore = true
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

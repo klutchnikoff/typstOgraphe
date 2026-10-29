@@ -37,6 +37,13 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts/tests -v
           scripts/check-file-length.sh
+      - uses: taiki-e/install-action@v2
+        if: runner.os == 'Linux'
+        with:
+          tool: cargo-deny@0.20.2
+      - name: Dependency advisories, licences and sources
+        if: runner.os == 'Linux'
+        run: cargo deny --locked check
       - name: Core dependency boundary
         run: |
           python scripts/check_core_dependencies.py
