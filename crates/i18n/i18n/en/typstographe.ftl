@@ -8,9 +8,6 @@ replace-title = Replace the document?
 letter-opened = Document opened.
 open-dialog = Open document
 all-files = All files
-select-link-remove = Select the linked text to remove its link.
-select-link = Select the text to link first.
-link-one-paragraph = A link must stay within a single paragraph.
 renderer-stopped = The rendering engine has stopped.
 multiple-styles = Mixed styles
 preview-title = Typst preview
@@ -40,7 +37,6 @@ field-service = Department
 field-email = Email
 link-title = Link
 apply = Apply
-link-invalid-url = Use an https://, http:// or mailto: address.
 command-search = Search for a command…
 export-title = Export document
 export-folder = Destination folder
@@ -59,19 +55,12 @@ untitled-letter = Untitled document
 file-menu = File
 letter-type = Letter
 embedded-template = Document template
-source-syntax-error = The Typst source contains a syntax error.
-source-unreadable = Unreadable Typst document
-source-heading-depth = Only heading levels 1–3 are supported.
-source-computed-call = Computed function calls are not supported.
-source-nested-blocks = Nested blocks are not supported in this prototype.
 storage-file-too-large = The letter file exceeds the size limit.
 storage-file-count = The archive contains too many files or its structure is incomplete (4,096 files maximum).
 storage-unknown-entry = unknown or duplicate file in the archive
-storage-invalid-size = invalid archive size
 storage-expanded-too-large = the expanded content exceeds 64 MiB
 storage-unsupported = unsupported format, version or document type
 storage-main-mismatch = the main.typ header does not match the letter metadata
-storage-invalid-template = the Typst template is empty or contains a syntax error
 storage-letter-too-large = The letter exceeds the size limit (64 MiB).
 export-nonempty = The folder is not empty. Choose a new folder to preserve the existing files.
 shortcut-modifier-required = Use Ctrl, ⌘ or Alt, or a function key, to preserve text entry.
@@ -112,14 +101,10 @@ mixed-command = { $command } (mixed selection)
 link-selected-text = Text: { $text }
 command-shortcut = { $label } · { $shortcut }
 window-title = { $name }{ $marker }
-source-unsupported-node = Construct outside the editable subset: { $kind }
-source-unsupported-function = Unsupported function or signature: { $name }
 storage-open-failed = Could not open the document: { $error }
-storage-invalid = Invalid document: { $error }
 storage-zip-unreadable = unreadable ZIP archive ({ $error })
 storage-manifest-unreadable = unreadable manifest ({ $error })
 storage-metadata-unreadable = unreadable metadata ({ $error })
-storage-entry-missing = { $name } is missing or unreadable ({ $error })
 storage-entry-unreadable = { $name } is unreadable ({ $error })
 storage-entry-too-large = { $name } exceeds the size limit
 storage-temporary-failed = Could not create a temporary file: { $error }
@@ -214,7 +199,6 @@ bullet-marker-automatic = Automatic (template)
 bullet-marker-model-controlled = The template applies its house style and the document language conventions.
 bullet-marker-model-choices = The template creator defines the allowed choices. Automatic follows its house style and the document language.
 bullet-marker-custom = Custom character…
-bullet-marker-invalid = Enter a single visible character.
 model-invalid-editor-options = Invalid template editor-options: bullet-markers must be an array of visible characters, and custom-bullet-marker a boolean.
 model-bullet-marker-not-allowed = This list marker is not allowed by the template. Restore automatic mode in the document information.
 orientation-portrait = Portrait
@@ -272,8 +256,6 @@ description-placeholder = Description
 
 cmd-quote = Block quote
 quote-attribution-placeholder = Attribution / source (optional)
-source-quote-signature = A quote must be a text block, with an optional single-paragraph attribution.
-
 insert-menu = Insert
 cmd-insert-image = Insert image…
 image-files = Images (PNG, JPEG, SVG)
@@ -289,8 +271,6 @@ image-cancel = Cancel
 image-too-large = An image cannot exceed 16 MiB.
 image-format-unsupported = This image format is not supported. Choose a PNG, JPEG or SVG file.
 image-resource-missing = Image missing from document: { $path }
-source-image-signature = This figure is outside the editable subset: an image, alternative text and an optional caption are expected.
-
 image-invalid-svg = The SVG file is unreadable or invalid.
 
 minutes-type = Meeting minutes
@@ -332,8 +312,6 @@ search-replaced =
         [one] { $count } replacement made.
        *[other] { $count } replacements made.
     }
-search-one-line = Replacement must be a single line, without structural separators.
-search-too-large = This search is too large. Try a shorter text.
 recovery-title = Documents to recover
 recovery-help = Working copies have been preserved. Recover opens a copy to save separately, without replacing the original file.
 recovery-date = Copy from { $date } (UTC)
@@ -345,7 +323,6 @@ recovery-filename-suffix = recovered
 recovery-restored = Document recovered. Use Save as to keep it.
 recovery-unavailable = Recovery protection unavailable — hover for details.
 recovery-no-directory = The application data directory could not be located.
-recovery-worker-stopped = The recovery service has stopped.
 recovery-load-failed = Unable to recover this copy: { $error }
 recovery-delete-failed = Unable to delete this copy: { $error }
 cmd-spelling-toggle = Check spelling while typing
@@ -383,13 +360,7 @@ cmd-insert-postscript = Insert a postscript
 cmd-insert-attachment = Add an enclosure mention
 postscript-placeholder = Postscript text…
 attachment-placeholder = Enclosed document…
-source-letter-note-signature = A postscript contains text; each enclosure mention occupies a single line.
-
-# Validation des éditions
-edit-protected-boundary = This edit crosses a block or text zone boundary. Select the entire block to delete it.
-edit-invalid-text = This text contains a separator that is not supported in this zone.
 edit-stale-draft = The document has changed since this edit began. Please try again.
-edit-invalid-draft = This edit cannot be applied to the document.
 engine-invalid-params = This command has invalid parameters.
 engine-unavailable = This command is not available in the current context.
 
@@ -407,10 +378,7 @@ engine-batch-step-error = Step { $step }: { $error }
 engine-batch-step-limit = A batch must contain between 1 and 256 steps.
 engine-batch-size-limit = The batch exceeds the allowed size limit.
 engine-edit-context-closed = The editing context is no longer available.
-engine-proposal-files-forbidden = A proposal cannot save or export a file.
 engine-batch-step-forbidden = This action is not allowed in an editing batch.
-
-engine-batch-resource-limit = Resources imported by the batch exceed the allowed size limit.
 
 core-external-error = { $error }
 paper-a3 = A3

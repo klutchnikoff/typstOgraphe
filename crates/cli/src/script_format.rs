@@ -6,7 +6,7 @@ use std::{
     fs::File,
     path::{Path, PathBuf},
 };
-use typstographe_core::protocol::*;
+use typstographe_core::protocol::{CommandError, ErrorCode};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

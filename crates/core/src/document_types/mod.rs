@@ -56,13 +56,6 @@ impl DocumentType {
             Self::Courrier | Self::CompteRendu => None,
         }
     }
-    pub fn demo_source(self) -> &'static str {
-        match self {
-            Self::Article => include_str!("../../examples/article.typ"),
-            Self::Courrier => include_str!("../../examples/courrier.typ"),
-            Self::CompteRendu => include_str!("../../examples/compte-rendu.typ"),
-        }
-    }
 }
 
 /// Somme des métadonnées typées : ajouter un type exige de définir ses données

@@ -43,9 +43,6 @@ search-replaced =
         [one] { $count } remplacement effectué.
        *[other] { $count } remplacements effectués.
     }
-search-one-line = Le remplacement doit tenir sur une seule ligne, sans séparateur de structure.
-search-too-large = Cette recherche est trop volumineuse. Essayez un texte plus court.
-
 cmd-recover-documents = Récupérer des documents…
 recovery-title = Documents à récupérer
 recovery-help = Des copies de travail ont été conservées. Récupérer ouvre une copie à enregistrer séparément, sans remplacer le fichier d’origine.
@@ -58,7 +55,6 @@ recovery-filename-suffix = recupere
 recovery-restored = Document récupéré. Utilisez Enregistrer sous pour le conserver.
 recovery-unavailable = Protection de récupération indisponible — survoler pour les détails.
 recovery-no-directory = Le dossier des données de l’application est introuvable.
-recovery-worker-stopped = Le service de récupération s’est arrêté.
 recovery-load-failed = Impossible de récupérer cette copie : { $error }
 recovery-delete-failed = Impossible de supprimer cette copie : { $error }
 
@@ -70,9 +66,6 @@ replace-title = Remplacer le document ?
 letter-opened = Document ouvert.
 open-dialog = Ouvrir un document
 all-files = Tous les fichiers
-select-link-remove = Sélectionnez d’abord le texte du lien à retirer.
-select-link = Sélectionnez d’abord le texte du lien.
-link-one-paragraph = Un lien doit rester dans un seul paragraphe.
 renderer-stopped = Le moteur de rendu s’est arrêté.
 multiple-styles = Styles multiples
 preview-title = Aperçu Typst
@@ -102,7 +95,6 @@ field-service = Service
 field-email = Courriel
 link-title = Lien
 apply = Appliquer
-link-invalid-url = Utilisez une adresse https://, http:// ou mailto:.
 command-search = Rechercher une commande…
 export-title = Exporter le document
 export-folder = Dossier de destination
@@ -121,19 +113,12 @@ untitled-letter = Document sans titre
 file-menu = Fichier
 letter-type = Courrier
 embedded-template = Modèle du document
-source-syntax-error = Le source Typst contient une erreur de syntaxe.
-source-unreadable = Document Typst illisible
-source-heading-depth = Seuls les titres de niveaux 1 à 3 sont pris en charge.
-source-computed-call = Appel calculé non pris en charge.
-source-nested-blocks = Les blocs imbriqués ne sont pas pris en charge dans ce prototype.
 storage-file-too-large = Le fichier de courrier dépasse la taille autorisée.
 storage-file-count = L’archive contient trop de fichiers ou sa structure est incomplète (4 096 fichiers maximum).
 storage-unknown-entry = fichier inconnu ou présent plusieurs fois dans l’archive
-storage-invalid-size = taille d’archive invalide
 storage-expanded-too-large = le contenu décompressé dépasse 64 Mio
 storage-unsupported = format, version ou type de document non pris en charge
 storage-main-mismatch = l’en-tête main.typ ne correspond pas aux métadonnées du courrier
-storage-invalid-template = le modèle Typst est vide ou contient une erreur de syntaxe
 storage-letter-too-large = Le courrier dépasse la taille autorisée (64 Mio).
 export-nonempty = Le dossier n’est pas vide. Choisissez un nouveau dossier pour préserver les fichiers existants.
 shortcut-modifier-required = Utilisez Ctrl, ⌘ ou Alt, ou une touche de fonction, pour préserver la saisie du texte.
@@ -174,14 +159,10 @@ mixed-command = { $command } (sélection mixte)
 link-selected-text = Texte : { $text }
 command-shortcut = { $label } · { $shortcut }
 window-title = { $name }{ $marker }
-source-unsupported-node = Construction hors du sous-ensemble éditable : { $kind }
-source-unsupported-function = Fonction ou signature non prise en charge : { $name }
 storage-open-failed = Impossible d’ouvrir le document : { $error }
-storage-invalid = Document invalide : { $error }
 storage-zip-unreadable = archive ZIP illisible ({ $error })
 storage-manifest-unreadable = manifeste illisible ({ $error })
 storage-metadata-unreadable = métadonnées illisibles ({ $error })
-storage-entry-missing = { $name } manquant ou illisible ({ $error })
 storage-entry-unreadable = { $name } illisible ({ $error })
 storage-entry-too-large = { $name } dépasse la taille autorisée
 storage-temporary-failed = Impossible de créer le fichier temporaire : { $error }
@@ -276,7 +257,6 @@ bullet-marker-automatic = Automatique (modèle)
 bullet-marker-model-controlled = Le modèle applique sa charte et les conventions de la langue du document.
 bullet-marker-model-choices = Le créateur du modèle définit les choix autorisés. Automatique suit sa charte et la langue du document.
 bullet-marker-custom = Caractère personnalisé…
-bullet-marker-invalid = Saisissez un seul caractère visible.
 model-invalid-editor-options = La déclaration editor-options du modèle est invalide : bullet-markers doit être une liste de caractères visibles, et custom-bullet-marker un booléen.
 model-bullet-marker-not-allowed = Ce marqueur de liste n’est pas autorisé par le modèle. Revenez au mode automatique dans les informations du document.
 orientation-portrait = Portrait
@@ -334,8 +314,6 @@ description-placeholder = Description
 
 cmd-quote = Citation en bloc
 quote-attribution-placeholder = Attribution / source (facultatif)
-source-quote-signature = Une citation doit être un bloc de texte, avec une attribution facultative sur un seul paragraphe.
-
 insert-menu = Insertion
 cmd-insert-image = Insérer une image…
 image-files = Images (PNG, JPEG, SVG)
@@ -351,8 +329,6 @@ image-cancel = Annuler
 image-too-large = Une image ne doit pas dépasser 16 Mio.
 image-format-unsupported = Ce format d’image n’est pas pris en charge. Choisissez un fichier PNG, JPEG ou SVG.
 image-resource-missing = Image absente du document : { $path }
-source-image-signature = Cette figure n’appartient pas au sous-ensemble éditable : une image, un texte alternatif et une légende facultative sont attendus.
-
 image-invalid-svg = Le fichier SVG est illisible ou invalide.
 
 minutes-type = Compte-rendu
@@ -386,13 +362,7 @@ cmd-insert-postscript = Insérer un post-scriptum
 cmd-insert-attachment = Ajouter une pièce jointe (mention)
 postscript-placeholder = Texte du post-scriptum…
 attachment-placeholder = Document joint…
-source-letter-note-signature = Un post-scriptum contient du texte ; chaque mention de pièce jointe occupe une seule ligne.
-
-# Validation des éditions
-edit-protected-boundary = Cette modification traverse une frontière de bloc ou de zone. Sélectionnez le bloc entier pour le supprimer.
-edit-invalid-text = Ce texte contient un séparateur incompatible avec cette zone.
 edit-stale-draft = Le document a changé depuis le début de cette modification. Veuillez recommencer.
-edit-invalid-draft = Cette modification ne peut pas être appliquée au document.
 engine-invalid-params = Les paramètres de cette commande sont invalides.
 engine-unavailable = Cette commande n’est pas disponible dans le contexte actuel.
 
@@ -410,10 +380,7 @@ engine-batch-step-error = Étape { $step } : { $error }
 engine-batch-step-limit = Un lot doit contenir entre 1 et 256 étapes.
 engine-batch-size-limit = Le lot dépasse la taille maximale autorisée.
 engine-edit-context-closed = Le contexte d’édition n’est plus disponible.
-engine-proposal-files-forbidden = Une proposition ne peut ni enregistrer ni exporter un fichier.
 engine-batch-step-forbidden = Cette action n’est pas autorisée dans un lot d’édition.
-
-engine-batch-resource-limit = Les ressources importées par le lot dépassent la taille maximale autorisée.
 
 core-external-error = { $error }
 paper-a3 = A3

@@ -155,3 +155,22 @@ fn compiler_reports_error_and_recovers_on_next_request() {
             .is_ok()
     );
 }
+
+#[test]
+fn literal_metadata_and_structured_body_cannot_execute_typst_markup() {
+    let metadata = Metadata::Courrier(crate::document_types::courrier::Metadata {
+        objet: "Une demande \"citée\" avec \\ et #panic(\"NON\")".into(),
+        ..Default::default()
+    });
+    let node = serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Bonjour. #panic(\"NON\") [texte] *littéral*"}]}]})).unwrap();
+    let source = crate::content::source(&node, &Default::default()).unwrap();
+    let mut world = crate::rendering::TypstWorld::default();
+    let template = DocumentType::Courrier.default_model();
+    world.set_dependencies(&crate::packages::for_template(&template));
+    let document = world
+        .compile_with_template(&source, &metadata, &template)
+        .unwrap();
+    let pdf = typst_pdf::pdf(&document, &typst_pdf::PdfOptions::default()).unwrap();
+    assert!(pdf.starts_with(b"%PDF-"));
+    assert!(!document.pages().is_empty());
+}

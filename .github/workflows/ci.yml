@@ -36,9 +36,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           python3 -m unittest discover -s scripts/tests -v
-          scripts/check-file-length.sh --warn
-          scripts/check-file-length.sh --root crates/core/src/engine
-          scripts/check-file-length.sh --root crates/core/src/document
+          scripts/check-file-length.sh
       - name: Core dependency boundary
         run: |
           python scripts/check_core_dependencies.py

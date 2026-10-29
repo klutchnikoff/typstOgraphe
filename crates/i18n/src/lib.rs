@@ -81,10 +81,7 @@ pub fn error(error: &crate::errors::CoreError) -> String {
     error_with(loader(), error)
 }
 pub fn error_with(loader: &FluentLanguageLoader, error: &crate::errors::CoreError) -> String {
-    let mut args = error.arguments();
-    if let Some(cause) = error.cause() {
-        args.insert("error".into(), error_with(loader, cause));
-    }
+    let args = error.arguments();
     loader.get_args(
         error.message_key(),
         args.into_iter()
@@ -319,21 +316,22 @@ mod tests {
 
     #[test]
     fn nested_error_localization_keeps_unicode_parameters_and_machine_payload_identical() {
-        use crate::errors::{CoreError, PackageError, StorageError};
-        let error = CoreError::from(StorageError::Invalid {
-            error: Box::new(
-                PackageError::ResourceMissing {
-                    path: "fonction_Élodie_日本".into(),
-                }
-                .into(),
-            ),
-        });
+        use crate::errors::PackageError;
+        use crate::protocol::{CommandError, ErrorCode};
+        let error = CommandError::with_cause(
+            ErrorCode::Document,
+            "structured_archive",
+            PackageError::ResourceMissing {
+                path: "ressource_Élodie_日本".into(),
+            }
+            .into(),
+        );
         let payload = serde_json::to_value(&error).unwrap();
-        let french = error_with(&requested(&["fr"]), &error);
-        let english = error_with(&requested(&["en"]), &error);
+        let french = command_error_with(&requested(&["fr"]), &error);
+        let english = command_error_with(&requested(&["en"]), &error);
         assert_ne!(french, english);
         for message in [&french, &english] {
-            assert!(message.contains("fonction_Élodie_日本"));
+            assert!(message.contains("ressource_Élodie_日本"));
             assert!(!message.contains("PackageError"));
         }
         assert_eq!(serde_json::to_value(error).unwrap(), payload);

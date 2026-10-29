@@ -6,7 +6,7 @@ use serde_json::json;
 use std::path::PathBuf;
 use typstographe_core::{
     content::api::{self, Call, Session},
-    engine::CommandError,
+    protocol::CommandError,
 };
 use typstographe_i18n::tr;
 pub fn execute(path: PathBuf) -> Result<Report, CommandError> {

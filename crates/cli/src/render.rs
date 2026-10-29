@@ -5,7 +5,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
-use typstographe_core::protocol::*;
+use typstographe_core::protocol::{CommandError, ErrorCode};
 use typstographe_i18n::tr;
 
 pub fn execute(file: PathBuf, page: u32, png: PathBuf) -> Result<Report, CommandError> {

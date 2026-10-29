@@ -1,4 +1,4 @@
-//! Erreurs du futur cœur : variantes typées, arguments et causes, sans Fluent.
+//! Erreurs du cœur : variantes typées, arguments et causes, sans Fluent.
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -52,16 +52,12 @@ error_family! { SpellingError {
 } }
 
 error_family! { StorageError {
-    EntryMissing { name: String, error: String } => "storage-entry-missing";
     EntryTooLarge { name: String } => "storage-entry-too-large";
     EntryUnreadable { name: String, error: String } => "storage-entry-unreadable";
     ExpandedTooLarge => "storage-expanded-too-large";
     FileCount => "storage-file-count";
     FileTooLarge => "storage-file-too-large";
     ImageResourceMissing { path: String } => "image-resource-missing";
-    Invalid { error: Box<CoreError> } => "storage-invalid";
-    InvalidSize => "storage-invalid-size";
-    InvalidTemplate => "storage-invalid-template";
     LetterTooLarge => "storage-letter-too-large";
     MainMismatch => "storage-main-mismatch";
     ManifestUnreadable { error: String } => "storage-manifest-unreadable";
@@ -165,12 +161,6 @@ impl CoreError {
             Self::Image(_) => BTreeMap::new(),
         }
     }
-    pub fn cause(&self) -> Option<&CoreError> {
-        match self {
-            Self::StorageError(StorageError::Invalid { error }) => Some(error),
-            _ => None,
-        }
-    }
     #[cfg(test)]
     pub(crate) fn samples() -> Vec<Self> {
         let mut samples = Vec::new();
@@ -218,16 +208,5 @@ mod tests {
                         == error.arguments().keys().map(String::as_str).collect()
             }));
         }
-        let error = CoreError::from(StorageError::Invalid {
-            error: Box::new(
-                PackageError::ResourceMissing {
-                    path: "inconnue".into(),
-                }
-                .into(),
-            ),
-        });
-        assert!(
-            matches!(error.cause(),Some(CoreError::PackageError(PackageError::ResourceMissing { path })) if path == "inconnue")
-        );
     }
 }
