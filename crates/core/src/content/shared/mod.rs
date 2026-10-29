@@ -166,7 +166,7 @@ pub struct PreparedUpdate {
     state: State,
     update: Vec<u8>,
     changed: bool,
-    assets: Assets,
+    assets: Option<Assets>,
     resources: Vec<super::commands::ImageResource>,
 }
 
@@ -258,11 +258,11 @@ impl SharedSession {
             }
         }
         let candidate = SharedDocument::from_update(&self.shared.update())?;
-        let mut assets = self.assets.clone();
+        let mut assets = None;
         for (index, command) in commands.iter().enumerate() {
             let state = candidate.state()?;
             let result = if let super::commands::Command::AddResource { resource } = command {
-                resources::add(&mut assets, resource)
+                resources::add(assets.get_or_insert_with(|| self.assets.clone()), resource)
             } else {
                 commands::apply(&candidate.doc, &state, command)
             };
@@ -322,14 +322,16 @@ impl SharedSession {
         guard: &Guard,
         candidate: SharedDocument,
     ) -> Result<PreparedUpdate, Error> {
-        self.finish_preparation_with_assets(guard, candidate, self.assets.clone())
+        self.finish_preparation_with_assets(guard, candidate, None)
     }
     fn finish_preparation_with_assets(
         &self,
         guard: &Guard,
         candidate: SharedDocument,
-        assets: Assets,
+        assets: Option<Assets>,
     ) -> Result<PreparedUpdate, Error> {
+        // The common typing path borrows the immutable pool; clone its index only for an import.
+        let validation_assets = assets.as_ref().unwrap_or(&self.assets);
         let before = self.shared.doc.transact().state_vector();
         let before_snapshot = self.shared.doc.transact().snapshot();
         complete(&candidate.doc)?;
@@ -339,7 +341,7 @@ impl SharedSession {
         }
         let state = candidate.state()?;
         structure::validate(&state)?;
-        state.validate(&assets)?;
+        state.validate(validation_assets)?;
         if state.settings.metadata.document_type() != self.state.settings.metadata.document_type() {
             return Err(Error::InvalidDocument {
                 reason: "document_type_changed".into(),
@@ -348,11 +350,13 @@ impl SharedSession {
         if state.settings.template != self.state.settings.template
             || state.settings.model_id != self.state.settings.model_id
         {
-            settings::validate_model(&state, &assets)?;
+            settings::validate_model(&state, validation_assets)?;
         }
         let update = candidate.doc.transact().encode_diff_v1(&before);
         let resources: Vec<_> = assets
-            .iter()
+            .as_ref()
+            .into_iter()
+            .flat_map(|assets| assets.iter())
             .filter(|(path, _)| !self.assets.contains_key(*path))
             .map(|(path, data)| super::commands::ImageResource {
                 path: path.clone(),
@@ -380,7 +384,9 @@ impl SharedSession {
                 .revision
                 .checked_add(1)
                 .ok_or(Error::StateLimitExceeded)?;
-            self.assets = prepared.assets;
+            if let Some(assets) = prepared.assets {
+                self.assets = assets;
+            }
             self.shared = prepared.candidate;
             self.state = prepared.state;
             self.guard.revision = revision;
