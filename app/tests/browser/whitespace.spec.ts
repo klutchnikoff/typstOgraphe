@@ -6,6 +6,32 @@ test.beforeEach(async ({ page, request }) => {
   await page.waitForFunction(() => window.__spike?.ready)
 })
 
+test('les flèches franchissent la marque de paragraphe avec et sans sélection', async ({
+  page,
+}) => {
+  const positions = await page.evaluate(() => {
+    const e = window.__spike!.editor
+    e.commands.setContent('<p>Avant</p><p>Après</p>')
+    e.commands.setTextSelection(6)
+    e.view.focus()
+    return { end: 6, start: 8 }
+  })
+  const selection = () =>
+    page.evaluate(() => {
+      const { anchor, head } = window.__spike!.editor.state.selection
+      return { anchor, head }
+    })
+  await page.keyboard.press('Shift+ArrowRight')
+  await expect.poll(selection).toEqual({ anchor: positions.end, head: positions.start })
+  await page.keyboard.press('Shift+ArrowLeft')
+  await expect.poll(selection).toEqual({ anchor: positions.end, head: positions.end })
+  await page.keyboard.press('ArrowRight')
+  await expect.poll(selection).toEqual({ anchor: positions.start, head: positions.start })
+  await page.keyboard.press('ArrowLeft')
+  await expect.poll(selection).toEqual({ anchor: positions.end, head: positions.end })
+  await expect(page.locator('.tiptap > p')).toHaveText(['Avant', 'Après', ''])
+})
+
 test('Entrée réutilise le retour suivant et maintient une seule ligne finale éditable', async ({
   page,
 }) => {

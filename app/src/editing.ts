@@ -323,6 +323,46 @@ export const DocumentInput = Extension.create({
     return [
       new Plugin({
         props: {
+          handleKeyDown(view, event) {
+            // The decorative ¶ is not a caret stop. Chromium/Linux can otherwise
+            // leave a native Shift+Arrow selection stuck at this noneditable block.
+            if (
+              view.composing ||
+              event.isComposing ||
+              event.altKey ||
+              event.ctrlKey ||
+              event.metaKey ||
+              !['ArrowLeft', 'ArrowRight'].includes(event.key)
+            )
+              return false
+            const { selection } = view.state
+            if (!(selection instanceof TextSelection) || (!event.shiftKey && !selection.empty))
+              return false
+            const { $head } = selection
+            const backwards = event.key === 'ArrowLeft'
+            if (
+              $head.parent.type.name !== 'paragraph' ||
+              $head.parentOffset !== (backwards ? 0 : $head.parent.content.size)
+            )
+              return false
+            const boundary = backwards ? $head.before() : $head.after()
+            const adjacent = view.state.doc.resolve(boundary)
+            if ((backwards ? adjacent.nodeBefore : adjacent.nodeAfter)?.type.name !== 'paragraph')
+              return false
+            const head = boundary + (backwards ? -1 : 1)
+            view.dispatch(
+              view.state.tr
+                .setSelection(
+                  TextSelection.create(
+                    view.state.doc,
+                    event.shiftKey ? selection.anchor : head,
+                    head,
+                  ),
+                )
+                .scrollIntoView(),
+            )
+            return true
+          },
           handleTextInput(view, from, to, text) {
             if (view.composing || text !== ' ' || from !== to) return false
             const $from = view.state.doc.resolve(from)
