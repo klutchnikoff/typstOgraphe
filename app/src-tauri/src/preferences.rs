@@ -66,6 +66,12 @@ impl Preferences {
         }
         Ok(())
     }
+    fn remember_project(&mut self, path: &Path) {
+        let path = path.to_string_lossy().into_owned();
+        self.recent.retain(|previous| previous != &path);
+        self.recent.insert(0, path);
+        self.recent.truncate(12);
+    }
     pub fn save(&self, root: &Path) -> Result<(), String> {
         self.validate()?;
         std::fs::create_dir_all(root).map_err(|e| e.to_string())?;
@@ -100,10 +106,7 @@ pub fn root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 pub fn remember(app: &tauri::AppHandle, path: &Path) -> Result<(), String> {
     let root = root(app)?;
     let mut preferences = Preferences::load(&root)?;
-    let path = path.to_string_lossy().into_owned();
-    preferences.recent.retain(|previous| previous != &path);
-    preferences.recent.insert(0, path);
-    preferences.recent.truncate(12);
+    preferences.remember_project(path);
     preferences.save(&root)
 }
 #[tauri::command]
@@ -143,3 +146,8 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[path = "preferences_tests.rs"]
+mod preservation_tests;

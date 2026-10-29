@@ -74,3 +74,8 @@ pub fn count_text(text: String, selection: Option<String>) -> Value {
     );
     json!({"document":total,"selection":part,"label":label,"hint":hint})
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[path = "proofing_tests.rs"]
+mod tests;
