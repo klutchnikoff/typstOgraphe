@@ -6,6 +6,7 @@ import { actionRow, keyboardScope, navigationGroup } from './keyboard-navigation
 import { commandPalette } from './command-palette'
 import { searchPanel, navigateSearch } from './search-panel'
 import { preferencesPanel, type Preferences } from './preferences-panel'
+import { preferencesWriter } from './preferences-writer'
 import { tr } from './i18n'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import * as Y from 'yjs'
@@ -120,6 +121,13 @@ export async function mountShell(s: Shell) {
     editor_fraction: 0.5,
     spelling_enabled: true,
   }))) as Preferences
+  const writePreferences = preferencesWriter(transport)
+  async function persistPreferences(next: Preferences = preferences) {
+    // Other producers (width, recent projects, dictionary) must see the new settings
+    // while their disk write is pending, rather than composing a stale snapshot.
+    preferences = next
+    await writePreferences(next)
+  }
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T
   document.querySelector('.badge')?.remove()
   $('rust-experiment').hidden = !s.diagnostic
@@ -364,7 +372,7 @@ export async function mountShell(s: Shell) {
   }
   async function remember(file: string) {
     preferences.recent = [file, ...preferences.recent.filter((p) => p !== file)].slice(0, 12)
-    await transport.invoke('preferences_save', { preferences })
+    await persistPreferences()
   }
   async function open(file?: string) {
     const selected = file || (await transport.invoke<string | null>('choose_file', { save: false }))
@@ -662,8 +670,7 @@ export async function mountShell(s: Shell) {
       preferences,
       transport,
       async (next) => {
-        await transport.invoke('preferences_save', { preferences: next })
-        preferences = next
+        await persistPreferences(next)
         applyPreferences()
         s.message(tr('Préférences enregistrées. Les documents existants conservent leurs données.'))
       },
@@ -751,7 +758,7 @@ export async function mountShell(s: Shell) {
   add('spelling.toggle', tr('Activer / désactiver la correction orthographique'), () =>
     guarded(async () => {
       preferences.spelling_enabled = preferences.spelling_enabled === false
-      await transport.invoke('preferences_save', { preferences })
+      await persistPreferences()
       applyPreferences()
     }),
   )
@@ -776,7 +783,7 @@ export async function mountShell(s: Shell) {
     const fraction = (event as CustomEvent<number>).detail / 100
     if (preferences.editor_fraction === fraction) return
     preferences.editor_fraction = fraction
-    guarded(() => transport.invoke('preferences_save', { preferences }))
+    guarded(() => persistPreferences())
   })
   add('ui.peer', tr('Deuxième fenêtre'), () => guarded(() => transport.invoke('open_peer')))
   add('ui.connection', tr('Connexion / déconnexion'), () =>
@@ -1011,7 +1018,7 @@ export async function mountShell(s: Shell) {
       preferences.personal[language] = [
         ...new Set([...(preferences.personal[language] || []), word]),
       ]
-      await transport.invoke('preferences_save', { preferences })
+      await persistPreferences()
     },
     s.message,
   )
