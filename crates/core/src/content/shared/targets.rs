@@ -26,7 +26,11 @@ pub(in crate::content) fn element<T: ReadTxn>(
     for child in root.children(tx) {
         // One Y.XmlText can project to several styled text nodes. Paths name the
         // public tree, not physical XML child indices or byte offsets.
-        let width = super::projection::xml(std::iter::once(child.clone()), tx, 1, &mut 0)?.len();
+        let width = if matches!(child, XmlOut::Element(_)) {
+            1
+        } else {
+            super::projection::xml(std::iter::once(child.clone()), tx, 1, &mut 0)?.len()
+        };
         if *index < count + width {
             let XmlOut::Element(value) = child else {
                 return Err(invalid(TargetReason::NotTextZone));

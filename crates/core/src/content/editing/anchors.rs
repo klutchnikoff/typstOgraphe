@@ -94,10 +94,15 @@ pub(super) fn path<T: ReadTxn>(
 ) -> Option<Vec<usize>> {
     let mut index = 0;
     for child in root.children(tx) {
-        let width =
+        // Elements always project to one node. Do not project every preceding
+        // subtree (including its text/attributes) just to address a cursor.
+        let width = if matches!(child, XmlOut::Element(_)) {
+            1
+        } else {
             crate::content::shared::projection::xml(std::iter::once(child.clone()), tx, 1, &mut 0)
                 .ok()?
-                .len();
+                .len()
+        };
         if let XmlOut::Element(element) = child {
             if branch_id(&element) == *id {
                 return Some(vec![index]);
