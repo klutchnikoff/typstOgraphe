@@ -94,4 +94,5 @@ pub fn check_params(id: &str, params: &Value) -> Result<(), CommandError> {
         .map_err(|_| content_error(invalid(id)))
 }
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;

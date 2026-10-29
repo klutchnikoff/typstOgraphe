@@ -290,6 +290,7 @@ pub fn resources(metadata: &crate::document_types::Metadata) -> BTreeMap<String,
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::{

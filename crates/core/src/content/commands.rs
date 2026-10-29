@@ -340,6 +340,7 @@ pub struct ZoneInfo {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     #[test]
     fn advertised_identifiers_match_the_actual_deserializable_schema() {

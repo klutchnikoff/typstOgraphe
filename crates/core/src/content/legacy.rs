@@ -122,6 +122,7 @@ pub fn import(source: &str) -> Result<Node, String> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     #[test]

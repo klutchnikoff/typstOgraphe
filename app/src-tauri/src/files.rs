@@ -334,6 +334,7 @@ pub(crate) fn read_project(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use std::io::{Read, Write};

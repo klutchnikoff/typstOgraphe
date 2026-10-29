@@ -5,6 +5,7 @@ mod anchors;
 mod selection;
 pub use selection::{Selection, TextPoint};
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
 use super::{
     commands::{Command, Style, Switch, TextTarget},

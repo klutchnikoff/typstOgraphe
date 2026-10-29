@@ -307,6 +307,7 @@ impl Archive {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     fn fixture() -> Archive {

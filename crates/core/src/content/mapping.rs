@@ -122,6 +122,7 @@ pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, Source
     ))
 }
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     #[test]

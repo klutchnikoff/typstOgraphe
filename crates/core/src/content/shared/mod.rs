@@ -1,5 +1,6 @@
 //! Yjs-compatible state owned by Rust. Shared types never cross this boundary.
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod command_tests;
 pub(super) mod commands;
 mod normalization;
@@ -10,15 +11,19 @@ mod resources;
 mod seed;
 mod settings;
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod settings_tests;
 pub(super) mod structure;
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod structure_tests;
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod table_tests;
 mod tables;
 pub(super) mod targets;
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
 mod whitespace;
 

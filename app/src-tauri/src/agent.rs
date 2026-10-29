@@ -556,4 +556,5 @@ pub fn serve(path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;

@@ -54,6 +54,7 @@ pub fn commit(session: &mut Session, peer: &str, request: Request) -> Result<Pub
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use typstographe_core::content::{

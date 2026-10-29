@@ -3,9 +3,11 @@ pub mod catalogue;
 mod host;
 mod resources;
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod root_tests;
 pub(crate) mod roots;
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
 pub mod types;
 pub mod validation;

@@ -384,6 +384,7 @@ pub(super) fn schema() -> serde_json::Value {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::{

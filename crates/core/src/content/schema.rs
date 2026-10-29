@@ -346,6 +346,7 @@ pub(super) fn inline(nodes: &[Node], mapped: bool) -> Result<String, String> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     fn node(value: Value) -> Node {
