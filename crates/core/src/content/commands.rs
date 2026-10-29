@@ -3,7 +3,7 @@ use super::{Node, contract::Error};
 use crate::document_types::MetadataField;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
 
 /// Paths use projected child indices in the guarded revision, never Yjs identifiers.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -319,12 +319,6 @@ pub const IDS: &[&str] = &[
 /// Generated from the same types accepted by execution; no parallel parameter vocabulary.
 pub fn schema() -> Value {
     serde_json::to_value(schemars::schema_for!(Command)).expect("command schema")
-}
-pub fn specifications() -> Value {
-    json!({"version": super::contract::VERSION, "ids": IDS, "command_schema": schema(),
-        "target_offsets":"utf16", "execution":"guarded_atomic_batch",
-        "adapters_migrated":true,
-        "scope":"Multizone text, blocks, inline objects, header records, immutable image resources, document options, signatures and Typst models. Inserted marks are explicit. Tauri commands and participant history use the shared owner; CLI and MCP use this same owner through content::api."})
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Availability {

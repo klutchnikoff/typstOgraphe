@@ -428,7 +428,7 @@ fn split(doc: &Doc, state: &State, target: &TextTarget) -> Result<(), Error> {
     let mut remaining = target.from;
     let mut suffix = Vec::new();
     for mut inline in node.content {
-        let len = super::super::operations::inline_len(&inline) as u32;
+        let len = inline.inline_len() as u32;
         if remaining >= len {
             remaining -= len;
             continue;

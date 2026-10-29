@@ -9,7 +9,6 @@ pub mod editorial;
 pub mod legacy;
 mod mapping;
 pub use mapping::source_mapped;
-pub mod operations;
 mod schema;
 pub mod shared;
 pub mod tables;

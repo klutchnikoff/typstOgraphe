@@ -12,11 +12,10 @@ pub struct Capability {
     pub node: Option<&'static str>,
     pub mark: Option<&'static str>,
     pub letter_only: bool,
-    pub legacy: bool,
     pub description: &'static str,
 }
 macro_rules! capability {
-    ($id:literal,$label:literal,$icon:literal,$group:literal,$node:expr,$mark:expr,$letter:expr,$legacy:expr,$description:literal) => {
+    ($id:literal,$label:literal,$icon:literal,$group:literal,$node:expr,$mark:expr,$letter:expr,$description:literal) => {
         Capability {
             id: $id,
             label_key: $label,
@@ -25,7 +24,6 @@ macro_rules! capability {
             node: $node,
             mark: $mark,
             letter_only: $letter,
-            legacy: $legacy,
             description: $description,
         }
     };
@@ -39,7 +37,6 @@ pub const ALL: &[Capability] = &[
         Some("paragraph"),
         None,
         false,
-        true,
         "Ordinary prose. A soft return stays inside the paragraph; two returns create a paragraph."
     ),
     capability!(
@@ -50,7 +47,6 @@ pub const ALL: &[Capability] = &[
         Some("heading"),
         None,
         false,
-        true,
         "Level-one heading; final presentation belongs to the Typst model."
     ),
     capability!(
@@ -61,7 +57,6 @@ pub const ALL: &[Capability] = &[
         Some("heading"),
         None,
         false,
-        true,
         "Level-two heading."
     ),
     capability!(
@@ -72,7 +67,6 @@ pub const ALL: &[Capability] = &[
         Some("heading"),
         None,
         false,
-        true,
         "Level-three heading."
     ),
     capability!(
@@ -83,7 +77,6 @@ pub const ALL: &[Capability] = &[
         None,
         Some("bold"),
         false,
-        true,
         "Bold selection or subsequent typing. Disable explicitly to stop subsequent bold text."
     ),
     capability!(
@@ -94,7 +87,6 @@ pub const ALL: &[Capability] = &[
         None,
         Some("italic"),
         false,
-        true,
         "Emphasize selection or subsequent typing. Disable explicitly to stop subsequent emphasis."
     ),
     capability!(
@@ -105,7 +97,6 @@ pub const ALL: &[Capability] = &[
         None,
         Some("link"),
         false,
-        true,
         "Editable label and http, https or mailto URL. Never fetch the URL."
     ),
     capability!(
@@ -116,7 +107,6 @@ pub const ALL: &[Capability] = &[
         Some("bulletList"),
         None,
         false,
-        true,
         "Unordered list. The model chooses the marker; initially no nesting."
     ),
     capability!(
@@ -127,7 +117,6 @@ pub const ALL: &[Capability] = &[
         Some("orderedList"),
         None,
         false,
-        true,
         "Ordered list with optional initial number; initially no nesting."
     ),
     capability!(
@@ -138,7 +127,6 @@ pub const ALL: &[Capability] = &[
         Some("descriptionList"),
         None,
         false,
-        true,
         "Term and definition zones; Tab moves to the definition."
     ),
     capability!(
@@ -149,7 +137,6 @@ pub const ALL: &[Capability] = &[
         Some("quote"),
         None,
         false,
-        true,
         "Block quote with optional editable attribution; final appearance belongs to the model."
     ),
     capability!(
@@ -160,7 +147,6 @@ pub const ALL: &[Capability] = &[
         Some("figure"),
         None,
         false,
-        true,
         "Internal image, optional editable caption and alternative text. No external URL is loaded."
     ),
     capability!(
@@ -170,7 +156,6 @@ pub const ALL: &[Capability] = &[
         "insert",
         Some("tableFigure"),
         None,
-        false,
         false,
         "Table figure with an optional rich caption, 1–12 columns and 1–100 rows. No merged cells; header row optional."
     ),
@@ -182,7 +167,6 @@ pub const ALL: &[Capability] = &[
         Some("citation"),
         None,
         false,
-        false,
         "Article-only bibliographic citation. Choose references from the published project metadata; items use file_id and key, with optional literal supplement. Rendering belongs to Typst and the model."
     ),
     capability!(
@@ -192,7 +176,6 @@ pub const ALL: &[Capability] = &[
         "insert",
         Some("footnote"),
         None,
-        false,
         false,
         "Inline reference with editable plain-text content; numbering and placement belong to Typst."
     ),
@@ -204,7 +187,6 @@ pub const ALL: &[Capability] = &[
         Some("postscript"),
         None,
         true,
-        true,
         "Postscript collected and rendered after the signature by the letter model."
     ),
     capability!(
@@ -214,7 +196,6 @@ pub const ALL: &[Capability] = &[
         "letter",
         Some("attachment"),
         None,
-        true,
         true,
         "Enclosure mention after the signature. Does not embed the mentioned file."
     ),
@@ -251,8 +232,6 @@ pub fn describe(id: &str) -> Option<Value> {
     let c = find(id)?;
     Some(
         json!({"capability":c,"parameters":parameters(id),"editor":editor(id),
-        "implementations":{"structured_web":true,"shared_core":super::commands::IDS.contains(&c.id),"legacy_engine":c.legacy,"legacy_mcp":c.legacy},
-        "shared_core_scope":super::commands::IDS.contains(&c.id).then_some("Explicit multizone ranges and block targets. See content::commands specifications for the executable schema; participant typing styles and production adapter migration remain pending."),
         "guidance":"Semantics are shared. Availability and execution are adapter-specific: documentation alone never grants execution. Models change presentation, not the capability contract."}),
     )
 }
@@ -318,13 +297,10 @@ mod tests {
             assert!(ids.insert(c.id));
             assert!(c.id.is_ascii());
             assert!(describe(c.id).is_some());
-            if c.legacy {
-                assert!(
-                    crate::engine::catalogue()
-                        .iter()
-                        .any(|spec| spec.id.as_str() == c.id)
-                );
-            }
+            assert_eq!(
+                crate::content::api::describe(c.id).unwrap()["capability"]["id"],
+                c.id
+            );
         }
         assert!(!for_type(DocumentType::CompteRendu).any(|c| c.letter_only));
         assert!(for_type(DocumentType::Courrier).any(|c| c.id == "insert.footnote"));
@@ -358,15 +334,16 @@ mod tests {
         assert_eq!(editor("block.bullet"), editor("block.numbered"));
         assert_eq!(editor("block.bullet"), editor("block.description"));
         assert_eq!(editor("block.quote"), json!({}));
-        let operations = crate::content::operations::specifications();
-        let link = operations
-            .iter()
-            .find(|entry| entry["id"] == "text.link")
-            .unwrap();
+        let link = crate::content::api::describe("text.link").unwrap();
         assert_eq!(
-            link["params_schema"]["properties"]["url"],
-            parameters("text.link")["properties"]["url"]
+            link["params_schema"]["properties"]["url"]["type"],
+            parameters("text.link")["properties"]["url"]["type"]
         );
-        assert_eq!(link["params_schema"]["required"], json!(["url"]));
+        assert!(
+            link["params_schema"]["required"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("url"))
+        );
     }
 }

@@ -27,6 +27,14 @@ pub struct Mark {
 }
 
 impl Node {
+    /// Text offsets use UTF-16; an inline object or a line break occupies one unit.
+    pub(crate) fn inline_len(&self) -> usize {
+        match self.kind.as_str() {
+            "text" => self.text.as_deref().unwrap_or("").encode_utf16().count(),
+            "softBreak" | "hardBreak" | "footnote" | "citation" => 1,
+            _ => self.content.iter().map(Self::inline_len).sum(),
+        }
+    }
     fn string(&self, key: &str) -> Result<&str, String> {
         self.attrs
             .as_ref()

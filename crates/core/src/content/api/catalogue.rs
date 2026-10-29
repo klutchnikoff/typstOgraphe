@@ -265,10 +265,6 @@ pub fn describe(id: &str) -> Option<Value> {
         .find(|s| s["id"] == id)
         .cloned()
         .or_else(|| capabilities::describe(id))?;
-    // Semantic editor hints may still describe the archived flat implementation.
-    // Execution here is defined only by the current schemas and documentary examples.
-    value.as_object_mut()?.remove("implementations");
-    value.as_object_mut()?.remove("shared_core_scope");
     value["examples"] = json!(super::examples::for_id(id));
     if capabilities::find(id).is_some() {
         value["capability"] = json!(capabilities::find(id).unwrap());

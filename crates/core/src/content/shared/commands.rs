@@ -234,7 +234,7 @@ fn replace(
         let mut selected = String::new();
         let mut same = true;
         for node in super::projection::xml(parent.children(&tx), &tx, 1, &mut 0)? {
-            let len = super::super::operations::inline_len(&node) as u32;
+            let len = node.inline_len() as u32;
             let a = target.from.max(offset);
             let b = target.to.min(offset + len);
             if a < b {
