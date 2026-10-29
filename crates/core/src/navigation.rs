@@ -72,15 +72,6 @@ impl RenderSync {
         }
     }
 
-    pub fn page_count(&self) -> usize {
-        self.frames.len()
-    }
-
-    pub fn page_size(&self, page: usize) -> Option<[f32; 2]> {
-        let size = self.frames.get(page)?.size();
-        Some([size.x.to_pt() as f32, size.y.to_pt() as f32])
-    }
-
     pub fn forward(&self, character: usize) -> Option<PagePoint> {
         let byte = self.map.to_source(character);
         let anchor = self.anchors.iter().min_by_key(|anchor| {
@@ -110,16 +101,6 @@ impl RenderSync {
             }
             _ => None,
         }
-    }
-
-    pub fn selection_highlights(&self, characters: Range<usize>) -> Vec<SelectionHighlight> {
-        let start = characters.start.min(self.map.characters.len());
-        let end = characters.end.min(self.map.characters.len());
-        if start >= end {
-            return Vec::new();
-        }
-        let source = self.map.characters[start].start..self.map.characters[end - 1].end;
-        self.highlights_for_sources(&[source])
     }
 
     /// Carte structurée : les annotations peuvent précéder leur corps dans le source.

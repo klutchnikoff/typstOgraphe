@@ -100,21 +100,6 @@ impl Metadata {
         });
         result
     }
-    pub fn ensure_primary(&mut self) {
-        if self
-            .localizations
-            .iter()
-            .any(|l| l.language == self.options.language)
-        {
-            return;
-        }
-        let mut id = format!("localization-{}", self.options.language.code());
-        while self.localizations.iter().any(|l| l.id == id) {
-            id.push('-');
-        }
-        self.localizations
-            .push(Localization::blank(self.options.language, id));
-    }
     pub fn validate(&self) -> Result<(), String> {
         crate::bibliography::index(&self.references)?;
         if !["chicago-author-date", "apa", "ieee"].contains(&self.citation_style.as_str()) {
@@ -244,37 +229,6 @@ impl Metadata {
             editor_id: parameter,
         })
         .collect()
-    }
-    pub fn set_field(
-        &mut self,
-        field: MetadataField,
-        value: serde_json::Value,
-    ) -> Result<(), String> {
-        let mut next = self.clone();
-        match field {
-            MetadataField::ArticleReferences => {
-                next.references = serde_json::from_value(value).map_err(|e| e.to_string())?
-            }
-            MetadataField::ArticleCitationStyle => {
-                next.citation_style = serde_json::from_value(value).map_err(|e| e.to_string())?
-            }
-            MetadataField::ArticleOutline => {
-                next.show_outline = serde_json::from_value(value).map_err(|e| e.to_string())?
-            }
-            MetadataField::ArticleAuthors => {
-                next.authors = serde_json::from_value(value).map_err(|e| e.to_string())?
-            }
-            MetadataField::ArticleAffiliations => {
-                next.affiliations = serde_json::from_value(value).map_err(|e| e.to_string())?
-            }
-            MetadataField::ArticleLocalizations => {
-                next.localizations = serde_json::from_value(value).map_err(|e| e.to_string())?
-            }
-            _ => return Err("Champ absent du type Article.".into()),
-        }
-        next.validate()?;
-        *self = next;
-        Ok(())
     }
     pub fn main_source(&self) -> String {
         fn strings(items: &[String]) -> String {
@@ -613,8 +567,7 @@ mod tests {
         assert!(meta.validate().is_err());
         meta = original;
         meta.options.language = DocumentLanguage::German;
-        meta.ensure_primary();
-        assert_eq!(meta.localizations.len(), 3);
+        assert_eq!(meta.localizations.len(), 2);
         assert!(!meta.ready_for_export());
         assert!(!meta.localizations[0].title.is_empty());
         assert!(

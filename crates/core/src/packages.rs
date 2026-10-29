@@ -173,21 +173,6 @@ pub fn for_template(template: &str) -> Dependencies {
     select(references(template).iter().map(String::as_str)).1
 }
 
-/// Conserver les exemplaires du document lors de l’import d’un modèle dérivé.
-pub fn with_existing(template: &str, existing: &Dependencies) -> Dependencies {
-    let mut files = for_template(template);
-    if !files.is_empty() && !existing.is_empty() {
-        for (name, data) in Arc::make_mut(&mut files) {
-            if name != INVENTORY
-                && let Some(saved) = existing.get(name)
-            {
-                *data = saved.clone();
-            }
-        }
-    }
-    files
-}
-
 pub fn validate(template: &str, files: &Dependencies) -> Result<(), CoreError> {
     for (name, data) in files.iter() {
         if !valid_path(name) {

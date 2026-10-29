@@ -437,13 +437,10 @@ mod tests {
         );
 
         let mut changed = Archive::read(&path).unwrap();
-        changed
-            .metadata
-            .set_field_value(
-                crate::document_types::MetadataField::RecipientName,
-                serde_json::json!("Another recipient"),
-            )
-            .unwrap();
+        let crate::document_types::Metadata::Courrier(metadata) = &mut changed.metadata else {
+            unreachable!()
+        };
+        metadata.destinataire = "Another recipient".into();
         assert!(
             changed
                 .save(&mut lease)

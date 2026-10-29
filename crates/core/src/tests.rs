@@ -174,3 +174,50 @@ fn literal_metadata_and_structured_body_cannot_execute_typst_markup() {
     assert!(pdf.starts_with(b"%PDF-"));
     assert!(!document.pages().is_empty());
 }
+
+#[test]
+fn compilation_respects_fixed_allowed_and_custom_model_bullet_policies() {
+    use crate::errors::{CoreError, TemplateError};
+    let mut world = crate::rendering::TypstWorld::default();
+    let mut metadata = Metadata::demo(DocumentType::Courrier);
+    let fixed = "#let courrier(..args,body) = body";
+    metadata.options_mut().bullet_marker = Some("—".into());
+    assert!(matches!(
+        world.compile_with_template("Texte", &metadata, fixed),
+        Err(CoreError::TemplateError(
+            TemplateError::BulletMarkerNotAllowed
+        ))
+    ));
+    let allowed = format!(
+        "#let editor-options = (bullet-markers: (\"—\",), custom-bullet-marker: false)\n{fixed}"
+    );
+    assert!(
+        world
+            .compile_with_template("Texte", &metadata, &allowed)
+            .is_ok()
+    );
+    metadata.options_mut().bullet_marker = Some("•".into());
+    assert!(
+        world
+            .compile_with_template("Texte", &metadata, &allowed)
+            .is_err()
+    );
+    let custom = format!("#let editor-options = (custom-bullet-marker: true)\n{fixed}");
+    assert!(
+        world
+            .compile_with_template("Texte", &metadata, &custom)
+            .is_ok()
+    );
+    metadata.options_mut().bullet_marker = Some("\n".into());
+    assert!(
+        world
+            .compile_with_template("Texte", &metadata, &custom)
+            .is_err()
+    );
+    metadata.options_mut().bullet_marker = None;
+    assert!(
+        world
+            .compile_with_template("Texte", &metadata, fixed)
+            .is_ok()
+    );
+}

@@ -36,50 +36,6 @@ pub enum ImageError {
     Io(String),
 }
 
-#[derive(Clone, Debug)]
-pub struct ImageData {
-    pub extension: String,
-    pub data: Arc<[u8]>,
-}
-impl ImageData {
-    pub fn read(path: &std::path::Path) -> Result<Self, ImageError> {
-        use std::io::Read;
-        let extension = path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("")
-            .to_ascii_lowercase();
-        let extension = if extension == "jpeg" {
-            "jpg".into()
-        } else {
-            extension
-        };
-        let mut data = Vec::new();
-        std::fs::File::open(path)
-            .map_err(|e| ImageError::Io(e.to_string()))?
-            .take(MAX_IMAGE_BYTES as u64 + 1)
-            .read_to_end(&mut data)
-            .map_err(|e| ImageError::Io(e.to_string()))?;
-        decode(&data, &extension)?;
-        Ok(Self {
-            extension,
-            data: data.into(),
-        })
-    }
-    /// Ne remplace aucune ancienne ressource : les instantanés d'annulation la gardent.
-    pub fn insert(&self, assets: &mut Assets, stem: &str) -> String {
-        let mut number = 1;
-        loop {
-            let path = format!("images/{stem}-{number}.{}", self.extension);
-            if !assets.contains_key(&path) {
-                assets.insert(path.clone(), self.data.clone());
-                return path;
-            }
-            number += 1;
-        }
-    }
-}
-
 pub fn valid_path(path: &str) -> bool {
     let Some(name) = path.strip_prefix("images/") else {
         return false;

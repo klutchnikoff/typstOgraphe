@@ -123,3 +123,97 @@ fn write(path: &Path, name: &str, data: &[u8]) -> Result<(), CoreError> {
         })
     })
 }
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod tests {
+    use super::*;
+    use crate::{
+        assets::Assets,
+        content::Node,
+        document_types::{DocumentType, Metadata},
+        rendering::TypstWorld,
+    };
+    use serde_json::json;
+
+    #[test]
+    fn formats_keep_their_requested_files_and_existing_destinations_are_untouched() {
+        let root = tempfile::tempdir().unwrap();
+        let assets = Assets::from([(
+            "images/figure.svg".into(),
+            include_bytes!("../../../fixtures/parc.svg")
+                .as_slice()
+                .into(),
+        )]);
+        let node: Node = serde_json::from_value(json!({"type":"doc","content":[
+            {"type":"figure","attrs":{"src":"images/figure.svg","alt":"Parc arboré"},"content":[{"type":"text","text":"Le parc."}]}
+        ]})).unwrap();
+        let metadata = Metadata::demo(DocumentType::Courrier);
+        let template = DocumentType::Courrier.default_model();
+        let dependencies = crate::packages::for_template(&template);
+        let source = crate::content::source(&node, &assets).unwrap();
+        let mut world = TypstWorld::default();
+        world.set_assets(&assets);
+        world.set_dependencies(&dependencies);
+        let document = world
+            .compile_with_template(&source, &metadata, &template)
+            .unwrap();
+        let request = RenderRequest {
+            source,
+            metadata,
+            template,
+            dependencies,
+            assets,
+        };
+        for (name, format, pdf, sources) in [
+            ("pdf", ExportFormat::Pdf, true, false),
+            ("typst", ExportFormat::Typst, false, true),
+            ("both", ExportFormat::Both, true, true),
+        ] {
+            let path = root.path().join(name);
+            write_document(&document, &request, &path, format, false).unwrap();
+            assert_eq!(path.join("courrier.pdf").exists(), pdf);
+            assert_eq!(path.join("main.typ").exists(), sources);
+            assert_eq!(path.join("images/figure.svg").exists(), sources);
+            if sources {
+                assert_eq!(
+                    std::fs::read(path.join("images/figure.svg")).unwrap(),
+                    request.assets["images/figure.svg"].as_ref()
+                );
+                let mut reopened = TypstWorld::default();
+                reopened.set_assets(&request.assets);
+                reopened.set_dependencies(&request.dependencies);
+                assert!(
+                    reopened
+                        .compile_with_template(
+                            &std::fs::read_to_string(path.join("contenu.typ")).unwrap(),
+                            &request.metadata,
+                            &std::fs::read_to_string(path.join("modele.typ")).unwrap()
+                        )
+                        .is_ok()
+                );
+            }
+            let sentinel = path.join("work-in-progress.txt");
+            std::fs::write(&sentinel, "Ne pas remplacer.").unwrap();
+            assert!(write_document(&document, &request, &path, format, false).is_err());
+            assert_eq!(
+                std::fs::read_to_string(&sentinel).unwrap(),
+                "Ne pas remplacer."
+            );
+        }
+        let file = root.path().join("existing-file");
+        std::fs::write(&file, "Conserver.").unwrap();
+        assert!(write_document(&document, &request, &file, ExportFormat::Both, false).is_err());
+        assert_eq!(std::fs::read_to_string(file).unwrap(), "Conserver.");
+        assert!(check_directory(Path::new("")).is_err());
+        #[cfg(unix)]
+        {
+            let target = root.path().join("untouched");
+            std::fs::create_dir(&target).unwrap();
+            let link = root.path().join("link");
+            std::os::unix::fs::symlink(&target, &link).unwrap();
+            assert!(write_document(&document, &request, &link, ExportFormat::Both, false).is_err());
+            assert_eq!(std::fs::read_dir(target).unwrap().count(), 0);
+        }
+    }
+}

@@ -87,13 +87,3 @@ pub(super) fn values<T>(metadata: &T, fields: &[super::TextField<T>]) -> Vec<Fie
         })
         .collect()
 }
-pub(super) fn value_mut<'a, T>(
-    metadata: &'a mut T,
-    fields: &[super::TextField<T>],
-    field: MetadataField,
-) -> Option<&'a mut String> {
-    fields
-        .iter()
-        .find(|f| f.field == field)
-        .map(|f| (f.get_mut)(metadata))
-}

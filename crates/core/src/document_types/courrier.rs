@@ -80,7 +80,6 @@ macro_rules! field {
             kind: FieldKind::Text,
             required_for_export: $required,
             get: |m: &Metadata| &m.$name,
-            get_mut: |m: &mut Metadata| &mut m.$name,
         }
     };
 }
@@ -534,7 +533,9 @@ mod tests {
             let DocumentMetadata::Courrier(fields) = &mut metadata else {
                 unreachable!()
             };
-            (field.get_mut)(fields).push_str(" é\\#");
+            let mut values = serde_json::to_value(&*fields).unwrap();
+            values[field.parameter] = serde_json::json!(format!("{} é\\#", (field.get)(fields)));
+            *fields = serde_json::from_value(values).unwrap();
             let value = (field.get)(fields);
             assert!(CONTRACT.main_source(fields).contains(&format!(
                 "  {}: {},",

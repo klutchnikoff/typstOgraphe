@@ -116,13 +116,6 @@ impl Metadata {
             Self::CompteRendu(meta) => compte_rendu::CONTRACT.main_source(meta),
         }
     }
-    pub fn model_signature(&self) -> String {
-        match self {
-            Self::Article(_) => article::SIGNATURE.into(),
-            Self::Courrier(_) => courrier::CONTRACT.signature(),
-            Self::CompteRendu(_) => compte_rendu::CONTRACT.signature(),
-        }
-    }
     pub fn editor_groups(&self) -> &'static [FieldGroup] {
         match self {
             Self::Article(_) => article::GROUPS,
@@ -137,13 +130,6 @@ impl Metadata {
             Self::CompteRendu(meta) => fields::values(meta, compte_rendu::FIELDS),
         }
     }
-    pub fn field_mut(&mut self, field: MetadataField) -> Option<&mut String> {
-        match self {
-            Self::Article(_) => None,
-            Self::Courrier(meta) => fields::value_mut(meta, courrier::FIELDS, field),
-            Self::CompteRendu(meta) => fields::value_mut(meta, compte_rendu::FIELDS, field),
-        }
-    }
     pub fn ready_for_export(&self) -> bool {
         match self {
             Self::Article(meta) => meta.ready_for_export(),
@@ -155,54 +141,10 @@ impl Metadata {
                 .all(|field| !field.required_for_export || !(field.get)(meta).trim().is_empty()),
         }
     }
-    /// Missing editorial data is a draft warning, separate from structural validity.
-    pub fn missing_export_fields(&self) -> Vec<MetadataField> {
-        if let Self::Article(meta) = self {
-            let mut fields = Vec::new();
-            if !meta
-                .localizations
-                .iter()
-                .any(|l| l.language == meta.options.language && !l.title.is_empty())
-            {
-                fields.push(MetadataField::ArticleLocalizations);
-            }
-            if meta.authors.iter().any(|a| a.name.trim().is_empty()) {
-                fields.push(MetadataField::ArticleAuthors);
-            }
-            if meta.affiliations.iter().any(|a| a.text.trim().is_empty()) {
-                fields.push(MetadataField::ArticleAffiliations);
-            }
-            return fields;
-        }
-        self.field_values()
-            .into_iter()
-            .filter(|f| {
-                f.required_for_export && f.value.as_str().is_none_or(|s| s.trim().is_empty())
-            })
-            .map(|f| f.field)
-            .collect()
-    }
     pub fn validate(&self) -> Result<(), String> {
         if let Self::Article(meta) = self {
             meta.validate()?;
         }
-        Ok(())
-    }
-    pub fn ensure_primary(&mut self) {
-        if let Self::Article(meta) = self {
-            meta.ensure_primary();
-        }
-    }
-    pub fn set_field_value(
-        &mut self,
-        field: MetadataField,
-        value: serde_json::Value,
-    ) -> Result<(), String> {
-        if let Self::Article(meta) = self {
-            return meta.set_field(field, value);
-        }
-        *self.field_mut(field).ok_or("Champ absent du type.")? =
-            value.as_str().ok_or("Valeur texte attendue.")?.into();
         Ok(())
     }
     #[cfg(test)]
@@ -261,7 +203,6 @@ pub struct TextField<T: 'static> {
     pub kind: FieldKind,
     pub required_for_export: bool,
     pub get: fn(&T) -> &str,
-    pub get_mut: fn(&mut T) -> &mut String,
 }
 
 /// Contrat de la fonction de composition : champs nommés, options communes,
@@ -289,14 +230,6 @@ impl ModelPresentation {
     }
 }
 impl<T> ModelContract<T> {
-    pub fn signature(&self) -> String {
-        let mut parameters: Vec<_> = self.fields.iter().map(|field| field.parameter).collect();
-        if self.signature_image.is_some() {
-            parameters.push("signature");
-        }
-        parameters.extend(["options", "body"]);
-        format!("{}({})", self.function, parameters.join(", "))
-    }
     pub fn main_source(&self, metadata: &T) -> String {
         let name = self.function;
         let mut source = format!("#import \"modele.typ\": {name}\n#show: {name}.with(\n");

@@ -38,7 +38,6 @@ macro_rules! field {
             kind: FieldKind::Text,
             required_for_export: $required,
             get: |m: &Metadata| &m.$name,
-            get_mut: |m: &mut Metadata| &mut m.$name,
         }
     };
 }
