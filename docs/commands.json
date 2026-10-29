@@ -7651,7 +7651,7 @@
     },
     {
       "batch_step": false,
-      "description": "Read only this participant's private selection, typing styles and history.",
+      "description": "Read this participant's private selection, typing styles, history and selection-level capability availability. Form parameters and adapter permissions still require execution validation.",
       "family": "query",
       "id": "context.get",
       "params_schema": {

@@ -30,7 +30,7 @@ Resource data is base64 in `resource.add`; models use their pure Typst source in
 | `capabilities.describe` | query | Describe an operation with its actual parameter schema. |
 | `commands.available` | query | Check a concrete command through the same resolver and final validation as execution. |
 | `commands.list` | query | Discover the common structured command and query catalogue. |
-| `context.get` | query | Read only this participant's private selection, typing styles and history. |
+| `context.get` | query | Read this participant's private selection, typing styles, history and selection-level capability availability. Form parameters and adapter permissions still require execution validation. |
 | `context.insert` | session | Insert literal prose at this participant's single-zone selection using its typing styles. For explicit edits use text.insert with target and marks. |
 | `context.set` | session | Atomically set private directed selection and typing styles; never edit content, move another participant's focus or create history. |
 | `context.style` | session | Switch a private typing style on/off; stopping it does not alter already written text. |

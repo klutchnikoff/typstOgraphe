@@ -4,7 +4,7 @@ Ce lot ajoute `content::editing::EditingSession` au cœur Rust. Il complète les
 [commandes communes](structured-commands.md) et respecte le
 [contrat structuré](structured-contract.md). Il est exécuté dans les recettes
 Rust et Rust ↔ Yjs/Tiptap, puis raccordé au relais de frappe et à l’historique de
-l’application Tauri. La migration CLI/MCP autonome reste à faire.
+l’application Tauri et aux adaptateurs CLI/MCP autonomes.
 
 ## Propriété des données
 
@@ -311,3 +311,30 @@ Les compositions sont simulées dans ces parcours automatisés ; la recette des
 claviers et IME physiques des trois systèmes reste manuelle. La conservation
 durable des contextes, le mode individuel allégé et les adaptateurs autonomes
 ne font pas partie de ce raccordement.
+
+
+## Disponibilité des interactions — 29 octobre 2026
+
+`ContextSnapshot.availability` associe chaque capacité publique à `enabled` et,
+si elle est indisponible, à une raison stable en anglais. Cette réponse est commune
+à Tauri, à `context.get` en CLI/MCP autonome et aux invitations MCP rattachées.
+Le catalogue expose la politique de cible dans `editor.availability`. Le calcul
+lit les nœuds concernés ; il ne clone pas Yrs, ne compile pas Typst, ne publie rien
+et ne crée pas d’étape d’historique. Tauri réutilise la réponse de contexte et sa
+garde causale existantes, sans nouvelle requête lors des déplacements du curseur.
+
+Cette disponibilité concerne **l’interaction dans la sélection** : par exemple,
+activer un style de frappe au curseur ou ouvrir la saisie des paramètres d’une
+image. Elle ne valide pas les paramètres encore absents d’un formulaire.
+`commands.available` conserve son sens : vérifier une commande documentaire
+complète par la même préparation que son exécution. Un gras au curseur peut donc
+être disponible comme style de frappe, tandis que `text.bold` exige une plage
+non vide. Aucun résultat ne dispense de la garde ni des permissions de
+l’adaptateur ; les propositions MCP rattachées restent limitées à leur périmètre.
+
+Les contrôles web donnent immédiatement un retour à partir de la politique du
+catalogue et de la projection locale. Une réponse native ne les affine que si
+elle correspond au document, à la révision, à la sélection et à la zone active,
+après confirmation des éditions locales. Une réponse périmée ne peut pas
+réactiver une commande. La composition IME, le verrou temporaire d’édition,
+le brouillon refusé et la déconnexion relèvent des contraintes de l’interface.
