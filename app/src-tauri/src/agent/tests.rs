@@ -547,3 +547,119 @@ fn notification_failure_keeps_the_accepted_work_recoverable_without_reapplying_t
 
 #[path = "workflow_tests.rs"]
 mod workflow_tests;
+#[test]
+fn attached_requests_stay_scoped_to_this_document_and_known_resources() {
+    let (_root, mut s, mut a) = fixture();
+    let rev = s.revision;
+    let mut foreign = json!({"document":reference(&s)});
+    foreign["document"]["id"] = json!("another-document");
+    assert_eq!(
+        dispatch(&mut s, &mut a, "document.inspect", &foreign),
+        Err("Foreign document reference".into())
+    );
+    let read = |uri: &str| json!({ "uri": uri });
+    let guide = dispatch(
+        &mut s,
+        &mut a,
+        "resource.read",
+        &read("typstographe://guide"),
+    )
+    .unwrap();
+    assert!(guide["outcome"]["instructions"].is_string());
+    let types = dispatch(
+        &mut s,
+        &mut a,
+        "resource.read",
+        &read("typstographe://types"),
+    )
+    .unwrap();
+    assert_eq!(types["outcome"], api::types());
+    for uri in [
+        "typstographe://commands",
+        "typstographe://content-capabilities",
+        "typstographe://document",
+        "typstographe://models",
+    ] {
+        dispatch(&mut s, &mut a, "resource.read", &read(uri)).unwrap();
+    }
+    assert_eq!(
+        dispatch(&mut s, &mut a, "resource.read", &read("file:///etc/passwd")),
+        Err("Unknown resource".into())
+    );
+    assert_eq!(
+        dispatch(
+            &mut s,
+            &mut a,
+            "resource.read",
+            &json!({"uri":"typstographe://guide","extra":1})
+        ),
+        Err("Expected resource URI".into())
+    );
+    let described = dispatch(
+        &mut s,
+        &mut a,
+        "document_types.describe",
+        &json!({"type":"article"}),
+    );
+    assert!(described.is_ok());
+    assert!(
+        dispatch(
+            &mut s,
+            &mut a,
+            "capabilities.describe",
+            &json!({"id":"text.insert"})
+        )
+        .is_ok()
+    );
+    assert!(
+        dispatch(
+            &mut s,
+            &mut a,
+            "capabilities.describe",
+            &json!({"id":"nothing.here"})
+        )
+        .is_err()
+    );
+    a.busy.insert("main".into());
+    let context = json!({"document":reference(&s),"selection":null});
+    assert!(dispatch(&mut s, &mut a, "context.set", &context).is_err());
+    a.busy.clear();
+    let kept = submit(&s, "kept", json!([insertion("x")]));
+    dispatch(&mut s, &mut a, "proposals.submit", &kept).unwrap();
+    s.generation = "replaced-document".into();
+    assert_eq!(
+        dispatch(&mut s, &mut a, "document.inspect", &json!({})),
+        Err("Document replaced; reconnect invitation".into())
+    );
+    assert_eq!(s.revision, rev);
+}
+#[test]
+fn the_invitation_listener_serves_only_while_its_token_is_current() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let agent = Arc::new(Mutex::new(AgentState {
+        token: Some("current".into()),
+        ..Default::default()
+    }));
+    let (served, received) = std::sync::mpsc::channel();
+    let loop_agent = agent.clone();
+    let worker = std::thread::spawn(move || {
+        accept_while_invited(&listener, &loop_agent, "current", |stream| {
+            served.send(stream.peer_addr().is_ok()).unwrap();
+        })
+    });
+    let _client = TcpStream::connect(address).unwrap();
+    let timeout = std::time::Duration::from_secs(5);
+    assert_eq!(received.recv_timeout(timeout), Ok(true));
+    agent.lock().unwrap().token = Some("replacement".into());
+    let deadline = std::time::Instant::now() + timeout;
+    while !worker.is_finished() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "a revoked listener kept accepting"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    worker.join().unwrap();
+    assert!(received.try_recv().is_err());
+}
