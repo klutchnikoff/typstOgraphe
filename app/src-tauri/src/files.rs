@@ -249,11 +249,13 @@ pub fn new_document(
     state: State<Bridge>,
     settings: Settings,
     revision: u64,
+    resources: Option<Vec<crate::session::Resource>>,
 ) -> Result<(), String> {
     create(
         &mut *state.session.lock().map_err(|e| e.to_string())?,
         settings,
         revision,
+        resources.unwrap_or_default(),
     )?;
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
     agent.token = None;
@@ -266,6 +268,7 @@ pub fn create(
     session: &mut crate::session::Session,
     settings: Settings,
     revision: u64,
+    resources: Vec<crate::session::Resource>,
 ) -> Result<(), String> {
     settings
         .validate()
@@ -273,11 +276,11 @@ pub fn create(
     session.lifecycle(revision)?;
     let mut assets = typstographe_core::assets::Assets::default();
     if let Some(signature) = settings.metadata.signature_path() {
-        let data = session
-            .assets
-            .get(signature)
+        let resource = resources
+            .iter()
+            .find(|r| r.path == signature)
             .ok_or("Signature absente des ressources.")?;
-        assets.insert(signature.into(), data.clone());
+        assets.insert(signature.into(), resource.decoded()?.into());
     }
     let document: typstographe_core::content::Node =
         serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph"}]}))

@@ -158,6 +158,12 @@ fn dispatch(
                 &mut *bridge.session.lock().map_err(|e| e.to_string())?,
                 settings,
                 revision,
+                serde_json::from_value(
+                    args.get("resources")
+                        .cloned()
+                        .unwrap_or(serde_json::json!([])),
+                )
+                .map_err(|e| e.to_string())?,
             )?;
             Ok(serde_json::Value::Null)
         }
@@ -216,16 +222,14 @@ fn dispatch(
         }
         "awareness" => Ok(serde_json::Value::Null),
         "prepare_rust_edit" => Ok(prepare_rust_edit()),
-        "import_image" => {
-            let data: Vec<u8> =
-                serde_json::from_value(args["data"].clone()).map_err(|e| e.to_string())?;
-            let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
-            serde_json::to_value(session.import(
-                args["extension"].as_str().ok_or("Extension absente.")?,
-                &data,
-            )?)
-            .map_err(|e| e.to_string())
-        }
+        "prepare_image" => serde_json::to_value(prepare_image(
+            args["extension"]
+                .as_str()
+                .ok_or("Missing extension")?
+                .into(),
+            args["data"].as_str().ok_or("Missing image data")?.into(),
+        )?)
+        .map_err(|e| e.to_string()),
         "preview_frame" => {
             use base64::Engine as _;
             let snapshot: Snapshot =

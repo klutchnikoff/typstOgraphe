@@ -150,4 +150,56 @@ mod tests {
         );
         assert_eq!(session.updates, confirmed);
     }
+    #[test]
+    fn prepared_images_stay_private_and_stale_commits_cannot_admit_them() {
+        use typstographe_core::content::commands::ImageResource;
+        let dir = tempfile::tempdir().unwrap();
+        let mut session = Session::fresh(dir.path().into());
+        session.join("main");
+        let mut request = request(&session);
+        session.updates.push(request.update.clone());
+        let resource =
+            ImageResource::prepare("svg", include_bytes!("../../../fixtures/parc.svg").to_vec())
+                .unwrap();
+        request.commands = vec![
+            Command::AddResource {
+                resource: resource.clone(),
+            },
+            Command::SetSignature {
+                path: Some(resource.path.clone()),
+            },
+        ];
+        assert_eq!(
+            prepare(&session, request.clone()).unwrap().resources,
+            vec![resource.clone()]
+        );
+        assert!(session.assets.is_empty());
+        let mut competitor = request.clone();
+        competitor.commands = vec![Command::SetField {
+            target: typstographe_core::content::commands::FieldTarget::Option {
+                name: typstographe_core::content::commands::OptionName::Paper,
+            },
+            value: serde_json::json!("a5"),
+        }];
+        commit(&mut session, "main", competitor).unwrap();
+        assert!(
+            commit(&mut session, "main", request.clone())
+                .unwrap_err()
+                .contains("stale_revision")
+        );
+        assert!(session.assets.is_empty());
+        request.revision = session.revision;
+        request.update = session.ensure_owner().unwrap().update_bytes();
+        commit(&mut session, "main", request).unwrap();
+        assert!(session.assets.contains_key(&resource.path));
+        session
+            .history("main", typstographe_core::content::editing::Direction::Undo)
+            .unwrap();
+        assert!(session.assets.contains_key(&resource.path));
+        let state = SharedDocument::from_updates(&session.updates)
+            .unwrap()
+            .state()
+            .unwrap();
+        assert!(state.settings.metadata.signature_path().is_none());
+    }
 }

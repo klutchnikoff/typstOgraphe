@@ -5,7 +5,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
-use tauri::{Manager, State};
+use tauri::Manager;
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Preferences {
@@ -107,37 +107,12 @@ pub fn remember(app: &tauri::AppHandle, path: &Path) -> Result<(), String> {
     preferences.save(&root)
 }
 #[tauri::command]
-pub fn preferences_load(
-    app: tauri::AppHandle,
-    state: State<crate::Bridge>,
-) -> Result<Preferences, String> {
-    let preferences = Preferences::load(&root(&app)?)?;
-    if let Some(signature) = &preferences.signature {
-        let bytes = signature.decoded()?;
-        state
-            .session
-            .lock()
-            .map_err(|e| e.to_string())?
-            .assets
-            .insert(signature.path.clone(), bytes.into());
-    }
-    Ok(preferences)
+pub fn preferences_load(app: tauri::AppHandle) -> Result<Preferences, String> {
+    Preferences::load(&root(&app)?)
 }
 #[tauri::command]
 pub fn preferences_save(app: tauri::AppHandle, preferences: Preferences) -> Result<(), String> {
     preferences.save(&root(&app)?)
-}
-#[tauri::command]
-pub fn profile_image(
-    state: State<crate::Bridge>,
-    extension: String,
-    data: Vec<u8>,
-) -> Result<Resource, String> {
-    state
-        .session
-        .lock()
-        .map_err(|e| e.to_string())?
-        .import(&extension, &data)
 }
 
 #[cfg(test)]

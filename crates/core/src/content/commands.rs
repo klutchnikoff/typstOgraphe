@@ -74,7 +74,24 @@ impl OptionName {
 #[serde(deny_unknown_fields)]
 pub struct ImageResource {
     pub path: String,
+    /// Base64 on the wire; decoded immutable bytes in the engine.
+    #[serde(with = "image_bytes")]
+    #[schemars(with = "String")]
     pub data: Vec<u8>,
+}
+mod image_bytes {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use serde::{Deserialize, Deserializer, Serializer};
+    pub fn serialize<S: Serializer>(data: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&STANDARD.encode(data))
+    }
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
+        let data = String::deserialize(deserializer)?;
+        if data.len() > crate::assets::MAX_IMAGE_BYTES.div_ceil(3) * 4 {
+            return Err(serde::de::Error::custom("image_too_large"));
+        }
+        STANDARD.decode(data).map_err(serde::de::Error::custom)
+    }
 }
 /// A body tree or one rich record field. No XML identifiers or global positions.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

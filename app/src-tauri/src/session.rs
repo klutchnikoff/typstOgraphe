@@ -1,7 +1,6 @@
 use crate::schema::{self, Node};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::{
     collections::HashSet,
     io::{Read, Write},
@@ -276,6 +275,14 @@ impl Session {
         })
     }
     pub fn record(&mut self, publication: &typstographe_core::content::shared::Publication) {
+        if let Some(owner) = &self.owner {
+            for resource in &publication.resources {
+                self.assets.insert(
+                    resource.path.clone(),
+                    owner.assets()[&resource.path].clone(),
+                );
+            }
+        }
         self.revision = publication.guard.revision;
         if publication.changed {
             self.bytes += publication.update.len();
@@ -387,34 +394,6 @@ impl Session {
                 data: STANDARD.encode(data),
             })
             .collect()
-    }
-    pub fn import(&mut self, extension: &str, data: &[u8]) -> Result<Resource, String> {
-        assets::decode(data, extension).map_err(|e| e.to_string())?;
-        let total: usize = self.assets.values().map(|data| data.len()).sum();
-        if total + data.len() > assets::MAX_DOCUMENT_BYTES as usize {
-            return Err("Limite des images atteinte.".into());
-        }
-        let extension = if extension == "jpeg" {
-            "jpg"
-        } else {
-            extension
-        };
-        let hash: String = Sha256::digest(data)
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect();
-        let path = format!("images/{}.{}", &hash[..24], extension);
-        if !assets::valid_path(&path) {
-            return Err("Extension invalide.".into());
-        }
-        self.assets.insert(path.clone(), data.to_vec().into());
-        if let Some(owner) = &mut self.owner {
-            owner.resources(self.assets.clone())?;
-        }
-        Ok(Resource {
-            path,
-            data: STANDARD.encode(data),
-        })
     }
     pub fn save(&self, snapshot: &Snapshot, update: Vec<u8>) -> Result<PathBuf, String> {
         let source = self.validate(snapshot)?;

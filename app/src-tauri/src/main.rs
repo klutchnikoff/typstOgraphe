@@ -1,4 +1,5 @@
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+use base64::Engine as _;
 mod agent;
 mod bibliography;
 mod catalogue;
@@ -17,7 +18,7 @@ mod shared_diagnostic;
 mod structured;
 
 use rendering::{Preview, Renderer};
-use session::{Bootstrap, Resource, Session, Snapshot};
+use session::{Bootstrap, Session, Snapshot};
 use std::{
     path::PathBuf,
     sync::{
@@ -147,6 +148,13 @@ fn commit_structured_commands(
         window.label(),
         request,
     )?;
+    for resource in &publication.resources {
+        app.emit(
+            "web-editor:asset",
+            serde_json::json!({"generation": publication.guard.document, "path": resource.path, "data": base64::engine::general_purpose::STANDARD.encode(&resource.data)}),
+        )
+        .map_err(|e| e.to_string())?;
+    }
     if publication.changed {
         app.emit(
             "web-editor:change",
@@ -356,21 +364,24 @@ async fn export_document(
     .await
     .map_err(|e| e.to_string())?
 }
-#[tauri::command]
-fn import_image(
-    app: tauri::AppHandle,
-    state: State<Bridge>,
+#[tauri::command(async)]
+fn prepare_image(
     extension: String,
-    data: Vec<u8>,
-) -> Result<Resource, String> {
-    let resource = state
-        .session
-        .lock()
-        .map_err(|e| e.to_string())?
-        .import(&extension, &data)?;
-    app.emit("web-editor:asset", &resource)
-        .map_err(|e| e.to_string())?;
-    Ok(resource)
+    data: String,
+) -> Result<typstographe_core::content::commands::ImageResource, String> {
+    use typstographe_core::{assets::MAX_IMAGE_BYTES, content::contract::Error};
+    if data.len() > MAX_IMAGE_BYTES.div_ceil(3) * 4 {
+        return Err(crate::owner::error(Error::StateLimitExceeded));
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|_| {
+            crate::owner::error(Error::InvalidParameters {
+                parameter: "data".into(),
+            })
+        })?;
+    typstographe_core::content::commands::ImageResource::prepare(&extension, bytes)
+        .map_err(crate::owner::error)
 }
 #[tauri::command]
 fn open_peer(app: tauri::AppHandle) -> Result<(), String> {
@@ -561,7 +572,6 @@ fn main() {
             recovery::recovery_discard,
             preferences::preferences_load,
             preferences::preferences_save,
-            preferences::profile_image,
             files::choose_file,
             files::choose_export_folder,
             files::export_editing_draft,
@@ -601,7 +611,7 @@ fn main() {
             preview_frame,
             save,
             export_document,
-            import_image,
+            prepare_image,
             open_peer,
             prepare_rust_edit,
             diagnostic_mode,

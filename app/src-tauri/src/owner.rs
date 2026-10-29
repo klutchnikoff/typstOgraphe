@@ -41,6 +41,9 @@ impl Owner {
         self.peers.insert(peer.into(), id);
         Ok(id)
     }
+    pub fn assets(&self) -> &Assets {
+        self.engine.assets()
+    }
     pub fn update_bytes(&self) -> Vec<u8> {
         self.engine.update()
     }
@@ -75,9 +78,6 @@ impl Owner {
             .rejected_draft(self.engine.guard(), id)
             .map(|draft| draft.cloned())
             .map_err(error)
-    }
-    pub fn resources(&mut self, assets: Assets) -> Result<(), String> {
-        self.engine.set_assets(assets).map_err(error)
     }
     pub fn update(
         &mut self,

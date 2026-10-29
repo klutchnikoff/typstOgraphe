@@ -73,10 +73,17 @@ export function browserDriver(root: string): Plugin {
           })
           if (input.command === 'commit_structured_commands') {
             const publication = result as {
+              resources: { path: string; data: string }[]
               changed: boolean
               guard: { revision: number }
               update: number[]
             }
+            for (const resource of publication.resources)
+              broadcast('web-editor:asset', {
+                path: resource.path,
+                data: resource.data,
+                generation: input.args.request.generation,
+              })
             if (publication.changed)
               broadcast('web-editor:change', {
                 from: input.peer,
@@ -98,7 +105,6 @@ export function browserDriver(root: string): Plugin {
           if (input.command === 'new_document') broadcast('app:document', null)
           if (input.command === 'awareness')
             broadcast('web-editor:awareness', { from: input.peer, update: input.args.update })
-          if (input.command === 'import_image') broadcast('web-editor:asset', result)
           if (input.command === 'preview_frame') {
             response.setHeader('Content-Type', 'application/octet-stream')
             response.end(Buffer.from((result as { binary: string }).binary, 'base64'))
