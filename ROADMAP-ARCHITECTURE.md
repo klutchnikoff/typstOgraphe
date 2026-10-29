@@ -64,9 +64,8 @@ ajoute des répliques privées durables, des styles/sélections isolés et la va
 des annulations avant publication. Il est vérifié avec Yjs/Tiptap et raccordé à
 l’application : frappe immédiate,
 validation asynchrone, groupement et historique Rust unique par fenêtre,
-accusés/refus et export explicite du brouillon avant abandon. Restent les autres
-commandes typées, le mode individuel allégé, puis
-la migration CLI/MCP autonome. Les brouillons refusés restent en mémoire avant
+accusés/refus et export explicite du brouillon avant abandon. Restent les transformations supplémentaires, le mode individuel allégé et
+le raccordement global de la disponibilité. Les brouillons refusés restent en mémoire avant
 leur export JSON ; leur conservation automatique durable reste à traiter.
 
 Les sélections et styles de frappe Tauri sont désormais raccordés à ces contextes :
@@ -82,7 +81,7 @@ avec une enveloppe Typst `figure` commune aux images/tableaux, légende facultat
 édition des lignes/colonnes depuis la cellule active et conservation de la
 sémantique accessible. Le parcours Tauri prépare puis publie sous garde dans
 le propriétaire, avec annulation et diffusion aux autres fenêtres. Fusion des
-cellules différée ; migration des autres commandes et CLI/MCP encore à réaliser.
+cellules différée ; les autres raccordements sont décrits ci-dessous.
 
 La recherche/remplacement et les corrections orthographiques Tauri rejoignent
 aussi les commandes typées : lots textuels par zones, styles conservés,
@@ -117,10 +116,19 @@ Les cibles du nouvel éditeur sont des chemins de blocs/cellules/annotations,
 avec offsets UTF-16 dans une zone. Conserver les noms d’opérations lorsque leur
 sens reste identique, sans simuler les positions de la projection plate.
 
-Migrer la CLI et le MCP autonome vers ce contrat, retirer les implémentations
-dupliquées et annoncer honnêtement ce que chaque adaptateur sait exécuter.
-Centraliser la disponibilité, la validation des paramètres et les garanties des
-transactions ; aucun canal ne contourne les frontières entre zones.
+**Lot livré — CLI et MCP :** la [façade structurée commune](docs/structured-adapters.md)
+raccorde commandes, requêtes, archives, lots atomiques, contextes privés et rendu.
+Les adaptateurs autonomes n’utilisent plus la projection plate. La passerelle
+MCP des invitations est partagée avec Tauri. L’acceptation d’un lot rattaché publie
+les commandes dans le propriétaire Rust et diffuse son delta confirmé, avec une
+seule annulation humaine ; elle ne reconstruit plus une édition dans le navigateur.
+Le périmètre rattaché reste le corps/cellules/annotations, sans en-tête, ressources
+ou fichiers modifiables tant que la relecture ne les présente pas.
+
+Restent dans A.2 les transformations supplémentaires, le mode individuel allégé
+et le raccordement global de la disponibilité. Les schémas et la validation des
+éditions sont communs ; les autorisations restent propres à chaque adaptateur.
+Aucun canal ne contourne les frontières entre zones.
 
 ### A.3 Conservation et publication
 

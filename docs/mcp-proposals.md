@@ -1,5 +1,9 @@
 # Propositions MCP — préparation de 6.4b
 
+> Contrat historique de la projection plate/egui, conservé avec ses recettes.
+> Le contrat actif est décrit dans [Adaptateurs structurés](structured-adapters.md),
+> [MCP](mcp.md) et [rattachement Tauri](mcp-local.md).
+
 Statut au 25 octobre 2026 : **parcours et protocole livrés en 6.4b (D36/D39)**.
 Le MCP rattaché peut préparer des lots privés ; seule une acceptation explicite dans
 egui publie leurs modifications. Sauvegarde et export publiés sont livrés en

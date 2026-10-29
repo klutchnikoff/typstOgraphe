@@ -1,5 +1,9 @@
 # Frontière Rust des adaptateurs documentaires
 
+> Contrat historique de la projection plate/egui, conservé avec ses recettes.
+> Le contrat actif est décrit dans [Adaptateurs structurés](structured-adapters.md),
+> [MCP](mcp.md) et [rattachement Tauri](mcp-local.md).
+
 Le [contrat général des interfaces](interface-contract.md) réunit appels,
 lectures, effets, saisie native et coordination des vues. Cette page détaille
 la frontière Rust et la propriété des données.

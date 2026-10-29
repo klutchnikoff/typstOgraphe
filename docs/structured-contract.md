@@ -76,7 +76,10 @@ partagées, projection Yrs, préparation/publication gardée et conservation coh
 Les cibles multizones et commandes sont livrées dans le cœur. Le relais et
 l’historique Tauri y sont raccordés, ainsi que les tableaux, styles, liens,
 titres, widgets, objets en ligne et contextes de sélection/styles de frappe.
-Les autres commandes de l’interface et les adaptateurs CLI/MCP restent à migrer selon la séquence ci-dessous.
+Les raccordements documentaires Tauri, CLI et MCP sont en place : voir le
+[bilan des adaptateurs structurés](structured-adapters.md). La séquence ci-dessous
+conserve les choix de migration ; les transformations restantes et le mode
+individuel allégé ne sont pas encore clos.
 
 1. **Socle partagé** : valeurs de réglages et d'instantané dans le cœur,
    gardes/cibles/erreurs structurées, projection Yrs et contrôle de cohérence

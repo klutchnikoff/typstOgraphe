@@ -1,5 +1,9 @@
 # Fichiers MCP rattachés — lot 6.5
 
+> Contrat historique de la projection plate/egui, conservé avec ses recettes.
+> Le contrat actif est décrit dans [Adaptateurs structurés](structured-adapters.md),
+> [MCP](mcp.md) et [rattachement Tauri](mcp-local.md).
+
 Le rattachement au document ouvert conserve les choix D34/D35/D36/D39.
 L’acceptation d’un lot publie ses modifications en mémoire ; elle ne sauvegarde
 ni n’exporte. Les opérations de fichiers sont explicites et indépendantes.

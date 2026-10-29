@@ -1,5 +1,9 @@
 # Lectures documentaires et découverte du moteur
 
+> Contrat historique de la projection plate/egui, conservé avec ses recettes.
+> Le contrat actif est décrit dans [Adaptateurs structurés](structured-adapters.md),
+> [MCP](mcp.md) et [rattachement Tauri](mcp-local.md).
+
 Le [contrat général des interfaces](interface-contract.md) décrit la frontière
 commune ; cette page précise les lectures et leurs réponses.
 

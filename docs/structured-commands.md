@@ -582,10 +582,10 @@ diagnostic reste réservé aux tests ; ce n’est pas une nouvelle voie publique
 
 Restent dans A.2 :
 
-- Le raccordement des adaptateurs autonomes aux
-  [contextes de frappe](structured-editing-contexts.md). Les sélections et styles
-  de l’interface Tauri sont désormais transmis aux contextes communs.
-  Les commandes de style à cible explicite continuent de refuser une plage vide ;
+- Le raccordement global de la disponibilité à l’interface. La façade commune
+  et les adaptateurs CLI/MCP utilisent désormais les commandes, requêtes et
+  contextes structurés ; voir le [bilan du lot](structured-adapters.md).
+  Les commandes de style à cible explicite refusent toujours une plage vide ;
   les styles de frappe appartiennent à l’API de contexte.
 - La fusion de paragraphes et les transformations supplémentaires. L’insertion,
   la suppression de lignes/colonnes et les en-têtes de tableaux sont désormais
@@ -595,5 +595,4 @@ Restent dans A.2 :
 - La conservation durable automatique et la réimportation des brouillons refusés.
   Le groupement de frappe, l’IME, l’historique natif par fenêtre et le parcours
   export/abandon sont raccordés dans Tauri.
-- Le mode individuel allégé et la migration documentaire autonome de CLI/MCP,
-  avec catalogue, disponibilité et requêtes communs.
+- Le mode individuel allégé, avec le même propriétaire documentaire.
