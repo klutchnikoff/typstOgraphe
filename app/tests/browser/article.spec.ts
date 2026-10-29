@@ -120,8 +120,10 @@ test('Article : onglets, auteurs partagés, langues, annulation et fichier auton
   await english.getByLabel('Mots-clés', { exact: true }).fill('higher education\nacademic work')
   // Rich-zone undo uses the document history, and survives closing the tab.
   const abstract = english.getByRole('textbox', { name: 'Résumé', exact: true })
-  await abstract.press('End')
-  await abstract.press('ControlOrMeta+Shift+ArrowLeft')
+  await abstract.press('ControlOrMeta+a')
+  await expect
+    .poll(() => page.evaluate(() => window.getSelection()?.toString().trim()))
+    .toBe('A concise English abstract.')
   await english.getByRole('button', { name: 'Italique · Résumé', exact: true }).click()
   await expect(abstract.locator('em')).not.toHaveCount(0)
   await abstract.press('ControlOrMeta+z')

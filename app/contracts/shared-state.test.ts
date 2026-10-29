@@ -1173,3 +1173,110 @@ it('uses isolated native participant contexts and selective undo in the actual Y
   ).toContain('Agent ')
   await probe({ action: 'inspect', update: bytes(original), expected: result.state })
 })
+
+it('model and language commands preserve Article branches and undo the whole language transition', async () => {
+  const original = seed('article')
+  const definition = catalogue.types
+    .find((t) => t.id === 'article')!
+    .structured!.collections.find((c) => c.parameter === 'authors')!
+  addRecord(store(original), definition, { name: 'Camille Martin' })
+  const before = state(original)
+  const collections = original.getMap('settings').get('collections') as Y.Map<Y.Map<Y.Map<unknown>>>
+  const authors = collections.get('authors')!,
+    author = authors.values().next().value!
+  const name = author.get('name')
+  const locales = collections.get('localizations')!,
+    primary = locales.values().next().value!
+  const title = primary.get('title')
+  const guard = { document: 'models-options', revision: 0 }
+  const result = await probe({
+    action: 'commands',
+    update: bytes(original),
+    guard,
+    expected: guard,
+    commands: [
+      { id: 'metadata.set', params: { target: { kind: 'option', name: 'paper' }, value: 'a5' } },
+      { id: 'metadata.set', params: { target: { kind: 'option', name: 'language' }, value: 'en' } },
+      {
+        id: 'document.set_model',
+        params: {
+          model_id: 'article.project',
+          source: before.settings.template + '\n// retained project model',
+        },
+      },
+    ],
+  })
+  Y.applyUpdate(original, new Uint8Array(result.update))
+  expect(original.getMap('settings').get('collections')).toBe(collections)
+  expect(author.get('name')).toBe(name)
+  expect(primary.get('title')).toBe(title)
+  const final = state(original)
+  expect(final.document).toEqual(before.document)
+  expect(final.settings.metadata.fields.options.language).toBe('en')
+  expect(final.settings.metadata.fields.options.paper).toBe('a5')
+  expect(final.settings.metadata.fields.localizations).toHaveLength(2)
+  await probe({ action: 'inspect', update: bytes(original), expected: final })
+  const history = await probe({
+    action: 'editing',
+    update: bytes(original),
+    guard: result.guard,
+    contexts: 1,
+    steps: [
+      {
+        op: 'commands',
+        actor: 0,
+        commands: [
+          {
+            id: 'metadata.set',
+            params: { target: { kind: 'option', name: 'language' }, value: 'de' },
+          },
+        ],
+      },
+      { op: 'history', actor: 0, direction: 'undo' },
+      { op: 'history', actor: 0, direction: 'redo' },
+    ],
+  })
+  expect(history.events[0].contexts[0].undo_steps).toBe(1)
+  expect(history.events[1].publication.state.settings.metadata.fields.localizations).toHaveLength(2)
+  expect(history.state.settings.metadata.fields.localizations).toHaveLength(3)
+})
+
+it('immutable images and signatures share one guarded batch and remain available for redo', async () => {
+  const original = seed('courrier')
+  const resource = await call('prepare_image', {
+    extension: 'svg',
+    data: Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="12"><rect width="11" height="12" fill="green"/></svg>',
+    ).toString('base64'),
+  })
+  const guard = { document: 'resource-contract', revision: 0 }
+  const result = await probe({
+    action: 'editing',
+    update: bytes(original),
+    guard,
+    contexts: 2,
+    steps: [
+      {
+        op: 'commands',
+        actor: 0,
+        commands: [
+          { id: 'resource.add', params: { resource } },
+          { id: 'document.set_signature', params: { path: resource.path } },
+        ],
+      },
+      { op: 'history', actor: 0, direction: 'undo' },
+      { op: 'history', actor: 0, direction: 'redo' },
+    ],
+  })
+  expect(result.events[0].publication.resources).toEqual([resource])
+  expect(result.events[0].contexts[0].undo_steps).toBe(1)
+  expect(result.events[0].contexts[1].undo_steps).toBe(0)
+  expect(result.events[1].publication.state.settings.metadata.fields.signature).toBeNull()
+  expect(result.state.settings.metadata.fields.signature).toBe(resource.path)
+  const body = original.getXmlFragment('default'),
+    nodes = body.toArray()
+  Y.applyUpdate(original, new Uint8Array(result.update))
+  expect(body.toArray()).toEqual(nodes)
+  expect(body.toArray().every((node, index) => node === nodes[index])).toBe(true)
+  expect(state(original).settings.metadata.fields.signature).toBe(resource.path)
+})

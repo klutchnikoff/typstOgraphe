@@ -201,3 +201,57 @@ fn models_validate_offline_without_rebuilding_collections_and_failure_publishes_
         .is_err()
     );
 }
+
+#[test]
+fn model_resources_roundtrip_in_an_autonomous_archive_and_wire_images_are_base64() {
+    let mut s = session(DocumentType::Article);
+    let image = resource();
+    let encoded = serde_json::to_value(&image).unwrap();
+    assert!(encoded["data"].is_string());
+    assert_eq!(
+        serde_json::from_value::<ImageResource>(encoded).unwrap(),
+        image
+    );
+    assert!(
+        serde_json::from_value::<ImageResource>(json!({"path": image.path, "data":"%%%"})).is_err()
+    );
+    let source = format!(
+        "{}\n#let model-logo = image({:?})",
+        s.state().settings.template,
+        image.path
+    );
+    execute(
+        &mut s,
+        vec![
+            Command::AddResource {
+                resource: image.clone(),
+            },
+            Command::SetModel {
+                model_id: "article.with-logo".into(),
+                source,
+            },
+        ],
+    );
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("model-resource.typsto");
+    let mut lease = crate::DocumentLease::acquire(&path).unwrap();
+    let settings = &s.state().settings;
+    let archive = crate::content::archive::Archive {
+        document: s.state().document.clone(),
+        metadata: settings.metadata.clone(),
+        template: settings.template.clone(),
+        model_id: settings.model_id.clone(),
+        assets: s.assets().clone(),
+        dependencies: crate::packages::for_template(&settings.template),
+        yjs: s.update(),
+    };
+    archive.save(&mut lease).unwrap();
+    let read = crate::content::archive::Archive::read(&path).unwrap();
+    assert_eq!(read.assets[&image.path].as_ref(), image.data);
+    let mut world = crate::rendering::TypstWorld::default();
+    world.set_assets(&read.assets);
+    world.set_dependencies(&read.dependencies);
+    world
+        .validate_model(&read.validate().unwrap(), &read.metadata, &read.template)
+        .unwrap();
+}

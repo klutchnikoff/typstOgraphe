@@ -152,7 +152,7 @@ test('préédition des champs natifs : aucune publication avant validation IME',
   expect(requests.filter((request) => request.command === 'relay')).toEqual([])
 })
 
-test('changer de modèle attend les champs en cours avant de recopier les métadonnées', async ({
+test('changer de modèle attend les champs en cours sans reconstruire les métadonnées', async ({
   page,
 }) => {
   let release!: () => void,
@@ -182,12 +182,10 @@ test('changer de modèle attend les champs en cours avant de recopier les métad
     await page.evaluate(() => window.__spike!.provider.doc.getMap('settings').get('identity')),
   ).toBe(identity)
   release()
-  await expect
-    .poll(() =>
-      page.evaluate(() => window.__spike!.provider.doc.getMap('settings').get('identity')),
-    )
-    .not.toBe(identity)
   await page.evaluate(() => window.__spike!.provider.flush())
+  expect(
+    await page.evaluate(() => window.__spike!.provider.doc.getMap('settings').get('identity')),
+  ).toBe(identity)
   await page.locator('#metadata-tab-header').click()
   await expect(page.getByLabel('Objet', { exact: true })).toHaveValue(
     'Conserver lors du changement de modèle',

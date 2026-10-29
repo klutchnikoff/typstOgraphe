@@ -278,3 +278,50 @@ it('une fin de composition tardive ne publie pas la préédition de la zone suiv
     provider.destroy()
   }
 })
+
+it('queues resources during join, filters old generations and keeps wire envelopes out of saved resources', async () => {
+  const handlers = new Map<string, (payload: any) => void>()
+  const transport = {
+    listen: async (name: string, handler: (payload: any) => void) => {
+      handlers.set(name, handler)
+      return () => {}
+    },
+    invoke: async (command: string) => {
+      if (command === 'join') {
+        handlers.get('web-editor:asset')!({
+          generation: 'previous',
+          path: 'images/wrong.svg',
+          data: 'AA==',
+        })
+        handlers.get('web-editor:asset')!({
+          generation: 'current',
+          path: 'images/current.svg',
+          data: 'AQ==',
+        })
+        return {
+          generation: 'current',
+          revision: 0,
+          updates: [],
+          resources: [],
+          initialize: false,
+          sessionPath: '',
+        }
+      }
+      return 0
+    },
+  } as unknown as Transport
+  const provider = new Provider('assets', transport)
+  try {
+    await provider.start(() => new Uint8Array([0, 0]))
+    expect([...provider.resources.values()]).toEqual([{ path: 'images/current.svg', data: 'AQ==' }])
+    handlers.get('web-editor:asset')!({
+      generation: 'previous',
+      path: 'images/late.svg',
+      data: 'Ag==',
+    })
+    expect(provider.resources.has('images/late.svg')).toBe(false)
+    expect(provider.draft().resources).toEqual([{ path: 'images/current.svg', data: 'AQ==' }])
+  } finally {
+    provider.destroy()
+  }
+})
