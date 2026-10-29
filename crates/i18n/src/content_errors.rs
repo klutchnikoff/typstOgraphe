@@ -19,6 +19,12 @@ pub fn content_error_with(loader: &FluentLanguageLoader, error: &Error) -> Strin
         Error::InvalidParameters { parameter } => {
             return arg("content-invalid-parameter", "parameter", parameter.clone());
         }
+        Error::CommandUnavailable {
+            command,
+            reason: typstographe_core::content::contract::UnavailableReason::UnsupportedDocumentType,
+        } => {
+            return arg("content-type-unavailable", "command", command.clone());
+        }
         Error::CommandUnavailable { command, .. } => {
             return arg("content-command-unavailable", "command", command.clone());
         }
@@ -89,6 +95,13 @@ mod tests {
             let message = content_error_with(&loader, &structured);
             assert!(message.contains(phrase), "{message}");
             assert!(message.contains("rows") && message.contains('2'));
+            let unavailable = Error::CommandUnavailable {
+                command: "letter.insert_postscript".into(),
+                reason:
+                    typstographe_core::content::contract::UnavailableReason::UnsupportedDocumentType,
+            };
+            let message = content_error_with(&loader, &unavailable);
+            assert!(message.contains("type") && message.contains("letter.insert_postscript"));
             let error = archive::Error::Core(
                 typstographe_core::errors::StorageError::MissingEntry {
                     name: "document.json".into(),

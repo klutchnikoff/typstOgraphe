@@ -892,3 +892,5 @@ web-return-confirmed = Return to confirmed version
 web-export-draft = Export draft
 web-discard-draft-question = Discard this draft and reload the confirmed version? Export it first if you wish to keep it.
 web-discard-draft = Discard draft
+
+content-type-unavailable = The capability “{ $command }” is not available for this document type.

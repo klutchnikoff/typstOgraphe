@@ -261,6 +261,7 @@ fn semantic_capabilities_explain_actual_structured_execution() {
         {
             let mut s = new(kind);
             let description = describe(cap.id).unwrap();
+            assert!(description.get("implementations").is_none());
             let calls: Vec<Call> = serde_json::from_value(description["examples"].clone()).unwrap();
             for call in &calls {
                 check_params(&call.id, &call.params).unwrap();
@@ -397,4 +398,86 @@ fn admitted_images_signatures_and_figures_share_retention_and_runtime_undo() {
     )
     .unwrap();
     assert!(dir.path().join("export/images/signature.svg").exists());
+}
+#[test]
+fn spelling_uses_the_language_of_each_localized_header_zone() {
+    let mut s = new("article");
+    s.batch(&[
+        call("record.add",json!({"collection":"localizations","id":"en","values":{"language":"en"}})),
+        call("text.insert",json!({"target":{"zone":{"kind":"record","collection":"localizations","id":"en","field":"abstract","path":[0]},"from":0,"to":0},"text":"The quick brown fox."})),
+    ],None).unwrap();
+    let result = s.query("spelling.issues", json!({})).unwrap();
+    assert_eq!(result["available"], true);
+    assert!(
+        !result["issues"].as_array().unwrap().iter().any(
+            |i| i["target"]["zone"]["id"] == "en" && i["target"]["zone"]["field"] == "abstract"
+        )
+    );
+    s.execute("text.insert",json!({"target":{"zone":{"kind":"record","collection":"localizations","id":"en","field":"abstract","path":[0]},"from":0,"to":0},"text":"helllo "})).unwrap();
+    assert!(
+        s.query("spelling.issues", json!({})).unwrap()["issues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|i| i["word"] == "helllo" && i["language"] == "en")
+    );
+}
+#[test]
+fn resource_admission_alone_is_dirty_even_without_a_text_update() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = new("courrier");
+    let path = dir.path().join("draft.typsto");
+    s.save_as(&path).unwrap();
+    assert!(!s.dirty());
+    let resource = crate::content::commands::ImageResource {
+        path: "images/signature.svg".into(),
+        data: include_bytes!("../../../../../fixtures/signature.svg").to_vec(),
+    };
+    s.execute("resource.add", json!({"resource":resource}))
+        .unwrap();
+    assert!(s.dirty());
+    assert_eq!(
+        s.query("document.inspect", json!({})).unwrap()["dirty"],
+        true
+    );
+    s.save().unwrap();
+    assert!(!s.dirty());
+    assert!(Archive::read(&path).unwrap().assets.is_empty());
+}
+#[test]
+fn semantic_type_restrictions_cannot_be_bypassed_by_generic_nodes_or_archives() {
+    let mut article = new("article");
+    let step: Call = serde_json::from_value(
+        describe("letter.insert_postscript").unwrap()["examples"][0].clone(),
+    )
+    .unwrap();
+    let guard = article.guard().unwrap().clone();
+    let before = article.archive().unwrap().yjs;
+    let error = article
+        .batch(std::slice::from_ref(&step), None)
+        .unwrap_err();
+    assert_eq!(error_value(&error)["reason"], "unsupported_document_type");
+    assert_eq!(article.guard(), Some(&guard));
+    assert_eq!(article.archive().unwrap().yjs, before);
+    let mut archive = article.archive().unwrap();
+    archive.yjs.clear();
+    archive.document.content.insert(
+        0,
+        serde_json::from_value(step.params["node"].clone()).unwrap(),
+    );
+    assert!(archive.validate().is_err());
+    // Only the final state is checked, so an intermediate private node can be removed.
+    article
+        .batch(
+            &[
+                step.clone(),
+                call(
+                    "block.remove",
+                    json!({"target":{"root":{"kind":"body"},"path":[0]}}),
+                ),
+            ],
+            None,
+        )
+        .unwrap();
+    new("courrier").batch(&[step], None).unwrap();
 }

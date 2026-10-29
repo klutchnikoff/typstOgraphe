@@ -4,7 +4,7 @@ use crate::{
     session::{Session, Snapshot},
     settings::Settings,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{Value, json};
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -19,6 +19,7 @@ use typstographe_core::content::{
     catalogue,
     contract::{Guard, State as ContentState},
 };
+use typstographe_mcp::local::Invitation;
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Proposal {
@@ -42,11 +43,6 @@ pub struct AgentState {
     pub seen: std::collections::BTreeMap<String, (String, Value)>,
     pub snapshot: Option<Snapshot>,
     pub busy: std::collections::BTreeSet<String>,
-}
-#[derive(Serialize, Deserialize)]
-struct Invitation {
-    address: String,
-    token: String,
 }
 #[tauri::command]
 pub fn publish_snapshot(state: State<Bridge>, snapshot: Snapshot) -> Result<(), String> {
@@ -250,11 +246,15 @@ fn serve_connection(
     }
     let response = (|| {
         let request: Value = serde_json::from_str(&line).map_err(|e| e.to_string())?;
+        authorize(
+            &*agent.lock().map_err(|e| e.to_string())?,
+            request["token"].as_str(),
+        )?;
+        // Schema compilation can be cold/expensive; do it before taking the live document lock.
+        validate_request(request["method"].as_str().unwrap_or(""), &request["params"])?;
         let mut s = session.lock().map_err(|e| e.to_string())?;
         let mut a = agent.lock().map_err(|e| e.to_string())?;
-        if a.token.is_none() || a.token.as_deref() != request["token"].as_str() {
-            return Err("Invitation absente ou révoquée.".to_owned());
-        }
+        authorize(&a, request["token"].as_str())?; // Revocation may have happened meanwhile.
         let result = dispatch(
             &mut s,
             &mut a,
@@ -325,12 +325,7 @@ pub(crate) fn commit_accepted(
     p.status = "accepted".into();
     Ok(publication)
 }
-pub(crate) fn dispatch(
-    session: &mut Session,
-    state: &mut AgentState,
-    method: &str,
-    params: &Value,
-) -> Result<Value, String> {
+fn validate_request(method: &str, params: &Value) -> Result<(), String> {
     if method != "resource.read" {
         typstographe_mcp::validate_request(true, method, params)
             .map_err(|e| serde_json::to_string(&api::error_value(&e)).unwrap())?;
@@ -340,6 +335,22 @@ pub(crate) fn dispatch(
     {
         return Err("Expected resource URI".into());
     }
+    Ok(())
+}
+fn authorize(state: &AgentState, token: Option<&str>) -> Result<(), String> {
+    if state.token.is_none() || state.token.as_deref() != token {
+        Err("Invitation absente ou révoquée.".into())
+    } else {
+        Ok(())
+    }
+}
+pub(crate) fn dispatch(
+    session: &mut Session,
+    state: &mut AgentState,
+    method: &str,
+    params: &Value,
+) -> Result<Value, String> {
+    validate_request(method, params)?;
     if state
         .proposal
         .as_ref()

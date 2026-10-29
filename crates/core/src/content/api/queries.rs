@@ -316,36 +316,42 @@ pub fn run(
         }
         "spelling.issues" => {
             let language = state.settings.metadata.options().language;
-            let accepted = crate::spelling::accepted(
-                language,
-                &Default::default(),
-                &state.settings.metadata.options().spelling_ignored,
-            );
             let mut issues = vec![];
-            if crate::spelling::supported(language) {
-                for zone in zones(state) {
-                    for issue in crate::spelling::check_text(language, &zone.text, &accepted)
-                        .map_err(|e| Error::InvalidDocument {
+            let mut available = true;
+            for zone in zones(state) {
+                let language = zone_language(state, &zone.zone);
+                if !crate::spelling::supported(language) {
+                    available = false;
+                    continue;
+                }
+                let accepted = crate::spelling::accepted(
+                    language,
+                    &Default::default(),
+                    &state.settings.metadata.options().spelling_ignored,
+                );
+                for issue in
+                    crate::spelling::check_text(language, &zone.text, &accepted).map_err(|e| {
+                        Error::InvalidDocument {
                             reason: e.to_string(),
-                        })?
-                    {
-                        let from = zone
-                            .text
-                            .chars()
-                            .take(issue.range.start)
-                            .map(|c| c.len_utf16() as u32)
-                            .sum();
-                        let to = zone
-                            .text
-                            .chars()
-                            .take(issue.range.end)
-                            .map(|c| c.len_utf16() as u32)
-                            .sum();
-                        issues.push(json!({"word":issue.word,"language":language,"target":TextTarget {zone:zone.zone.clone(),from,to}}));
-                    }
+                        }
+                    })?
+                {
+                    let from = zone
+                        .text
+                        .chars()
+                        .take(issue.range.start)
+                        .map(|c| c.len_utf16() as u32)
+                        .sum();
+                    let to = zone
+                        .text
+                        .chars()
+                        .take(issue.range.end)
+                        .map(|c| c.len_utf16() as u32)
+                        .sum();
+                    issues.push(json!({"word":issue.word,"language":language,"target":TextTarget{zone:zone.zone.clone(),from,to}}));
                 }
             }
-            json!({"available":crate::spelling::supported(language),"language":language,"issues":issues})
+            json!({"available":available,"language":language,"issues":issues})
         }
         "bibliography.search" => {
             let crate::document_types::Metadata::Article(metadata) = &state.settings.metadata
@@ -358,4 +364,15 @@ pub fn run(
         }
         _ => return Err(invalid("query")),
     })
+}
+
+fn zone_language(state: &State, zone: &TextZone) -> crate::document::DocumentLanguage {
+    if let crate::document_types::Metadata::Article(article) = &state.settings.metadata
+        && let TextZone::Record { collection, id, .. } = zone
+        && collection == "localizations"
+        && let Some(locale) = article.localizations.iter().find(|l| l.id == *id)
+    {
+        return locale.language;
+    }
+    state.settings.metadata.options().language
 }

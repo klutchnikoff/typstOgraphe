@@ -79,6 +79,13 @@ struct Project {
     path: Option<PathBuf>,
     lease: Option<DocumentLease>,
     saved: Vec<u8>,
+    saved_assets: Vec<String>,
+}
+impl Project {
+    fn dirty(&self) -> bool {
+        self.saved != self.engine.update()
+            || self.saved_assets.iter().ne(self.engine.assets().keys())
+    }
 }
 pub struct Session {
     project: Option<Project>,
@@ -117,9 +124,7 @@ impl Session {
             .is_some_and(|p| p.path.is_some() && p.lease.is_none())
     }
     pub fn dirty(&self) -> bool {
-        self.project
-            .as_ref()
-            .is_some_and(|p| p.saved != p.engine.update())
+        self.project.as_ref().is_some_and(Project::dirty)
     }
     fn project(&self) -> Result<&Project, CommandError> {
         self.project.as_ref().ok_or_else(|| error("no_document"))
@@ -149,6 +154,11 @@ impl Session {
             EditingSession::open(guard.clone(), &bytes, archive.assets).map_err(content_error)?;
         let context = engine.open_context(&guard).map_err(content_error)?;
         let checkpoint = engine.update();
+        let saved_assets = if saved {
+            engine.assets().keys().cloned().collect()
+        } else {
+            vec![]
+        };
         self.project = Some(Project {
             engine,
             context,
@@ -156,6 +166,7 @@ impl Session {
             path,
             lease,
             saved: if saved { checkpoint } else { vec![] },
+            saved_assets,
         });
         self.query("document.inspect", json!({}))
     }
@@ -207,6 +218,7 @@ impl Session {
         p.path = Some(path.into());
         p.lease = Some(lease);
         p.saved = p.engine.update();
+        p.saved_assets = p.engine.assets().keys().cloned().collect();
         Ok(json!({"saved":path,"guard":p.engine.guard()}))
     }
     pub fn save(&mut self) -> Result<Value, CommandError> {
@@ -221,6 +233,7 @@ impl Session {
             )
             .map_err(archive_error)?;
         p.saved = p.engine.update();
+        p.saved_assets = p.engine.assets().keys().cloned().collect();
         Ok(json!({"saved":p.path,"guard":p.engine.guard()}))
     }
     pub fn query(&mut self, id: &str, params: Value) -> Result<Value, CommandError> {
@@ -251,7 +264,7 @@ impl Session {
         let p = self.project.as_mut().ok_or_else(|| error("no_document"))?;
         match id {
             "document.inspect" => Ok(
-                json!({"guard":p.engine.guard(),"state":p.engine.state(),"document_type":p.engine.state().settings.metadata.document_type(),"path":p.path,"read_only":p.lease.is_none()&&p.path.is_some(),"dirty":p.saved!=p.engine.update(),"context":p.engine.context(&p.engine.guard().clone(),p.context).map_err(content_error)?}),
+                json!({"guard":p.engine.guard(),"state":p.engine.state(),"document_type":p.engine.state().settings.metadata.document_type(),"path":p.path,"read_only":p.lease.is_none()&&p.path.is_some(),"dirty":p.dirty(),"context":p.engine.context(&p.engine.guard().clone(),p.context).map_err(content_error)?}),
             ),
             "context.get" => Ok(json!(
                 p.engine
@@ -452,7 +465,8 @@ impl Session {
             p.lease = Some(lease)
         }
         if save.is_some() {
-            p.saved = p.engine.update()
+            p.saved = p.engine.update();
+            p.saved_assets = p.engine.assets().keys().cloned().collect();
         }
         Ok(json!({"publication":publication,"saved":save.is_some(),"path":p.path}))
     }

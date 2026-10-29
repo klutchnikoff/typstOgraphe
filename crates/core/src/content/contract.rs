@@ -69,6 +69,7 @@ pub enum UnavailableReason {
     StructuralEditRequired,
     UnsupportedFieldKind,
     UnsupportedTransformation,
+    UnsupportedDocumentType,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -151,6 +152,10 @@ impl State {
             });
         }
         self.settings.validate()?;
+        super::catalogue::validate_document(
+            self.settings.metadata.document_type(),
+            &self.document,
+        )?;
         crate::bibliography::validate_document(&self.document, &self.settings.metadata)
             .map_err(|reason| Error::InvalidDocument { reason })?;
         if self

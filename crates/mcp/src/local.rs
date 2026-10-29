@@ -1,6 +1,6 @@
 //! Fixed MCP bridge to a native app invitation. No project is opened by the bridge.
 use rmcp::{ErrorData, RoleServer, ServerHandler, ServiceExt, model::*, service::RequestContext};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -8,11 +8,11 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-struct Invitation {
-    address: String,
-    token: String,
+pub struct Invitation {
+    pub address: String,
+    pub token: String,
 }
 #[derive(Clone)]
 struct Client {

@@ -86,6 +86,7 @@ impl Archive {
         let source = source(&self.document, &self.assets).map_err(Error::document)?;
         let state = self.state();
         state.settings.validate()?;
+        super::catalogue::validate_document(self.metadata.document_type(), &self.document)?;
         if !self.yjs.is_empty() {
             super::shared::SharedDocument::from_update(&self.yjs)
                 .and_then(|shared| shared.verify(&state))?;

@@ -895,3 +895,5 @@ web-return-confirmed = Revenir à la version confirmée
 web-export-draft = Exporter le brouillon
 web-discard-draft-question = Abandonner ce brouillon et recharger la version confirmée ? Exportez-le d’abord si vous souhaitez le conserver.
 web-discard-draft = Abandonner le brouillon
+
+content-type-unavailable = La capacité « { $command } » n’est pas disponible pour ce type de document.

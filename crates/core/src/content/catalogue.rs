@@ -225,6 +225,25 @@ pub fn for_type(kind: DocumentType) -> impl Iterator<Item = &'static Capability>
             && (c.id != "insert.citation" || kind == DocumentType::Article)
     })
 }
+/// The type's capability catalogue is an execution boundary, not only a UI filter.
+pub(crate) fn validate_document(
+    kind: DocumentType,
+    node: &super::Node,
+) -> Result<(), super::contract::Error> {
+    if let Some(capability) = ALL.iter().find(|c| c.node == Some(node.kind.as_str()))
+        && !for_type(kind).any(|c| c.node == Some(node.kind.as_str()))
+    {
+        return Err(super::contract::Error::CommandUnavailable {
+            command: capability.id.into(),
+            reason: super::contract::UnavailableReason::UnsupportedDocumentType,
+        });
+    }
+    for child in &node.content {
+        validate_document(kind, child)?;
+    }
+    Ok(())
+}
+
 pub fn find(id: &str) -> Option<&'static Capability> {
     ALL.iter().find(|c| c.id == id)
 }
