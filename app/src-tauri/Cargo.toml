@@ -22,7 +22,7 @@ tauri-plugin-dialog = "2"
 tokio = { version = "1", features = ["sync", "rt", "net", "io-util", "time"] }
 zip = { version = "6", default-features = false, features = ["deflate"] }
 typstographe-mcp = { workspace = true }
-uuid = { version = "1", features = ["v4"] }
+uuid.workspace = true
 typstographe-core = { workspace = true }
 typstographe-i18n = { workspace = true }
 serde = { version = "1", features = ["derive"] }

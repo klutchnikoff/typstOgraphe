@@ -121,3 +121,29 @@ Le script et son rapport sont conservés localement dans
 Les catalogues générés sont contrôlés contre la CLI. Les contrats antérieurs de
 projection restent dans `docs/archive/`, avec leurs recettes. Ces vérifications
 locales ne constituent pas une validation de la CI Windows/Linux distante.
+
+## Nettoyage ciblé après migration
+
+Le premier interpréteur `content::operations`, sans appelant de production, est
+supprimé avec ses cibles locales, ses styles de frappe et son catalogue parallèle.
+Le calcul de longueur UTF-16 encore utilisé par les commandes communes appartient
+désormais à `Node` ; les notes, citations et retours conservent une longueur unité.
+Les deux tests propres à cet interpréteur disparaissent ; les recettes du moteur
+commun continuent de vérifier Unicode, styles, contextes et annotations.
+
+Le catalogue ne porte plus d’indicateurs `legacy` ni d’annonces de migration
+inachevée. Les vérifications de signatures utilisent le catalogue exécutable de
+`content::api`. Treize motifs d’erreur sans émetteur CLI/MCP et leurs traductions
+françaises et anglaises sont retirés.
+
+Ce nettoyage ne remplace pas les tests manquants de sauvegarde native, de
+récupération et d’acceptation MCP. La couverture est remesurée après nettoyage des
+artefacts instrumentés, en excluant les implémentations des tests ; le taux de
+référence corrigé avant ce lot est de 81,39 % sur Linux.
+
+Vérification locale du nettoyage : **454 tests Rust**, **206 tests web**, les
+**3 tests de déclaration des langues natives** et **20 recettes Rust ↔ Yjs**
+réussis. Clippy sur tout le workspace avec `-D warnings`, le formatage et les
+gardes de dépendances et de taille passent également. Le binaire Tauri est
+reconstruit avant les recettes de contrat. La déclaration UUID de l’application
+hérite désormais de celle du workspace, sans changement de version ni de fonctions.

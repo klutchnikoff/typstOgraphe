@@ -4,7 +4,7 @@ Décision du 26 octobre 2026 : après essai du diagnostic, reconstruire l'interf
 avec Tauri, Tiptap/ProseMirror et Yjs, en conservant le cœur Rust. Le portage démarré
 sur `codex/tauri-interface` est intégré à `main`. Ce document conserve son bilan ;
 les travaux restants sont désormais dans la [roadmap](../ROADMAP.md).
-L'interface egui reste accessible comme référence jusqu'à son retrait décidé ensemble.
+L’interface egui a depuis été [retirée](egui-retirement-results.md).
 Depuis le chantier A.1, Tauri est l’application principale dans `app/` ; les
 [commandes de lancement actuelles](../app/README.md) remplacent celles du prototype.
 
@@ -50,11 +50,12 @@ sans ajout automatique de dépendances ou d'interface complexe.
 
 ## État du portage
 
-Le catalogue `typstographe_core::content::catalogue` définit les 16 capacités
-visuelles et leur disponibilité par type. `content::operations::specifications`
-ajoute les contrats d'édition et de ciblage pour MCP. Les identifiants et contrats
-sont partagés ; le code des widgets ProseMirror et celui de leur mise en page Typst
-restent propres à leurs technologies.
+Le catalogue `typstographe_core::content::catalogue` définit les capacités
+visuelles et leur disponibilité par type. Depuis A.2, `content::api::catalogue`
+expose les contrats d’édition et de ciblage communs aux adaptateurs, issus des
+commandes typées exécutées ; le premier interpréteur structuré du prototype a été
+retiré. Le code des widgets ProseMirror et celui de leur mise en page Typst restent
+propres à leurs technologies. Voir le [contrat actuel](structured-adapters.md).
 
 - Titres, gras, italique, liens, listes simples, descriptions, citations,
   images avec légende/texte alternatif, P.-S./P.J., tableaux simples et notes.
