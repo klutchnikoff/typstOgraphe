@@ -1,4 +1,8 @@
 import { historyFor } from './editing-history'
+import { commandEditor } from './command-context'
+import { interactionAvailability } from './command-availability'
+import { commandAvailability, runCommand } from './public-commands'
+import { mountCommandSurfaces } from './command-surfaces'
 import { runFormatting } from './formatting'
 import { documentContent } from './shared-inline-marks'
 import { bibliographyPanel } from './bibliography-panel'
@@ -279,6 +283,7 @@ export async function mountShell(s: Shell) {
       s.schedule()
     }
     updateTitle()
+    document.dispatchEvent(new Event('commands:refresh'))
   }
   function updateTitle() {
     const title =
@@ -639,7 +644,7 @@ export async function mountShell(s: Shell) {
   function palette() {
     commandPalette(showPanel(tr('Commandes')), commands, (command) => {
       panel.hidden = true
-      command.run()
+      runCommand(command)
     })
   }
 
@@ -750,11 +755,21 @@ export async function mountShell(s: Shell) {
     'Mod+Shift+G',
   )
   add('text.clear', tr('Effacer la mise en forme'), () => {
-    runFormatting(editor, 'text.clear')
+    runFormatting(commandEditor(editor), 'text.clear')
   })
   add('text.unlink', tr('Supprimer le lien'), () => {
-    runFormatting(editor, 'text.remove_link')
+    runFormatting(commandEditor(editor), 'text.remove_link')
   })
+  for (const [id, policy] of [
+    ['text.clear', 'style'],
+    ['text.unlink', 'link'],
+  ] as const) {
+    const original = commands.get(id)!
+    commands.set(id, {
+      ...original,
+      availability: () => interactionAvailability(commandEditor(editor), policy),
+    })
+  }
   add('spelling.toggle', tr('Activer / désactiver la correction orthographique'), () =>
     guarded(async () => {
       preferences.spelling_enabled = preferences.spelling_enabled === false
@@ -792,6 +807,16 @@ export async function mountShell(s: Shell) {
       else await provider.reconnect()
     }),
   )
+  const commandSurfaces = mountCommandSurfaces({
+    editor,
+    commands,
+    capabilities: catalogue.entries,
+    requiresDocument,
+    active: () => active,
+    native: s.isTauri ? transport : undefined,
+    onError: (error) => s.message(String(error), true),
+  })
+  window.addEventListener('pagehide', () => commandSurfaces.destroy(), { once: true })
   for (const [title, ids] of [
     [
       tr('Fichier'),
@@ -834,7 +859,7 @@ export async function mountShell(s: Shell) {
       button.dataset.command = id
       button.onclick = () => {
         details.open = false
-        if (command.enabled?.() !== false) command.run()
+        runCommand(command)
       }
       entries.append(button)
     }
@@ -842,15 +867,18 @@ export async function mountShell(s: Shell) {
     menu.append(details)
   }
   for (const [label, name, action] of [
-    [tr('Commandes'), 'pilcrow', palette],
-    [tr('Rechercher'), 'search', search],
-    [tr('Préférences'), 'settings-2', prefs],
+    [tr('Commandes'), 'pilcrow', 'ui.palette'],
+    [tr('Rechercher'), 'search', 'ui.find'],
+    [tr('Préférences'), 'settings-2', 'ui.preferences'],
   ] as const) {
     const button = document.createElement('button')
     button.innerHTML = icon(name)
     button.title = label
     button.setAttribute('aria-label', label)
-    button.onclick = action
+    button.dataset.command = action
+    button.onclick = () => {
+      runCommand(commands.get(action)!)
+    }
     side.append(button)
   }
   document.addEventListener(
@@ -861,7 +889,7 @@ export async function mountShell(s: Shell) {
       if (!(event.metaKey || event.ctrlKey)) return
       const key = `Mod+${event.shiftKey ? 'Shift+' : ''}${event.key.length === 1 ? event.key.toUpperCase() : event.key}`
       for (const command of commands.values())
-        if (command.shortcut === key && command.enabled?.() !== false) {
+        if (command.shortcut === key && commandAvailability(command).enabled) {
           // Named rich zones own their text shortcuts and share the same undo owner.
           // Let their editor receive the key instead of focusing the document body.
           if (richZoneOwnsShortcut(event.target, command.id)) return
@@ -874,7 +902,7 @@ export async function mountShell(s: Shell) {
             return
           event.preventDefault()
           event.stopImmediatePropagation()
-          command.run()
+          runCommand(command)
           return
         }
     },
@@ -994,7 +1022,7 @@ export async function mountShell(s: Shell) {
     await transport.listen<string>('app:command', (id) => {
       if (document.querySelector('dialog[open]')) return
       const command = commands.get(id)
-      if (command?.enabled?.() !== false) command?.run()
+      if (command) runCommand(command)
     })
   }
   await transport.listen('app:document', () => {

@@ -849,3 +849,19 @@ web-discard-draft-question = Discard this draft and reload the confirmed version
 web-discard-draft = Discard draft
 
 content-type-unavailable = The capability “{ $command }” is not available for this document type.
+
+# Shared command availability
+web-command-no-selection = Place the cursor in an editing area.
+web-command-unsupported-type = This command is unavailable for this document type.
+web-command-text-required = This command requires a compatible text area.
+web-command-selection-required = Select text or place the cursor in a link.
+web-command-body-required = This command is only available in the document body.
+web-command-top-level-required = This command is unavailable inside this widget.
+web-command-caret-required = Place the cursor without selecting text.
+web-command-read-only = This area is read-only.
+web-command-composing = Finish the current text composition.
+web-command-disconnected = Reconnect this document before applying a command.
+web-command-pending-draft = Keep or discard the rejected draft before continuing.
+web-command-no-document = Open or create a document.
+web-command-modal = Complete or cancel the open form.
+web-command-unavailable = This command is unavailable in this context.

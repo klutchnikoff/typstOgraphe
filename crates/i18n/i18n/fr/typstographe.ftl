@@ -851,3 +851,19 @@ web-discard-draft-question = Abandonner ce brouillon et recharger la version con
 web-discard-draft = Abandonner le brouillon
 
 content-type-unavailable = La capacité « { $command } » n’est pas disponible pour ce type de document.
+
+# Shared command availability
+web-command-no-selection = Placez le curseur dans une zone de rédaction.
+web-command-unsupported-type = Cette commande n’est pas disponible pour ce type de document.
+web-command-text-required = Cette commande nécessite une zone de texte compatible.
+web-command-selection-required = Sélectionnez du texte ou placez le curseur dans un lien.
+web-command-body-required = Cette commande est réservée au corps du document.
+web-command-top-level-required = Cette commande n’est pas disponible à l’intérieur de ce widget.
+web-command-caret-required = Placez le curseur sans sélectionner de texte.
+web-command-read-only = Cette zone n’est pas modifiable.
+web-command-composing = Terminez la composition en cours.
+web-command-disconnected = Reconnectez ce document avant d’appliquer une commande.
+web-command-pending-draft = Conservez ou abandonnez le brouillon refusé avant de continuer.
+web-command-no-document = Ouvrez ou créez un document.
+web-command-modal = Terminez ou annulez le formulaire ouvert.
+web-command-unavailable = Cette commande n’est pas disponible dans ce contexte.

@@ -1,5 +1,6 @@
 import { navigationGroup } from './keyboard-navigation'
 import type { PublicCommand, Registry } from './commands'
+import { commandAvailability, refreshCommandButton } from './public-commands'
 import { tr } from './i18n'
 
 let nextId = 0
@@ -11,6 +12,7 @@ export function commandPalette(
   execute: (command: PublicCommand) => void,
 ) {
   const input = document.createElement('input')
+  input.className = 'command-palette-input'
   input.placeholder = tr('Rechercher une commande…')
   input.setAttribute('aria-label', tr('Rechercher une commande'))
   input.setAttribute('role', 'combobox')
@@ -31,13 +33,12 @@ export function commandPalette(
     beforeNavigate: () => refreshAvailability(),
     onActivate: (button) => {
       const row = rows.find((row) => row.button === button)
-      if (row && row.command.enabled?.() !== false) execute(row.command)
+      if (row && commandAvailability(row.command).enabled) execute(row.command)
     },
   })
   const refreshAvailability = () => {
     rows.forEach(({ command, button }) => {
-      button.disabled = command.enabled?.() === false
-      button.setAttribute('aria-disabled', String(button.disabled))
+      refreshCommandButton(button, command)
     })
   }
   const fill = () => {
@@ -61,6 +62,15 @@ export function commandPalette(
     status.textContent = rows.length ? '' : tr('Aucune commande ne correspond.')
     status.hidden = !!rows.length
   }
+  const refresh = () => {
+    if (!input.isConnected) {
+      document.removeEventListener('commands:availability', refresh)
+      return
+    }
+    refreshAvailability()
+    navigation.refresh()
+  }
+  document.addEventListener('commands:availability', refresh)
   input.oninput = fill
   content.append(input, results, status)
   fill()

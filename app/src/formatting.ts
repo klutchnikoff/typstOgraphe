@@ -1,5 +1,6 @@
 import { getMarkRange, type Editor } from '@tiptap/core'
 import { Selection } from '@tiptap/pm/state'
+import { capabilityAvailability } from './command-availability'
 import { editingProvider } from './editing-history'
 import { editorRoot, selectedTextblocks, textTargets } from './editor-targets'
 import { executeStructured, type StructuredCommand } from './structured-commands'
@@ -53,7 +54,14 @@ export async function applyFormatting(
   id: Formatting,
   options: { range?: Range; url?: string; focus?: boolean; current?: () => boolean } = {},
 ): Promise<boolean> {
-  if (!editor.isEditable || editor.view.composing || editor.isDestroyed) return false
+  const policy = id.startsWith('block.')
+    ? 'heading'
+    : id === 'text.link' || id === 'text.remove_link'
+      ? 'link'
+      : 'style'
+  const capability =
+    id === 'text.remove_link' ? 'text.link' : id === 'text.clear' ? 'text.bold' : id
+  if (!capabilityAvailability(editor, capability, policy).enabled) return false
   const current = options.range || editor.state.selection
   const range =
     id === 'text.remove_link' && current.from === current.to

@@ -1,3 +1,4 @@
+import { editingAvailability } from './command-availability'
 import { navigationGroup } from './keyboard-navigation'
 import { getMarkRange, type Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
@@ -219,7 +220,7 @@ export function propertyPanel(
   }
   const api = {
     open(pos: number, kind: string, remove = false) {
-      if (pending || editor.view.composing) return
+      if (pending || !editingAvailability(editor).enabled) return
       const contract = settingsForNode(kind, catalogue.entries)
       if (!remove && !hasSettings(contract)) return
       const node = editor.state.doc.nodeAt(pos)

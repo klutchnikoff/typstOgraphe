@@ -1,4 +1,5 @@
 import { historyFor } from './editing-history'
+import { capabilityAvailability } from './command-availability'
 import { runFormatting } from './formatting'
 import type { RecordRoot } from './editor-targets'
 import type { Editor } from '@tiptap/core'
@@ -53,6 +54,10 @@ export function metadataRich(
     button.onmousedown = (event) => event.preventDefault()
     button.onclick = () => {
       history?.stopCapturing()
+      if (
+        !capabilityAvailability(editor, `text.${mark}`, mark === 'link' ? 'link' : 'style').enabled
+      )
+        return
       if (mark === 'link') properties.open(editor.state.selection.from, 'link')
       else runFormatting(editor, mark === 'bold' ? 'text.bold' : 'text.italic')
     }
@@ -62,8 +67,11 @@ export function metadataRich(
   const refresh = (current: Editor) => {
     for (const [mark, button] of buttons) {
       button.setAttribute('aria-pressed', String(current.isActive(mark)))
-      if (mark === 'link')
-        button.disabled = current.state.selection.empty && !current.isActive('link')
+      button.disabled = !capabilityAvailability(
+        current,
+        `text.${mark}`,
+        mark === 'link' ? 'link' : 'style',
+      ).enabled
     }
   }
   editor = createRichZone({
