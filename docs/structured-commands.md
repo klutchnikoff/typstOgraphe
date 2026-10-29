@@ -420,6 +420,60 @@ mais ne devient pas exportable sans les informations exigées par le type.
 Les fichiers bibliographiques suivent le même contrat d’enregistrements ; leur
 contenu et leurs références continuent à être validés par la bibliothèque existante.
 
+## En-tête raccordé dans l’application
+
+Les champs simples de l’en-tête utilisent `metadata.set`. Leur saisie est
+immédiate dans le contrôle natif ; `metadata-commands.ts` conserve la valeur locale
+tant que le propriétaire ne l’a pas confirmée. Les valeurs intermédiaires en
+attente d’un même champ sont regroupées, sans temporisation de frappe ajoutée.
+Le delta confirmé est installé dans Yjs sans second relais brut.
+
+`metadata-input.ts` partage le suivi du champ, la conservation du focus et du
+curseur, l’isolation de la composition IME et le traitement d’un refus. Une
+préédition ne devient pas une commande. Une valeur refusée reste visible :
+l’utilisateur peut la valider de nouveau explicitement ou l’annuler pour revenir
+à la valeur confirmée. Elle n’écrase pas silencieusement une édition distante.
+La sauvegarde et l’export attendent les éditions en cours ; ils sont refusés si
+un champ attend encore une décision ou une validation IME. Sur un champ refusé,
+Entrée permet de valider de nouveau et Échap de revenir à la valeur confirmée,
+sans fermer tout l’en-tête. Les actions utilisent la navigation clavier commune.
+La récupération automatique protège l’état confirmé sans attendre la décision
+sur ce champ. L’export JSON d’un brouillon refusé ajoute `headerDrafts` (cibles
+et valeurs en attente) au document Yjs ; ces valeurs ne sont pas introduites dans
+l’archive confirmée. Leur conservation automatique durable et leur réimportation
+restent à réaliser dans A.3.
+
+Les formulaires privés d’auteurs, d’affiliations et de localisations préparent un
+plan de commandes avant de publier un seul lot. L’ajout utilise `record.add` ;
+les changements scalaires utilisent `metadata.set`, et les champs riches modifiés
+une opération `block.splice` sur leur fragment existant. Les champs inchangés
+ne sont pas remplacés. Un changement concurrent du même enregistrement conserve
+le formulaire et signale le refus ; fermer le formulaire annule sa préparation.
+
+Les boutons de déplacement produisent `record.move`, avec des ancres d’identifiant.
+Une suppression avec retrait des associations produit les `metadata.set`
+nécessaires suivis de `record.remove` dans un seul lot. Une seule annulation
+restaure l’enregistrement et ses références. Importer, remplacer ou retirer un
+fichier bibliographique utilise également ces commandes ; sa vérification
+préalable lisible ne remplace pas la validation finale commune du candidat.
+
+Les onglets conservent leurs boutons pendant une mise à jour documentaire ; une
+confirmation asynchrone ne recrée pas le contrôle qui porte le focus clavier.
+Les fonctions locales d’initialisation et de manipulation des brouillons ne sont
+pas utilisées pour publier ces éditions d’en-tête ; les anciennes méthodes de
+publication directe, de déplacement et de suppression de collections ont été
+retirées. Sommaire et style bibliographique utilisent aussi `metadata.set`.
+Les options de page/langue, le changement de modèle et les ressources restent
+un lot distinct ; les contrôles de modèle et d’options attendent déjà les champs
+en cours de confirmation pour ne pas recopier un en-tête dépassé.
+
+Recette du lot : 186 tests web unitaires et trois contrôles des langues natives,
+17 contrats Rust ↔ Yjs/Tiptap, tests du workspace Rust et Clippy. Les parcours
+Chromium/WebKit couvrent les en-têtes, la concurrence, la conservation des
+brouillons, l’IME, les changements de modèle et les commandes voisines. Les
+tests de formulaires attendent la confirmation asynchrone et la fin du démarrage
+de la fenêtre avant de lire l’état diagnostique.
+
 ## Préparation et publication
 
 `SharedSession::prepare_commands(guard, commands)` prépare un candidat isolé.
@@ -476,8 +530,7 @@ Restent dans A.2 :
   communs ; la fusion de cellules reste différée.
   Les retours riches passent par `block.split` ou des nœuds de retour explicites,
   pas par des sauts de ligne cachés dans `text.insert`.
-- Les champs simples et collections d’en-tête, les ressources, options et
-  changements de modèle.
+- Les ressources, options générales et changements de modèle.
   Ces éditions passent encore par le relais validé lorsqu’elles ne sont pas
   explicitement raccordées aux commandes typées ci-dessus.
 - La conservation durable automatique et la réimportation des brouillons refusés.

@@ -83,6 +83,17 @@ widgets et les remplacements partagent la publication de leur plan et le
 rétablissement de la sélection. Le dictionnaire personnel reste une préférence
 globale. Voir la [recette et les limites](docs/structured-commands.md#rechercheremplacement-et-corrections-raccordés-dans-lapplication).
 
+Les champs simples et les collections d’en-tête Tauri utilisent les commandes
+communes : saisie native immédiate avec confirmation asynchrone, formulaires
+privés puis publication atomique, déplacement par identifiant et suppression
+avec détachement explicite des références. La sauvegarde attend les champs en
+cours de confirmation et conserve les valeurs refusées jusqu’à décision.
+Les onglets restent stables pendant les mises à jour. Voir le
+[contrat de publication de l’en-tête](docs/structured-commands.md#en-tête-raccordé-dans-lapplication).
+La récupération protège l’état confirmé ; l’export JSON du brouillon comprend
+les champs natifs en attente. Leur conservation durable et leur réimportation
+restent à traiter avec A.3.
+
 Converger entre le contenu structuré du nouvel éditeur et les adaptateurs
 historiques : catalogue, commandes, requêtes, erreurs typées et schémas de fichiers.
 Les cibles du nouvel éditeur sont des chemins de blocs/cellules/annotations,
@@ -245,6 +256,12 @@ mesurer saisie, validation, compilation, transport, affichage et mémoire sépar
 Préserver la dernière page valide pendant un rendu, refuser les résultats périmés
 et éviter une file de compilations obsolètes. Définir ensemble les budgets sur
 documents courts, longs, illustrés et avec plusieurs participants.
+
+**Budget relatif :** exprimer la cible comme un facteur (1,5 à 2, en p95) de la
+compilation incrémentale de Typst seul sur le même document, avec une référence
+distincte pour le natif et pour le WebAssembly, un plancher absolu pour les petits
+documents et un suivi du surcoût par étape. La cible suit ainsi les évolutions de
+Typst et détecte les régressions propres à typstOgraphe.
 
 ## F. Assistance ACP
 

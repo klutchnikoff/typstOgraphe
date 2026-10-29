@@ -212,6 +212,20 @@ les commandes typées, y compris l’exception documentaire `spelling.ignore`.
 Leur publication et celle des widgets partagent `applyPlannedEdit` : un seul
 delta confirmé et une étape d’historique, sans relais brut supplémentaire.
 
+Les champs natifs d’en-tête et les formulaires de collections utilisent également
+le propriétaire typé. La saisie native reste locale jusqu’à confirmation et ses
+valeurs intermédiaires sont regroupées ; la préédition IME n’est pas publiée.
+La garde de document/révision s’applique au champ ciblé, sans dépendre du curseur
+du corps. Une publication scalaire ne verrouille pas les zones riches. Les
+autres commandes différées attendent les champs en cours avant de préparer leur
+candidat, en vérifiant que leur sélection et leur texte n’ont pas changé.
+Les opérations de collections partagent préparation gardée, publication et
+historique ; un formulaire modifié est un seul lot. Les instantanés manuels
+attendent les confirmations, et un refus reste soumis à une décision explicite.
+La récupération automatique peut prendre l’état confirmé pendant ce refus ;
+l’export JSON du brouillon inclut les champs natifs en attente dans `headerDrafts`.
+La conservation durable et la réimportation de ces valeurs restent distinctes.
+
 Restent la migration des autres commandes vers leurs cibles typées communes,
 le report des sélections/styles de l’adaptateur vers les contextes, le mode
 individuel allégé et les adaptateurs CLI/MCP autonome. Le relais des modifications
