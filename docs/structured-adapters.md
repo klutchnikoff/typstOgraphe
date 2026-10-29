@@ -147,3 +147,59 @@ réussis. Clippy sur tout le workspace avec `-D warnings`, le formatage et les
 gardes de dépendances et de taille passent également. Le binaire Tauri est
 reconstruit avant les recettes de contrat. La déclaration UUID de l’application
 hérite désormais de celle du workspace, sans changement de version ni de fonctions.
+
+## Conservation et acceptation MCP — tests natifs
+
+Les opérations de sauvegarde/ouverture et l'acceptation d'une proposition ont
+maintenant des points d'entrée indépendants des fenêtres Tauri. L'application
+et les tests utilisent ces mêmes fonctions ; le pilote Rust ↔ Yjs passe aussi
+par l'acceptation complète avec compilation réelle. La validation
+Typst s'effectue sans verrouiller la saisie ; les gardes sont revérifiées avant
+l'écriture ou la publication. Les interruptions sont injectées à cette frontière,
+sans temporisation arbitraire ; deux acceptations sont aussi mises en concurrence
+sur de vrais threads synchronisés.
+
+Vingt tests Rust supplémentaires vérifient notamment :
+
+- la sauvegarde `.typsto`, sa réouverture et la suppression de la récupération
+  seulement après succès ;
+- les erreurs de validation, d'écriture, de nettoyage de récupération, les fichiers
+  corrompus, les verrous et les changements externes, sans perte du travail courant ;
+- une nouvelle saisie pendant la validation d'une ouverture ou d'une sauvegarde,
+  ainsi qu'une déconnexion pendant l'ouverture ;
+- une récupération incohérente ou impossible à recopier : conservation de la
+  source et du document courant, puis restauration après résolution du problème ;
+- le refus des liens symboliques de récupération sur Unix ;
+- la compilation réelle avant acceptation, l'annulation unique, la double
+  acceptation concurrente et la conservation du statut final ;
+- les interruptions pendant cette compilation : saisie humaine, composition IME,
+  refus, révocation, fermeture de fenêtre ou remplacement du document ;
+- les requêtes MCP sur une véritable connexion locale : authentification,
+  paramètres, lectures et préparation privée sans droit de sauvegarde ;
+- un échec de notification après acceptation : le travail confirmé reste
+  sauvegardable et une nouvelle tentative ne rejoue pas le lot.
+
+Deux défauts révélés par ces tests sont corrigés :
+
+1. Un état Yjs vide ou reconstruit à partir du même texte ne peut plus remplacer
+   l'état confirmé dans une sauvegarde. Le contenu **et l'histoire causale** sont
+   vérifiés par la même fonction pour le projet et pour la récupération.
+2. Une seconde acceptation ne peut plus marquer « périmée » une proposition déjà
+   acceptée. La publication et sa notification restent ordonnées sous le verrou
+   du propriétaire.
+
+Ces recettes ne simulent pas une panne électrique ni les dialogues natifs du
+système. Elles vérifient les refus et interruptions à des frontières déterministes.
+Les tests sont exclus de la couverture ; les modules extraits ne sont pas exclus.
+Pour comparer les taux, regrouper `files.rs` avec `files/persistence.rs`, et
+`agent.rs` avec `agent/approval.rs` et `agent/transport.rs`.
+
+Validation locale de ce lot : **474 tests Rust**, **206 tests web et 3 tests de
+langues natives**, **20 recettes Rust ↔ Yjs**, et **8 parcours Chromium/WebKit**
+réussis. Les parcours navigateur couvrent le brouillon refusé, la composition
+simulée, la sauvegarde entre deux fenêtres et une édition distante pendant la
+sauvegarde. Un premier passage Chromium a expiré lors de l'initialisation de la
+seconde fenêtre, avant la composition ; la recette isolée puis la série complète
+ont réussi au nouvel essai. Clippy workspace/toutes cibles avec `-D warnings`,
+formatage, production web et garde-fous d'architecture passent. Les dialogues de
+fichiers du système ne sont pas automatisés par ces parcours navigateur.
