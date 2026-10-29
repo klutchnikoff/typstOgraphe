@@ -289,7 +289,7 @@ impl EditingSession {
         if let Some(selection) = &context.selection {
             let target = selection
                 .resolve(&context.local, self.owner.state())?
-                .text_target()?;
+                .head_target()?;
             let info = self.owner.inspect_zone(guard, &target.zone)?;
             if !info.supports_styles {
                 return Err(Error::CommandUnavailable {

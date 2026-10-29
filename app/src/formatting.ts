@@ -103,7 +103,10 @@ export async function applyFormatting(
   if (options.range) chain = chain.setTextSelection(range)
   if (id === 'text.bold') return chain.toggleBold().run()
   if (id === 'text.italic') return chain.toggleItalic().run()
-  if (id === 'text.clear') return chain.unsetAllMarks().run()
+  if (id === 'text.clear')
+    return range.from === range.to
+      ? chain.command(({ tr }) => (tr.setStoredMarks([]), true)).run()
+      : chain.unsetAllMarks().run()
   if (id === 'text.link' || id === 'text.remove_link') {
     const changed = (
       id === 'text.link' ? chain.setLink({ href: options.url! }) : chain.unsetLink()

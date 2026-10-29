@@ -1,6 +1,7 @@
 import type { Editor } from '@tiptap/core'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import type { Provider } from './provider'
+import { bindEditingContext } from './editing-context'
 
 const zones = new WeakMap<Provider, Map<Editor, { editable: boolean }>>()
 const owners = new WeakMap<Editor, Provider>()
@@ -8,6 +9,7 @@ export const editingProvider = (editor: Editor) => owners.get(editor)
 /** A native-bound zone has NO Yjs UndoManager; all its entry points use Rust. */
 export function bindEditingHistory(editor: Editor, provider: Provider) {
   owners.set(editor, provider)
+  bindEditingContext(editor, provider)
   let entries = zones.get(provider)
   if (!entries) {
     entries = new Map()

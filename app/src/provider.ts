@@ -8,6 +8,7 @@ import {
 import type { JSONContent } from '@tiptap/core'
 import type { Settings } from './state'
 import { tr } from './i18n'
+import type { EditingView, ViewSelection, TypingStyle } from './editing-context'
 
 export interface Resource {
   path: string
@@ -46,6 +47,10 @@ interface Change {
 }
 
 export interface HistoryState {
+  guard?: { document: string; revision: number }
+  selection?: ViewSelection | null
+  selection_lost?: boolean
+  typing_styles?: TypingStyle[]
   undo_steps: number
   redo_steps: number
   pending: boolean
@@ -75,6 +80,14 @@ export class Provider {
   historyState: HistoryState = { undo_steps: 0, redo_steps: 0, pending: false }
   historyBusy = false
   composing = false
+  private contextSource?: { owner: object; read: () => EditingView | undefined }
+  private contextDirty = false
+  private contextScheduled = false
+  private contextPending?: Promise<void>
+  private contextTicket = 0
+  private contextRead = 0
+  private acceptedContextRead = 0
+  private frontier?: Uint8Array
   private compositionToken = 0
   onHistoryLock = (_locked: boolean) => {}
   rejected: { error: unknown; generation: string } | null = null
@@ -106,6 +119,7 @@ export class Provider {
           this.online
         )
           this.buffer(update, transaction.meta.get('addToHistory') !== false)
+        this.frontier = undefined
         this.onChange()
       },
     )
@@ -173,8 +187,7 @@ export class Provider {
         new Uint8Array(event.update),
         event.acceptedBy === this.id ? ACCEPTED_PROPOSAL : REMOTE,
       )
-    if (event.acceptedBy === this.id && this.nativeEditing)
-      void this.refreshHistory().catch(this.onError)
+    if (event.from !== this.id && this.nativeEditing) void this.refreshHistory().catch(this.onError)
   }
   private finishJoin() {
     this.joining = false
@@ -211,6 +224,7 @@ export class Provider {
     else this.incoming = []
     this.drain()
     this.stopCapturing()
+    this.scheduleEditingContext()
     this.onChange()
   }
   private buffer(update: Uint8Array, capture: boolean) {
@@ -263,7 +277,126 @@ export class Provider {
   }
   private acknowledge(receipt: Receipt) {
     this.revision = Math.max(this.revision, receipt.revision)
-    this.historyState = receipt.history
+    if (receipt.revision === this.revision)
+      this.historyState = {
+        ...this.historyState,
+        undo_steps: receipt.history.undo_steps,
+        redo_steps: receipt.history.redo_steps,
+        pending: receipt.history.pending,
+      }
+    this.scheduleEditingContext()
+  }
+  /** Private view updates coalesce independently from documentary publication.
+   * Await only already queued edits, never block a keystroke or encode a full
+   * document for cursor movement. Frontier includes deletes as well as clocks.
+   */
+  updateEditingContext(owner: object, read: () => EditingView | undefined) {
+    this.contextSource = { owner, read }
+    this.contextTicket++
+    this.scheduleEditingContext()
+  }
+  isEditingContextSource(owner: object) {
+    return this.contextSource?.owner === owner
+  }
+  releaseEditingContext(owner: object) {
+    if (!this.isEditingContextSource(owner)) return
+    this.contextSource = undefined
+    this.contextTicket++
+    // Keep the last anchored location in Rust: unmounting a field is not navigation.
+    this.contextDirty = false
+  }
+  private scheduleEditingContext() {
+    if (!this.nativeEditing || !this.contextSource || !this.online || this.rejected) return
+    this.contextDirty = true
+    if (this.contextScheduled || this.contextPending || this.composing || this.historyBusy) return
+    this.contextScheduled = true
+    queueMicrotask(() => {
+      this.contextScheduled = false
+      void this.flushEditingContext().catch(this.onError)
+    })
+  }
+  async flushEditingContext(): Promise<void> {
+    if (this.contextPending) {
+      await this.contextPending
+      if (this.contextDirty) return this.flushEditingContext()
+      return
+    }
+    if (!this.nativeEditing || !this.online || this.rejected || this.composing || this.historyBusy)
+      return
+    if (!this.contextDirty || !this.contextSource) return
+    const generation = this.generation,
+      epoch = this.epoch
+    const operation = async () => {
+      this.drain()
+      let tail: Promise<unknown>
+      do {
+        tail = this.pending
+        await tail
+        this.drain()
+      } while (tail !== this.pending)
+      if (
+        !this.online ||
+        this.rejected ||
+        this.composing ||
+        this.historyBusy ||
+        epoch !== this.epoch
+      )
+        return
+      const view = this.contextSource?.read()
+      this.contextDirty = false
+      if (!view) return
+      const ticket = this.contextTicket
+      const read = ++this.contextRead
+      const request = {
+        generation,
+        revision: this.revision,
+        frontier: [...(this.frontier ??= Y.encodeSnapshot(Y.snapshot(this.doc)))],
+        ...view,
+      }
+      try {
+        const snapshot = await this.transport.invoke<HistoryState>('set_editing_context', {
+          request,
+        })
+        // A late private response cannot replace newer counters or another zone.
+        if (
+          this.online &&
+          epoch === this.epoch &&
+          ticket === this.contextTicket &&
+          generation === this.generation &&
+          request.revision === this.revision &&
+          read > this.acceptedContextRead
+        ) {
+          this.acceptedContextRead = read
+          this.historyState = snapshot
+          this.onStatus()
+        }
+      } catch (error) {
+        let code: string | undefined
+        try {
+          code = JSON.parse(String(error)).code
+        } catch {
+          /* Native transport error. */
+        }
+        // A simultaneous publication invalidates guarded paths.
+        // A later local action requests a fresh view; never retry the old target.
+        if (
+          code !== 'stale_revision' &&
+          code !== 'inconsistent_state' &&
+          code !== 'wrong_document' &&
+          epoch === this.epoch
+        )
+          this.onError(error)
+      }
+    }
+    const pending = operation()
+    this.contextPending = pending
+    try {
+      await pending
+    } finally {
+      if (this.contextPending === pending) this.contextPending = undefined
+    }
+    if (this.contextDirty && !this.composing && !this.historyBusy && this.online && !this.rejected)
+      return this.flushEditingContext()
   }
   private refuse(error: unknown, generation: string) {
     this.online = false
@@ -307,6 +440,7 @@ export class Provider {
       return await operation
     } finally {
       this.historyBusy = false
+      this.scheduleEditingContext()
       if (lockEditors) this.onHistoryLock(false)
       this.onStatus()
     }
@@ -343,15 +477,29 @@ export class Provider {
       await operation
     } finally {
       this.historyBusy = false
+      this.scheduleEditingContext()
       this.onHistoryLock(false)
       this.onStatus()
     }
   }
   async refreshHistory() {
-    this.historyState = await this.transport.invoke<HistoryState>('editing_context', {
-      generation: this.generation,
-    })
-    this.onStatus()
+    const generation = this.generation,
+      epoch = this.epoch
+    const read = ++this.contextRead,
+      ticket = this.contextTicket
+    const snapshot = await this.transport.invoke<HistoryState>('editing_context', { generation })
+    if (
+      this.online &&
+      epoch === this.epoch &&
+      generation === this.generation &&
+      ticket === this.contextTicket &&
+      read > this.acceptedContextRead &&
+      (!snapshot.guard || snapshot.guard.revision === this.revision)
+    ) {
+      this.acceptedContextRead = read
+      this.historyState = snapshot
+      this.onStatus()
+    }
   }
   async clearHistory() {
     if (!this.nativeEditing || this.rejected) return
@@ -360,6 +508,8 @@ export class Provider {
       generation: this.generation,
     })
     this.stopCapturing()
+    this.scheduleEditingContext()
+    await this.flushEditingContext()
     this.onStatus()
   }
   async discardDraft() {
@@ -411,6 +561,8 @@ export class Provider {
       tail = this.pending
       await tail
       if (this.composing) throw new Error(tr('Terminez la saisie en cours avant de décider.'))
+      await this.flushEditingContext()
+      if (this.composing) throw new Error(tr('Terminez la saisie en cours avant de décider.'))
     } while (tail !== this.pending || this.buffered.length > 0)
     if (this.composing) throw new Error(tr('Terminez la saisie en cours avant de décider.'))
     if (this.rejected)
@@ -458,6 +610,9 @@ export class Provider {
     this.epoch++
     this.composing = false
     this.compositionToken++
+    this.contextSource = undefined
+    this.contextDirty = false
+    this.contextTicket++
     this.buffered = []
     for (const dispose of this.disposers) dispose()
     this.awareness.destroy()

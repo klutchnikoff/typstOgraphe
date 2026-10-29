@@ -725,6 +725,14 @@ fn directed_multizone_selection_is_private_and_rebases_without_becoming_a_flat_r
     view(&mut s, a, selection.clone(), vec![Style::Italic]);
     assert_eq!(snapshot(&mut s, a).selection, Some(selection));
     assert_eq!(bytes, s.update());
+    s.typing_style(&s.guard().clone(), a, Style::Bold, Switch::On)
+        .unwrap();
+    assert_eq!(
+        snapshot(&mut s, a).typing_styles,
+        vec![Style::Italic, Style::Bold]
+    );
+    s.typing_style(&s.guard().clone(), a, Style::Bold, Switch::Off)
+        .unwrap();
     assert!(snapshot(&mut s, b).selection.is_none());
     // Inserting at a multizone selection has not been defined: no silent flattening.
     assert!(s.insert(&s.guard().clone(), a, "X".into()).is_err());
