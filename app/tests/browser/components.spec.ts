@@ -142,7 +142,12 @@ test('tous les widgets partagent leur cadre, leur bandeau commun et la suppressi
     await expect(page.locator('#apply-properties')).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(widget).toHaveCount(0)
-    await page.getByRole('button', { name: 'Annuler', exact: true }).click()
+    // The owner installs the deletion before the awaiting band closes and unlocks history.
+    await expect(panel).toBeHidden()
+    await page
+      .getByRole('navigation', { name: 'Mise en forme', exact: true })
+      .getByRole('button', { name: 'Annuler', exact: true })
+      .click()
     await expect(widget).toHaveCount(1)
     await expect
       .poll(() => page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON())))
@@ -172,7 +177,10 @@ test('tous les widgets partagent leur cadre, leur bandeau commun et la suppressi
     }, kind)
     await page.keyboard.press('Control+Backspace')
     await expect(widget).toHaveCount(0)
-    await page.getByRole('button', { name: 'Annuler', exact: true }).click()
+    await page
+      .getByRole('navigation', { name: 'Mise en forme', exact: true })
+      .getByRole('button', { name: 'Annuler', exact: true })
+      .click()
     await expect
       .poll(() => page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON())))
       .toBe(before)
