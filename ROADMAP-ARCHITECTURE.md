@@ -65,9 +65,17 @@ des annulations avant publication. Il est vérifié avec Yjs/Tiptap et raccordé
 l’application : frappe immédiate,
 validation asynchrone, groupement et historique Rust unique par fenêtre,
 accusés/refus et export explicite du brouillon avant abandon. Restent les autres
-commandes typées, le report des sélections/styles, le mode individuel allégé, puis
+commandes typées, le mode individuel allégé, puis
 la migration CLI/MCP autonome. Les brouillons refusés restent en mémoire avant
 leur export JSON ; leur conservation automatique durable reste à traiter.
+
+Les sélections et styles de frappe Tauri sont désormais raccordés à ces contextes :
+points UTF-16 multizones et direction, sélections de widgets/badges et de cellules,
+styles privés par fenêtre et conservation pendant les changements distants.
+Le corps et les zones riches d’en-tête partagent ce mécanisme ; les brouillons
+restent isolés. Une frontière causale compacte garde les positions sans renvoyer
+le document pour chaque mouvement, sans publication ni compilation. Voir le
+[contrat des contextes](docs/structured-editing-contexts.md#sélections-et-styles-raccordés-dans-tauri--29-octobre-2026).
 
 **Lot en place :** [figures et tableaux](docs/structured-commands.md#figures-et-tableaux--contrat-mis-en-place),
 avec une enveloppe Typst `figure` commune aux images/tableaux, légende facultative,

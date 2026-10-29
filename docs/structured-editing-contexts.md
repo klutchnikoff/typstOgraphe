@@ -22,8 +22,10 @@ l’adaptateur. Aucun contexte ne peut demander de prendre le focus humain.
 L’API commune propose :
 
 - `open_context`, `close_context`, `context` : cycle de vie et état privé ;
-- `select`, `typing_style`, `insert` : sélection dans une zone et saisie avec les
-  styles propres au contexte ;
+- `set_context` : remplacement atomique de la sélection et des styles de frappe ;
+- `select`, `typing_style`, `insert` : raccourcis de saisie dans une seule zone,
+  avec les styles propres au contexte ;
+- `check_frontier` : vérification d’un checkpoint causal compact Yjs/Yrs ;
 - `execute` : lot de commandes documentaires explicites ;
 - `execute_updates` : lot de mises à jour attribué au contexte par l’hôte ;
 - `execute_grouped_update` : mise à jour de frappe avec groupe explicite et
@@ -34,8 +36,12 @@ L’API commune propose :
 
 Tous ces appels vérifient la garde document/révision. L’ouverture d’un contexte,
 la navigation et les styles de frappe ne modifient ni la révision documentaire,
-ni l’historique, ni la possibilité de rétablir un lot. Les sélections sont pour
-l’instant des plages ordonnées dans une seule zone, sans sélection discontinue.
+ni l’historique, ni la possibilité de rétablir un lot. Les sélections de texte conservent leurs extrémités `anchor`/`head`, y compris
+à rebours et entre plusieurs blocs du même arbre. Les sélections d’un nœud,
+de cellules d’un même tableau et de tout un arbre sont explicites ; elles ne
+sont jamais aplaties en fausses plages textuelles. La sélection discontinue
+reste hors périmètre. `insert` exige encore une sélection textuelle dans une
+seule zone ; les transformations multizones utilisent les commandes explicites.
 
 ## Sélection et styles
 
@@ -124,7 +130,7 @@ version confirmée après confirmation explicite d’abandon. Ce mécanisme ne c
 humaine des propositions MCP.
 
 Les erreurs de contexte ont le code `editing_context`, avec les motifs `closed`,
-`pending_draft`, `selection_required` et `history_conflict`. Leur présentation
+`pending_draft`, `selection_required`, `text_selection_required` et `history_conflict`. Leur présentation
 utilise Fluent, avec repli anglais, sans traduction dans le cœur.
 
 ## Recette et suite
@@ -227,15 +233,81 @@ l’export JSON du brouillon inclut les champs natifs en attente dans `headerDra
 La conservation durable et la réimportation de ces valeurs restent distinctes.
 
 Restent la migration des autres commandes vers leurs cibles typées communes,
-le report des sélections/styles de l’adaptateur vers les contextes, le mode
-individuel allégé et les adaptateurs CLI/MCP autonome. Le relais des modifications
-Yjs de l’interface est déjà validé par le moteur, même lorsque le geste n’utilise
+le mode individuel allégé et les adaptateurs CLI/MCP autonomes. Le relais des
+modifications Yjs de l’interface est déjà validé par le moteur, même lorsque le geste n’utilise
 pas encore une commande typée.
 
-Les contrôles du lot comprennent les tests du workspace Rust, les 168 tests web
-unitaires et les 3 contrôles de langues natives, les 13 recettes de contrat
+Lors du premier raccordement Tauri, les contrôles comprenaient les tests du
+workspace Rust, les 168 tests web unitaires et les 3 contrôles de langues natives,
+les 13 recettes de contrat
 Rust ↔ Yjs/Tiptap, Clippy sans avertissement et le formatage. Les 190 scénarios
 Chromium/WebKit ont été vérifiés, avec reprise ciblée des insertions après
 correction du tableau et des contrôles IME après ajout de la recette d’en-tête.
 La compilation native est aussi vérifiée ; ce bilan ne remplace pas une recette
 manuelle des méthodes de saisie et des boîtes système sur les trois OS.
+
+## Sélections et styles raccordés dans Tauri — 29 octobre 2026
+
+`editing-context.ts` traduit la sélection ProseMirror en cibles typées : points
+UTF-16 dans leurs zones, direction conservée, badges et widgets sélectionnés
+comme nœuds, cellules identifiées séparément. Toutes les zones riches liées au
+projet utilisent ce même raccordement via `bindEditingHistory` : corps,
+cellules, légendes, attributions et champs riches d’en-tête. Un seul contexte
+par fenêtre conserve la dernière zone riche active. Le focus réel reste local ;
+les champs HTML simples et les brouillons de formulaires ne deviennent pas des
+éditeurs documentaires implicites.
+
+Les styles de frappe distinguent l’héritage des marques au curseur d’une liste
+explicitement vide qui les arrête. Pour remplacer une sélection, ils suivent
+l’héritage réellement utilisé par ProseMirror, indépendamment de sa direction.
+Les boutons, raccourcis et palette passent
+par le même traducteur de mise en forme. Au curseur, « Effacer la mise en forme »
+arrête maintenant les styles sans modifier le texte voisin. Les marques
+explicitement préparées sont conservées pendant une transaction distante,
+y compris l’arrêt explicite des styles. Elles ne viennent jamais d’un autre
+participant et ne sont pas partagées dans l’awareness.
+
+Le fournisseur regroupe les changements privés et attend les éditions locales
+déjà envoyées avant `set_editing_context`. La requête comporte la génération,
+la révision et une frontière causale Yjs/Yrs (`encodeSnapshot`), qui inclut
+les intervalles supprimés : un simple vecteur d’état ne détecterait pas une
+suppression sans insertion. Elle ne transporte ni texte complet ni ressources.
+Cette frontière est réutilisée tant que le document ne change pas. Le cœur
+réutilise aussi sa projection confirmée pour résoudre les cibles ; il ne
+reconstruit pas un état documentaire complet pour chaque déplacement.
+
+La validation du couple sélection/styles est atomique, sans publication,
+compilation Typst, révision documentaire, entrée d’annulation ni effacement du
+rétablissement. Elle ne verrouille pas l’éditeur et ne retarde pas l’affichage
+des frappes. La préédition IME reste locale et son contexte n’est envoyé qu’après
+validation. Les réponses tardives d’une ancienne zone ou génération ne peuvent
+remplacer le contexte ou les compteurs plus récents de la fenêtre.
+
+Une requête de navigation concurrencée est refusée sans mettre la fenêtre en
+quarantaine et sans rejouer son ancienne cible sur une autre révision. Une action
+locale ultérieure fournit une sélection fraîche. Les réponses du moteur ne
+déplacent jamais le focus ou la sélection graphique. Une synchronisation
+distante laisse les ancres du moteur suivre leur identité ; elle ne remplace
+pas une zone supprimée par la position voisine choisie par ProseMirror.
+
+Le contexte et ses styles ne sont pas enregistrés dans le `.typsto`. La frappe
+continue à produire immédiatement les marques dans Yjs, puis le propriétaire
+Rust valide sa publication ; le raccordement des styles ne remplace pas cette
+validation par une dépendance synchrone à un IPC pour chaque caractère.
+
+
+Validation de ce raccordement :
+
+- workspace Rust complet, dont 360 tests du cœur ; le benchmark natif déjà
+  ignoré reste informatif ;
+- 198 tests web et 3 contrôles de langues natives ;
+- 19 contrats exécutés entre Rust et le véritable éditeur Yjs/Tiptap ;
+- 70 parcours Chromium/WebKit : sélections, styles, champs riches, concurrence,
+  perte de cible, objets en ligne, clavier, IME, bandeaux et historique ;
+- compilations web/native, Clippy avec `-D warnings`, formatage et gardes
+  d’architecture.
+
+Les compositions sont simulées dans ces parcours automatisés ; la recette des
+claviers et IME physiques des trois systèmes reste manuelle. La conservation
+durable des contextes, le mode individuel allégé et les adaptateurs autonomes
+ne font pas partie de ce raccordement.

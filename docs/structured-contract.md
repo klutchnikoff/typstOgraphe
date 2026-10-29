@@ -75,8 +75,8 @@ Le [premier lot du socle](structured-contract-foundation.md) est livré : valeur
 partagées, projection Yrs, préparation/publication gardée et conservation cohérente.
 Les cibles multizones et commandes sont livrées dans le cœur. Le relais et
 l’historique Tauri y sont raccordés, ainsi que les tableaux, styles, liens,
-titres, widgets et objets en ligne. Les autres commandes de l’interface et les
-adaptateurs CLI/MCP restent à migrer selon la séquence ci-dessous.
+titres, widgets, objets en ligne et contextes de sélection/styles de frappe.
+Les autres commandes de l’interface et les adaptateurs CLI/MCP restent à migrer selon la séquence ci-dessous.
 
 1. **Socle partagé** : valeurs de réglages et d'instantané dans le cœur,
    gardes/cibles/erreurs structurées, projection Yrs et contrôle de cohérence
@@ -87,8 +87,10 @@ adaptateurs CLI/MCP restent à migrer selon la séquence ci-dessous.
    le catalogue et la disponibilité communs. Préserver les identités lors des éditions.
 3. **Application** : le relais et l’historique par fenêtre sont raccordés au
    moteur, avec groupement, accusés/refus et export du brouillon avant abandon.
-   Poursuivre les autres commandes typées, le report des sélections/styles et le
-   mode individuel. Conserver la réactivité et les comportements de l’éditeur ;
+   Les sélections et styles privés Tauri sont aussi raccordés, avec des cibles
+   multizones et une frontière causale compacte. Poursuivre les autres commandes
+   typées et le mode individuel. Conserver la réactivité et les comportements
+   de l’éditeur ;
    étendre la recette IME aux systèmes réels.
 4. **CLI et MCP** : migrer les opérations et requêtes documentaires, les fichiers
    et les exports ; rendre les capacités découvrables, avec les nouvelles cibles.

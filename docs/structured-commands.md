@@ -296,8 +296,10 @@ leur position dans la liste ou leur libellé traduit ne sert jamais d’adresse.
 La sélection et le focus restent locaux. Une conversion de titre préserve la
 sélection même si l’identité XML du bloc change. Au curseur, gras et italique
 modifient seulement le style de la frappe suivante ; aucune commande de plage
-vide n’est envoyée au cœur. Les brouillons de formulaires détachés restent locaux
-jusqu’à leur validation ; le raccordement de leur publication est un lot distinct.
+vide n’est envoyée au cœur. Le couple sélection/styles est transmis au
+[contexte privé commun](structured-editing-contexts.md#sélections-et-styles-raccordés-dans-tauri--29-octobre-2026),
+sans mutation documentaire. Les brouillons de formulaires détachés restent locaux
+jusqu’à leur validation.
 
 Les commandes explicites suivent préparation et publication gardées. La frappe,
 les règles textuelles et le collage restent immédiats via le relais validé :
@@ -580,9 +582,9 @@ diagnostic reste réservé aux tests ; ce n’est pas une nouvelle voie publique
 
 Restent dans A.2 :
 
-- Le report des sélections et styles privés de l’interface vers les
-  [contextes de frappe](structured-editing-contexts.md), puis leur raccordement
-  aux adaptateurs autonomes. Leur sélection et leurs styles sont communs dans le cœur.
+- Le raccordement des adaptateurs autonomes aux
+  [contextes de frappe](structured-editing-contexts.md). Les sélections et styles
+  de l’interface Tauri sont désormais transmis aux contextes communs.
   Les commandes de style à cible explicite continuent de refuser une plage vide ;
   les styles de frappe appartiennent à l’API de contexte.
 - La fusion de paragraphes et les transformations supplémentaires. L’insertion,
