@@ -4,10 +4,10 @@ use assert_cmd::{Command as ProcessCommand, cargo::cargo_bin_cmd};
 use serde_json::Value;
 use std::path::Path;
 use typstographe_core::{
-    assets,
+    DocumentLease, assets,
+    content::{api::Session, archive::Archive},
     document_types::DocumentType,
-    engine::*,
-    storage::{self, StoredDocument},
+    document_types::Metadata,
 };
 
 fn cli() -> ProcessCommand {
@@ -21,10 +21,15 @@ fn response(command: &mut ProcessCommand, exit: i32) -> Value {
     serde_json::from_slice(&assertion.get_output().stdout).unwrap()
 }
 fn fixture(path: &Path) {
-    let mut stored = StoredDocument::demo(DocumentType::Courrier);
-    stored.source = "Première page.".into();
+    let mut session = Session::new();
+    session.execute("document.new", serde_json::json!({"type":"courrier","metadata":Metadata::demo(DocumentType::Courrier)})).unwrap();
+    session.execute("text.insert",serde_json::json!({"target":{"zone":{"kind":"body","path":[0]},"from":0,"to":0},"text":"Première page."})).unwrap();
+    let mut stored = session.archive().unwrap();
     stored.template = "#let courrier(..args, body) = { set page(width: 120pt, height: 80pt, margin: 5pt); body; pagebreak(); [Seconde page.] }".into();
-    storage::save(path, &stored).unwrap();
+    stored.yjs.clear();
+    stored
+        .save(&mut DocumentLease::acquire(path).unwrap())
+        .unwrap();
 }
 
 #[test]
@@ -33,32 +38,13 @@ fn a_selected_page_matches_the_engine_and_export_while_a_writer_is_active() {
     let input = dir.path().join("lettre.typsto");
     fixture(&input);
     let before = std::fs::read(&input).unwrap();
-    let mut engine = Engine::empty();
+    let mut engine = Session::new();
     engine
-        .run(Command::OpenDocument(OpenDocumentParams {
-            guard: engine.target_guard(),
-            path: input.clone(),
-            read_only: false,
-            discard_changes: false,
-        }))
+        .execute("document.open", serde_json::json!({"path":input}))
         .unwrap();
-    let compiled = engine
-        .compile(GuardParams {
-            guard: engine.target_guard(),
-        })
-        .unwrap()
-        .render
-        .unwrap();
-    let expected = engine.render_page_png(compiled.reference, 1).unwrap();
-    // Le lecteur ne voit pas la modification non enregistrée de l’écrivain.
-    engine
-        .run(Command::InsertText(InsertTextParams {
-            target: TextTarget::default(),
-            text: "Brouillon privé ".into(),
-            input_rules: InputRules::Literal,
-        }))
-        .unwrap();
-    let saved = storage::read(&input).unwrap();
+    let expected = engine.page_png(2).unwrap();
+    engine.execute("text.insert",serde_json::json!({"target":{"zone":{"kind":"body","path":[0]},"from":0,"to":0},"text":"Brouillon privé "})).unwrap();
+    let saved = Archive::read(&input).unwrap().state();
     let output = dir.path().join("résultat 日本.png");
     let result = response(
         cli()
@@ -92,7 +78,7 @@ fn a_selected_page_matches_the_engine_and_export_while_a_writer_is_active() {
         std::fs::read(exported.join("page-2.png")).unwrap(),
         expected
     );
-    assert_eq!(storage::read(&input).unwrap(), saved);
+    assert_eq!(Archive::read(&input).unwrap().state(), saved);
 }
 
 #[test]
@@ -130,7 +116,7 @@ fn invalid_pages_and_required_arguments_never_create_a_png() {
     }
     response(cli().arg("render").arg(&input).arg("--png").arg(&output), 2);
     response(cli().arg("render").arg(&input).args(["--page", "1"]), 2);
-    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1); // pas même un verrou de lecture
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2); // archive et compagnon persistant de la fixture
 }
 
 #[test]
@@ -169,9 +155,12 @@ fn failed_render_or_publication_preserves_destinations_and_leaves_no_partial_out
         "cli_render_io"
     );
     assert!(!missing.parent().unwrap().exists());
-    let mut stored = storage::read(&input).unwrap();
+    let mut stored = Archive::read(&input).unwrap();
     stored.template = "#let courrier(..args, body) = panic(\"Compilation refusée\")".into();
-    storage::save(&input, &stored).unwrap();
+    stored.yjs.clear();
+    stored
+        .save(&mut DocumentLease::acquire(&input).unwrap())
+        .unwrap();
     let output = dir.path().join("failed.png");
     let error = response(
         cli()
@@ -181,9 +170,9 @@ fn failed_render_or_publication_preserves_destinations_and_leaves_no_partial_out
             .arg(&output),
         1,
     );
-    assert_eq!(error["error"]["params"]["reason"], "render_compile");
+    assert_eq!(error["error"]["params"]["reason"], "export_compile");
     assert!(!output.exists());
-    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 3);
 }
 
 #[test]

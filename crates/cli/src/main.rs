@@ -72,8 +72,8 @@ fn main() -> ExitCode {
     } = cli.action
     {
         let result: Result<(), Box<dyn std::error::Error>> = match (attach_active, attach) {
-            (true, _) => typstographe_cli::mcp::local::bridge_active().map_err(Into::into),
-            (false, Some(path)) => typstographe_cli::mcp::local::bridge(&path).map_err(Into::into),
+            (true, _) => typstographe_cli::mcp::local::bridge_active(),
+            (false, Some(path)) => typstographe_cli::mcp::local::bridge(&path),
             (false, None) => typstographe_cli::mcp::serve(read_only, read_roots, write_roots),
         };
         return match result {
@@ -99,7 +99,11 @@ fn main() -> ExitCode {
             let text = i18n::command_error(&error);
             (
                 exit,
-                json!({"version":1,"ok":false,"error":{"code":error.code,"message":text,"params":error.params}}),
+                {
+                    let mut value = typstographe_core::content::api::error_value(&error);
+                    value["message"] = json!(text);
+                    json!({"version":1,"ok":false,"error":value})
+                },
                 text,
             )
         }

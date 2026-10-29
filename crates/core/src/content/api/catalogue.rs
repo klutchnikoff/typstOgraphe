@@ -49,7 +49,7 @@ const QUERIES: &[(&str, &str)] = &[
         "Count Unicode words and signs in the body and optional target.",
     ),
     (
-        "document.find",
+        "search.find",
         "Find exact text inside each zone, including rich header fields; no cross-zone matches.",
     ),
     (
@@ -101,7 +101,7 @@ const QUERIES: &[(&str, &str)] = &[
         "Map a typed body target to preview or a zero-based PagePoint back to a body zone. Template decorations may have no target.",
     ),
     (
-        "render.selection",
+        "render.selection_boxes",
         "Read rendered highlight rectangles for a typed body range. Header/annotation geometry is unavailable.",
     ),
 ];
@@ -135,10 +135,10 @@ const ACTIONS: &[(&str, &str)] = &[
         "Apply typed documentary steps atomically, with one history entry and optional final save. A late failure publishes and saves nothing.",
     ),
     (
-        "history.undo",
+        "edit.undo",
         "Undo this participant's last confirmed contribution.",
     ),
-    ("history.redo", "Redo this participant's contribution."),
+    ("edit.redo", "Redo this participant's contribution."),
     (
         "context.set",
         "Atomically set private directed selection and typing styles; never edit content, move another participant's focus or create history.",
@@ -202,7 +202,7 @@ fn extra_schema(id: &str) -> Value {
         "context.insert" => object(json!({"text":string}), &["text"]),
         "document_types.describe" => object(json!({"type":string}), &["type"]),
         "capabilities.describe" => object(json!({"id":string}), &["id"]),
-        "document.find" => object(
+        "search.find" => object(
             json!({"query":string,"case_sensitive":{"type":"boolean","default":false}}),
             &["query"],
         ),
@@ -223,7 +223,9 @@ fn extra_schema(id: &str) -> Value {
             value["oneOf"] = json!([{"required":["target"],"not":{"required":["point"]}},{"required":["point"],"not":{"required":["target"]}}]);
             value
         }
-        "render.selection" => object(json!({"target":{"$ref":"#/$defs/TextTarget"}}), &["target"]),
+        "render.selection_boxes" => {
+            object(json!({"target":{"$ref":"#/$defs/TextTarget"}}), &["target"])
+        }
         "render.page" => object(json!({"page":{"type":"integer","minimum":1}}), &["page"]),
         _ => object(json!({}), &[]),
     };

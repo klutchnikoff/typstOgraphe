@@ -1,28 +1,23 @@
-use assert_cmd::Command;
-
+use assert_cmd::{Command, cargo::cargo_bin_cmd};
 #[test]
-fn static_catalogue_exports_no_longer_require_a_graphical_application() {
-    let output = Command::new(assert_cmd::cargo::cargo_bin!("typstographe-cli"))
-        .args(["commands", "export", "--markdown"])
+fn static_catalogue_export_matches_common_api_and_checked_documentation() {
+    let mut c: Command = cargo_bin_cmd!("typstographe-cli");
+    c.args(["commands", "export", "--markdown"])
         .assert()
         .success()
-        .get_output()
-        .stdout
-        .clone();
-    assert_eq!(
-        String::from_utf8(output).unwrap(),
-        include_str!("../../../docs/commands.md").replace("\r\n", "\n")
-    );
-    let output = Command::new(assert_cmd::cargo::cargo_bin!("typstographe-cli"))
+        .stdout(include_str!("../../../docs/cli.md").replace("\r\n", "\n"));
+    let output = cargo_bin_cmd!("typstographe-cli")
         .args(["--json", "commands", "export"])
         .assert()
         .success()
         .get_output()
         .stdout
         .clone();
-    let value: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(v["outcome"], typstographe_core::content::api::catalogue());
     assert_eq!(
-        value["outcome"],
-        typstographe_core::engine::registry::catalogue_json()
+        v["outcome"],
+        serde_json::from_str::<serde_json::Value>(include_str!("../../../docs/commands.json"))
+            .unwrap()
     );
 }

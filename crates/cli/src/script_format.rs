@@ -37,7 +37,7 @@ pub enum Document {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Step {
-    pub id: CommandId,
+    pub id: String,
     #[serde(default)]
     pub params: Map<String, Value>,
     #[serde(default)]
@@ -88,7 +88,9 @@ impl Script {
                 "cli_script_version",
             ));
         }
-        if self.steps.is_empty() || self.steps.len() > MAX_BATCH_STEPS {
+        if self.steps.is_empty()
+            || self.steps.len() > typstographe_core::content::api::MAX_BATCH_STEPS
+        {
             return Err(CommandError::new(
                 ErrorCode::InvalidParams,
                 "batch_step_limit",
@@ -104,14 +106,18 @@ impl Script {
         }
         if let Document::New { params, .. } = &self.document {
             targets::portable(&Value::Object(params.clone()))?;
+            if params.contains_key("type") || params.contains_key("model") {
+                return Err(CommandError::new(
+                    ErrorCode::InvalidParams,
+                    "cli_params_conflict",
+                ));
+            }
         }
         for (index, step) in self.steps.iter().enumerate() {
             let check = || {
-                let spec = catalogue()
-                    .iter()
-                    .find(|s| s.id == step.id)
+                let spec = typstographe_core::content::api::describe(&step.id)
                     .ok_or_else(|| CommandError::new(ErrorCode::NotFound, "unknown_command"))?;
-                if !spec.batch_step {
+                if spec["batch_step"] != true {
                     return Err(CommandError::new(
                         ErrorCode::Unavailable,
                         "batch_step_forbidden",
@@ -120,7 +126,7 @@ impl Script {
                 targets::portable(&Value::Object(step.params.clone()))?;
                 step.target.validate()
             };
-            check().map_err(|e| e.at_batch_step(index, step.id.as_str()))?;
+            check().map_err(|e| e.at_batch_step(index, &step.id))?;
         }
         Ok(())
     }

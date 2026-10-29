@@ -1,87 +1,76 @@
-//! Résolution CLI dans le brouillon atomique du moteur ; aucune sauvegarde d’étape.
 use crate::{
-    Report, calls, creation, paths,
+    Report, calls,
     script_format::{self, Document, Save},
 };
-use serde_json::{Value, json};
+use serde_json::json;
 use std::path::PathBuf;
-use typstographe_core::engine::*;
+use typstographe_core::{
+    content::api::{self, Call, Session},
+    engine::CommandError,
+};
 use typstographe_i18n::tr;
-
 pub fn execute(path: PathBuf) -> Result<Report, CommandError> {
     let (script, base) = script_format::load(&path)?;
-    let mut engine = match script.document {
+    let mut s = match script.document {
         Document::Open { mut path } => {
-            paths::relative_to(&mut path, &base);
-            calls::working_copy(path, matches!(script.save, Some(Save::Current {})))?
+            crate::paths::relative_to(&mut path, &base);
+            if matches!(script.save, Some(Save::Current {})) {
+                calls::open(path, true)?
+            } else {
+                calls::open(path, false)?.fork()?
+            }
         }
         Document::New {
             document_type,
             model,
             params,
         } => {
-            let mut engine = Engine::empty();
-            let mut command = creation::command(&engine, &document_type, model.as_deref(), params)?;
-            paths::command(&mut command, &base);
-            engine.run(command)?;
-            engine
+            let mut s = Session::new();
+            let mut p = params;
+            p.insert("type".into(), json!(document_type));
+            if let Some(m) = model {
+                p.insert("model".into(), json!(m));
+            }
+            s.execute("document.new", json!(p))?;
+            s
         }
     };
     let save = match script.save {
-        Some(Save::Current {}) => Some(BatchSave::Current {}),
+        Some(Save::Current {}) => Some(api::Save::Current),
         Some(Save::As { mut path }) => {
-            paths::relative_to(&mut path, &base);
-            Some(BatchSave::As {
-                path,
-                overwrite: false,
-            })
+            crate::paths::relative_to(&mut path, &base);
+            Some(api::Save::As { path })
         }
         None => None,
     };
     let steps = script
         .steps
         .iter()
-        .map(|s| Call {
-            id: s.id.clone(),
-            params: Value::Object(s.params.clone()),
+        .map(|step| {
+            Ok(Call {
+                id: step.id.clone(),
+                params: calls::params(step.params.clone(), step.target.clone())?,
+            })
         })
-        .collect();
-    let outcome = engine.run_resolved_batch(
-        BatchParams {
-            guard: engine.target_guard(),
-            steps,
-            save,
-        },
-        |index, draft, call| {
-            let spec = catalogue()
-                .iter()
-                .find(|s| s.id == call.id)
-                .expect("preflighted step");
-            let (params, selection) = calls::resolve_parameters(
-                draft,
-                spec,
-                script.steps[index].params.clone(),
-                script.steps[index].target.clone(),
-            )?;
-            let mut command = Command::from_call(call.id.as_str(), params)?;
-            paths::command(&mut command, &base);
-            Ok(ResolvedBatchStep { command, selection })
-        },
-    )?;
-    let saved_path = outcome.value.as_ref().and_then(|v| v["saved"].as_str());
-    let saved = saved_path.is_some();
-    let text = format!(
-        "{}\n{}\n",
-        tr!("cli-script-completed", steps = script.steps.len()),
-        if let Some(path) = saved_path {
-            tr!("letter-saved", path = path)
-        } else {
-            tr!("cli-not-saved")
-        }
-    );
+        .collect::<Result<Vec<_>, CommandError>>()?;
+    let outcome = s.batch(&steps, save)?;
+    let saved = outcome["saved"] == true;
+    let path = if saved {
+        json!(s.file_path())
+    } else {
+        serde_json::Value::Null
+    };
     Ok(Report {
-        outcome: json!({"batch":outcome,"saved":saved,"path":saved_path,"document":engine.query(Query::Inspect(Empty {}))?,"source":engine.document().source(),"metadata":engine.metadata()}),
-        text,
+        text: format!(
+            "{}\n{}\n",
+            tr!("cli-script-completed", steps = steps.len()),
+            if saved {
+                tr!("letter-saved", path = path.as_str().unwrap_or(""))
+            } else {
+                tr!("cli-not-saved")
+            }
+        ),
+        outcome: json!({"batch":outcome,"saved":saved,"path":path,"document":s.query("document.inspect",json!({}))?,"source":s.query("document.source",json!({}))?["source"],"metadata":s.state()?.settings.metadata}),
         exit: 0,
     })
 }

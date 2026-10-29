@@ -72,7 +72,7 @@ impl Session {
                 .iter()
                 .find(|(zone, _, _)| *zone == target.zone)
                 .ok_or_else(|| content_error(invalid("render_body_target")))?;
-            if id == "render.selection" {
+            if id == "render.selection_boxes" {
                 return Ok(
                     json!({"guard":self.guard(),"boxes":sync.selection_highlights_exact(start+target.from as usize..start+target.to as usize)}),
                 );
@@ -82,6 +82,9 @@ impl Session {
             );
         }
         let point: PagePoint = decode(p["point"].clone())?;
+        if point.point.iter().any(|n| !n.is_finite()) {
+            return Err(content_error(invalid("point")));
+        }
         let target = sync.backward(point).and_then(|pos| {
             ranges
                 .iter()

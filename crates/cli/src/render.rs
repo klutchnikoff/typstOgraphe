@@ -1,5 +1,5 @@
 //! Une seule page du cache Typst, publiée sans remplacement, sans préférences GUI.
-use crate::{Report, calls, open};
+use crate::{Report, calls};
 use serde_json::json;
 use std::{
     io::Write,
@@ -15,17 +15,18 @@ pub fn execute(file: PathBuf, page: u32, png: PathBuf) -> Result<Report, Command
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => return Err(io_error(error)),
     }
-    let engine = open(file)?;
-    let render = calls::compile_render(&engine)?;
+    let mut engine = calls::open(file, false)?;
+    let render = engine.query("render.compile", json!({}))?;
+    let pages = render["pages"].as_array().unwrap();
     let index = page
         .checked_sub(1)
         .map(|n| n as usize)
-        .filter(|index| *index < render.pages.len())
+        .filter(|index| *index < pages.len())
         .ok_or_else(|| CommandError {
             code: ErrorCode::InvalidParams,
-            params: json!({"reason":"cli_render_page","page":page,"pages":render.pages.len()}),
+            params: json!({"reason":"cli_render_page","page":page,"pages":pages.len()}),
         })?;
-    let bytes = engine.render_page_png(render.reference, index)?;
+    let bytes = engine.page_png(page)?;
     let parent = png
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -42,7 +43,7 @@ pub fn execute(file: PathBuf, page: u32, png: PathBuf) -> Result<Report, Command
         }
     })?;
     Ok(Report {
-        outcome: json!({"path":png,"page":page,"pages":render.pages.len(),"size_points":render.pages[index]}),
+        outcome: json!({"path":png,"page":page,"pages":pages.len(),"size_points":pages[index]}),
         text: format!(
             "{}\n",
             tr!(

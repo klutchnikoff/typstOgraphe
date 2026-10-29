@@ -22,7 +22,7 @@ class CoreDependencyTests(unittest.TestCase):
     def test_typst_rendering_and_unicode_dependencies_are_allowed(self):
         self.assertEqual(checker.forbidden_dependencies(
             "typstographe-core v0.1.0 (/a path/core)\ntypst-ide v0.15.1\n"
-            "resvg v0.47.0\nunic-langid v0.9\n"), [])
+            "resvg v0.47.0\nunic-langid v0.9\njsonschema v0.60.1\nfluent-uri v0.4.1\n"), [])
 
     def test_future_localization_and_transport_subcrates_are_also_rejected(self):
         self.assertEqual(checker.forbidden_dependencies(

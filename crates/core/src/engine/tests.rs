@@ -203,10 +203,10 @@ fn generated_catalogues_match_the_registry() {
     let value = registry::catalogue_json();
     assert_eq!(
         registry::catalogue_markdown(&value),
-        include_str!("../../../../docs/commands.md").replace("\r\n", "\n")
+        include_str!("../../../../docs/archive/flat-commands.md").replace("\r\n", "\n")
     );
     let checked: Value =
-        serde_json::from_str(include_str!("../../../../docs/commands.json")).unwrap();
+        serde_json::from_str(include_str!("../../../../docs/archive/flat-commands.json")).unwrap();
     assert_eq!(value, checked);
 }
 

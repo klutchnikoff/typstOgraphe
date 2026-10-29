@@ -1,4 +1,4 @@
-//! Adaptateur synchrone : aucune logique documentaire ni préférence graphique.
+//! CLI adapter: presentation and portable path resolution over the common structured session.
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 pub mod args;
 mod calls;
@@ -12,16 +12,17 @@ mod script;
 mod script_format;
 use args::{Action, CatalogueAction, Cli};
 use serde_json::{Value, json};
-use typstographe_core::engine::*;
+use typstographe_core::{
+    content::api::{self},
+    engine::{CommandError, ErrorCode},
+};
 use typstographe_i18n::tr;
 use typstographe_mcp::targets;
-
 pub struct Report {
     pub outcome: Value,
     pub text: String,
     pub exit: u8,
 }
-
 pub fn execute(cli: Cli) -> Result<Report, CommandError> {
     match cli.action {
         Action::Mcp { .. } => Err(CommandError::new(
@@ -52,13 +53,8 @@ pub fn execute(cli: Cli) -> Result<Report, CommandError> {
         } => creation::create(document_type, model, output, params),
         Action::Commands { action } => catalogue_report(action),
         Action::Inspect { file } => {
-            let engine = open(file)?;
-            let outcome = json!({
-                "document":engine.query(Query::Inspect(Empty {}))?,
-                "metadata":engine.query(Query::Metadata(Empty {}))?,
-                "structure":engine.query(Query::Structure(Empty {}))?,
-                "statistics":engine.query(Query::Statistics(StatisticsParams::default()))?,
-            });
+            let mut s = calls::open(file, false)?;
+            let outcome = json!({"document":s.query("document.inspect",json!({}))?,"metadata":s.query("metadata.get",json!({}))?,"structure":s.query("document.structure",json!({}))?,"statistics":s.query("document.statistics",json!({}))?});
             Ok(Report {
                 text: output::inspect(&outcome),
                 outcome,
@@ -70,22 +66,18 @@ pub fn execute(cli: Cli) -> Result<Report, CommandError> {
             for_export,
             spelling,
         } => {
-            let engine = open(file)?;
-            let validation = engine.validate(GuardParams {
-                guard: engine.target_guard(),
-            })?;
-            let issues: Option<SpellingIssues> = spelling
-                .then(|| {
-                    engine
-                        .query(Query::SpellingIssues(Empty {}))
-                        .map(|value| serde_json::from_value(value).expect("spelling issues"))
-                })
-                .transpose()?;
-            let passed = validation.valid
-                && (!for_export || validation.ready_for_export)
-                && issues
-                    .as_ref()
-                    .is_none_or(|s| s.available && s.issues.is_empty());
+            let mut s = calls::open(file, false)?;
+            let validation = s.query("document.validate", json!({}))?;
+            let issues = if spelling {
+                s.query("spelling.issues", json!({}))?
+            } else {
+                Value::Null
+            };
+            let passed = validation["valid"] == true
+                && (!for_export || validation["ready_for_export"] == true)
+                && (!spelling
+                    || issues["available"] == true
+                        && issues["issues"].as_array().is_some_and(|v| v.is_empty()));
             let outcome = json!({"passed":passed,"for_export":for_export,"validation":validation,"spelling":issues});
             Ok(Report {
                 text: output::check(&outcome),
@@ -99,15 +91,10 @@ pub fn execute(cli: Cli) -> Result<Report, CommandError> {
             output,
             pages,
         } => {
-            let mut engine = open(file)?;
-            let outcome = engine.run(Command::Export(ExportParams {
-                guard: engine.target_guard(),
-                directory: output.clone(),
-                format: format.into(),
-                page_images: pages,
-            }))?;
+            let mut s = calls::open(file, false)?;
+            let outcome = s.export(&output, format.into(), pages)?;
             Ok(Report {
-                outcome: serde_json::to_value(outcome).expect("serializable outcome"),
+                outcome,
                 text: format!(
                     "{}\n",
                     tr!("cli-exported", path = output.display().to_string())
@@ -117,56 +104,29 @@ pub fn execute(cli: Cli) -> Result<Report, CommandError> {
         }
     }
 }
-
-fn open(file: std::path::PathBuf) -> Result<Engine, CommandError> {
-    let mut engine = Engine::empty();
-    engine.run(Command::OpenDocument(OpenDocumentParams {
-        guard: engine.target_guard(),
-        path: file,
-        read_only: true,
-        discard_changes: false,
-    }))?;
-    Ok(engine)
-}
-
 fn catalogue_report(action: CatalogueAction) -> Result<Report, CommandError> {
     let outcome = match action {
-        CatalogueAction::Export { markdown } => {
-            let value = typstographe_core::engine::registry::catalogue_json();
-            return Ok(Report {
-                text: if markdown {
-                    typstographe_core::engine::registry::catalogue_markdown(&value)
-                } else {
-                    format!(
-                        "{}\n",
-                        serde_json::to_string_pretty(&value).expect("catalogue")
-                    )
-                },
-                outcome: value,
-                exit: 0,
-            });
-        }
-        CatalogueAction::List { markdown: true, .. } => {
+        CatalogueAction::Export { markdown: true }
+        | CatalogueAction::List { markdown: true, .. } => {
             return Ok(Report {
                 outcome: Value::Null,
                 text: documentation(),
                 exit: 0,
             });
         }
+        CatalogueAction::Export { markdown: false } => api::catalogue(),
         CatalogueAction::List { query, .. } => {
-            let entries: Vec<_> = catalogue()
-                .iter()
-                .filter(|s| !query || s.family == Family::Query)
-                .collect();
-            json!({"entries": entries})
+            let mut c = api::catalogue();
+            if query {
+                c["entries"]
+                    .as_array_mut()
+                    .unwrap()
+                    .retain(|s| s["family"] == "query");
+            }
+            c
         }
-        CatalogueAction::Describe { id } => {
-            let spec = catalogue()
-                .iter()
-                .find(|s| s.id.as_str() == id)
-                .ok_or_else(|| CommandError::new(ErrorCode::NotFound, "unknown_command"))?;
-            serde_json::to_value(spec).expect("serializable specification")
-        }
+        CatalogueAction::Describe { id } => api::describe(&id)
+            .ok_or_else(|| CommandError::new(ErrorCode::NotFound, "unknown_command"))?,
     };
     Ok(Report {
         text: output::catalogue(&outcome),
@@ -174,37 +134,15 @@ fn catalogue_report(action: CatalogueAction) -> Result<Report, CommandError> {
         exit: 0,
     })
 }
-
 pub fn documentation() -> String {
-    documentation_from_reference(include_str!("reference.md"))
-}
-
-fn documentation_from_reference(reference: &str) -> String {
-    // Git peut convertir le Markdown en CRLF à l’extraction sous Windows.
-    // La sortie générée doit rester en LF, comme les lignes du catalogue.
-    let mut text = reference.replace("\r\n", "\n");
-    for spec in catalogue() {
-        let family = serde_json::to_value(spec.family).expect("family");
+    let mut text = include_str!("reference.md").replace("\r\n", "\n");
+    for spec in api::catalogue()["entries"].as_array().unwrap() {
         text.push_str(&format!(
             "| `{}` | {} | {} |\n",
-            spec.id.as_str(),
-            family.as_str().unwrap(),
-            spec.description.replace('|', "\\|")
+            spec["id"].as_str().unwrap(),
+            spec["family"].as_str().unwrap(),
+            spec["description"].as_str().unwrap().replace('|', "\\|")
         ));
     }
     text
-}
-
-#[cfg(test)]
-#[cfg_attr(coverage_nightly, coverage(off))]
-mod tests {
-    #[test]
-    fn documentation_is_identical_for_lf_and_windows_crlf_templates() {
-        let reference = include_str!("reference.md").replace("\r\n", "\n");
-        let lf = super::documentation_from_reference(&reference);
-        let crlf = super::documentation_from_reference(&reference.replace('\n', "\r\n"));
-        assert_eq!(lf, crlf);
-        assert!(!crlf.contains('\r'));
-        assert!(crlf.contains("| `document.batch` | batch |"));
-    }
 }

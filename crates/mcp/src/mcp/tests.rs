@@ -60,11 +60,7 @@ fn strict_references_atomic_batches_and_participant_history_share_the_owner() {
         error(&mut h, "document.text", json!({"document":doc}))["code"],
         "stale_revision"
     );
-    let undone = run(
-        &mut h,
-        "history.undo",
-        json!({"document":changed["document"]}),
-    );
+    let undone = run(&mut h, "edit.undo", json!({"document":changed["document"]}));
     assert_eq!(
         run(
             &mut h,

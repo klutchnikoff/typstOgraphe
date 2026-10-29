@@ -1,176 +1,116 @@
-//! L’adaptateur résout le contexte ; le moteur valide et exécute les appels typés.
 use crate::{
     Report,
     args::{Parameters, Target},
-    open, targets,
 };
 use serde_json::{Map, Value, json};
 use std::path::PathBuf;
-use typstographe_core::engine::*;
+use typstographe_core::{
+    content::api::{self, Session},
+    engine::{CommandError, ErrorCode},
+};
 use typstographe_i18n::tr;
-
-fn specification(id: &str, query: bool) -> Result<&'static CommandSpec, CommandError> {
-    let spec = catalogue()
-        .iter()
-        .find(|s| s.id.as_str() == id)
-        .ok_or_else(|| CommandError::new(ErrorCode::NotFound, "unknown_command"))?;
-    if (spec.family == Family::Query) != query {
+pub fn params(mut params: Map<String, Value>, target: Target) -> Result<Value, CommandError> {
+    crate::targets::portable(&json!(params))?;
+    if target.select.is_some() || target.block.is_some() {
+        if params.contains_key("target") || params.contains_key("selector") {
+            return Err(CommandError::new(
+                ErrorCode::InvalidParams,
+                "cli_params_conflict",
+            ));
+        }
+        let mut selector = Map::new();
+        if let Some(s) = target.select {
+            selector.insert("select".into(), json!(s));
+        }
+        if let Some(n) = target.block {
+            selector.insert("block".into(), json!(n));
+        }
+        if let Some(n) = target.occurrence {
+            selector.insert("occurrence".into(), json!(n));
+        }
+        params.insert("selector".into(), json!(selector));
+    }
+    Ok(json!(params))
+}
+pub fn open(path: PathBuf, writable: bool) -> Result<Session, CommandError> {
+    let mut s = Session::new();
+    s.execute("document.open", json!({"path":path,"read_only":!writable}))?;
+    Ok(s)
+}
+pub fn query(
+    id: String,
+    file: Option<PathBuf>,
+    input: Parameters,
+    target: Target,
+) -> Result<Report, CommandError> {
+    if !api::is_query(&id) {
         return Err(CommandError::new(
             ErrorCode::InvalidParams,
             "cli_call_family",
         ));
     }
-    if id.starts_with("recovery.")
-        || matches!(spec.family, Family::File | Family::Batch | Family::History)
-    {
+    let mut s = match file {
+        Some(p) => open(p, false)?,
+        None => Session::new(),
+    };
+    let mut p = params(input.load()?, target)?;
+    // Query selection conveniences resolve through the same typed zone search.
+    if let Some(selector) = p.as_object_mut().unwrap().remove("selector") {
+        let call = api::Call {
+            id: "text.delete".into(),
+            params: json!({"selector":selector}),
+        };
+        let command = api::resolve_call(s.state()?, &call).map_err(api::content_error)?;
+        let typstographe_core::content::commands::Command::Delete { target } = command else {
+            unreachable!()
+        };
+        p["target"] = json!(target);
+    }
+    let outcome = s.query(&id, p)?;
+    Ok(Report {
+        text: format!("{}\n", serde_json::to_string_pretty(&outcome).unwrap()),
+        outcome,
+        exit: 0,
+    })
+}
+pub fn run(
+    id: String,
+    file: PathBuf,
+    input: Parameters,
+    target: Target,
+    save: bool,
+    output: Option<PathBuf>,
+) -> Result<Report, CommandError> {
+    if api::is_query(&id) || api::describe(&id).is_none_or(|s| s["family"] != "edit") {
         return Err(CommandError::new(
             ErrorCode::Unavailable,
             "cli_call_unavailable",
         ));
     }
-    Ok(spec)
-}
-
-fn parameters(
-    engine: &mut Engine,
-    spec: &CommandSpec,
-    input: Parameters,
-    target: Target,
-) -> Result<Value, CommandError> {
-    let (params, selection) = resolve_parameters(engine, spec, input.load()?, target)?;
-    if let Some(selection) = selection {
-        engine.run(Command::SelectText(SelectTextParams {
-            target: selection.into(),
-            part: None,
-        }))?;
-    }
-    Ok(params)
-}
-
-pub(crate) fn resolve_parameters(
-    engine: &Engine,
-    spec: &CommandSpec,
-    mut params: Map<String, Value>,
-    target: Target,
-) -> Result<(Value, Option<SelectionTarget>), CommandError> {
-    targets::portable(&Value::Object(params.clone()))?;
-    let selection = target.resolve(engine, spec, &mut params)?;
-    if !spec.params_schema["properties"]["guard"].is_null() {
-        params.insert("guard".into(), json!(engine.target_guard()));
-    }
-    prepare_render(engine, spec, &mut params)?;
-    Ok((Value::Object(params), selection))
-}
-
-fn prepare_render(
-    engine: &Engine,
-    spec: &CommandSpec,
-    params: &mut Map<String, Value>,
-) -> Result<(), CommandError> {
-    if spec.params_schema["properties"]["render"].is_null() {
-        return Ok(());
-    }
-    let render = compile_render(engine)?;
-    params.insert("render".into(), json!(render.reference));
-    Ok(())
-}
-
-pub(crate) use typstographe_mcp::compile_render;
-
-pub fn query(
-    id: String,
-    file: Option<PathBuf>,
-    params: Parameters,
-    target: Target,
-) -> Result<Report, CommandError> {
-    let spec = specification(&id, true)?;
-    let mut engine = match file {
-        Some(file) => open(file)?,
-        None => Engine::empty(),
+    let mut s = if save {
+        open(file.clone(), true)?
+    } else {
+        open(file.clone(), false)?.fork()?
     };
-    let params = parameters(&mut engine, spec, params, target)?;
-    let query = Query::from_call(&id, params)?;
-    if !engine.is_open()
-        && spec.availability != AvailabilityRule::Always
-        && !matches!(
-            query,
-            Query::SpellingSuggestions(SpellingSuggestionsParams {
-                target: SuggestionTarget::Word { .. }
-            })
-        )
-    {
-        return Err(CommandError::new(ErrorCode::Unavailable, "no_document"));
-    }
-    let outcome = engine.query(query)?;
-    Ok(Report {
-        text: format!(
-            "{}\n",
-            serde_json::to_string_pretty(&outcome).expect("query result")
-        ),
-        outcome,
-        exit: 0,
-    })
-}
-
-pub fn run(
-    id: String,
-    file: PathBuf,
-    params: Parameters,
-    target: Target,
-    save: bool,
-    output: Option<PathBuf>,
-) -> Result<Report, CommandError> {
-    let spec = specification(&id, false)?;
-    // --save réserve le fichier AVANT sa lecture. Une copie/prévisualisation reste indépendante.
-    let mut engine = working_copy(file.clone(), save)?;
-    let params = parameters(&mut engine, spec, params, target)?;
-    let command = engine.run_call(Call {
-        id: spec.id.clone(),
-        params,
-    })?;
+    let command = s.execute(&id, params(input.load()?, target)?)?;
     let path = if save {
-        engine.run(Command::SaveDocument(SaveDocumentParams {
-            guard: engine.target_guard(),
-            path: None,
-        }))?;
+        s.save()?;
         Some(file)
-    } else if let Some(output) = output {
-        engine.run(Command::SaveAs(SaveAsParams {
-            guard: engine.target_guard(),
-            path: output.clone(),
-            overwrite: false,
-        }))?;
-        Some(output)
+    } else if let Some(path) = output {
+        s.save_as(&path)?;
+        Some(path)
     } else {
         None
     };
     let saved = path.is_some();
     Ok(Report {
-        outcome: json!({"command":command,"saved":saved,"path":path,"document":engine.query(Query::Inspect(Empty {}))?,"source":engine.document().source(),"metadata":engine.metadata()}),
+        outcome: json!({"command":command,"saved":saved,"path":path,"document":s.query("document.inspect",json!({}))?,"source":s.query("document.source",json!({}))?["source"],"metadata":s.state()?.settings.metadata}),
         text: format!(
             "{}\n{}\n",
             tr!("cli-applied", id = id),
-            if let Some(path) = path {
-                tr!("letter-saved", path = path.display().to_string())
-            } else {
-                tr!("cli-not-saved")
-            }
+            path.map(|p| tr!("letter-saved", path = p.display().to_string()))
+                .unwrap_or_else(|| tr!("cli-not-saved"))
         ),
         exit: 0,
     })
-}
-
-pub(crate) fn working_copy(file: PathBuf, in_place: bool) -> Result<Engine, CommandError> {
-    if in_place {
-        let mut engine = Engine::empty();
-        engine.run(Command::OpenDocument(OpenDocumentParams {
-            guard: engine.target_guard(),
-            path: file,
-            read_only: false,
-            discard_changes: false,
-        }))?;
-        Ok(engine)
-    } else {
-        Engine::from_stored(open(file)?.stored_document(), None)
-    }
 }

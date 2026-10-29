@@ -245,7 +245,7 @@ impl Session {
         if id == "document.inspect" && !self.is_open() {
             return Ok(json!({"open":false,"guard":null}));
         }
-        if id == "render.locate" || id == "render.selection" {
+        if id == "render.locate" || id == "render.selection_boxes" {
             return self.render_query(id, &params);
         }
         let p = self.project.as_mut().ok_or_else(|| error("no_document"))?;
@@ -337,8 +337,7 @@ impl Session {
                 let p: Batch = decode(params)?;
                 self.batch(&p.steps, p.save)
             }
-            "context.set" | "context.style" | "context.insert" | "history.undo"
-            | "history.redo" => {
+            "context.set" | "context.style" | "context.insert" | "edit.undo" | "edit.redo" => {
                 self.writable()?;
                 let p = self.project.as_mut().unwrap();
                 let guard = p.engine.guard().clone();
@@ -375,7 +374,7 @@ impl Session {
                             .history(
                                 &guard,
                                 p.context,
-                                if id == "history.undo" {
+                                if id == "edit.undo" {
                                     Direction::Undo
                                 } else {
                                     Direction::Redo

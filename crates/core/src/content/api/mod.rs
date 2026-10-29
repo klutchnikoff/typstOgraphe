@@ -50,7 +50,19 @@ fn archive_error(error: super::archive::Error) -> CommandError {
         super::archive::Error::Content(e) => content_error(e),
         super::archive::Error::Access(e) => e,
         super::archive::Error::Core(e) => {
-            CommandError::with_cause(ErrorCode::Document, "structured_archive", e)
+            let code = if matches!(
+                e,
+                crate::errors::CoreError::StorageError(
+                    crate::errors::StorageError::OpenFailed { .. }
+                        | crate::errors::StorageError::ReplaceFailed { .. }
+                        | crate::errors::StorageError::TemporaryFailed { .. }
+                )
+            ) {
+                ErrorCode::Io
+            } else {
+                ErrorCode::Document
+            };
+            CommandError::with_cause(code, "structured_archive", e)
         }
         super::archive::Error::LegacyFormat => {
             CommandError::new(ErrorCode::Document, "structured_archive_required")

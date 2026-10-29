@@ -191,15 +191,13 @@ pub fn find(state: &State, query: &str, case_sensitive: bool) -> Vec<Value> {
             if let (Some(&from), Some(&to)) = (
                 boundaries.get(&start),
                 boundaries.get(&(start + matched.len())),
+            ) && let (Ok(a), Ok(b)) = (
+                targets::byte_at(&zone.text, from),
+                targets::byte_at(&zone.text, to),
             ) {
-                if let (Ok(a), Ok(b)) = (
-                    targets::byte_at(&zone.text, from),
-                    targets::byte_at(&zone.text, to),
-                ) {
-                    let original = &zone.text[a..b];
-                    if !original.contains('\u{fffc}') {
-                        found.push(json!({"text":original,"target":TextTarget {zone:zone.zone.clone(),from,to}}));
-                    }
+                let original = &zone.text[a..b];
+                if !original.contains('\u{fffc}') {
+                    found.push(json!({"text":original,"target":TextTarget {zone:zone.zone.clone(),from,to}}));
                 }
             }
         }
@@ -304,7 +302,7 @@ pub fn run(
         "document.statistics" => {
             json!({"document":crate::statistics::TextStatistics::count(&text(state,None)?),"selection":target.as_ref().map(|t|text(state,Some(t)).map(|s|crate::statistics::TextStatistics::count(&s))).transpose()?})
         }
-        "document.find" => {
+        "search.find" => {
             json!({"matches":find(state,p["query"].as_str().ok_or_else(||invalid("query"))?,p["case_sensitive"].as_bool().unwrap_or(false))})
         }
         "metadata.get" => {

@@ -10,8 +10,10 @@ FORBIDDEN = {"egui", "eframe", "winit", "rfd", "muda", "tokio", "rmcp", "interpr
 
 def forbidden_dependencies(tree):
     names = {line.split()[0] for line in tree.splitlines() if line.strip()}
+    # fluent-uri parses URIs for jsonschema; it is unrelated to Fluent localization.
     return sorted(name for name in names if name in FORBIDDEN
-                  or name.startswith(("fluent", "i18n-embed", "tokio-", "rmcp-")))
+                  or (name != "fluent-uri"
+                      and name.startswith(("fluent", "i18n-embed", "tokio-", "rmcp-"))))
 
 
 def main():

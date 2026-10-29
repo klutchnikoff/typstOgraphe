@@ -43,13 +43,7 @@ fn catalogue_schemas_are_executable_and_global_discovery_needs_no_document() {
         )
         .is_err()
     );
-    assert!(
-        check_params(
-            "document.find",
-            &json!({"query":"x","case_sensitive":"yes"})
-        )
-        .is_err()
-    );
+    assert!(check_params("search.find", &json!({"query":"x","case_sensitive":"yes"})).is_err());
 }
 #[test]
 fn typed_article_header_cells_and_unicode_roundtrip_without_a_flat_text_engine() {
@@ -95,14 +89,14 @@ fn typed_article_header_cells_and_unicode_roundtrip_without_a_flat_text_engine()
             .iter()
             .any(|z| z["text"] == "Cellule")
     );
-    s.execute("history.undo", json!({})).unwrap();
+    s.execute("edit.undo", json!({})).unwrap();
     assert!(
         !s.query("document.text", json!({})).unwrap()["text"]
             .as_str()
             .unwrap()
             .contains("Cellule")
     );
-    s.execute("history.redo", json!({})).unwrap();
+    s.execute("edit.redo", json!({})).unwrap();
     assert_eq!(s.state().unwrap().document, archive.document);
 }
 #[test]
@@ -160,7 +154,7 @@ fn selectors_resolve_in_the_evolving_draft_and_do_not_cross_zones() {
     );
     assert_eq!(s.archive().unwrap().yjs, before);
     assert_eq!(
-        s.query("document.find", json!({"query":"éLODIE"})).unwrap()["matches"]
+        s.query("search.find", json!({"query":"éLODIE"})).unwrap()["matches"]
             .as_array()
             .unwrap()
             .len(),
@@ -300,7 +294,7 @@ fn header_record_forward_references_and_rich_zones_use_the_same_atomic_owner() {
         call("text.insert",json!({"target":t,"text":"Résumé 日本😀","marks":[{"type":"italic"}]})),
     ],None).unwrap();
     assert!(
-        s.query("document.find", json!({"query":"Résumé"})).unwrap()["matches"]
+        s.query("search.find", json!({"query":"Résumé"})).unwrap()["matches"]
             .as_array()
             .unwrap()
             .iter()
@@ -316,7 +310,7 @@ fn header_record_forward_references_and_rich_zones_use_the_same_atomic_owner() {
         .is_err()
     );
     assert_eq!(s.archive().unwrap().yjs, before);
-    s.execute("history.undo", json!({})).unwrap();
+    s.execute("edit.undo", json!({})).unwrap();
     assert_eq!(
         serde_json::to_value(&s.state().unwrap().settings.metadata).unwrap()["fields"]["authors"],
         json!([])
@@ -333,7 +327,9 @@ fn preview_navigation_exposes_typed_targets_instead_of_flat_positions() {
     let t = target(&[0], 0, 7);
     let point = s.query("render.locate", json!({"target":t})).unwrap()["point"].clone();
     assert!(point["point"].is_array(), "{point}");
-    let r = s.query("render.selection", json!({"target":t})).unwrap();
+    let r = s
+        .query("render.selection_boxes", json!({"target":t}))
+        .unwrap();
     let boxes = r["boxes"].as_array().unwrap();
     assert!(!boxes.is_empty());
     let corners = boxes[0]["corners"].as_array().unwrap();
@@ -353,4 +349,52 @@ fn preview_navigation_exposes_typed_targets_instead_of_flat_positions() {
         )
         .unwrap();
     assert_eq!(back["target"]["zone"]["kind"], "body");
+}
+#[test]
+fn admitted_images_signatures_and_figures_share_retention_and_runtime_undo() {
+    let mut s = Session::new();
+    s.execute("document.new",json!({"type":"courrier","metadata":crate::document_types::Metadata::demo(crate::document_types::DocumentType::Courrier)})).unwrap();
+    let path = "images/signature.svg";
+    let resource = crate::content::commands::ImageResource {
+        path: path.into(),
+        data: include_bytes!("../../../../../fixtures/signature.svg").to_vec(),
+    };
+    let mut figure = describe("insert.image").unwrap()["examples"][0].clone();
+    figure["params"]["node"]["attrs"]["src"] = json!(path);
+    s.batch(
+        &[
+            call("resource.add", json!({"resource":resource})),
+            serde_json::from_value(figure).unwrap(),
+            call("document.set_signature", json!({"path":path})),
+        ],
+        None,
+    )
+    .unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("signed.typsto");
+    s.save_as(&file).unwrap();
+    assert_eq!(Archive::read(&file).unwrap().assets.len(), 1);
+    s.batch(
+        &[
+            call(
+                "block.remove",
+                json!({"target":{"root":{"kind":"body"},"path":[0]}}),
+            ),
+            call("document.set_signature", json!({"path":null})),
+        ],
+        Some(Save::Current),
+    )
+    .unwrap();
+    assert!(Archive::read(&file).unwrap().assets.is_empty());
+    assert!(s.assets().unwrap().contains_key(path));
+    s.execute("edit.undo", json!({})).unwrap();
+    s.save().unwrap();
+    assert_eq!(Archive::read(&file).unwrap().assets.len(), 1);
+    s.export(
+        &dir.path().join("export"),
+        crate::engine::ExportFormat::Both,
+        false,
+    )
+    .unwrap();
+    assert!(dir.path().join("export/images/signature.svg").exists());
 }

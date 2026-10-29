@@ -1,89 +1,50 @@
 use serde_json::Value;
 use typstographe_i18n::{LocalizedLabel, tr};
-
-pub fn catalogue(value: &Value) -> String {
-    if let Some(entries) = value["entries"].as_array() {
-        entries
-            .iter()
-            .map(|s| {
-                format!(
-                    "{}\t{}\n",
-                    s["id"].as_str().unwrap(),
-                    s["description"].as_str().unwrap()
-                )
-            })
-            .collect()
-    } else {
-        format!(
-            "{}\n{}\n\n{}\n",
-            value["id"].as_str().unwrap(),
-            value["description"].as_str().unwrap(),
-            serde_json::to_string_pretty(&value["params_schema"]).expect("schema")
-        )
-    }
+pub fn catalogue(v: &Value) -> String {
+    serde_json::to_string_pretty(v).unwrap() + "\n"
 }
-
-pub fn inspect(value: &Value) -> String {
+pub fn inspect(v: &Value) -> String {
     let kind: typstographe_core::document_types::DocumentType =
-        serde_json::from_value(value["document"]["document_type"].clone()).expect("document type");
-    let stats: typstographe_core::engine::StatisticsResult =
-        serde_json::from_value(value["statistics"].clone()).expect("statistics");
-    let mut text = format!(
+        serde_json::from_value(v["document"]["document_type"].clone()).unwrap();
+    format!(
         "{}\n{}\n",
         kind.label(),
         tr!(
             "document-stats",
-            words = stats.document.words,
-            signs = stats.document.signs
+            words = v["statistics"]["document"]["words"].as_u64().unwrap_or(0),
+            signs = v["statistics"]["document"]["signs"].as_u64().unwrap_or(0)
         )
-    );
-    if let Some(fields) = value["metadata"]["fields"].as_array() {
-        for field in fields {
-            text.push_str(&format!(
-                "{}: {}\n",
-                field["field"].as_str().unwrap_or("?"),
-                field["value"].as_str().unwrap_or("")
-            ));
-        }
-    }
-    text
+    )
 }
-
-pub fn check(value: &Value) -> String {
+pub fn check(v: &Value) -> String {
     let mut text = format!(
         "{}\n",
-        if value["passed"] == true {
+        if v["passed"] == true {
             tr!("cli-check-passed")
         } else {
             tr!("cli-check-failed")
         }
     );
-    let validation: typstographe_core::engine::ValidationResult =
-        serde_json::from_value(value["validation"].clone()).expect("validation");
-    for diagnostic in validation.diagnostics {
-        let detail = diagnostic
-            .cause
-            .as_ref()
-            .map(typstographe_i18n::error)
-            .or(diagnostic.detail)
-            .unwrap_or_else(|| format!("{:?}", diagnostic.field));
-        text.push_str(&format!("{}: {detail}\n", diagnostic.code));
+    for d in v["validation"]["diagnostics"]
+        .as_array()
+        .into_iter()
+        .flatten()
+    {
+        if let Ok(error) = serde_json::from_value(d.clone()) {
+            text.push_str(&typstographe_i18n::content_error(&error));
+            text.push('\n');
+        }
     }
-    if !value["spelling"].is_null() {
-        if value["spelling"]["available"] == false {
-            text.push_str(&format!("{}\n", tr!("cli-dictionary-unavailable")));
-        }
-        if let Some(issues) = value["spelling"]["issues"].as_array() {
-            for issue in issues {
-                text.push_str(&format!(
-                    "{}\n",
-                    tr!(
-                        "cli-spelling-issue",
-                        word = issue["word"].as_str().unwrap_or("")
-                    )
-                ));
-            }
-        }
+    if v["spelling"]["available"] == false {
+        text.push_str(&tr!("cli-dictionary-unavailable"));
+        text.push('\n');
+    }
+    for issue in v["spelling"]["issues"].as_array().into_iter().flatten() {
+        text.push_str(&tr!(
+            "cli-spelling-issue",
+            word = issue["word"].as_str().unwrap_or("")
+        ));
+        text.push('\n');
     }
     text
 }

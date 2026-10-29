@@ -1,170 +1,86 @@
-# CLI typstOgraphe
+# CLI structured contract
 
-Document généré par `cargo run --locked -p typstographe-cli -- commands list --markdown`.
+The CLI uses the same Yrs owner, typed targets, document commands and Unicode zones as Tauri.
+`commands describe ID` is authoritative for parameter schemas. Offsets are UTF-16 inside a zone,
+paths are projected child indices in the current revision, and inserted marks are explicit.
 
-La CLI permet de créer des documents, consulter le catalogue, inspecter, vérifier et exporter un fichier `.typsto`, sans fenêtre ni préférences personnelles implicites.
+`new --type article --output article.typsto` creates a self-contained project without personal preferences.
+`inspect`, `check`, `query`, `run`, `script`, `export` and `render` operate on structured `.typsto` files.
+`run` previews changes unless `--save` or `--output` is given. A writable open locks before reading;
+read-only copies may inspect the last saved snapshot while another writer owns the project.
 
-```sh
-typstographe-cli commands list --json
-typstographe-cli commands describe metadata.set --json
-typstographe-cli query document_types.list --json
-typstographe-cli new --type courrier --output courrier.typsto
-typstographe-cli run text.insert courrier.typsto --params '{"text":"Bonjour Élodie."}' --save
-typstographe-cli run metadata.set courrier.typsto --params '{"field":"letter.subject","value":"Demande de renseignements"}' --save
-typstographe-cli run text.bold courrier.typsto --select 'Élodie' --output copie.typsto
-typstographe-cli query document.text copie.typsto --json
-typstographe-cli inspect courrier.typsto --json
-typstographe-cli check courrier.typsto --for-export
-typstographe-cli check courrier.typsto --spelling
-typstographe-cli export courrier.typsto --format pdf --output export/
-typstographe-cli render courrier.typsto --page 1 --png courrier.png
-```
+`--select TEXT [--occurrence N]` resolves an exact match inside one zone. `--block N` addresses a
+one-based top-level body block. Ambiguity, invalid Unicode boundaries and foreign fields are refused.
+Scripts resolve selectors on the evolving isolated draft, validate only the final batch, and publish
+one undoable change. File operations are forbidden as steps; optional final save is explicit.
+Resource data is base64 in `resource.add`; models use their pure Typst source in `document.set_model`.
 
-Les lectures utilisent la dernière version enregistrée, même si le document est ouvert dans l’application. L’export crée un répertoire ou utilise un répertoire vide, avec `--pages` pour ajouter des images PNG.
-
-`--lang fr|en` choisit la langue d’interface ; sinon langue système, repli anglais. La langue du document est indépendante. `--json` produit un objet `{"version":1,"ok":true,"outcome":…}` ou `{"version":1,"ok":false,"error":{"code","message","params"}}`. Aucun autre texte sur stdout en mode JSON.
-
-Codes de sortie : 0 succès, 1 contrôle négatif ou opération refusée, 2 arguments invalides, 3 entrée/sortie. Un contrôle négatif a `ok: true` (exécution réussie), `outcome.passed: false` et le code de sortie 1. L’orthographe est facultative ; avec `--spelling`, un dictionnaire indisponible ou une suspicion donne un contrôle négatif.
-
-`new` choisit le modèle automatiquement si le type en propose exactement un ; sinon fournir `--model`. Ses paramètres JSON (`initial_values`, `signature`) se donnent avec `--params` ou `--params-file` (`-` pour stdin). Un objet JSON UTF-8 est requis, limité à 4 Mio. Les fichiers et ressources indiqués dans le JSON sont relatifs au répertoire courant, y compris quand le JSON vient d’un fichier.
-
-`query <id> [fichier.typsto]` exécute une requête du registre. Le fichier est requis pour les lectures documentaires ; la découverte globale et les suggestions sur un mot explicite n’en ont pas besoin. Les réponses brutes de requête sont affichées en JSON lisible, ou dans l’enveloppe stable avec `--json`.
-
-`run <id> fichier.typsto` applique une commande documentaire sur une copie en mémoire et indique explicitement `saved: false`. Le résultat JSON contient le source et les métadonnées résultants pour examiner l’effet. `--save` prend le verrou avant la lecture et enregistre atomiquement dans le fichier source. `--output copie.typsto` crée une nouvelle archive sans modifier la source, même si elle est ouverte dans l’application. Les options sont exclusives et aucune destination existante n’est écrasée. Les commandes de cycle de vie passent par `new` et `export` ; lots, historique et récupération sont indisponibles dans ces appels isolés.
-
-Les paramètres de `query` et `run` utilisent aussi `--params` ou `--params-file`. Une seule source est admise. Les identités de session ne sont pas persistantes : les gardes et références de rendu sont remplies dans le processus courant, les références copiées depuis une exécution précédente sont refusées. Les requêtes de géométrie compilent leur rendu localement, sans produire de fichiers.
-
-Pour cibler le document, `--select TEXTE` recherche un texte exact sensible à la casse. Plusieurs occurrences exigent `--occurrence N`, à partir de 1. `--block N` cible un bloc dans l’ordre de `document.structure`, à partir de 1 ; c’est la cible des commandes d’images. Ces deux sélecteurs sont exclusifs, remplacent la sélection courante et ne se combinent pas avec une cible JSON explicite. Les corrections orthographiques et le remplacement d’une occurrence sont également résolus depuis `--select`. Les cibles symboliques du moteur, comme `{"target":{"kind":"all"}}`, restent utilisables en JSON sans sélecteur. Sans sélecteur, le moteur commence au début du document ; les commandes de style sur un curseur vide n’ont pas d’effet durable sur le texte.
-
-## Scripts JSON atomiques
-
-`script job.json` applique les étapes sur un brouillon privé, puis effectue un seul enregistrement final. `script -` lit le JSON sur stdin. Le format est strict, versionné et limité à 4 Mio et 256 étapes :
-
-```json
-{
-  "version": 1,
-  "document": { "kind": "new", "type": "courrier" },
-  "steps": [
-    { "id": "text.insert", "params": { "text": "Bonjour Élodie." } },
-    { "id": "text.bold", "target": { "select": "Élodie" } },
-    { "id": "letter.insert_postscript" },
-    { "id": "text.insert", "params": { "text": "Une précision utile." } }
-  ],
-  "save": { "kind": "as", "path": "courrier.typsto" }
-}
-```
-
-`document.kind` vaut `open` avec un `path`, ou `new` avec un `type`, un `model` facultatif et les `params` de création (`initial_values`, `signature`). `save` absent ou null signifie aperçu sans sauvegarde ; `{"kind":"current"}` enregistre le document ouvert sous verrou ; `{"kind":"as","path":"copie.typsto"}` crée un nouveau fichier sans écrasement. Un nouveau document exige `as` pour être enregistré.
-
-Les chemins du document, de la destination, des modèles et des images/signatures sont relatifs au répertoire du script canonique. Sur stdin, ils sont relatifs au répertoire courant. Aucun changement du répertoire de travail global n’est effectué. Les répertoires de destination doivent déjà exister.
-
-Les cibles facultatives d’étape sont `{"select":"texte","occurrence":2}` ou `{"block":1}` dans le champ `target`, avec les mêmes règles que `run`. Elles sont résolues juste avant l’étape : une étape peut ainsi modifier du texte ou une image créés plus tôt dans le lot. Sans cible, la sélection laissée par l’étape précédente est utilisée. Les gardes sont calculées sur le brouillon courant ; les références de session externes restent refusées.
-
-Seules les commandes marquées `batch_step` dans le catalogue sont admises. Sauvegarde, export, ouverture, fermeture, création d’un deuxième document, historique, récupération, requêtes et lots imbriqués sont refusés dans les étapes, avant le chargement du document. Les erreurs d’étape donnent `error.params.step` (indice à partir de 0), `command` et l’erreur d’origine ; le message traduit numérote les étapes à partir de 1. Une erreur, même tardive ou pendant la sauvegarde finale, ne publie pas le brouillon et conserve le fichier précédent. Les petits compagnons de verrou peuvent subsister sans verrou actif.
-
-L’exemple `examples/cli/courrier.json` crée un courrier complet avec P.-S. et P.J. Créer le répertoire `output` au préalable, puis exécuter :
-
-```sh
-typstographe-cli script examples/cli/courrier.json --json
-typstographe-cli check output/courrier-script.typsto --for-export
-typstographe-cli export output/courrier-script.typsto --output output/courrier-script-export
-```
-
-L’export est une opération distincte après la réussite du script. MCP utilise aussi le moteur commun ; voir les modes [autonome](mcp.md) et
-[rattaché à l’application](mcp-local.md).
-
-Pour une configuration client fixe : `typstographe-cli mcp --attach-active`. Créer une invitation dans l’application avant de connecter le client, puis reconnecter explicitement après chaque nouvelle invitation. La découverte refuse zéro ou plusieurs invitations disponibles, sans repli vers le mode autonome. `--attach INVITATION` conserve le choix explicite d’une invitation. Voir le [raccordement fixe](mcp-connection.md).
-
-## Rendu d’une page en PNG
-
-`render fichier.typsto --page N --png page.png` ouvre un instantané enregistré en lecture seule, compile avec le moteur commun et rasterise uniquement la page demandée. Les deux options sont obligatoires ; les pages sont numérotées à partir de 1. Une page hors document est refusée sans créer de fichier. Un brouillon dont les champs ne sont pas encore tous renseignés peut être rendu si sa compilation réussit.
-
-Le PNG utilise la même résolution Typst que `export --pages` (2 pixels par point, soit 144 ppp), sans limite liée aux textures d’affichage egui. Aucun PDF ni répertoire d’export n’est créé. La lecture reste possible avec un écrivain actif, sans inclure ses modifications non enregistrées. Le fichier `.typsto` n’est pas modifié.
-
-Le dossier de destination doit exister. Le PNG est préparé dans un temporaire voisin, puis publié sans remplacement : fichier existant, dossier ou lien symbolique sont refusés, même si la cible apparaît pendant la préparation. Un échec de compilation ou d’écriture ne laisse pas de PNG partiel. Les chemins relatifs sont interprétés depuis le répertoire courant.
-
-Avec `--json`, le résultat contient `path`, `page` et `pages` (numéros/nombre de pages), ainsi que `size_points` (largeur et hauteur en points Typst). Les octets PNG sont dans le fichier, jamais dans stdout. Les erreurs conservent les codes de sortie communs : 1 pour une page inexistante ou une destination occupée, 2 pour l’usage des options, 3 pour une erreur d’entrée/sortie.
-
-## Catalogue du moteur
-
-`typstographe-cli mcp` lance le serveur MCP sur stdio : découverte, éditions
-gardées, lots et aperçu PNG. `--read-root` et `--write-root` (répétables) autorisent
-les fichiers sous des répertoires existants ; sans racine, aucun accès documentaire
-au disque. L’ouverture éditable réserve le verrou commun à l’application ;
-sauvegarde et export sont explicites. `--read-only` autorise les requêtes,
-l’ouverture en lecture seule et la fermeture. Les capacités sont documentées par
-`capabilities.describe` ; les cinq ressources virtuelles incluent le document courant,
-le catalogue documenté et les fiches de modèles. Voir [docs/mcp.md](mcp.md).
-
-Le catalogue décrit les contrats du moteur, y compris les opérations qui ne disposent pas encore d’un déclencheur CLI. L’ouverture accepte l’option additive `read_only` (false par défaut).
-
-| Identifiant | Famille | Description |
+| ID | Family | Description |
 | --- | --- | --- |
-| `document.batch` | batch | Apply bounded editing steps on a private session as one undoable transaction, with an optional single final atomic save. |
-| `recovery.restore` | file | Restore a configured recovery reference as an unsaved copy, protecting current work. |
-| `recovery.delete` | file | Explicitly delete one configured recovery copy without modifying document history. |
-| `document.new` | file | Create an empty document from a supplied type/model and explicit initial values, protecting unsaved work. |
-| `document.open` | file | Open an autonomous archive from an explicit path, protecting unsaved work. |
-| `document.close` | file | Close the current document after an explicit decision about unsaved work. |
-| `document.save` | file | Atomically save the guarded document to an explicit or current path without changing editing history. |
-| `document.save_as` | file | Atomically save the guarded document to a required path, preserving the previous file. |
-| `document.export` | file | Export PDF, autonomous Typst sources or both into a new or empty directory, with optional page PNGs. |
-| `document.set_model` | edit | Validate and install Typst model source or a UTF-8 file with controlled dependencies in one guarded transaction. |
-| `courrier.model.personal` | letter | Apply the supplied personal-letter model using the shared guarded model operation. |
-| `metadata.set` | edit | Set an active document-type field, with a guarded value and optional typing history grouping. |
-| `document.set_option` | edit | Set a typed document option while enforcing the model page and marker policy. |
-| `spelling.next` | selection | Select the next spelling issue in the current document, wrapping around. |
-| `spelling.previous` | selection | Select the previous spelling issue in the current document, wrapping around. |
-| `spelling.correct` | edit | Correct a revision-guarded spelling issue while preserving inline styles. |
-| `spelling.ignore` | edit | Accept a validated word for the document language in this document only. |
-| `spelling.reset` | edit | Clear spelling exceptions for all languages of the guarded document. |
-| `edit.find_next` | selection | Select the next literal match, wrapping around the editable document. |
-| `edit.find_previous` | selection | Select the previous literal match, wrapping around the editable document. |
-| `edit.replace_current` | edit | Replace a revision-guarded occurrence with expected text, then select the next match. |
-| `edit.replace_all` | edit | Replace all literal matches from one guarded document revision in one transaction. |
-| `text.insert` | edit | Insert text or replace a selection, with literal input by default and optional typing rules. |
-| `text.delete` | edit | Delete text within validated structural boundaries. |
-| `text.select` | selection | Select text or move to a body, annotation, description term or definition. |
-| `text.bold` | edit | Set or toggle bold text or the typing style. |
-| `text.italic` | edit | Set or toggle italic text or the typing style. |
-| `text.clear` | edit | Remove inline formatting from text or the typing style. |
-| `text.link` | edit | Apply an explicit URL to a text selection. |
-| `text.remove_link` | edit | Remove links from a text selection. |
-| `block.paragraph` | edit | Convert selected paragraphs to ordinary text. |
-| `block.heading_1` | edit | Set level-one headings. |
-| `block.heading_2` | edit | Set level-two headings. |
-| `block.heading_3` | edit | Set level-three headings. |
-| `block.bullet` | edit | Set an unordered list using the document marker policy. |
-| `block.numbered` | edit | Set an ordered list. |
-| `block.description` | edit | Set description items with term and definition zones. |
-| `block.quote` | edit | Set a block quotation with an optional attribution. |
-| `insert.image` | image | Insert a validated image with optional literal caption and alternative text. |
-| `image.replace` | image | Replace an image resource while preserving its caption and alternative text. |
-| `image.remove` | image | Remove an image block and its caption in one transaction. |
-| `image.set_alt` | image | Set alternative text on a revision-guarded image block. |
-| `document.set_signature` | letter | Set or remove the letter signature using explicit image data or a file. |
-| `block.split` | edit | Split a quote, list item or letter note, or exit an empty item or optional annotation. |
-| `block.exit` | edit | Create a paragraph after an annotated structure or letter note without replacing its content. |
-| `letter.insert_postscript` | letter | Create or select the letter postscript. |
-| `letter.insert_attachment` | letter | Insert an attachment mention into a letter. |
-| `edit.undo` | history | Undo the previous document transaction. |
-| `edit.redo` | history | Redo the next document transaction. |
-| `document.validate` | query | Validate a guarded draft, model, resources and options; report errors separately from fields missing for export, without editing or installing a render. |
-| `render.compile` | query | Compile a guarded document synchronously into a cached in-memory render reference and diagnostics, without rasterization, export or document edits. |
-| `document_types.list` | query | List built-in types, supplied models, creation availability and documentary command capabilities without requiring an open document. |
-| `document.source` | query | Read the committed documentary Typst source with its revision guard, without executing code. |
-| `document.assets` | query | Inventory document/model resources retained by the save/export policy and packaged dependencies, without returning file contents or traversing undo history. |
-| `render.locate` | query | Locate a logical text target in an identified render or return the guarded text target at a page point, without moving selection. |
-| `render.selection_boxes` | query | Read page quadrilaterals for a guarded text selection on an identified render, in Typst points. |
-| `document.statistics` | query | Read Unicode word and grapheme counts for the document and an optional text target, excluding structural markers and private fields. |
-| `recovery.list` | query | List opaque references from the configured recovery service without opening documents. |
-| `models.list` | query | List supplied models for the active document type without changing the document. |
-| `models.presentation` | query | Read the current model page constraints and permitted bullet markers. |
-| `spelling.issues` | query | Read revision-guarded spelling issues and dictionary availability using the configured personal words. |
-| `spelling.suggestions` | query | Suggest corrections for an explicit word and language or a validated spelling issue, without changing selection. |
-| `document.inspect` | query | Read session state, document type, documentary command capabilities, guarded selection and typing style; document context is null when closed. |
-| `document.text` | query | Read editable text without Typst markup. |
-| `document.structure` | query | Read blocks, text zones, roles and their opaque identities. |
-| `metadata.get` | query | Read the document metadata. |
-| `commands.list` | query | Read command/query schemas and context availability with reasons, distinguishing calls that still require parameters; no execution or file access. |
-| `search.find` | query | Find literal Unicode text without modifying the selection. |
+| `bibliography.search` | query | Search the project bibliography by title and author. |
+| `block.heading_1` | edit | Level-one heading; final presentation belongs to the Typst model. |
+| `block.heading_2` | edit | Level-two heading. |
+| `block.heading_3` | edit | Level-three heading. |
+| `block.insert` | edit | Edit a guarded tree with explicit nodes (quote, list, figure, postscript…). Discover examples via capabilities.describe. |
+| `block.paragraph` | edit | Ordinary prose. A soft return stays inside the paragraph; two returns create a paragraph. |
+| `block.remove` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `block.replace` | edit | Edit a guarded tree with explicit nodes (quote, list, figure, postscript…). Discover examples via capabilities.describe. |
+| `block.splice` | edit | Edit a guarded tree with explicit nodes (quote, list, figure, postscript…). Discover examples via capabilities.describe. |
+| `block.split` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `capabilities.describe` | query | Describe an operation with its actual parameter schema. |
+| `commands.available` | query | Check a concrete command through the same resolver and final validation as execution. |
+| `commands.list` | query | Discover the common structured command and query catalogue. |
+| `context.get` | query | Read only this participant's private selection, typing styles and history. |
+| `context.insert` | session | Insert literal prose at this participant's single-zone selection using its typing styles. For explicit edits use text.insert with target and marks. |
+| `context.set` | session | Atomically set private directed selection and typing styles; never edit content, move another participant's focus or create history. |
+| `context.style` | session | Switch a private typing style on/off; stopping it does not alter already written text. |
+| `document.batch` | session | Apply typed documentary steps atomically, with one history entry and optional final save. A late failure publishes and saves nothing. |
+| `document.close` | session | Close the project; unsaved work requires explicit discard_changes. |
+| `document.export` | session | Export a confirmed snapshot to a new/empty directory; never mark the project saved. |
+| `document.inspect` | query | Read the confirmed structured state, guard and project information. |
+| `document.new` | session | Create a structured project of a built-in type; no personal preferences are implied. |
+| `document.open` | session | Open a self-contained structured .typsto; writable access acquires a cooperative lock before reading. |
+| `document.save` | session | Save the current project under its existing lock, checking external changes. |
+| `document.save_as` | session | Save an independent copy; existing targets are refused. |
+| `document.set_model` | edit | Set the model ID and full pure Typst source together. The model must implement this document type; publication validates its policy. |
+| `document.set_signature` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `document.source` | query | Read generated Typst without changing the source of truth. |
+| `document.statistics` | query | Count Unicode words and signs in the body and optional target. |
+| `document.structure` | query | Read trees and all typed text zones; paths are revision-relative, offsets UTF-16. |
+| `document.text` | query | Read plain text of the body or a typed text target. |
+| `document.validate` | query | Validate the structured draft and report export readiness separately. |
+| `document_types.describe` | query | Describe metadata, rich header collections and capabilities of one type. |
+| `document_types.list` | query | List built-in document types and their interchangeable visual models. |
+| `edit.redo` | session | Redo this participant's contribution. |
+| `edit.undo` | session | Undo this participant's last confirmed contribution. |
+| `inline.replace` | edit | Replace a typed inline range with one node (for example footnote or citation). Discover the node via capabilities.describe. |
+| `insert.table` | edit | Table figure with an optional rich caption, 1–12 columns and 1–100 rows. No merged cells; header row optional. |
+| `metadata.get` | query | Read document metadata and field/collection definitions. |
+| `metadata.set` | edit | Set a typed metadata, record field or document option. Values are validated against the type and model policy. |
+| `models.list` | query | Read brief visual model cards, including the active embedded model. |
+| `node.set_attrs` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `record.add` | edit | Edit a header collection using stable record IDs. Forward references inside an atomic lot are checked only on its final state. |
+| `record.move` | edit | Edit a header collection using stable record IDs. Forward references inside an atomic lot are checked only on its final state. |
+| `record.remove` | edit | Edit a header collection using stable record IDs. Forward references inside an atomic lot are checked only on its final state. |
+| `render.compile` | query | Compile confirmed content with embedded Typst and return page dimensions. |
+| `render.locate` | query | Map a typed body target to preview or a zero-based PagePoint back to a body zone. Template decorations may have no target. |
+| `render.page` | query | Render one one-based page to PNG without writing files. |
+| `render.selection_boxes` | query | Read rendered highlight rectangles for a typed body range. Header/annotation geometry is unavailable. |
+| `resource.add` | edit | Admit immutable image bytes (base64), validated before use; a batch may add the resource then insert its figure or signature. |
+| `resources.list` | query | List admitted immutable image resources; no filesystem access. |
+| `search.find` | query | Find exact text inside each zone, including rich header fields; no cross-zone matches. |
+| `spelling.ignore` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `spelling.issues` | query | Read local spelling issues as guarded typed ranges; never correct text. |
+| `spelling.suggestions` | query | Get local suggestions for a literal word and language. |
+| `table.column.insert` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `table.column.remove` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `table.header` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `table.row.insert` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `table.row.remove` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `text.bold` | edit | Apply or remove this style on a nonempty typed range (value on/off). Never changes future typing; use context.style for that. |
+| `text.clear` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `text.delete` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `text.insert` | edit | Insert/replace literal prose in one typed range; marks are explicit and default to none. No Typst/Markdown input rules. |
+| `text.italic` | edit | Apply or remove this style on a nonempty typed range (value on/off). Never changes future typing; use context.style for that. |
+| `text.link` | edit | Editable label and http, https or mailto URL. Never fetch the URL. |
+| `text.remove_link` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
