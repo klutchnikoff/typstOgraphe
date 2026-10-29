@@ -59,9 +59,16 @@ struct Context {
 impl Context {
     fn open(owner: &SharedSession) -> Result<Self, Error> {
         let local = SharedDocument::from_update(&owner.update())?;
+        // Grouping is explicit (capture_group), never time-based: a constant positive
+        // clock keeps yrs merging until reset, without the system clock that is
+        // unavailable on wasm32-unknown-unknown and may go backwards elsewhere.
         let mut history = UndoManager::with_options(yrs::undo::Options {
             capture_timeout_millis: u64::MAX,
-            ..Default::default()
+            tracked_origins: Default::default(),
+            capture_transaction: None,
+            timestamp: std::sync::Arc::new(|| 1),
+            init_undo_stack: Vec::new(),
+            init_redo_stack: Vec::new(),
         });
         history.expand_scope(&local.doc, &local.doc.get_or_insert_xml_fragment("default"));
         history.expand_scope(&local.doc, &local.doc.get_or_insert_map("settings"));
