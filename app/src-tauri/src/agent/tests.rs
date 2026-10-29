@@ -544,3 +544,6 @@ fn notification_failure_keeps_the_accepted_work_recoverable_without_reapplying_t
     assert_eq!(json!(saved.document), accepted["state"]["document"]);
     assert!(!saved.update.is_empty());
 }
+
+#[path = "workflow_tests.rs"]
+mod workflow_tests;

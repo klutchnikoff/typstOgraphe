@@ -1,12 +1,12 @@
 //! Assistance locale : découverte et propositions, jamais d'édition directe.
 mod approval;
+mod invitation;
 mod transport;
 use crate::{Bridge, session::Session, settings::Settings};
 pub(crate) use approval::accept;
 use serde::Serialize;
 use serde_json::{Value, json};
 use std::{
-    io::Write,
     net::{TcpListener, TcpStream},
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -144,35 +144,13 @@ pub async fn agent_accept(
 #[tauri::command]
 pub fn agent_invite(app: tauri::AppHandle, state: State<Bridge>) -> Result<Value, String> {
     let root = crate::preferences::root(&app)?;
-    std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
     let invitation = Invitation {
         address: listener.local_addr().unwrap().to_string(),
         token: uuid::Uuid::new_v4().simple().to_string(),
     };
     let file = root.join("invitation.json");
-    let options = atomic_write_file::AtomicWriteFile::options();
-    #[cfg(unix)]
-    let options = {
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut options = options;
-        options.mode(0o600);
-        options
-    };
-    let mut out = options.open(&file).map_err(|e| e.to_string())?;
-    out.write_all(&serde_json::to_vec(&invitation).unwrap())
-        .map_err(|e| e.to_string())?;
-    out.commit().map_err(|e| e.to_string())?;
-    {
-        let mut session = state.session.lock().map_err(|e| e.to_string())?;
-        let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-        if let Some(owner) = &mut session.owner {
-            owner.close(&agent_peer(&agent))?;
-        }
-        agent.token = Some(invitation.token.clone());
-        agent.proposal = None;
-        agent.seen.clear();
-    }
+    invitation::install(&state.session, &state.agent, &root, &invitation)?;
     let session = state.session.clone();
     let agent = state.agent.clone();
     let token = invitation.token.clone();
