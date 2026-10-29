@@ -206,3 +206,341 @@ fn resources_and_schemas_are_current_and_old_flat_commands_are_not_advertised() 
     }
     assert!(Assets::default().is_empty());
 }
+
+fn pending_acceptance() -> (tempfile::TempDir, Mutex<Session>, Mutex<AgentState>, String) {
+    let (root, mut s, mut a) = fixture();
+    a.token = Some("local-invitation-token".into());
+    let params = submit(&s, "review", json!([insertion("Proposition ")]));
+    let response = dispatch(&mut s, &mut a, "proposals.submit", &params).unwrap();
+    let id = response["outcome"]["id"].as_str().unwrap().to_owned();
+    (root, Mutex::new(s), Mutex::new(a), id)
+}
+fn confirmed(session: &Mutex<Session>) -> Value {
+    let mut s = session.lock().unwrap();
+    let human = s.ensure_owner().unwrap().snapshot("human").unwrap();
+    json!({"guard":s.guard(),"state":s.owner.as_ref().unwrap().state(),"updates":s.updates,
+        "history":human,"resources":s.resources(),"clean":s.clean_revision})
+}
+#[test]
+fn full_acceptance_validates_real_typst_and_second_click_cannot_reapply_or_relabel_the_lot() {
+    let (_root, s, a, id) = pending_acceptance();
+    let before = confirmed(&s);
+    let renderer = crate::rendering::Renderer::default();
+    let publication = accept(&s, &a, &id, "human", |p, assets| {
+        assert_eq!(confirmed(&s), before); // Validation holds no document lock.
+        renderer.validate(
+            &crate::schema::source(&p.after, assets)?,
+            assets,
+            &p.settings,
+        )
+    })
+    .unwrap();
+    assert!(publication.changed);
+    let accepted = confirmed(&s);
+    assert_eq!(
+        accepted["guard"]["revision"],
+        before["guard"]["revision"].as_u64().unwrap() + 1
+    );
+    assert_eq!(accepted["history"]["undo_steps"], 1);
+    assert!(
+        accept(&s, &a, &id, "human", |_, _| panic!(
+            "a second click must not compile again"
+        ))
+        .is_err()
+    );
+    assert_eq!(
+        a.lock().unwrap().proposal.as_ref().unwrap().status,
+        "accepted"
+    );
+    assert_eq!(confirmed(&s), accepted);
+    let mut s = s.lock().unwrap();
+    s.history(
+        "human",
+        typstographe_core::content::editing::Direction::Undo,
+    )
+    .unwrap();
+    assert_eq!(json!(s.owner.as_ref().unwrap().state()), before["state"]);
+}
+#[test]
+fn compilation_failure_keeps_the_proposal_pending_and_all_confirmed_work_intact() {
+    let (_root, s, a, id) = pending_acceptance();
+    let before = confirmed(&s);
+    let renderer = crate::rendering::Renderer::default();
+    assert!(
+        accept(&s, &a, &id, "human", |p, assets| {
+            renderer.validate(
+                "#panic(\"simulated compilation failure\")",
+                assets,
+                &p.settings,
+            )
+        })
+        .is_err()
+    );
+    assert_eq!(confirmed(&s), before);
+    assert_eq!(
+        a.lock().unwrap().proposal.as_ref().unwrap().status,
+        "pending"
+    );
+    accept(&s, &a, &id, "human", |_, _| Ok(())).unwrap();
+    assert_eq!(confirmed(&s)["history"]["undo_steps"], 1);
+}
+#[test]
+fn human_edit_during_compilation_is_preserved_and_only_the_proposal_becomes_stale() {
+    let (_root, s, a, id) = pending_acceptance();
+    let mut expected = Value::Null;
+    assert!(
+        accept(&s, &a, &id, "human", |_, _| {
+            let mut current = s.lock().unwrap();
+            let guard = current.guard();
+            let publication = current
+                .ensure_owner()
+                .unwrap()
+                .calls(
+                    "human",
+                    &guard,
+                    &[serde_json::from_value(insertion("Saisie humaine ")).unwrap()],
+                )
+                .unwrap();
+            current.record(&publication);
+            drop(current);
+            expected = confirmed(&s);
+            Ok(())
+        })
+        .is_err()
+    );
+    assert_eq!(confirmed(&s), expected);
+    assert_eq!(a.lock().unwrap().proposal.as_ref().unwrap().status, "stale");
+    assert_eq!(expected["history"]["undo_steps"], 1);
+}
+#[test]
+fn composition_refusal_revocation_and_closed_window_during_validation_never_publish() {
+    for interruption in ["ime", "reject", "revoke", "leave"] {
+        let (_root, s, a, id) = pending_acceptance();
+        let before = confirmed(&s);
+        let result = accept(&s, &a, &id, "human", |_, _| {
+            match interruption {
+                "ime" => {
+                    a.lock().unwrap().busy.insert("human".into());
+                }
+                "reject" => reject(&mut a.lock().unwrap(), &id).unwrap(),
+                "revoke" => revoke(&mut s.lock().unwrap(), &mut a.lock().unwrap()).unwrap(),
+                "leave" => s.lock().unwrap().leave("human"),
+                _ => unreachable!(),
+            }
+            Ok(())
+        });
+        assert!(result.is_err(), "{interruption}");
+        // Leaving closes the private context, but must not alter the document.
+        let after = confirmed(&s);
+        assert_eq!(after["state"], before["state"], "{interruption}");
+        assert_eq!(after["updates"], before["updates"], "{interruption}");
+        assert_eq!(after["guard"], before["guard"], "{interruption}");
+        assert_eq!(after["history"]["undo_steps"], 0);
+        let a = a.lock().unwrap();
+        match interruption {
+            "ime" => assert_eq!(a.proposal.as_ref().unwrap().status, "pending"),
+            "reject" => assert_eq!(a.proposal.as_ref().unwrap().status, "rejected"),
+            "revoke" => {
+                assert!(a.proposal.is_none());
+                assert!(a.seen.is_empty());
+                assert!(a.token.is_none());
+            }
+            _ => {}
+        }
+    }
+}
+#[test]
+fn replacement_during_validation_cannot_apply_an_old_document_proposal() {
+    let (_root, s, a, id) = pending_acceptance();
+    let mut expected = Value::Null;
+    assert!(
+        accept(&s, &a, &id, "human", |_, _| {
+            let mut current = s.lock().unwrap();
+            let state = current.owner.as_ref().unwrap().state().clone();
+            let update = current.owner.as_ref().unwrap().update_bytes();
+            current.replace(state.document, state.settings, Assets::default(), update);
+            drop(current);
+            expected = confirmed(&s);
+            Ok(())
+        })
+        .is_err()
+    );
+    assert_eq!(confirmed(&s), expected);
+    assert_eq!(a.lock().unwrap().proposal.as_ref().unwrap().status, "stale");
+}
+#[test]
+fn two_acceptances_that_compile_concurrently_publish_once_and_keep_the_accepted_status() {
+    let (_root, s, a, id) = pending_acceptance();
+    let before = confirmed(&s);
+    let barrier = std::sync::Barrier::new(2);
+    let notifications = std::sync::atomic::AtomicUsize::new(0);
+    let results = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..2)
+            .map(|_| {
+                scope.spawn(|| {
+                    super::approval::accept_with_notification(
+                        &s,
+                        &a,
+                        &id,
+                        "human",
+                        |_, _| {
+                            barrier.wait();
+                            Ok(())
+                        },
+                        |_| {
+                            // The publication cannot be overtaken by a new edit before notification.
+                            assert!(s.try_lock().is_err());
+                            notifications.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            Ok(())
+                        },
+                    )
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|h| h.join().unwrap())
+            .collect::<Vec<_>>()
+    });
+    assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 1);
+    assert_eq!(notifications.load(std::sync::atomic::Ordering::Relaxed), 1);
+    let after = confirmed(&s);
+    assert_eq!(
+        after["guard"]["revision"],
+        before["guard"]["revision"].as_u64().unwrap() + 1
+    );
+    assert_eq!(after["history"]["undo_steps"], 1);
+    assert_eq!(
+        a.lock().unwrap().proposal.as_ref().unwrap().status,
+        "accepted"
+    );
+}
+
+fn rpc(session: &Mutex<Session>, agent: &Mutex<AgentState>, request: &str) -> (Value, usize) {
+    use std::io::{BufRead, BufReader, Write};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+    client
+        .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+        .unwrap();
+    let (stream, _) = listener.accept().unwrap();
+    let notifications = AtomicUsize::new(0);
+    let response = std::thread::scope(|scope| {
+        let worker = scope.spawn(|| {
+            super::transport::connection(stream, session, agent, || {
+                notifications.fetch_add(1, Ordering::Relaxed);
+            })
+        });
+        writeln!(client, "{request}").unwrap();
+        let mut line = String::new();
+        BufReader::new(client).read_line(&mut line).unwrap();
+        worker.join().unwrap();
+        serde_json::from_str(&line).unwrap()
+    });
+    (response, notifications.load(Ordering::Relaxed))
+}
+#[test]
+fn native_mcp_socket_authenticates_and_validates_requests_without_changing_human_work() {
+    let (_root, s, a, _id) = pending_acceptance();
+    let before = confirmed(&s);
+    for request in [
+        "not JSON".to_string(),
+        json!({"token":"wrong","method":"document.inspect","params":{}}).to_string(),
+        json!({"token":"local-invitation-token","method":"document.save","params":{}}).to_string(),
+        json!({"token":"local-invitation-token","method":"context.set","params":{"invalid":true}})
+            .to_string(),
+    ] {
+        let (reply, events) = rpc(&s, &a, &request);
+        assert!(reply.get("error").is_some(), "{reply}");
+        assert_eq!(events, 0);
+        assert_eq!(confirmed(&s), before);
+    }
+    for (method, params) in [
+        ("document.inspect", json!({})),
+        ("resource.read", json!({"uri":"typstographe://document"})),
+    ] {
+        let (reply, events) = rpc(
+            &s,
+            &a,
+            &json!({"token":"local-invitation-token","method":method,"params":params}).to_string(),
+        );
+        assert!(reply.get("error").is_none(), "{reply}");
+        assert_eq!(events, 0);
+        assert_eq!(confirmed(&s), before);
+    }
+}
+#[test]
+fn native_mcp_submission_remains_private_and_revocation_cancels_review_and_socket_access() {
+    let (_root, session, mut agent) = fixture();
+    agent.token = Some("invitation-token-for-network".into());
+    let params = submit(
+        &session,
+        "network",
+        json!([insertion("Private network text ")]),
+    );
+    let s = Mutex::new(session);
+    let a = Mutex::new(agent);
+    let before = confirmed(&s);
+    let request =
+        json!({"token":"invitation-token-for-network","method":"proposals.submit","params":params});
+    let (reply, events) = rpc(&s, &a, &request.to_string());
+    assert!(reply.get("error").is_none(), "{reply}");
+    assert_eq!(events, 1);
+    assert_eq!(confirmed(&s), before);
+    let id = reply["result"]["outcome"]["id"].as_str().unwrap();
+    revoke(&mut s.lock().unwrap(), &mut a.lock().unwrap()).unwrap();
+    let (refused, events) = rpc(
+        &s,
+        &a,
+        &json!({"token":"invitation-token-for-network","method":"document.inspect","params":{}})
+            .to_string(),
+    );
+    assert!(refused.get("error").is_some());
+    assert_eq!(events, 0);
+    assert!(
+        accept(&s, &a, id, "human", |_, _| panic!(
+            "revoked proposal must not compile"
+        ))
+        .is_err()
+    );
+    assert_eq!(confirmed(&s), before);
+}
+
+#[test]
+fn notification_failure_keeps_the_accepted_work_recoverable_without_reapplying_the_lot() {
+    let (_root, s, a, id) = pending_acceptance();
+    assert!(
+        super::approval::accept_with_notification(
+            &s,
+            &a,
+            &id,
+            "human",
+            |_, _| Ok(()),
+            |_| Err("window notification unavailable".into()),
+        )
+        .is_err()
+    );
+    let accepted = confirmed(&s);
+    assert_eq!(accepted["history"]["undo_steps"], 1);
+    assert_eq!(
+        a.lock().unwrap().proposal.as_ref().unwrap().status,
+        "accepted"
+    );
+    assert!(accept(&s, &a, &id, "human", |_, _| panic!("already accepted")).is_err());
+    assert_eq!(confirmed(&s), accepted);
+    let mut current = s.lock().unwrap();
+    let revision = current.revision;
+    let owner = current.ensure_owner().unwrap();
+    let snapshot = crate::session::Snapshot {
+        document: owner.state().document.clone(),
+        settings: Some(owner.state().settings.clone()),
+        revision,
+    };
+    let update = owner.update_bytes();
+    let path = current.save(&snapshot, update).unwrap();
+    let saved: crate::session::Checkpoint =
+        serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    assert_eq!(json!(saved.document), accepted["state"]["document"]);
+    assert!(!saved.update.is_empty());
+}

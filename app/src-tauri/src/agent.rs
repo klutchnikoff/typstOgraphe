@@ -1,9 +1,12 @@
 //! Assistance locale : découverte et propositions, jamais d'édition directe.
+mod approval;
+mod transport;
 use crate::{Bridge, session::Session, settings::Settings};
+pub(crate) use approval::accept;
 use serde::Serialize;
 use serde_json::{Value, json};
 use std::{
-    io::{BufRead, BufReader, Read, Write},
+    io::Write,
     net::{TcpListener, TcpStream},
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -58,8 +61,11 @@ pub fn agent_state(state: State<Bridge>) -> Result<Value, String> {
 pub fn agent_revoke(state: State<Bridge>) -> Result<(), String> {
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
+    revoke(&mut session, &mut agent)
+}
+fn revoke(session: &mut Session, agent: &mut AgentState) -> Result<(), String> {
     if let Some(owner) = &mut session.owner {
-        owner.close(&agent_peer(&agent))?;
+        owner.close(&agent_peer(agent))?;
     }
     agent.token = None;
     agent.proposal = None;
@@ -69,16 +75,20 @@ pub fn agent_revoke(state: State<Bridge>) -> Result<(), String> {
 #[tauri::command]
 pub fn agent_reject(state: State<Bridge>, id: String) -> Result<(), String> {
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
+    reject(&mut agent, &id)
+}
+fn reject(agent: &mut AgentState, id: &str) -> Result<(), String> {
     let p = agent
         .proposal
         .as_mut()
         .filter(|p| p.id == id)
         .ok_or("Proposition absente.")?;
     if p.status == "pending" {
-        p.status = "rejected".into()
+        p.status = "rejected".into();
     }
     Ok(())
 }
+
 #[tauri::command]
 pub fn agent_input(
     window: tauri::WebviewWindow,
@@ -100,54 +110,37 @@ pub async fn agent_accept(
     state: State<'_, Bridge>,
     id: String,
 ) -> Result<(), String> {
-    let (candidate, assets) = {
-        let session = state.session.lock().map_err(|e| e.to_string())?;
-        let agent = state.agent.lock().map_err(|e| e.to_string())?;
-        let p = agent
-            .proposal
-            .as_ref()
-            .filter(|p| p.id == id && p.status == "pending" && p.revision == session.revision)
-            .ok_or("Proposition périmée.")?;
-        if !agent.busy.is_empty() {
-            return Err("Terminez la composition IME avant de décider.".into());
-        }
-        (p.clone(), session.assets.clone())
-    };
+    let session = state.session.clone();
+    let agent = state.agent.clone();
     let renderer = state.renderer.clone();
-    let validation = candidate.clone();
+    let peer = window.label().to_owned();
     tauri::async_runtime::spawn_blocking(move || {
-        renderer.validate(
-            &crate::schema::source(&validation.after, &assets)?,
-            &assets,
-            &validation.settings,
-        )
+        approval::accept_with_notification(
+            &session,
+            &agent,
+            &id,
+            &peer,
+            |candidate, assets| {
+                renderer.validate(
+                    &crate::schema::source(&candidate.after, assets)?,
+                    assets,
+                    &candidate.settings,
+                )
+            },
+            |publication| {
+                app.emit(
+                    "web-editor:change",
+                    json!({"from":"agent","acceptedBy":peer,
+                        "generation":publication.guard.document,"revision":publication.guard.revision,"update":publication.update}),
+                ).map_err(|e| e.to_string())?;
+                app.emit("agent:changed", ()).map_err(|e| e.to_string())
+            },
+        ).map(|_| ())
     })
     .await
-    .map_err(|e| e.to_string())??;
-    let mut session = state.session.lock().map_err(|e| e.to_string())?;
-    let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    if !agent.busy.is_empty() {
-        return Err("Composition IME en cours.".into());
-    }
-    let p = agent
-        .proposal
-        .as_mut()
-        .filter(|p| p.id == id)
-        .ok_or("Proposition absente.")?;
-    if p.status != "pending" || p.revision != session.revision {
-        p.status = "stale".into();
-        return Err("Proposition périmée : relisez le document.".into());
-    }
-    let publication = commit_accepted(&mut session, &mut agent, &id, window.label())?;
-    let revision = publication.guard.revision;
-    let update = publication.update;
-    app.emit(
-        "web-editor:change",
-        json!({"from":"agent","acceptedBy":window.label(),"generation":session.generation,"revision":revision,"update":update}),
-    )
-    .map_err(|e| e.to_string())?;
-    app.emit("agent:changed", ()).map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?
 }
+
 #[tauri::command]
 pub fn agent_invite(app: tauri::AppHandle, state: State<Bridge>) -> Result<Value, String> {
     let root = crate::preferences::root(&app)?;
@@ -214,56 +207,16 @@ pub fn agent_invite(app: tauri::AppHandle, state: State<Bridge>) -> Result<Value
     )
 }
 fn serve_connection(
-    mut stream: TcpStream,
+    stream: TcpStream,
     session: Arc<Mutex<Session>>,
     agent: Arc<Mutex<AgentState>>,
     app: tauri::AppHandle,
 ) {
-    // macOS peut transmettre O_NONBLOCK depuis le listener au socket accepté.
-    if stream.set_nonblocking(false).is_err() {
-        return;
-    }
-    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(30)));
-    let mut line = String::new();
-    if BufReader::new((&stream).take(5 * 1024 * 1024 + 1))
-        .read_line(&mut line)
-        .is_err()
-        || line.len() > 5 * 1024 * 1024
-    {
-        return;
-    }
-    let response = (|| {
-        let request: Value = serde_json::from_str(&line).map_err(|e| e.to_string())?;
-        authorize(
-            &*agent.lock().map_err(|e| e.to_string())?,
-            request["token"].as_str(),
-        )?;
-        // Schema compilation can be cold/expensive; do it before taking the live document lock.
-        validate_request(request["method"].as_str().unwrap_or(""), &request["params"])?;
-        let mut s = session.lock().map_err(|e| e.to_string())?;
-        let mut a = agent.lock().map_err(|e| e.to_string())?;
-        authorize(&a, request["token"].as_str())?; // Revocation may have happened meanwhile.
-        let result = dispatch(
-            &mut s,
-            &mut a,
-            request["method"].as_str().unwrap_or(""),
-            &request["params"],
-        );
-        if request["method"] == "proposals.submit" {
-            let _ = app.emit("agent:changed", ());
-        }
-        result
-    })();
-    let value = match response {
-        Ok(value) => json!({"result":value}),
-        Err(error) => {
-            let value = serde_json::from_str::<Value>(&error)
-                .unwrap_or_else(|_| json!({"code":"unavailable","message":error}));
-            json!({"error":value})
-        }
-    };
-    let _ = writeln!(stream, "{value}");
+    transport::connection(stream, &session, &agent, || {
+        let _ = app.emit("agent:changed", ());
+    });
 }
+
 fn validate_step(step: &Call) -> Result<(), String> {
     if !typstographe_mcp::attached_step(step) {
         return Err("Capability unavailable in attached body proposals".into());

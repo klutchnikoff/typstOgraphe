@@ -48,13 +48,18 @@ fn dispatch(
             )
         }
         "diagnostic_agent_accept" => {
-            let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
-            let mut agent = bridge.agent.lock().map_err(|e| e.to_string())?;
-            let publication = agent::commit_accepted(
-                &mut session,
-                &mut agent,
+            let publication = agent::accept(
+                &bridge.session,
+                &bridge.agent,
                 args["id"].as_str().ok_or("ID absent")?,
                 peer,
+                |candidate, assets| {
+                    bridge.renderer.validate(
+                        &crate::schema::source(&candidate.after, assets)?,
+                        assets,
+                        &candidate.settings,
+                    )
+                },
             )?;
             serde_json::to_value(publication).map_err(|e| e.to_string())
         }
