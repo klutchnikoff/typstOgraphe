@@ -161,11 +161,8 @@ test('un tableau long se répartit sur plusieurs pages et la légende reste édi
   await blank(page)
   const widget = await create(page, '100', '2')
   await expect(
-    widget.getByRole('button', { name: 'Ajouter une ligne en bas du tableau', exact: true }),
-  ).toBeDisabled()
-  await expect(
     widget.getByRole('button', { name: 'Actions sur la ligne 1', exact: true }),
-  ).toBeDisabled()
+  ).toBeEnabled()
   await expect
     .poll(() => page.locator('.preview-page').count(), { timeout: 15000 })
     .toBeGreaterThan(1)
@@ -271,28 +268,22 @@ test('poignées : bandeau ciblé, conservation des données, clavier et curseur 
   const panel = page.locator('#table-properties')
   await expect(panel.getByRole('radio')).toHaveCount(0)
   await expect(panel.getByRole('checkbox')).toHaveCount(0)
-  await expect(
-    panel.getByRole('button', { name: 'Ajouter une ligne au-dessous', exact: true }),
-  ).toBeFocused()
+  await expect(panel.getByRole('button', { name: 'Au-dessous', exact: true })).toBeFocused()
   await expect(widget.locator('tr').nth(1).locator('.table-axis-selected')).toHaveCount(2)
-  await panel
-    .getByRole('button', { name: 'Ajouter une ligne au-dessous', exact: true })
-    .press('Escape')
+  await panel.getByRole('button', { name: 'Au-dessous', exact: true }).press('Escape')
   await expect(handle).toBeFocused()
   await handle.press('ArrowDown')
   await expect(
     widget.getByRole('button', { name: 'Actions sur la ligne 3', exact: true }),
   ).toBeFocused()
   await page.keyboard.press('Enter')
-  await panel.getByRole('button', { name: 'Ajouter une ligne au-dessus', exact: true }).click()
+  await panel.getByRole('button', { name: 'Au-dessus', exact: true }).click()
   await expect(widget.locator('tr')).toHaveCount(4)
   await page.keyboard.type('Nouvelle ligne')
   await expect(widget.locator('tr').nth(2).locator('td').first()).toContainText('Nouvelle ligne')
   await expect(widget.locator('tr').nth(1).locator('td').first()).toContainText('Étudiants')
   await widget.getByRole('button', { name: 'Actions sur la colonne 1', exact: true }).click()
-  await panel
-    .getByRole('button', { name: 'Ajouter une colonne à droite', exact: true })
-    .press('Enter')
+  await panel.getByRole('button', { name: 'À droite', exact: true }).press('Enter')
   await expect(widget.locator('th')).toHaveCount(3)
   await expect(panel).toBeHidden()
   await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
@@ -307,11 +298,13 @@ test('poignées : bandeau ciblé, conservation des données, clavier et curseur 
   expect(document).not.toContain('table-axis-selected')
 })
 
-test('les + exécutent une seule commande commune, diffusée et annulable, sans ouvrir de bandeau', async ({
+test('l’ajout par la dernière poignée est diffusé une seule fois et reste annulable', async ({
   page,
 }) => {
   await blank(page)
   const widget = await create(page)
+  const panel = page.locator('#table-properties')
+  await expect(widget.locator('[data-table-append]')).toHaveCount(0)
   await widget.locator('figcaption').click()
   await page.keyboard.type('Légende partagée')
   await page.evaluate(() => window.__spike!.provider.clearHistory())
@@ -320,12 +313,11 @@ test('les + exécutent une seule commande commune, diffusée et annulable, sans 
     await peer.goto('/?client=table-handles-peer')
     await peer.waitForFunction(() => window.__spike?.ready)
     const before = await page.evaluate(() => window.__spike!.provider.revision)
-    await widget
-      .getByRole('button', { name: 'Ajouter une ligne en bas du tableau', exact: true })
-      .click()
-    await expect(widget.locator('tr')).toHaveCount(3)
-    await expect(page.locator('#table-properties')).toBeHidden()
+    await widget.getByRole('button', { name: 'Actions sur la ligne 2', exact: true }).click()
+    await panel.getByRole('button', { name: 'Au-dessous', exact: true }).press('Enter')
     await expect(peer.locator('[data-editor-widget="tableFigure"] tr')).toHaveCount(3)
+    await expect(panel).toBeHidden()
+    await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
     expect(await page.evaluate(() => window.__spike!.provider.revision)).toBe(before + 1)
     await page.keyboard.type('Dernière ligne')
     await expect(widget.locator('tr').last().locator('td').first()).toContainText('Dernière ligne')
@@ -334,16 +326,16 @@ test('les + exécutent une seule commande commune, diffusée et annulable, sans 
     await expect(widget.locator('tr').last().locator('td').first()).not.toContainText(
       'Dernière ligne',
     )
+    await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
     await page.keyboard.press('ControlOrMeta+z')
     await expect(peer.locator('[data-editor-widget="tableFigure"] tr')).toHaveCount(2)
     await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
-    await expect(page.locator('.tiptap[data-rich-zone-profile="document"]')).toBeFocused()
     await page.keyboard.press('ControlOrMeta+Shift+z')
     await expect(widget.locator('tr')).toHaveCount(3)
-    await widget
-      .getByRole('button', { name: 'Ajouter une colonne à droite du tableau', exact: true })
-      .click()
+    await widget.getByRole('button', { name: 'Actions sur la colonne 2', exact: true }).click()
+    await panel.getByRole('button', { name: 'À droite', exact: true }).press('Enter')
     await expect(widget.locator('th')).toHaveCount(3)
+    await expect(panel).toBeHidden()
     await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
     await expect(page.locator('.tiptap[data-rich-zone-profile="document"]')).toBeFocused()
     await page.keyboard.type('Dernière colonne')
@@ -355,20 +347,20 @@ test('les + exécutent une seule commande commune, diffusée et annulable, sans 
   }
 })
 
-test('les contrôles respectent les limites et la déconnexion sans publier de changement', async ({
-  page,
-}) => {
+test('les poignées restent disponibles à la limite, mais pas hors connexion', async ({ page }) => {
   await blank(page)
   const widget = await create(page, '2', '12')
+  const panel = page.locator('#table-properties')
+  const handle = widget.getByRole('button', { name: 'Actions sur la colonne 1', exact: true })
+  await expect(handle).toBeEnabled()
+  await handle.click()
+  await expect(panel.getByRole('button', { name: 'À gauche', exact: true })).toBeDisabled()
+  await expect(panel.getByRole('button', { name: 'À droite', exact: true })).toBeDisabled()
+  await expect(panel.getByRole('button', { name: 'Supprimer', exact: true })).toBeEnabled()
   await expect(
-    widget.getByRole('button', { name: 'Ajouter une colonne à droite du tableau', exact: true }),
-  ).toBeDisabled()
-  await expect(
-    widget.getByRole('button', { name: 'Actions sur la colonne 1', exact: true }),
-  ).toBeDisabled()
-  await expect(
-    widget.getByRole('button', { name: 'Ajouter une ligne en bas du tableau', exact: true }),
-  ).toBeEnabled()
+    panel.locator('.panel-actions').getByRole('button', { name: 'Annuler', exact: true }),
+  ).toBeFocused()
+  await page.keyboard.press('Escape')
   const before = await page.evaluate(async () => {
     await window.__spike!.provider.disconnect()
     return window.__spike!.editor.getJSON()
@@ -376,10 +368,64 @@ test('les contrôles respectent les limites et la déconnexion sans publier de c
   await expect(widget.locator('.table-handle:not(:disabled)')).toHaveCount(0)
   expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
   await page.evaluate(() => window.__spike!.provider.reconnect())
-  await expect(
-    widget.getByRole('button', { name: 'Ajouter une ligne en bas du tableau', exact: true }),
-  ).toBeEnabled()
-  await expect(
-    widget.getByRole('button', { name: 'Ajouter une colonne à droite du tableau', exact: true }),
-  ).toBeDisabled()
+  await expect(handle).toBeEnabled()
+})
+
+test('supprimer depuis une poignée conserve les voisins et la légende, avec annulation partagée et dernière cellule protégée', async ({
+  page,
+}) => {
+  await blank(page)
+  const widget = await create(page)
+  const panel = page.locator('#table-properties')
+  await widget.locator('th').first().click()
+  await page.keyboard.type('Conservé')
+  await widget.locator('td').first().click()
+  await page.keyboard.type('À retirer')
+  await widget.locator('figcaption').click()
+  await page.keyboard.type('Légende conservée')
+  await page.evaluate(() => window.__spike!.provider.clearHistory())
+  const peer = await page.context().newPage()
+  try {
+    await peer.goto('/?client=table-delete-peer')
+    await peer.waitForFunction(() => window.__spike?.ready)
+    await widget.getByRole('button', { name: 'Actions sur la ligne 2', exact: true }).click()
+    await expect(panel.locator('.panel-actions > button')).toHaveText([
+      'Supprimer',
+      'Annuler',
+      'Au-dessus',
+      'Au-dessous',
+    ])
+    await expect(panel.getByRole('button', { name: 'Au-dessous', exact: true })).toBeFocused()
+    // Arrow navigation reaches the destructive action explicitly; Enter then activates it.
+    await page.keyboard.press('Home')
+    await expect(panel.getByRole('button', { name: 'Supprimer', exact: true })).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(peer.locator('[data-editor-widget="tableFigure"] tr')).toHaveCount(1)
+    await expect(panel).toBeHidden()
+    await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
+    await expect(widget).not.toContainText('À retirer')
+    await expect(widget.locator('th').first()).toContainText('Conservé')
+    await expect(widget.locator('figcaption')).toHaveText('Légende conservée')
+    await expect(page.locator('.tiptap[data-rich-zone-profile="document"]')).toBeFocused()
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect(peer.locator('[data-editor-widget="tableFigure"] tr')).toHaveCount(2)
+    await expect(widget.locator('td').first()).toContainText('À retirer')
+    await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
+    await page.keyboard.press('ControlOrMeta+Shift+z')
+    await expect(widget.locator('tr')).toHaveCount(1)
+    await widget.getByRole('button', { name: 'Actions sur la ligne 1', exact: true }).click()
+    await expect(panel.getByRole('button', { name: 'Supprimer', exact: true })).toBeDisabled()
+    await page.keyboard.press('Escape')
+    await widget.getByRole('button', { name: 'Actions sur la colonne 2', exact: true }).click()
+    await panel.getByRole('button', { name: 'Supprimer', exact: true }).click()
+    await expect(widget.locator('th')).toHaveCount(1)
+    await expect(panel).toBeHidden()
+    await widget.getByRole('button', { name: 'Actions sur la colonne 1', exact: true }).click()
+    await expect(panel.getByRole('button', { name: 'Supprimer', exact: true })).toBeDisabled()
+    await expect(panel.getByRole('button', { name: 'À droite', exact: true })).toBeFocused()
+    await expect(widget.locator('th')).toHaveText(['Conservé'])
+    await expect(widget.locator('figcaption')).toHaveText('Légende conservée')
+  } finally {
+    await peer.close()
+  }
 })

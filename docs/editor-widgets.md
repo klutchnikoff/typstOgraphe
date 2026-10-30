@@ -43,17 +43,21 @@ pour la publication gardée, l’annulation et les limites de ce premier périm�
 
 Les poignées en marge gauche et au-dessus de la grille ciblent une ligne ou une
 colonne sans déplacer la sélection de texte. Leur bandeau B apparaît sous
-l’en-tête inchangé du widget : Annuler, insérer avant, insérer après (action par
-défaut à droite). Échap referme le bandeau et rend le focus à sa poignée ; les
-flèches parcourent les poignées du même axe et Entrée ouvre leur bandeau. Les
-boutons « + » en bas et à droite ajoutent directement en fin de grille.
+l’en-tête inchangé du widget : Supprimer (à gauche, désactivé pour la dernière
+ligne ou colonne), Annuler, Au-dessus/Au-dessous ou À gauche/À droite. L’ajout
+après reste l’action par défaut à droite. Échap referme le bandeau et rend le
+focus à sa poignée ; les flèches parcourent les poignées du même axe et Entrée
+ouvre leur bandeau. La
+dernière poignée permet également d’ajouter en fin de grille ; aucun bouton
+« + » supplémentaire n’est nécessaire.
 Après confirmation, le curseur entre dans la première cellule de la nouvelle
-ligne, ou dans la cellule supérieure de la nouvelle colonne. La légende reste
-dans le même widget. Les cellules fusionnées sont hors de ce périmètre.
+ligne, ou dans la cellule supérieure de la nouvelle colonne. Après suppression,
+il revient dans une cellule voisine. La légende reste dans le même widget.
+Les cellules fusionnées sont hors de ce périmètre.
 
 Ces contrôles sont des décorations ProseMirror non éditables : ils ne créent ni
-ligne ni cellule dans Yjs, le JSON public ou Typst. Les poignées et les « + »
-rejoignent le même contrôleur que les paramètres et les commandes du registre,
+ligne ni cellule dans Yjs, le JSON public ou Typst. Les poignées rejoignent le
+même contrôleur que les paramètres et les commandes du registre,
 puis les commandes typées communes du cœur. Les limites, le refus d’un lot
 concurrent et l’historique natif sont donc conservés. Aucun composant React ou
 service payant n’est ajouté.
