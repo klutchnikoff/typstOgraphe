@@ -142,7 +142,7 @@ Sources : `app/src/rich-zone.ts`, `app/src/document-whitespace.ts`,
 
 ## Hors de cette liste
 
-- Services individuels/collaboratifs à la demande : prochain lot A.2 distinct.
+- Services individuels/collaboratifs à la demande : [lot A.2 livré](individual-mode.md), recette finale distincte.
 - Conservation durable et réimportation des brouillons refusés : A.3.
 - Snapshots : A.4 ; listes imbriquées, fusion de cellules et nouvelles capacités : C.
 - Extension de la relecture MCP à l’en-tête, ressources et fichiers : parcours
@@ -152,7 +152,7 @@ Sources : `app/src/rich-zone.ts`, `app/src/document-whitespace.ts`,
 
 ## Mode individuel — exigence de transition retenue
 
-Le prochain lot conserve le moteur Yjs/Yrs et les mêmes fichiers. Seuls les
+Le [lot livré](individual-mode.md) conserve le moteur Yjs/Yrs et les mêmes fichiers. Seuls les
 services collaboratifs facultatifs doivent rester inactifs quand ils ne sont
 pas utiles ; la liaison éditeur ↔ propriétaire Rust continue de valider le travail.
 
@@ -169,12 +169,14 @@ devront couvrir activation après une longue rédaction, services déjà activé
 participant rejoignant ensuite, reprise de l’édition et annulation d’une frappe
 antérieure à l’activation.
 
-La présentation de cette action, son articulation avec plusieurs fenêtres et le
-rattachement d’un agent restent à préciser avant implémentation. Ce contrat ne
+Présentation retenue : bouton dans la barre d’état, menu et palette. La seconde
+fenêtre active automatiquement les services ; l’arrêt est possible lorsqu’elle
+ne participe plus. Un agent MCP n’active pas la présence humaine. Le mode reste
+éphémère et une réouverture démarre en individuel. Ce contrat ne
 choisit ni serveur distant ni ouverture de réseau ; partage et hébergement restent
 dans G. Mesurer séparément le coût de la frappe/confirmation et celui de Typst.
 
-## Vérifications de l’inventaire
+## Vérifications lors de l’inventaire
 
 Relancés localement sur macOS, sans captures : **50 tests unitaires ciblés**
 (`paragraph-join`, `whitespace`, `horizontal-space`, `rich-zone`) et les
@@ -182,5 +184,7 @@ Relancés localement sur macOS, sans captures : **50 tests unitaires ciblés**
 du code et de ses garanties existantes ; elle ne prétend pas avoir exécuté les
 nouvelles recettes R1–R3 ni les presse-papiers natifs des trois systèmes.
 
-La clôture d’A.2 doit nommer le résultat des trois points, livrer le mode
-individuel et conclure la recette Courrier/Article entre les adaptateurs.
+Les [résultats R1–R3](a2-transformations-results.md) et le
+[mode individuel livré et mesuré](individual-mode.md) complètent désormais cet
+inventaire. Reste à conclure la recette Courrier/Article entre les adaptateurs
+pour clôturer A.2.

@@ -145,19 +145,21 @@ Rust ; le contrat commun n’impose pas un RPC bloquant à chaque touche.
 Les schémas et la validation des éditions sont communs ; les autorisations restent
 propres à chaque adaptateur. Aucun canal ne contourne les frontières entre zones.
 
-**Prochain lot — mode individuel allégé :** même moteur, fichier et propriétaire,
-présence et services collaboratifs facultatifs activés à la demande. Depuis un
-document en cours, une action explicite en un clic doit activer la synchronisation,
-sans conversion ni réouverture, en conservant identité, historique, ressources,
-sélection et focus. L’activation ne crée pas d’étape d’annulation. Préserver la
-frappe en attente et ne pas publier les prééditions ou brouillons privés/refusés ;
-un échec d’activation ne modifie pas le travail. La présentation, les transitions
-avec plusieurs fenêtres et le rattachement d’un agent sont à préciser avant codage.
-Cette exigence ne choisit ni serveur distant ni permissions réseau : voir G.
-Mesurer frappe/confirmation et rendu Typst séparément.
+**Mode individuel allégé livré :** même moteur Yjs/Yrs, fichier, validation,
+propriétaire et historique. Les services de présence et curseurs distants sont
+créés à la demande puis libérés à l’arrêt. Un bouton de la barre d’état, le menu
+et la palette activent les services en un clic depuis le travail en cours ; le
+clic attend la validation d’une composition IME. Aucun remplacement du document,
+déplacement du focus ou ajout à l’historique. L’ouverture d’une seconde fenêtre
+active automatiquement les services ; leur arrêt est refusé tant qu’une autre
+fenêtre participe. Le rattachement MCP reste indépendant de la présence humaine.
+Le mode est éphémère et une réouverture démarre en individuel. Les échos de
+publication sans autre fenêtre destinataire sont supprimés ; les publications
+acceptées des agents continuent d’atteindre l’unique fenêtre humaine.
+Voir le [contrat et les mesures](docs/individual-mode.md).
 
-La clôture d’A.2 doit désormais solder le mode individuel et la recette finale
-Courrier/Article entre les adaptateurs. Les brouillons durables restent dans A.3,
+La clôture d’A.2 doit désormais solder la recette finale Courrier/Article entre
+les adaptateurs. Les brouillons durables restent dans A.3, le réseau dans G,
 la fusion de cellules et les listes imbriquées dans C.
 
 **Disponibilité raccordée :** les réponses de contexte du cœur exposent les

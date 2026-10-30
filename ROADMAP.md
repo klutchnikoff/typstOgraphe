@@ -41,10 +41,11 @@ CLI/MCP utilisent également le contrat commun. La disponibilité des capacités
 est raccordée aux contextes et aux déclencheurs de l’interface ; la palette
 conserve la zone riche choisie. Les [transformations R1–R3](docs/a2-transformations-results.md)
 sont livrées : retours en ligne localisés, opérations d’items non imbriqués et
-entrées natives conservant les frontières des zones. Restent dans A.2 le mode
-individuel allégé et la recette de clôture.
-L’activation de la synchronisation depuis le document ouvert devra se faire
-en un clic, sans conversion, réouverture ni perte de l’historique ou du curseur.
+entrées natives conservant les frontières des zones. Le [mode individuel allégé](docs/individual-mode.md)
+est livré : présence facultative, activation en un clic et activation automatique
+à l’ouverture d’une seconde fenêtre locale, sans conversion ni réinitialisation
+du travail. Le rattachement MCP reste indépendant de la présence humaine.
+Reste dans A.2 la recette de clôture Courrier/Article entre les adaptateurs.
 La [fusion de paragraphes](docs/paragraph-join.md)
 est désormais commune à Rust, Tiptap et aux adaptateurs, avec frontières protégées
 et restauration du curseur par l’historique natif. Les brouillons
@@ -501,9 +502,9 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Après les [transformations R1–R3](docs/a2-transformations-results.md), préparer
-   le mode individuel allégé et l’activation de la synchronisation en un clic
-   depuis le document ouvert, puis la recette de clôture d’A.2.
+1. Après les [transformations R1–R3](docs/a2-transformations-results.md) et le
+   [mode individuel allégé](docs/individual-mode.md), terminer la recette de
+   clôture d’A.2 entre les adaptateurs.
    Les propositions MCP rattachées restent limitées au corps du
    document ; leur extension n’est pas implicite dans ce lot.
 2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
