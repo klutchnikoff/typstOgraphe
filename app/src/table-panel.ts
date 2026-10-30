@@ -1,3 +1,4 @@
+import { focusEditorSelection } from './editor-focus'
 import { editingAvailability } from './command-availability'
 import { tableCursor } from './table-selection'
 import type { Editor } from '@tiptap/core'
@@ -8,7 +9,8 @@ import type { Provider, Transport } from './provider'
 import type { Registry, Capability, TableAction } from './commands'
 import { positionAtPath } from './commands'
 import { widgetTarget, widgetContinuation } from './widgets'
-import { executeStructured, type StructuredCommand } from './structured-commands'
+import { applyPlannedEdit, executeStructured, type StructuredCommand } from './structured-commands'
+import { TextSelection } from '@tiptap/pm/state'
 import { tr } from './i18n'
 import { nodePath } from './editor-targets'
 import {
@@ -88,7 +90,7 @@ export function tablePanel(
     closeLabel: tr('Annuler'),
     close: cancel,
     canConfirm: () => !!opened && !pending && !editor.view.composing,
-    tabExit: () => editor.view.focus(),
+    tabExit: () => focusEditorSelection(editor),
   })
   const dimensions = document.createElement('div')
   dimensions.className = 'table-dimensions'
@@ -271,26 +273,27 @@ export function tablePanel(
     refreshActions()
     // Keep the pending band focused until the owner has committed the guarded batch.
     try {
-      const changed = await executeStructured(
-        editor,
-        provider,
-        transport,
-        commands,
-        () => opened === draft && !!bands.forPanel(panel.element),
-      )
-      if (!changed) return
-      bands.close(!draft.action && !!draft.node)
+      const current = () => opened === draft && !!bands.forPanel(panel.element)
+      if (draft.node && !draft.action) {
+        // Header roles preserve projected positions even when Yrs replaces a
+        // cell's identity. Use the same selection restoration as other settings.
+        await applyPlannedEdit(editor, editor.state.tr, commands, { focus: false, current })
+      } else {
+        await executeStructured(editor, provider, transport, commands, current)
+      }
+      if (!current()) return
+      let returned = editor.state.selection.getBookmark()
       const figure = editor.state.doc.nodeAt(positionAtPath(editor, path))
       if (figure?.type.name === 'tableFigure' && (!draft.node || draft.action)) {
         const grid = figure.firstChild!
         row = Math.min(row, grid.childCount - 1)
         column = Math.min(column, grid.firstChild!.childCount - 1)
-        editor.commands.setTextSelection(positionAtPath(editor, [...path, 0, row, column, 0]) + 1)
+        returned = TextSelection.create(
+          editor.state.doc,
+          positionAtPath(editor, [...path, 0, row, column, 0]) + 1,
+        ).getBookmark()
       }
-      editor.view.focus()
-      // WebKit can keep its DOM selection in the closing form. ProseMirror
-      // ignores scroll requests until focus has synchronized it with the caret.
-      editor.commands.scrollIntoView()
+      bands.close(true, returned)
     } catch (error) {
       if (bands.forPanel(panel.element)) bands.close(false)
       provider.onError(error)

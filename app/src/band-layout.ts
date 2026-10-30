@@ -1,9 +1,16 @@
 import { historyFor } from './editing-history'
 import { Extension, type Editor } from '@tiptap/core'
-import { Plugin, PluginKey, type SelectionBookmark } from '@tiptap/pm/state'
+import {
+  Plugin,
+  PluginKey,
+  Selection,
+  NodeSelection,
+  type SelectionBookmark,
+} from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { enclosingWidget, isWidgetKind } from './widget-frame'
 import type { ContextPanel } from './context-panel'
+import { focusEditorSelection } from './editor-focus'
 
 export type PanelTarget = { from: number; to: number } & {
   placement: 'widget-header' | 'text'
@@ -134,12 +141,31 @@ export class BandHost {
     panel.classList.add('context-band')
     this.layer.append(panel)
     this.observer.observe(panel)
+    const state = this.editor.state
+    let selection = state.selection
+    // Opening a contextual control establishes its documentary target. Keeping
+    // an unrelated old caret would send focus (and subsequent typing) elsewhere.
+    const related =
+      target.placement === 'widget-header'
+        ? selection.from >= target.from && selection.to <= target.to
+        : selection.from <= target.to && selection.to >= target.from
+    if (!related) {
+      const node = state.doc.nodeAt(target.from)
+      selection =
+        target.placement === 'widget-header'
+          ? node?.isAtom && NodeSelection.isSelectable(node)
+            ? NodeSelection.create(state.doc, target.from)
+            : Selection.near(state.doc.resolve(target.from + 1))
+          : Selection.near(state.doc.resolve(target.to), -1)
+    }
+    const transaction = state.tr
+    if (!selection.eq(state.selection)) transaction.setSelection(selection)
     this.editor.view.dispatch(
-      this.editor.state.tr.setMeta(key, {
+      transaction.setMeta(key, {
         ...target,
         pos: target.from,
         gap,
-        bookmark: this.editor.state.selection.getBookmark(),
+        bookmark: selection.getBookmark(),
       } satisfies Anchor),
     )
     this.reanchor = true
@@ -166,15 +192,9 @@ export class BandHost {
     this.editor.view.dispatch(this.editor.state.tr.setMeta(key, null))
     this.onClose?.()
     this.onClose = undefined
-    if (focus && anchor) {
-      this.editor.view.dispatch(
-        this.editor.state.tr
-          .setSelection((restored || anchor.bookmark).resolve(this.editor.state.doc))
-          .scrollIntoView(),
-      )
-      this.editor.view.focus()
-    }
+    if (focus && anchor) focusEditorSelection(this.editor, restored || anchor.bookmark)
   }
+
   reveal() {
     this.layout()
     let target: HTMLElement | undefined = this.panel
