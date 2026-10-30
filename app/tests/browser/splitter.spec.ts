@@ -10,6 +10,8 @@ test.beforeEach(async ({ page, request }) => {
     editor.commands.setTextSelection(4)
     editor.view.focus()
   })
+  // Pointer targets depend on font metrics, including the wrapping toolbar.
+  await page.evaluate(() => document.fonts.ready.then(() => undefined))
 })
 
 async function startDrag(page: Page) {
@@ -41,10 +43,21 @@ async function selectText(page: Page) {
   })
   await page.mouse.move(points[0].x, points[0].y)
   await page.mouse.down()
+  // Observe the start of the native selection before extending it. Sending the
+  // complete drag while Chromium still processes focus/selectionchange can
+  // leave only a collapsed caret on a busy runner.
+  await expect.poll(() => page.evaluate(() => window.__spike!.editor.state.selection.from)).toBe(2)
   await page.mouse.move(points[1].x, points[1].y, { steps: 5 })
   await page.mouse.up()
-  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).not.toBe('')
-  expect(await page.evaluate(() => window.__spike!.editor.state.selection.empty)).toBe(false)
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('n texte')
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const { from, to } = window.__spike!.editor.state.selection
+        return { from, to }
+      }),
+    )
+    .toEqual({ from: 2, to: 9 })
 }
 
 test('redimensionner les colonnes ne sélectionne pas le texte et conserve le curseur', async ({
