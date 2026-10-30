@@ -552,6 +552,22 @@ test('les axes d’en-tête d’une cellule restent indépendants et le lot est 
   await page.keyboard.type('Nom é😀')
   await page.evaluate(() => window.__spike!.provider.clearHistory())
   const peer = await page.context().newPage()
+  const expectHeader = async (view: Page, scope: string) => {
+    await expect(view.locator(`th[data-header-scope="${scope}"]`)).toHaveCount(1)
+    // Presence labels are DOM decorations, not document content. Assert the
+    // exact cell text in the document and its displayed role independently.
+    await expect
+      .poll(() =>
+        view.evaluate(() => {
+          const table = window.__spike!.editor.state.doc.content.content.find(
+            (node) => node.type.name === 'tableFigure',
+          )
+          const cell = table?.firstChild?.firstChild?.firstChild
+          return cell && { kind: cell.type.name, scope: cell.attrs.scope, text: cell.textContent }
+        }),
+      )
+      .toEqual({ kind: 'tableHeader', scope, text: 'Nom é😀' })
+  }
   try {
     await peer.goto('/?client=header-peer')
     await peer.waitForFunction(() => window.__spike?.ready)
@@ -568,22 +584,22 @@ test('les axes d’en-tête d’une cellule restent indépendants et le lot est 
     await columns.uncheck()
     await rows.check()
     await panel.getByRole('button', { name: 'Valider', exact: true }).click()
-    await expect(peer.locator('th[data-header-scope="row"]')).toHaveText('Nom é😀')
+    await expectHeader(peer, 'row')
     await expect(peer.locator('td')).toHaveCount(0)
     expect(await page.evaluate(() => window.__spike!.provider.revision)).toBe(before + 1)
     await expect(panel).toBeHidden()
     await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
     await page.keyboard.press('ControlOrMeta+z')
-    await expect(peer.locator('th[data-header-scope="column"]')).toHaveText('Nom é😀')
+    await expectHeader(peer, 'column')
     await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
     await page.keyboard.press('ControlOrMeta+Shift+z')
-    await expect(widget.locator('th[data-header-scope="row"]')).toHaveText('Nom é😀')
+    await expectHeader(page, 'row')
     await widget.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
     await expect(columns).not.toBeChecked()
     await expect(rows).toBeChecked()
     await columns.check()
     await panel.getByRole('button', { name: 'Valider', exact: true }).click()
-    await expect(peer.locator('th[data-header-scope="both"]')).toHaveText('Nom é😀')
+    await expectHeader(peer, 'both')
   } finally {
     await peer.close()
   }
