@@ -16,7 +16,8 @@ pub(super) fn literal(value: &str) -> String {
 pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, SourceMap), String> {
     let mut marked = document.clone();
     let mut entries = vec![];
-    fn visit(node: &mut Node, position: usize, entries: &mut Vec<Entry>) -> usize {
+    fn visit(node: &mut Node, position: usize, entries: &mut Vec<Entry>) -> Result<usize, String> {
+        super::attributes::validate(node, false)?;
         if matches!(node.kind.as_str(), "text" | "footnote" | "citation") {
             let value = if node.kind == "text" {
                 node.text.clone().unwrap_or_default()
@@ -42,18 +43,18 @@ pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, Source
             });
             let attrs = node.attrs.get_or_insert_with(|| serde_json::json!({}));
             attrs["_mapping"] = serde_json::json!(id);
-            return size;
+            return Ok(size);
         }
         if matches!(node.kind.as_str(), "softBreak" | "hardBreak") {
-            return 1;
+            return Ok(1);
         }
         let mut offset = position + usize::from(node.kind != "doc");
         for child in &mut node.content {
-            offset += visit(child, offset, entries)
+            offset += visit(child, offset, entries)?
         }
-        offset - position + usize::from(node.kind != "doc")
+        Ok(offset - position + usize::from(node.kind != "doc"))
     }
-    let size = visit(&mut marked, 0, &mut entries);
+    let size = visit(&mut marked, 0, &mut entries)?;
     let raw = schema::generate(&marked, assets, true)?;
     let mut output = String::with_capacity(raw.len());
     let mut characters: Vec<Range<usize>> = vec![0..0; size + 1];

@@ -30,7 +30,7 @@ pub fn for_id(id: &str) -> Vec<Call> {
             json!({"type":"citation","attrs":{"items":[{"file_id":"main","key":"example2026"}],"form":"normal"}})
         }
         "insert.image" => {
-            json!({"type":"figure","attrs":{"src":"images/example.svg","alt":"Describe the image","placement":"inline"},"content":[{"type":"text","text":"Optional caption"}]})
+            json!({"type":"figure","attrs":{"src":"images/example.svg","alt":"Describe the image"},"content":[{"type":"text","text":"Optional caption"}]})
         }
         "letter.insert_postscript" => {
             json!({"type":"postscript","content":[{"type":"text","text":"Additional information."}]})

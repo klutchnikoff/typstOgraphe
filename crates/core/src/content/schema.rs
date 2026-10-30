@@ -59,7 +59,7 @@ pub(super) fn generate(document: &Node, assets: &Assets, mapped: bool) -> Result
         return Err("Un document structuré est attendu.".into());
     }
     let mut count = 0;
-    limits(document, 0, &mut count)?;
+    limits(document, 0, &mut count, mapped)?;
     let mut result = blocks(&document.content, assets, mapped)?;
     fn notes(node: &Node) -> bool {
         matches!(node.kind.as_str(), "postscript" | "attachment") || node.content.iter().any(notes)
@@ -89,7 +89,8 @@ pub(super) fn generate(document: &Node, assets: &Assets, mapped: bool) -> Result
     }
     Ok(result)
 }
-fn limits(node: &Node, depth: usize, count: &mut usize) -> Result<(), String> {
+fn limits(node: &Node, depth: usize, count: &mut usize, mapped: bool) -> Result<(), String> {
+    super::attributes::validate(node, mapped)?;
     *count += 1;
     if depth > 16 || *count > 20_000 || node.text.as_ref().is_some_and(|s| s.len() > 512_000) {
         return Err("Structure trop volumineuse ou trop profonde.".into());
@@ -105,7 +106,7 @@ fn limits(node: &Node, depth: usize, count: &mut usize) -> Result<(), String> {
         return Err("Style hors d'un contenu en ligne.".into());
     }
     for child in &node.content {
-        limits(child, depth + 1, count)?;
+        limits(child, depth + 1, count, mapped)?;
     }
     Ok(())
 }

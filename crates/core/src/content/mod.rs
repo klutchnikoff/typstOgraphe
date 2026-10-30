@@ -1,6 +1,7 @@
 //! Contenu structuré indépendant des bibliothèques graphiques.
 pub mod api;
 pub mod archive;
+mod attributes;
 pub mod availability;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]

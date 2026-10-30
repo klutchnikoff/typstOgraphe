@@ -80,3 +80,35 @@ fn bibliography_search_uses_project_authors_and_titles_without_mutating_the_docu
             .is_err()
     );
 }
+
+#[test]
+fn unsupported_node_attributes_cannot_enter_the_document_through_generic_batches() {
+    for node in [
+        json!({"type":"paragraph","attrs":{"invented":true}}),
+        json!({"type":"heading","attrs":{"level":2,"invented":false}}),
+        json!({"type":"paragraph","content":[{"type":"footnote","attrs":{"text":"Note","invented":1}}]}),
+    ] {
+        let mut session = new("courrier");
+        let before = session.archive().unwrap().yjs;
+        let err = session
+            .batch(
+                &[
+                    call(
+                        "text.insert",
+                        json!({"target":target(&[0],0,0),"text":"Private"}),
+                    ),
+                    call(
+                        "block.replace",
+                        json!({"target":{"root":{"kind":"body"},"path":[0]},"node":node}),
+                    ),
+                ],
+                None,
+            )
+            .unwrap_err();
+        assert!(
+            format!("{err:?}").contains("unsupported_node_attribute"),
+            "{err:?}"
+        );
+        assert_eq!(session.archive().unwrap().yjs, before);
+    }
+}
