@@ -75,6 +75,15 @@ pub(super) fn generate(document: &Node, assets: &Assets, mapped: bool) -> Result
             "#import \"capabilities/correspondence.typ\": postscript, attachment\n\n{result}"
         );
     }
+    fn row_headers(node: &Node) -> bool {
+        matches!(super::tables::scope(node), Some("row" | "both"))
+            || node.content.iter().any(row_headers)
+    }
+    if row_headers(document) {
+        result = format!(
+            "// External Typst CLI: typst compile --features a11y-extras main.typ\n#import \"capabilities/tables.typ\": table-header-cell\n\n{result}"
+        );
+    }
     if result.len() > 4 * 1024 * 1024 {
         return Err("Document trop volumineux.".into());
     }
@@ -235,14 +244,15 @@ fn table(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
     if !(1..=12).contains(&width) || node.content.len() > 100 {
         return Err("Tableau limité à 12 colonnes et 100 lignes.".into());
     }
+    let (column_headers, row_headers) = super::tables::headers(node);
     let mut cells = Vec::new();
     for (index, row) in node.content.iter().enumerate() {
         if row.kind != "tableRow" || row.content.len() != width {
             return Err("Tableau non rectangulaire.".into());
         }
-        let header = index == 0 && row.content.iter().all(|c| c.kind == "tableHeader");
+        let header = index == 0 && column_headers;
         let mut content = Vec::new();
-        for cell in &row.content {
+        for (column, cell) in row.content.iter().enumerate() {
             if !matches!(cell.kind.as_str(), "tableCell" | "tableHeader")
                 || cell.integer("colspan", 1) != 1
                 || cell.integer("rowspan", 1) != 1
@@ -252,7 +262,28 @@ fn table(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
             if cell.content.iter().any(|p| p.kind != "paragraph") {
                 return Err("Une cellule contient seulement des paragraphes.".into());
             }
-            content.push(format!("[{}]", blocks(&cell.content, assets, mapped)?));
+            let scope = super::tables::scope(cell);
+            if scope != super::tables::cell_scope(column_headers, row_headers, index, column)
+                || cell
+                    .attrs
+                    .as_ref()
+                    .and_then(|a| a.get("scope"))
+                    .is_some_and(|v| {
+                        !v.is_null()
+                            && (cell.kind == "tableCell"
+                                || !matches!(v.as_str(), Some("column" | "row" | "both")))
+                    })
+            {
+                return Err("Invalid table header scope.".into());
+            }
+            let body = format!("[{}]", blocks(&cell.content, assets, mapped)?);
+            content.push(match scope {
+                Some("row" | "both") => format!(
+                    "table-header-cell({body}, scope: {})",
+                    typst_string(scope.unwrap())
+                ),
+                _ => body,
+            });
         }
         cells.push(if header {
             format!("table.header({})", content.join(", "))

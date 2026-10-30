@@ -287,6 +287,8 @@ fn command_description(id: &str) -> String {
         "resource.add" => "Admit immutable image bytes (base64), validated before use; a batch may add the resource then insert its figure or signature.",
         "document.set_model" => "Set the model ID and full pure Typst source together. The model must implement this document type; publication validates its policy.",
         "metadata.set" => "Set a typed metadata, record field or document option. Values are validated against the type and model policy.",
+        "insert.table" => "Insert a table figure. header marks the first row as column headers; row_headers marks the first column as row headers. They are independent, including a one-cell table. No merged cells.",
+        "table.header" => "Set a header axis on an existing tableFigure: axis columns (default) labels columns using the first row; axis rows labels rows using the first column. Text and other cells are preserved. Leading-track insertions and removals retain the chosen roles.",
         "record.add" | "record.remove" | "record.move" => "Edit a header collection using stable record IDs. Forward references inside an atomic lot are checked only on its final state.",
         _ => return capabilities::find(id).map(|c|c.description).unwrap_or("Typed structured document operation; discover targets and parameters in params_schema.").into(),
     }.into()

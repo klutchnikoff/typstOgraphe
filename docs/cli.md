@@ -55,7 +55,7 @@ Resource data is base64 in `resource.add`; models use their pure Typst source in
 | `edit.redo` | session | Redo this participant's contribution. |
 | `edit.undo` | session | Undo this participant's last confirmed contribution. |
 | `inline.replace` | edit | Replace a typed inline range with one node (for example footnote or citation). Discover the node via capabilities.describe. |
-| `insert.table` | edit | Table figure with an optional rich caption, 1–12 columns and 1–100 rows. No merged cells; header row optional. |
+| `insert.table` | edit | Insert a table figure. header marks the first row as column headers; row_headers marks the first column as row headers. They are independent, including a one-cell table. No merged cells. |
 | `metadata.get` | query | Read document metadata and field/collection definitions. |
 | `metadata.set` | edit | Set a typed metadata, record field or document option. Values are validated against the type and model policy. |
 | `models.list` | query | Read brief visual model cards, including the active embedded model. |
@@ -75,7 +75,7 @@ Resource data is base64 in `resource.add`; models use their pure Typst source in
 | `spelling.suggestions` | query | Get local suggestions for a literal word and language. |
 | `table.column.insert` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
 | `table.column.remove` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
-| `table.header` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `table.header` | edit | Set a header axis on an existing tableFigure: axis columns (default) labels columns using the first row; axis rows labels rows using the first column. Text and other cells are preserved. Leading-track insertions and removals retain the chosen roles. |
 | `table.row.insert` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
 | `table.row.remove` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
 | `text.bold` | edit | Apply or remove this style on a nonempty typed range (value on/off). Never changes future typing; use context.style for that. |

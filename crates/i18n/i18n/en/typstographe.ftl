@@ -805,7 +805,8 @@ web-table-after-row-short = Below
 web-table-before-column-short = Left
 web-table-after-column-short = Right
 
-web-table-header = Header row
+web-table-header = First row: column headers
+web-table-row-headers = First column: row headers
 
 web-table-edit = Edit table
 

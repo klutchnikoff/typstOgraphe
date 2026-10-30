@@ -83,6 +83,7 @@ mod tests {
                 rows: 2,
                 columns: 2,
                 header: true,
+                row_headers: false,
             }],
         }
     }

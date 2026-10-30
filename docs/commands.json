@@ -82,6 +82,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -521,6 +529,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -1031,6 +1047,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -1539,6 +1563,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -2049,6 +2081,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -2499,6 +2539,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -2942,6 +2990,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -3452,6 +3508,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -3960,6 +4024,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -4475,6 +4547,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -4933,6 +5013,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -5443,6 +5531,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -5883,6 +5979,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -6307,6 +6411,14 @@
                     "type": "object"
                   }
                 ]
+              },
+              "HeaderAxis": {
+                "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+                "enum": [
+                  "columns",
+                  "rows"
+                ],
+                "type": "string"
               },
               "ImageResource": {
                 "additionalProperties": false,
@@ -7362,6 +7474,10 @@
                       "parent": {
                         "$ref": "#/$defs/TreeTarget"
                       },
+                      "row_headers": {
+                        "default": false,
+                        "type": "boolean"
+                      },
                       "rows": {
                         "format": "uint32",
                         "minimum": 0,
@@ -7522,6 +7638,10 @@
                   "params": {
                     "additionalProperties": false,
                     "properties": {
+                      "axis": {
+                        "$ref": "#/$defs/HeaderAxis",
+                        "default": "columns"
+                      },
                       "enabled": {
                         "type": "boolean"
                       },
@@ -7770,6 +7890,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -8205,6 +8333,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -8638,6 +8774,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -9078,6 +9222,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -9630,6 +9782,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -10073,6 +10233,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -10549,6 +10717,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -10986,6 +11162,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -11438,6 +11622,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -11871,6 +12063,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -12325,6 +12525,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -12772,6 +12980,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -13205,6 +13421,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -13645,6 +13869,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -14090,6 +14322,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -14530,6 +14770,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -14963,6 +15211,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -15402,6 +15658,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -15835,6 +16099,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -16274,6 +16546,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -16707,6 +16987,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -17148,6 +17436,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -17581,6 +17877,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -18016,6 +18320,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -18449,6 +18761,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -18884,7 +19204,7 @@
     },
     {
       "batch_step": true,
-      "description": "Table figure with an optional rich caption, 1–12 columns and 1–100 rows. No merged cells; header row optional.",
+      "description": "Insert a table figure. header marks the first row as column headers; row_headers marks the first column as row headers. They are independent, including a one-cell table. No merged cells.",
       "family": "edit",
       "id": "insert.table",
       "params_schema": {
@@ -18963,6 +19283,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -19328,6 +19656,10 @@
           "parent": {
             "$ref": "#/$defs/TreeTarget"
           },
+          "row_headers": {
+            "default": false,
+            "type": "boolean"
+          },
           "rows": {
             "format": "uint32",
             "minimum": 0,
@@ -19425,6 +19757,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -19859,6 +20199,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -20372,6 +20720,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -20805,6 +21161,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -21321,6 +21685,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -21777,6 +22149,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -22228,6 +22608,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -22672,6 +23060,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -23105,6 +23501,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -23588,6 +23992,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -24029,6 +24441,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -24468,6 +24888,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -24909,6 +25337,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -25342,6 +25778,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -25786,6 +26230,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -26305,6 +26757,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -26738,6 +27198,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -27182,6 +27650,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -27699,6 +28175,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -28135,7 +28619,7 @@
     },
     {
       "batch_step": true,
-      "description": "Typed structured document operation; discover targets and parameters in params_schema.",
+      "description": "Set a header axis on an existing tableFigure: axis columns (default) labels columns using the first row; axis rows labels rows using the first column. Text and other cells are preserved. Leading-track insertions and removals retain the chosen roles.",
       "family": "edit",
       "id": "table.header",
       "params_schema": {
@@ -28214,6 +28698,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -28585,6 +29077,10 @@
           }
         ],
         "properties": {
+          "axis": {
+            "$ref": "#/$defs/HeaderAxis",
+            "default": "columns"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -28728,6 +29224,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -29245,6 +29749,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -29761,6 +30273,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -30274,6 +30794,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -30783,6 +31311,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -31291,6 +31827,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -31813,6 +32357,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -32325,6 +32877,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -32839,6 +33399,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,

@@ -74,6 +74,7 @@ fn deleted_cell_and_caption_targets_never_fall_back_to_the_neighbouring_cell_or_
             rows: 2,
             columns: 2,
             header: false,
+            row_headers: false,
         }],
     );
     select(&mut s, a, target(&[1, 0, 0, 1, 0], 0, 0));

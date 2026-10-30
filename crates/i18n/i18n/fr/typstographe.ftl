@@ -807,7 +807,8 @@ web-table-after-row-short = Au-dessous
 web-table-before-column-short = À gauche
 web-table-after-column-short = À droite
 
-web-table-header = Première ligne d’en-tête
+web-table-header = Première ligne : en-têtes de colonnes
+web-table-row-headers = Première colonne : en-têtes de lignes
 
 web-table-edit = Modifier le tableau
 

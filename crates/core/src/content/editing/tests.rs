@@ -323,6 +323,7 @@ fn undo_cannot_hide_later_contributions_inside_an_inserted_container() {
             rows: 1,
             columns: 1,
             header: false,
+            row_headers: false,
         }],
     );
     select(&mut s, b, target(&[1, 0, 0, 0, 0], 0, 0));
@@ -373,6 +374,7 @@ fn cell_caption_and_annotation_contexts_keep_their_own_boundaries() {
             rows: 1,
             columns: 1,
             header: false,
+            row_headers: false,
         }],
     );
     select(&mut s, a, target(&[1, 0, 0, 0, 0], 0, 0));
@@ -850,6 +852,7 @@ fn cell_and_all_selections_are_structural_and_reject_cross_table_ranges() {
             rows: 2,
             columns: 2,
             header: true,
+            row_headers: false,
         }],
     );
     let cell = |r, c| TreeTarget {
