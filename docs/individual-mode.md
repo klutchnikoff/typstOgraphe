@@ -76,9 +76,11 @@ repos et les compilations Typst. Les recettes fonctionnelles n’utilisent aucun
 capture d’écran. Les chiffres et leurs limites sont consignés dans le
 [rapport de mesure](../experiments/individual-mode/README.md).
 
-La recette finale Courrier/Article entre tous les adaptateurs reste un lot
-séparé avant de clôturer A.2. Les brouillons durables restent dans A.3, le réseau
-et les permissions dans G.
+La [recette finale Courrier/Article](a2-closure-results.md) clôture A.2 le
+31 octobre 2026. Elle confirme notamment qu’une réouverture repart en individuel,
+y compris après activation sur le précédent document ; les autres fenêtres
+restent enregistrées pour l’activation automatique lorsqu’elles rejoignent.
+Les brouillons durables restent dans A.3, le réseau et les permissions dans G.
 
 Vérifications du lot : **295 tests Rust**, **320 tests web + 3 tests de langues
 natives**, **29 recettes de contrat** et **14 parcours Chromium/WebKit** réussis.

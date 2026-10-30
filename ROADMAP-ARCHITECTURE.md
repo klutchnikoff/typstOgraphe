@@ -1,6 +1,6 @@
 # Plan technique de développement
 
-Révisé le **30 octobre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
+Révisé le **31 octobre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
 et ne conserve que les décisions à prendre et les travaux techniques restants.
 Les anciennes phases, leurs réalisations et leurs inventaires historiques sont
 dans les bilans de docs/ et l’historique Git.
@@ -30,9 +30,9 @@ dans les bilans de docs/ et l’historique Git.
 - Les nouvelles interfaces sont maquettées et les choix structurants validés
   ensemble ; rechercher les outils maintenus avant de réimplémenter une brique.
 
-La représentation documentaire de session et le format public restent à préciser
-dans A. Aucun maintien artificiel de la projection plate ou des anciens formats
-n’est demandé pendant cette phase préliminaire.
+Le [contrat structuré](docs/structured-contract.md) est le socle documentaire
+commun. La conservation durable et les snapshots restent à préciser dans A.3/A.4.
+Aucun maintien artificiel de la projection plate ou des anciens formats n’est demandé.
 
 ## A. Socle et convergence — P0
 
@@ -42,136 +42,13 @@ L’application principale et le retrait d’egui sont décrits dans les bilans
 sans outillage de capture ni références graphiques figées.
 La présentation de l’interface peut maintenant être retravaillée.
 
-### A.2 Un contrat documentaire structuré
-
-**Décisions validées le 28 octobre 2026 :**
-[contrat structuré et séquence de migration](docs/structured-contract.md).
-Yrs est retenu côté Rust après évaluation ; Yjs reste dans l'éditeur. Cibles par
-zones, garde document/révision pour les commandes différées, en-tête entièrement
-éditable, lots isolés et publication atomique. La frappe locale reste immédiate
-avec confirmation asynchrone et conservation du brouillon en cas de refus.
-Mode individuel par défaut, services collaboratifs activés à la demande ;
-le moteur documentaire reste commun.
-
-Le [socle Yrs et de conservation](docs/structured-contract-foundation.md) est en
-place, ainsi que les [commandes multizones et structurelles](docs/structured-commands.md)
-dans le cœur : insertions/remplacements/suppressions de blocs et items, séparation
-et fusion de paragraphes, titres, enregistrements d’en-tête ordonnés et normalisation des
-lignes vides avant publication. Les recettes Rust ↔ Tiptap vérifient les identités
-conservées et une seule étape d’annulation pour chaque lot. Le
-[socle de contextes et d’historique par participant](docs/structured-editing-contexts.md)
-ajoute des répliques privées durables, des styles/sélections isolés et la validation
-des annulations avant publication. Il est vérifié avec Yjs/Tiptap et raccordé à
-l’application : frappe immédiate,
-validation asynchrone, groupement et historique Rust unique par fenêtre,
-accusés/refus et export explicite du brouillon avant abandon. Le reste du périmètre
-est borné par l’inventaire des transformations et le mode individuel ci-dessous. Les brouillons
-refusés restent en mémoire avant leur export JSON ; leur conservation automatique
-durable reste à traiter.
-
-La [fusion de paragraphes](docs/paragraph-join.md) est raccordée au clavier et au
-catalogue commun (`block.join`). Les sélections avant édition sont attachées aux
-étapes de l’historique Yrs ; annuler/rétablir les restaure dans la zone active
-sans déplacer le focus des autres participants.
-
-Les sélections et styles de frappe Tauri sont désormais raccordés à ces contextes :
-points UTF-16 multizones et direction, sélections de widgets/badges et de cellules,
-styles privés par fenêtre et conservation pendant les changements distants.
-Le corps et les zones riches d’en-tête partagent ce mécanisme ; les brouillons
-restent isolés. Une frontière causale compacte garde les positions sans renvoyer
-le document pour chaque mouvement, sans publication ni compilation. Voir le
-[contrat des contextes](docs/structured-editing-contexts.md#sélections-et-styles-raccordés-dans-tauri--29-octobre-2026).
-
-**Lot en place :** [figures et tableaux](docs/structured-commands.md#figures-et-tableaux--contrat-mis-en-place),
-avec une enveloppe Typst `figure` commune aux images/tableaux, légende facultative,
-édition des lignes/colonnes depuis la cellule active et conservation de la
-sémantique accessible. Le parcours Tauri prépare puis publie sous garde dans
-le propriétaire, avec annulation et diffusion aux autres fenêtres. Fusion des
-cellules différée ; les autres raccordements sont décrits ci-dessous.
-
-La recherche/remplacement et les corrections orthographiques Tauri rejoignent
-aussi les commandes typées : lots textuels par zones, styles conservés,
-exceptions orthographiques documentaires gardées et annulation unique. Les
-widgets et les remplacements partagent la publication de leur plan et le
-rétablissement de la sélection. Le dictionnaire personnel reste une préférence
-globale. Voir la [recette et les limites](docs/structured-commands.md#rechercheremplacement-et-corrections-raccordés-dans-lapplication).
-
-Les champs simples et les collections d’en-tête Tauri utilisent les commandes
-communes : saisie native immédiate avec confirmation asynchrone, formulaires
-privés puis publication atomique, déplacement par identifiant et suppression
-avec détachement explicite des références. La sauvegarde attend les champs en
-cours de confirmation et conserve les valeurs refusées jusqu’à décision.
-Les onglets restent stables pendant les mises à jour. Voir le
-[contrat de publication de l’en-tête](docs/structured-commands.md#en-tête-raccordé-dans-lapplication).
-La récupération protège l’état confirmé ; l’export JSON du brouillon comprend
-les champs natifs en attente. Leur conservation durable et leur réimportation
-restent à traiter avec A.3.
-
-Les ressources, les options générales et les modèles Tauri rejoignent aussi ce
-contrat : images et signature admises avec leur lot, préparation sans effet de
-bord, ressources immuables conservées pour l’annulation et modèles vérifiés hors
-ligne sans reconstruire l’en-tête. Les sélecteurs utilisent la confirmation et
-les refus communs ; changer la langue conserve les zones riches existantes.
-Le profil reste global jusqu’à son incorporation explicite. Voir les
-[garanties et recettes](docs/structured-commands.md#ressources-options-et-modèles-raccordés-dans-lapplication).
-Les régimes de paramètres de modèle de B et les snapshots de A.3/A.4 restent distincts.
-
-Converger entre le contenu structuré du nouvel éditeur et les adaptateurs
-historiques : catalogue, commandes, requêtes, erreurs typées et schémas de fichiers.
-Les cibles du nouvel éditeur sont des chemins de blocs/cellules/annotations,
-avec offsets UTF-16 dans une zone. Conserver les noms d’opérations lorsque leur
-sens reste identique, sans simuler les positions de la projection plate.
-
-**Lot livré — CLI et MCP :** la [façade structurée commune](docs/structured-adapters.md)
-raccorde commandes, requêtes, archives, lots atomiques, contextes privés et rendu.
-Les adaptateurs autonomes n’utilisent plus la projection plate. La passerelle
-MCP des invitations est partagée avec Tauri. L’acceptation d’un lot rattaché publie
-les commandes dans le propriétaire Rust et diffuse son delta confirmé, avec une
-seule annulation humaine ; elle ne reconstruit plus une édition dans le navigateur.
-Le périmètre rattaché reste le corps/cellules/annotations, sans en-tête, ressources
-ou fichiers modifiables tant que la relecture ne les présente pas.
-
-Les [transformations R1–R3](docs/a2-transformations-results.md) issues de
-l’[inventaire du 30 octobre](docs/a2-transformations-inventory.md) sont livrées :
-`inline.replace` accepte les retours simples/forcés ; les opérations d’items
-non imbriqués ont leurs commandes et plans locaux communs ; les entrées natives
-conservent les frontières des zones, les grilles et les rôles d’en-tête des
-cellules sélectionnées. Les recettes passent par les événements DOM de coupe,
-collage, saisie et déplacement, sans les remplacer par un import de contenu.
-Les claviers/IME physiques et presse-papiers système restent une recette manuelle.
-
-Les gestes immédiats conservent leur affichage local puis leur confirmation
-Rust ; le contrat commun n’impose pas un RPC bloquant à chaque touche.
-Les schémas et la validation des éditions sont communs ; les autorisations restent
-propres à chaque adaptateur. Aucun canal ne contourne les frontières entre zones.
-
-**Mode individuel allégé livré :** même moteur Yjs/Yrs, fichier, validation,
-propriétaire et historique. Les services de présence et curseurs distants sont
-créés à la demande puis libérés à l’arrêt. Un bouton de la barre d’état, le menu
-et la palette activent les services en un clic depuis le travail en cours ; le
-clic attend la validation d’une composition IME. Aucun remplacement du document,
-déplacement du focus ou ajout à l’historique. L’ouverture d’une seconde fenêtre
-active automatiquement les services ; leur arrêt est refusé tant qu’une autre
-fenêtre participe. Le rattachement MCP reste indépendant de la présence humaine.
-Le mode est éphémère et une réouverture démarre en individuel. Les échos de
-publication sans autre fenêtre destinataire sont supprimés ; les publications
-acceptées des agents continuent d’atteindre l’unique fenêtre humaine.
-Voir le [contrat et les mesures](docs/individual-mode.md).
-
-La clôture d’A.2 doit désormais solder la recette finale Courrier/Article entre
-les adaptateurs. Les brouillons durables restent dans A.3, le réseau dans G,
+**A.2 clos le 31 octobre 2026 :** le [bilan de clôture](docs/a2-closure-results.md)
+conserve les recettes et leurs résultats. Tauri, CLI et MCP utilisent le contrat
+structuré commun ; le mode individuel garde ce même moteur. Les propositions
+rattachées restent limitées au corps/cellules/annotations. Les claviers/IME et
+presse-papiers physiques des trois systèmes restent une recette manuelle ; cette
+clôture n’en revendique pas une validation exhaustive. Le réseau reste dans G,
 la fusion de cellules et les listes imbriquées dans C.
-
-**Disponibilité raccordée :** les réponses de contexte du cœur exposent les
-capacités possibles et leurs raisons d’indisponibilité pour la sélection du
-participant, sans publication, compilation ni requête supplémentaire. L’interface
-réutilise la politique du catalogue pour son retour immédiat, puis une réponse
-native uniquement si sa garde et sa sélection correspondent encore à la zone.
-Le registre garde les appels des boutons, menus web/natifs, palette et raccourcis ;
-la dernière zone riche active reste la cible pendant l’ouverture d’un menu.
-Les contraintes d’interface (IME, modal, lecture seule, déconnexion, brouillon
-refusé) restent distinctes des paramètres documentaires et des permissions
-CLI/MCP. Voir le [contrat de disponibilité](docs/structured-editing-contexts.md#disponibilité-des-interactions--29-octobre-2026).
 
 ### A.3 Conservation et publication
 

@@ -186,5 +186,5 @@ nouvelles recettes R1–R3 ni les presse-papiers natifs des trois systèmes.
 
 Les [résultats R1–R3](a2-transformations-results.md) et le
 [mode individuel livré et mesuré](individual-mode.md) complètent désormais cet
-inventaire. Reste à conclure la recette Courrier/Article entre les adaptateurs
-pour clôturer A.2.
+inventaire. La [recette finale Courrier/Article](a2-closure-results.md) entre
+les adaptateurs est réussie : **A.2 clos le 31 octobre 2026**.

@@ -1,6 +1,6 @@
 # Feuille de route de typstOgraphe
 
-Révisée le **30 octobre 2026**. Objectif : transformer le prototype validé en une
+Révisée le **31 octobre 2026**. Objectif : transformer le prototype validé en une
 application de rédaction utilisable au quotidien, pour l’administration,
 l’enseignement et la recherche en sciences humaines et sociales.
 
@@ -20,37 +20,19 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** poursuivre l’unification du contrat structuré entre
-adaptateurs (**A.2**), à partir du [contrat Article](docs/article-contract.md) et
-des [citations et de la bibliothèque locale](docs/article-bibliography.md).
-Les [décisions de contrat et les lots techniques](docs/structured-contract.md)
-sont validés : Yrs côté Rust, cibles structurées, en-tête commun, lots atomiques
-et frappe locale immédiate. Mode individuel par défaut, avec services
-collaboratifs activés à la demande et moteur commun aux deux modes.
-Les [commandes multizones et structurelles du cœur](docs/structured-commands.md)
-sont en place, avec les enregistrements d’en-tête ordonnés. Les tableaux avec
-légende et les opérations de lignes/colonnes sont raccordés au cœur depuis Tauri.
-Le [socle de contextes et d’historique par participant](docs/structured-editing-contexts.md)
-est raccordé au relais Tauri : validation asynchrone, historique Rust par fenêtre,
-groupement de frappe et parcours de refus avec export du brouillon. Les styles,
-liens et titres utilisent les cibles communes depuis les boutons, raccourcis et
-bandeaux, y compris dans les champs riches d’en-tête. Les insertions, conversions,
-paramètres et suppressions des widgets et badges sont également raccordés.
-Les champs d’en-tête, ressources, options, sélections/styles et adaptateurs
-CLI/MCP utilisent également le contrat commun. La disponibilité des capacités
-est raccordée aux contextes et aux déclencheurs de l’interface ; la palette
-conserve la zone riche choisie. Les [transformations R1–R3](docs/a2-transformations-results.md)
-sont livrées : retours en ligne localisés, opérations d’items non imbriqués et
-entrées natives conservant les frontières des zones. Le [mode individuel allégé](docs/individual-mode.md)
-est livré : présence facultative, activation en un clic et activation automatique
-à l’ouverture d’une seconde fenêtre locale, sans conversion ni réinitialisation
-du travail. Le rattachement MCP reste indépendant de la présence humaine.
-Reste dans A.2 la recette de clôture Courrier/Article entre les adaptateurs.
-La [fusion de paragraphes](docs/paragraph-join.md)
-est désormais commune à Rust, Tiptap et aux adaptateurs, avec frontières protégées
-et restauration du curseur par l’historique natif. Les brouillons
-refusés restent en mémoire avant leur export JSON ; leur conservation durable
-automatique relève d’A.3.
+**Séquence immédiate :** préparer ensemble **A.3 — Conservation et publication** :
+conservation durable des brouillons refusés et des saisies en attente, récupération,
+fermeture et modifications externes. Préciser les garanties et les recettes avant
+l’implémentation ; ne pas confondre récupération et snapshots durables (A.4).
+
+**A.2 est clos.** La [recette Courrier/Article](docs/a2-closure-results.md) valide
+le même projet entre Tauri, CLI et MCP, les propositions rattachées, l’historique,
+la sauvegarde/réouverture et les exports hors ligne. Le
+[contrat structuré](docs/structured-contract.md) et le
+[mode individuel allégé](docs/individual-mode.md) constituent le socle conservé.
+Les propositions MCP rattachées restent limitées au corps/cellules/annotations ;
+leur extension demande une relecture adaptée.
+
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
 
@@ -502,11 +484,10 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Après les [transformations R1–R3](docs/a2-transformations-results.md) et le
-   [mode individuel allégé](docs/individual-mode.md), terminer la recette de
-   clôture d’A.2 entre les adaptateurs.
-   Les propositions MCP rattachées restent limitées au corps du
-   document ; leur extension n’est pas implicite dans ce lot.
+1. Définir ensemble le lot **A.3 — Conservation et publication**, à partir des
+   garanties déjà vérifiées dans le [bilan de clôture A.2](docs/a2-closure-results.md).
+   Prioriser la conservation durable des brouillons refusés et des champs en
+   attente ; préciser récupération, fermeture et conflits de fichiers avant de coder.
 2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
 3. Engager ACP après stabilisation du contrat documentaire et validation de sa

@@ -87,8 +87,10 @@ Les raccordements documentaires Tauri, CLI et MCP sont en place : voir le
 [bilan des adaptateurs structurés](structured-adapters.md). La séquence ci-dessous
 conserve les choix de migration. Les [transformations R1–R3](a2-transformations-results.md)
 issues de l’inventaire sont livrées : retours en ligne localisés, items de listes
-et entrées natives conservant les frontières. Restent le mode individuel allégé
-et la recette de clôture d’A.2.
+et entrées natives conservant les frontières. Le [mode individuel](individual-mode.md)
+et la [recette Courrier/Article](a2-closure-results.md) sont livrés : **A.2 clos
+le 31 octobre 2026**. La séquence ci-dessous est conservée comme historique des
+choix de migration ; les travaux restants sont dans A.3 de la feuille de route.
 
 1. **Socle partagé** : valeurs de réglages et d'instantané dans le cœur,
    gardes/cibles/erreurs structurées, projection Yrs et contrôle de cohérence
@@ -125,3 +127,13 @@ L’interface n’identifie un modèle comme fourni que si son identifiant **et*
 source correspondent au catalogue courant. Sinon elle présente « Modèle embarqué »
 et propose toujours de choisir explicitement une version du catalogue. Le simple
 chargement ne remplace ni le modèle du projet ni son historique.
+
+## Paramètres de panneau et état structurel
+
+`x-editor.placement` décrit l’interface ; il ne suffit pas à décrire le stockage.
+Un paramètre avec `x-editor.storage: "structure"` reste présenté dans le panneau,
+mais sa valeur provient de la structure et se modifie avec une commande dédiée.
+Ainsi `header` et `row_headers` des tableaux sont portés par les rôles des cellules,
+sans attribut concurrent sur `tableFigure`. L’éditeur n’y ajoute pas de défaut
+sérialisé et `node.set_attrs` refuse de contourner ce contrat. Les attributs de
+nœud non déclarés sont refusés avant publication, y compris dans les lots génériques.

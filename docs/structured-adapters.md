@@ -89,7 +89,10 @@ La recette Rust ↔ Yjs vérifie aussi l’acceptation d’un lot texte/tableau,
 identités conservées et une seule annulation/rétablissement. Aucun nouvel essai
 avec un LLM externe, aucune capture dans ce lot.
 
-A.2 reste ouvert pour le mode individuel allégé et la recette finale.
+Le [mode individuel](individual-mode.md) et la
+[recette finale Courrier/Article](a2-closure-results.md) sont livrés : **A.2 clos
+le 31 octobre 2026**. La recette traverse réellement la WebView native, la CLI
+et les serveurs MCP autonome/rattaché sur les mêmes projets.
 Les [transformations R1–R3](a2-transformations-results.md) sont désormais livrées :
 retours en ligne, opérations internes aux listes et entrées natives protégées.
 La fusion de paragraphes est désormais livrée. La disponibilité par sélection est exposée
