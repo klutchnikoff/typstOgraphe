@@ -67,6 +67,20 @@ puis les commandes typées communes du cœur. Les limites, le refus d’un lot
 concurrent et l’historique natif sont donc conservés. Aucun composant React ou
 service payant n’est ajouté.
 
+## Espacement des badges en ligne
+
+Notes, citations bibliographiques et futurs objets en ligne partagent
+`InlineObjectSpacing`. Le dégagement visuel de 0,5 ex précède seulement un badge
+attaché au texte : il disparaît en début de paragraphe, après un retour à la ligne
+ou après une espace normale, insécable ou fine insécable. Une espace normale
+permet le renvoi du badge au début de la ligne suivante, sans retrait ; son
+libellé reste d’un seul tenant. L’espace insécable conserve son rôle habituel.
+
+Cette règle repose sur des décorations locales, recalculées lorsque le document
+change. Elle n’ajoute aucun caractère, attribut ou marque au document, à Yjs ou
+à l’export Typst et ne mesure pas la mise en page pendant la frappe. Le curseur,
+la sélection et l’ouverture du bandeau conservent le contrat commun des badges.
+
 ## Bandeau contextuel unique
 
 Les paramètres, la suppression, les liens et l’orthographe utilisent le même

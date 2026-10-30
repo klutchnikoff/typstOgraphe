@@ -65,7 +65,8 @@ for (const [context, html] of [
       expect(geometry.inside).toBe(false)
       expect(geometry.distance).toBeGreaterThanOrEqual(-1)
       if (trigger !== 'right') {
-        expect(geometry.gap).toBeGreaterThan(2)
+        if (context === 'début de paragraphe') expect(Math.abs(geometry.gap)).toBeLessThan(1)
+        else expect(geometry.gap).toBeGreaterThan(2)
         expect(geometry.distance).toBeGreaterThanOrEqual(geometry.gap - 1)
       }
       await page.keyboard.insertText(' ajout')
