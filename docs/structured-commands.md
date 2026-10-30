@@ -44,7 +44,7 @@ utilisent maintenant la même façade.
 | `insert.table` | Construire un tableau avec grille et légende facultative à une frontière de blocs |
 | `table.row.insert`, `table.row.remove` | Ajouter ou retirer une ligne à un indice explicite |
 | `table.column.insert`, `table.column.remove` | Ajouter ou retirer une colonne à un indice explicite |
-| `table.header` | Définir le rôle d’en-tête de la première ligne |
+| `table.header` | Définir les rôles d’en-tête de la première ligne et de la première colonne, indépendamment |
 | `record.add` | Ajouter un enregistrement avec son identifiant et les valeurs par défaut du type |
 | `record.move` | Changer sa position dans une collection ordonnée |
 | `record.remove` | Supprimer un enregistrement sans détacher silencieusement ses références |
@@ -205,12 +205,14 @@ candidat : pas de première ligne vide devant du contenu, pas de paragraphes
 vides consécutifs dans le flux, et un point de saisie final dans le corps.
 Les cellules et items gardent leurs frontières. Les résumés suivent le profil
 riche sans paragraphe final imposé. Cette politique Rust est confrontée à celle
-de la frappe immédiate dans Tiptap ; le raccordement de production reste à faire.
+de la frappe immédiate dans Tiptap ; le relais de production est depuis raccordé
+au propriétaire Rust, qui valide le delta complet. La normalisation locale et
+celle des lots typés restent deux réalisations confrontées par les recettes.
 
 ## Figures et tableaux — contrat mis en place
 
-Les commandes communes et le parcours Tauri exécutent ce contrat. Son exposition
-complète en CLI/MCP dépend toujours de la migration des adaptateurs.
+Les commandes communes et le parcours Tauri exécutent ce contrat. Les adaptateurs
+CLI/MCP utilisent désormais ces mêmes commandes, selon leurs autorisations.
 
 Images et tableaux sont toujours enveloppés dans une `figure` Typst, même sans
 légende. La génération partage la légende facultative et la politique
@@ -613,21 +615,18 @@ les normalisations différées de l’éditeur, les références des objets part
 les métadonnées et une seule étape d’annulation/rétablissement. Le transport de
 diagnostic reste réservé aux tests ; ce n’est pas une nouvelle voie publique MCP.
 
-Restent dans A.2 :
+La disponibilité, la façade CLI/MCP, la [fusion de paragraphes](paragraph-join.md),
+les tableaux et l’historique sont raccordés. Les commandes de style à cible
+explicite refusent toujours une plage vide ; les styles de frappe appartiennent
+à l’API de contexte.
 
-- La disponibilité est désormais raccordée à l’interface. La façade commune
-  et les adaptateurs CLI/MCP utilisent désormais les commandes, requêtes et
-  contextes structurés ; voir le [bilan du lot](structured-adapters.md).
-  Les commandes de style à cible explicite refusent toujours une plage vide ;
-  les styles de frappe appartiennent à l’API de contexte.
-- Les transformations supplémentaires. La [fusion de paragraphes](paragraph-join.md)
-  est commune au moteur et à l’éditeur, y compris la restauration du curseur. L’insertion,
-  la suppression de lignes/colonnes et les en-têtes de tableaux sont désormais
-  communs ; la fusion de cellules reste différée.
-  Les retours riches passent par `block.split` ou des nœuds de retour explicites,
-  pas par des sauts de ligne cachés dans `text.insert`.
-- La conservation durable automatique et la réimportation des brouillons refusés
-  relèvent désormais d’A.3.
-  Le groupement de frappe, l’IME, l’historique natif par fenêtre et le parcours
-  export/abandon sont raccordés dans Tauri.
-- Le mode individuel allégé, avec le même propriétaire documentaire.
+L’[inventaire du 30 octobre](a2-transformations-inventory.md) borne les transformations
+restantes : **R1**, insertion localisée de retours simples/forcés ; **R2**, opérations
+internes aux listes non imbriquées ; **R3**, contrat et recettes des entrées natives
+et des sélections traversant les structures. Les signatures et comportements
+encore ouverts seront validés avant leur implémentation. Une saisie immédiate
+validée par le relais n’est pas une voie historique à remplacer par un RPC bloquant.
+
+Le mode individuel allégé et la recette finale des adaptateurs restent dans A.2.
+La conservation durable et la réimportation des brouillons refusés relèvent d’A.3 ;
+la fusion de cellules et les listes imbriquées restent différées.
