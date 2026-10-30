@@ -299,6 +299,12 @@ validé sur la recette représentative de chaque modèle livré.
   la couverture des glyphes et l’absence de corrections concurrentes avec Spellbook.
 - Tenir un budget de latence de saisie et de rendu sur des documents représentatifs,
   en build natif optimisé ; réutiliser les mesures et références existantes.
+  **Budget relatif (29 octobre 2026) :** la latence de bout en bout de l'aperçu
+  doit rester comparable, de 1,5 à 2 fois en p95, à la compilation incrémentale
+  de Typst seul sur le même document et la même machine (référence mesurée
+  séparément pour le natif et pour Typst en WebAssembly). Y ajouter un plancher
+  absolu pour les petits documents et suivre le surcoût de chaque étape (saisie,
+  validation, génération, compilation, transport, affichage), pas seulement le total.
 
 **Choix à valider :** les nouvelles interactions et maquettes, les préférences
 réellement utiles, les priorités de raccourcis et les objectifs de performance.
