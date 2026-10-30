@@ -260,7 +260,6 @@ export function tablePanel(
             column = 0
           } else {
             column += offset
-            row = 0
           }
         }
       }
@@ -288,13 +287,12 @@ export function tablePanel(
         const grid = figure.firstChild!
         row = Math.min(row, grid.childCount - 1)
         column = Math.min(column, grid.firstChild!.childCount - 1)
-        editor
-          .chain()
-          .setTextSelection(positionAtPath(editor, [...path, 0, row, column, 0]) + 1)
-          .scrollIntoView()
-          .run()
+        editor.commands.setTextSelection(positionAtPath(editor, [...path, 0, row, column, 0]) + 1)
       }
       editor.view.focus()
+      // WebKit can keep its DOM selection in the closing form. ProseMirror
+      // ignores scroll requests until focus has synchronized it with the caret.
+      editor.commands.scrollIntoView()
     } catch (error) {
       if (bands.forPanel(panel.element)) bands.close(false)
       provider.onError(error)
@@ -370,8 +368,16 @@ export function tablePanel(
   }
   function openAxis(target: TableHandleTarget, axis: TableAxis) {
     if (!canOpen(target, axis)) return
+    const context = tableContext(editor)
     bands.close(false)
-    opened = { ...target, axis, returnHandle: true }
+    opened = {
+      ...target,
+      // Column handles live above the first row, but editing continues on the
+      // user's row when its caret belongs to this table.
+      row: axis === 'column' && context?.pos === target.pos ? context.row : target.row,
+      axis,
+      returnHandle: true,
+    }
     const draft = opened
     dimensions.hidden = choices.hidden = headerLabel.hidden = true
     info.hidden = before.hidden = remove.hidden = false
