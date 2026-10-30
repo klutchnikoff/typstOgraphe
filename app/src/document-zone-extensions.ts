@@ -142,7 +142,7 @@ export function documentExtensions(
             badge.describe(
               current.attrs.items.map((item: { key: string }) => item.key).join('; '),
               undefined,
-              citationLabel(editor, current.attrs.items),
+              citationLabel(editor, current.attrs.items, current.attrs.form),
             )
           const transaction = ({
             transaction,

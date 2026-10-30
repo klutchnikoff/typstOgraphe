@@ -70,7 +70,7 @@ service payant n’est ajouté.
 ## Espacement des badges en ligne
 
 Notes, citations bibliographiques et futurs objets en ligne partagent
-`InlineObjectSpacing`. Le dégagement visuel de 0,5 ex précède seulement un badge
+`InlineObjectSpacing`. Le dégagement visuel de 0,2 ex précède seulement un badge
 attaché au texte : il disparaît en début de paragraphe, après un retour à la ligne
 ou après une espace normale, insécable ou fine insécable. Une espace normale
 permet le renvoi du badge au début de la ligne suivante, sans retrait ; son
@@ -78,6 +78,11 @@ libellé reste d’un seul tenant. L’espace insécable conserve son rôle habi
 Le cadre du libellé est une boîte en ligne indivisible (`inline-block`) : son
 padding et sa bordure restent à l’intérieur de la boîte, hors du point
 d’insertion situé juste avant le badge, même sans dégagement supplémentaire.
+
+Les citations conservent une représentation auteur–année dans l’éditeur,
+indépendante du style bibliographique du modèle. En forme standard, un seul jeu
+de parenthèses entoure le groupe : `(Imaginaire, 1200 ; Exemple, 2026)`.
+La forme « Dans la phrase » ne reçoit pas ces parenthèses extérieures.
 
 Cette règle repose sur des décorations locales, recalculées lorsque le document
 change. Elle n’ajoute aucun caractère, attribut ou marque au document, à Yjs ou

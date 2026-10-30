@@ -53,6 +53,9 @@ async function insert(page: Page) {
   await expect(body(page).locator('.citation-ref')).toHaveCount(1)
   await expect(body(page).locator('.citation-ref')).toContainText('Bourdieu, 1980')
   await expect(body(page).locator('.citation-ref')).toContainText('Durand, 2020')
+  await expect(body(page).locator('.inline-object-label')).toHaveText(
+    '(Bourdieu, 1980 ; Durand, 2020)',
+  )
   await expect(body(page)).toBeFocused()
 }
 test.beforeEach(async ({ request }) => {
@@ -73,6 +76,9 @@ test('bibliothèque multi-format, recherche fuzzy, badge, clavier et rendu natif
   await band(page).getByLabel('Forme de la citation', { exact: true }).selectOption('prose')
   await band(page).getByRole('button', { name: 'Valider', exact: true }).click()
   await expect(band(page)).toBeHidden()
+  await expect(body(page).locator('.inline-object-label')).toHaveText(
+    'Bourdieu, 1980 ; Durand, 2020',
+  )
   const citation = await page.evaluate(() => {
     let found: any
     window.__spike!.editor.state.doc.descendants((node) => {
