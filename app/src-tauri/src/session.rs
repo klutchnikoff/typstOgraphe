@@ -448,6 +448,11 @@ impl Session {
         }
         Ok(())
     }
+    pub fn reset_document_generation(&mut self) {
+        self.generation = uuid::Uuid::new_v4().to_string();
+        self.synchronization_enabled = false;
+        self.synchronization_version = 0;
+    }
     pub fn replace(
         &mut self,
         document: Node,
@@ -458,7 +463,7 @@ impl Session {
         self.owner = None;
         self.clean_revision = None;
         self.offline.clear();
-        self.generation = uuid::Uuid::new_v4().to_string();
+        self.reset_document_generation();
         self.revision += 1;
         self.bytes = yjs.len();
         self.initialized = !yjs.is_empty();
