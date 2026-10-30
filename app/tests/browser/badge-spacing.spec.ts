@@ -94,7 +94,10 @@ for (const kind of ['footnote', 'citation'] as const) {
         { kind, prefix },
       )
       if (flush) expect(Math.abs(geometry.gap)).toBeLessThan(1)
-      else expect(geometry.gap).toBeGreaterThan(2)
+      else {
+        expect(geometry.gap).toBeGreaterThan(0)
+        expect(geometry.gap).toBeLessThan(2)
+      }
       if (!prefix || prefix.endsWith('\n')) expect(Math.abs(geometry.indent)).toBeLessThan(1)
       expect(geometry.json).not.toContain('inline-object-flush')
     }

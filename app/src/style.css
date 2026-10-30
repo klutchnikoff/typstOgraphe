@@ -365,7 +365,7 @@ main {
 }
 .inline-object::before {
   content: '\2060'; /* Join the badge to the preceding word without editing the document. */
-  padding-inline-end: 0.5ex;
+  padding-inline-end: 0.2ex;
 }
 .inline-object-flush::before {
   content: none;
