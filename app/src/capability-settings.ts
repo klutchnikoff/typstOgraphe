@@ -1,4 +1,4 @@
-import type { Capability, TableAction } from './commands'
+import type { Capability } from './commands'
 
 export type Scalar = string | number | boolean
 export interface Parameter {
@@ -35,10 +35,9 @@ export interface SettingField {
 export interface WidgetSettings {
   fields: SettingField[]
   conversions: Capability[]
-  actions?: TableAction[]
 }
 export const hasSettings = (settings: WidgetSettings) =>
-  settings.fields.length > 0 || settings.conversions.length > 1 || !!settings.actions?.length
+  settings.fields.length > 0 || settings.conversions.length > 1
 
 /** One derivation for the frame, command availability and the actual form. */
 export function settingsForNode(node: string, capabilities: Capability[]): WidgetSettings {
@@ -73,7 +72,6 @@ export function settingsForNode(node: string, capabilities: Capability[]): Widge
   }
   const group = capability?.editor?.conversion_group
   return {
-    ...(capability?.editor?.actions ? { actions: capability.editor.actions } : {}),
     fields,
     conversions: group
       ? capabilities.filter((entry) => entry.editor?.conversion_group === group)

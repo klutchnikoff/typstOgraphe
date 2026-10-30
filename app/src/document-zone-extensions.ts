@@ -6,7 +6,7 @@ import {
   type Extensions,
 } from '@tiptap/core'
 import { ListItem } from '@tiptap/extension-list'
-import { TableKit, Table } from '@tiptap/extension-table'
+import { TableKit, Table, TableHeader } from '@tiptap/extension-table'
 import { simpleWidgets } from './widgets'
 import { widgetFrame, type WidgetPresentations } from './widget-frame'
 import { tr } from './i18n'
@@ -43,7 +43,29 @@ export function documentExtensions(
         ]
       },
     }),
-    TableKit.configure({ table: false }),
+    TableKit.configure({ table: false, tableHeader: false }),
+    TableHeader.extend({
+      addAttributes() {
+        return {
+          ...this.parent?.(),
+          scope: {
+            default: 'column',
+            parseHTML: (element: HTMLElement) => {
+              const scope = element.dataset.headerScope
+              return scope && ['column', 'row', 'both'].includes(scope)
+                ? scope
+                : element.getAttribute('scope') === 'row'
+                  ? 'row'
+                  : 'column'
+            },
+            renderHTML: (attrs: Record<string, string>) => ({
+              scope: attrs.scope === 'row' ? 'row' : 'col',
+              'data-header-scope': attrs.scope,
+            }),
+          },
+        }
+      },
+    }),
     Table.extend({ group: '' }).configure({ resizable: false }),
     TableHandles,
     Node.create({

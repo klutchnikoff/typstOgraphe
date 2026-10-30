@@ -175,3 +175,28 @@ it('un libellé peut être réservé à l’accessibilité par le contrat du cha
   expect(input.getAttribute('aria-label')).toBe('Texte de la note')
   expect(root.querySelector('label')!.htmlFor).toBe(input.id)
 })
+
+it('les actions structurelles ne deviennent pas des préférences ; les options d’en-tête suffisent', () => {
+  const contract = capability('tableFigure')
+  contract.editor = {
+    actions: [
+      {
+        id: 'table.row.after',
+        label: 'Add row',
+        command: 'table.row.insert',
+        axis: 'row',
+        offset: 1,
+        remove: false,
+      },
+    ],
+  }
+  expect(hasSettings(settingsForNode('tableFigure', [contract]))).toBe(false)
+  contract.parameters.properties = {
+    header: { type: 'boolean', default: true, 'x-editor': { placement: 'panel' } },
+    row_headers: { type: 'boolean', default: false, 'x-editor': { placement: 'panel' } },
+    rows: { type: 'integer', 'x-editor': { placement: 'structure' } },
+  }
+  const settings = settingsForNode('tableFigure', [contract])
+  expect(settings.fields.map((field) => field.name)).toEqual(['header', 'row_headers'])
+  expect(hasSettings(settings)).toBe(true)
+})

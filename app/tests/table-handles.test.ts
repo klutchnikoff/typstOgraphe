@@ -92,3 +92,19 @@ it('le repérage reste local, suit la position du widget et disparaît si le tab
   e.commands.insertContentAt(point, 'Changed')
   expect(e.view.dom.querySelectorAll('.table-axis-selected')).toHaveLength(0)
 })
+
+it('les portées des en-têtes survivent au HTML et une portée inconnue reste un en-tête ordinaire', () => {
+  const e = create()
+  e.commands.setContent(
+    '<figure data-table><table><tbody><tr><th scope="col" data-header-scope="both"><p>Angle</p></th><th scope="col"><p>Colonne</p></th></tr><tr><th scope="row"><p>Ligne</p></th><td><p>Donnée</p></td></tr></tbody></table><figcaption data-table-caption>Légende</figcaption></figure>',
+  )
+  expect(e.view.dom.querySelector('[data-header-scope="both"]')?.textContent).toBe('Angle')
+  expect(e.view.dom.querySelector('th[scope="row"]')?.textContent).toBe('Ligne')
+  const before = e.getJSON()
+  e.commands.setContent(e.getHTML())
+  expect(e.getJSON()).toEqual(before)
+  e.commands.setContent(
+    '<table><tbody><tr><th data-header-scope="unknown"><p>Nom</p></th></tr></tbody></table>',
+  )
+  expect(e.view.dom.querySelector('th')?.getAttribute('data-header-scope')).toBe('column')
+})

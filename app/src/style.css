@@ -1692,8 +1692,7 @@ li:has(.interline-band-gap[data-marker])::marker {
   min-width: 0;
 }
 
-.table-dimensions,
-.table-actions {
+.table-dimensions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
@@ -1771,15 +1770,6 @@ li:has(.interline-band-gap[data-marker])::marker {
 .tiptap td.table-axis-selected,
 .tiptap th.table-axis-selected {
   background: color-mix(in srgb, var(--accent) 12%, var(--bg));
-}
-
-.table-actions {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
-}
-
-.table-actions button {
-  min-width: 0;
-  white-space: normal;
 }
 
 .draft-recovery {
