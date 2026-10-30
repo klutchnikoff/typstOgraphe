@@ -275,7 +275,7 @@ Conserver les conventions validées des widgets/bandeaux, menus, actions et
 raccourcis ; maqueter les extensions sur l’interface Tauri réelle. Examiner
 focus, lecture d’écran, contraste, mouvement réduit, petite fenêtre et saisie IME.
 
-**À faire — adaptation de la barre d’outils au type (30 octobre 2026) :** filtrer
+**À faire — adaptation de la barre d’outils et de la palette au type (30 octobre 2026) :** filtrer
 les capacités exposées à partir du catalogue du type actif et supprimer les
 groupes sans entrée. Ne pas coder « article » ou « courrier » dans la
 présentation : « Fin de lettre » disparaît automatiquement d’un article parce
@@ -284,6 +284,11 @@ structurelle de l’indisponibilité contextuelle d’une capacité du type, qui
 visible mais désactivée par le registre commun. Reconstruire la barre à la
 création/ouverture ; vérifier le passage courrier → article → courrier et la
 navigation au clavier sans groupe vide ni commande étrangère au type.
+La palette réutilise ce même filtrage du catalogue et la même disponibilité
+contextuelle, sans maintenir sa propre liste de capacités. Ses résultats
+excluent les capacités étrangères au type actif ; les commandes générales de
+l’application restent accessibles. Vérifier également les résultats de palette
+lors du passage courrier → article → courrier.
 
 **Séparation validée le 27 octobre 2026 :** l’accès **Projets** présente le
 catalogue global (récents, épinglés, recherche, création et ouverture) ; l’accès

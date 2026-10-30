@@ -277,14 +277,17 @@ validé sur la recette représentative de chaque modèle livré.
 
 ## E — Peaufiner l’interface et les outils de rédaction
 
-- **À faire — barre d’outils adaptée au type (30 octobre 2026) :** afficher
+- **À faire — barre d’outils et palette adaptées au type (30 octobre 2026) :** afficher
   uniquement les capacités du type de document actif, à partir du catalogue
   commun ; masquer les groupes devenus vides. Exemple : « Fin de lettre » et
   ses commandes P.-S./P.J. sont présents pour un courrier et absents pour un
   article. Une commande prise en charge par le type mais temporairement
   indisponible dans la sélection reste visible et désactivée. Actualiser la
   barre lors de la création et de l’ouverture d’un document, sans règles
-  spécifiques dupliquées dans les boutons.
+  spécifiques dupliquées dans les boutons. Appliquer le même filtrage à la
+  palette de commandes : ses propositions ne contiennent que les capacités du
+  type actif, avec la même distinction entre absence du type et indisponibilité
+  contextuelle. Les commandes générales de l’application restent accessibles.
 - Revoir les parcours réels : accueil, création, en-tête, rédaction, recherche,
   sélection, correction, insertion, sauvegarde et export.
 - Achever l’harmonisation des widgets et bandeaux : même cadre et mêmes règles
