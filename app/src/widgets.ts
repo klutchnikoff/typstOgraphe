@@ -254,41 +254,5 @@ export function widgetKey(editor: Editor, event: KeyboardEvent): boolean {
     const term = item.child(0)
     return editor.commands.setTextSelection(event.shiftKey ? start + 2 : start + term.nodeSize + 2)
   }
-  if (
-    event.key === 'Enter' &&
-    ['descriptionTerm', 'descriptionDefinition'].includes($from.parent.type.name)
-  ) {
-    event.preventDefault()
-    const depth = $from.depth - 1,
-      itemEnd = $from.after(depth)
-    if ($from.parent.type.name === 'descriptionTerm')
-      return editor.commands.setTextSelection(
-        $from.before(depth) + $from.node(depth).child(0).nodeSize + 2,
-      )
-    if (!$from.sameParent(editor.state.selection.$to)) return false
-    if (!$from.node(depth).textContent) {
-      const listStart = $from.before(depth - 1),
-        listEnd = $from.after(depth - 1)
-      const only = $from.node(depth - 1).childCount === 1
-      const tr = editor.state.tr.delete(
-        only ? listStart : $from.before(depth),
-        only ? listEnd : itemEnd,
-      )
-      const pos = only ? listStart : tr.mapping.map(listEnd)
-      editor.view.dispatch(resumeAfterWidget(tr, pos).scrollIntoView())
-      return true
-    }
-    const right = $from.parent.content.cut(editor.state.selection.$to.parentOffset)
-    const next = editor.schema.nodes.descriptionItem.create(null, [
-      editor.schema.nodes.descriptionTerm.create(),
-      editor.schema.nodes.descriptionDefinition.create(null, right),
-    ])
-    const tr = editor.state.tr.delete(editor.state.selection.from, $from.end())
-    const pos = tr.mapping.map(itemEnd)
-    tr.insert(pos, next)
-    tr.setSelection(TextSelection.create(tr.doc, pos + 2))
-    editor.view.dispatch(tr)
-    return true
-  }
   return false
 }

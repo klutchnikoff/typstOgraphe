@@ -7,6 +7,7 @@ import { widgetTarget, widgetAnnotation, resumeAfterWidget } from './widgets'
 import { lineBreak } from './document-whitespace'
 import { runObjectEdit } from './object-commands'
 import { joinParagraphs } from './paragraph-join'
+import { listKey } from './list-transforms'
 
 /** Shared Typst-style inline input, also used by named editorial zones. */
 export const TypstInlineInput = Extension.create({
@@ -167,52 +168,6 @@ export function insertQuote(editor: Editor) {
     content: [...(content.length ? content : [paragraph()]), { type: 'quoteAttribution' }],
   })
 }
-function backspaceInList(editor: Editor) {
-  const { $from, empty } = editor.state.selection
-  if (!empty || $from.parentOffset !== 0) return false
-  let depth = $from.depth
-  while (depth > 0 && !['listItem', 'descriptionItem'].includes($from.node(depth).type.name))
-    depth--
-  if (!depth) return false
-  if ($from.node(depth).type.name === 'descriptionItem' && $from.index(depth) === 1) {
-    editor.commands.setTextSelection(
-      TextSelection.near(editor.state.doc.resolve($from.before()), -1),
-    )
-    return true
-  }
-  if ($from.index(depth) !== 0) return false
-  const item = $from.node(depth),
-    list = $from.node(depth - 1),
-    index = $from.index(depth - 1)
-  if (index > 0) {
-    const previous = list.child(index - 1),
-      end = $from.before(depth)
-    if (!item.textContent) {
-      const tr = editor.state.tr.delete(end, end + item.nodeSize)
-      tr.setSelection(TextSelection.near(tr.doc.resolve(end), -1))
-      editor.view.dispatch(tr.scrollIntoView())
-    } else if (item.type.name === 'listItem') {
-      const parts = previous.content.content.slice()
-      const last = parts.pop()!
-      const joined = previous.type.create(previous.attrs, [
-        ...parts,
-        last.copy(last.content.append(item.firstChild!.content)),
-        ...item.content.content.slice(1),
-      ])
-      const start = end - previous.nodeSize,
-        cursor = end - 2
-      const tr = editor.state.tr.replaceWith(start, end + item.nodeSize, joined)
-      tr.setSelection(TextSelection.create(tr.doc, cursor))
-      editor.view.dispatch(tr.scrollIntoView())
-    } else editor.commands.setTextSelection(end - 2)
-    return true
-  }
-  // At the first item, return to preceding prose without unwrapping the widget.
-  const before = $from.before(depth - 1)
-  if (before > 0)
-    editor.commands.setTextSelection(TextSelection.near(editor.state.doc.resolve(before), -1))
-  return true
-}
 /** Reuse an existing line on either side of a paragraph boundary as well as inline. */
 function lineAhead(editor: Editor) {
   const { empty, $from } = editor.state.selection
@@ -246,9 +201,11 @@ export const DocumentInput = Extension.create({
     return {
       Backspace: () =>
         !this.editor.view.composing &&
-        (backspaceInList(this.editor) ||
+        (listKey(this.editor, 'Backspace') ||
           joinParagraphs(this.editor, true, this.options.trailingParagraph)),
-      Delete: () => joinParagraphs(this.editor, false, this.options.trailingParagraph),
+      Delete: () =>
+        listKey(this.editor, 'Delete') ||
+        joinParagraphs(this.editor, false, this.options.trailingParagraph),
       'Shift-Enter': () => {
         if (this.editor.view.composing) return false
         if (atDocumentStart(this.editor)) return true
@@ -263,6 +220,7 @@ export const DocumentInput = Extension.create({
       },
       Enter: () => {
         if (this.editor.view.composing) return false
+        if (listKey(this.editor, 'Enter')) return true
         if (atDocumentStart(this.editor)) return true
         const { selection } = this.editor.state,
           { $from } = selection
@@ -284,24 +242,6 @@ export const DocumentInput = Extension.create({
           return this.editor.commands.insertContent({ type: 'softBreak' })
         }
         if ($from.parent.type.name !== 'paragraph') return false
-        if (
-          selection.empty &&
-          !$from.parent.content.size &&
-          $from.depth > 1 &&
-          $from.node($from.depth - 1).type.name === 'listItem' &&
-          !$from.node($from.depth - 1).textContent
-        ) {
-          const depth = $from.depth - 1,
-            list = $from.node(depth - 1)
-          const listEnd = $from.after(depth - 1)
-          const only = list.childCount === 1
-          const tr = this.editor.state.tr.delete(
-            only ? $from.before(depth - 1) : $from.before(depth),
-            only ? listEnd : $from.after(depth),
-          )
-          this.editor.view.dispatch(resumeAfterWidget(tr, tr.mapping.map(listEnd)).scrollIntoView())
-          return true
-        }
         const parent = $from.node($from.depth - 1).type.name
         if (!['doc', 'quote', 'tableCell', 'tableHeader'].includes(parent)) return false
         if (!$from.parent.content.size && selection.empty) return true

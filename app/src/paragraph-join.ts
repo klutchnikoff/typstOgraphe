@@ -1,7 +1,6 @@
 import type { Editor } from '@tiptap/core'
 import { TextSelection } from '@tiptap/pm/state'
-import { editingProvider } from './editing-history'
-import { editingView } from './editing-context'
+import { dispatchImmediateEdit } from './immediate-edit'
 import { lineBreak } from './document-whitespace'
 
 const prose = (kind: string) => kind === 'paragraph' || kind === 'heading'
@@ -62,10 +61,5 @@ export function joinParagraphs(editor: Editor, backwards: boolean, trailingParag
     storedMarks ??
       (left.content.size ? editor.state.doc.resolve(seam).marks() : tr.selection.$from.marks()),
   )
-  const provider = editingProvider(editor),
-    before = editingView(editor)
-  const dispatch = () => editor.view.dispatch(tr.scrollIntoView())
-  if (provider && before) provider.withHistoryView(before, dispatch)
-  else dispatch()
-  return true
+  return dispatchImmediateEdit(editor, tr)
 }
