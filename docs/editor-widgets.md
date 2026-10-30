@@ -51,7 +51,10 @@ ouvre leur bandeau. La
 dernière poignée permet également d’ajouter en fin de grille ; aucun bouton
 « + » supplémentaire n’est nécessaire.
 Après confirmation, le curseur entre dans la première cellule de la nouvelle
-ligne, ou dans la cellule supérieure de la nouvelle colonne. Après suppression,
+ligne. Dans une nouvelle colonne, il conserve sa ligne de travail si le curseur
+appartenait à ce tableau ; sinon il entre dans la cellule supérieure. Le focus
+est rétabli avant de demander le défilement vers la cellule ciblée, notamment
+pour éviter un retour au début de l’éditeur sous WebKit. Après suppression,
 il revient dans une cellule voisine. La légende reste dans le même widget.
 Les cellules fusionnées sont hors de ce périmètre.
 

@@ -288,8 +288,8 @@ test('poignées : bandeau ciblé, conservation des données, clavier et curseur 
   await expect(panel).toBeHidden()
   await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
   await expect(page.locator('.tiptap[data-rich-zone-profile="document"]')).toBeFocused()
-  await page.keyboard.type('Nouvel en-tête')
-  await expect(widget.locator('th').nth(1)).toContainText('Nouvel en-tête')
+  await page.keyboard.type('Nouvelle colonne')
+  await expect(widget.locator('tr').nth(2).locator('td').nth(1)).toContainText('Nouvelle colonne')
   await expect(widget.locator('th').first()).toContainText('Groupe')
   await expect(widget.locator('figcaption')).toHaveText('Une légende à conserver')
   // Decorations are absent from the public JSON, so CLI/MCP/exports see only the table.
@@ -427,5 +427,112 @@ test('supprimer depuis une poignée conserve les voisins et la légende, avec an
     await expect(widget.locator('figcaption')).toHaveText('Légende conservée')
   } finally {
     await peer.close()
+  }
+})
+
+test('les actions de tableau en bas d’un document révèlent la cellule ciblée sans remonter au début', async ({
+  page,
+}) => {
+  await blank(page)
+  await page.evaluate(async () => {
+    const { editor, provider } = window.__spike!
+    editor.commands.setContent({
+      type: 'doc',
+      content: [
+        ...Array.from({ length: 35 }, (_, i) => ({
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: `Paragraphe ${i + 1}. Texte qui précède le tableau pour vérifier le défilement.`,
+            },
+          ],
+        })),
+        { type: 'paragraph' },
+      ],
+    })
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1)
+    await provider.flush()
+  })
+  const widget = await create(page)
+  await expect(page.locator('#table-properties')).toBeHidden()
+  // A handle may be clicked while the documentary caret is still near the beginning.
+  await page.evaluate(async () => {
+    const { editor, provider } = window.__spike!
+    editor.commands.setTextSelection(1)
+    editor.view.focus()
+    await provider.flush()
+  })
+  await widget.getByRole('button', { name: 'Actions sur la colonne 2', exact: true }).click()
+  await page
+    .locator('#table-properties')
+    .getByRole('button', { name: 'À droite', exact: true })
+    .click()
+  await expect(widget.locator('th')).toHaveCount(3)
+  await expect(page.locator('#table-properties')).toBeHidden()
+  await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
+  await expect(page.locator('.tiptap[data-rich-zone-profile="document"]')).toBeFocused()
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const editor = window.__spike!.editor
+        const caret = editor.view.coordsAtPos(editor.state.selection.head)
+        const scroll = document.querySelector<HTMLElement>('#editor-scroll')!
+        const rect = scroll.getBoundingClientRect()
+        return {
+          visible: caret.top >= rect.top && caret.bottom <= rect.bottom,
+          scrolled: scroll.scrollTop > 500,
+          row: editor.state.selection.$from.index(2),
+          column: editor.state.selection.$from.index(3),
+        }
+      }),
+    )
+    .toEqual({ visible: true, scrolled: true, row: 0, column: 2 })
+  await page.keyboard.type('Nouvelle colonne')
+  await expect(widget.locator('th').last()).toContainText('Nouvelle colonne')
+})
+
+test('ajouter une colonne dans un tableau long conserve la ligne de travail, par poignée et paramètres', async ({
+  page,
+}) => {
+  await blank(page)
+  const widget = await create(page, '30', '2')
+  const panel = page.locator('#table-properties')
+  await widget.locator('tr').last().locator('td').first().click()
+  await page.keyboard.type('Ligne de travail')
+  await page.evaluate(() => window.__spike!.provider.flush())
+  for (const trigger of ['handle', 'settings']) {
+    if (trigger === 'handle') {
+      await widget.getByRole('button', { name: 'Actions sur la colonne 2', exact: true }).click()
+      await panel.getByRole('button', { name: 'À droite', exact: true }).click()
+    } else {
+      await widget.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
+      await panel.getByRole('radio', { name: 'Ajouter une colonne à droite', exact: true }).click()
+      await panel.getByRole('button', { name: 'Valider', exact: true }).click()
+    }
+    await expect(widget.locator('th')).toHaveCount(trigger === 'handle' ? 3 : 4)
+    await expect(panel).toBeHidden()
+    await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
+    await expect(page.locator('.tiptap[data-rich-zone-profile="document"]')).toBeFocused()
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const editor = window.__spike!.editor
+          const caret = editor.view.coordsAtPos(editor.state.selection.head)
+          const viewport = document.querySelector<HTMLElement>('#editor-scroll')!
+          const rect = viewport.getBoundingClientRect()
+          return {
+            row: editor.state.selection.$from.index(2),
+            visible: caret.top >= rect.top && caret.bottom <= rect.bottom,
+          }
+        }),
+      )
+      .toEqual({ row: 29, visible: true })
+    await page.keyboard.type(trigger)
+    await expect(widget.locator('tr').last().locator('td').last()).toContainText(trigger)
+    await expect(widget.locator('tr').last().locator('td').first()).toContainText(
+      'Ligne de travail',
+    )
+    await page.evaluate(() => window.__spike!.provider.flush())
   }
 })
