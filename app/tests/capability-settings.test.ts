@@ -192,11 +192,48 @@ it('les actions structurelles ne deviennent pas des préférences ; les options 
   }
   expect(hasSettings(settingsForNode('tableFigure', [contract]))).toBe(false)
   contract.parameters.properties = {
-    header: { type: 'boolean', default: true, 'x-editor': { placement: 'panel' } },
-    row_headers: { type: 'boolean', default: false, 'x-editor': { placement: 'panel' } },
+    header: {
+      type: 'boolean',
+      default: true,
+      'x-editor': { placement: 'panel', storage: 'structure' },
+    },
+    row_headers: {
+      type: 'boolean',
+      default: false,
+      'x-editor': { placement: 'panel', storage: 'structure' },
+    },
     rows: { type: 'integer', 'x-editor': { placement: 'structure' } },
   }
   const settings = settingsForNode('tableFigure', [contract])
   expect(settings.fields.map((field) => field.name)).toEqual(['header', 'row_headers'])
   expect(hasSettings(settings)).toBe(true)
+})
+
+it('les réglages dérivés des cellules ne créent pas un second état sur le tableau', () => {
+  const contract = capability('tableFigure', {
+    properties: {
+      header: {
+        type: 'boolean',
+        default: true,
+        'x-editor': { placement: 'panel', storage: 'structure' },
+      },
+      row_headers: {
+        type: 'boolean',
+        default: false,
+        'x-editor': { placement: 'panel', storage: 'structure' },
+      },
+    },
+  })
+  const presentations = widgetPresentations([contract])
+  const editor = new Editor({
+    element: document.createElement('div'),
+    extensions: richZoneExtensions('document', { presentations }),
+    content: { type: 'doc', content: [{ type: 'paragraph' }] },
+  })
+  try {
+    expect(hasSettings(presentations.tableFigure!.settings)).toBe(true)
+    expect(Object.keys(editor.schema.nodes.tableFigure.spec.attrs || {})).toEqual([])
+  } finally {
+    editor.destroy()
+  }
 })

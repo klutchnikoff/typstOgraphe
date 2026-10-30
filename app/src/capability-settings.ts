@@ -13,6 +13,7 @@ export interface Parameter {
   pattern?: string
   'x-editor'?: {
     placement?: 'body' | 'structure' | 'creation' | 'panel'
+    storage?: 'structure'
     attribute?: string
     control?: 'image'
     multiline?: boolean

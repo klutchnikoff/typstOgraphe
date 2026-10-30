@@ -241,7 +241,7 @@ pub fn parameters(id: &str) -> Value {
             json!({"type":"object","properties":{"url":{"type":"string","pattern":"^(https?://|mailto:).+","x-editor":{"placement":"panel","attribute":"href","label_key":"web-link-address"}}},"required":["url"],"additionalProperties":false})
         }
         "insert.table" => {
-            json!({"type":"object","properties":{"rows":{"type":"integer","minimum":1,"maximum":100,"default":3,"x-editor":{"placement":"structure"}},"columns":{"type":"integer","minimum":1,"maximum":12,"default":2,"x-editor":{"placement":"structure"}},"header":{"type":"boolean","default":true,"x-editor":{"placement":"panel","label_key":"web-table-header"}},"row_headers":{"type":"boolean","default":false,"x-editor":{"placement":"panel","label_key":"web-table-row-headers"}}},"additionalProperties":false})
+            json!({"type":"object","properties":{"rows":{"type":"integer","minimum":1,"maximum":100,"default":3,"x-editor":{"placement":"structure"}},"columns":{"type":"integer","minimum":1,"maximum":12,"default":2,"x-editor":{"placement":"structure"}},"header":{"type":"boolean","default":true,"x-editor":{"placement":"panel","storage":"structure","label_key":"web-table-header"}},"row_headers":{"type":"boolean","default":false,"x-editor":{"placement":"panel","storage":"structure","label_key":"web-table-row-headers"}}},"additionalProperties":false})
         }
         "insert.citation" => {
             let mut schema =

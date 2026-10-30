@@ -35,10 +35,10 @@ fn attributes(
                 properties.iter().find_map(|(name, field)| {
                     let hint = &field["x-editor"];
                     let attribute = hint["attribute"].as_str().unwrap_or(name);
-                    let external =
-                        matches!(hint["placement"].as_str(), Some("structure" | "creation"))
-                            || (hint["placement"] == "body"
-                                && !matches!(element.tag().as_ref(), "footnote" | "citation"));
+                    let external = hint["storage"] == "structure"
+                        || matches!(hint["placement"].as_str(), Some("structure" | "creation"))
+                        || (hint["placement"] == "body"
+                            && !matches!(element.tag().as_ref(), "footnote" | "citation"));
                     (attribute == key && !external).then_some(field)
                 })
             })

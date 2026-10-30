@@ -112,3 +112,46 @@ fn unsupported_node_attributes_cannot_enter_the_document_through_generic_batches
         assert_eq!(session.archive().unwrap().yjs, before);
     }
 }
+
+#[test]
+fn table_header_options_are_stored_only_in_cell_roles() {
+    let mut session = new("article");
+    let table = crate::content::tables::create(2, 2, true, false).unwrap();
+    let mut invalid = table.clone();
+    invalid.attrs = Some(json!({"header":true,"row_headers":false}));
+    let before = session.archive().unwrap().yjs;
+    assert!(
+        session
+            .batch(
+                &[call(
+                    "block.insert",
+                    json!({"parent":{"root":{"kind":"body"}},"index":0,"node":invalid})
+                )],
+                None
+            )
+            .is_err()
+    );
+    assert_eq!(session.archive().unwrap().yjs, before);
+    session
+        .batch(
+            &[call(
+                "block.insert",
+                json!({"parent":{"root":{"kind":"body"}},"index":0,"node":table}),
+            )],
+            None,
+        )
+        .unwrap();
+    let saved = session.archive().unwrap().yjs;
+    assert!(
+        session
+            .batch(
+                &[call(
+                    "node.set_attrs",
+                    json!({"target":{"root":{"kind":"body"},"path":[0]},"attrs":{"header":false}})
+                )],
+                None
+            )
+            .is_err()
+    );
+    assert_eq!(session.archive().unwrap().yjs, saved);
+}

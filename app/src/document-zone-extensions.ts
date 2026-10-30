@@ -273,7 +273,9 @@ export function documentExtensions(
       addAttributes() {
         const existing = this.parent?.() || {}
         const declared = Object.fromEntries(
-          fields.map((field) => [field.attribute, { default: field.schema.default ?? null }]),
+          fields
+            .filter((field) => field.schema['x-editor']?.storage !== 'structure')
+            .map((field) => [field.attribute, { default: field.schema.default ?? null }]),
         )
         return { ...declared, ...existing }
       },
