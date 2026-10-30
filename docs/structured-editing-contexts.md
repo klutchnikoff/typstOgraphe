@@ -338,3 +338,19 @@ elle correspond au document, à la révision, à la sélection et à la zone act
 après confirmation des éditions locales. Une réponse périmée ne peut pas
 réactiver une commande. La composition IME, le verrou temporaire d’édition,
 le brouillon refusé et la déconnexion relèvent des contraintes de l’interface.
+
+## Retour depuis l’aperçu — 30 octobre 2026
+
+Le double-clic dans le rendu Typst place un curseur réduit à la position trouvée
+et centre sa ligne dans la zone de rédaction, dans les limites naturelles du
+défilement. Le mot Unicode correspondant reçoit une décoration discrète pendant
+1,6 seconde ; un badge ou un bloc vide peut également servir de repère.
+Le repère est retiré à la reprise de saisie ou de navigation. Il n’est ni une
+sélection de texte, ni une édition documentaire, ni une étape d’annulation.
+
+La présentation passe par `revealEditorPosition` et l’extension commune des
+zones riches. Aucun défilement animé ni attente de fin d’animation n’interrompt
+la saisie. Les réponses d’un ancien aperçu ou d’un ancien document sont ignorées ;
+si plusieurs retours sont demandés, seul le plus récent peut déplacer le curseur.
+Les recettes Chromium/WebKit vérifient le centrage depuis un point du vrai rendu,
+le focus, le retrait du repère et l’absence de modification du contenu/historique.
