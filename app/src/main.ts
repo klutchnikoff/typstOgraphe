@@ -118,6 +118,7 @@ let contentCatalogue: Catalogue
 function refresh() {
   if (!editor || stopping) return
   refreshCommands(commands)
+  tables?.refresh()
   const leaf = (node: import('@tiptap/pm/model').Node) =>
     node.type.name === 'footnote'
       ? `\n${node.attrs.text || ''}\n`
@@ -507,7 +508,10 @@ async function start() {
     )
   }
   provider.onStatus = () => {
-    if (!stopping) refreshCommands(commands)
+    if (!stopping) {
+      refreshCommands(commands)
+      tables?.refresh()
+    }
   }
   provider.onChange = () => {
     refresh()
