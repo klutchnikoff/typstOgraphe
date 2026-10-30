@@ -38,7 +38,7 @@ utilisent maintenant la même façade.
 | `inline.replace` | Remplacer une plage en ligne par un badge de note ou de citation, avec marques explicites |
 | `node.set_attrs` | Modifier en place les paramètres publics d’un widget ou badge, en conservant son contenu et son identité |
 | `block.remove` | Supprimer un bloc ou un item, en respectant les frontières |
-| `block.join` | Fusionner deux voisins paragraphe/titre dans le même conteneur, sans espace ajouté |
+| `block.join` | Fusionner deux voisins dans le même conteneur ; conserver un retour simple entre paragraphes non vides |
 | `block.split` | Séparer un paragraphe ou un titre au curseur ; la suite devient un paragraphe |
 | `block.paragraph`, `block.heading_1` à `block.heading_3` | Convertir un paragraphe/titre ou changer son niveau |
 | `insert.table` | Construire un tableau avec grille et légende facultative à une frontière de blocs |

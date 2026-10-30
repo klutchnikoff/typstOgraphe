@@ -56,7 +56,26 @@ pub(super) fn apply(
         return Ok(());
     }
     let empty_left = l.content.is_empty();
-    let suffix = r.content.clone();
+    let is_break = |n: &crate::content::Node| matches!(n.kind.as_str(), "softBreak" | "hardBreak");
+    let mut suffix = r.content.clone();
+    if l.kind == "paragraph"
+        && r.kind == "paragraph"
+        && !empty_left
+        && !suffix.is_empty()
+        && !l.content.last().is_some_and(is_break)
+        && !suffix.first().is_some_and(is_break)
+    {
+        suffix.insert(
+            0,
+            crate::content::Node {
+                kind: "softBreak".into(),
+                attrs: None,
+                text: None,
+                marks: vec![],
+                content: vec![],
+            },
+        );
+    }
     let left_element = targets::element(structure::root(doc, state, &left.root)?, &tx, &left.path)?;
     let index = left_element.len(&tx);
     drop(tx);

@@ -21,7 +21,7 @@ function press(editor: Editor, key: string) {
   )
 }
 it.each(['Backspace', 'Delete'])(
-  'joint sans espace, garde le type gauche, les marques et le curseur (%s)',
+  'conserve un retour simple entre paragraphes, le type gauche et les marques (%s)',
   (key) => {
     for (const [a, b] of [
       ['p', 'p'],
@@ -35,7 +35,10 @@ it.each(['Backspace', 'Delete'])(
       expect(press(e, key)).toBe(true)
       expect(e.state.doc.firstChild!.type.name).toBe(a === 'p' ? 'paragraph' : 'heading')
       expect(e.state.doc.firstChild!.textContent).toBe('A😀Bé')
-      expect(e.state.selection.from).toBe(4)
+      expect(e.state.selection.from).toBe(a === 'p' && b === 'p' && key === 'Backspace' ? 5 : 4)
+      expect(
+        e.state.doc.firstChild!.content.content.filter((n) => n.type.name === 'softBreak'),
+      ).toHaveLength(a === 'p' && b === 'p' ? 1 : 0)
       expect(e.state.doc.firstChild!.firstChild!.marks[0].type.name).toBe('bold')
       expect(e.state.doc.firstChild!.lastChild!.marks[0].type.name).toBe('italic')
       expect(e.state.storedMarks?.[0].type.name).toBe('bold')
@@ -75,13 +78,13 @@ it.each(['document', 'rich-text'] as const)(
     const before = e.getJSON()
     e.commands.setTextSelection(8)
     expect(press(e, 'Backspace')).toBe(true)
-    expect(e.state.selection.from).toBe(6)
+    expect(e.state.selection.from).toBe(7)
     e.commands.undo()
     expect(e.getJSON()).toEqual(before)
     expect(e.state.selection.from).toBe(8)
     e.commands.redo()
     expect(e.state.doc.firstChild!.textContent).toBe('AvantAprès')
-    expect(e.state.selection.from).toBe(6)
+    expect(e.state.selection.from).toBe(7)
   },
 )
 it('joint au sein d’une citation, protège son attribution et les cellules voisines', () => {
@@ -108,3 +111,38 @@ it('joint au sein d’une citation, protège son attribution et les cellules voi
   expect(press(e, 'Backspace')).toBe(true)
   expect(e.getJSON()).toEqual(before)
 })
+
+it.each(['Backspace', 'Delete'])(
+  'transforme PP en NN et laisse sa suppression suivante au comportement en ligne (%s)',
+  (key) => {
+    const e = create('<p>Un texte.</p><p>Un autre texte.</p>')
+    e.commands.setTextSelection(key === 'Backspace' ? 12 : 10)
+    expect(press(e, key)).toBe(true)
+    expect(e.state.doc.firstChild!.textContent).toBe('Un texte.Un autre texte.')
+    expect(e.state.doc.firstChild!.child(1).type.name).toBe('softBreak')
+    expect(e.state.selection.from).toBe(key === 'Backspace' ? 11 : 10)
+    expect(joinParagraphs(e, key === 'Backspace', true)).toBe(false)
+  },
+)
+
+it.each(['Backspace', 'Delete'])(
+  'réutilise un retour existant de chaque côté sans les doubler (%s)',
+  (key) => {
+    for (const [left, right] of [
+      ['A<br data-soft-break>', 'B'],
+      ['A', '<br data-soft-break>B'],
+      ['A<br data-soft-break>', '<br data-soft-break>B'],
+    ]) {
+      const e = create(`<p>${left}</p><p>${right}</p>`)
+      const size = e.state.doc.firstChild!.nodeSize
+      e.commands.setTextSelection(key === 'Backspace' ? size + 1 : size - 1)
+      expect(press(e, key)).toBe(true)
+      expect(e.state.doc.firstChild!.content.content.map((n) => n.type.name)).toEqual([
+        'text',
+        'softBreak',
+        'text',
+      ])
+      expect(e.state.selection.from).toBe(key === 'Backspace' ? 3 : 2)
+    }
+  },
+)

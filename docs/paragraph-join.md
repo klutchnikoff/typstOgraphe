@@ -4,8 +4,11 @@ Contrat validé le 30 octobre 2026.
 
 `block.join` reçoit deux cibles d'arbre explicites `left` et `right`, sous la
 garde documentaire habituelle. Elles doivent être voisines dans le même
-conteneur et désigner des paragraphes ou des titres. La concaténation n'ajoute
-ni espace ni retour ; les styles, liens et badges en ligne sont conservés.
+conteneur et désigner des paragraphes ou des titres. Entre deux paragraphes
+non vides, la séparation de paragraphes devient un unique retour simple
+(`softBreak`), traité comme une espace par Typst. Un retour déjà présent à la
+jonction est réutilisé. Une fusion impliquant un titre concatène directement
+les contenus. Les styles, liens et badges en ligne sont conservés.
 
 Si les deux blocs contiennent du texte, le bloc de gauche conserve son type,
 ses attributs et son identité. Un paragraphe suivi d'un titre devient donc un
@@ -27,9 +30,11 @@ widget. La sortie existante du premier item vers le texte précédent est
 conservée. Les suppressions de caractères/retours à l'intérieur d'un bloc et les
 sélections non réduites au curseur suivent leurs règles existantes.
 
-Le curseur se place à la jonction, après l'ancien contenu gauche, sans sélection
-automatique et toujours à l'extérieur des badges. Un style de frappe explicite,
-y compris l'arrêt explicite des styles, est conservé ; sinon la frappe hérite
+Pour Retour arrière, le curseur se place après le retour simple conservé ; pour
+Suppr, il reste avant. Un second appui supprime donc ce retour, selon les règles
+habituelles de suppression en ligne. Sans retour à conserver, il reste à la
+jonction. Aucune sélection automatique, et le curseur reste hors des badges. Un
+style de frappe explicite, y compris l'arrêt explicite des styles, est conservé ; sinon la frappe hérite
 du contexte gauche. L'annulation restaure les blocs et la sélection précédente ;
 le rétablissement retrouve la fusion et sa sélection. Aucun autre participant
 ne reçoit le focus et les commandes préparées gardent leur révision stricte.
@@ -42,7 +47,6 @@ un lot refusé ne publie aucun contenu partiel.
 Recettes : couples paragraphe/titre, paragraphes vides et reprise finale,
 conteneurs riches, frontières protégées, Unicode UTF-16, styles, badges, garde
 périmée, publication atomique et annulation/rétablissement.
-
 
 ## Réalisation et vérifications
 

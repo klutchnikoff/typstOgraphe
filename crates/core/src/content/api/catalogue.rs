@@ -280,7 +280,7 @@ pub fn describe(id: &str) -> Option<Value> {
 fn command_description(id: &str) -> String {
     match id {
         "text.insert" => "Insert/replace literal prose in one typed range; marks are explicit and default to none. No Typst/Markdown input rules.",
-        "block.join" => "Join explicit adjacent left/right paragraphs or headings in the same container. No added space or break; the nonempty left block keeps its kind and attributes. Remove an empty neighbor without converting its survivor. Widgets, cells and annotation boundaries are protected; the mandatory final editing slot is a no-op.",
+        "block.join" => "Join explicit adjacent left/right paragraphs or headings in the same container. Two nonempty paragraphs retain a single soft break at the seam (a Typst space); an existing break is reused. Joins involving headings concatenate directly. The nonempty left block keeps its kind and attributes. Remove an empty neighbor without converting its survivor. Widgets, cells and annotation boundaries are protected; the mandatory final editing slot is a no-op.",
         "text.bold" | "text.italic" => "Apply or remove this style on a nonempty typed range (value on/off). Never changes future typing; use context.style for that.",
         "inline.replace" => "Replace a typed inline range with one node (for example footnote or citation). Discover the node via capabilities.describe.",
         "block.insert" | "block.replace" | "block.splice" => "Edit a guarded tree with explicit nodes (quote, list, figure, postscript…). Discover examples via capabilities.describe.",

@@ -2,6 +2,7 @@ import type { Editor } from '@tiptap/core'
 import { TextSelection } from '@tiptap/pm/state'
 import { editingProvider } from './editing-history'
 import { editingView } from './editing-context'
+import { lineBreak } from './document-whitespace'
 
 const prose = (kind: string) => kind === 'paragraph' || kind === 'heading'
 const containers = new Set(['doc', 'quote', 'listItem', 'tableCell', 'tableHeader'])
@@ -39,12 +40,28 @@ export function joinParagraphs(editor: Editor, backwards: boolean, trailingParag
   const boundary = backwards ? $from.before() : $from.after()
   const leftStart = boundary - left.nodeSize
   const tr = editor.state.tr
+  const paragraphs = left.type.name === 'paragraph' && right.type.name === 'paragraph'
+  const addBreak =
+    paragraphs &&
+    left.content.size > 0 &&
+    right.content.size > 0 &&
+    !lineBreak(left.lastChild) &&
+    !lineBreak(right.firstChild)
   if (!left.content.size) tr.delete(leftStart, boundary)
   else tr.join(boundary)
   const seam = leftStart + 1 + left.content.size
-  tr.setSelection(TextSelection.create(tr.doc, seam))
+  if (addBreak) tr.insert(seam, editor.schema.nodes.softBreak.create())
+  // Backspace must leave the caret AFTER the remaining break, so the next
+  // Backspace removes it. Delete remains BEFORE it for the symmetric action.
+  const afterBreak =
+    backwards && paragraphs && left.content.size > 0 && (addBreak || lineBreak(right.firstChild))
+  const beforeBreak = !backwards && paragraphs && lineBreak(left.lastChild)
+  tr.setSelection(TextSelection.create(tr.doc, seam + (afterBreak ? 1 : beforeBreak ? -1 : 0)))
   // null inherits the left context; [] explicitly stops every typing style.
-  tr.setStoredMarks(storedMarks ?? tr.selection.$from.marks())
+  tr.setStoredMarks(
+    storedMarks ??
+      (left.content.size ? editor.state.doc.resolve(seam).marks() : tr.selection.$from.marks()),
+  )
   const provider = editingProvider(editor),
     before = editingView(editor)
   const dispatch = () => editor.view.dispatch(tr.scrollIntoView())

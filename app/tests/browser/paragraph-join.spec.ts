@@ -14,7 +14,7 @@ for (const key of ['Backspace', 'Delete']) {
     const body = page.getByRole('textbox', { name: 'Corps du document', exact: true })
     await page.evaluate(async () => {
       const { editor, provider } = window.__spike!
-      editor.commands.setContent('<p>Avant😀</p><h2>Après</h2>')
+      editor.commands.setContent('<p>Avant😀</p><p>Après</p>')
       await provider.flush()
       await provider.clearHistory()
     })
@@ -23,12 +23,13 @@ for (const key of ['Backspace', 'Delete']) {
     await peer.waitForFunction(() => window.__spike?.ready)
     await body.focus()
     const original = key === 'Backspace' ? 10 : 8
+    const seam = key === 'Backspace' ? 9 : 8
     await page.evaluate((pos) => window.__spike!.editor.commands.setTextSelection(pos), original)
     await page.keyboard.press(key)
     await expect(body).toContainText('Avant😀Après')
     await expect
       .poll(() => page.evaluate(() => window.__spike!.editor.state.selection.from))
-      .toBe(8)
+      .toBe(seam)
     await page.evaluate(async () => {
       await window.__spike!.provider.flush()
     })
@@ -36,16 +37,24 @@ for (const key of ['Backspace', 'Delete']) {
       peer.getByRole('textbox', { name: 'Corps du document', exact: true }),
     ).toContainText('Avant😀Après')
     await page.keyboard.press('ControlOrMeta+z')
-    await expect(body.locator('h2')).toHaveText('Après')
+    await expect(body.locator('p')).toHaveCount(3)
+    await expect(body.locator('p').nth(1)).toHaveText('Après')
     await expect
       .poll(() => page.evaluate(() => window.__spike!.editor.state.selection.from))
       .toBe(original)
     await expect(body).toBeFocused()
     await page.keyboard.press('ControlOrMeta+Shift+z')
-    await expect(body.locator('h2')).toHaveCount(0)
+    await expect(body.locator('p')).toHaveCount(2)
+    await expect(body.locator('br[data-soft-break]')).toHaveCount(1)
+    await expect
+      .poll(() => page.evaluate(() => window.__spike!.editor.state.selection.from))
+      .toBe(seam)
+    await page.keyboard.press(key)
+    await expect(body.locator('br[data-soft-break]')).toHaveCount(0)
     await expect
       .poll(() => page.evaluate(() => window.__spike!.editor.state.selection.from))
       .toBe(8)
+    await expect(body.locator('p').first()).toHaveText('Avant😀Après')
     await peer.close()
   })
 }
@@ -75,6 +84,7 @@ test('la même fusion et son historique restent dans le résumé riche actif', a
   await abstract.press('Backspace')
   await expect(abstract.locator('p')).toHaveCount(1)
   await expect(abstract).toHaveText('AvantAprès')
+  await expect(abstract.locator('br[data-soft-break]')).toHaveCount(1)
   await abstract.press('ControlOrMeta+z')
   await expect(abstract.locator('p')).toHaveCount(2)
   await expect(abstract).toBeFocused()
@@ -89,5 +99,6 @@ test('la même fusion et son historique restent dans le résumé riche actif', a
   await abstract.press('ControlOrMeta+Shift+z')
   await expect(abstract.locator('p')).toHaveCount(1)
   await expect(abstract).toHaveText('AvantAprès')
+  await expect(abstract.locator('br[data-soft-break]')).toHaveCount(1)
   await expect(abstract).toBeFocused()
 })

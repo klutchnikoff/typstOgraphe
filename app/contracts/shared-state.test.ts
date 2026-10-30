@@ -1431,7 +1431,9 @@ it('the immediate prose join and typed native join agree on Unicode, badges, mar
       await new Promise<void>((resolve) => editor.once('create', () => resolve()))
     editor.commands.setTextSelection(6)
     expect(joinParagraphs(editor, true, true)).toBe(true)
-    expect(editor.state.selection.from).toBe(4)
+    expect(editor.state.selection.from).toBe(
+      leftKind === 'paragraph' && rightKind === 'paragraph' ? 5 : 4,
+    )
     const guard = { document: 'join-contract', revision: 0 }
     const outcome = await probe({
       action: 'commands',

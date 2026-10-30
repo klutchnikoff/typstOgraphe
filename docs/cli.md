@@ -22,7 +22,7 @@ Resource data is base64 in `resource.add`; models use their pure Typst source in
 | `block.heading_2` | edit | Level-two heading. |
 | `block.heading_3` | edit | Level-three heading. |
 | `block.insert` | edit | Edit a guarded tree with explicit nodes (quote, list, figure, postscript…). Discover examples via capabilities.describe. |
-| `block.join` | edit | Join explicit adjacent left/right paragraphs or headings in the same container. No added space or break; the nonempty left block keeps its kind and attributes. Remove an empty neighbor without converting its survivor. Widgets, cells and annotation boundaries are protected; the mandatory final editing slot is a no-op. |
+| `block.join` | edit | Join explicit adjacent left/right paragraphs or headings in the same container. Two nonempty paragraphs retain a single soft break at the seam (a Typst space); an existing break is reused. Joins involving headings concatenate directly. The nonempty left block keeps its kind and attributes. Remove an empty neighbor without converting its survivor. Widgets, cells and annotation boundaries are protected; the mandatory final editing slot is a no-op. |
 | `block.paragraph` | edit | Ordinary prose. A soft return stays inside the paragraph; two returns create a paragraph. |
 | `block.remove` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
 | `block.replace` | edit | Edit a guarded tree with explicit nodes (quote, list, figure, postscript…). Discover examples via capabilities.describe. |

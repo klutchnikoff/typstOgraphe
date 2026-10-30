@@ -2419,7 +2419,7 @@
     },
     {
       "batch_step": true,
-      "description": "Join explicit adjacent left/right paragraphs or headings in the same container. No added space or break; the nonempty left block keeps its kind and attributes. Remove an empty neighbor without converting its survivor. Widgets, cells and annotation boundaries are protected; the mandatory final editing slot is a no-op.",
+      "description": "Join explicit adjacent left/right paragraphs or headings in the same container. Two nonempty paragraphs retain a single soft break at the seam (a Typst space); an existing break is reused. Joins involving headings concatenate directly. The nonempty left block keeps its kind and attributes. Remove an empty neighbor without converting its survivor. Widgets, cells and annotation boundaries are protected; the mandatory final editing slot is a no-op.",
       "family": "edit",
       "id": "block.join",
       "params_schema": {

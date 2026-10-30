@@ -36,7 +36,7 @@ fn join(left: &[usize], right: &[usize]) -> crate::content::commands::Command {
     command("block.join", json!({"left":tree(left),"right":tree(right)}))
 }
 #[test]
-fn all_heading_pairs_keep_left_kind_and_do_not_add_whitespace() {
+fn heading_pairs_keep_left_kind_and_paragraphs_keep_a_soft_break() {
     for left in ["paragraph", "heading"] {
         for right in ["paragraph", "heading"] {
             let mut s = session(json!([
@@ -50,6 +50,14 @@ fn all_heading_pairs_keep_left_kind_and_do_not_add_whitespace() {
             execute(&mut s, vec![join(&[0], &[1])]);
             let result = &s.state().document.content[0];
             assert_eq!(result.kind, left);
+            assert_eq!(
+                result
+                    .content
+                    .iter()
+                    .filter(|n| n.kind == "softBreak")
+                    .count(),
+                usize::from(left == "paragraph" && right == "paragraph")
+            );
             assert_eq!(
                 result
                     .content
@@ -82,9 +90,10 @@ fn inline_marks_badges_and_neighbors_survive_and_final_slot_is_a_noop() {
     execute(&mut s, vec![join(&[0], &[1])]);
     let nodes = &s.state().document.content[0].content;
     assert_eq!(nodes[0].marks[0].kind, "bold");
-    assert_eq!(nodes[1].kind, "footnote");
-    assert_eq!(nodes[1].attrs.as_ref().unwrap()["text"], "Note 日本");
-    assert_eq!(nodes[2].marks.len(), 2);
+    assert_eq!(nodes[1].kind, "softBreak");
+    assert_eq!(nodes[2].kind, "footnote");
+    assert_eq!(nodes[2].attrs.as_ref().unwrap()["text"], "Note 日本");
+    assert_eq!(nodes[3].marks.len(), 2);
     let before = s.update();
     let guard = s.guard().clone();
     assert!(!execute(&mut s, vec![join(&[0], &[1])]).changed);
@@ -169,5 +178,32 @@ fn invalid_neighbors_and_cross_roots_refuse_the_entire_lot() {
                 .is_err()
         );
         assert_eq!(s.update(), before);
+    }
+}
+
+#[test]
+fn an_existing_return_is_reused_instead_of_adding_a_second_one() {
+    for (a, b) in [(true, false), (false, true), (true, true)] {
+        let mut left = p("paragraph", "A");
+        let mut right = p("paragraph", "B");
+        if a {
+            left["content"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"type":"softBreak"}));
+        }
+        if b {
+            right["content"]
+                .as_array_mut()
+                .unwrap()
+                .insert(0, json!({"type":"softBreak"}));
+        }
+        let mut s = session(json!([left, right, p("paragraph", "")]));
+        execute(&mut s, vec![join(&[0], &[1])]);
+        let content = &s.state().document.content[0].content;
+        assert_eq!(
+            content.iter().map(|n| n.kind.as_str()).collect::<Vec<_>>(),
+            vec!["text", "softBreak", "text"]
+        );
     }
 }
