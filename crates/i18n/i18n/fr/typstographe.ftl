@@ -800,6 +800,10 @@ web-table-columns = Colonnes
 web-table-row = Ligne
 
 web-table-column = Colonne
+web-table-row-actions = Actions sur la ligne
+web-table-column-actions = Actions sur la colonne
+web-table-append-row = Ajouter une ligne en bas du tableau
+web-table-append-column = Ajouter une colonne à droite du tableau
 
 web-table-header = Première ligne d’en-tête
 

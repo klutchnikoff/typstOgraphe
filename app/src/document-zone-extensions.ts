@@ -15,6 +15,7 @@ import { inlineObjectView } from './inline-objects'
 import { InlineObjectNumbering, inlineObjectNumber } from './inline-object-numbering'
 import { citationLabel } from './citation-index'
 import { InlineObjectFocus } from './inline-object-focus'
+import { TableHandles } from './table-handles'
 
 export function documentExtensions(
   imageURL: (path: string) => string,
@@ -44,6 +45,7 @@ export function documentExtensions(
     }),
     TableKit.configure({ table: false }),
     Table.extend({ group: '' }).configure({ resizable: false }),
+    TableHandles,
     Node.create({
       name: 'tableFigure',
       group: 'block',

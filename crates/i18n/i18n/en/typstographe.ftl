@@ -798,6 +798,10 @@ web-table-columns = Columns
 web-table-row = Row
 
 web-table-column = Column
+web-table-row-actions = Row actions
+web-table-column-actions = Column actions
+web-table-append-row = Add a row at the bottom of the table
+web-table-append-column = Add a column to the right of the table
 
 web-table-header = Header row
 

@@ -1716,7 +1716,72 @@ li:has(.interline-band-gap[data-marker])::marker {
 }
 
 .tiptap .widget-tableFigure [data-widget-body] {
-  padding: 10px;
+  padding: 6px 7px 10px;
+}
+.tiptap .widget-tableFigure .tableWrapper {
+  /* Keep controls inside the scrollable area, including their hit targets. */
+  padding: 34px 35px 0;
+}
+.table-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+.table-handle:hover:not(:disabled),
+.table-handle[aria-pressed='true'] {
+  color: var(--accent);
+  background: var(--soft);
+  border-color: var(--accent);
+}
+.table-handle:disabled {
+  opacity: 0.4;
+}
+.table-handle svg {
+  width: 16px;
+  height: 16px;
+}
+.table-column-handle,
+.table-append-column {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.table-append-column {
+  left: calc(100% + 7px);
+  transform: none;
+}
+.table-row-handle {
+  position: absolute;
+  left: -35px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.table-grip {
+  width: 12px;
+  height: 8px;
+  background: radial-gradient(circle at 2px 2px, currentColor 1px, transparent 1.4px) 0 0 / 4px 4px;
+}
+.table-row-handle .table-grip {
+  width: 8px;
+  height: 12px;
+}
+.table-append-row-slot {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+  user-select: none;
+}
+.tiptap td.table-axis-selected,
+.tiptap th.table-axis-selected {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
 }
 
 .table-actions {
