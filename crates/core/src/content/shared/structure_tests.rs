@@ -705,3 +705,51 @@ fn joins_use_the_same_rich_root_without_crossing_body_record_or_cell_boundaries(
     assert!(s.publish(prepared).is_err());
     assert_eq!(s.update(), before);
 }
+
+#[test]
+fn repeated_horizontal_spaces_are_normalized_across_marks_and_rich_header_profiles() {
+    let mut s = session(DocumentType::Article);
+    let abstract_root = abstract_tree(&s, &[]);
+    let mut title_root = abstract_root.clone();
+    title_root["root"]["field"] = json!("title");
+    let prose = json!({"type":"paragraph","content":[
+        {"type":"text","text":"A😀  ","marks":[{"type":"bold"}]},
+        {"type":"text","text":"  Bé\u{a0}\u{a0}fin","marks":[{"type":"italic"}]}
+    ]});
+    execute(
+        &mut s,
+        vec![
+            command("block.replace", json!({"target":tree(&[0]),"node":prose})),
+            command(
+                "block.replace",
+                json!({"target":{ "root":abstract_root["root"],"path":[0]},"node":prose}),
+            ),
+            command(
+                "block.replace",
+                json!({"target":{ "root":title_root["root"],"path":[0]},"node":prose}),
+            ),
+        ],
+    );
+    let expected = "A😀 Bé\u{a0}fin";
+    let inline_text = |parts: &[crate::content::Node]| {
+        parts
+            .iter()
+            .filter_map(|n| n.text.as_deref())
+            .collect::<String>()
+    };
+    assert_eq!(
+        inline_text(&s.state().document.content[0].content),
+        expected
+    );
+    let data = fields(&s);
+    for field in ["title", "abstract"] {
+        let node: crate::content::Node =
+            serde_json::from_value(data["localizations"][0][field].clone()).unwrap();
+        assert_eq!(inline_text(&node.content[0].content), expected);
+        assert_eq!(node.content[0].content[0].marks[0].kind, "bold");
+        assert_eq!(
+            node.content[0].content.last().unwrap().marks[0].kind,
+            "italic"
+        );
+    }
+}

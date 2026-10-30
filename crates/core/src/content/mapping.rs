@@ -11,6 +11,7 @@ pub(super) fn literal(value: &str) -> String {
     crate::document::escape_markup(value)
         .replace('.', "\\.")
         .replace(['\n', '\r'], " ")
+        .replace('\u{a0}', "~")
 }
 pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, SourceMap), String> {
     let mut marked = document.clone();
@@ -125,6 +126,18 @@ pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, Source
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
+    #[test]
+    fn nonbreaking_space_exports_as_typst_tilde_without_confusing_a_literal_tilde_or_offsets() {
+        let node=serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"A😀\u{a0}B~C"}]}]})).unwrap();
+        let (source, map) = source_mapped(&node, &Assets::default()).unwrap();
+        assert_eq!(literal("A\u{a0}B~C"), "A~B\\~C");
+        assert_eq!(
+            source,
+            super::super::source(&node, &Assets::default()).unwrap()
+        );
+        assert_eq!(&source[map.characters[4].clone()], "~");
+        assert_eq!(&source[map.characters[6].clone()], "\\~");
+    }
     #[test]
     fn real_render_resolves_structured_selection_in_both_directions() {
         let node=serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Bonjour collègue."}]}]})).unwrap();
