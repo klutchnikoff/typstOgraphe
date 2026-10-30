@@ -350,7 +350,8 @@ main {
   white-space: nowrap;
 }
 .inline-object-label {
-  display: inline;
+  /* Keep border/padding inside one atomic box, outside the insertion caret. */
+  display: inline-block;
   vertical-align: baseline;
   background: var(--badge-surface);
   border: 1px solid var(--badge-border);
