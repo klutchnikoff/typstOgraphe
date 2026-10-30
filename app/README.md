@@ -55,6 +55,10 @@ cargo build --locked --offline -p typstographe --features recipe-driver
 npm run test:browser
 ```
 
+`npm run test:browser:smoke` exécute les 7 parcours critiques dans Chromium et
+WebKit (14 cas). La [politique de CI](../docs/ci.md) répartit les vérifications
+entre PR, `main`, validation exhaustive et tags de version.
+
 Les recettes de navigateur utilisent un port et une session séparés de la
 rédaction. Leur transport STDIO (`--stdio`) n’existe que dans un binaire construit
 avec `--features recipe-driver` ; l’application distribuée le refuse.

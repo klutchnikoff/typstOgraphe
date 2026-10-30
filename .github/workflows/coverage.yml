@@ -2,23 +2,44 @@ name: Coverage
 
 on:
   push:
-    branches-ignore: [coverage]
-  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: coverage-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   CARGO_BUILD_JOBS: "2"
 
 jobs:
-  measure:
+  scope:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.plan.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - id: plan
+        env:
+          CI_BASE_SHA: ${{ github.event.before }}
+          CI_EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$CI_EVENT" = workflow_dispatch ]; then
+            python3 .github/scripts/ci_plan.py --force
+          else
+            python3 .github/scripts/ci_plan.py --base "$CI_BASE_SHA"
+          fi
+  measure:
+    needs: scope
+    if: needs.scope.outputs.code == 'true'
+    concurrency:
+      group: coverage-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
