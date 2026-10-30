@@ -25,6 +25,7 @@ import { DocumentWhitespace } from './document-whitespace'
 import { HorizontalSpace } from './horizontal-space'
 import { EditorLocation } from './editor-reveal'
 import { SharedInlineMarks } from './shared-inline-marks'
+import { SelectionEdits } from './selection-edits'
 import { documentExtensions } from './document-zone-extensions'
 import { inlineObjectKey } from './inline-objects'
 import { widgetKey } from './widgets'
@@ -78,6 +79,7 @@ export function richZoneExtensions(
     ContextBand,
     SoftBreak,
     SharedInlineMarks,
+    SelectionEdits.configure({ singleLine: !policy.multiline }),
     TypstInlineInput,
     HorizontalSpace,
     EditorLocation,
