@@ -89,9 +89,9 @@ La recette Rust ↔ Yjs vérifie aussi l’acceptation d’un lot texte/tableau,
 identités conservées et une seule annulation/rétablissement. Aucun nouvel essai
 avec un LLM externe, aucune capture dans ce lot.
 
-A.2 reste ouvert : l’[inventaire du 30 octobre](a2-transformations-inventory.md)
-précise les retours en ligne, opérations internes aux listes et entrées natives
-restant à traiter, puis le mode individuel allégé et la recette finale.
+A.2 reste ouvert pour le mode individuel allégé et la recette finale.
+Les [transformations R1–R3](a2-transformations-results.md) sont désormais livrées :
+retours en ligne, opérations internes aux listes et entrées natives protégées.
 La fusion de paragraphes est désormais livrée. La disponibilité par sélection est exposée
 dans les contextes communs et raccordée aux déclencheurs de l’interface.
 La conservation durable des brouillons refusés relève d’A.3. Étendre la relecture

@@ -5,6 +5,10 @@ de tableaux et de badges. Cet inventaire remplace la rubrique ouverte
 « transformations supplémentaires ». Il ne clôture pas A.2 et ne décide pas de
 nouvelles signatures publiques.
 
+**Suite livrée le 30 octobre :** R1–R3 sont implémentés selon les choix confirmés
+et décrits dans le [contrat et bilan de réalisation](a2-transformations-results.md).
+Les constats ci-dessous conservent la situation de départ de l’inventaire.
+
 ## Périmètre et méthode
 
 Lecture des commandes exécutées dans `content::commands`, des résolveurs Yrs,

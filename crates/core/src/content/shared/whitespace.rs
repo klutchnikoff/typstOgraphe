@@ -1,5 +1,5 @@
 //! Documentary whitespace policy, applied to a private typed-command candidate.
-//! Mirrors the immediate typing policy until the production relay is migrated.
+//! Mirrors the immediate editor repair carried by validated typing deltas.
 use super::{seed, targets};
 use crate::content::{
     Node,

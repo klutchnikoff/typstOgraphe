@@ -85,10 +85,10 @@ l’historique Tauri y sont raccordés, ainsi que les tableaux, styles, liens,
 titres, widgets, objets en ligne et contextes de sélection/styles de frappe.
 Les raccordements documentaires Tauri, CLI et MCP sont en place : voir le
 [bilan des adaptateurs structurés](structured-adapters.md). La séquence ci-dessous
-conserve les choix de migration. L’[inventaire du 30 octobre](a2-transformations-inventory.md)
-borne les transformations restantes à R1 (retours en ligne localisés), R2
-(items de listes) et R3 (entrées natives et sélections traversant les structures).
-Ces points, le mode individuel allégé et la recette finale ne sont pas encore clos.
+conserve les choix de migration. Les [transformations R1–R3](a2-transformations-results.md)
+issues de l’inventaire sont livrées : retours en ligne localisés, items de listes
+et entrées natives conservant les frontières. Restent le mode individuel allégé
+et la recette de clôture d’A.2.
 
 1. **Socle partagé** : valeurs de réglages et d'instantané dans le cœur,
    gardes/cibles/erreurs structurées, projection Yrs et contrôle de cohérence

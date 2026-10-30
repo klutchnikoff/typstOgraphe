@@ -39,10 +39,10 @@ paramètres et suppressions des widgets et badges sont également raccordés.
 Les champs d’en-tête, ressources, options, sélections/styles et adaptateurs
 CLI/MCP utilisent également le contrat commun. La disponibilité des capacités
 est raccordée aux contextes et aux déclencheurs de l’interface ; la palette
-conserve la zone riche choisie. L’[inventaire des transformations restantes](docs/a2-transformations-inventory.md)
-borne les transformations d’A.2 aux retours en ligne localisés, opérations internes
-aux listes et garanties des entrées natives. Restent aussi le mode individuel
-allégé et la recette finale.
+conserve la zone riche choisie. Les [transformations R1–R3](docs/a2-transformations-results.md)
+sont livrées : retours en ligne localisés, opérations d’items non imbriqués et
+entrées natives conservant les frontières des zones. Restent dans A.2 le mode
+individuel allégé et la recette de clôture.
 L’activation de la synchronisation depuis le document ouvert devra se faire
 en un clic, sans conversion, réouverture ni perte de l’historique ou du curseur.
 La [fusion de paragraphes](docs/paragraph-join.md)
@@ -501,10 +501,10 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Après l’[inventaire des transformations A.2](docs/a2-transformations-inventory.md),
-   préparer le mode individuel allégé et l’activation de la synchronisation
-   en un clic depuis le document ouvert. Solder R1–R3 et la recette commune avant
-   de clore A.2. Les propositions MCP rattachées restent limitées au corps du
+1. Après les [transformations R1–R3](docs/a2-transformations-results.md), préparer
+   le mode individuel allégé et l’activation de la synchronisation en un clic
+   depuis le document ouvert, puis la recette de clôture d’A.2.
+   Les propositions MCP rattachées restent limitées au corps du
    document ; leur extension n’est pas implicite dans ce lot.
 2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.

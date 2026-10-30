@@ -35,11 +35,14 @@ utilisent maintenant la même façade.
 | `block.insert` | Insérer un sous-arbre à une frontière de blocs |
 | `block.replace` | Remplacer explicitement un sous-arbre |
 | `block.splice` | Remplacer une suite de blocs d’un conteneur, puis réparer ses frontières une seule fois |
-| `inline.replace` | Remplacer une plage en ligne par un badge de note ou de citation, avec marques explicites |
+| `inline.replace` | Remplacer une plage en ligne par un badge de note/citation ou un retour simple/forcé |
 | `node.set_attrs` | Modifier en place les paramètres publics d’un widget ou badge, en conservant son contenu et son identité |
 | `block.remove` | Supprimer un bloc ou un item, en respectant les frontières |
 | `block.join` | Fusionner deux voisins dans le même conteneur ; conserver un retour simple entre paragraphes non vides |
 | `block.split` | Séparer un paragraphe ou un titre au curseur ; la suite devient un paragraphe |
+| `list.item.split` | Séparer un item ordinaire dans un paragraphe ou une description dans sa définition |
+| `list.item.join` | Joindre deux items ordinaires voisins de la même liste, sans espace ou retour ajouté |
+| `list.item.exit` | Sortir d’un item entièrement vide et préserver une ligne de reprise après la liste |
 | `block.paragraph`, `block.heading_1` à `block.heading_3` | Convertir un paragraphe/titre ou changer son niveau |
 | `insert.table` | Construire un tableau avec grille et légende facultative à une frontière de blocs |
 | `table.row.insert`, `table.row.remove` | Ajouter ou retirer une ligne à un indice explicite |
@@ -363,7 +366,7 @@ Les opérations spécialisées de tableau gardent leurs commandes déjà raccord
   supplémentaire issue d’un état intermédiaire vide. Les frontières de cellules,
   rôles de tableau et grammaires de conteneurs restent protégés.
 - `inline.replace` reçoit une cible textuelle dans une seule zone riche et un
-  nœud `footnote` ou `citation`. Les frontières UTF-16 sont contrôlées avant toute
+  nœud `footnote`, `citation`, `softBreak` ou `hardBreak`. Les frontières UTF-16 sont contrôlées avant toute
   modification. Pour insérer un badge au milieu d’un Y.XmlText, seul son suffixe
   est reconstruit ; paragraphe, autres badges et éléments voisins sont conservés.
   Les marques du nœud sont explicites. `text.delete` supprime le badge sur sa plage
@@ -389,9 +392,11 @@ la même validation finale que les autres commandes, sans seconde édition local
 après une prévalidation indépendante.
 
 La frappe, les retours, les règles « - espace » et « 1. espace », le collage et
-les jointures d’items au clavier restent immédiats via le relais validé. Cette
-exception est volontaire : leur migration éventuelle vers des plans locaux
-communs ne doit pas introduire un aller-retour avant l’affichage de la saisie.
+les jointures d’items au clavier restent immédiats via le relais validé. Les
+[lots R1–R3](a2-transformations-results.md) raccordent les plans d’items et les
+entrées multizones aux contrats typés équivalents, sans aller-retour avant
+l’affichage de la saisie. Suppr et Retour arrière joignent les items ordinaires
+symétriquement ; les descriptions conservent leurs frontières terme/définition.
 Les tests de collaboration attendent la confirmation du bandeau avant d’enchaîner
 une seconde commande ; les tests de concurrence vérifient séparément son refus.
 
@@ -620,12 +625,10 @@ les tableaux et l’historique sont raccordés. Les commandes de style à cible
 explicite refusent toujours une plage vide ; les styles de frappe appartiennent
 à l’API de contexte.
 
-L’[inventaire du 30 octobre](a2-transformations-inventory.md) borne les transformations
-restantes : **R1**, insertion localisée de retours simples/forcés ; **R2**, opérations
-internes aux listes non imbriquées ; **R3**, contrat et recettes des entrées natives
-et des sélections traversant les structures. Les signatures et comportements
-encore ouverts seront validés avant leur implémentation. Une saisie immédiate
-validée par le relais n’est pas une voie historique à remplacer par un RPC bloquant.
+Les [lots R1–R3](a2-transformations-results.md) issus de l’inventaire sont livrés.
+Ils complètent les retours en ligne, opérations internes aux listes et garanties
+des entrées natives. Une saisie immédiate validée par le relais n’est pas une
+voie historique à remplacer par un RPC bloquant.
 
 Le mode individuel allégé et la recette finale des adaptateurs restent dans A.2.
 La conservation durable et la réimportation des brouillons refusés relèvent d’A.3 ;

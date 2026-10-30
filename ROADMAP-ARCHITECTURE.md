@@ -131,19 +131,14 @@ seule annulation humaine ; elle ne reconstruit plus une édition dans le navigat
 Le périmètre rattaché reste le corps/cellules/annotations, sans en-tête, ressources
 ou fichiers modifiables tant que la relecture ne les présente pas.
 
-L’[inventaire des transformations du 30 octobre](docs/a2-transformations-inventory.md)
-remplace la mention ouverte « transformations supplémentaires » par trois points :
-
-- **R1 — Retours en ligne :** insertion localisée des retours simples/forcés,
-  sans remplacer tout le paragraphe ni interpréter implicitement CR/LF dans
-  `text.insert`. Signature à valider.
-- **R2 — Items de listes :** contrat commun de séparation, jointure et sortie
-  d’item vide, avec identités préservées et frontières terme/définition protégées.
-  Préciser Suppr et les items comportant plusieurs paragraphes ; pas de listes imbriquées.
-- **R3 — Entrées natives :** compléter le contrat et les recettes du vrai
-  couper-coller et des sélections/remplacements traversant paragraphes, widgets,
-  annotations ou cellules. Les imports par `setContent`/`insertContent` ne prouvent
-  pas seuls le parcours du presse-papiers.
+Les [transformations R1–R3](docs/a2-transformations-results.md) issues de
+l’[inventaire du 30 octobre](docs/a2-transformations-inventory.md) sont livrées :
+`inline.replace` accepte les retours simples/forcés ; les opérations d’items
+non imbriqués ont leurs commandes et plans locaux communs ; les entrées natives
+conservent les frontières des zones, les grilles et les rôles d’en-tête des
+cellules sélectionnées. Les recettes passent par les événements DOM de coupe,
+collage, saisie et déplacement, sans les remplacer par un import de contenu.
+Les claviers/IME physiques et presse-papiers système restent une recette manuelle.
 
 Les gestes immédiats conservent leur affichage local puis leur confirmation
 Rust ; le contrat commun n’impose pas un RPC bloquant à chaque touche.
@@ -161,7 +156,7 @@ avec plusieurs fenêtres et le rattachement d’un agent sont à préciser avant
 Cette exigence ne choisit ni serveur distant ni permissions réseau : voir G.
 Mesurer frappe/confirmation et rendu Typst séparément.
 
-La clôture d’A.2 doit solder R1–R3, le mode individuel et la recette finale
+La clôture d’A.2 doit désormais solder le mode individuel et la recette finale
 Courrier/Article entre les adaptateurs. Les brouillons durables restent dans A.3,
 la fusion de cellules et les listes imbriquées dans C.
 
