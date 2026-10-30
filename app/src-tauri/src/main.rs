@@ -447,6 +447,15 @@ fn open_peer(app: tauri::AppHandle) -> Result<(), String> {
 fn prepare_rust_edit() -> serde_json::Value {
     serde_json::json!({"type":"paragraph","content":[{"type":"text","text":"Cette phrase a été préparée depuis Rust, puis insérée dans l’état partagé."}]})
 }
+#[tauri::command(async)]
+fn diagnostic_confirmed(state: State<Bridge>) -> Result<serde_json::Value, String> {
+    if state.diagnostic.is_none() {
+        return Err("Recette native inactive.".into());
+    }
+    let mut session = state.session.lock().map_err(|e| e.to_string())?;
+    let value = session.ensure_owner()?.state().clone();
+    Ok(serde_json::json!({"guard":session.guard(),"state":value}))
+}
 #[tauri::command]
 fn diagnostic_mode(state: State<Bridge>) -> Option<String> {
     state.diagnostic.clone()
@@ -537,6 +546,12 @@ fn main() {
         if arg == "--diagnostic-performance" {
             diagnostic = Some("performance".to_owned());
         }
+        if arg == "--diagnostic-closure" {
+            diagnostic = Some("closure".to_owned());
+        }
+        if arg == "--diagnostic-closure-verify" {
+            diagnostic = Some("closure-verify".to_owned());
+        }
         if arg == "--diagnostic-restore" {
             diagnostic = Some("restore".to_owned());
         }
@@ -564,11 +579,23 @@ fn main() {
         typstographe_i18n::initialize(&["fr".parse().expect("French locale")]);
     }
     let global_session = !custom_root && !stdio && diagnostic.is_none();
-    let session = if global_session {
+    let mut session = if global_session {
         Session::fresh(PathBuf::new())
     } else {
         Session::open(root).expect("Impossible de rouvrir la session de recette")
     };
+    if diagnostic
+        .as_deref()
+        .is_some_and(|mode| mode.starts_with("closure"))
+    {
+        // Match the normal welcome document, not the rich historic demo fixture.
+        session.fixture = Some(
+            serde_json::from_value(
+                serde_json::json!({"type":"doc","content":[{"type":"paragraph"}]}),
+            )
+            .expect("empty document"),
+        );
+    }
     let bridge = Bridge {
         session: Arc::new(Mutex::new(session)),
         renderer: Arc::new(Renderer::default()),
@@ -676,6 +703,7 @@ fn main() {
             open_peer,
             prepare_rust_edit,
             diagnostic_mode,
+            diagnostic_confirmed,
             diagnostic_event,
             diagnostic_finish
         ])

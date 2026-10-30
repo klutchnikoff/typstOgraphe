@@ -592,6 +592,13 @@ async function start() {
         snapshot,
         mode === 'synchronization-active',
       )
+    } else if (mode?.startsWith('closure')) {
+      void (await import('./closure-diagnostic')).closureDiagnostic(
+        mode,
+        host.transport,
+        provider,
+        editor,
+      )
     } else if (mode === 'performance') {
       void (await import('./preview-performance')).nativePreviewPerformance(
         host.transport,

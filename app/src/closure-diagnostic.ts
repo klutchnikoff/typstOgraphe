@@ -1,0 +1,219 @@
+import type { Editor } from '@tiptap/core'
+import * as Y from 'yjs'
+import { documentContent } from './shared-inline-marks'
+import { settingsFor } from './state'
+import { stableJSON, type Bootstrap, type Provider, type Transport } from './provider'
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+async function until(check: () => boolean | Promise<boolean>, label: string) {
+  const deadline = Date.now() + 30000
+  while (!(await check())) {
+    if (Date.now() > deadline) throw new Error(`Closure timeout: ${label}`)
+    await wait(50)
+  }
+}
+function append(editor: Editor, text: string) {
+  editor.commands.setTextSelection(editor.state.doc.content.size - 1)
+  editor.view.focus()
+  editor.commands.insertContent(text)
+}
+type Proposal = { id: string; requestId: string; status: string }
+/** Real native UI and IPC; loaded only for the explicit closure recipe. */
+export async function closureDiagnostic(
+  mode: string,
+  transport: Transport,
+  provider: Provider,
+  editor: Editor,
+) {
+  let obsolete = false
+  window.addEventListener(
+    'beforeunload',
+    () => {
+      obsolete = true
+    },
+    { once: true },
+  )
+  const steps: string[] = []
+  const state = () => ({
+    document: documentContent(editor.getJSON()),
+    settings: settingsFor(provider),
+  })
+  const snapshot = () => ({ revision: provider.revision, ...state() })
+  const proposal = async () =>
+    (await transport.invoke<{ proposal: Proposal | null }>('agent_state')).proposal
+  const pending = async (id: string) => {
+    await until(async () => {
+      const p = await proposal()
+      return p?.requestId === id && p.status === 'pending'
+    }, id)
+    return (await proposal())!
+  }
+  const save = () =>
+    transport.invoke('save_file', {
+      path: `${provider.sessionPath}/project.typsto`,
+      snapshot: snapshot(),
+      update: [...Y.encodeStateAsUpdate(provider.doc)],
+    })
+  const openAssistance = async () => {
+    document.querySelector<HTMLButtonElement>('[aria-label="Assistance à la rédaction"]')!.click()
+    await until(() => !!document.querySelector('.side-panel h3'), 'assistance panel')
+  }
+  const button = (text: string) =>
+    [...document.querySelectorAll('button')].find((b) => b.textContent === text)
+  try {
+    const joined = await transport.invoke<Bootstrap>('join')
+    if (!joined.opened) {
+      await provider.flush()
+      await provider.setSynchronization(true)
+      await provider.flush()
+      try {
+        await transport.invoke('open_file', {
+          path: `${provider.sessionPath}/project.typsto`,
+          revision: provider.revision,
+        })
+      } catch (error) {
+        // WebKit can retry an invoke whose reply was interrupted by the ordinary
+        // app:document reload. A successful first open changed the generation;
+        // the obsolete page must leave the result to its replacement.
+        const current = await transport.invoke<Bootstrap>('join')
+        if (current.generation !== joined.generation && current.opened) return
+        throw error
+      }
+      return // The ordinary document lifecycle reloads the real editor.
+    }
+    await provider.flush()
+    if (provider.synchronization?.enabled)
+      throw new Error('New document inherited presence services')
+    const initial = (
+      await transport.invoke<{ state: ReturnType<typeof state> }>('diagnostic_confirmed')
+    ).state
+    const anchor = () =>
+      JSON.parse(
+        JSON.stringify(
+          Y.createRelativePositionFromTypeIndex(provider.doc.getXmlFragment('default'), 0),
+        ),
+      )
+    const initialAnchor = anchor()
+    const kind = initial.settings.metadata.type
+    if (!['courrier', 'article'].includes(kind)) throw new Error('Unexpected document type')
+    steps.push('Native open: project, embedded model, metadata and resources validated.')
+    if (mode === 'closure') {
+      if (kind === 'courrier') {
+        document.getElementById('metadata-tab-header')!.click()
+        const input = document.getElementById('metadata-field-letter.subject') as HTMLInputElement
+        if (!input) throw new Error('Letter subject control absent')
+        input.focus()
+        input.value += ' — relu dans Tauri'
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      } else {
+        document.getElementById('metadata-tab-abstracts')!.click()
+        await until(
+          () =>
+            !!document.querySelector(
+              '[data-section="localizations"] [data-rich-zone-profile="rich-text"]',
+            ),
+          'abstract field',
+        )
+        const element = document.querySelector(
+          '[data-section="localizations"] [data-rich-zone-profile="rich-text"]',
+        ) as HTMLElement & { editor: Editor }
+        append(element.editor, ' [TAURI-RÉSUMÉ]')
+      }
+      await provider.flush()
+      append(editor, '[TAURI]')
+      await provider.flush()
+      const beforeUndo = stableJSON(state())
+      editor.commands.undo()
+      await until(() => !editor.getText().includes('[TAURI]'), 'human undo')
+      editor.commands.redo()
+      await until(() => stableJSON(state()) === beforeUndo, 'human redo')
+      steps.push('Native header/body input, undo and redo preserve the project.')
+      await save()
+      await transport.invoke('agent_invite')
+      await pending('closure-refused')
+      const beforeRefusal = stableJSON(state())
+      await openAssistance()
+      await until(() => !!button('Refuser le lot'), 'reject button')
+      button('Refuser le lot')!.click()
+      await until(async () => (await proposal())?.status === 'rejected', 'human rejection')
+      if (stableJSON(state()) !== beforeRefusal) throw new Error('Rejection modified the project')
+      steps.push('Real attached MCP: rejected proposal never published.')
+      const stale = await pending('closure-stale')
+      append(editor, ' [TAURI-CONCURRENT]')
+      await provider.flush()
+      const beforeStale = stableJSON(state())
+      try {
+        await transport.invoke('agent_accept', { id: stale.id })
+        throw new Error('Stale lot accepted')
+      } catch (error) {
+        if (!String(error).includes('périmée')) throw error
+      }
+      if (stableJSON(state()) !== beforeStale) throw new Error('Stale proposal changed the project')
+      steps.push('Concurrent human input invalidates the guarded MCP proposal without losing work.')
+      await pending('closure-accepted')
+      const before = stableJSON(state())
+      editor.commands.setTextSelection(2)
+      editor.view.focus()
+      await provider.flush()
+      await provider.refreshHistory()
+      const selection = editor.state.selection.toJSON(),
+        undo = provider.historyState.undo_steps
+      await openAssistance()
+      await until(() => !!button('Accepter le lot'), 'accept button')
+      button('Accepter le lot')!.click()
+      await until(() => editor.getText().includes('[MCP-ACCEPTED]'), 'published lot')
+      await provider.refreshHistory()
+      if (stableJSON(editor.state.selection.toJSON()) !== stableJSON(selection))
+        throw new Error('Human selection moved')
+      if (provider.historyState.undo_steps !== undo + 1)
+        throw new Error('MCP lot is not one undo step')
+      const accepted = stableJSON(state())
+      editor.commands.undo()
+      await until(() => stableJSON(state()) === before, 'single whole-lot undo')
+      editor.commands.redo()
+      await until(() => stableJSON(state()) === accepted, 'whole-lot redo')
+      if (provider.synchronization?.enabled) throw new Error('Agent enabled human presence')
+      steps.push(
+        'Real human approval, stable selection, one whole-lot undo/redo; individual mode preserved.',
+      )
+      await provider.flush()
+      await save()
+    } else {
+      for (const marker of ['[TAURI]', '[CLI]', '[MCP-AUTONOMOUS]', '[MCP-ACCEPTED]'])
+        if (!editor.getText().includes(marker)) throw new Error(`Missing ${marker}`)
+      if (kind === 'article' && !JSON.stringify(initial.settings).includes('[TAURI-RÉSUMÉ]'))
+        throw new Error('Rich header lost')
+      steps.push(
+        'Final native reopen preserves Tauri, CLI and autonomous/attached MCP contributions.',
+      )
+      await save()
+    }
+    const exported = await transport.invoke<string>('export_document', { snapshot: snapshot() })
+    const preview = await transport.invoke<{ pageSizes: number[][] }>('preview', {
+      snapshot: snapshot(),
+    })
+    await transport.invoke('diagnostic_finish', {
+      report: {
+        success: true,
+        mode,
+        kind,
+        steps,
+        initial,
+        initialAnchor,
+        finalAnchor: anchor(),
+        final: (await transport.invoke<{ state: ReturnType<typeof state> }>('diagnostic_confirmed'))
+          .state,
+        resources: [...provider.resources.keys()].sort(),
+        exported,
+        pageSizes: preview.pageSizes,
+      },
+    })
+  } catch (error) {
+    // Opening a file uses the ordinary app:document reload. WebKit may reject
+    // an old invoke while that page unloads; it cannot decide the new view's result.
+    if (obsolete) return
+    await transport.invoke('diagnostic_finish', {
+      report: { success: false, mode, steps, error: String(error), state: state() },
+    })
+  }
+}
