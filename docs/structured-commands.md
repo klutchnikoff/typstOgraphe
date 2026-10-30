@@ -38,6 +38,7 @@ utilisent maintenant la même façade.
 | `inline.replace` | Remplacer une plage en ligne par un badge de note ou de citation, avec marques explicites |
 | `node.set_attrs` | Modifier en place les paramètres publics d’un widget ou badge, en conservant son contenu et son identité |
 | `block.remove` | Supprimer un bloc ou un item, en respectant les frontières |
+| `block.join` | Fusionner deux voisins paragraphe/titre dans le même conteneur, sans espace ajouté |
 | `block.split` | Séparer un paragraphe ou un titre au curseur ; la suite devient un paragraphe |
 | `block.paragraph`, `block.heading_1` à `block.heading_3` | Convertir un paragraphe/titre ou changer son niveau |
 | `insert.table` | Construire un tableau avec grille et légende facultative à une frontière de blocs |
@@ -584,17 +585,19 @@ diagnostic reste réservé aux tests ; ce n’est pas une nouvelle voie publique
 
 Restent dans A.2 :
 
-- Le raccordement global de la disponibilité à l’interface. La façade commune
+- La disponibilité est désormais raccordée à l’interface. La façade commune
   et les adaptateurs CLI/MCP utilisent désormais les commandes, requêtes et
   contextes structurés ; voir le [bilan du lot](structured-adapters.md).
   Les commandes de style à cible explicite refusent toujours une plage vide ;
   les styles de frappe appartiennent à l’API de contexte.
-- La fusion de paragraphes et les transformations supplémentaires. L’insertion,
+- Les transformations supplémentaires. La [fusion de paragraphes](paragraph-join.md)
+  est commune au moteur et à l’éditeur, y compris la restauration du curseur. L’insertion,
   la suppression de lignes/colonnes et les en-têtes de tableaux sont désormais
   communs ; la fusion de cellules reste différée.
   Les retours riches passent par `block.split` ou des nœuds de retour explicites,
   pas par des sauts de ligne cachés dans `text.insert`.
-- La conservation durable automatique et la réimportation des brouillons refusés.
+- La conservation durable automatique et la réimportation des brouillons refusés
+  relèvent désormais d’A.3.
   Le groupement de frappe, l’IME, l’historique natif par fenêtre et le parcours
   export/abandon sont raccordés dans Tauri.
 - Le mode individuel allégé, avec le même propriétaire documentaire.

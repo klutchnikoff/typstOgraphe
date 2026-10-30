@@ -40,7 +40,9 @@ Les champs d’en-tête, ressources, options, sélections/styles et adaptateurs
 CLI/MCP utilisent également le contrat commun. La disponibilité des capacités
 est raccordée aux contextes et aux déclencheurs de l’interface ; la palette
 conserve la zone riche choisie. Restent dans A.2 les transformations supplémentaires
-(dont la fusion de paragraphes) et le mode individuel allégé. Les brouillons
+et le mode individuel allégé. La [fusion de paragraphes](docs/paragraph-join.md)
+est désormais commune à Rust, Tiptap et aux adaptateurs, avec frontières protégées
+et restauration du curseur par l’historique natif. Les brouillons
 refusés restent en mémoire avant leur export JSON ; leur conservation durable
 automatique relève d’A.3.
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,

@@ -68,7 +68,10 @@ test('la même fusion et son historique restent dans le résumé riche actif', a
   await page.evaluate(async () => {
     await window.__spike!.provider.clearHistory()
   })
-  await abstract.press('Home')
+  // Home scrolls without moving the caret in macOS WebKit. Exercise the
+  // boundary using actual, portable cursor movement in both engines.
+  for (let i = 0; i < 'Après'.length; i++) await abstract.press('ArrowLeft')
+  await expect.poll(() => page.evaluate(() => document.getSelection()?.focusOffset)).toBe(0)
   await abstract.press('Backspace')
   await expect(abstract.locator('p')).toHaveCount(1)
   await expect(abstract).toHaveText('AvantAprès')

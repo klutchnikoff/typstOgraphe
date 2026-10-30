@@ -56,7 +56,7 @@ le moteur documentaire reste commun.
 Le [socle Yrs et de conservation](docs/structured-contract-foundation.md) est en
 place, ainsi que les [commandes multizones et structurelles](docs/structured-commands.md)
 dans le cœur : insertions/remplacements/suppressions de blocs et items, séparation
-de paragraphes, titres, enregistrements d’en-tête ordonnés et normalisation des
+et fusion de paragraphes, titres, enregistrements d’en-tête ordonnés et normalisation des
 lignes vides avant publication. Les recettes Rust ↔ Tiptap vérifient les identités
 conservées et une seule étape d’annulation pour chaque lot. Le
 [socle de contextes et d’historique par participant](docs/structured-editing-contexts.md)
@@ -68,6 +68,11 @@ accusés/refus et export explicite du brouillon avant abandon. Restent les
 transformations supplémentaires et le mode individuel allégé. Les brouillons
 refusés restent en mémoire avant leur export JSON ; leur conservation automatique
 durable reste à traiter.
+
+La [fusion de paragraphes](docs/paragraph-join.md) est raccordée au clavier et au
+catalogue commun (`block.join`). Les sélections avant édition sont attachées aux
+étapes de l’historique Yrs ; annuler/rétablir les restaure dans la zone active
+sans déplacer le focus des autres participants.
 
 Les sélections et styles de frappe Tauri sont désormais raccordés à ces contextes :
 points UTF-16 multizones et direction, sélections de widgets/badges et de cellules,

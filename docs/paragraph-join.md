@@ -42,3 +42,29 @@ un lot refusé ne publie aucun contenu partiel.
 Recettes : couples paragraphe/titre, paragraphes vides et reprise finale,
 conteneurs riches, frontières protégées, Unicode UTF-16, styles, badges, garde
 périmée, publication atomique et annulation/rétablissement.
+
+
+## Réalisation et vérifications
+
+Le raccourci est commun aux profils riches du corps et de l’en-tête. Il publie
+immédiatement sa transaction Tiptap par le relais validé ; les adaptateurs utilisent
+`block.join` avec les mêmes contraintes documentaires. Les deux cibles sont
+contrôlées dans le périmètre autorisé, notamment pour le MCP rattaché au corps.
+
+L’historique Yrs porte désormais des métadonnées privées de sélection et de styles,
+ancrées aux identités CRDT. La première sélection d’un groupe de frappe est gardée ;
+l’opération inverse capture celle du rétablissement. Il n’existe pas de pile
+supplémentaire dans JavaScript. Avant une fusion au clavier, la vue accompagne le
+delta dans le même envoi, sans attendre une notification de navigation. Sa frontière
+causale inclut les suppressions ; si elle est périmée, les chemins transmis ne sont
+pas réutilisés et le contexte déjà ancré reste la référence.
+
+L’interface restaure la sélection uniquement dans la zone active correspondante.
+Un champ disparu n’est ni rouvert ni remplacé par un voisin, et les autres fenêtres
+ne reçoivent pas le focus. Les tests couvrent les annulations/rétablissements
+successifs et les brouillons refusés, en plus de la fusion elle-même.
+
+Commandes de vérification : tests Rust du cœur, de l’application et des adaptateurs,
+`npm test --workspace @typstographe/app`, `npm run test:contract` et les recettes
+`paragraph-join.spec.ts` / `editing-owner.spec.ts` dans Chromium et WebKit, sans
+captures. Le mode individuel allégé reste un prochain lot d’A.2.
