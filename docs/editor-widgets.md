@@ -75,6 +75,9 @@ attaché au texte : il disparaît en début de paragraphe, après un retour à l
 ou après une espace normale, insécable ou fine insécable. Une espace normale
 permet le renvoi du badge au début de la ligne suivante, sans retrait ; son
 libellé reste d’un seul tenant. L’espace insécable conserve son rôle habituel.
+Le cadre du libellé est une boîte en ligne indivisible (`inline-block`) : son
+padding et sa bordure restent à l’intérieur de la boîte, hors du point
+d’insertion situé juste avant le badge, même sans dégagement supplémentaire.
 
 Cette règle repose sur des décorations locales, recalculées lorsque le document
 change. Elle n’ajoute aucun caractère, attribut ou marque au document, à Yjs ou

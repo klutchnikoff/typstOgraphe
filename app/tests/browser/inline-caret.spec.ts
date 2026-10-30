@@ -9,6 +9,8 @@ test.beforeEach(async ({ page, request }) => {
 for (const [context, html] of [
   ['texte simple', '<p>Texte<span data-footnote="Précision"></span></p>'],
   ['texte en gras', '<p><strong>Texte</strong><span data-footnote="Précision"></span></p>'],
+  ['après une espace', '<p>Texte <span data-footnote="Précision"></span>Suite</p>'],
+  ['après une espace insécable', '<p>Texte\u00a0<span data-footnote="Précision"></span>Suite</p>'],
   ['début de paragraphe', '<p><span data-footnote="Précision"></span>Suite</p>'],
 ] as const) {
   test(`curseur extérieur au badge dans ${context} : clic, flèches et saisie de part et d’autre`, async ({
@@ -57,6 +59,8 @@ for (const [context, html] of [
         const range = selection.getRangeAt(0).getClientRects()[0]
         const caret = range || e.view.coordsAtPos(e.state.selection.from, after ? 1 : -1)
         return {
+          edge: e.view.coordsAtPos(e.state.selection.from, 1).left,
+          frameLeft: frame.left,
           inside: !!selection.anchorNode?.parentElement?.closest('.inline-object-label'),
           distance: after ? caret.left - frame.right : frame.left - caret.right,
           gap: frame.left - document.querySelector('.inline-object')!.getBoundingClientRect().left,
@@ -65,11 +69,13 @@ for (const [context, html] of [
       expect(geometry.inside).toBe(false)
       expect(geometry.distance).toBeGreaterThanOrEqual(-1)
       if (trigger !== 'right') {
-        if (context === 'début de paragraphe') expect(Math.abs(geometry.gap)).toBeLessThan(1)
+        expect(geometry.edge - geometry.frameLeft).toBeLessThanOrEqual(1)
+        if (context === 'début de paragraphe' || context.startsWith('après une espace'))
+          expect(Math.abs(geometry.gap)).toBeLessThan(1)
         else expect(geometry.gap).toBeGreaterThan(2)
         expect(geometry.distance).toBeGreaterThanOrEqual(geometry.gap - 1)
       }
-      await page.keyboard.insertText(' ajout')
+      await page.keyboard.insertText('ajout')
       const result = await page.evaluate(() => {
         const e = window.__spike!.editor
         const notes: { pos: number; text: string }[] = []
@@ -79,9 +85,9 @@ for (const [context, html] of [
         return { notes, cursor: e.state.selection.from, text: e.getText() }
       })
       expect(result.notes).toEqual([
-        { pos: pos + (trigger === 'right' ? 0 : 6), text: 'Précision' },
+        { pos: pos + (trigger === 'right' ? 0 : 5), text: 'Précision' },
       ])
-      expect(result.cursor).toBe(expected + 6)
+      expect(result.cursor).toBe(expected + 5)
       expect(result.text).not.toContain('\u2060')
       await expect(page.locator('.footnote-ref')).toHaveText('Note 1')
     }
