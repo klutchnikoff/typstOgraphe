@@ -1384,3 +1384,72 @@ it('attached MCP accepts the same typed lot into the existing Yjs tree and human
   Y.applyUpdate(original, new Uint8Array(redo.update))
   await probe({ action: 'inspect', update: bytes(original), expected: publication.state })
 })
+
+it('the immediate prose join and typed native join agree on Unicode, badges, marks and block kinds', async () => {
+  const { joinParagraphs } = await import('../src/paragraph-join')
+  for (const [leftKind, rightKind] of [
+    ['paragraph', 'paragraph'],
+    ['heading', 'paragraph'],
+    ['paragraph', 'heading'],
+    ['heading', 'heading'],
+  ]) {
+    const initial = seed('article')
+    const root = initial.getXmlFragment('default')
+    const paragraph = (type: string, content: JSONContent[]) => ({
+      type,
+      ...(type === 'heading' ? { attrs: { level: 2 } } : {}),
+      content,
+    })
+    const content = {
+      type: 'doc',
+      content: [
+        paragraph(leftKind, [{ type: 'text', text: 'A😀', marks: [{ type: 'bold' }] }]),
+        paragraph(rightKind, [
+          { type: 'footnote', attrs: { text: 'Note 日本' } },
+          {
+            type: 'text',
+            text: 'é日本',
+            marks: [{ type: 'italic' }, { type: 'link', attrs: { href: 'https://example.org' } }],
+          },
+        ]),
+        { type: 'paragraph' },
+      ],
+    }
+    initial.transact(() => {
+      root.delete(0, root.length)
+      prosemirrorJSONToYXmlFragment(schema, content, root)
+    })
+    const native = doc(bytes(initial)),
+      local = doc(bytes(initial))
+    const editor = createRichZone({
+      profile: 'document',
+      label: 'Join contract',
+      binding: { kind: 'document', document: local },
+    })
+    editors.push(editor)
+    if (!editor.isInitialized)
+      await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+    editor.commands.setTextSelection(6)
+    expect(joinParagraphs(editor, true, true)).toBe(true)
+    expect(editor.state.selection.from).toBe(4)
+    const guard = { document: 'join-contract', revision: 0 }
+    const outcome = await probe({
+      action: 'commands',
+      update: bytes(native),
+      guard,
+      expected: guard,
+      commands: [
+        {
+          id: 'block.join',
+          params: {
+            left: { root: { kind: 'body' }, path: [0] },
+            right: { root: { kind: 'body' }, path: [1] },
+          },
+        },
+      ],
+    })
+    Y.applyUpdate(native, new Uint8Array(outcome.update))
+    expect(state(native)).toEqual(state(local))
+    await probe({ action: 'inspect', update: bytes(local), expected: state(native) })
+  }
+})

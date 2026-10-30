@@ -325,3 +325,34 @@ it('queues resources during join, filters old generations and keeps wire envelop
     provider.destroy()
   }
 })
+
+it('le point avant fusion voyage avec son édition sans attendre une notification de contexte', async () => {
+  const relays: Record<string, unknown>[] = []
+  const provider = new Provider('join', {
+    invoke: async (command: string, args: Record<string, unknown>) => {
+      if (command === 'relay') relays.push(args)
+      return 1
+    },
+  } as unknown as Transport)
+  provider.online = true
+  provider.nativeEditing = true
+  const selection = {
+    kind: 'text' as const,
+    anchor: { zone: { kind: 'body' as const, path: [1] }, offset: 0 },
+    head: { zone: { kind: 'body' as const, path: [1] }, offset: 0 },
+  }
+  try {
+    provider.withHistoryView({ selection, typing_styles: [] }, () =>
+      provider.doc.getText('body').insert(0, 'Jointure'),
+    )
+    provider.doc.getText('body').insert(8, ' suite')
+    await provider.flush()
+    expect(relays).toHaveLength(2)
+    expect(relays[0].historyView).toMatchObject({ selection, typing_styles: [] })
+    expect((relays[0].historyView as { frontier: number[] }).frontier.length).toBeGreaterThan(0)
+    expect(relays[1].historyView).toBeUndefined()
+    expect(relays[0].group).not.toBe(relays[1].group)
+  } finally {
+    provider.destroy()
+  }
+})

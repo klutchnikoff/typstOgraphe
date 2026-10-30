@@ -305,12 +305,23 @@ impl Session {
             }
         }
     }
+    #[cfg(test)]
     pub fn relay_group(
         &mut self,
         peer: &str,
         update: &[u8],
         group: Option<u64>,
         capture: bool,
+    ) -> Result<crate::owner::Receipt, String> {
+        self.relay_view(peer, update, group, capture, None)
+    }
+    pub fn relay_view(
+        &mut self,
+        peer: &str,
+        update: &[u8],
+        group: Option<u64>,
+        capture: bool,
+        view: Option<crate::owner::HistoryViewRequest>,
     ) -> Result<crate::owner::Receipt, String> {
         self.check_peer(peer, &self.generation)?;
         if update.is_empty() || update.len() > 4 * 1024 * 1024 {
@@ -335,7 +346,9 @@ impl Session {
             self.updates.push(update.to_vec());
             return self.receipt(peer, update.to_vec());
         }
-        let publication = self.ensure_owner()?.update(peer, update, group, capture)?;
+        let publication = self
+            .ensure_owner()?
+            .update(peer, update, group, capture, view)?;
         self.record(&publication);
         self.receipt(peer, publication.update)
     }

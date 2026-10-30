@@ -6,6 +6,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { widgetTarget, widgetAnnotation, resumeAfterWidget } from './widgets'
 import { lineBreak } from './document-whitespace'
 import { runObjectEdit } from './object-commands'
+import { joinParagraphs } from './paragraph-join'
 
 /** Shared Typst-style inline input, also used by named editorial zones. */
 export const TypstInlineInput = Extension.create({
@@ -240,9 +241,14 @@ function atDocumentStart(editor: Editor) {
 export const DocumentInput = Extension.create({
   name: 'documentInput',
   priority: 1100,
+  addOptions: () => ({ trailingParagraph: true }),
   addKeyboardShortcuts() {
     return {
-      Backspace: () => !this.editor.view.composing && backspaceInList(this.editor),
+      Backspace: () =>
+        !this.editor.view.composing &&
+        (backspaceInList(this.editor) ||
+          joinParagraphs(this.editor, true, this.options.trailingParagraph)),
+      Delete: () => joinParagraphs(this.editor, false, this.options.trailingParagraph),
       'Shift-Enter': () => {
         if (this.editor.view.composing) return false
         if (atDocumentStart(this.editor)) return true

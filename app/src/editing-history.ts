@@ -2,6 +2,7 @@ import type { Editor } from '@tiptap/core'
 import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import type { Provider } from './provider'
 import { bindEditingContext } from './editing-context'
+import { restoreHistorySelection } from './history-selection'
 
 const zones = new WeakMap<Provider, Map<Editor, { editable: boolean }>>()
 const owners = new WeakMap<Editor, Provider>()
@@ -15,6 +16,9 @@ export function bindEditingHistory(editor: Editor, provider: Provider) {
     entries = new Map()
     zones.set(provider, entries)
     let focused: Editor | undefined
+    provider.onHistorySelection = (state) => {
+      if (focused && !focused.isDestroyed) restoreHistorySelection(focused, state)
+    }
     provider.onHistoryLock = (locked) => {
       if (locked) focused = [...entries!.keys()].find((zone) => !zone.isDestroyed && zone.isFocused)
       for (const [zone, state] of entries!) {

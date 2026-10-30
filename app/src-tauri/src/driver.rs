@@ -221,11 +221,12 @@ fn dispatch(
                 serde_json::from_value(args["update"].clone()).map_err(|e| e.to_string())?;
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
             session.check_peer(peer, args["generation"].as_str().unwrap_or(""))?;
-            serde_json::to_value(session.relay_group(
+            serde_json::to_value(session.relay_view(
                 peer,
                 &update,
                 args["group"].as_u64(),
                 args["capture"].as_bool().unwrap_or(true),
+                serde_json::from_value(args["historyView"].clone()).map_err(|e| e.to_string())?,
             )?)
             .map_err(|e| e.to_string())
         }

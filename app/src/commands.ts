@@ -203,18 +203,7 @@ export function refreshCommands(registry: Registry) {
   }
   document.dispatchEvent(new Event('commands:availability'))
 }
-export function positionAtPath(editor: Editor, path: number[]): number {
-  let node = editor.state.doc,
-    pos = 0
-  for (const [depth, index] of path.entries()) {
-    if (!Number.isInteger(index) || index < 0 || index >= node.childCount)
-      throw new Error('Cible structurée invalide.')
-    if (depth) pos++
-    for (let i = 0; i < index; i++) pos += node.child(i).nodeSize
-    node = node.child(index)
-  }
-  return pos
-}
+export { positionAtPath } from './editor-targets'
 export function insertNode(editor: Editor, node: JSONContent) {
   if (node.type && editor.schema.nodes[node.type]?.isBlock) return insertBlock(editor, node)
   void insertInlineObject(editor, node).catch((error: unknown) =>

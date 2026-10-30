@@ -61,6 +61,9 @@ interface Receipt {
   update: number[]
   history: HistoryState
 }
+interface HistoryView extends EditingView {
+  frontier: number[]
+}
 const CONFIRMED_HISTORY = { confirmedHistory: true }
 
 /** Deux Y.Doc indépendants ; le relais ne partage jamais d'objet JavaScript. */
@@ -91,10 +94,12 @@ export class Provider {
   private frontier?: Uint8Array
   private compositionToken = 0
   onHistoryLock = (_locked: boolean) => {}
+  onHistorySelection = (_state: HistoryState) => {}
+  private pendingHistoryView?: HistoryView
   rejected: { error: unknown; generation: string } | null = null
   private group = 0
   private lastEdit = 0
-  private buffered: { update: Uint8Array; capture: boolean }[] = []
+  private buffered: { update: Uint8Array; capture: boolean; view?: HistoryView }[] = []
   private scheduled = false
   private queued = 0
   private epoch = 0
@@ -231,7 +236,8 @@ export class Provider {
   private buffer(update: Uint8Array, capture: boolean) {
     // A single editor dispatch can also repair whitespace. Validate that final
     // synchronous state, never an intermediate transaction missing its repair.
-    this.buffered.push({ update, capture })
+    this.buffered.push({ update, capture, view: this.pendingHistoryView })
+    this.pendingHistoryView = undefined
     if (this.composing) return
     if (this.scheduled) return
     this.scheduled = true
@@ -243,10 +249,26 @@ export class Provider {
     if (!this.buffered.length) return
     const update = Y.mergeUpdates(this.buffered.map((item) => item.update))
     const capture = this.buffered.some((item) => item.capture)
+    const view = this.buffered.find((item) => item.view)?.view
     this.buffered = []
-    this.send(update, capture)
+    this.send(update, capture, view)
   }
-  private send(update: Uint8Array, capture = true) {
+  /** Capture the synchronous view before a structural keystroke. It travels
+   * with its update, so queued context notifications cannot overwrite it. */
+  withHistoryView(view: EditingView, dispatch: () => void) {
+    this.stopCapturing()
+    this.pendingHistoryView = {
+      ...view,
+      frontier: Array.from(Y.encodeSnapshot(Y.snapshot(this.doc))),
+    }
+    try {
+      dispatch()
+    } finally {
+      this.pendingHistoryView = undefined
+      this.stopCapturing()
+    }
+  }
+  private send(update: Uint8Array, capture = true, historyView?: HistoryView) {
     if (!this.online || this.rejected) return
     const now = Date.now()
     if (now - this.lastEdit >= 500) this.group++
@@ -263,6 +285,7 @@ export class Provider {
           generation,
           group,
           capture,
+          ...(historyView ? { historyView } : {}),
         })
         if (generation !== this.generation || this.epoch !== epoch) return
         if (typeof receipt === 'number') this.revision = Math.max(this.revision, receipt)
@@ -479,6 +502,7 @@ export class Provider {
         if (receipt.update.length)
           Y.applyUpdate(this.doc, new Uint8Array(receipt.update), CONFIRMED_HISTORY)
         this.acknowledge(receipt)
+        this.onHistorySelection(receipt.history)
       })
       .catch((error) => {
         if (!this.rejected && epoch === this.epoch) this.refuse(error, generation)

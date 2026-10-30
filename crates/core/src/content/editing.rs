@@ -2,6 +2,7 @@
 //! Each participant keeps a durable Yrs replica: wire checkpoints do not encode
 //! the internal redone links required by successive undo/redo operations.
 mod anchors;
+mod history;
 mod selection;
 pub use selection::{Selection, TextPoint};
 #[cfg(test)]
@@ -16,7 +17,7 @@ use crate::assets::Assets;
 use selection::AnchoredSelection;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use yrs::{ReadTxn, Transact, UndoManager};
+use yrs::{ReadTxn, Transact, undo::UndoManager};
 
 const MAX_CONTEXTS: usize = 64;
 const ORIGIN: &str = "participant-edit";
@@ -49,7 +50,9 @@ pub struct RejectedDraft {
 }
 struct Context {
     local: SharedDocument,
-    history: UndoManager,
+    history: UndoManager<Option<history::SavedView>>,
+    pending_view: history::ViewSlot,
+    restored_view: history::ViewSlot,
     owned_insertions: yrs::IdSet,
     confirmed_revision: u64,
     capture_group: Option<u64>,
@@ -74,9 +77,14 @@ impl Context {
         history.expand_scope(&local.doc, &local.doc.get_or_insert_xml_fragment("default"));
         history.expand_scope(&local.doc, &local.doc.get_or_insert_map("settings"));
         history.include_origin(ORIGIN);
+        let pending_view = history::ViewSlot::default();
+        let restored_view = history::ViewSlot::default();
+        history::observe(&mut history, pending_view.clone(), restored_view.clone());
         Ok(Self {
             local,
             history,
+            pending_view,
+            restored_view,
             owned_insertions: yrs::IdSet::default(),
             confirmed_revision: owner.guard().revision,
             capture_group: None,
@@ -119,6 +127,7 @@ impl Context {
         if group.is_none() || self.capture_group != group {
             self.history.reset();
         }
+        self.capture_view();
         self.local
             .doc
             .transact_mut_with(ORIGIN)
@@ -508,6 +517,8 @@ impl EditingSession {
         context.sync(&self.owner)?;
         context.history.reset();
         context.capture_group = None;
+        context.capture_view();
+        *context.restored_view.lock().unwrap() = None;
         let before = context.local.doc.transact().snapshot();
         match direction {
             Direction::Undo => context.history.undo_blocking(),
@@ -541,6 +552,7 @@ impl EditingSession {
             Ok(publication) => {
                 context.confirmed_revision = publication.guard.revision;
                 context.local.verify(&publication.state)?;
+                context.restore_view();
                 Ok(publication)
             }
             Err(error) => {

@@ -79,7 +79,7 @@ export function richZoneExtensions(
     TypstInlineInput,
     ...(policy.multiline
       ? [
-          DocumentInput,
+          DocumentInput.configure({ trailingParagraph: policy.trailingParagraph }),
           DocumentWhitespace.configure({ trailingParagraph: policy.trailingParagraph }),
         ]
       : [

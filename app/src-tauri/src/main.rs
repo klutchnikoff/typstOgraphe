@@ -59,6 +59,8 @@ fn join(window: WebviewWindow, state: State<Bridge>) -> Result<Bootstrap, String
         .join(window.label()))
 }
 #[tauri::command(async)]
+// Three framework-injected handles plus the relay wire fields.
+#[allow(clippy::too_many_arguments)]
 fn relay(
     window: WebviewWindow,
     app: tauri::AppHandle,
@@ -67,10 +69,17 @@ fn relay(
     generation: String,
     group: Option<u64>,
     capture: Option<bool>,
+    history_view: Option<owner::HistoryViewRequest>,
 ) -> Result<owner::Receipt, String> {
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
     session.check_peer(window.label(), &generation)?;
-    let receipt = session.relay_group(window.label(), &update, group, capture.unwrap_or(true))?;
+    let receipt = session.relay_view(
+        window.label(),
+        &update,
+        group,
+        capture.unwrap_or(true),
+        history_view,
+    )?;
     if !receipt.update.is_empty() {
         app.emit(
             "web-editor:change",
