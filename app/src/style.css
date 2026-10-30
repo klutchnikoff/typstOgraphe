@@ -1223,6 +1223,11 @@ main {
   background: #e8b74c55;
   border-radius: 2px;
 }
+.sync-location {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 2px;
+}
 .spelling-error {
   text-decoration: underline wavy var(--danger);
   text-decoration-skip-ink: none;

@@ -23,6 +23,7 @@ import { ContextBand } from './band-layout'
 import { DocumentInput, SoftBreak, TypstInlineInput } from './editing'
 import { DocumentWhitespace } from './document-whitespace'
 import { HorizontalSpace } from './horizontal-space'
+import { EditorLocation } from './editor-reveal'
 import { SharedInlineMarks } from './shared-inline-marks'
 import { documentExtensions } from './document-zone-extensions'
 import { inlineObjectKey } from './inline-objects'
@@ -79,6 +80,7 @@ export function richZoneExtensions(
     SharedInlineMarks,
     TypstInlineInput,
     HorizontalSpace,
+    EditorLocation,
     DocumentWhitespace.configure({
       trailingParagraph: policy.trailingParagraph,
       paragraphs: policy.multiline,
