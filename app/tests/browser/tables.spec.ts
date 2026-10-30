@@ -160,6 +160,12 @@ test('un tableau long se répartit sur plusieurs pages et la légende reste édi
 }) => {
   await blank(page)
   const widget = await create(page, '100', '2')
+  await expect(
+    widget.getByRole('button', { name: 'Ajouter une ligne en bas du tableau', exact: true }),
+  ).toBeDisabled()
+  await expect(
+    widget.getByRole('button', { name: 'Actions sur la ligne 1', exact: true }),
+  ).toBeDisabled()
   await expect
     .poll(() => page.locator('.preview-page').count(), { timeout: 15000 })
     .toBeGreaterThan(1)
@@ -246,4 +252,134 @@ test('un changement distant entre préparation et publication refuse le lot sans
   } finally {
     await peer.close()
   }
+})
+
+test('poignées : bandeau ciblé, conservation des données, clavier et curseur dans la nouvelle zone', async ({
+  page,
+}) => {
+  await blank(page)
+  const widget = await create(page, '3', '2')
+  await widget.locator('th').first().click()
+  await page.keyboard.type('Groupe')
+  await widget.locator('tr').nth(1).locator('td').first().click()
+  await page.keyboard.type('Étudiants')
+  await widget.locator('figcaption').click()
+  await page.keyboard.type('Une légende à conserver')
+  await page.evaluate(() => window.__spike!.provider.flush())
+  const handle = widget.getByRole('button', { name: 'Actions sur la ligne 2', exact: true })
+  await handle.click()
+  const panel = page.locator('#table-properties')
+  await expect(panel.getByRole('radio')).toHaveCount(0)
+  await expect(panel.getByRole('checkbox')).toHaveCount(0)
+  await expect(
+    panel.getByRole('button', { name: 'Ajouter une ligne au-dessous', exact: true }),
+  ).toBeFocused()
+  await expect(widget.locator('tr').nth(1).locator('.table-axis-selected')).toHaveCount(2)
+  await panel
+    .getByRole('button', { name: 'Ajouter une ligne au-dessous', exact: true })
+    .press('Escape')
+  await expect(handle).toBeFocused()
+  await handle.press('ArrowDown')
+  await expect(
+    widget.getByRole('button', { name: 'Actions sur la ligne 3', exact: true }),
+  ).toBeFocused()
+  await page.keyboard.press('Enter')
+  await panel.getByRole('button', { name: 'Ajouter une ligne au-dessus', exact: true }).click()
+  await expect(widget.locator('tr')).toHaveCount(4)
+  await page.keyboard.type('Nouvelle ligne')
+  await expect(widget.locator('tr').nth(2).locator('td').first()).toContainText('Nouvelle ligne')
+  await expect(widget.locator('tr').nth(1).locator('td').first()).toContainText('Étudiants')
+  await widget.getByRole('button', { name: 'Actions sur la colonne 1', exact: true }).click()
+  await panel
+    .getByRole('button', { name: 'Ajouter une colonne à droite', exact: true })
+    .press('Enter')
+  await expect(widget.locator('th')).toHaveCount(3)
+  await expect(panel).toBeHidden()
+  await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
+  await expect(page.locator('.tiptap[data-rich-zone-profile="document"]')).toBeFocused()
+  await page.keyboard.type('Nouvel en-tête')
+  await expect(widget.locator('th').nth(1)).toContainText('Nouvel en-tête')
+  await expect(widget.locator('th').first()).toContainText('Groupe')
+  await expect(widget.locator('figcaption')).toHaveText('Une légende à conserver')
+  // Decorations are absent from the public JSON, so CLI/MCP/exports see only the table.
+  const document = await page.evaluate(() => JSON.stringify(window.__spike!.editor.getJSON()))
+  expect(document).not.toContain('table-handle')
+  expect(document).not.toContain('table-axis-selected')
+})
+
+test('les + exécutent une seule commande commune, diffusée et annulable, sans ouvrir de bandeau', async ({
+  page,
+}) => {
+  await blank(page)
+  const widget = await create(page)
+  await widget.locator('figcaption').click()
+  await page.keyboard.type('Légende partagée')
+  await page.evaluate(() => window.__spike!.provider.clearHistory())
+  const peer = await page.context().newPage()
+  try {
+    await peer.goto('/?client=table-handles-peer')
+    await peer.waitForFunction(() => window.__spike?.ready)
+    const before = await page.evaluate(() => window.__spike!.provider.revision)
+    await widget
+      .getByRole('button', { name: 'Ajouter une ligne en bas du tableau', exact: true })
+      .click()
+    await expect(widget.locator('tr')).toHaveCount(3)
+    await expect(page.locator('#table-properties')).toBeHidden()
+    await expect(peer.locator('[data-editor-widget="tableFigure"] tr')).toHaveCount(3)
+    expect(await page.evaluate(() => window.__spike!.provider.revision)).toBe(before + 1)
+    await page.keyboard.type('Dernière ligne')
+    await expect(widget.locator('tr').last().locator('td').first()).toContainText('Dernière ligne')
+    await page.evaluate(() => window.__spike!.provider.flush())
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect(widget.locator('tr').last().locator('td').first()).not.toContainText(
+      'Dernière ligne',
+    )
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect(peer.locator('[data-editor-widget="tableFigure"] tr')).toHaveCount(2)
+    await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
+    await expect(page.locator('.tiptap[data-rich-zone-profile="document"]')).toBeFocused()
+    await page.keyboard.press('ControlOrMeta+Shift+z')
+    await expect(widget.locator('tr')).toHaveCount(3)
+    await widget
+      .getByRole('button', { name: 'Ajouter une colonne à droite du tableau', exact: true })
+      .click()
+    await expect(widget.locator('th')).toHaveCount(3)
+    await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
+    await expect(page.locator('.tiptap[data-rich-zone-profile="document"]')).toBeFocused()
+    await page.keyboard.type('Dernière colonne')
+    await expect(widget.locator('th').last()).toContainText('Dernière colonne')
+    await expect(widget.locator('figcaption')).toHaveText('Légende partagée')
+    await expect(peer.locator('[data-editor-widget="tableFigure"] th')).toHaveCount(3)
+  } finally {
+    await peer.close()
+  }
+})
+
+test('les contrôles respectent les limites et la déconnexion sans publier de changement', async ({
+  page,
+}) => {
+  await blank(page)
+  const widget = await create(page, '2', '12')
+  await expect(
+    widget.getByRole('button', { name: 'Ajouter une colonne à droite du tableau', exact: true }),
+  ).toBeDisabled()
+  await expect(
+    widget.getByRole('button', { name: 'Actions sur la colonne 1', exact: true }),
+  ).toBeDisabled()
+  await expect(
+    widget.getByRole('button', { name: 'Ajouter une ligne en bas du tableau', exact: true }),
+  ).toBeEnabled()
+  const before = await page.evaluate(async () => {
+    await window.__spike!.provider.disconnect()
+    return window.__spike!.editor.getJSON()
+  })
+  await expect(widget.locator('.table-handle:not(:disabled)')).toHaveCount(0)
+  expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
+  await page.evaluate(() => window.__spike!.provider.reconnect())
+  await expect(
+    widget.getByRole('button', { name: 'Ajouter une ligne en bas du tableau', exact: true }),
+  ).toBeEnabled()
+  await expect(
+    widget.getByRole('button', { name: 'Ajouter une colonne à droite du tableau', exact: true }),
+  ).toBeDisabled()
 })

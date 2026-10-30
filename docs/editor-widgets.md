@@ -41,6 +41,23 @@ le tableau entier. Les dimensions se choisissent avant l’insertion. Voir le
 [contrat exécuté](structured-commands.md#figures-et-tableaux--contrat-mis-en-place)
 pour la publication gardée, l’annulation et les limites de ce premier périmètre.
 
+Les poignées en marge gauche et au-dessus de la grille ciblent une ligne ou une
+colonne sans déplacer la sélection de texte. Leur bandeau B apparaît sous
+l’en-tête inchangé du widget : Annuler, insérer avant, insérer après (action par
+défaut à droite). Échap referme le bandeau et rend le focus à sa poignée ; les
+flèches parcourent les poignées du même axe et Entrée ouvre leur bandeau. Les
+boutons « + » en bas et à droite ajoutent directement en fin de grille.
+Après confirmation, le curseur entre dans la première cellule de la nouvelle
+ligne, ou dans la cellule supérieure de la nouvelle colonne. La légende reste
+dans le même widget. Les cellules fusionnées sont hors de ce périmètre.
+
+Ces contrôles sont des décorations ProseMirror non éditables : ils ne créent ni
+ligne ni cellule dans Yjs, le JSON public ou Typst. Les poignées et les « + »
+rejoignent le même contrôleur que les paramètres et les commandes du registre,
+puis les commandes typées communes du cœur. Les limites, le refus d’un lot
+concurrent et l’historique natif sont donc conservés. Aucun composant React ou
+service payant n’est ajouté.
+
 ## Bandeau contextuel unique
 
 Les paramètres, la suppression, les liens et l’orthographe utilisent le même
