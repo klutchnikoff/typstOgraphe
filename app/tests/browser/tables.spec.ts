@@ -326,6 +326,13 @@ test('l’ajout par la dernière poignée est diffusé une seule fois et reste a
     await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
     await page.keyboard.press('ControlOrMeta+Shift+z')
     await expect(widget.locator('tr')).toHaveCount(3)
+    await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
+    const workingRow = await page.evaluate(() => {
+      const pos = window.__spike!.editor.state.selection.$from
+      for (let depth = 1; depth <= pos.depth; depth++)
+        if (pos.node(depth).type.name === 'tableRow') return pos.index(depth - 1)
+      return 0
+    })
     await widget.getByRole('button', { name: 'Actions sur la colonne 2', exact: true }).click()
     await panel.getByRole('button', { name: 'À droite', exact: true }).press('Enter')
     await expect(widget.locator('th')).toHaveCount(3)
@@ -333,7 +340,9 @@ test('l’ajout par la dernière poignée est diffusé une seule fois et reste a
     await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
     await expect(page.locator('.tiptap[data-rich-zone-profile="document"]')).toBeFocused()
     await page.keyboard.type('Dernière colonne')
-    await expect(widget.locator('th').last()).toContainText('Dernière colonne')
+    await expect(widget.locator('tr').nth(workingRow).locator('th, td').last()).toContainText(
+      'Dernière colonne',
+    )
     await expect(widget.locator('figcaption')).toHaveText('Légende partagée')
     await expect(peer.locator('[data-editor-widget="tableFigure"] th')).toHaveCount(3)
   } finally {

@@ -83,7 +83,7 @@ champ ne crée pas implicitement un nouveau paramètre Typst.
 
 - Ouvrir, fermer et modifier un réglage provisoire ne publie aucune édition.
 - Appliquer vérifie la cible gardée, puis utilise la commande du moteur.
-- Annuler/Échap abandonne les réglages et restitue le contexte précédent.
+- Annuler/Échap abandonne les réglages et restitue le contexte ciblé.
 - Supprimer retire tout le widget ; l’historique permet de le rétablir.
 - `Ctrl+Retour arrière` supprime directement le widget entier depuis son corps
   ou une annotation, en une étape d’annulation. Sur macOS, `Cmd+Retour arrière`
@@ -101,6 +101,32 @@ champ ne crée pas implicitement un nouveau paramètre Typst.
   ne force la validation ou l’abandon de la composition.
 - L’interaction graphique reste distincte de la sélection et des styles publiés.
   Le focus de ses champs ne déclenche pas les raccourcis de rédaction du corps.
+
+L’ouverture et le retour au texte relèvent de `BandHost`, pour tous les widgets
+et bandeaux en ligne. Si le curseur appartient déjà au widget, sa sélection est
+conservée. Sinon, ouvrir ses paramètres ou sa corbeille établit un contexte dans
+ce widget ; un ancien curseur situé au début du document ne devient pas la cible
+du retour. Un bandeau en ligne conserve la sélection liée à sa cible ou y place
+le point de reprise si elle était ailleurs. Cette navigation reste privée et
+ne crée aucune étape d’annulation documentaire.
+
+Validation, annulation et sortie au clavier utilisent `focusEditorSelection` :
+restaurer la sélection, synchroniser le focus DOM, puis révéler le curseur. Aucun
+focus différé ne peut revenir écraser une navigation ultérieure. Les éditions
+gardées préparées avec `applyPlannedEdit` restaurent leur sélection projetée même
+si Yrs renouvelle une identité de cellule ou de widget. Avec `focus: false`, elles
+laissent le focus et le défilement au bandeau jusqu’à sa fermeture. Les paramètres
+des tableaux suivent cette même voie ; seuls les indices de la cellule cible
+après une insertion ou suppression restent propres au tableau. Une validation
+sans changement referme également le bandeau.
+
+Un remplacement complet de widget peut faire sortir automatiquement la sélection
+ProseMirror. La planification commune conserve alors ses extrémités et leur sens
+si le contenu interne est identique. Si la structure du contenu change, elle
+reprend dans la première zone du widget remplacé. Une destination explicite déjà
+située dans ce widget est respectée ; une suppression ne réutilise jamais le
+widget voisin. Ces règles concernent la transaction locale gardée, pas une
+réinterprétation des changements distants.
 
 Les raccourcis textuels interactifs (`- `, `1. `, etc.), boutons et palette
 rejoignent les mêmes commandes. Collage et appels MCP conservent leurs règles
