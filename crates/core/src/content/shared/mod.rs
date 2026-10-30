@@ -3,6 +3,10 @@
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod command_tests;
 pub(super) mod commands;
+mod join;
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod join_tests;
 mod normalization;
 mod objects;
 pub(super) mod projection;

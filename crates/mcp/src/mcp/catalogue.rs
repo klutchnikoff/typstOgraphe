@@ -82,6 +82,7 @@ pub fn attached_id(id: &str) -> bool {
             | "node.set_attrs"
             | "block.remove"
             | "block.split"
+            | "block.join"
             | "block.paragraph"
             | "block.heading_1"
             | "block.heading_2"
@@ -106,6 +107,9 @@ pub fn attached_step(call: &api::Call) -> bool {
 pub fn attached_command(command: &typstographe_core::content::commands::Command) -> bool {
     use typstographe_core::content::commands::*;
     match command {
+        Command::JoinBlocks { left, right } => {
+            left.root == TreeRoot::Body && right.root == TreeRoot::Body
+        }
         Command::Insert { target, .. }
         | Command::Delete { target }
         | Command::Bold { target, .. }

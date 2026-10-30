@@ -196,6 +196,8 @@ pub enum Command {
     RemoveBlock { target: TreeTarget },
     #[serde(rename = "block.split")]
     SplitBlock { target: TextTarget },
+    #[serde(rename = "block.join")]
+    JoinBlocks { left: TreeTarget, right: TreeTarget },
     #[serde(rename = "block.paragraph")]
     Paragraph { target: TreeTarget },
     #[serde(rename = "block.heading_1")]
@@ -264,6 +266,7 @@ impl Command {
             Self::SetNodeAttrs { .. } => "node.set_attrs",
             Self::RemoveBlock { .. } => "block.remove",
             Self::SplitBlock { .. } => "block.split",
+            Self::JoinBlocks { .. } => "block.join",
             Self::Paragraph { .. } => "block.paragraph",
             Self::Heading1 { .. } => "block.heading_1",
             Self::Heading2 { .. } => "block.heading_2",
@@ -298,6 +301,7 @@ pub const IDS: &[&str] = &[
     "node.set_attrs",
     "block.remove",
     "block.split",
+    "block.join",
     "block.paragraph",
     "block.heading_1",
     "block.heading_2",

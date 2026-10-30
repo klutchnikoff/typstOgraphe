@@ -635,3 +635,73 @@ fn adding_an_id_with_a_stale_order_entry_uses_the_explicit_anchor() {
     assert_eq!(fields(&s)["authors"][0]["id"], "camille");
     assert_eq!(fields(&s)["authors"][1]["id"], "alex");
 }
+
+#[test]
+fn joins_use_the_same_rich_root_without_crossing_body_record_or_cell_boundaries() {
+    let mut s = session(DocumentType::Article);
+    let root = abstract_tree(&s, &[]);
+    execute(
+        &mut s,
+        vec![
+            command(
+                "block.insert",
+                json!({"parent":root,"index":0,"node":paragraph("Avant ")}),
+            ),
+            command(
+                "block.insert",
+                json!({"parent":root,"index":1,"node":paragraph("Après")}),
+            ),
+        ],
+    );
+    let left = abstract_tree(&s, &[0]);
+    let right = abstract_tree(&s, &[1]);
+    execute(
+        &mut s,
+        vec![command("block.join", json!({"left":left,"right":right}))],
+    );
+    let content = fields(&s)["localizations"][0]["abstract"]["content"][0]["content"].clone();
+    assert_eq!(
+        content
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|n| n["text"].as_str())
+            .collect::<String>(),
+        "Avant Après"
+    );
+    for (a, b) in [
+        (left.clone(), tree(&[1])),
+        (tree(&[0]), right),
+        (tree(&[1, 0, 0, 0]), tree(&[1, 0, 1, 0])),
+    ] {
+        let before = s.update();
+        assert!(
+            s.prepare_commands(
+                s.guard(),
+                &[command("block.join", json!({"left":a,"right":b}))]
+            )
+            .is_err()
+        );
+        assert_eq!(s.update(), before);
+    }
+    let saved = s.guard().clone();
+    let prepared = s
+        .prepare_commands(
+            &saved,
+            &[command(
+                "block.join",
+                json!({"left":abstract_tree(&s,&[0]),"right":abstract_tree(&s,&[1])}),
+            )],
+        )
+        .unwrap();
+    execute(
+        &mut s,
+        vec![command(
+            "text.insert",
+            json!({"target":body(json!([0]),0,0),"text":"Concurrent"}),
+        )],
+    );
+    let before = s.update();
+    assert!(s.publish(prepared).is_err());
+    assert_eq!(s.update(), before);
+}

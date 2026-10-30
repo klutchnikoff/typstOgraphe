@@ -58,6 +58,22 @@ pub fn for_id(id: &str) -> Vec<Call> {
                 params: json!({"parent":{"root":{"kind":"body"}},"index":0,"rows":3,"columns":2,"header":true}),
             }];
         }
+        "block.join" => {
+            return vec![
+                Call {
+                    id: "block.insert".into(),
+                    params: json!({"parent":{"root":{"kind":"body"}},"index":0,"node":paragraph("Left ")}),
+                },
+                Call {
+                    id: "block.insert".into(),
+                    params: json!({"parent":{"root":{"kind":"body"}},"index":1,"node":paragraph("right")}),
+                },
+                Call {
+                    id: id.into(),
+                    params: json!({"left":{"root":{"kind":"body"},"path":[0]},"right":{"root":{"kind":"body"},"path":[1]}}),
+                },
+            ];
+        }
         _ => return vec![],
     };
     let inline = matches!(id, "insert.footnote" | "insert.citation");

@@ -2419,6 +2419,450 @@
     },
     {
       "batch_step": true,
+      "description": "Join explicit adjacent left/right paragraphs or headings in the same container. No added space or break; the nonempty left block keeps its kind and attributes. Remove an empty neighbor without converting its survivor. Widgets, cells and annotation boundaries are protected; the mandatory final editing slot is a no-op.",
+      "family": "edit",
+      "id": "block.join",
+      "params_schema": {
+        "$defs": {
+          "DocumentLanguage": {
+            "enum": [
+              "fr",
+              "en",
+              "de",
+              "es",
+              "it",
+              "pt",
+              "nl"
+            ],
+            "type": "string"
+          },
+          "FieldTarget": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "option",
+                    "type": "string"
+                  },
+                  "name": {
+                    "$ref": "#/$defs/OptionName"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "ImageResource": {
+            "additionalProperties": false,
+            "description": "Validated immutable image bytes, separate from the shared text/history.",
+            "properties": {
+              "data": {
+                "description": "Base64 on the wire; decoded immutable bytes in the engine.",
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "data"
+            ],
+            "type": "object"
+          },
+          "Mark": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "MetadataField": {
+            "enum": [
+              "article.references",
+              "article.citation_style",
+              "article.show_outline",
+              "article.authors",
+              "article.affiliations",
+              "article.localizations",
+              "sender.name",
+              "sender.role",
+              "sender.department",
+              "sender.email",
+              "sender.organisation",
+              "sender.address",
+              "sender.phone",
+              "recipient.name",
+              "recipient.address",
+              "letter.subject",
+              "letter.reference",
+              "letter.place",
+              "letter.date",
+              "meeting.title",
+              "meeting.date",
+              "meeting.place",
+              "meeting.author",
+              "meeting.attendees",
+              "meeting.apologies"
+            ],
+            "type": "string"
+          },
+          "Node": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "content": {
+                "items": {
+                  "$ref": "#/$defs/Node"
+                },
+                "type": "array"
+              },
+              "marks": {
+                "items": {
+                  "$ref": "#/$defs/Mark"
+                },
+                "type": "array"
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "OptionName": {
+            "description": "General document options; values remain JSON, checked against their Rust types.",
+            "enum": [
+              "paper",
+              "landscape",
+              "language",
+              "bullet_marker",
+              "spelling_ignored"
+            ],
+            "type": "string"
+          },
+          "Style": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "bold",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "italic",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "link",
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "url"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "Switch": {
+            "enum": [
+              "on",
+              "off"
+            ],
+            "type": "string"
+          },
+          "TextTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone": {
+                "$ref": "#/$defs/TextZone"
+              }
+            },
+            "required": [
+              "zone",
+              "from",
+              "to"
+            ],
+            "type": "object"
+          },
+          "TextZone": {
+            "description": "Paths use projected child indices in the guarded revision, never Yjs identifiers.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "annotation",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  },
+                  "path": {
+                    "default": [],
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeRoot": {
+            "description": "A body tree or one rich record field. No XML identifiers or global positions.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "default": [],
+                "items": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "root": {
+                "$ref": "#/$defs/TreeRoot"
+              }
+            },
+            "required": [
+              "root"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "left": {
+            "$ref": "#/$defs/TreeTarget"
+          },
+          "right": {
+            "$ref": "#/$defs/TreeTarget"
+          }
+        },
+        "required": [
+          "left",
+          "right"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "batch_step": true,
       "description": "Ordinary prose. A soft return stays inside the paragraph; two returns create a paragraph.",
       "family": "edit",
       "id": "block.paragraph",
@@ -6748,6 +7192,36 @@
                     },
                     "required": [
                       "target"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "id",
+                  "params"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "const": "block.join",
+                    "type": "string"
+                  },
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "left": {
+                        "$ref": "#/$defs/TreeTarget"
+                      },
+                      "right": {
+                        "$ref": "#/$defs/TreeTarget"
+                      }
+                    },
+                    "required": [
+                      "left",
+                      "right"
                     ],
                     "type": "object"
                   }
