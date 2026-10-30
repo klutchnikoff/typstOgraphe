@@ -1411,6 +1411,19 @@ li:has(.interline-band-gap[data-marker])::marker {
   font-size: 0.8em;
   line-height: 1.8em;
 }
+.nonbreaking-space {
+  position: relative;
+}
+.nonbreaking-space::before {
+  content: '~'/ '';
+  position: absolute;
+  left: 0;
+  color: var(--muted);
+  opacity: 0.65;
+  font-weight: normal;
+  font-style: normal;
+  pointer-events: none;
+}
 .tiptap dl {
   margin: 0.35em 0;
 }

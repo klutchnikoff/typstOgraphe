@@ -22,6 +22,7 @@ import { Plugin } from '@tiptap/pm/state'
 import { ContextBand } from './band-layout'
 import { DocumentInput, SoftBreak, TypstInlineInput } from './editing'
 import { DocumentWhitespace } from './document-whitespace'
+import { HorizontalSpace } from './horizontal-space'
 import { SharedInlineMarks } from './shared-inline-marks'
 import { documentExtensions } from './document-zone-extensions'
 import { inlineObjectKey } from './inline-objects'
@@ -77,11 +78,13 @@ export function richZoneExtensions(
     SoftBreak,
     SharedInlineMarks,
     TypstInlineInput,
+    HorizontalSpace,
+    DocumentWhitespace.configure({
+      trailingParagraph: policy.trailingParagraph,
+      paragraphs: policy.multiline,
+    }),
     ...(policy.multiline
-      ? [
-          DocumentInput.configure({ trailingParagraph: policy.trailingParagraph }),
-          DocumentWhitespace.configure({ trailingParagraph: policy.trailingParagraph }),
-        ]
+      ? [DocumentInput.configure({ trailingParagraph: policy.trailingParagraph })]
       : [
           Extension.create({
             name: 'singleLineInput',

@@ -168,6 +168,21 @@ et refuse les annotations brutes et les zones qui ne sont pas des paragraphes/ti
 Il fonctionne aussi dans les cellules et les résumés. Un titre d’en-tête ne peut
 pas devenir deux paragraphes : son profil `rich_inline` continue à s’appliquer.
 
+Les zones riches partagent également la saisie des espaces : un premier appui
+insère une espace simple ; les suivants, au même emplacement, alternent entre
+espace simple et insécable Unicode U+00A0, sans en accumuler. Une insécable
+explicitement saisie reste insécable. Le collage et les commandes documentaires
+réduisent les séquences d’espaces simples/insécables à leur premier caractère,
+y compris à cheval sur des styles, sans modifier les espaces fines U+202F.
+Cette normalisation ne franchit ni les objets en ligne ni les retours et ne
+réécrit pas les champs bruts ou les métadonnées de formulaire.
+
+L’insécable est du texte ordinaire pour la sélection, le copier-coller,
+l’historique et Yjs/Yrs. Un `~` décoratif de la couleur du `¶` la signale dans
+l’éditeur ; il n’entre pas dans le contenu. L’export Typst produit `~` pour
+U+00A0, avec les offsets de synchronisation correspondants ; un tilde littéral
+reste échappé. La préédition IME n’est normalisée qu’après sa validation.
+
 `block.replace` reçoit `target` et `node`, `block.remove` seulement `target`.
 Les racines, cellules, lignes de tableau, badges et zones d’attribution ne sont
 pas supprimables comme des blocs ordinaires. Un item de liste peut être retiré,

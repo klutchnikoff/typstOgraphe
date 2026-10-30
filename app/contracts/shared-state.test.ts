@@ -154,9 +154,9 @@ function state(value: Y.Doc) {
 }
 beforeAll(async () => {
   directory = mkdtempSync(join(tmpdir(), 'tog-shared-contract-'))
-  const binary = resolve(
-    '../target/debug/typstographe' + (process.platform === 'win32' ? '.exe' : ''),
-  )
+  const binary =
+    process.env.TOG_SPIKE_BINARY ||
+    resolve('../target/debug/typstographe' + (process.platform === 'win32' ? '.exe' : ''))
   child = spawn(binary, ['--stdio', '--session-dir', directory], {
     stdio: ['pipe', 'pipe', 'pipe'],
   })
@@ -1454,4 +1454,72 @@ it('the immediate prose join and typed native join agree on Unicode, badges, mar
     expect(state(native)).toEqual(state(local))
     await probe({ action: 'inspect', update: bytes(local), expected: state(native) })
   }
+})
+
+it('native and local whitespace repair preserve Unicode, marks and NBSP in body and rich header fields', async () => {
+  const { normalizeSharedSpaces } = await import('../src/horizontal-space')
+  const initial = seed('article'),
+    native = doc(bytes(initial)),
+    local = doc(bytes(initial))
+  const rich = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'A😀  ', marks: [{ type: 'bold' }] },
+          { type: 'text', text: '  Bé\u00a0\u00a0fin', marks: [{ type: 'italic' }] },
+        ],
+      },
+    ],
+  }
+  const root = local.getXmlFragment('default')
+  const definition = catalogue.types
+    .find((t) => t.id === 'article')!
+    .structured!.collections.find((c) => c.parameter === 'localizations')!
+  const localizations = recordMap(store(local), definition)
+  const localized = Array.from(localizations.values())[0] as Y.Map<unknown>
+  const id = Array.from(localizations.keys())[0]
+  for (const target of [root, localized.get('title'), localized.get('abstract')]) {
+    const fragment = target as Y.XmlFragment
+    fragment.doc!.transact(() => {
+      fragment.delete(0, fragment.length)
+      prosemirrorJSONToYXmlFragment(schema, rich, fragment)
+      normalizeSharedSpaces(fragment)
+    })
+  }
+  // The body retains its mandatory editing slot; rich headers do not gain one.
+  local.transact(() => root.insert(root.length, [new Y.XmlElement('paragraph')]))
+  const guard = { document: 'space-contract', revision: 0 }
+  const result = await probe({
+    action: 'commands',
+    update: bytes(native),
+    guard,
+    expected: guard,
+    commands: [
+      {
+        id: 'block.replace',
+        params: { target: { root: { kind: 'body' }, path: [0] }, node: rich.content[0] },
+      },
+      ...['title', 'abstract'].map((field) => ({
+        id: 'block.replace',
+        params: {
+          target: { root: { kind: 'record', collection: 'localizations', id, field }, path: [0] },
+          node: rich.content[0],
+        },
+      })),
+      {
+        id: 'block.splice',
+        params: {
+          parent: { root: { kind: 'body' }, path: [] },
+          index: 1,
+          delete_count: state(native).document.content!.length - 1,
+          nodes: [{ type: 'paragraph' }],
+        },
+      },
+    ],
+  })
+  Y.applyUpdate(native, new Uint8Array(result.update))
+  expect(state(native)).toEqual(state(local))
+  await probe({ action: 'inspect', update: bytes(local), expected: state(native) })
 })

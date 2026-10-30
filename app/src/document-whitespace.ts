@@ -3,6 +3,7 @@ import type { Node as PMNode } from '@tiptap/pm/model'
 import { Extension } from '@tiptap/core'
 import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state'
+import { normalizeSpaces, normalizeSharedSpaces } from './horizontal-space'
 
 export const documentWhitespaceKey = new PluginKey('documentWhitespace')
 export const lineBreak = (node: PMNode | null | undefined) =>
@@ -15,7 +16,9 @@ const emptyFlowBlock = (node: PMNode | null | undefined) =>
   node.content.content.every((child) => lineBreak(child))
 
 /** Repair whitespace without rewriting text, marks, annotations, list items or cells. */
-export function normalizeWhitespace(tr: Transaction, trailingParagraph = true) {
+export function normalizeWhitespace(tr: Transaction, trailingParagraph = true, paragraphs = true) {
+  normalizeSpaces(tr)
+  if (!paragraphs) return tr
   // Keep an empty document editable, including a heading chosen before typing.
   if (tr.doc.content.content.some((node) => !emptyFlowBlock(node)))
     while (emptyFlowBlock(tr.doc.firstChild)) tr.delete(0, tr.doc.firstChild!.nodeSize)
@@ -75,6 +78,7 @@ function normalizeSharedWhitespace(
   origin: unknown = documentWhitespaceKey,
   addToHistory = false,
   trailingParagraph = true,
+  paragraphs = true,
 ) {
   const isBreak = (node: unknown) =>
     node instanceof Y.XmlElement && ['softBreak', 'hardBreak'].includes(node.nodeName)
@@ -115,6 +119,8 @@ function normalizeSharedWhitespace(
   }
   root.doc!.transact((transaction) => {
     transaction.meta.set('addToHistory', addToHistory)
+    normalizeSharedSpaces(root)
+    if (!paragraphs) return
     if (root.toArray().some((node) => !emptyFlow(node)))
       while (emptyFlow(root.toArray()[0])) root.delete(0, 1)
     const first = root.toArray()[0]
@@ -150,7 +156,7 @@ function normalizeSharedWhitespace(
 /** Keep local repairs in the same undo capture; preserve shared character identities on remote repairs. */
 export const DocumentWhitespace = Extension.create({
   name: 'documentWhitespace',
-  addOptions: () => ({ trailingParagraph: true }),
+  addOptions: () => ({ trailingParagraph: true, paragraphs: true }),
   addStorage: () => ({
     checked: false,
     repairing: false,
@@ -175,6 +181,7 @@ export const DocumentWhitespace = Extension.create({
               documentWhitespaceKey,
               false,
               this.options.trailingParagraph,
+              this.options.paragraphs,
             )
         }
       }, 0)
@@ -191,9 +198,14 @@ export const DocumentWhitespace = Extension.create({
             ySyncPluginKey,
             transaction.getMeta('addToHistory') !== false,
             this.options.trailingParagraph,
+            this.options.paragraphs,
           )
         else {
-          const repair = normalizeWhitespace(this.editor.state.tr, this.options.trailingParagraph)
+          const repair = normalizeWhitespace(
+            this.editor.state.tr,
+            this.options.trailingParagraph,
+            this.options.paragraphs,
+          )
           if (transaction.getMeta('addToHistory') === false) repair.setMeta('addToHistory', false)
           if (repair.docChanged) next(repair)
         }
