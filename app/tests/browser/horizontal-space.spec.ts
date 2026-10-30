@@ -32,6 +32,35 @@ for (const profile of ['body', 'title', 'abstract']) {
       muted: getComputedStyle(el).getPropertyValue('--muted').trim(),
     }))
     expect(css.content).toContain('~')
+    // A pseudo-element does not reserve its own width. The actual NBSP must
+    // occupy the tilde's natural advance in every rich-zone profile.
+    const advance = await marker.evaluate(async (el) => {
+      await document.fonts.ready
+      const measure = (text: string) => {
+        const range = document.createRange()
+        if (text === '\u00a0') {
+          range.selectNodeContents(el)
+          return range.getBoundingClientRect().width
+        }
+        const probe = document.createElement('span')
+        const style = getComputedStyle(el, '::before')
+        probe.textContent = text
+        probe.style.fontFamily = style.fontFamily
+        probe.style.fontSize = style.fontSize
+        probe.style.fontWeight = style.fontWeight
+        probe.style.fontStyle = style.fontStyle
+        probe.style.letterSpacing = style.letterSpacing
+        probe.style.position = 'absolute'
+        probe.style.visibility = 'hidden'
+        document.body.append(probe)
+        const width = probe.getBoundingClientRect().width
+        probe.remove()
+        return width
+      }
+      return { space: measure('\u00a0'), tilde: measure('~') }
+    })
+    expect(advance.space).toBeGreaterThan(0)
+    expect(Math.abs(advance.space - advance.tilde)).toBeLessThan(0.5)
     await page.evaluate(async () => {
       await window.__spike!.provider.clearHistory()
     })

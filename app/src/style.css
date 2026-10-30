@@ -1413,6 +1413,11 @@ li:has(.interline-band-gap[data-marker])::marker {
 }
 .nonbreaking-space {
   position: relative;
+  /* The underlying NBSP and its decorative tilde need the same advance.
+     Keep a text character: no atomic wrapper or extra caret stop. */
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-weight: normal;
+  font-style: normal;
 }
 .nonbreaking-space::before {
   content: '~'/ '';
