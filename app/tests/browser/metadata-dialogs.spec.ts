@@ -1,3 +1,4 @@
+import { confirmNewDocument } from './document-lifecycle'
 import { expect, test, type Page } from '@playwright/test'
 
 const dialog = (page: Page) => page.locator('dialog.form-dialog')
@@ -28,7 +29,7 @@ async function create(page: Page) {
   await page.getByRole('button', { name: 'Fichier', exact: true }).click()
   await page.locator('[data-command="document.new"]').click()
   await page.locator('dialog select').first().selectOption('article')
-  await page.getByRole('button', { name: 'Créer', exact: true }).click()
+  await confirmNewDocument(page)
   await tab(page, 'affiliations')
   await add(page, 'Affiliation')
   await dialog(page)

@@ -1,24 +1,32 @@
-name: Application Tauri
+# Shared verification steps: no independent push/PR trigger and no duplicate run.
+name: Vérifications communes
 on:
-  push:
-    paths: ['app/**', 'assets/**', 'crates/core/**', 'crates/i18n/**', 'Cargo.toml', 'Cargo.lock', 'package.json', 'package-lock.json', '.github/workflows/desktop.yml']
-  pull_request:
-    paths: ['app/**', 'assets/**', 'crates/core/**', 'crates/i18n/**', 'Cargo.toml', 'Cargo.lock', 'package.json', 'package-lock.json', '.github/workflows/desktop.yml']
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      platforms:
+        type: string
+        required: true
+      browsers:
+        type: string
+        default: none
+      audit:
+        type: boolean
+        default: false
+      wasm:
+        type: boolean
+        default: false
 permissions:
   contents: read
 env:
   CARGO_BUILD_JOBS: "2"
-concurrency:
-  group: desktop-${{ github.ref }}
-  cancel-in-progress: true
 jobs:
   check:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ fromJSON(inputs.platforms) }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,33 +51,62 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             target
-          key: desktop-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: desktop-${{ runner.os }}-
+          key: checks-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            checks-${{ runner.os }}-
+            desktop-${{ runner.os }}-
+            rust-${{ runner.os }}-
       - run: npm ci
-      - name: npm advisories
+      - name: Formats and architecture
         if: runner.os == 'Linux'
-        run: npm audit --audit-level=moderate
-      - run: npm run check:format
-      - run: npm test
+        run: |
+          npm run check:format
+          cargo +stable fmt --all --check
+          python3 -m unittest discover -s scripts/tests -v
+          scripts/check-file-length.sh
+          python3 scripts/check_core_dependencies.py
+      - name: Web unit tests and native locales
+        if: runner.os == 'Linux'
+        run: npm test
+      # Each native build embeds this frontend. Pure web tests run only on Linux.
       - run: npm run build:web
-      - run: cargo +stable fmt --all --check
-      - run: cargo +stable test --locked -p typstographe --features recipe-driver
+      - name: Workspace tests, including recovery and file conservation
+        run: cargo +stable test --locked --workspace --features typstographe/recipe-driver
       - name: Clippy, distributed and recipe builds
         run: |
-          cargo +stable clippy --locked -p typstographe --all-targets -- -D warnings
+          cargo +stable clippy --locked --workspace --all-targets -- -D warnings
           cargo +stable clippy --locked -p typstographe --all-targets --features recipe-driver -- -D warnings
       - name: Functional recipe driver
         run: cargo +stable build --locked -p typstographe --features recipe-driver
       - name: Yjs and Yrs shared contract recipes
         run: npm run test:contract --workspace @typstographe/app
+      - uses: taiki-e/install-action@v2
+        if: runner.os == 'Linux' && inputs.audit
+        with:
+          tool: cargo-deny@0.20.2
+      - name: Dependency advisories, licences and sources
+        if: runner.os == 'Linux' && inputs.audit
+        run: |
+          cargo deny --locked check
+          npm audit --audit-level=moderate
+      - name: Core WebAssembly compatibility
+        if: runner.os == 'Linux' && inputs.wasm
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo +stable check --locked -p typstographe-core --target wasm32-unknown-unknown
       - name: Browser engines
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && inputs.browsers != 'none'
         run: npx playwright install --with-deps chromium webkit
-      - name: Graphical recipes
-        if: runner.os == 'Linux'
+      - name: Critical graphical recipes
+        if: runner.os == 'Linux' && inputs.browsers == 'smoke'
+        run: npm run test:browser:smoke
+      - name: Exhaustive graphical recipes
+        if: runner.os == 'Linux' && inputs.browsers == 'full'
         run: npm run test:browser
       - uses: actions/upload-artifact@v7
-        if: always() && runner.os == 'Linux'
+        if: failure() && runner.os == 'Linux' && inputs.browsers != 'none'
         with:
-          name: desktop-browser-results
+          name: browser-results-${{ inputs.browsers }}
           path: app/test-results
+          if-no-files-found: ignore
+          retention-days: 7

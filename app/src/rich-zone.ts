@@ -14,7 +14,10 @@ import type * as Y from 'yjs'
 import type { Provider } from './provider'
 import { bindEditingHistory, editingProvider, historyFor } from './editing-history'
 import { bindEditorTarget, type RecordRoot } from './editor-targets'
+import { bindCommandContext } from './command-context'
+import { capabilityAvailability, editingAvailability } from './command-availability'
 import { runFormatting } from './formatting'
+import { syncNativeTextSelection } from './native-selection'
 import { Plugin } from '@tiptap/pm/state'
 import { ContextBand } from './band-layout'
 import { DocumentInput, SoftBreak, TypstInlineInput } from './editing'
@@ -147,7 +150,7 @@ export function richZoneExtensions(
             () =>
             ({ tr, dispatch }) => {
               tr.setMeta('preventDispatch', true)
-              if (this.editor.view.composing) return false
+              if (!editingAvailability(this.editor, false).enabled) return false
               const history = historyFor(binding.historyOwner)
               if (!(redo ? history?.redoStack.length : history?.undoStack.length)) return false
               if (dispatch) {
@@ -161,7 +164,7 @@ export function richZoneExtensions(
         },
         addKeyboardShortcuts() {
           const change = (redo = false) => {
-            if (this.editor.view.composing) return false
+            if (!editingAvailability(this.editor, false).enabled) return false
             if (redo) this.editor.commands.redo()
             else this.editor.commands.undo()
             return true
@@ -234,7 +237,8 @@ export function richZoneExtensions(
             () =>
             ({ tr, dispatch }) => {
               tr.setMeta('preventDispatch', true)
-              if (this.editor.view.composing || !native.canHistory(redo)) return false
+              if (!editingAvailability(this.editor, false).enabled || !native.canHistory(redo))
+                return false
               if (dispatch) void native.history(redo ? 'redo' : 'undo').catch(native.onError)
               return true
             }
@@ -243,11 +247,17 @@ export function richZoneExtensions(
         addKeyboardShortcuts() {
           return {
             'Mod-z': () =>
-              this.editor.view.composing ? false : (this.editor.commands.undo(), true),
+              !editingAvailability(this.editor, false).enabled
+                ? false
+                : (this.editor.commands.undo(), true),
             'Mod-Shift-z': () =>
-              this.editor.view.composing ? false : (this.editor.commands.redo(), true),
+              !editingAvailability(this.editor, false).enabled
+                ? false
+                : (this.editor.commands.redo(), true),
             'Mod-y': () =>
-              this.editor.view.composing ? false : (this.editor.commands.redo(), true),
+              !editingAvailability(this.editor, false).enabled
+                ? false
+                : (this.editor.commands.redo(), true),
           }
         },
       }),
@@ -321,12 +331,12 @@ export function createRichZone(options: RichZoneOptions): Editor {
         addKeyboardShortcuts() {
           return {
             'Mod-b': () => {
-              if (this.editor.view.composing) return false
+              if (!editingAvailability(this.editor).enabled) return false
               runFormatting(this.editor, 'text.bold')
               return true
             },
             'Mod-i': () => {
-              if (this.editor.view.composing) return false
+              if (!editingAvailability(this.editor).enabled) return false
               runFormatting(this.editor, 'text.italic')
               return true
             },
@@ -335,7 +345,7 @@ export function createRichZone(options: RichZoneOptions): Editor {
                   ([0, 1, 2, 3] as const).map((level) => [
                     `Mod-Alt-${level}`,
                     () => {
-                      if (this.editor.view.composing) return false
+                      if (!editingAvailability(this.editor).enabled) return false
                       runFormatting(
                         this.editor,
                         level ? `block.heading_${level}` : 'block.paragraph',
@@ -346,8 +356,8 @@ export function createRichZone(options: RichZoneOptions): Editor {
                 )
               : {}),
             'Mod-k': () => {
-              if (!openLink || this.editor.view.composing) return false
-              if (!this.editor.state.selection.empty || this.editor.isActive('link'))
+              if (!openLink || !editingAvailability(this.editor).enabled) return false
+              if (capabilityAvailability(this.editor, 'text.link', 'link').enabled)
                 openLink(this.editor)
               return true
             },
@@ -368,6 +378,7 @@ export function createRichZone(options: RichZoneOptions): Editor {
       },
       handleKeyDown: (view, event) => {
         if (event.isComposing || view.composing) return false
+        syncNativeTextSelection(editor)
         const owner = editor
         if (policy.widgets) {
           if (inlineObjectKey(owner, event, properties || (() => {}))) return true
@@ -394,6 +405,15 @@ export function createRichZone(options: RichZoneOptions): Editor {
   if (binding?.kind === 'document') bindEditorTarget(editor, { kind: 'body' })
   else if (binding?.kind === 'fragment' && binding.target) bindEditorTarget(editor, binding.target)
   if (native) bindEditingHistory(editor, native)
+  bindCommandContext(
+    editor,
+    binding?.kind === 'fragment' ? binding.historyOwner : editor,
+    openLink
+      ? () => {
+          if (capabilityAvailability(editor, 'text.link', 'link').enabled) openLink(editor)
+        }
+      : undefined,
+  )
   return editor
 }
 const ownShortcuts = new Set([
@@ -405,9 +425,15 @@ const ownShortcuts = new Set([
   'context.open',
   'block.remove',
 ])
-/** The shell delegates local text keys to a rich zone instead of refocusing the document body. */
+/** Text formatting runs in the view's key handler, after ProseMirror has flushed
+ * pending DOM input. Named fields also own their local history/context keys.
+ */
 export function richZoneOwnsShortcut(target: EventTarget | null, command: string) {
   if (!(target instanceof Element) || !ownShortcuts.has(command)) return false
   const zone = target.closest<HTMLElement>('[data-rich-zone-profile]')
-  return !!zone && zone.dataset.richZoneProfile !== 'document'
+  return (
+    !!zone &&
+    (zone.dataset.richZoneProfile !== 'document' ||
+      ['text.bold', 'text.italic', 'text.link'].includes(command))
+  )
 }

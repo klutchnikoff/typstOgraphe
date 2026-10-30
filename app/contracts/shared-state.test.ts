@@ -18,6 +18,8 @@ import { formattingBatch } from '../src/formatting'
 import { inlineTarget, treeTarget, widgetBatch } from '../src/object-commands'
 import { replacementPlan } from '../src/text-edits'
 import { findMatches } from '../src/proofing'
+import { interactionAvailability } from '../src/command-availability'
+import { positionAtPath } from '../src/commands'
 
 let child: ChildProcessWithoutNullStreams
 let catalogue: Catalogue
@@ -192,6 +194,54 @@ afterAll(async () => {
     })
   }
   if (directory) rmSync(directory, { recursive: true, force: true })
+})
+
+it('Rust and the immediate editor projection agree on action availability across body, widgets and header', async () => {
+  const original = seed('article')
+  const element = document.createElement('div')
+  document.body.append(element)
+  const editor = createRichZone({
+    profile: 'document',
+    element,
+    label: 'Availability',
+    binding: { kind: 'document', document: original },
+  })
+  editors.push(editor)
+  if (!editor.isInitialized)
+    await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+  const capabilities = catalogue.entries.filter((c) =>
+    catalogue.types.find((t) => t.id === 'article')!.capabilities.includes(c.id),
+  )
+  for (const path of [
+    [0],
+    [1],
+    [2, 0],
+    [2, 1],
+    [3, 0, 0],
+    [3, 0, 1],
+    [4, 0, 0, 0, 0],
+    [4, 1],
+    [5],
+    [6],
+  ]) {
+    editor.commands.setTextSelection(positionAtPath(editor, path) + 1)
+    const target = inlineTarget(editor, editor.state.selection.from, editor.state.selection.to)
+    const result = await probe({
+      action: 'editing',
+      update: bytes(original),
+      guard: { document: 'availability', revision: 0 },
+      contexts: 1,
+      steps: [{ op: 'select', actor: 0, target }],
+    })
+    const confirmed = result.events[0].contexts[0].availability
+    for (const c of capabilities)
+      expect(
+        interactionAvailability(editor, c.editor!.availability!),
+        `${c.id} at ${path}`,
+      ).toEqual(confirmed[c.id])
+    expect(result.events[0].contexts[0].undo_steps).toBe(0)
+    expect(result.guard.revision).toBe(0)
+  }
 })
 
 it.each(['courrier', 'article'] as const)(

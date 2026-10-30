@@ -36,11 +36,13 @@ groupement de frappe et parcours de refus avec export du brouillon. Les styles,
 liens et titres utilisent les cibles communes depuis les boutons, raccourcis et
 bandeaux, y compris dans les champs riches d’en-tête. Les insertions, conversions,
 paramètres et suppressions des widgets et badges sont également raccordés.
-Poursuivre les autres commandes typées (recherche/remplacement, orthographe,
-métadonnées et ressources),
-le report des sélections/styles, le mode individuel allégé
-et la migration CLI/MCP autonome. Les brouillons refusés restent en mémoire avant
-leur export JSON ; la conservation durable automatique reste à traiter.
+Les champs d’en-tête, ressources, options, sélections/styles et adaptateurs
+CLI/MCP utilisent également le contrat commun. La disponibilité des capacités
+est raccordée aux contextes et aux déclencheurs de l’interface ; la palette
+conserve la zone riche choisie. Restent dans A.2 les transformations supplémentaires
+(dont la fusion de paragraphes) et le mode individuel allégé. Les brouillons
+refusés restent en mémoire avant leur export JSON ; leur conservation durable
+automatique relève d’A.3.
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
 
@@ -127,8 +129,7 @@ rédaction individuelle, l’ouverture et l’export doivent fonctionner hors li
   conservé reste dans le .typsto. L’export Typst/PDF porte sur l’état choisi,
   sans embarquer inutilement les ressources des autres états.
 
-**Choix à valider :** migration du contrat de la CLI et du MCP autonome ;
-périmètre et moment de stabilisation du format.
+**Choix à valider :** périmètre et moment de stabilisation du format.
 Pour les snapshots : déclenchement manuel/automatique, stockage, comparaison,
 rétention et restauration, puis droits et coordination en collaboration.
 Aucune couche de rétrocompatibilité préventive pendant cette phase préliminaire.

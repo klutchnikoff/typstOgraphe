@@ -1,3 +1,4 @@
+import { confirmNewDocument } from './document-lifecycle'
 import { expect, test } from '@playwright/test'
 
 test.beforeEach(async ({ request }) => {
@@ -33,7 +34,7 @@ test('accueil centré, trois actions immédiates et animation non rejouée au re
   // The new-document dialog is usable while the signature is still being drawn.
   await page.locator('#create-document').click()
   await expect(page.locator('dialog')).toBeVisible()
-  await page.getByRole('button', { name: 'Créer', exact: true }).click()
+  await confirmNewDocument(page)
   await expect(welcome).toBeHidden()
   await page.getByRole('button', { name: 'Fichier', exact: true }).click()
   await page.locator('[data-command="document.close"]').click()

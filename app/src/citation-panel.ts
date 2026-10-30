@@ -1,3 +1,4 @@
+import { editingAvailability } from './command-availability'
 import { editingProvider } from './editing-history'
 import type { Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
@@ -203,7 +204,7 @@ export function citationPanel(
   }
   return {
     open(pos?: number) {
-      if (pending || editor.view.composing) return
+      if (pending || !editingAvailability(editor).enabled) return
       const node = pos === undefined ? undefined : editor.state.doc.nodeAt(pos)
       if (pos !== undefined && node?.type.name !== 'citation') return
       const selected = {

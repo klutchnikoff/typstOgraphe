@@ -571,6 +571,7 @@ fn main() {
         })
         .manage(bridge)
         .invoke_handler(tauri::generate_handler![
+            menus::set_menu_availability,
             settings::validate_model,
             catalogue::content_catalogue,
             recover,

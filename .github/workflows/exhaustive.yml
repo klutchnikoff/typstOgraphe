@@ -1,0 +1,143 @@
+name: Validation complète
+on:
+  push:
+    tags: ['v*']
+  schedule:
+    - cron: '41 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Construire aussi les paquets natifs de test (non signés pour distribution)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: exhaustive-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+jobs:
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.plan.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Last successful validation on main
+        if: github.event_name == 'schedule'
+        id: previous
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if base=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/exhaustive.yml/runs?branch=main&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty'); then
+            echo "base=$base" >> "$GITHUB_OUTPUT"
+          else
+            echo '::warning::Historique indisponible ; validation complète par précaution.'
+          fi
+      - id: plan
+        env:
+          CI_BASE_SHA: ${{ steps.previous.outputs.base }}
+          CI_EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$CI_EVENT" = schedule ]; then
+            python3 .github/scripts/ci_plan.py --base "$CI_BASE_SHA"
+          else
+            python3 .github/scripts/ci_plan.py --force
+          fi
+  verify:
+    needs: scope
+    if: needs.scope.outputs.code == 'true'
+    uses: ./.github/workflows/desktop.yml
+    with:
+      platforms: '["ubuntu-latest","macos-latest","windows-latest"]'
+      browsers: full
+      audit: true
+      wasm: true
+  packages:
+    needs: verify
+    if: github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.packages)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            bundle: deb
+          - os: macos-latest
+            bundle: app
+          - os: windows-latest
+            bundle: nsis
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: "2"
+      RUSTUP_TOOLCHAIN: stable
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Linux Tauri libraries
+        if: runner.os == 'Linux'
+        run: >-
+          sudo apt-get update && sudo apt-get install -y
+          build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev
+          libayatana-appindicator3-dev librsvg2-dev patchelf
+      - run: rustup toolchain install stable --profile minimal
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: packages-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            packages-${{ runner.os }}-
+            checks-${{ runner.os }}-
+      - run: npm ci
+      - name: Build a distributed binary without the recipe driver
+        shell: bash
+        env:
+          BUNDLE: ${{ matrix.bundle }}
+        run: npm run tauri -- build --ci --no-sign --bundles "$BUNDLE" --config '{"bundle":{"active":true}}' -- --locked
+      # These are build artifacts, not signed/notarized public releases.
+      - name: Inspect and collect the native package
+        shell: bash
+        run: |
+          mkdir -p output/packages
+          case "$RUNNER_OS" in
+            Linux)
+              for file in target/release/bundle/deb/*.deb; do
+                dpkg-deb --info "$file"
+                dpkg-deb --contents "$file" | grep 'usr/bin/typstographe'
+                cp "$file" output/packages/
+              done
+              ;;
+            macOS)
+              bundle=target/release/bundle/macos/typstOgraphe.app
+              test -f "$bundle/Contents/Info.plist"
+              test -x "$bundle/Contents/MacOS/typstographe"
+              plutil -lint "$bundle/Contents/Info.plist"
+              tar -czf output/packages/typstOgraphe-macOS.tgz -C target/release/bundle/macos typstOgraphe.app
+              ;;
+            Windows)
+              for file in target/release/bundle/nsis/*.exe; do
+                test -s "$file"
+                cp "$file" output/packages/
+              done
+              ;;
+          esac
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages-${{ runner.os }}
+          path: output/packages/
+          if-no-files-found: error
+          retention-days: 14

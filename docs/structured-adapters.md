@@ -89,8 +89,9 @@ La recette Rust ↔ Yjs vérifie aussi l’acceptation d’un lot texte/tableau,
 identités conservées et une seule annulation/rétablissement. Aucun nouvel essai
 avec un LLM externe, aucune capture dans ce lot.
 
-A.2 reste ouvert : transformations supplémentaires (dont fusion de paragraphes),
-mode individuel allégé et raccordement global de la disponibilité dans l’interface.
+A.2 reste ouvert : transformations supplémentaires (dont fusion de paragraphes)
+et mode individuel allégé. La disponibilité par sélection est désormais exposée
+dans les contextes communs et raccordée aux déclencheurs de l’interface.
 La conservation durable des brouillons refusés relève d’A.3. Étendre la relecture
 MCP à l’en-tête/aux ressources et réintroduire des droits de fichiers rattachés
 demanderont des parcours explicites ; les droits historiques egui ne sont pas
@@ -360,3 +361,58 @@ et l’identité du marqueur dans le corps et une zone riche. La recette Linux p
 ensuite dix fois (cinq avec diagnostics, cinq sans), ainsi que les 212 tests web,
 3 tests de langues et 8 parcours Chromium/WebKit locaux. Le détail et les preuves
 CI figurent dans [l’analyse du diagnostic](coverage-retirement.md).
+
+
+## Disponibilité commune et déclencheurs — 29 octobre 2026
+
+Le [contexte privé](structured-editing-contexts.md#disponibilité-des-interactions--29-octobre-2026)
+expose la disponibilité des interactions pour chaque capacité du catalogue :
+type du document, sélection, corps ou en-tête, frontières des widgets et des
+cellules. La validation d’une commande complète reste celle de
+`commands.available` et de l’exécution ; l’ouverture d’un formulaire n’autorise
+ni ses futurs paramètres, ni les opérations refusées par un adaptateur.
+
+Dans l’application, `CommandRegistry` garde aussi les appels directs à `run`.
+Boutons, menus, palette et déclencheurs natifs consultent le même état et
+présentent une raison d’indisponibilité localisée par Fluent. Les raccourcis
+riches utilisent les mêmes gardes de saisie et fonctions de mise en forme.
+Les menus macOS reçoivent leurs états en ordre, avec regroupement des mises à
+jour ; une réponse de fenêtre en arrière-plan ne doit pas écraser le menu de la
+fenêtre devenue active. Les prédéfinis système de presse-papiers gardent leur
+fonctionnement natif.
+
+La palette conserve la dernière zone riche active. Un titre, un résumé et le
+corps ne sont pas interchangeables : les commandes sans cible valide sont
+indisponibles. Le retrait de la zone active invalide cette cible jusqu’à un
+nouveau choix explicite, sans empêcher l’annulation documentaire. Le clic sur
+un badge ou sur un en-tête de widget constitue ce choix même quand le bandeau
+prend immédiatement le focus. Une sélection locale explicite (recherche,
+aperçu ou commande) choisit aussi sa zone ; le report d’une modification distante
+ne le fait pas. Dans les champs natifs, les raccourcis
+annuler/rétablir sont laissés au champ ; le bouton documentaire peut toujours
+annuler une opération, notamment après rechercher/remplacer.
+
+Les recettes ajoutées vérifient les raisons de refus, l’absence d’édition et
+d’historique créés par une requête, les sélections structurelles, la concordance
+Rust/Tiptap dans le corps et les widgets, le ciblage d’un champ riche depuis la
+palette, les champs natifs, les formulaires modaux, le retrait de cible et les réponses
+natives périmées. Les règles n’ajoutent ni compilation Typst ni nouveau
+transport documentaire au mouvement du curseur.
+
+
+### Validation de ce lot
+
+- 270 tests Rust réussis (doctest inclus), avec un diagnostic de performance
+  volontairement ignoré ;
+- 222 tests unitaires web et 3 contrôles des locales natives réussis ;
+- 21 recettes de contrat Rust ↔ Yjs/Tiptap réussies ;
+- 260 parcours Chromium/WebKit réussis, sans captures ni traces graphiques ;
+- build web, Clippy avec et sans `recipe-driver`, formatage, 9 tests des gardes
+  d’architecture, frontière du cœur et taille des modules réussis ;
+- couverture des lignes web : **43,60 %** (2 504 / 5 742), contre 40,77 % avant
+  ce lot ; les recettes navigateur ne contribuent pas à cette mesure.
+
+Journaux locaux et résumé de couverture :
+`output/command-availability-02e57bc/`. La validation sur les trois systèmes
+reste à confirmer par la CI ; les recettes locales ne mesurent pas la couverture
+des interactions natives de l’OS.

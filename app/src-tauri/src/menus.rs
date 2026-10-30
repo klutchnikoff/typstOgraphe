@@ -1,3 +1,40 @@
+#[tauri::command]
+pub fn set_menu_availability(
+    window: tauri::WebviewWindow,
+    app: tauri::AppHandle,
+    states: std::collections::BTreeMap<String, bool>,
+) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        // The menu bar belongs to the foreground window, not a background participant.
+        if !window.is_focused().map_err(|e| e.to_string())? {
+            return Ok(());
+        }
+        fn update(
+            items: Vec<tauri::menu::MenuItemKind<tauri::Wry>>,
+            states: &std::collections::BTreeMap<String, bool>,
+        ) -> Result<(), tauri::Error> {
+            for item in items {
+                match item {
+                    tauri::menu::MenuItemKind::MenuItem(item) => {
+                        if let Some(enabled) = states.get(item.id().as_ref()) {
+                            item.set_enabled(*enabled)?;
+                        }
+                    }
+                    tauri::menu::MenuItemKind::Submenu(menu) => update(menu.items()?, states)?,
+                    _ => {}
+                }
+            }
+            Ok(())
+        }
+        if let Some(menu) = app.menu() {
+            update(menu.items().map_err(|e| e.to_string())?, &states).map_err(|e| e.to_string())?;
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, app, states);
+    Ok(())
+}
 pub fn install(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     #[cfg(target_os = "macos")]
     {

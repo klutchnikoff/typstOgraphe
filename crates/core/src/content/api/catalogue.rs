@@ -82,7 +82,7 @@ const QUERIES: &[(&str, &str)] = &[
     ),
     (
         "context.get",
-        "Read only this participant's private selection, typing styles and history.",
+        "Read this participant's private selection, typing styles, history and selection-level capability availability. Form parameters and adapter permissions still require execution validation.",
     ),
     (
         "commands.available",

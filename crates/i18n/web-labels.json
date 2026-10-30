@@ -242,5 +242,19 @@
   "Revenir à la version confirmée": "web-return-confirmed",
   "Exporter le brouillon": "web-export-draft",
   "Abandonner ce brouillon et recharger la version confirmée ? Exportez-le d’abord si vous souhaitez le conserver.": "web-discard-draft-question",
-  "Abandonner le brouillon": "web-discard-draft"
+  "Abandonner le brouillon": "web-discard-draft",
+  "Placez le curseur dans une zone de rédaction.": "web-command-no-selection",
+  "Cette commande n’est pas disponible pour ce type de document.": "web-command-unsupported-type",
+  "Cette commande nécessite une zone de texte compatible.": "web-command-text-required",
+  "Sélectionnez du texte ou placez le curseur dans un lien.": "web-command-selection-required",
+  "Cette commande est réservée au corps du document.": "web-command-body-required",
+  "Cette commande n’est pas disponible à l’intérieur de ce widget.": "web-command-top-level-required",
+  "Placez le curseur sans sélectionner de texte.": "web-command-caret-required",
+  "Cette zone n’est pas modifiable.": "web-command-read-only",
+  "Terminez la composition en cours.": "web-command-composing",
+  "Reconnectez ce document avant d’appliquer une commande.": "web-command-disconnected",
+  "Conservez ou abandonnez le brouillon refusé avant de continuer.": "web-command-pending-draft",
+  "Ouvrez ou créez un document.": "web-command-no-document",
+  "Terminez ou annulez le formulaire ouvert.": "web-command-modal",
+  "Cette commande n’est pas disponible dans ce contexte.": "web-command-unavailable"
 }

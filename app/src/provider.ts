@@ -54,6 +54,7 @@ export interface HistoryState {
   undo_steps: number
   redo_steps: number
   pending: boolean
+  availability?: Record<string, import('./command-availability').Availability>
 }
 interface Receipt {
   revision: number
@@ -294,6 +295,17 @@ export class Provider {
     this.contextSource = { owner, read }
     this.contextTicket++
     this.scheduleEditingContext()
+  }
+  hasConfirmedContext(owner: object) {
+    return (
+      this.isEditingContextSource(owner) &&
+      !this.contextDirty &&
+      !this.queued &&
+      !this.buffered.length &&
+      !this.composing &&
+      !this.historyBusy &&
+      !this.rejected
+    )
   }
   isEditingContextSource(owner: object) {
     return this.contextSource?.owner === owner

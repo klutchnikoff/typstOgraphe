@@ -38,6 +38,7 @@ pub struct ContextSnapshot {
     pub undo_steps: usize,
     pub redo_steps: usize,
     pub pending: bool,
+    pub availability: BTreeMap<String, super::availability::Availability>,
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct RejectedDraft {
@@ -210,6 +211,10 @@ impl EditingSession {
         Ok(ContextSnapshot {
             guard: guard.clone(),
             selection_lost: context.selection.is_some() && selection.is_none(),
+            availability: super::availability::for_selection(
+                self.owner.state(),
+                selection.as_ref(),
+            ),
             selection,
             typing_styles: context.styles.clone(),
             undo_steps: context.history.undo_stack().len(),

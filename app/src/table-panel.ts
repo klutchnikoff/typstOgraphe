@@ -1,3 +1,4 @@
+import { editingAvailability } from './command-availability'
 import { tableCursor } from './table-selection'
 import type { Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
@@ -214,7 +215,7 @@ export function tablePanel(
     }
   }
   function open(pos?: number, action?: string) {
-    if (pending || editor.view.composing) return
+    if (pending || !editingAvailability(editor).enabled) return
     const context = pos === undefined ? undefined : tableContext(editor)
     const node = pos === undefined ? undefined : editor.state.doc.nodeAt(pos)
     if (pos !== undefined && node?.type.name !== 'tableFigure') return

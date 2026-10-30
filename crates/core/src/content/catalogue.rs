@@ -232,7 +232,7 @@ pub fn describe(id: &str) -> Option<Value> {
     let c = find(id)?;
     Some(
         json!({"capability":c,"parameters":parameters(id),"editor":editor(id),
-        "guidance":"Semantics are shared. Availability and execution are adapter-specific: documentation alone never grants execution. Models change presentation, not the capability contract."}),
+        "guidance":"Semantics and selection-level availability are shared (context.get availability). Form parameters still require concrete commands.available validation; adapter permissions remain separate. Models change presentation, not the capability contract."}),
     )
 }
 pub fn parameters(id: &str) -> Value {
@@ -270,6 +270,11 @@ pub fn parameters(id: &str) -> Value {
 /// Optional parameters default to panel controls. Body/structure/creation bindings
 /// prevent duplicating controls already provided elsewhere by the editor.
 pub fn editor(id: &str) -> Value {
+    let mut value = editor_hints(id);
+    value["availability"] = json!(super::availability::policy(id));
+    value
+}
+fn editor_hints(id: &str) -> Value {
     if id == "insert.table" {
         return json!({"actions":[
             {"id":"table.row.remove","label_key":"web-table-row-remove","command":"table.row.remove","axis":"row","offset":0,"remove":true},
@@ -333,7 +338,7 @@ mod tests {
         );
         assert_eq!(editor("block.bullet"), editor("block.numbered"));
         assert_eq!(editor("block.bullet"), editor("block.description"));
-        assert_eq!(editor("block.quote"), json!({}));
+        assert_eq!(editor("block.quote"), json!({"availability":"block"}));
         let link = crate::content::api::describe("text.link").unwrap();
         assert_eq!(
             link["params_schema"]["properties"]["url"]["type"],

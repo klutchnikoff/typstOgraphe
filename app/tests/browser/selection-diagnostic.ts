@@ -2,9 +2,15 @@ import { writeFile } from 'node:fs/promises'
 import type { Page, TestInfo } from '@playwright/test'
 
 /** Text-only diagnostics, opt-in; no screenshot, trace archive or user document. */
-export async function recordSelection(page: Page) {
-  await page.evaluate(() => {
-    const editor = window.__spike!.editor
+export async function recordSelection(page: Page, label?: string) {
+  await page.evaluate((label) => {
+    const editor = label
+      ? (
+          document.querySelector(`[role="textbox"][aria-label="${label}"]`) as HTMLElement & {
+            editor: import('@tiptap/core').Editor
+          }
+        ).editor
+      : window.__spike!.editor
     const records: unknown[] = []
     const record = (phase: string, key?: string, stack?: string) => {
       const dom = document.getSelection()
@@ -21,6 +27,9 @@ export async function recordSelection(page: Page) {
         key,
         time: performance.now(),
         pm: editor.state.selection.toJSON(),
+        marks: editor.state.storedMarks?.map((mark) => mark.toJSON()),
+        editable: editor.isEditable,
+        active: document.activeElement?.outerHTML.slice(0, 500),
         dom: [
           position(dom?.anchorNode, dom?.anchorOffset),
           position(dom?.focusNode, dom?.focusOffset),
@@ -47,8 +56,13 @@ export async function recordSelection(page: Page) {
     editor.view.dom.addEventListener('keyup', (event) => record('keyup', event.key))
     document.addEventListener('selectionchange', () => record('native:selection'))
     editor.on('selectionUpdate', () => record('pm:selection'))
+    editor.on('focus', () => record('pm:focus'))
+    editor.on('blur', () => record('pm:blur'))
+    editor.on('transaction', ({ transaction }) =>
+      record(`pm:transaction:${JSON.stringify(transaction.steps.map((step) => step.toJSON()))}`),
+    )
     Object.assign(window, { __selectionDiagnostic: records })
-  })
+  }, label)
   return async (info: TestInfo) => {
     const records = await page.evaluate(() => Reflect.get(window, '__selectionDiagnostic'))
     const path = info.outputPath('selection-diagnostic.json')

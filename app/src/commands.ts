@@ -3,18 +3,17 @@ import { tr } from './i18n'
 import { runFormatting, type Formatting } from './formatting'
 import { insertInlineObject } from './object-commands'
 import { editingProvider } from './editing-history'
-import { widgetTarget } from './widgets'
-import { isWidgetKind } from './widget-frame'
+import { CommandRegistry, refreshCommandButton, runCommand } from './public-commands'
+import {
+  capabilityAvailability,
+  refused,
+  type Availability,
+  type InteractionPolicy,
+} from './command-availability'
+import { bindCommandCapabilities, commandEditor, openCommandLink } from './command-context'
 import type { Editor, JSONContent } from '@tiptap/core'
 import type { Parameters } from './capability-settings'
-import {
-  insertList,
-  insertQuote,
-  insertBlock,
-  canInsertBlock,
-  listKinds,
-  type ListKind,
-} from './editing'
+import { insertList, insertQuote, insertBlock } from './editing'
 export interface TableAction {
   id: string
   label: string
@@ -33,13 +32,14 @@ export interface Capability {
   mark: string | null
   letter_only: boolean
   parameters: Parameters
-  editor?: { conversion_group?: string; actions?: TableAction[] }
+  editor?: { conversion_group?: string; actions?: TableAction[]; availability?: InteractionPolicy }
 }
 export interface PublicCommand {
   id: string
   label: string
   icon?: string
   shortcut?: string
+  availability?: () => Availability
   enabled?: () => boolean
   active?: () => boolean
   run: () => void
@@ -56,83 +56,70 @@ export function createRegistry(
   citation: () => void = () => {},
   table: () => void = () => {},
 ): Registry {
-  const registry: Registry = new Map()
+  const registry: Registry = new CommandRegistry()
+  bindCommandCapabilities(editor, capabilities, available)
+  const target = () => commandEditor(editor)
   const actions: Record<string, () => void> = {
     'block.paragraph': () => {
-      runFormatting(editor, 'block.paragraph')
+      runFormatting(target(), 'block.paragraph')
     },
     'text.bold': () => {
-      runFormatting(editor, 'text.bold')
+      runFormatting(target(), 'text.bold')
     },
     'text.italic': () => {
-      runFormatting(editor, 'text.italic')
+      runFormatting(target(), 'text.italic')
     },
-    'text.link': () => properties(editor.state.selection.from, 'link'),
+    'text.link': () => openCommandLink(target()),
     'block.bullet': () => {
-      insertList(editor, 'bulletList')
+      insertList(target(), 'bulletList')
     },
     'block.numbered': () => {
-      insertList(editor, 'orderedList')
+      insertList(target(), 'orderedList')
     },
     'block.description': () => {
-      insertList(editor, 'descriptionList')
+      insertList(target(), 'descriptionList')
     },
     'block.quote': () => {
-      insertQuote(editor)
+      insertQuote(target())
     },
     'insert.image': image,
     'insert.table': table,
     'insert.citation': citation,
     'insert.footnote': () =>
-      insertInlineWithSettings(editor, { type: 'footnote', attrs: { text: '' } }, properties),
+      insertInlineWithSettings(target(), { type: 'footnote', attrs: { text: '' } }, properties),
     'letter.insert_postscript': () => {
-      insertBlock(editor, { type: 'postscript' })
+      insertBlock(target(), { type: 'postscript' })
     },
     'letter.insert_attachment': () => {
-      insertBlock(editor, { type: 'attachment' })
+      insertBlock(target(), { type: 'attachment' })
     },
   }
   for (const capability of capabilities) {
     const heading = /block.heading_(\d)/.exec(capability.id)
     const run = heading
       ? () => {
-          runFormatting(editor, capability.id as Formatting)
+          runFormatting(target(), capability.id as Formatting)
         }
       : actions[capability.id]
     if (!run) throw new Error(`Capacité sans adaptateur web : ${capability.id}`)
     registry.set(capability.id, {
       ...capability,
       run,
-      enabled: () => {
-        if (!editor.isEditable || editor.view.composing) return false
-        if (available()?.includes(capability.id) === false) return false
-        if (capability.id === 'insert.table')
-          return (
-            editor.state.selection.empty &&
-            canInsertBlock(editor) &&
-            editor.state.selection.$from.depth === 1
-          )
-        if (['insert.citation', 'insert.footnote'].includes(capability.id))
-          return (
-            editor.state.selection.$from.parent.inlineContent &&
-            editor.state.selection.$from.sameParent(editor.state.selection.$to)
-          )
-        if (capability.node && isWidgetKind(capability.node)) {
-          if (
-            listKinds.includes(capability.node as ListKind) &&
-            listKinds.includes(widgetTarget(editor)?.node.type.name as ListKind)
-          )
-            return true
-          return canInsertBlock(editor)
-        }
-        return true
+      availability: () => {
+        if (available()?.includes(capability.id) === false)
+          return refused('unsupported_document_type')
+        return capabilityAvailability(
+          target(),
+          capability.id,
+          capability.editor?.availability || 'block',
+        )
       },
       active: () =>
         heading
-          ? editor.isActive('heading', { level: Number(heading[1]) })
+          ? target().isActive('heading', { level: Number(heading[1]) })
           : capability.mark
-            ? editor.isActive(capability.mark)
-            : !!capability.node && editor.isActive(capability.node),
+            ? target().isActive(capability.mark)
+            : !!capability.node && target().isActive(capability.node),
     })
   }
   for (const [id, label, shortcut, action] of [
@@ -145,9 +132,13 @@ export function createRegistry(
       shortcut,
       icon: action === 'undo' ? 'undo-2' : 'redo-2',
       run: () => {
-        editor.chain().focus()[action]().run()
+        target().chain().focus()[action]().run()
       },
-      enabled: () => editor.can()[action](),
+      enabled: () =>
+        !target().isDestroyed &&
+        target().isEditable &&
+        !target().view.composing &&
+        target().can()[action](),
     })
   return registry
 }
@@ -166,8 +157,7 @@ export function toolbar(element: HTMLElement, registry: Registry, capabilities: 
       if (event.button === 0) event.preventDefault()
     }
     el.onclick = () => {
-      if (command.enabled?.() === false) return
-      command.run()
+      if (!runCommand(command)) return
       el.closest('details')?.removeAttribute('open')
     }
     return el
@@ -208,9 +198,10 @@ export function toolbar(element: HTMLElement, registry: Registry, capabilities: 
 export function refreshCommands(registry: Registry) {
   for (const el of document.querySelectorAll<HTMLButtonElement>('button[data-command]')) {
     const command = registry.get(el.dataset.command!)
-    el.disabled = command?.enabled?.() === false
+    if (command) refreshCommandButton(el, command)
     if (command?.active) el.setAttribute('aria-pressed', String(command.active()))
   }
+  document.dispatchEvent(new Event('commands:availability'))
 }
 export function positionAtPath(editor: Editor, path: number[]): number {
   let node = editor.state.doc,
