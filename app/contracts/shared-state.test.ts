@@ -1336,6 +1336,7 @@ it('attached MCP accepts the same typed lot into the existing Yjs tree and human
   await call('reset', {})
   const joined = await call('join', {})
   const generation = joined.generation
+  expect(joined.synchronization.enabled).toBe(false)
   await call('relay', { generation, update: bytes(original), capture: false })
   const body = original.getXmlFragment('default')
   const nodes = body.toArray()
@@ -1370,6 +1371,9 @@ it('attached MCP accepts the same typed lot into the existing Yjs tree and human
   })
   expect((await agent('document.inspect', {})).outcome.state).toEqual(inspect.outcome.state)
   const publication = await call('diagnostic_agent_accept', { id: pending.outcome.id })
+  const services = await call('connection', { generation, online: true })
+  expect(services.enabled).toBe(false)
+  expect(services.windows).toEqual(['contract-test'])
   expect(publication.guard.revision).toBe(inspect.document.guard.revision + 1)
   Y.applyUpdate(original, new Uint8Array(publication.update))
   expect(body.toArray()[0]).toBe(nodes[0])
