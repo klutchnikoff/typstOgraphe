@@ -17,6 +17,7 @@ import { bindEditorTarget, type RecordRoot } from './editor-targets'
 import { bindCommandContext } from './command-context'
 import { capabilityAvailability, editingAvailability } from './command-availability'
 import { runFormatting } from './formatting'
+import { syncNativeTextSelection } from './native-selection'
 import { Plugin } from '@tiptap/pm/state'
 import { ContextBand } from './band-layout'
 import { DocumentInput, SoftBreak, TypstInlineInput } from './editing'
@@ -377,6 +378,7 @@ export function createRichZone(options: RichZoneOptions): Editor {
       },
       handleKeyDown: (view, event) => {
         if (event.isComposing || view.composing) return false
+        syncNativeTextSelection(editor)
         const owner = editor
         if (policy.widgets) {
           if (inlineObjectKey(owner, event, properties || (() => {}))) return true
@@ -423,9 +425,15 @@ const ownShortcuts = new Set([
   'context.open',
   'block.remove',
 ])
-/** The shell delegates local text keys to a rich zone instead of refocusing the document body. */
+/** Text formatting runs in the view's key handler, after ProseMirror has flushed
+ * pending DOM input. Named fields also own their local history/context keys.
+ */
 export function richZoneOwnsShortcut(target: EventTarget | null, command: string) {
   if (!(target instanceof Element) || !ownShortcuts.has(command)) return false
   const zone = target.closest<HTMLElement>('[data-rich-zone-profile]')
-  return !!zone && zone.dataset.richZoneProfile !== 'document'
+  return (
+    !!zone &&
+    (zone.dataset.richZoneProfile !== 'document' ||
+      ['text.bold', 'text.italic', 'text.link'].includes(command))
+  )
 }

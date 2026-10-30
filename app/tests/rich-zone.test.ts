@@ -11,6 +11,9 @@ import {
   type RichZoneProfile,
 } from '../src/rich-zone'
 import { documentWhitespaceKey } from '../src/document-whitespace'
+import { syncNativeTextSelection } from '../src/native-selection'
+import { AllSelection, NodeSelection } from '@tiptap/pm/state'
+import { CellSelection } from '@tiptap/pm/tables'
 
 const editors: Editor[] = [],
   docs: Y.Doc[] = []
@@ -90,6 +93,75 @@ it('le profil en ligne bloque les retours et conserve les styles, les liens et u
   expect(editor.view.dom.getAttribute('aria-multiline')).toBe('false')
   expect(richZoneOwnsShortcut(editor.view.dom, 'text.bold')).toBe(true)
   expect(richZoneOwnsShortcut(editor.view.dom, 'document.save')).toBe(false)
+})
+it.each(['document', 'rich-text', 'inline-text'] as const)(
+  '%s applique le style au curseur natif même si selectionchange est encore en attente',
+  async (profile) => {
+    const editor = await create(profile, { content: '<p>Un titre</p>' })
+    editor.commands.setTextSelection(9)
+    editor.view.focus()
+    // Home has moved the browser caret, but its selectionchange is still queued
+    // when the next shortcut arrives (notably Chromium/Linux).
+    document.getSelection()!.collapse(editor.view.dom.querySelector('p')!.firstChild, 0)
+    editor.view.dom.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'b',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    document.dispatchEvent(new Event('selectionchange'))
+    editor.commands.insertContent('Bref ')
+    expect(editor.view.dom.querySelector('strong')?.textContent).toBe('Bref ')
+    expect(editor.state.doc.textContent).toBe('Bref Un titre')
+    expect(richZoneOwnsShortcut(editor.view.dom, 'text.bold')).toBe(true)
+  },
+)
+it('la lecture du curseur conserve les styles si la sélection ne change pas et ignore les vues inactives', async () => {
+  const editor = await create('inline-text', { content: '<p>Texte</p>' })
+  editor.view.focus()
+  editor.commands.toggleBold()
+  const selection = editor.state.selection
+  syncNativeTextSelection(editor)
+  expect(editor.state.selection).toBe(selection)
+  expect(editor.state.storedMarks?.map((mark) => mark.type.name)).toEqual(['bold'])
+  const other = await create('inline-text', { content: '<p>Autre zone</p>' })
+  other.view.focus()
+  syncNativeTextSelection(editor)
+  expect(editor.state.selection).toBe(selection)
+  expect(editor.state.storedMarks?.map((mark) => mark.type.name)).toEqual(['bold'])
+})
+it('la lecture du curseur ne transforme ni les sélections structurelles ni une composition IME', async () => {
+  const editor = await create('document', {
+    content: '<p>Avant</p><table><tbody><tr><td><p>Cellule</p></td></tr></tbody></table>',
+  })
+  editor.view.focus()
+  const all = new AllSelection(editor.state.doc)
+  editor.view.dispatch(editor.state.tr.setSelection(all))
+  syncNativeTextSelection(editor)
+  expect(editor.state.selection).toBe(all)
+  // The table itself is an atomically selected structure, independent of its DOM.
+  const tablePos = editor.state.doc.firstChild!.nodeSize
+  const node = NodeSelection.create(editor.state.doc, tablePos)
+  editor.view.dispatch(editor.state.tr.setSelection(node))
+  syncNativeTextSelection(editor)
+  expect(editor.state.selection).toBe(node)
+  let cellPos = 0
+  editor.state.doc.descendants((node, pos) => {
+    if (node.type.name === 'tableCell') cellPos = pos
+  })
+  const cells = CellSelection.create(editor.state.doc, cellPos)
+  editor.view.dispatch(editor.state.tr.setSelection(cells))
+  syncNativeTextSelection(editor)
+  expect(editor.state.selection).toBe(cells)
+  editor.commands.setTextSelection(3)
+  const caret = editor.state.selection
+  document.getSelection()!.collapse(editor.view.dom.querySelector('p')!.firstChild, 0)
+  const composing = vi.spyOn(editor.view, 'composing', 'get').mockReturnValue(true)
+  syncNativeTextSelection(editor)
+  expect(editor.state.selection).toBe(caret)
+  composing.mockRestore()
 })
 it.each(['rich-text', 'inline-text'] as const)(
   '%s refuse les widgets et utilise le même schéma au montage et à la sérialisation',
