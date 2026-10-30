@@ -22,49 +22,51 @@ async function cleanHistory(page: Page) {
   await page.evaluate(() => window.__spike!.provider.clearHistory())
 }
 const body = (page: Page) => page.getByRole('textbox', { name: 'Corps du document', exact: true })
-test('styles multizones : lot typé, badges préservés, une annulation et aucune remise en relais', async ({
-  page,
-}) => {
-  await cleanHistory(page)
-  const before = await page.evaluate(() => {
-    const { editor } = window.__spike!
-    editor.commands.selectAll()
-    editor.view.focus()
-    return editor.getJSON()
-  })
-  const requests: {
-    command: string
-    args: { request?: { commands: { id: string; params: any }[] } }
-  }[] = []
-  page.on('request', (request) => {
-    if (request.url().endsWith('/__spike/invoke')) requests.push(request.postDataJSON())
-  })
-  await page.getByRole('button', { name: 'Gras', exact: true }).click()
-  await expect
-    .poll(() => page.evaluate(() => window.__spike!.provider.historyState.undo_steps))
-    .toBe(1)
-  const batch = requests.find((r) => r.command === 'commit_structured_commands')!.args.request!
-    .commands
-  expect(batch.length).toBeGreaterThan(5)
-  expect(batch.every((c) => c.id === 'text.bold' && c.params.target.zone.kind === 'body')).toBe(
-    true,
-  )
-  expect(batch.some((c) => c.params.target.zone.path.length >= 5)).toBe(true) // a table cell
-  expect(requests.filter((r) => r.command === 'relay')).toEqual([])
-  await expect(body(page).locator('[data-editor-widget=figure] figcaption strong')).toHaveCount(1)
-  const after = await page.evaluate(() => ({
-    selection: window.__spike!.editor.state.selection.toJSON(),
-    note: window
-      .__spike!.editor.getJSON()
-      .content!.flatMap((n) => n.content || [])
-      .find((n) => n.type === 'footnote'),
-  }))
-  expect(after.selection.type).toBe('all')
-  expect(after.note?.marks).toContainEqual({ type: 'bold' })
-  await page.getByRole('button', { name: 'Annuler', exact: true }).click()
-  await expect.poll(() => page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
-  await expect(page.locator('#connection')).toHaveText('Connecté')
-})
+test(
+  'styles multizones : lot typé, badges préservés, une annulation et aucune remise en relais',
+  { tag: '@smoke' },
+  async ({ page }) => {
+    await cleanHistory(page)
+    const before = await page.evaluate(() => {
+      const { editor } = window.__spike!
+      editor.commands.selectAll()
+      editor.view.focus()
+      return editor.getJSON()
+    })
+    const requests: {
+      command: string
+      args: { request?: { commands: { id: string; params: any }[] } }
+    }[] = []
+    page.on('request', (request) => {
+      if (request.url().endsWith('/__spike/invoke')) requests.push(request.postDataJSON())
+    })
+    await page.getByRole('button', { name: 'Gras', exact: true }).click()
+    await expect
+      .poll(() => page.evaluate(() => window.__spike!.provider.historyState.undo_steps))
+      .toBe(1)
+    const batch = requests.find((r) => r.command === 'commit_structured_commands')!.args.request!
+      .commands
+    expect(batch.length).toBeGreaterThan(5)
+    expect(batch.every((c) => c.id === 'text.bold' && c.params.target.zone.kind === 'body')).toBe(
+      true,
+    )
+    expect(batch.some((c) => c.params.target.zone.path.length >= 5)).toBe(true) // a table cell
+    expect(requests.filter((r) => r.command === 'relay')).toEqual([])
+    await expect(body(page).locator('[data-editor-widget=figure] figcaption strong')).toHaveCount(1)
+    const after = await page.evaluate(() => ({
+      selection: window.__spike!.editor.state.selection.toJSON(),
+      note: window
+        .__spike!.editor.getJSON()
+        .content!.flatMap((n) => n.content || [])
+        .find((n) => n.type === 'footnote'),
+    }))
+    expect(after.selection.type).toBe('all')
+    expect(after.note?.marks).toContainEqual({ type: 'bold' })
+    await page.getByRole('button', { name: 'Annuler', exact: true }).click()
+    await expect.poll(() => page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
+    await expect(page.locator('#connection')).toHaveText('Connecté')
+  },
+)
 test('raccourcis, titres, styles de saisie privés et retrait de lien au curseur', async ({
   page,
 }) => {

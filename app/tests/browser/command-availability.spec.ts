@@ -29,42 +29,44 @@ test('un titre dans une citation est indisponible dans la barre, la palette et a
   expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
 })
 
-test('la palette agit dans le titre riche actif et ne modifie jamais le corps', async ({
-  page,
-}, info) => {
-  await page.getByRole('button', { name: 'Fichier', exact: true }).click()
-  await page.locator('[data-command="document.new"]').click()
-  await page.locator('dialog select').first().selectOption('article')
-  await confirmNewDocument(page)
-  await page.locator('#metadata-tab-titles').click()
-  const title = page.getByRole('textbox', { name: 'Titre', exact: true })
-  const diagnostic = process.env.TOG_SELECTION_DIAGNOSTIC
-    ? await recordSelection(page, 'Titre')
-    : undefined
-  await title.fill('Titre à relire')
-  await title.press('ControlOrMeta+a')
-  const before = await page.evaluate(() => window.__spike!.editor.getJSON())
-  await expect(page.locator('[data-command="block.quote"]')).toBeDisabled()
-  await title.press('ControlOrMeta+Shift+P')
-  const input = page.getByRole('combobox', { name: 'Rechercher une commande', exact: true })
-  await input.fill('Gras')
-  await input.press('Enter')
-  await expect(title.locator('strong')).toHaveText('Titre à relire')
-  try {
-    await expect(title).toBeFocused()
-  } finally {
-    await diagnostic?.(info)
-  }
-  expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
-  await page.evaluate(() => window.__spike!.provider.flush())
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => window.__spike!.provider.historyState.availability?.['insert.footnote'].reason,
-      ),
-    )
-    .toBe('body_required')
-})
+test(
+  'la palette agit dans le titre riche actif et ne modifie jamais le corps',
+  { tag: '@smoke' },
+  async ({ page }, info) => {
+    await page.getByRole('button', { name: 'Fichier', exact: true }).click()
+    await page.locator('[data-command="document.new"]').click()
+    await page.locator('dialog select').first().selectOption('article')
+    await confirmNewDocument(page)
+    await page.locator('#metadata-tab-titles').click()
+    const title = page.getByRole('textbox', { name: 'Titre', exact: true })
+    const diagnostic = process.env.TOG_SELECTION_DIAGNOSTIC
+      ? await recordSelection(page, 'Titre')
+      : undefined
+    await title.fill('Titre à relire')
+    await title.press('ControlOrMeta+a')
+    const before = await page.evaluate(() => window.__spike!.editor.getJSON())
+    await expect(page.locator('[data-command="block.quote"]')).toBeDisabled()
+    await title.press('ControlOrMeta+Shift+P')
+    const input = page.getByRole('combobox', { name: 'Rechercher une commande', exact: true })
+    await input.fill('Gras')
+    await input.press('Enter')
+    await expect(title.locator('strong')).toHaveText('Titre à relire')
+    try {
+      await expect(title).toBeFocused()
+    } finally {
+      await diagnostic?.(info)
+    }
+    expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
+    await page.evaluate(() => window.__spike!.provider.flush())
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => window.__spike!.provider.historyState.availability?.['insert.footnote'].reason,
+        ),
+      )
+      .toBe('body_required')
+  },
+)
 
 test('la palette ne détourne pas une commande de texte vers le corps depuis un formulaire natif', async ({
   page,

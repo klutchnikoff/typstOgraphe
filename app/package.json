@@ -9,6 +9,7 @@
     "tauri": "node scripts/tauri.mjs",
     "test": "vitest run && node --test scripts/native-locales.test.mjs",
     "test:browser": "playwright test",
+    "test:browser:smoke": "playwright test --grep @smoke",
     "test:native": "node scripts/native-recipe.mjs",
     "test:preview-native": "node scripts/preview-performance.mjs",
     "check:format": "prettier --check src tests contracts scripts browser-driver.ts playwright.config.ts vite.config.ts vitest.config.ts package.json tsconfig.json",

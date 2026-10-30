@@ -47,106 +47,109 @@ test('langue documentaire indépendante de l’interface et correction native d�
   await page.getByLabel('Langue du document', { exact: true }).selectOption('fr')
   await expect(editor).toHaveAttribute('lang', 'fr')
 })
-test('rendu réel, bandeau de note, légende et sélection de tableau au clavier', async ({
-  page,
-}, testInfo) => {
-  await ready(page, 'main')
-  await expect(page.getByRole('textbox', { name: 'Corps du document' })).toContainText(
-    'Madame, Monsieur',
-  )
-  await page.locator('.footnote-ref .inline-object-label').click()
-  await page
-    .getByLabel('Texte de la note', { exact: true })
-    .fill('Note relue : ê, é, Noël, にほん.')
-  await page.getByLabel('Texte de la note', { exact: true }).press('Enter')
-  await expect(page.locator('#properties')).toBeHidden()
-  await page.locator('[data-editor-widget=figure] figcaption').click()
-  await page.keyboard.press('Home')
-  await page.keyboard.type('Légende : ')
-  await expect(page.locator('[data-editor-widget=figure] figcaption')).toContainText('Légende :')
-  await page.locator('td').first().click()
-  await expect
-    .poll(() =>
-      page.evaluate(() => window.__spike!.editor.state.selection.$from.parent.textContent),
+test(
+  'rendu réel, bandeau de note, légende et sélection de tableau au clavier',
+  { tag: '@smoke' },
+  async ({ page }, testInfo) => {
+    await ready(page, 'main')
+    await expect(page.getByRole('textbox', { name: 'Corps du document' })).toContainText(
+      'Madame, Monsieur',
     )
-    .toBe('Places assises')
-  await page.keyboard.press('Tab')
-  await expect
-    .poll(() =>
-      page.evaluate(() => window.__spike!.editor.state.selection.$from.parent.textContent),
-    )
-    .toBe('30')
-  await page.keyboard.type(' vérifié')
-  await page.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
-  await expect(page.locator('#table-properties')).toBeVisible()
-  await expect(page.locator('table')).toContainText('vérifié')
-  await page.getByRole('radio', { name: 'Ajouter une ligne au-dessous', exact: true }).click()
-  await page
-    .locator('#table-properties')
-    .getByRole('button', { name: 'Valider', exact: true })
-    .click()
-  await expect(page.locator('tr')).toHaveCount(4)
-  await expect(page.locator('#render-status')).not.toContainText('corriger')
-  await page.waitForFunction(() =>
-    /page/.test(document.querySelector('#render-status')!.textContent || ''),
-  )
-  await page.emulateMedia({ colorScheme: 'dark' })
-})
-test('deux vues fusionnent hors ligne, annulation locale, sauvegarde et commande Rust', async ({
-  page,
-  context,
-}) => {
-  await ready(page, 'main')
-  const peer = await context.newPage()
-  await ready(peer, `peer-${Date.now()}`)
-  await peer.getByRole('button', { name: 'Affichage', exact: true }).click()
-  await peer.locator('[data-command="ui.connection"]').click()
-  await expect(peer.locator('#connection')).toHaveText('Hors connexion')
-  const token = String(Date.now())
-  await append(peer, `ALEX-${token}`)
-  await append(page, `CAMILLE-${token}`)
-  await peer.getByRole('button', { name: 'Affichage', exact: true }).click()
-  await peer.locator('[data-command="ui.connection"]').click()
-  await expect(page.locator('.tiptap')).toContainText(`ALEX-${token}`)
-  await expect(peer.locator('.tiptap')).toContainText(`CAMILLE-${token}`)
-  await peer.getByRole('button', { name: 'Annuler', exact: true }).click()
-  await expect(page.locator('.tiptap')).not.toContainText(`ALEX-${token}`)
-  await expect(page.locator('.tiptap')).toContainText(`CAMILLE-${token}`)
-  await page.getByRole('button', { name: 'Essai Rust', exact: true }).click()
-  await expect(peer.locator('.tiptap')).toContainText('Cette phrase a été préparée depuis Rust')
-  // Seeing the sentence does not yet acknowledge the remote whitespace repair.
-  // Save a converged checkpoint; strict revision checks reject concurrent edits.
-  await expect
-    .poll(async () => {
-      await Promise.all(
-        [page, peer].map((view) => view.evaluate(() => window.__spike!.provider.flush())),
+    await page.locator('.footnote-ref .inline-object-label').click()
+    await page
+      .getByLabel('Texte de la note', { exact: true })
+      .fill('Note relue : ê, é, Noël, にほん.')
+    await page.getByLabel('Texte de la note', { exact: true }).press('Enter')
+    await expect(page.locator('#properties')).toBeHidden()
+    await page.locator('[data-editor-widget=figure] figcaption').click()
+    await page.keyboard.press('Home')
+    await page.keyboard.type('Légende : ')
+    await expect(page.locator('[data-editor-widget=figure] figcaption')).toContainText('Légende :')
+    await page.locator('td').first().click()
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__spike!.editor.state.selection.$from.parent.textContent),
       )
-      const states = await Promise.all(
-        [page, peer].map((view) =>
-          view.evaluate(() =>
-            JSON.stringify({
-              revision: window.__spike!.provider.revision,
-              document: window.__spike!.editor.getJSON(),
-            }),
+      .toBe('Places assises')
+    await page.keyboard.press('Tab')
+    await expect
+      .poll(() =>
+        page.evaluate(() => window.__spike!.editor.state.selection.$from.parent.textContent),
+      )
+      .toBe('30')
+    await page.keyboard.type(' vérifié')
+    await page.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
+    await expect(page.locator('#table-properties')).toBeVisible()
+    await expect(page.locator('table')).toContainText('vérifié')
+    await page.getByRole('radio', { name: 'Ajouter une ligne au-dessous', exact: true }).click()
+    await page
+      .locator('#table-properties')
+      .getByRole('button', { name: 'Valider', exact: true })
+      .click()
+    await expect(page.locator('tr')).toHaveCount(4)
+    await expect(page.locator('#render-status')).not.toContainText('corriger')
+    await page.waitForFunction(() =>
+      /page/.test(document.querySelector('#render-status')!.textContent || ''),
+    )
+    await page.emulateMedia({ colorScheme: 'dark' })
+  },
+)
+test(
+  'deux vues fusionnent hors ligne, annulation locale, sauvegarde et commande Rust',
+  { tag: '@smoke' },
+  async ({ page, context }) => {
+    await ready(page, 'main')
+    const peer = await context.newPage()
+    await ready(peer, `peer-${Date.now()}`)
+    await peer.getByRole('button', { name: 'Affichage', exact: true }).click()
+    await peer.locator('[data-command="ui.connection"]').click()
+    await expect(peer.locator('#connection')).toHaveText('Hors connexion')
+    const token = String(Date.now())
+    await append(peer, `ALEX-${token}`)
+    await append(page, `CAMILLE-${token}`)
+    await peer.getByRole('button', { name: 'Affichage', exact: true }).click()
+    await peer.locator('[data-command="ui.connection"]').click()
+    await expect(page.locator('.tiptap')).toContainText(`ALEX-${token}`)
+    await expect(peer.locator('.tiptap')).toContainText(`CAMILLE-${token}`)
+    await peer.getByRole('button', { name: 'Annuler', exact: true }).click()
+    await expect(page.locator('.tiptap')).not.toContainText(`ALEX-${token}`)
+    await expect(page.locator('.tiptap')).toContainText(`CAMILLE-${token}`)
+    await page.getByRole('button', { name: 'Essai Rust', exact: true }).click()
+    await expect(peer.locator('.tiptap')).toContainText('Cette phrase a été préparée depuis Rust')
+    // Seeing the sentence does not yet acknowledge the remote whitespace repair.
+    // Save a converged checkpoint; strict revision checks reject concurrent edits.
+    await expect
+      .poll(async () => {
+        await Promise.all(
+          [page, peer].map((view) => view.evaluate(() => window.__spike!.provider.flush())),
+        )
+        const states = await Promise.all(
+          [page, peer].map((view) =>
+            view.evaluate(() =>
+              JSON.stringify({
+                revision: window.__spike!.provider.revision,
+                document: window.__spike!.editor.getJSON(),
+              }),
+            ),
           ),
-        ),
-      )
-      return states[0] === states[1]
+        )
+        return states[0] === states[1]
+      })
+      .toBe(true)
+    await page.getByRole('button', { name: 'Fichier', exact: true }).click()
+    await page.locator('[data-command="document.save"]').click()
+    await expect(page.locator('#message')).toContainText('Session enregistrée', { timeout: 30_000 })
+    await page.reload()
+    await page.waitForFunction(() => window.__spike?.ready)
+    await expect(page.locator('.tiptap')).toContainText(`CAMILLE-${token}`)
+    await page.getByRole('button', { name: 'Fichier', exact: true }).click()
+    await page.locator('[data-command="document.export"]').click()
+    await expect(page.locator('#message')).toContainText('sources Typst exportés', {
+      timeout: 30_000,
     })
-    .toBe(true)
-  await page.getByRole('button', { name: 'Fichier', exact: true }).click()
-  await page.locator('[data-command="document.save"]').click()
-  await expect(page.locator('#message')).toContainText('Session enregistrée', { timeout: 30_000 })
-  await page.reload()
-  await page.waitForFunction(() => window.__spike?.ready)
-  await expect(page.locator('.tiptap')).toContainText(`CAMILLE-${token}`)
-  await page.getByRole('button', { name: 'Fichier', exact: true }).click()
-  await page.locator('[data-command="document.export"]').click()
-  await expect(page.locator('#message')).toContainText('sources Typst exportés', {
-    timeout: 30_000,
-  })
-  await peer.close()
-})
+    await peer.close()
+  },
+)
 
 test('sélection entre blocs et saisie sur un document plus long', async ({ page }, testInfo) => {
   test.setTimeout(120_000)
@@ -551,43 +554,46 @@ test('colonne éditable sans cadre et actions groupées à droite', async ({ pag
   await expect(page.locator('#side-content .panel-actions > button').last()).toHaveClass('primary')
 })
 
-test('une édition distante survenue pendant la sauvegarde est incluse après refus du premier instantané périmé', async ({
-  page,
-  context,
-}) => {
-  await ready(page, 'main')
-  const peer = await context.newPage()
-  await ready(peer, 'peer-save-conflict')
-  const snapshots: { revision: number; document: unknown }[] = []
-  await page.route('**/__spike/invoke', async (route) => {
-    const request = route.request().postDataJSON()
-    if (request.command === 'save') {
-      snapshots.push(request.args.snapshot)
-      if (snapshots.length === 1) {
-        await peer.evaluate(async () => {
-          const { editor, provider } = window.__spike!
-          editor.commands.insertContentAt(1, 'Ajout distant pendant la sauvegarde. ')
-          await provider.flush()
-        })
-        await expect(page.locator('.tiptap')).toContainText('Ajout distant pendant la sauvegarde.')
+test(
+  'une édition distante survenue pendant la sauvegarde est incluse après refus du premier instantané périmé',
+  { tag: '@smoke' },
+  async ({ page, context }) => {
+    await ready(page, 'main')
+    const peer = await context.newPage()
+    await ready(peer, 'peer-save-conflict')
+    const snapshots: { revision: number; document: unknown }[] = []
+    await page.route('**/__spike/invoke', async (route) => {
+      const request = route.request().postDataJSON()
+      if (request.command === 'save') {
+        snapshots.push(request.args.snapshot)
+        if (snapshots.length === 1) {
+          await peer.evaluate(async () => {
+            const { editor, provider } = window.__spike!
+            editor.commands.insertContentAt(1, 'Ajout distant pendant la sauvegarde. ')
+            await provider.flush()
+          })
+          await expect(page.locator('.tiptap')).toContainText(
+            'Ajout distant pendant la sauvegarde.',
+          )
+        }
       }
-    }
-    await route.continue()
-  })
-  await page.getByRole('button', { name: 'Fichier', exact: true }).click()
-  await page.locator('[data-command="document.save"]').click()
-  await expect(page.locator('#message')).toContainText('Session enregistrée', { timeout: 30000 })
-  expect(snapshots.length).toBeGreaterThanOrEqual(2)
-  expect(snapshots.length).toBeLessThanOrEqual(3)
-  expect(JSON.stringify(snapshots[0].document)).not.toContain(
-    'Ajout distant pendant la sauvegarde.',
-  )
-  expect(JSON.stringify(snapshots.at(-1)!.document)).toContain(
-    'Ajout distant pendant la sauvegarde.',
-  )
-  expect(snapshots.at(-1)!.revision).toBeGreaterThan(snapshots[0].revision)
-  await peer.close()
-  await page.reload()
-  await page.waitForFunction(() => window.__spike?.ready)
-  await expect(page.locator('.tiptap')).toContainText('Ajout distant pendant la sauvegarde.')
-})
+      await route.continue()
+    })
+    await page.getByRole('button', { name: 'Fichier', exact: true }).click()
+    await page.locator('[data-command="document.save"]').click()
+    await expect(page.locator('#message')).toContainText('Session enregistrée', { timeout: 30000 })
+    expect(snapshots.length).toBeGreaterThanOrEqual(2)
+    expect(snapshots.length).toBeLessThanOrEqual(3)
+    expect(JSON.stringify(snapshots[0].document)).not.toContain(
+      'Ajout distant pendant la sauvegarde.',
+    )
+    expect(JSON.stringify(snapshots.at(-1)!.document)).toContain(
+      'Ajout distant pendant la sauvegarde.',
+    )
+    expect(snapshots.at(-1)!.revision).toBeGreaterThan(snapshots[0].revision)
+    await peer.close()
+    await page.reload()
+    await page.waitForFunction(() => window.__spike?.ready)
+    await expect(page.locator('.tiptap')).toContainText('Ajout distant pendant la sauvegarde.')
+  },
+)

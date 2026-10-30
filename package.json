@@ -2,7 +2,9 @@
   "name": "typstographe",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["app"],
+  "workspaces": [
+    "app"
+  ],
   "scripts": {
     "start": "npm run tauri --workspace @typstographe/app -- dev",
     "dev": "npm start --",
@@ -12,6 +14,7 @@
     "test": "npm test --workspace @typstographe/app",
     "test:coverage": "npm run test:coverage --workspace @typstographe/app",
     "test:browser": "npm run test:browser --workspace @typstographe/app --",
+    "test:browser:smoke": "npm run test:browser:smoke --workspace @typstographe/app --",
     "test:native": "npm run test:native --workspace @typstographe/app --",
     "test:preview-native": "npm run test:preview-native --workspace @typstographe/app --",
     "check:format": "npm run check:format --workspace @typstographe/app",
