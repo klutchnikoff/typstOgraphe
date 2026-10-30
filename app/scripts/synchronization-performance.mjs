@@ -33,14 +33,17 @@ report.environment = {
   git: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
   profile: process.env.TOG_BENCH_PROFILE || 'debug; embedded production frontend',
 }
-if (report.latencyMs) {
-  const sorted = [...report.latencyMs].sort((a, b) => a - b)
-  report.summary = {
+const summarize = (values) => {
+  const sorted = [...values].sort((a, b) => a - b)
+  return {
     n: sorted.length,
-    confirmationP50Ms: sorted[Math.ceil(sorted.length * 0.5) - 1],
-    confirmationP95Ms: sorted[Math.ceil(sorted.length * 0.95) - 1],
+    p50Ms: sorted[Math.ceil(sorted.length * 0.5) - 1],
+    p95Ms: sorted[Math.ceil(sorted.length * 0.95) - 1],
   }
 }
+if (report.latencyMs) report.summary = summarize(report.latencyMs)
+if (report.focused?.latencyMs.length) report.focusedSummary = summarize(report.focused.latencyMs)
+if (report.typstMs?.length) report.typstSummary = summarize(report.typstMs)
 await writeFile(
   path.join(root, `native-${mode}-report.json`),
   JSON.stringify(report, null, 2) + '\n',

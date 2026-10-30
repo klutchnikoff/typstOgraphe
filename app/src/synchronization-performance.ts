@@ -63,7 +63,7 @@ export async function synchronizationPerformance(
     await wait(2000)
     meter.reset()
     const idleStarted = performance.now()
-    await wait(32000) // Includes at least two awareness heartbeat periods.
+    await wait(32000) // Actual elapsed time is recorded: macOS may throttle inactive views.
     const idle = { durationMs: performance.now() - idleStarted, ...meter.snapshot() }
     const latencyMs: number[] = []
     meter.reset()
@@ -76,6 +76,26 @@ export async function synchronizationPerformance(
     }
     await wait(100)
     const edits = meter.snapshot()
+    editor.view.focus()
+    await wait(200)
+    const focused = {
+      hasFocus: editor.view.hasFocus(),
+      latencyMs: [] as number[],
+      counts: {} as Record<string, number>,
+      jsonBytes: 0,
+    }
+    if (focused.hasFocus) {
+      meter.reset()
+      for (let i = 0; i < 110; i++) {
+        const start = performance.now()
+        editor.commands.insertContentAt(1, 'f')
+        await provider.flush()
+        if (i >= 10) focused.latencyMs.push(performance.now() - start)
+        if (i === 9) meter.reset()
+      }
+      await wait(100)
+      Object.assign(focused, meter.snapshot())
+    }
     const typstMs: number[] = []
     for (let i = 0; i < 11; i++) {
       editor.commands.insertContentAt(1, 't')
@@ -87,8 +107,9 @@ export async function synchronizationPerformance(
       report: {
         success: true,
         scope:
-          'Native WebView, production assets, real Rust validation/history; synthetic transactions, rendering paused. 10 warm-up edits then 100 measured edits; bytes are serialized outgoing arguments and received event payloads, not wire overhead or process memory.',
+          'Native WebView, production assets, real Rust validation/history; synthetic transactions, automatic rendering paused. 10 warm-up edits then 100 measured edits without focus, then the same series with focus when available; 10 separate warm incremental Typst renders; bytes are serialized outgoing arguments and received event payloads, not wire overhead or process memory.',
         active,
+        focused,
         typstMs,
         userAgent: navigator.userAgent,
         idle,
