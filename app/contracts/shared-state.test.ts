@@ -1523,3 +1523,64 @@ it('native and local whitespace repair preserve Unicode, marks and NBSP in body 
   expect(state(native)).toEqual(state(local))
   await probe({ action: 'inspect', update: bytes(local), expected: state(native) })
 })
+
+it('header axes round-trip between native commands, Yjs and the editor without losing cell text', async () => {
+  const native = seed('courrier')
+  const guard = { document: 'table-header-contract', revision: 0 }
+  const result = await probe({
+    action: 'commands',
+    update: bytes(native),
+    guard,
+    expected: guard,
+    commands: [
+      {
+        id: 'insert.table',
+        params: {
+          parent: { root: { kind: 'body' }, path: [] },
+          index: 0,
+          rows: 2,
+          columns: 2,
+          header: false,
+          row_headers: true,
+        },
+      },
+      {
+        id: 'text.insert',
+        params: {
+          target: { zone: { kind: 'body', path: [0, 0, 1, 0, 0] }, from: 0, to: 0 },
+          text: 'Nom é😀日本',
+          marks: [{ type: 'bold' }],
+        },
+      },
+      {
+        id: 'table.header',
+        params: { target: { root: { kind: 'body' }, path: [0] }, axis: 'columns', enabled: true },
+      },
+    ],
+  })
+  Y.applyUpdate(native, new Uint8Array(result.update))
+  const projected = state(native)
+  const element = document.createElement('div')
+  document.body.append(element)
+  const editor = createRichZone({
+    profile: 'document',
+    element,
+    label: 'Table header contract',
+    content: projected.document,
+  })
+  editors.push(editor)
+  const table = (editor.getJSON() as JSONContent).content![0].content![0]
+  expect(table.content![0].content![0].attrs!.scope).toBe('both')
+  expect(table.content![1].content![0].attrs!.scope).toBe('row')
+  expect(table.content![1].content![0].content![0].content![0]).toMatchObject({
+    text: 'Nom é😀日本',
+    marks: [{ type: 'bold' }],
+  })
+  const roundtrip = doc(bytes(native))
+  const fragment = roundtrip.getXmlFragment('default')
+  roundtrip.transact(() => {
+    fragment.delete(0, fragment.length)
+    prosemirrorJSONToYXmlFragment(schema, editor.getJSON(), fragment)
+  })
+  await probe({ action: 'inspect', update: bytes(roundtrip), expected: projected })
+})

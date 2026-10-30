@@ -248,14 +248,24 @@ aucun widget supplémentaire n’entoure la grille. Les images conservent leur
 nœud et leur interface existants. Le parseur HTML construit également cette
 enveloppe lors du collage d’un tableau.
 
-Les paramètres communs sont `parent`/`index` et `rows`/`columns`/`header` pour
+Les paramètres communs sont `parent`/`index` et `rows`/`columns`/`header`/`row_headers` pour
 `insert.table`, puis `target` et `index` pour les lignes/colonnes. La cible désigne
 `tableFigure` ; l’indice d’insertion va de zéro au nombre courant de lignes ou
-colonnes. `table.header` reçoit `target` et `enabled`. Les insertions/suppressions
+colonnes. `table.header` reçoit `target`, `enabled` et `axis` : `columns`
+(par défaut) pour la première ligne, `rows` pour la première colonne. Les
+insertions/suppressions
 modifient directement les objets Yrs de la grille et préservent les voisins et
 la légende. Un changement de rôle d’en-tête renouvelle uniquement les cellules
 concernées, dont le texte et les marques sont conservés. Une insertion au-dessus
 de l’en-tête crée une nouvelle ligne d’en-tête et transforme l’ancienne en données.
+La règle est symétrique pour une colonne insérée avant les noms de lignes.
+Retirer la première ligne ou colonne reporte son rôle sur la nouvelle première
+ligne ou colonne. Les rôles restent ainsi des options indépendantes du tableau.
+
+Les cellules `tableHeader` portent une portée `scope` : `column` (défaut), `row`
+ou `both` au croisement des deux en-têtes. Aucun drapeau redondant n’est stocké
+sur la grille ; cette représentation distingue les quatre combinaisons même
+dans un tableau d’une cellule. JSON, Yjs/Yrs, CLI et MCP partagent ce contrat.
 
 Le parcours Tauri prépare le lot dans un candidat privé après acquittement des
 relais en cours. Le cœur vérifie que le checkpoint fourni correspond à l’historique
@@ -279,9 +289,14 @@ Accessibilité :
 - Aucun `figure(alt: ...)` n’est ajouté autour d’un tableau : cela remplacerait
   la lecture de ses cellules par la description. Les cellules et leurs en-têtes
   restent accessibles comme un véritable tableau.
-- Les en-têtes de colonnes utilisent `table.header`. Les en-têtes de lignes
-  nécessitent l’évaluation de l’API Typst actuellement expérimentale
-  `pdf.header-cell`, sous le drapeau `a11y-extras`.
+- Les en-têtes de colonnes utilisent `table.header`. Les en-têtes de lignes et
+  la cellule d’angle utilisent `table-header-cell(body, scope: "row" | "both")`,
+  défini dans `capabilities/tables.typ` et inscrit dans `dependencies.json`.
+  Ce wrapper isole l’API expérimentale `pdf.header-cell`. Seul le drapeau
+  `a11y-extras` est activé dans le moteur embarqué. L’export Typst reste autonome
+  avec ce fichier et indique la commande externe
+  `typst compile --features a11y-extras main.typ`. Aucun paquet réseau n’est requis.
+  Les tests vérifient les portées `/Row` et `/Both` dans le PDF exporté.
 - La cible d’export à préparer est PDF/UA-1, éventuellement combinée à un profil
   PDF/A compatible pour l’archivage. Ce choix ne signifie pas que l’export courant
   vérifie déjà la conformité ; les modèles et les métadonnées devront la permettre.

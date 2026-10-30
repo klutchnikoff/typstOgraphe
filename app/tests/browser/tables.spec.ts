@@ -71,46 +71,49 @@ test('un seul widget, légende riche, navigation clavier et insertion au curseur
   // The active editor stays a single column; no duplicate tool strip returns.
   await expect(page.locator('.table-tools')).toHaveCount(0)
 })
-test('bandeau commun : opérations autour de la cellule active, annulation, suppression et limites', async ({
+test('les paramètres ne proposent que les deux en-têtes, sans opérations de structure ni perte de texte', async ({
   page,
 }) => {
   await blank(page)
   const widget = await create(page)
   await widget.locator('td').first().click()
-  await page.keyboard.type('À conserver')
-  const settings = widget.getByRole('button', { name: 'Paramètres · Tableau', exact: true })
-  await settings.click()
+  await page.keyboard.type('Nom de ligne')
+  await widget.locator('figcaption').click()
+  await page.keyboard.type('Légende')
+  await widget.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
   const panel = page.locator('#table-properties')
-  await expect(panel).toBeVisible()
   const frame = await widget.boundingBox(),
     band = await panel.boundingBox()
   expect(Math.abs(frame!.width - band!.width)).toBeLessThan(4)
   expect(band!.y).toBeGreaterThan(frame!.y)
   await expect(panel.getByRole('spinbutton')).toHaveCount(0)
-  await panel.getByRole('radio', { name: 'Ajouter une colonne à gauche', exact: true }).click()
+  await expect(panel.getByRole('radio')).toHaveCount(0)
+  await expect(panel.getByRole('checkbox')).toHaveCount(2)
+  const columns = panel.getByRole('checkbox', {
+    name: 'Première ligne : en-têtes de colonnes',
+    exact: true,
+  })
+  const rows = panel.getByRole('checkbox', {
+    name: 'Première colonne : en-têtes de lignes',
+    exact: true,
+  })
+  await expect(columns).toBeChecked()
+  await expect(rows).not.toBeChecked()
+  await rows.check()
   await panel.getByRole('button', { name: 'Valider', exact: true }).press('Enter')
-  await expect(widget.locator('td')).toHaveCount(3)
-  await expect(widget.locator('td').nth(1)).toContainText('À conserver')
-  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
-  await expect(widget.locator('td')).toHaveCount(2)
-  await expect(widget.locator('td').first()).toContainText('À conserver')
-  await settings.click()
-  await panel.getByRole('radio', { name: 'Supprimer cette ligne', exact: true }).click()
-  await panel.getByRole('radio', { name: 'Supprimer cette ligne', exact: true }).press('Escape')
-  await expect(panel).toBeHidden()
+  await expect(widget.locator('th[data-header-scope="row"]')).toHaveText('Nom de ligne')
+  await expect(widget.locator('th[data-header-scope="both"]')).toHaveCount(1)
   await expect(widget.locator('tr')).toHaveCount(2)
-  await settings.click()
-  await panel.getByRole('radio', { name: 'Ajouter une ligne au-dessous', exact: true }).click()
-  await page.keyboard.press('ArrowLeft')
-  await expect(
-    panel.getByRole('radio', { name: 'Ajouter une ligne au-dessus', exact: true }),
-  ).toBeFocused()
-  await page.keyboard.press('Enter')
-  await expect(widget.locator('tr')).toHaveCount(3)
-  await widget.getByRole('button', { name: 'Supprimer · Tableau', exact: true }).click()
-  await expect(page.locator('#properties')).toBeVisible()
-  await page.locator('#properties').getByRole('button', { name: 'Annuler', exact: true }).click()
-  await expect(widget).toHaveCount(1)
+  await expect(widget.locator('figcaption')).toHaveText('Légende')
+  await expect(panel).toBeHidden()
+  await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(widget.locator('th[data-header-scope="row"]')).toHaveCount(0)
+  await expect(widget.locator('tr').last().locator('td').first()).toHaveText('Nom de ligne')
+  await widget.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
+  await rows.check()
+  await page.keyboard.press('Escape')
+  await expect(widget.locator('th[data-header-scope="row"]')).toHaveCount(0)
 })
 test('création annulable, dernière ligne/colonne protégées et en-tête facultatif', async ({
   page,
@@ -127,13 +130,8 @@ test('création annulable, dernière ligne/colonne protégées et en-tête facul
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Enter' : 'Control+Enter')
   const panel = page.locator('#table-properties')
   await expect(panel).toBeVisible()
-  await expect(
-    panel.getByRole('radio', { name: 'Supprimer cette ligne', exact: true }),
-  ).toBeDisabled()
-  await expect(
-    panel.getByRole('radio', { name: 'Supprimer cette colonne', exact: true }),
-  ).toBeDisabled()
-  await panel.getByRole('checkbox', { name: 'Première ligne d’en-tête' }).uncheck()
+  await expect(panel.getByRole('radio')).toHaveCount(0)
+  await panel.getByRole('checkbox', { name: 'Première ligne : en-têtes de colonnes' }).uncheck()
   await panel.getByRole('button', { name: 'Valider', exact: true }).click()
   await expect(widget.locator('th')).toHaveCount(0)
   await expect(widget.locator('td')).toHaveCount(1)
@@ -174,9 +172,7 @@ test('un tableau long se répartit sur plusieurs pages et la légende reste édi
   await expect(widget).toHaveCount(1)
   await widget.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
   const panel = page.locator('#table-properties')
-  await expect(
-    panel.getByRole('radio', { name: 'Ajouter une ligne au-dessus', exact: true }),
-  ).toBeDisabled()
+  await expect(panel.getByRole('radio')).toHaveCount(0)
   await panel.getByRole('button', { name: 'Valider', exact: true }).click()
   await expect
     .poll(() => page.evaluate(() => window.__spike!.editor.state.selection.$from.parent.type.name))
@@ -197,10 +193,9 @@ test('une opération confirmée est diffusée une seule fois et son annulation r
     await peer.evaluate(() => window.__spike!.provider.flush())
     const before = await page.evaluate(() => window.__spike!.provider.revision)
     await widget.locator('th').first().click()
-    await widget.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
+    await widget.getByRole('button', { name: 'Actions sur la colonne 1', exact: true }).click()
     const panel = page.locator('#table-properties')
-    await panel.getByRole('radio', { name: 'Ajouter une colonne à droite', exact: true }).click()
-    await panel.getByRole('button', { name: 'Valider', exact: true }).click()
+    await panel.getByRole('button', { name: 'À droite', exact: true }).click()
     await expect(peer.locator('[data-editor-widget="tableFigure"] th')).toHaveCount(3)
     expect(await page.evaluate(() => window.__spike!.provider.revision)).toBe(before + 1)
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
@@ -238,10 +233,9 @@ test('un changement distant entre préparation et publication refuse le lot sans
       await route.continue()
     })
     await widget.locator('td').first().click()
-    await widget.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
+    await widget.getByRole('button', { name: 'Actions sur la ligne 1', exact: true }).click()
     const panel = page.locator('#table-properties')
-    await panel.getByRole('radio', { name: 'Ajouter une ligne au-dessous', exact: true }).click()
-    await panel.getByRole('button', { name: 'Valider', exact: true }).click()
+    await panel.getByRole('button', { name: 'Au-dessous', exact: true }).click()
     await expect(page.locator('#message')).toContainText('Le document a changé')
     await expect(widget.locator('tr')).toHaveCount(2)
     await expect(widget.locator('th').first()).toContainText('Édition distante')
@@ -492,7 +486,7 @@ test('les actions de tableau en bas d’un document révèlent la cellule ciblé
   await expect(widget.locator('th').last()).toContainText('Nouvelle colonne')
 })
 
-test('ajouter une colonne dans un tableau long conserve la ligne de travail, par poignée et paramètres', async ({
+test('ajouter une colonne dans un tableau long conserve la ligne de travail, par poignée et palette', async ({
   page,
 }) => {
   await blank(page)
@@ -501,14 +495,16 @@ test('ajouter une colonne dans un tableau long conserve la ligne de travail, par
   await widget.locator('tr').last().locator('td').first().click()
   await page.keyboard.type('Ligne de travail')
   await page.evaluate(() => window.__spike!.provider.flush())
-  for (const trigger of ['handle', 'settings']) {
+  for (const trigger of ['handle', 'palette']) {
     if (trigger === 'handle') {
       await widget.getByRole('button', { name: 'Actions sur la colonne 2', exact: true }).click()
       await panel.getByRole('button', { name: 'À droite', exact: true }).click()
     } else {
-      await widget.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
-      await panel.getByRole('radio', { name: 'Ajouter une colonne à droite', exact: true }).click()
-      await panel.getByRole('button', { name: 'Valider', exact: true }).click()
+      await page.keyboard.press('Control+Shift+P')
+      const query = page.getByRole('combobox', { name: 'Rechercher une commande', exact: true })
+      await query.fill('Ajouter une colonne à droite')
+      await query.press('Enter')
+      await panel.getByRole('button', { name: 'À droite', exact: true }).press('Enter')
     }
     await expect(widget.locator('th')).toHaveCount(trigger === 'handle' ? 3 : 4)
     await expect(panel).toBeHidden()
@@ -534,5 +530,52 @@ test('ajouter une colonne dans un tableau long conserve la ligne de travail, par
       'Ligne de travail',
     )
     await page.evaluate(() => window.__spike!.provider.flush())
+  }
+})
+
+test('les axes d’en-tête d’une cellule restent indépendants et le lot est partagé et annulable', async ({
+  page,
+}) => {
+  await blank(page)
+  const widget = await create(page, '1', '1')
+  const panel = page.locator('#table-properties')
+  await widget.locator('th').click()
+  await page.keyboard.type('Nom é😀')
+  await page.evaluate(() => window.__spike!.provider.clearHistory())
+  const peer = await page.context().newPage()
+  try {
+    await peer.goto('/?client=header-peer')
+    await peer.waitForFunction(() => window.__spike?.ready)
+    const before = await page.evaluate(() => window.__spike!.provider.revision)
+    await widget.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
+    const columns = panel.getByRole('checkbox', {
+      name: 'Première ligne : en-têtes de colonnes',
+      exact: true,
+    })
+    const rows = panel.getByRole('checkbox', {
+      name: 'Première colonne : en-têtes de lignes',
+      exact: true,
+    })
+    await columns.uncheck()
+    await rows.check()
+    await panel.getByRole('button', { name: 'Valider', exact: true }).click()
+    await expect(peer.locator('th[data-header-scope="row"]')).toHaveText('Nom é😀')
+    await expect(peer.locator('td')).toHaveCount(0)
+    expect(await page.evaluate(() => window.__spike!.provider.revision)).toBe(before + 1)
+    await expect(panel).toBeHidden()
+    await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect(peer.locator('th[data-header-scope="column"]')).toHaveText('Nom é😀')
+    await page.waitForFunction(() => !window.__spike!.provider.historyBusy)
+    await page.keyboard.press('ControlOrMeta+Shift+z')
+    await expect(widget.locator('th[data-header-scope="row"]')).toHaveText('Nom é😀')
+    await widget.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
+    await expect(columns).not.toBeChecked()
+    await expect(rows).toBeChecked()
+    await columns.check()
+    await panel.getByRole('button', { name: 'Valider', exact: true }).click()
+    await expect(peer.locator('th[data-header-scope="both"]')).toHaveText('Nom é😀')
+  } finally {
+    await peer.close()
   }
 })

@@ -35,9 +35,12 @@ typographiques et de présentation imposés par le modèle restent à sa charge.
 
 Les tableaux utilisent un seul widget, avec grille et légende facultative intégrée.
 Leur génération Typst passe par `figure(table(...), caption: ...)`, à partir de la
-même enveloppe native que les images. La roue dentée ouvre les opérations de
-lignes/colonnes et le rôle d’en-tête de la première ligne ; la corbeille concerne
-le tableau entier. Les dimensions se choisissent avant l’insertion. Voir le
+même enveloppe native que les images. La roue dentée propose deux options
+indépendantes : première ligne comme en-têtes de colonnes (activée à la création),
+première colonne comme en-têtes de lignes (désactivée à la création). Leurs
+libellés et valeurs initiales viennent du catalogue commun. Les opérations de
+lignes/colonnes restent dans les poignées ; la corbeille concerne le tableau
+entier. Les dimensions se choisissent avant l’insertion. Voir le
 [contrat exécuté](structured-commands.md#figures-et-tableaux--contrat-mis-en-place)
 pour la publication gardée, l’annulation et les limites de ce premier périmètre.
 
@@ -47,8 +50,7 @@ l’en-tête inchangé du widget : Supprimer (à gauche, désactivé pour la der
 ligne ou colonne), Annuler, Au-dessus/Au-dessous ou À gauche/À droite. L’ajout
 après reste l’action par défaut à droite. Échap referme le bandeau et rend le
 focus à sa poignée ; les flèches parcourent les poignées du même axe et Entrée
-ouvre leur bandeau. La
-dernière poignée permet également d’ajouter en fin de grille ; aucun bouton
+ouvre leur bandeau. La dernière poignée permet également d’ajouter en fin de grille ; aucun bouton
 « + » supplémentaire n’est nécessaire.
 Après confirmation, le curseur entre dans la première cellule de la nouvelle
 ligne. Dans une nouvelle colonne, il conserve sa ligne de travail si le curseur
