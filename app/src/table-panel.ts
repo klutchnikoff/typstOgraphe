@@ -55,7 +55,6 @@ export function tablePanel(
         column: number
         action?: string
         axis?: TableAxis
-        quick?: boolean
         returnHandle?: boolean
       }
     | undefined
@@ -136,11 +135,16 @@ export function tablePanel(
     return button
   })
   panel.body.append(dimensions, headerLabel, info, choices)
-  panel.action({
+  const remove = panel.action({
+    label: tr('Supprimer'),
+    danger: true,
+    run: () => chooseAxisAction(true),
+  })
+  const dismiss = panel.action({
     label: tr('Annuler'),
     run: cancel,
   })
-  const before = panel.action({ label: '', run: () => chooseAddition(false) })
+  const before = panel.action({ label: '', run: () => chooseAxisAction(false, false) })
   const apply = panel.action({ label: tr('Valider'), primary: true, run: () => panel.submit() })
   function available(operation: TableAction, node: PMNode) {
     const grid = node.firstChild!
@@ -149,7 +153,16 @@ export function tablePanel(
     return operation.remove ? count > 1 : count < Number((row ? rowSpec : columnSpec).maximum)
   }
   function renderChoices() {
+    apply.disabled = before.disabled = remove.disabled = pending
     if (!opened?.node) return
+    if (opened.axis) {
+      for (const [button, operation] of [
+        [remove, axisAction(true)],
+        [before, axisAction(false, false)],
+        [apply, axisAction(false, true)],
+      ] as const)
+        button.disabled = pending || !operation || !available(operation, opened.node)
+    }
     operations.forEach((operation, index) => {
       const { id } = operation
       buttons[index].disabled = pending || !available(operation, opened!.node!)
@@ -159,24 +172,28 @@ export function tablePanel(
   }
   panel.confirm = () => {
     if (opened?.axis) {
-      chooseAddition(true)
+      chooseAxisAction(false, true)
       return
     }
     void confirm()
   }
-  function chooseAddition(after: boolean) {
-    if (!opened?.axis || pending) return
-    const operation = operations.find(
-      (op) => op.axis === opened!.axis && !op.remove && op.offset === Number(after),
+  function axisAction(remove: boolean, after = true) {
+    return operations.find(
+      (op) =>
+        op.axis === opened?.axis && op.remove === remove && (remove || op.offset === Number(after)),
     )
-    if (!operation) return
+  }
+  function chooseAxisAction(remove: boolean, after = true) {
+    if (!opened?.axis || pending) return
+    const operation = axisAction(remove, after)
+    if (!operation || !opened.node || !available(operation, opened.node)) return
     opened.action = operation.id
     void confirm()
   }
   async function confirm() {
     if (!opened || pending) return
     const draft = opened,
-      anchor = draft.quick ? { from: draft.pos } : bands.forPanel(panel.element)
+      anchor = bands.forPanel(panel.element)
     if (!anchor || (draft.node && !editor.state.doc.nodeAt(anchor.from)?.eq(draft.node))) {
       panel.error.textContent = tr(
         'Ce bloc a été modifié ailleurs. Fermez puis rouvrez ses paramètres.',
@@ -262,10 +279,10 @@ export function tablePanel(
         provider,
         transport,
         commands,
-        () => opened === draft && (draft.quick ? !bands.isOpen : !!bands.forPanel(panel.element)),
+        () => opened === draft && !!bands.forPanel(panel.element),
       )
       if (!changed) return
-      if (!draft.quick) bands.close(!draft.action && !!draft.node)
+      bands.close(!draft.action && !!draft.node)
       const figure = editor.state.doc.nodeAt(positionAtPath(editor, path))
       if (figure?.type.name === 'tableFigure' && (!draft.node || draft.action)) {
         const grid = figure.firstChild!
@@ -283,11 +300,9 @@ export function tablePanel(
       provider.onError(error)
     } finally {
       pending = false
-      if (draft.quick && opened === draft) opened = undefined
       selectTableAxis(editor, null)
       refresh()
-      apply.disabled = false
-      before.disabled = false
+      renderChoices()
     }
   }
   function open(pos?: number, action?: string) {
@@ -312,6 +327,7 @@ export function tablePanel(
       action,
     }
     dimensions.hidden = !!node
+    remove.hidden = true
     before.hidden = true
     headerLabel.hidden = false
     apply.textContent = tr('Valider')
@@ -343,44 +359,28 @@ export function tablePanel(
       },
     )
   }
-  function canAdd(target: TableHandleTarget, axis: TableAxis) {
-    const operation = operations.find((op) => op.axis === axis && !op.remove)
+  function canOpen(target: TableHandleTarget, axis: TableAxis) {
     return (
       !pending &&
       provider.online &&
       editingAvailability(editor, false).enabled &&
       commandCapabilities(editor)?.available()?.includes('insert.table') !== false &&
-      !!operation &&
-      available(operation, target.node)
+      operations.some((op) => op.axis === axis && available(op, target.node))
     )
   }
-  function addition(target: TableHandleTarget, axis: TableAxis, quick = false) {
-    if (!canAdd(target, axis)) return
+  function openAxis(target: TableHandleTarget, axis: TableAxis) {
+    if (!canOpen(target, axis)) return
     bands.close(false)
-    const context = quick
-      ? {
-          ...target,
-          row: axis === 'row' ? target.node.firstChild!.childCount - 1 : 0,
-          column: axis === 'column' ? target.node.firstChild!.firstChild!.childCount - 1 : 0,
-        }
-      : target
-    opened = { ...context, axis, quick, returnHandle: !quick }
-    if (quick) {
-      chooseAddition(true)
-      return
-    }
+    opened = { ...target, axis, returnHandle: true }
     const draft = opened
     dimensions.hidden = choices.hidden = headerLabel.hidden = true
-    info.hidden = before.hidden = false
-    info.textContent = `${tr(axis === 'row' ? 'Ligne' : 'Colonne')} ${(axis === 'row' ? context.row : context.column) + 1}`
+    info.hidden = before.hidden = remove.hidden = false
+    info.textContent = `${tr(axis === 'row' ? 'Ligne' : 'Colonne')} ${(axis === 'row' ? target.row : target.column) + 1}`
     panel.title.textContent = tr('Modifier le tableau')
-    before.textContent = tr(
-      operations.find((op) => op.axis === axis && !op.remove && op.offset === 0)!.label,
-    )
-    apply.textContent = tr(
-      operations.find((op) => op.axis === axis && !op.remove && op.offset === 1)!.label,
-    )
+    before.textContent = tr(axis === 'row' ? 'Au-dessus' : 'À gauche')
+    apply.textContent = tr(axis === 'row' ? 'Au-dessous' : 'À droite')
     panel.error.textContent = ''
+    renderChoices()
     bands.open(
       panel,
       { from: target.pos, to: target.pos + target.node.nodeSize, placement: 'widget-header' },
@@ -395,12 +395,11 @@ export function tablePanel(
       axis,
       index: axis === 'row' ? target.row : target.column,
     })
-    apply.focus({ preventScroll: true })
+    ;(apply.disabled ? dismiss : apply).focus({ preventScroll: true })
   }
   bindTableHandles(editor, {
-    available: canAdd,
-    open: (target, axis) => addition(target, axis),
-    append: (target, axis) => addition(target, axis, true),
+    available: canOpen,
+    open: openAxis,
   })
   return {
     open,

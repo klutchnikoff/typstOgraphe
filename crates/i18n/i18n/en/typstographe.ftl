@@ -800,8 +800,10 @@ web-table-row = Row
 web-table-column = Column
 web-table-row-actions = Row actions
 web-table-column-actions = Column actions
-web-table-append-row = Add a row at the bottom of the table
-web-table-append-column = Add a column to the right of the table
+web-table-before-row-short = Above
+web-table-after-row-short = Below
+web-table-before-column-short = Left
+web-table-after-column-short = Right
 
 web-table-header = Header row
 

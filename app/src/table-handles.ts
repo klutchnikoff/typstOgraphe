@@ -2,7 +2,6 @@ import { Extension, type Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import { icon } from './icons'
 import { tr } from './i18n'
 import { navigationGroup } from './keyboard-navigation'
 
@@ -16,7 +15,6 @@ export interface TableHandleTarget {
 interface Controls {
   available: (target: TableHandleTarget, axis: TableAxis) => boolean
   open: (target: TableHandleTarget, axis: TableAxis) => void
-  append: (target: TableHandleTarget, axis: TableAxis) => void
 }
 type SelectedAxis = { pos: number; node: PMNode; axis: TableAxis; index: number }
 const key = new PluginKey<SelectedAxis | null>('table-handles')
@@ -73,27 +71,14 @@ export const TableHandles = Extension.create({
             state.doc.descendants((figure, pos) => {
               if (figure.type.name !== 'tableFigure') return
               const grid = figure.firstChild!
-              const widget = (
-                at: number,
-                axis: TableAxis,
-                row: number,
-                column: number,
-                append = false,
-              ) => {
+              const widget = (at: number, axis: TableAxis, row: number, column: number) => {
                 const target = { pos, node: figure, row, column }
                 const active =
-                  !append &&
                   selected?.pos === pos &&
                   selected.axis === axis &&
                   selected.index === (axis === 'row' ? row : column)
                 const enabled = bindings.get(editor)?.available(target, axis) === true
-                const label = append
-                  ? tr(
-                      axis === 'row'
-                        ? 'Ajouter une ligne en bas du tableau'
-                        : 'Ajouter une colonne à droite du tableau',
-                    )
-                  : `${tr(axis === 'row' ? 'Actions sur la ligne' : 'Actions sur la colonne')} ${(axis === 'row' ? row : column) + 1}`
+                const label = `${tr(axis === 'row' ? 'Actions sur la ligne' : 'Actions sur la colonne')} ${(axis === 'row' ? row : column) + 1}`
                 decorations.push(
                   Decoration.widget(
                     at,
@@ -101,20 +86,15 @@ export const TableHandles = Extension.create({
                       const button = document.createElement('button')
                       button.type = 'button'
                       button.contentEditable = 'false'
-                      button.className = `table-handle ${append ? `table-append-${axis}` : `table-axis-handle table-${axis}-handle`}`
+                      button.className = `table-handle table-axis-handle table-${axis}-handle`
                       button.disabled = !enabled
                       button.title = label
                       button.setAttribute('aria-label', label)
-                      if (append) button.dataset.tableAppend = axis
-                      else {
-                        button.dataset.tableAxis = axis
-                        button.dataset.tableIndex = String(axis === 'row' ? row : column)
-                        button.setAttribute('aria-expanded', String(!!active))
-                        button.setAttribute('aria-pressed', String(!!active))
-                      }
-                      button.innerHTML = append
-                        ? icon('plus')
-                        : '<span class="table-grip" aria-hidden="true"></span>'
+                      button.dataset.tableAxis = axis
+                      button.dataset.tableIndex = String(axis === 'row' ? row : column)
+                      button.setAttribute('aria-expanded', String(!!active))
+                      button.setAttribute('aria-pressed', String(!!active))
+                      button.innerHTML = '<span class="table-grip" aria-hidden="true"></span>'
                       button.onmousedown = (event) => {
                         if (event.button === 0) event.preventDefault()
                       }
@@ -124,20 +104,12 @@ export const TableHandles = Extension.create({
                           current === undefined ? undefined : targetAt(view.state.doc, current)
                         const controls = bindings.get(editor)
                         if (!target || !controls?.available(target, axis)) return
-                        if (append) controls.append(target, axis)
-                        else controls.open(target, axis)
-                      }
-                      if (append && axis === 'row') {
-                        const row = document.createElement('div')
-                        row.contentEditable = 'false'
-                        row.className = 'table-append-row-slot'
-                        row.append(button)
-                        return row
+                        controls.open(target, axis)
                       }
                       return button
                     },
                     {
-                      key: `table-${pos}-${axis}-${row}-${column}-${append}-${enabled}-${!!active}`,
+                      key: `table-${pos}-${axis}-${row}-${column}-${enabled}-${!!active}`,
                       side: -1,
                       ignoreSelection: true,
                       stopEvent: () => true,
@@ -151,7 +123,6 @@ export const TableHandles = Extension.create({
                 row.forEach((cell, _, c) => {
                   if (!c) widget(cellPos + 1, 'row', r, c)
                   if (!r) widget(cellPos + 1, 'column', r, c)
-                  if (!r && c === row.childCount - 1) widget(cellPos + 1, 'column', r, c, true)
                   if (
                     selected?.pos === pos &&
                     (selected.axis === 'row' ? selected.index === r : selected.index === c)
@@ -165,7 +136,6 @@ export const TableHandles = Extension.create({
                 })
                 rowPos += row.nodeSize
               })
-              widget(pos + 1 + grid.nodeSize, 'row', grid.childCount - 1, 0, true)
               return false
             })
             return DecorationSet.create(state.doc, decorations)

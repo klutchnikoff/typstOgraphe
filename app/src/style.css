@@ -1747,16 +1747,11 @@ li:has(.interline-band-gap[data-marker])::marker {
   width: 16px;
   height: 16px;
 }
-.table-column-handle,
-.table-append-column {
+.table-column-handle {
   position: absolute;
   top: -34px;
   left: 50%;
   transform: translateX(-50%);
-}
-.table-append-column {
-  left: calc(100% + 7px);
-  transform: none;
 }
 .table-row-handle {
   position: absolute;
@@ -1772,12 +1767,6 @@ li:has(.interline-band-gap[data-marker])::marker {
 .table-row-handle .table-grip {
   width: 8px;
   height: 12px;
-}
-.table-append-row-slot {
-  display: flex;
-  justify-content: center;
-  padding: 4px 0;
-  user-select: none;
 }
 .tiptap td.table-axis-selected,
 .tiptap th.table-axis-selected {

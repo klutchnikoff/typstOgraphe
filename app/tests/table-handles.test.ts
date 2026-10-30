@@ -45,9 +45,8 @@ it('les contrôles ne changent ni le JSON ni le HTML exporté, et visent la cell
   const e = create(),
     before = e.getJSON(),
     html = e.getHTML(),
-    open = vi.fn(),
-    append = vi.fn()
-  bindTableHandles(e, { available: () => true, open, append })
+    open = vi.fn()
+  bindTableHandles(e, { available: () => true, open })
   expect(e.view.dom.querySelectorAll('.table-axis-handle')).toHaveLength(4)
   const button = e.view.dom.querySelector<HTMLButtonElement>(
     '[data-table-axis="column"][data-table-index="1"]',
@@ -58,15 +57,13 @@ it('les contrôles ne changent ni le JSON ni le HTML exporté, et visent la cell
   expect(e.state.selection.from).toBe(1)
   expect(e.getJSON()).toEqual(before)
   expect(e.getHTML()).toBe(html)
-  e.view.dom.querySelector<HTMLButtonElement>('[data-table-append="row"]')!.click()
-  expect(append.mock.calls[0][0].node.type.name).toBe('tableFigure')
-  expect(append.mock.calls[0][1]).toBe('row')
+  expect(e.view.dom.querySelectorAll('.table-handle')).toHaveLength(4)
 })
 it('la disponibilité est commune, et les poignées suivent leur tableau après une insertion dans le texte précédent', () => {
   const e = create(),
     open = vi.fn()
   let enabled = true
-  bindTableHandles(e, { available: () => enabled, open, append: vi.fn() })
+  bindTableHandles(e, { available: () => enabled, open })
   e.commands.insertContentAt(1, '日本😀')
   e.view.dom
     .querySelector<HTMLButtonElement>('[data-table-axis="row"][data-table-index="1"]')!
