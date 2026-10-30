@@ -172,7 +172,9 @@ export function toolbar(element: HTMLElement, registry: Registry, capabilities: 
     summary.innerHTML = icon(iconName)
     const panel = document.createElement('div')
     panel.className = 'tool-menu-content'
-    for (const capability of capabilities.filter((c) => c.group === id)) {
+    for (const capability of capabilities.filter(
+      (c) => c.group === id && c.id !== 'block.paragraph',
+    )) {
       const command = registry.get(capability.id)!
       const entry = button(command)
       const text = document.createElement('span')
