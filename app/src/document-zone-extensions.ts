@@ -15,6 +15,7 @@ import { inlineObjectView } from './inline-objects'
 import { InlineObjectNumbering, inlineObjectNumber } from './inline-object-numbering'
 import { citationLabel } from './citation-index'
 import { InlineObjectFocus } from './inline-object-focus'
+import { InlineObjectSpacing } from './inline-object-spacing'
 import { TableHandles } from './table-handles'
 
 export function documentExtensions(
@@ -26,6 +27,7 @@ export function documentExtensions(
     Proofing,
     InlineObjectNumbering.configure({ kinds: ['footnote'] }),
     InlineObjectFocus,
+    InlineObjectSpacing,
     ListItem.extend({ content: 'paragraph+' }),
     ...simpleWidgets(properties, presentations),
     Extension.create({

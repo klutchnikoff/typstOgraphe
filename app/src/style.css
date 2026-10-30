@@ -358,9 +358,17 @@ main {
   border-radius: 5px;
   cursor: pointer;
 }
+.tiptap .inline-object > .inline-object-label {
+  /* Tiptap resets noneditable descendants to normal whitespace. Keep a badge whole. */
+  white-space: nowrap;
+}
 .inline-object::before {
   content: '\2060'; /* Join the badge to the preceding word without editing the document. */
   padding-inline-end: 0.5ex;
+}
+.inline-object-flush::before {
+  content: none;
+  padding-inline-end: 0;
 }
 .inline-object-label:focus-visible {
   outline: 2px solid var(--badge-ink);
