@@ -551,6 +551,19 @@ summary svg {
 .tool-menu summary::-webkit-details-marker {
   display: none;
 }
+#toolbar .tool-menu > summary {
+  position: relative;
+}
+#toolbar .tool-menu > summary::after {
+  content: '';
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  border-left: 4px solid transparent;
+  border-bottom: 4px solid currentColor;
+  opacity: 0.65;
+  pointer-events: none;
+}
 .tool-menu summary:hover,
 .tool-menu[open] summary {
   background: var(--soft);
