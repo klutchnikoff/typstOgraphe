@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/core'
 import type { Provider, Transport } from './provider'
+import { requestPreview } from './preview-frame'
 
 /** Diagnostic instrumentation only: installed before listeners, never in normal launches. */
 export function measureTransport(transport: Transport) {
@@ -37,10 +38,13 @@ export async function synchronizationPerformance(
   editor: Editor,
   meter: ReturnType<typeof measureTransport>,
   pause: () => Promise<void>,
+  snapshot: () => unknown,
+  active = false,
 ) {
   const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
   try {
     await pause()
+    if (active) await provider.setSynchronization(true)
     editor.commands.setContent({
       type: 'doc',
       content: [
@@ -72,11 +76,20 @@ export async function synchronizationPerformance(
     }
     await wait(100)
     const edits = meter.snapshot()
+    const typstMs: number[] = []
+    for (let i = 0; i < 11; i++) {
+      editor.commands.insertContentAt(1, 't')
+      await provider.flush()
+      const { result } = await requestPreview(transport, snapshot(), 'rgba')
+      if (i > 0) typstMs.push(result.elapsedMs)
+    }
     await transport.invoke('diagnostic_finish', {
       report: {
         success: true,
         scope:
           'Native WebView, production assets, real Rust validation/history; synthetic transactions, rendering paused. 10 warm-up edits then 100 measured edits; bytes are serialized outgoing arguments and received event payloads, not wire overhead or process memory.',
+        active,
+        typstMs,
         userAgent: navigator.userAgent,
         idle,
         edits,

@@ -97,6 +97,14 @@ pub fn install(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
             .build()?;
         let view = SubmenuBuilder::new(app, label("Fenêtre"))
             .text("ui.peer", label("Deuxième fenêtre"))
+            .text(
+                "synchronization.enable",
+                label("Activer la synchronisation"),
+            )
+            .text(
+                "synchronization.disable",
+                label("Arrêter la synchronisation"),
+            )
             .text("ui.connection", label("Connexion / déconnexion"))
             .build()?;
         app.set_menu(

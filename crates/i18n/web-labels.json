@@ -263,5 +263,11 @@
   "Conservez ou abandonnez le brouillon refusé avant de continuer.": "web-command-pending-draft",
   "Ouvrez ou créez un document.": "web-command-no-document",
   "Terminez ou annulez le formulaire ouvert.": "web-command-modal",
-  "Cette commande n’est pas disponible dans ce contexte.": "web-command-unavailable"
+  "Cette commande n’est pas disponible dans ce contexte.": "web-command-unavailable",
+  "Activer la synchronisation": "sync-enable",
+  "Arrêter la synchronisation": "sync-disable",
+  "Synchronisation active": "sync-enabled",
+  "Activation après la saisie…": "sync-pending",
+  "Mode individuel · validation et historique actifs": "sync-solo",
+  "Fermez les autres fenêtres avant d’arrêter la synchronisation.": "sync-close-windows"
 }

@@ -136,6 +136,7 @@ export async function mountShell(s: Shell) {
   document.querySelector('.badge')?.remove()
   $('rust-experiment').hidden = !s.diagnostic
   $('presence').hidden = !s.diagnostic
+  $('synchronization').hidden = !active
   const header = document.querySelector('header')!
   const oldTools = header.querySelector<HTMLElement>('.session-tools')
   if (oldTools) oldTools.hidden = true
@@ -274,6 +275,7 @@ export async function mountShell(s: Shell) {
     })
   const setActive = (value: boolean) => {
     active = value
+    $('synchronization').hidden = !value
     welcome.hidden = value
     workspace.hidden = !value
     if (value) brand.finish()
@@ -657,7 +659,7 @@ export async function mountShell(s: Shell) {
     )
     document.dispatchEvent(new Event('proofing:changed'))
     if (!s.diagnostic)
-      editor.commands.updateUser({
+      provider.presence.setUser({
         name: preferences.profile['sender.name'] || tr('Vous'),
         color: '#286b91',
       })
@@ -800,6 +802,34 @@ export async function mountShell(s: Shell) {
     preferences.editor_fraction = fraction
     guarded(() => persistPreferences())
   })
+  for (const [id, enabled, label] of [
+    ['synchronization.enable', true, tr('Activer la synchronisation')],
+    ['synchronization.disable', false, tr('Arrêter la synchronisation')],
+  ] as const) {
+    requiresDocument.add(id)
+    commands.set(id, {
+      id,
+      label,
+      enabled: () =>
+        active &&
+        provider.online &&
+        !provider.rejected &&
+        !provider.synchronizationBusy &&
+        !!provider.synchronization &&
+        provider.synchronization.enabled !== enabled &&
+        (enabled || provider.synchronization.windows.length < 2),
+      run: () =>
+        guarded(async () => {
+          try {
+            await provider.setSynchronization(enabled)
+          } catch (error) {
+            if (String(error) === 'synchronization_other_windows')
+              throw new Error(tr('Fermez les autres fenêtres avant d’arrêter la synchronisation.'))
+            throw error
+          }
+        }),
+    })
+  }
   add('ui.peer', tr('Deuxième fenêtre'), () => guarded(() => transport.invoke('open_peer')))
   add('ui.connection', tr('Connexion / déconnexion'), () =>
     guarded(async () => {
@@ -843,7 +873,16 @@ export async function mountShell(s: Shell) {
         'ui.palette',
       ],
     ],
-    [tr('Affichage'), ['ui.preferences', 'ui.peer', 'ui.connection']],
+    [
+      tr('Affichage'),
+      [
+        'ui.preferences',
+        'ui.peer',
+        'synchronization.enable',
+        'synchronization.disable',
+        'ui.connection',
+      ],
+    ],
   ] as const) {
     const details = document.createElement('details')
     details.className = 'tool-menu'

@@ -45,6 +45,7 @@ pub struct Checkpoint {
 pub struct Bootstrap {
     pub generation: String,
     pub native_editing: bool,
+    pub synchronization: Synchronization,
     pub opened: bool,
     pub has_recovery: bool,
     pub initial_path: Option<String>,
@@ -57,6 +58,16 @@ pub struct Bootstrap {
     pub restored_document: Option<Node>,
     pub session_path: String,
     pub settings: crate::settings::Settings,
+}
+
+/// Ephemeral local services, never part of the document or its history.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Synchronization {
+    pub generation: String,
+    pub version: u64,
+    pub enabled: bool,
+    pub windows: Vec<String>,
 }
 
 pub struct Session {
@@ -74,6 +85,8 @@ pub struct Session {
     pub assets: Assets,
     pub root: PathBuf,
     peers: HashSet<String>,
+    synchronization_enabled: bool,
+    synchronization_version: u64,
     bytes: usize,
     initialized: bool,
     restored: Option<Node>,
@@ -96,6 +109,8 @@ impl Session {
             assets: Assets::default(),
             root,
             peers: HashSet::new(),
+            synchronization_enabled: false,
+            synchronization_version: 0,
             bytes: 0,
             initialized: false,
             restored: None,
@@ -188,9 +203,13 @@ impl Session {
     pub fn join(&mut self, peer: &str) -> Bootstrap {
         let initialize = !self.initialized;
         self.initialized = true;
-        self.peers.insert(peer.to_owned());
+        if self.peers.insert(peer.to_owned()) {
+            self.synchronization_version += 1;
+        }
+        self.activate_for_windows();
         Bootstrap {
             native_editing: true,
+            synchronization: self.synchronization(),
             generation: self.generation.clone(),
             opened: self.opened,
             has_recovery: if let Some(store) = &self.recovery {
@@ -221,19 +240,78 @@ impl Session {
     }
     pub fn connection(&mut self, peer: &str, generation: &str, online: bool) -> Result<(), String> {
         self.check_peer(peer, generation)?;
-        if online {
-            self.offline.remove(peer);
+        let changed = if online {
+            self.offline.remove(peer)
         } else {
-            self.offline.insert(peer.into());
+            self.offline.insert(peer.into())
+        };
+        if changed {
+            self.synchronization_version += 1;
         }
+        self.activate_for_windows();
         Ok(())
     }
     pub fn leave(&mut self, peer: &str) {
         self.offline.remove(peer);
-        self.peers.remove(peer);
+        if self.peers.remove(peer) {
+            self.synchronization_version += 1;
+        }
         if let Some(owner) = &mut self.owner {
             let _ = owner.close(peer);
         }
+    }
+    pub fn synchronization(&self) -> Synchronization {
+        let mut windows: Vec<_> = self.peers.difference(&self.offline).cloned().collect();
+        windows.sort();
+        Synchronization {
+            generation: self.generation.clone(),
+            version: self.synchronization_version,
+            enabled: self.synchronization_enabled,
+            windows,
+        }
+    }
+    fn activate_for_windows(&mut self) {
+        if !self.synchronization_enabled && self.peers.difference(&self.offline).count() > 1 {
+            self.synchronization_enabled = true;
+            self.synchronization_version += 1;
+        }
+    }
+    pub fn set_synchronization(
+        &mut self,
+        peer: &str,
+        generation: &str,
+        enabled: bool,
+    ) -> Result<Synchronization, String> {
+        self.check_peer(peer, generation)?;
+        if self.offline.contains(peer) {
+            return Err("synchronization_offline".into());
+        }
+        if !enabled && self.peers.difference(&self.offline).count() > 1 {
+            return Err("synchronization_other_windows".into());
+        }
+        if enabled != self.synchronization_enabled {
+            self.synchronization_enabled = enabled;
+            self.synchronization_version += 1;
+        }
+        Ok(self.synchronization())
+    }
+    pub fn accepts_awareness(
+        &self,
+        peer: &str,
+        generation: &str,
+        version: u64,
+    ) -> Result<bool, String> {
+        self.check_peer(peer, generation)?;
+        Ok(self.synchronization_enabled
+            && self.synchronization_version == version
+            && !self.offline.contains(peer))
+    }
+    /// Confirmation is already returned to the author. Agents are not window peers:
+    /// their accepted changes must still reach the sole human window.
+    pub fn should_broadcast(&self, origin: &str) -> bool {
+        self.peers
+            .difference(&self.offline)
+            .any(|peer| peer != origin)
     }
     pub fn guard(&self) -> typstographe_core::content::contract::Guard {
         typstographe_core::content::contract::Guard {
@@ -484,6 +562,81 @@ fn atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
+    #[test]
+    fn services_are_ephemeral_without_touching_the_document_or_its_owner() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut s = Session::open(dir.path().into()).unwrap();
+        let initial = s.join("main");
+        assert!(!initial.synchronization.enabled);
+        assert!(!s.should_broadcast("main"));
+        assert!(s.should_broadcast("agent")); // Agent attachment isn't a human window.
+        let before = (s.guard(), s.updates.clone(), s.assets.clone());
+        let active = s
+            .set_synchronization("main", &initial.generation, true)
+            .unwrap();
+        assert!(
+            s.accepts_awareness("main", &initial.generation, active.version)
+                .unwrap()
+        );
+        assert!(
+            !s.accepts_awareness("main", &initial.generation, active.version - 1)
+                .unwrap()
+        );
+        assert!(
+            s.set_synchronization("unknown", &initial.generation, false)
+                .is_err()
+        );
+        assert!(s.set_synchronization("main", "old", false).is_err());
+        s.set_synchronization("main", &initial.generation, false)
+            .unwrap();
+        assert_eq!(s.guard(), before.0);
+        assert_eq!(s.updates, before.1);
+        assert_eq!(s.assets.len(), before.2.len());
+        assert!(s.owner.is_none());
+        assert!(
+            !s.accepts_awareness("main", &initial.generation, active.version)
+                .unwrap()
+        );
+        assert!(
+            !Session::open(dir.path().into())
+                .unwrap()
+                .join("reopened")
+                .synchronization
+                .enabled
+        );
+    }
+    #[test]
+    fn a_second_window_activates_services_and_cannot_be_silently_forked() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut s = Session::open(dir.path().into()).unwrap();
+        let initial = s.join("main");
+        assert!(s.join("peer").synchronization.enabled);
+        assert!(s.should_broadcast("main"));
+        assert_eq!(
+            s.set_synchronization("main", &initial.generation, false)
+                .unwrap_err(),
+            "synchronization_other_windows"
+        );
+        s.connection("peer", &initial.generation, false).unwrap();
+        assert!(!s.should_broadcast("main"));
+        assert!(s.synchronization().enabled); // No automatic stop on departure.
+        assert!(
+            s.set_synchronization("peer", &initial.generation, false)
+                .is_err()
+        );
+        s.set_synchronization("main", &initial.generation, false)
+            .unwrap();
+        s.connection("peer", &initial.generation, true).unwrap();
+        assert!(s.synchronization().enabled);
+        let old = s.synchronization();
+        s.leave("peer");
+        let after = s.synchronization();
+        assert!(after.version > old.version);
+        assert_eq!(after.windows, ["main"]);
+        assert!(after.enabled);
+        s.set_synchronization("main", &initial.generation, false)
+            .unwrap();
+    }
     #[test]
     fn document_replacement_requires_a_current_connected_session() {
         let dir = tempfile::tempdir().unwrap();

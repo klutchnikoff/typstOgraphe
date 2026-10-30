@@ -46,17 +46,23 @@ struct Change {
 #[derive(Clone, serde::Serialize)]
 struct Awareness {
     from: String,
+    generation: String,
+    version: u64,
     update: Vec<u8>,
 }
 
 // Tauri dispatches these CPU/lock-bearing calls on its worker pool, never the UI thread.
 #[tauri::command(async)]
-fn join(window: WebviewWindow, state: State<Bridge>) -> Result<Bootstrap, String> {
-    Ok(state
-        .session
-        .lock()
-        .map_err(|e| e.to_string())?
-        .join(window.label()))
+fn join(
+    window: WebviewWindow,
+    app: tauri::AppHandle,
+    state: State<Bridge>,
+) -> Result<Bootstrap, String> {
+    let mut session = state.session.lock().map_err(|e| e.to_string())?;
+    let bootstrap = session.join(window.label());
+    app.emit("web-editor:synchronization", session.synchronization())
+        .map_err(|e| e.to_string())?;
+    Ok(bootstrap)
 }
 #[tauri::command(async)]
 // Three framework-injected handles plus the relay wire fields.
@@ -80,7 +86,7 @@ fn relay(
         capture.unwrap_or(true),
         history_view,
     )?;
-    if !receipt.update.is_empty() {
+    if !receipt.update.is_empty() && session.should_broadcast(window.label()) {
         app.emit(
             "web-editor:change",
             Change {
@@ -105,7 +111,7 @@ fn editing_history(
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
     session.check_peer(window.label(), &generation)?;
     let receipt = session.history(window.label(), direction)?;
-    if !receipt.update.is_empty() {
+    if !receipt.update.is_empty() && session.should_broadcast(window.label()) {
         app.emit(
             "web-editor:change",
             Change {
@@ -164,55 +170,82 @@ fn commit_structured_commands(
     state: State<Bridge>,
     request: structured::Request,
 ) -> Result<typstographe_core::content::shared::Publication, String> {
-    let publication = structured::commit(
-        &mut *state.session.lock().map_err(|e| e.to_string())?,
-        window.label(),
-        request,
-    )?;
-    for resource in &publication.resources {
-        app.emit(
+    let mut session = state.session.lock().map_err(|e| e.to_string())?;
+    let publication = structured::commit(&mut session, window.label(), request)?;
+    if session.should_broadcast(window.label()) {
+        for resource in &publication.resources {
+            app.emit(
             "web-editor:asset",
             serde_json::json!({"generation": publication.guard.document, "path": resource.path, "data": base64::engine::general_purpose::STANDARD.encode(&resource.data)}),
         )
         .map_err(|e| e.to_string())?;
-    }
-    if publication.changed {
-        app.emit(
-            "web-editor:change",
-            Change {
-                from: window.label().into(),
-                generation: publication.guard.document.clone(),
-                revision: publication.guard.revision,
-                update: publication.update.clone(),
-            },
-        )
-        .map_err(|e| e.to_string())?;
+        }
+        if publication.changed {
+            app.emit(
+                "web-editor:change",
+                Change {
+                    from: window.label().into(),
+                    generation: publication.guard.document.clone(),
+                    revision: publication.guard.revision,
+                    update: publication.update.clone(),
+                },
+            )
+            .map_err(|e| e.to_string())?;
+        }
     }
     Ok(publication)
 }
 #[tauri::command(async)]
 fn connection(
     window: WebviewWindow,
+    app: tauri::AppHandle,
     state: State<Bridge>,
     online: bool,
     generation: String,
-) -> Result<(), String> {
-    state
-        .session
-        .lock()
-        .map_err(|e| e.to_string())?
-        .connection(window.label(), &generation, online)
+) -> Result<session::Synchronization, String> {
+    let mut session = state.session.lock().map_err(|e| e.to_string())?;
+    session.connection(window.label(), &generation, online)?;
+    let status = session.synchronization();
+    app.emit("web-editor:synchronization", &status)
+        .map_err(|e| e.to_string())?;
+    Ok(status)
 }
-
-#[tauri::command]
-fn awareness(window: WebviewWindow, app: tauri::AppHandle, update: Vec<u8>) -> Result<(), String> {
+#[tauri::command(async)]
+fn set_synchronization(
+    window: WebviewWindow,
+    app: tauri::AppHandle,
+    state: State<Bridge>,
+    generation: String,
+    enabled: bool,
+) -> Result<session::Synchronization, String> {
+    let mut session = state.session.lock().map_err(|e| e.to_string())?;
+    let status = session.set_synchronization(window.label(), &generation, enabled)?;
+    app.emit("web-editor:synchronization", &status)
+        .map_err(|e| e.to_string())?;
+    Ok(status)
+}
+#[tauri::command(async)]
+fn awareness(
+    window: WebviewWindow,
+    app: tauri::AppHandle,
+    state: State<Bridge>,
+    generation: String,
+    version: u64,
+    update: Vec<u8>,
+) -> Result<(), String> {
     if update.len() > 64 * 1024 {
         return Err("Présence trop volumineuse.".into());
+    }
+    let session = state.session.lock().map_err(|e| e.to_string())?;
+    if !session.accepts_awareness(window.label(), &generation, version)? {
+        return Ok(());
     }
     app.emit(
         "web-editor:awareness",
         Awareness {
             from: window.label().into(),
+            generation,
+            version,
             update,
         },
     )
@@ -495,6 +528,9 @@ fn main() {
         if arg == "--diagnostic" {
             diagnostic = Some("full".to_owned());
         }
+        if arg == "--diagnostic-synchronization-active" {
+            diagnostic = Some("synchronization-active".to_owned());
+        }
         if arg == "--diagnostic-synchronization" {
             diagnostic = Some("synchronization".to_owned());
         }
@@ -566,6 +602,9 @@ fn main() {
                 let state = window.state::<Bridge>();
                 if let Ok(mut session) = state.session.lock() {
                     session.leave(window.label());
+                    let _ = window
+                        .app_handle()
+                        .emit("web-editor:synchronization", session.synchronization());
                 }
                 if let Ok(mut agent) = state.agent.lock() {
                     agent.busy.remove(window.label());
@@ -620,6 +659,7 @@ fn main() {
             rendering::sync_selection,
             join,
             connection,
+            set_synchronization,
             relay,
             editing_history,
             editing_context,

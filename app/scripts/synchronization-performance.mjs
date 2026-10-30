@@ -6,7 +6,8 @@ import os from 'node:os'
 const root = path.resolve(process.argv[2] || 'output/synchronization-performance')
 const binary = process.env.TOG_SPIKE_BINARY || path.resolve('target/debug/typstographe')
 await mkdir(root, { recursive: true })
-const child = spawn(binary, ['--diagnostic-synchronization', '--session-dir', root], {
+const mode = process.env.TOG_SYNC_ACTIVE === '1' ? 'synchronization-active' : 'synchronization'
+const child = spawn(binary, [`--diagnostic-${mode}`, '--session-dir', root], {
   stdio: ['ignore', 'pipe', 'pipe'],
 })
 let log = ''
@@ -22,9 +23,7 @@ const code = await new Promise((resolve, reject) => {
 })
 clearTimeout(timeout)
 await writeFile(path.join(root, 'native.log'), log)
-const report = JSON.parse(
-  await readFile(path.join(root, 'native-synchronization-report.json'), 'utf8'),
-)
+const report = JSON.parse(await readFile(path.join(root, `native-${mode}-report.json`), 'utf8'))
 report.environment = {
   platform: process.platform,
   release: os.release(),
@@ -43,7 +42,7 @@ if (report.latencyMs) {
   }
 }
 await writeFile(
-  path.join(root, 'native-synchronization-report.json'),
+  path.join(root, `native-${mode}-report.json`),
   JSON.stringify(report, null, 2) + '\n',
 )
 console.log(JSON.stringify({ code, ...report }, null, 2))

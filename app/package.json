@@ -22,7 +22,6 @@
     "@tauri-apps/api": "2.12.4",
     "@tiptap/core": "3.32.0",
     "@tiptap/extension-collaboration": "3.32.0",
-    "@tiptap/extension-collaboration-caret": "3.32.0",
     "@tiptap/extension-list": "3.32.0",
     "@tiptap/extension-table": "3.32.0",
     "@tiptap/pm": "3.32.0",

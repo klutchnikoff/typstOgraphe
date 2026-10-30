@@ -1789,3 +1789,14 @@ li:has(.interline-band-gap[data-marker])::marker {
 .draft-recovery p {
   margin: 0 0 0.5rem;
 }
+
+/* Presence services are optional; the status action preserves the writing focus. */
+#synchronization {
+  margin-left: auto;
+  padding: 2px 8px;
+  font: inherit;
+  border-radius: 5px;
+}
+#synchronization[aria-pressed='true'] {
+  color: var(--accent);
+}

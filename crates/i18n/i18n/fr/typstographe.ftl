@@ -874,3 +874,11 @@ web-command-pending-draft = Conservez ou abandonnez le brouillon refusé avant d
 web-command-no-document = Ouvrez ou créez un document.
 web-command-modal = Terminez ou annulez le formulaire ouvert.
 web-command-unavailable = Cette commande n’est pas disponible dans ce contexte.
+
+# Optional local synchronization services
+sync-enable = Activer la synchronisation
+sync-disable = Arrêter la synchronisation
+sync-enabled = Synchronisation active
+sync-pending = Activation après la saisie…
+sync-solo = Mode individuel · validation et historique actifs
+sync-close-windows = Fermez les autres fenêtres avant d’arrêter la synchronisation.

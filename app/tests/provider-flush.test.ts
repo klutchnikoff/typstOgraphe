@@ -300,6 +300,12 @@ it('queues resources during join, filters old generations and keeps wire envelop
         })
         return {
           generation: 'current',
+          synchronization: {
+            generation: 'current',
+            version: 0,
+            enabled: false,
+            windows: ['assets'],
+          },
           revision: 0,
           updates: [],
           resources: [],
@@ -307,6 +313,8 @@ it('queues resources during join, filters old generations and keeps wire envelop
           sessionPath: '',
         }
       }
+      if (command === 'connection')
+        return { generation: 'current', version: 0, enabled: false, windows: ['assets'] }
       return 0
     },
   } as unknown as Transport

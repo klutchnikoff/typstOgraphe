@@ -24,6 +24,12 @@ class Host {
         if (command === 'join') {
           const data: Bootstrap = {
             generation: this.generation,
+            synchronization: {
+              generation: this.generation,
+              version: 0,
+              enabled: false,
+              windows: [id],
+            },
             revision: this.revision,
             updates: structuredClone(this.updates),
             fixture,
@@ -35,6 +41,8 @@ class Host {
           this.initialized = true
           return data as T
         }
+        if (command === 'connection')
+          return { generation: this.generation, version: 0, enabled: false, windows: [id] } as T
         if (command === 'relay') {
           const update = args!.update as number[]
           this.updates.push([...update])
