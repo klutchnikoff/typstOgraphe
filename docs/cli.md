@@ -54,8 +54,11 @@ Resource data is base64 in `resource.add`; models use their pure Typst source in
 | `document_types.list` | query | List built-in document types and their interchangeable visual models. |
 | `edit.redo` | session | Redo this participant's contribution. |
 | `edit.undo` | session | Undo this participant's last confirmed contribution. |
-| `inline.replace` | edit | Replace a typed inline range with one node (for example footnote or citation). Discover the node via capabilities.describe. |
+| `inline.replace` | edit | Replace one typed rich range with a footnote, citation, softBreak (a Typst space) or hardBreak (forced line break). Breaks are unavailable in single-line header fields and plain fields. A break is one UTF-16 unit; paragraph separation uses block.split. No implicit CR/LF interpretation in text.insert. Discover objects via capabilities.describe. |
 | `insert.table` | edit | Insert a table figure. header marks the first row as column headers; row_headers marks the first column as row headers. They are independent, including a one-cell table. No merged cells. |
+| `list.item.exit` | edit | Remove an entirely empty item and create/reuse a continuation paragraph after its list. Remove the whole list only when it was the last item. A badge is content: an item containing a note cannot be exited as empty. |
+| `list.item.join` | edit | Join adjacent bullet/numbered items of the same list, concatenating the last left paragraph and first right paragraph without an added space or break. Keep the left item and prefix. An empty right item is removed. Refuse description term/definition boundaries and different lists. |
+| `list.item.split` | edit | Split a flat bullet/numbered list item at one paragraph range, or a description item at its definition range. Preserve the left item and prefix; the suffix and following paragraphs become a new item. Description terms remain separate, and the new term is empty. Empty-item exit is a separate operation. |
 | `metadata.get` | query | Read document metadata and field/collection definitions. |
 | `metadata.set` | edit | Set a typed metadata, record field or document option. Values are validated against the type and model policy. |
 | `models.list` | query | Read brief visual model cards, including the active embedded model. |

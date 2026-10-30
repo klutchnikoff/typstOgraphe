@@ -2,7 +2,11 @@
 use super::Call;
 use serde_json::{Value, json};
 fn paragraph(text: &str) -> Value {
-    json!({"type":"paragraph","content":[{"type":"text","text":text}]})
+    if text.is_empty() {
+        json!({"type":"paragraph"})
+    } else {
+        json!({"type":"paragraph","content":[{"type":"text","text":text}]})
+    }
 }
 fn at() -> Value {
     json!({"zone":{"kind":"body","path":[0]},"from":0,"to":0})
@@ -39,6 +43,32 @@ pub fn for_id(id: &str) -> Vec<Call> {
                 id: id.into(),
                 params: json!({"target":at(),"text":"Literal prose","marks":[{"type":"bold"}]}),
             }];
+        }
+        "inline.replace" => {
+            return vec![Call {
+                id: id.into(),
+                params: json!({"target":at(),"node":{"type":"softBreak"}}),
+            }];
+        }
+        "list.item.split" | "list.item.join" | "list.item.exit" => {
+            return vec![
+                Call {
+                    id: "block.insert".into(),
+                    params: json!({"parent":{"root":{"kind":"body"}},"index":0,"node":{"type":"bulletList","content":[{"type":"listItem","content":[paragraph("Left right")]},{"type":"listItem","content":[paragraph("")]}]}}),
+                },
+                Call {
+                    id: id.into(),
+                    params: match id {
+                        "list.item.split" => {
+                            json!({"target":{"zone":{"kind":"body","path":[0,0,0]},"from":4,"to":5}})
+                        }
+                        "list.item.join" => {
+                            json!({"left":{"root":{"kind":"body"},"path":[0,0]},"right":{"root":{"kind":"body"},"path":[0,1]}})
+                        }
+                        _ => json!({"target":{"root":{"kind":"body"},"path":[0,1]}}),
+                    },
+                },
+            ];
         }
         "text.bold" | "text.italic" => {
             return vec![

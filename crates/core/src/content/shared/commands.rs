@@ -413,6 +413,9 @@ pub(super) fn apply(doc: &Doc, state: &State, command: &Command) -> Result<(), E
         Command::ReplaceInline { .. } | Command::SetNodeAttrs { .. } => {
             super::objects::apply(doc, state, command)
         }
+        Command::SplitListItem { .. }
+        | Command::JoinListItems { .. }
+        | Command::ExitListItem { .. } => super::lists::apply(doc, state, command),
         Command::InsertTable { .. }
         | Command::InsertTableRow { .. }
         | Command::RemoveTableRow { .. }

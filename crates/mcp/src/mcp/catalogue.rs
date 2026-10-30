@@ -83,6 +83,9 @@ pub fn attached_id(id: &str) -> bool {
             | "block.remove"
             | "block.split"
             | "block.join"
+            | "list.item.split"
+            | "list.item.join"
+            | "list.item.exit"
             | "block.paragraph"
             | "block.heading_1"
             | "block.heading_2"
@@ -107,7 +110,7 @@ pub fn attached_step(call: &api::Call) -> bool {
 pub fn attached_command(command: &typstographe_core::content::commands::Command) -> bool {
     use typstographe_core::content::commands::*;
     match command {
-        Command::JoinBlocks { left, right } => {
+        Command::JoinBlocks { left, right } | Command::JoinListItems { left, right } => {
             left.root == TreeRoot::Body && right.root == TreeRoot::Body
         }
         Command::Insert { target, .. }
@@ -118,6 +121,7 @@ pub fn attached_command(command: &typstographe_core::content::commands::Command)
         | Command::RemoveLink { target }
         | Command::Clear { target }
         | Command::ReplaceInline { target, .. }
+        | Command::SplitListItem { target }
         | Command::SplitBlock { target } => matches!(
             target.zone,
             TextZone::Body { .. } | TextZone::Annotation { .. }
@@ -126,6 +130,7 @@ pub fn attached_command(command: &typstographe_core::content::commands::Command)
         | Command::SpliceBlocks { parent, .. }
         | Command::InsertTable { parent, .. } => parent.root == TreeRoot::Body,
         Command::ReplaceBlock { target, .. }
+        | Command::ExitListItem { target }
         | Command::SetNodeAttrs { target, .. }
         | Command::RemoveBlock { target }
         | Command::Paragraph { target }

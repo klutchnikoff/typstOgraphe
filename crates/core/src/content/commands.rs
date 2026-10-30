@@ -209,6 +209,12 @@ pub enum Command {
     SplitBlock { target: TextTarget },
     #[serde(rename = "block.join")]
     JoinBlocks { left: TreeTarget, right: TreeTarget },
+    #[serde(rename = "list.item.split")]
+    SplitListItem { target: TextTarget },
+    #[serde(rename = "list.item.join")]
+    JoinListItems { left: TreeTarget, right: TreeTarget },
+    #[serde(rename = "list.item.exit")]
+    ExitListItem { target: TreeTarget },
     #[serde(rename = "block.paragraph")]
     Paragraph { target: TreeTarget },
     #[serde(rename = "block.heading_1")]
@@ -285,6 +291,9 @@ impl Command {
             Self::RemoveBlock { .. } => "block.remove",
             Self::SplitBlock { .. } => "block.split",
             Self::JoinBlocks { .. } => "block.join",
+            Self::SplitListItem { .. } => "list.item.split",
+            Self::JoinListItems { .. } => "list.item.join",
+            Self::ExitListItem { .. } => "list.item.exit",
             Self::Paragraph { .. } => "block.paragraph",
             Self::Heading1 { .. } => "block.heading_1",
             Self::Heading2 { .. } => "block.heading_2",
@@ -320,6 +329,9 @@ pub const IDS: &[&str] = &[
     "block.remove",
     "block.split",
     "block.join",
+    "list.item.split",
+    "list.item.join",
+    "list.item.exit",
     "block.paragraph",
     "block.heading_1",
     "block.heading_2",
