@@ -1,6 +1,6 @@
 # Plan technique de développement
 
-Révisé le **29 octobre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
+Révisé le **30 octobre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
 et ne conserve que les décisions à prendre et les travaux techniques restants.
 Les anciennes phases, leurs réalisations et leurs inventaires historiques sont
 dans les bilans de docs/ et l’historique Git.
@@ -64,8 +64,8 @@ ajoute des répliques privées durables, des styles/sélections isolés et la va
 des annulations avant publication. Il est vérifié avec Yjs/Tiptap et raccordé à
 l’application : frappe immédiate,
 validation asynchrone, groupement et historique Rust unique par fenêtre,
-accusés/refus et export explicite du brouillon avant abandon. Restent les
-transformations supplémentaires et le mode individuel allégé. Les brouillons
+accusés/refus et export explicite du brouillon avant abandon. Le reste du périmètre
+est borné par l’inventaire des transformations et le mode individuel ci-dessous. Les brouillons
 refusés restent en mémoire avant leur export JSON ; leur conservation automatique
 durable reste à traiter.
 
@@ -131,10 +131,39 @@ seule annulation humaine ; elle ne reconstruit plus une édition dans le navigat
 Le périmètre rattaché reste le corps/cellules/annotations, sans en-tête, ressources
 ou fichiers modifiables tant que la relecture ne les présente pas.
 
-Restent dans A.2 les transformations supplémentaires et le mode individuel
-allégé. Les schémas et la validation des éditions sont communs ; les autorisations
-restent propres à chaque adaptateur.
-Aucun canal ne contourne les frontières entre zones.
+L’[inventaire des transformations du 30 octobre](docs/a2-transformations-inventory.md)
+remplace la mention ouverte « transformations supplémentaires » par trois points :
+
+- **R1 — Retours en ligne :** insertion localisée des retours simples/forcés,
+  sans remplacer tout le paragraphe ni interpréter implicitement CR/LF dans
+  `text.insert`. Signature à valider.
+- **R2 — Items de listes :** contrat commun de séparation, jointure et sortie
+  d’item vide, avec identités préservées et frontières terme/définition protégées.
+  Préciser Suppr et les items comportant plusieurs paragraphes ; pas de listes imbriquées.
+- **R3 — Entrées natives :** compléter le contrat et les recettes du vrai
+  couper-coller et des sélections/remplacements traversant paragraphes, widgets,
+  annotations ou cellules. Les imports par `setContent`/`insertContent` ne prouvent
+  pas seuls le parcours du presse-papiers.
+
+Les gestes immédiats conservent leur affichage local puis leur confirmation
+Rust ; le contrat commun n’impose pas un RPC bloquant à chaque touche.
+Les schémas et la validation des éditions sont communs ; les autorisations restent
+propres à chaque adaptateur. Aucun canal ne contourne les frontières entre zones.
+
+**Prochain lot — mode individuel allégé :** même moteur, fichier et propriétaire,
+présence et services collaboratifs facultatifs activés à la demande. Depuis un
+document en cours, une action explicite en un clic doit activer la synchronisation,
+sans conversion ni réouverture, en conservant identité, historique, ressources,
+sélection et focus. L’activation ne crée pas d’étape d’annulation. Préserver la
+frappe en attente et ne pas publier les prééditions ou brouillons privés/refusés ;
+un échec d’activation ne modifie pas le travail. La présentation, les transitions
+avec plusieurs fenêtres et le rattachement d’un agent sont à préciser avant codage.
+Cette exigence ne choisit ni serveur distant ni permissions réseau : voir G.
+Mesurer frappe/confirmation et rendu Typst séparément.
+
+La clôture d’A.2 doit solder R1–R3, le mode individuel et la recette finale
+Courrier/Article entre les adaptateurs. Les brouillons durables restent dans A.3,
+la fusion de cellules et les listes imbriquées dans C.
 
 **Disponibilité raccordée :** les réponses de contexte du cœur exposent les
 capacités possibles et leurs raisons d’indisponibilité pour la sélection du

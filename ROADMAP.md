@@ -1,6 +1,6 @@
 # Feuille de route de typstOgraphe
 
-Révisée le **28 octobre 2026**. Objectif : transformer le prototype validé en une
+Révisée le **30 octobre 2026**. Objectif : transformer le prototype validé en une
 application de rédaction utilisable au quotidien, pour l’administration,
 l’enseignement et la recherche en sciences humaines et sociales.
 
@@ -39,8 +39,13 @@ paramètres et suppressions des widgets et badges sont également raccordés.
 Les champs d’en-tête, ressources, options, sélections/styles et adaptateurs
 CLI/MCP utilisent également le contrat commun. La disponibilité des capacités
 est raccordée aux contextes et aux déclencheurs de l’interface ; la palette
-conserve la zone riche choisie. Restent dans A.2 les transformations supplémentaires
-et le mode individuel allégé. La [fusion de paragraphes](docs/paragraph-join.md)
+conserve la zone riche choisie. L’[inventaire des transformations restantes](docs/a2-transformations-inventory.md)
+borne les transformations d’A.2 aux retours en ligne localisés, opérations internes
+aux listes et garanties des entrées natives. Restent aussi le mode individuel
+allégé et la recette finale.
+L’activation de la synchronisation depuis le document ouvert devra se faire
+en un clic, sans conversion, réouverture ni perte de l’historique ou du curseur.
+La [fusion de paragraphes](docs/paragraph-join.md)
 est désormais commune à Rust, Tiptap et aux adaptateurs, avec frontières protégées
 et restauration du curseur par l’historique natif. Les brouillons
 refusés restent en mémoire avant leur export JSON ; leur conservation durable
@@ -496,10 +501,11 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Poursuivre l’unification du contrat structuré entre les adaptateurs (**A.2**),
-   à partir du [rangement de l’application](docs/application-layout.md).
-   Les schémas de métadonnées Article sont partagés ; les propositions MCP
-   rattachées restent actuellement limitées au corps du document.
+1. Après l’[inventaire des transformations A.2](docs/a2-transformations-inventory.md),
+   préparer le mode individuel allégé et l’activation de la synchronisation
+   en un clic depuis le document ouvert. Solder R1–R3 et la recette commune avant
+   de clore A.2. Les propositions MCP rattachées restent limitées au corps du
+   document ; leur extension n’est pas implicite dans ce lot.
 2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
 3. Engager ACP après stabilisation du contrat documentaire et validation de sa

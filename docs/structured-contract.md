@@ -68,6 +68,13 @@ la cible ; les lots ci-dessous distinguent sa mise en œuvre progressive.
   collaboratifs et présence activés seulement à la demande. On conserve Yjs/Yrs ;
   on ne crée pas une seconde implémentation de l'édition. Le gain de réactivité
   sera mesuré sur le parcours réel, sans assimiler le coût CRDT au rendu Typst.
+- **Activation depuis un document en cours, précisée le 30 octobre :** une action
+  explicite en un clic, sans conversion ou réouverture. Conserver identité,
+  contenu, ressources, historique, sélection et focus ; l’activation ne crée pas
+  d’étape d’annulation. Traiter les confirmations en attente sans publier une
+  préédition IME ou un brouillon privé/refusé, et conserver le travail en cas
+  d’échec d’activation. Le placement de l’action et les transitions entre
+  participants seront précisés avant codage ; le serveur distant reste dans G.
 
 ## Mise en œuvre et critères de sortie
 
@@ -78,8 +85,10 @@ l’historique Tauri y sont raccordés, ainsi que les tableaux, styles, liens,
 titres, widgets, objets en ligne et contextes de sélection/styles de frappe.
 Les raccordements documentaires Tauri, CLI et MCP sont en place : voir le
 [bilan des adaptateurs structurés](structured-adapters.md). La séquence ci-dessous
-conserve les choix de migration ; les transformations restantes et le mode
-individuel allégé ne sont pas encore clos.
+conserve les choix de migration. L’[inventaire du 30 octobre](a2-transformations-inventory.md)
+borne les transformations restantes à R1 (retours en ligne localisés), R2
+(items de listes) et R3 (entrées natives et sélections traversant les structures).
+Ces points, le mode individuel allégé et la recette finale ne sont pas encore clos.
 
 1. **Socle partagé** : valeurs de réglages et d'instantané dans le cœur,
    gardes/cibles/erreurs structurées, projection Yrs et contrôle de cohérence
