@@ -1,3 +1,4 @@
+import { confirmNewDocument } from './document-lifecycle'
 import { expect, test, type Page } from '@playwright/test'
 const body = (page: Page) => page.getByRole('textbox', { name: 'Corps du document', exact: true })
 async function ready(page: Page, id = 'main') {
@@ -101,11 +102,7 @@ test('les zones riches d’en-tête partagent le contexte, les brouillons détac
   await page.getByRole('button', { name: 'Fichier', exact: true }).click()
   await page.locator('[data-command="document.new"]').click()
   await page.locator('dialog select').first().selectOption('article')
-  await Promise.all([
-    page.waitForEvent('domcontentloaded'),
-    page.getByRole('button', { name: 'Créer', exact: true }).click(),
-  ])
-  await page.waitForFunction(() => window.__spike?.ready)
+  await confirmNewDocument(page)
   await page.locator('#metadata-tab-titles').click()
   const title = page.getByRole('textbox', { name: 'Titre', exact: true })
   await title.fill('Titre japonais 日本')

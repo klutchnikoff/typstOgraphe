@@ -1,3 +1,5 @@
+import { confirmNewDocument } from './document-lifecycle'
+import { recordSelection } from './selection-diagnostic'
 import { expect, test } from '@playwright/test'
 
 test.beforeEach(async ({ page, request }) => {
@@ -29,14 +31,16 @@ test('un titre dans une citation est indisponible dans la barre, la palette et a
 
 test('la palette agit dans le titre riche actif et ne modifie jamais le corps', async ({
   page,
-}) => {
+}, info) => {
   await page.getByRole('button', { name: 'Fichier', exact: true }).click()
   await page.locator('[data-command="document.new"]').click()
   await page.locator('dialog select').first().selectOption('article')
-  await page.getByRole('button', { name: 'Créer', exact: true }).click()
-  await page.waitForFunction(() => window.__spike?.ready)
+  await confirmNewDocument(page)
   await page.locator('#metadata-tab-titles').click()
   const title = page.getByRole('textbox', { name: 'Titre', exact: true })
+  const diagnostic = process.env.TOG_SELECTION_DIAGNOSTIC
+    ? await recordSelection(page, 'Titre')
+    : undefined
   await title.fill('Titre à relire')
   await title.press('ControlOrMeta+a')
   const before = await page.evaluate(() => window.__spike!.editor.getJSON())
@@ -46,7 +50,11 @@ test('la palette agit dans le titre riche actif et ne modifie jamais le corps', 
   await input.fill('Gras')
   await input.press('Enter')
   await expect(title.locator('strong')).toHaveText('Titre à relire')
-  await expect(title).toBeFocused()
+  try {
+    await expect(title).toBeFocused()
+  } finally {
+    await diagnostic?.(info)
+  }
   expect(await page.evaluate(() => window.__spike!.editor.getJSON())).toEqual(before)
   await page.evaluate(() => window.__spike!.provider.flush())
   await expect

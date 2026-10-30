@@ -1,3 +1,5 @@
+import { confirmNewDocument } from './document-lifecycle'
+import { recordSelection } from './selection-diagnostic'
 import { expect, test, type Page } from '@playwright/test'
 
 const official =
@@ -18,7 +20,7 @@ async function create(page: Page) {
   await page.locator('[data-command="document.new"]').click()
   await page.locator('dialog select').first().selectOption('article')
   await expect(page.locator('dialog select').nth(1)).toHaveValue('article.model.working')
-  await page.getByRole('button', { name: 'Créer', exact: true }).click()
+  await confirmNewDocument(page)
   await tab(page, 'titles')
 }
 async function add(page: Page, label: string, index = -1) {
@@ -214,7 +216,7 @@ test('Article : onglets, auteurs partagés, langues, annulation et fichier auton
 
 test('les zones riches partagent les raccourcis Typst et la sémantique des retours du corps', async ({
   page,
-}) => {
+}, info) => {
   await create(page)
   const title = page.getByRole('textbox', { name: 'Titre', exact: true })
   await title.fill('Un titre')
@@ -247,10 +249,14 @@ test('les zones riches partagent les raccourcis Typst et la sémantique des reto
   await expect(abstract.locator('ul')).toHaveCount(0)
   await expect(abstract).toContainText('- ')
   await tab(page, 'titles')
+  const diagnostic = process.env.TOG_SELECTION_DIAGNOSTIC
+    ? await recordSelection(page, 'Titre')
+    : undefined
   await title.click()
   await title.press('Home')
   await title.press('ControlOrMeta+b')
   await page.keyboard.type('Bref ')
+  await diagnostic?.(info)
   await expect(title.locator('strong')).toHaveText('Bref ')
   await expect(body(page)).toBeEmpty()
 })

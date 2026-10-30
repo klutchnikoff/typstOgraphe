@@ -1,3 +1,4 @@
+import { confirmNewDocument } from './document-lifecycle'
 import { expect, test, type Page } from '@playwright/test'
 
 const image = Buffer.from(
@@ -157,10 +158,7 @@ test('le profil reste global, puis sa signature est incorporée explicitement ou
   const discard = page.getByRole('button', { name: 'Abandonner', exact: true })
   if (await discard.isVisible()) await discard.click()
   const generation = await page.evaluate(() => window.__spike!.provider.generation)
-  await Promise.all([
-    page.waitForEvent('domcontentloaded'),
-    page.getByRole('button', { name: 'Créer', exact: true }).click(),
-  ])
+  await confirmNewDocument(page)
   await page.waitForFunction(
     ({ path, generation }) =>
       window.__spike?.ready &&

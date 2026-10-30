@@ -1,3 +1,4 @@
+import { confirmNewDocument } from './document-lifecycle'
 import { recordSelection } from './selection-diagnostic'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
@@ -373,7 +374,7 @@ test('accueil sans document et création depuis les types et modèles disponible
   await expect(page.locator('dialog')).toBeVisible()
   await expect(page.locator('dialog select').first().locator('option')).toHaveCount(2)
   await expect(page.locator('dialog select').nth(1).locator('option')).toHaveCount(1)
-  await page.getByRole('button', { name: 'Créer', exact: true }).click()
+  await confirmNewDocument(page)
   await expect(page.locator('main')).toBeVisible()
   await expect(page.locator('.tiptap')).not.toContainText('Valmont')
   await expect(page.locator('.tiptap')).not.toContainText('Madame, Monsieur')

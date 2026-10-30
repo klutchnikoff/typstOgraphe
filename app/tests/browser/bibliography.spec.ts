@@ -1,3 +1,4 @@
+import { confirmNewDocument } from './document-lifecycle'
 import { expect, test, type Page } from '@playwright/test'
 const bib =
   '@book{bourdieu1980, author={Bourdieu, Pierre}, title={Le sens pratique}, year={1980}, publisher={Minuit}}'
@@ -22,7 +23,7 @@ async function create(page: Page) {
   await page.getByRole('button', { name: 'Fichier', exact: true }).click()
   await page.locator('[data-command="document.new"]').click()
   await page.locator('dialog select').first().selectOption('article')
-  await page.getByRole('button', { name: 'Créer', exact: true }).click()
+  await confirmNewDocument(page)
   await tab(page, 'titles')
   await page.getByRole('textbox', { name: 'Titre', exact: true }).fill('Article bibliographique')
   await tab(page, 'bibliography')
