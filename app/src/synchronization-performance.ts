@@ -1,0 +1,91 @@
+import type { Editor } from '@tiptap/core'
+import type { Provider, Transport } from './provider'
+
+/** Diagnostic instrumentation only: installed before listeners, never in normal launches. */
+export function measureTransport(transport: Transport) {
+  let counts: Record<string, number> = {}
+  let bytes = 0
+  const record = (name: string, value: unknown) => {
+    counts[name] = (counts[name] || 0) + 1
+    bytes += new TextEncoder().encode(JSON.stringify(value) || '').byteLength
+  }
+  return {
+    reset() {
+      counts = {}
+      bytes = 0
+    },
+    snapshot() {
+      return { counts: { ...counts }, jsonBytes: bytes }
+    },
+    transport: {
+      async invoke<T>(command: string, args?: Record<string, unknown>) {
+        record(`invoke:${command}`, args)
+        return transport.invoke<T>(command, args)
+      },
+      async listen<T>(name: string, handler: (payload: T) => void) {
+        return transport.listen<T>(name, (payload) => {
+          record(`event:${name}`, payload)
+          handler(payload)
+        })
+      },
+    } satisfies Transport,
+  }
+}
+export async function synchronizationPerformance(
+  transport: Transport,
+  provider: Provider,
+  editor: Editor,
+  meter: ReturnType<typeof measureTransport>,
+  pause: () => Promise<void>,
+) {
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+  try {
+    await pause()
+    editor.commands.setContent({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Courrier administratif pour mesurer la confirmation des éditions.',
+            },
+          ],
+        },
+      ],
+    })
+    await provider.flush()
+    await wait(2000)
+    meter.reset()
+    const idleStarted = performance.now()
+    await wait(32000) // Includes at least two awareness heartbeat periods.
+    const idle = { durationMs: performance.now() - idleStarted, ...meter.snapshot() }
+    const latencyMs: number[] = []
+    meter.reset()
+    for (let i = 0; i < 110; i++) {
+      const start = performance.now()
+      editor.commands.insertContentAt(1, 'a')
+      await provider.flush()
+      if (i >= 10) latencyMs.push(performance.now() - start)
+      if (i === 9) meter.reset()
+    }
+    await wait(100)
+    const edits = meter.snapshot()
+    await transport.invoke('diagnostic_finish', {
+      report: {
+        success: true,
+        scope:
+          'Native WebView, production assets, real Rust validation/history; synthetic transactions, rendering paused. 10 warm-up edits then 100 measured edits; bytes are serialized outgoing arguments and received event payloads, not wire overhead or process memory.',
+        userAgent: navigator.userAgent,
+        idle,
+        edits,
+        latencyMs,
+      },
+    })
+  } catch (error) {
+    await transport.invoke('diagnostic_finish', {
+      report: { success: false, error: String(error) },
+    })
+  }
+}

@@ -495,6 +495,9 @@ fn main() {
         if arg == "--diagnostic" {
             diagnostic = Some("full".to_owned());
         }
+        if arg == "--diagnostic-synchronization" {
+            diagnostic = Some("synchronization".to_owned());
+        }
         if arg == "--diagnostic-performance" {
             diagnostic = Some("performance".to_owned());
         }

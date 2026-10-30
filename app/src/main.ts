@@ -77,6 +77,14 @@ const host = window.__SPIKE_TRANSPORT__ ??
         listen<T>(name, (event) => handler(event.payload)),
     } satisfies Transport,
   }
+const diagnosticMode = isTauri
+  ? await host.transport.invoke<string | null>('diagnostic_mode')
+  : null
+const synchronizationMeter =
+  diagnosticMode === 'synchronization'
+    ? (await import('./synchronization-performance')).measureTransport(host.transport)
+    : undefined
+if (synchronizationMeter) host.transport = synchronizationMeter.transport
 const provider = new Provider(host.id, host.transport)
 let editor: Editor
 let properties: ReturnType<typeof propertyPanel> | undefined
@@ -544,8 +552,16 @@ async function start() {
   schedule()
   message('Session locale · modifications partagées entre les fenêtres ouvertes')
   if (isTauri) {
-    const mode = await host.transport.invoke<string | null>('diagnostic_mode')
-    if (mode === 'performance') {
+    const mode = diagnosticMode
+    if (mode === 'synchronization' && synchronizationMeter) {
+      void (await import('./synchronization-performance')).synchronizationPerformance(
+        host.transport,
+        provider,
+        editor,
+        synchronizationMeter,
+        rendering.pause,
+      )
+    } else if (mode === 'performance') {
       void (await import('./preview-performance')).nativePreviewPerformance(
         host.transport,
         provider,
