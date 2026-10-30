@@ -1703,7 +1703,13 @@ it('flat item plans and native operations agree on split, symmetric join, exit, 
             ? planListJoin(editor, false)
             : planListExit(editor)
       expect(plan).toBeDefined()
+      const listXML = local.getXmlFragment('default').get(0) as Y.XmlElement
+      const survivor = listXML.get(0)
+      const neighbor = listXML.get(2)
       editor.view.dispatch(plan!.transaction)
+      expect(local.getXmlFragment('default').get(0)).toBe(listXML)
+      expect(listXML.get(0)).toBe(survivor)
+      expect(listXML.get(listXML.length - 1)).toBe(neighbor)
       const guard = { document: 'list-contract', revision: 0 }
       const result = await probe({
         action: 'commands',
