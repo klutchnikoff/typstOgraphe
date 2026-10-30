@@ -76,6 +76,7 @@ export async function synchronizationPerformance(
     }
     await wait(100)
     const edits = meter.snapshot()
+    editor.commands.setTextSelection(editor.state.doc.firstChild!.nodeSize - 1)
     editor.view.focus()
     await wait(200)
     const focused = {
@@ -83,12 +84,14 @@ export async function synchronizationPerformance(
       latencyMs: [] as number[],
       counts: {} as Record<string, number>,
       jsonBytes: 0,
+      allEditsFocused: true,
     }
     if (focused.hasFocus) {
       meter.reset()
       for (let i = 0; i < 110; i++) {
+        focused.allEditsFocused &&= editor.view.hasFocus()
         const start = performance.now()
-        editor.commands.insertContentAt(1, 'f')
+        editor.commands.insertContent('f')
         await provider.flush()
         if (i >= 10) focused.latencyMs.push(performance.now() - start)
         if (i === 9) meter.reset()

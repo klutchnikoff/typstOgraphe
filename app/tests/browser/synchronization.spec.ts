@@ -80,9 +80,28 @@ test('la seconde fenêtre active les services et son départ permet de revenir e
       .poll(() => view.evaluate(() => window.__spike!.provider.awareness?.getStates().size))
       .toBe(2)
   }
+  await body(peer).press('Home')
+  await expect
+    .poll(() => peer.evaluate(() => !!window.__spike!.provider.awareness?.getLocalState()?.cursor))
+    .toBe(true)
+  await expect(page.locator('.collaboration-carets__caret').first()).toBeVisible()
   await body(peer).press('End')
   await peer.keyboard.type(' en commun')
   await expect(body(page)).toContainText('en commun')
+  await peer.evaluate(async () => {
+    await window.__spike!.provider.disconnect()
+  })
+  await expect
+    .poll(() => page.evaluate(() => window.__spike!.provider.awareness?.getStates().size))
+    .toBe(1)
+  await peer.evaluate(async () => {
+    await window.__spike!.provider.reconnect()
+  })
+  await body(peer).press('Home')
+  await expect
+    .poll(() => page.evaluate(() => window.__spike!.provider.awareness?.getStates().size))
+    .toBe(2)
+  await expect(page.locator('.collaboration-carets__caret').first()).toBeVisible()
   await peer.close()
   await expect(page.locator('#synchronization')).toBeEnabled()
   expect(await page.evaluate(() => window.__spike!.provider.synchronization?.enabled)).toBe(true)

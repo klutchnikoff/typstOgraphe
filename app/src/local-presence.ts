@@ -1,4 +1,4 @@
-import type * as Y from 'yjs'
+import * as Y from 'yjs'
 import {
   Awareness,
   applyAwarenessUpdate,
@@ -30,6 +30,7 @@ export class LocalPresence {
   private status?: Synchronization
   private release?: () => void
   private epoch = 0
+  private clock = 0
   private observers = new Set<() => void>()
   constructor(
     private doc: Y.Doc,
@@ -78,6 +79,8 @@ export class LocalPresence {
     }
     const awareness = (this.awareness = new Awareness(this.doc))
     const epoch = ++this.epoch
+    // Awareness clocks belong to the client, not to a particular service instance.
+    awareness.meta.get(this.doc.clientID)!.clock = this.clock
     awareness.on('change', this.changed)
     awareness.on(
       'update',
@@ -132,11 +135,22 @@ export class LocalPresence {
     if (!this.awareness || !this.status || this.paused) return
     const epoch = this.epoch
     const { generation, version } = this.status
+    const states = new Map(this.awareness.getStates())
+    const own = states.get(this.doc.clientID)
+    if (own?.cursor)
+      states.set(this.doc.clientID, {
+        ...own,
+        cursor: {
+          ...own.cursor,
+          anchor: liveCursorPosition(this.doc, own.cursor.anchor),
+          head: liveCursorPosition(this.doc, own.cursor.head),
+        },
+      })
     void this.transport
       .invoke('awareness', {
         generation,
         version,
-        update: Array.from(encodeAwarenessUpdate(this.awareness, clients)),
+        update: Array.from(encodeAwarenessUpdate(this.awareness, clients, states)),
       })
       .catch((error) => {
         if (
@@ -157,10 +171,33 @@ export class LocalPresence {
     this.release = undefined
     awareness.off('change', this.changed)
     awareness.destroy() // Includes the library heartbeat and document listener.
+    this.clock = awareness.meta.get(this.doc.clientID)!.clock
     this.changed()
   }
   destroy() {
     this.stop()
     this.observers.clear()
   }
+}
+
+/** A newly published caret at the start of live text must reference its first
+ * live character. A type-boundary anchor may also identify an older cleared
+ * boundary in Tiptap’s migration history. Keep that history for persisted anchors.
+ * This only changes the affinity of a fresh, transient presence position.
+ */
+function liveCursorPosition(doc: Y.Doc, position: Y.RelativePosition): Y.RelativePosition {
+  if (
+    !position ||
+    position.item ||
+    position.assoc >= 0 ||
+    (!position.type && position.tname == null)
+  )
+    return position
+  const absolute = Y.createAbsolutePositionFromRelativePosition(
+    Y.createRelativePositionFromJSON(position),
+    doc,
+  )
+  if (absolute?.type instanceof Y.XmlText && absolute.index === 0 && absolute.type.length > 0)
+    return Y.createRelativePositionFromTypeIndex(absolute.type, 0, 0)
+  return position
 }

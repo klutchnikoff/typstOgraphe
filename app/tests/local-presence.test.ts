@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import * as Y from 'yjs'
-import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness'
+import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import { Provider, type Bootstrap, type Transport } from '../src/provider'
 import { LocalPresence, type Synchronization } from '../src/local-presence'
 
@@ -221,4 +221,66 @@ it('suspend la publication pendant la composition sans démonter le service déj
   presence.stop()
   presence.configure(status(true), true, true)
   expect(presence.awareness).toBeUndefined()
+})
+
+it('publie un ancrage neuf au début du texte sans réutiliser une ancienne frontière de type', async () => {
+  const doc = new Y.Doc(),
+    receiverDoc = new Y.Doc(),
+    receiver = new Awareness(receiverDoc),
+    h = host()
+  const paragraph = new Y.XmlElement('paragraph'),
+    text = new Y.XmlText('Texte remplacé')
+  doc.getXmlFragment('default').push([paragraph])
+  paragraph.push([text])
+  const presence = new LocalPresence(doc, 'main', h.transport, vi.fn())
+  dispose.push(
+    () => doc.destroy(),
+    () => receiverDoc.destroy(),
+    () => receiver.destroy(),
+    () => presence.destroy(),
+  )
+  presence.configure(status(true), true)
+  await Promise.resolve()
+  const start = Y.createRelativePositionFromTypeIndex(text, 0, -1)
+  presence.awareness!.setLocalStateField('cursor', { anchor: start, head: start })
+  const encoded = h.calls.filter((c) => c.command === 'awareness').at(-1)!.args!.update as number[]
+  applyAwarenessUpdate(receiver, new Uint8Array(encoded), 'test')
+  const cursor = receiver.getStates().get(doc.clientID)!.cursor
+  expect(cursor.anchor.item).not.toBeNull()
+  expect(
+    Y.createAbsolutePositionFromRelativePosition(
+      Y.createRelativePositionFromJSON(cursor.anchor),
+      doc,
+    )?.index,
+  ).toBe(0)
+  expect(presence.awareness!.getLocalState()!.cursor.anchor).toBe(start)
+})
+
+it('redémarre avec une horloge supérieure pour qu’un participant déjà présent accepte immédiatement le nouvel état', async () => {
+  const doc = new Y.Doc(),
+    receiverDoc = new Y.Doc(),
+    receiver = new Awareness(receiverDoc),
+    h = host()
+  const presence = new LocalPresence(doc, 'main', h.transport, vi.fn())
+  dispose.push(
+    () => doc.destroy(),
+    () => receiverDoc.destroy(),
+    () => receiver.destroy(),
+    () => presence.destroy(),
+  )
+  const receive = () => {
+    const update = h.calls.filter((c) => c.command === 'awareness').at(-1)!.args!.update as number[]
+    applyAwarenessUpdate(receiver, new Uint8Array(update), 'test')
+  }
+  presence.configure(status(true), true)
+  await Promise.resolve()
+  for (let i = 0; i < 10; i++) presence.awareness!.setLocalStateField('marker', i)
+  receive()
+  expect(receiver.getStates().get(doc.clientID)!.marker).toBe(9)
+  presence.stop()
+  presence.configure(status(true, 2), true)
+  await Promise.resolve()
+  presence.awareness!.setLocalStateField('marker', 'nouvelle présence')
+  receive()
+  expect(receiver.getStates().get(doc.clientID)!.marker).toBe('nouvelle présence')
 })
