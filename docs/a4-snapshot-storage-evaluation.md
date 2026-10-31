@@ -118,9 +118,9 @@ avec CAS contre 375 ms avec Git, et ouverture/restitution environ 1,7 ms contre
 frappe ; la persistance devra rester hors du chemin critique de l’aperçu. Le
 coût total d’un futur bouton Versions inclura encore les validations du moteur.
 
-Le CAS est retenu ; son format de production reste à préciser et à valider avant
-implémentation. Git n’est pas adopté dans l’application. Cette décision ne clôt
-pas A.4.
+Le CAS et le [format cible](a4-project-format.md) sont retenus, avec un maximum
+de 100 snapshots. L’intégration reste à faire après validation des maquettes.
+Git n’est pas adopté dans l’application. Ces décisions ne clôturent pas A.4.
 
 Deux points concrets révélés et corrigés **pour les deux candidats** :
 
@@ -140,18 +140,15 @@ Git pour présenter des groupes de différences lisibles. Le stockage CAS ne
 justifie pas d’écrire un nouvel algorithme de diff ; évaluer une bibliothèque
 existante et l’adaptation documentaire restent des travaux A.4 distincts.
 
-## Suite à valider
+## Suite
 
-1. Le CAS étant retenu, valider la [proposition de format](a4-project-format.md) :
-   schéma versionné du `.typsto`, index, données Yjs conservées,
-   les contrôles d’intégrité et les budgets de taille/nombre d’entrées. Conserver
-   un snapshot complet plutôt qu’une seule frontière causale dépourvue de contenu.
-2. Maquetter Versions, la comparaison commune et les confirmations avant de
+1. Maquetter Versions, la comparaison commune et les confirmations selon le
+   [format cible validé](a4-project-format.md), avant de
    coder les parcours validés. Préparer le lien de référence avec une future
    relecture et garder la validation locale MCP en F.3.
-3. Étendre les commandes/requêtes communes de création, liste, consultation,
+2. Implémenter le format et étendre les commandes/requêtes communes de création, liste, consultation,
    nom/tags, suppression et restauration, avec autorisations par adaptateur.
-4. Vérifier le vrai parcours atomique et gardé : création enregistrée, sauvegarde
+3. Vérifier le vrai parcours atomique et gardé : création enregistrée, sauvegarde
    automatique avant restauration, refus sans perte, références protégées,
    nettoyage des ressources, sauvegarde/réouverture et exports des versions choisies.
 

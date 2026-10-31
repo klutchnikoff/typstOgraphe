@@ -1,10 +1,10 @@
-# A.4 — Proposition de format du projet `.typsto`
+# A.4 — Format cible du projet `.typsto`
 
-**Statut : proposition à valider avant implémentation et maquette de Versions.**
+**Statut : organisation et budgets validés le 31 octobre 2026 ; intégration à faire.**
 Le **CAS est retenu** après [évaluation](a4-snapshot-storage-evaluation.md).
 L’organisation ci-dessous précise cette décision ; elle n’est pas encore le
 format lu ou écrit par l’application. Le lecteur actuel attend la version 10.
-La version 11 est proposée pour cette rupture, sans lecteur de compatibilité
+La version 11 est retenue pour cette rupture, sans lecteur de compatibilité
 préventif ni conversion silencieuse des anciens projets de développement.
 Les exemples seront régénérés explicitement au moment de l’intégration.
 
@@ -48,7 +48,7 @@ incorporée devient au contraire une ressource autonome du document.
 | Champ | Rôle |
 | --- | --- |
 | `format` | Valeur fixe `typstOgraphe`. |
-| `version` | Version du conteneur ; `11` proposée. |
+| `version` | Version du conteneur ; `11` retenue. |
 | `project_id` | UUID stable indépendant du chemin du fichier. |
 | `current` | Référence CAS du descripteur de l’état courant confirmé. |
 
@@ -193,24 +193,33 @@ d’établir leurs références avec certitude. Le lecteur contrôle aussi doubl
 chemins, schémas, tailles annoncées/réelles et références manquantes. Les erreurs
 restent typées jusqu’aux adaptateurs Fluent, avec leur repli anglais.
 
-## Budgets proposés et points à valider
+## Budgets retenus et traitement des limites
 
 Des limites distinctes évitent de confondre taille du document et poids de son
-historique. **Proposition initiale, non encore validée :** conserver le plafond
+historique. **Budgets retenus :** conserver le plafond
 de 64 Mio par état documentaire, 32 Mio par checkpoint Yjs et 16 Mio par image ;
 autoriser jusqu’à 512 Mio sur disque et décompressés pour l’archive, 16 384 objets
-et 1 000 snapshots. Un plafond est un refus explicite sans perte, jamais une autorisation
-de supprimer des versions. Ces budgets doivent être vérifiés lors de
+et **100 snapshots maximum**, toutes origines confondues (`manual`, `review_start`,
+`before_restore`). L’état courant ne compte pas comme un snapshot supplémentaire.
+Un plafond est un refus explicite sans perte, jamais une autorisation de supprimer
+des versions. Ces budgets doivent être vérifiés lors de
 l’intégration ; ils ne sont pas une garantie de latence sur ces volumes.
 
-Avant de passer à la maquette de Versions, valider surtout :
+À 100 snapshots, l’édition et la sauvegarde ordinaire restent possibles dans les
+limites de volume. Pour créer une nouvelle version, l’utilisateur est invité à
+supprimer explicitement une version non protégée. Aucun roulement automatique.
+Si une restauration exige une sauvegarde `before_restore` et qu’aucune place n’est
+disponible, la restauration est refusée avant toute modification ; même règle
+pour le démarrage d’une nouvelle relecture exigeant sa référence initiale.
+
+La maquette de Versions doit maintenant concrétiser :
 
 1. Le conteneur ZIP entièrement CAS, partagé avec l’état courant ; le répertoire
    directement compilable est produit par l’export, sans copie parallèle à la racine.
 2. Le descripteur commun complet et vérifié, l’index séparé, le contenu des versions
    immuable et leurs noms/tags modifiables.
 3. La lecture sélective, le traitement explicite d’une ancienne version abîmée
-   et les budgets initiaux, avant les recettes de limites et de conservation.
+   et les limites retenues, avant les recettes de limites et de conservation.
 
 La sélection du moteur de diff et la validation partielle des propositions MCP
 restent séparées de ce format ; F.3 ne bloque pas A.4.

@@ -112,11 +112,16 @@ plus rapide à publier et ouvrir, en acceptant des historiques plus volumineux
 qu’avec Git. Le format et les maquettes précèdent l’intégration de production,
 encore à faire. Git reste dans l’expérience isolée. Cette décision ne clôt pas A.4.
 
-La [proposition de format](docs/a4-project-format.md), encore à valider, précise
+Le [format cible validé](docs/a4-project-format.md) précise
 un ZIP entièrement CAS, un manifeste pointant sur l’état courant, des descripteurs
 immuables communs aux snapshots et un index de versions distinct. Elle décrit
 la vérification Yjs/projection/sources, les ressources et inventaires embarqués,
 les métadonnées modifiables des snapshots, la lecture sélective et les budgets.
+Retenir **100 snapshots maximum**, toutes origines confondues, hors état courant.
+Une sauvegarde ordinaire ne consomme pas de place dans ce quota. Une création
+à la limite est refusée sans suppression automatique ; restauration et démarrage
+de relecture sont refusés avant mutation si leur snapshot obligatoire ne peut
+pas être créé. Inviter à supprimer explicitement une version non protégée.
 Point à intégrer : la validation des packages doit s’appuyer sur l’inventaire
 de l’état conservé, sans le rendre dépendant du catalogue installé. Ne pas
 confondre ce document de conception avec le schéma de production déjà livré.

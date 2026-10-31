@@ -21,7 +21,7 @@ avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
 **Séquence immédiate :** le CAS est retenu pour **A.4 — Snapshots durables**.
-Préciser et valider le format, puis les maquettes, en anticipant la relecture **J**.
+Le format cible est validé ; préparer les maquettes en anticipant la relecture **J**.
 Terminer ensuite le socle par
 **A.5 — Documentation, nettoyage et recette finale**.
 Les copies privées, la reprise des formulaires et la fermeture sont implémentées.
@@ -117,22 +117,24 @@ aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
 - **CAS retenu après évaluation** : un magasin d’objets identifiés par leur
   contenu et partagés entre état courant et snapshots, dans le fichier autonome.
   Git reste limité au candidat expérimental et n’est pas retenu pour le stockage
-  de production. Valider le format puis maquetter Versions et la comparaison
+  de production. Le format cible étant validé, maquetter Versions et la comparaison
   avant leur implémentation.
 
 **Évaluation de stockage réalisée :** le [bilan A.4](docs/a4-snapshot-storage-evaluation.md)
 compare les deux candidats sur Courrier, Article et Article allongé, à 20 et
 100 versions. **Le stockage par objets dédupliqués (CAS) est validé**, pour sa
 rapidité et son intégration plus simple, en acceptant des historiques un peu
-plus volumineux qu’avec Git. L’intégration reste à faire après validation du
-format et des maquettes. A.4 n’est pas clos.
+plus volumineux qu’avec Git. L’intégration reste à faire après validation des
+maquettes. A.4 n’est pas clos.
 
-**Format proposé, à valider :** la [proposition de conteneur CAS](docs/a4-project-format.md)
+**Format cible validé :** le [contrat de conteneur CAS](docs/a4-project-format.md)
 décrit le manifeste du projet, les descripteurs d’états vérifiés, l’index des
 versions et les ressources partagées. Elle distingue contenu immuable et nom/tags
-modifiables, lecture sélective et export compilable. Organisation, budgets et
-traitement d’une ancienne version endommagée restent des propositions avant
-la maquette de Versions et l’implémentation.
+modifiables, lecture sélective et export compilable. Limites retenues : 64 Mio par
+état, 512 Mio pour l’archive et **100 snapshots maximum**, toutes origines
+confondues. Aucune suppression automatique à la limite ; une création obligatoire
+avant restauration ou relecture est refusée sans modification si aucune place
+n’est disponible. La maquette de Versions précède l’implémentation.
 
 - Préciser le contrat de conservation de l’arbre documentaire, de Yjs et du
   Typst généré avec les snapshots avant de stabiliser le format public du .typsto.
@@ -182,8 +184,8 @@ restent des annotations ancrées distinctes du contenu, acceptées ou refusées 
 les commandes ordinaires : la comparaison avec le snapshot ne les remplace pas.
 A.4 prépare ce socle sans avancer l’implémentation ni la maquette de J.
 
-**Choix à valider pour A.4 :** périmètre et moment de stabilisation du format.
-Pour les snapshots : autres déclencheurs éventuels, schéma CAS, comparaison,
+**Choix restant à valider pour A.4 :** parcours graphiques et détails de comparaison.
+Pour les snapshots : autres déclencheurs éventuels,
 parcours détaillés de restauration, puis droits et coordination en collaboration.
 Préciser avec J la conservation des suggestions/commentaires, leur devenir lors
 d’une restauration et la rétention du snapshot de référence après la clôture
@@ -600,7 +602,7 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 ## Prochain lot proposé
 
 1. Le CAS étant retenu après le [bilan comparatif](docs/a4-snapshot-storage-evaluation.md),
-   valider la [proposition de format](docs/a4-project-format.md), puis maquetter Versions, comparaison et restauration,
+   suivre le [format cible validé](docs/a4-project-format.md) pour maquetter Versions, comparaison et restauration,
    en anticipant la relecture J avant l’implémentation.
 2. Terminer A avec A.5 : documentation, nettoyage et recette depuis un checkout propre.
 3. Reprendre ensuite le périmètre administratif restant, un type à la fois,
