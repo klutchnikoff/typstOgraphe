@@ -1,0 +1,113 @@
+{
+  "success": true,
+  "git": "1fd3c9d967003e48dbee051736065566723b5ad9",
+  "platform": "darwin",
+  "recipe": "foundation-closure-v2",
+  "cases": [
+    {
+      "kind": "courrier",
+      "success": true,
+      "tauriSteps": [
+        "Native open: project, embedded model, metadata and resources validated.",
+        "Native header/body input, undo and redo preserve the project.",
+        "Real attached MCP: rejected proposal never published.",
+        "Concurrent human input invalidates the guarded MCP proposal without losing work.",
+        "Real human approval, stable selection, one whole-lot undo/redo; individual mode preserved.",
+        "Durable version: read-only modal, reprise, single undo/redo and explicit save."
+      ],
+      "reopenSteps": [
+        "Native open: project, embedded model, metadata and resources validated.",
+        "Final native reopen preserves Tauri, CLI and autonomous/attached MCP contributions."
+      ],
+      "nativeExportFiles": 791,
+      "mcpExportFiles": 791,
+      "finalExportFiles": 791,
+      "pages": 2,
+      "resources": [
+        "images/closure-image.svg",
+        "images/closure-signature.svg"
+      ],
+      "archiveSha256": "4596ea08e909da3dbbe0278407a048ac43f3d523fba3e664455aafd676a4c981",
+      "cli": {
+        "atomicRefusal": true,
+        "explicitPreview": true,
+        "singleBatchHistory": true,
+        "png": true
+      },
+      "mcp": {
+        "atomicRefusal": true,
+        "privateContext": true,
+        "staleGuard": "stale_revision",
+        "undoRedo": true,
+        "tableColumn": false,
+        "independentRoots": true,
+        "lock": true,
+        "png": "1e794b8689bdbc3c4b4aa259353aaaedba8c3e451e120d3b08e0d3f94f130d42"
+      },
+      "attached": {
+        "status": "passed",
+        "tools": 22,
+        "statuses": [
+          "rejected",
+          "stale",
+          "accepted"
+        ],
+        "lockedWriter": "unavailable",
+        "headerProposalRefused": true
+      },
+      "catalogueEntries": 74
+    },
+    {
+      "kind": "article",
+      "success": true,
+      "tauriSteps": [
+        "Native open: project, embedded model, metadata and resources validated.",
+        "Native header/body input, undo and redo preserve the project.",
+        "Real attached MCP: rejected proposal never published.",
+        "Concurrent human input invalidates the guarded MCP proposal without losing work.",
+        "Real human approval, stable selection, one whole-lot undo/redo; individual mode preserved.",
+        "Durable version: read-only modal, reprise, single undo/redo and explicit save."
+      ],
+      "reopenSteps": [
+        "Native open: project, embedded model, metadata and resources validated.",
+        "Final native reopen preserves Tauri, CLI and autonomous/attached MCP contributions."
+      ],
+      "nativeExportFiles": 13,
+      "mcpExportFiles": 13,
+      "finalExportFiles": 13,
+      "pages": 3,
+      "resources": [
+        "images/closure-image.svg"
+      ],
+      "archiveSha256": "3a3f061c6bacf4ecdb5f3494ffc3f69d0c2300e58c85fee59187f3b3ef463e61",
+      "cli": {
+        "atomicRefusal": true,
+        "explicitPreview": true,
+        "singleBatchHistory": true,
+        "png": true
+      },
+      "mcp": {
+        "atomicRefusal": true,
+        "privateContext": true,
+        "staleGuard": "stale_revision",
+        "undoRedo": true,
+        "tableColumn": true,
+        "independentRoots": true,
+        "lock": true,
+        "png": "8944377eeaf1394c761dc16f432af18a00a84591f3253effdfb2d863956d47b1"
+      },
+      "attached": {
+        "status": "passed",
+        "tools": 22,
+        "statuses": [
+          "rejected",
+          "stale",
+          "accepted"
+        ],
+        "lockedWriter": "unavailable",
+        "headerProposalRefused": true
+      },
+      "catalogueEntries": 74
+    }
+  ]
+}

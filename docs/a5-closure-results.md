@@ -118,3 +118,49 @@ la fermeture puis le retour du focus avant de demander Annuler. Des étapes de
 progression rendent ces attentes observables dans le journal. La publication des
 exécutables utilise elle aussi une copie temporaire vérifiée avant remplacement
 atomique : un binaire chargé n’est pas tronqué par une construction suivante.
+
+### Suivi de la qualification distante — 31 octobre 2026
+
+La CI courante de `main` et la couverture ont réussi après la fusion A.5. En
+revanche, le [candidat complet `6cea25d`](https://github.com/klutchnikoff/typstOgraphe/actions/runs/41241229655)
+a échoué dans la recette A.5 : reprise d’une version sous Linux et pour Article
+sous macOS, annulation du lot MCP pour Article sous Windows. Les recettes A.3 de
+récupération et de publication ont **réussi sur les trois systèmes**. Les tests
+Rust, Clippy et les 29 contrats ont également réussi ; les audits, WebAssembly
+et navigateurs exhaustifs situés après cet échec n’ont pas été exécutés.
+
+La recette assimilait l’arrivée du texte dans la WebView à la fin de la commande.
+Or l’événement documentaire peut précéder la réponse IPC : les contrôles restent
+alors temporairement désactivés. Un clic synthétique prématuré sur « Fermer »
+n’avait aucun effet. L’annulation suivante pouvait être refusée, ou la modale
+laissée ouverte pouvait être ciblée par les sélecteurs globaux lors du test de
+version suivant. La même hypothèse pouvait faire capturer une sauvegarde avant
+l’accusé de rétablissement, avec une révision devenue périmée.
+
+La recette partage maintenant ses attentes entre Versions et MCP : accusé de
+réussite affiché, bouton réellement disponible, fermeture effective, puis
+annulation/rétablissement par les commandes publiques et attente de leur
+confirmation. Les contrôles de comparaison sont recherchés dans la bonne modale.
+Les checkpoints attendent les éditions déjà en vol sans publier les formulaires
+privés. Les rapports d’échec incluent l’état des contrôles et de l’historique.
+Les délais maximaux restent inchangés ; aucune validation documentaire n’est
+retirée et aucun délai arbitraire n’est ajouté à l’application.
+
+Deux tests reproduisent le document déjà modifié mais la réponse de comparaison
+encore en attente ; un troisième vérifie que le checkpoint attend la réponse
+d’historique même si son contenu est déjà visible. **378 tests web et 6 tests
+Node réussissent.** Dans un checkout temporaire uniquement, un retard de 300 ms
+avant la confirmation de comparaison reproduit l’échec initial et la modale
+restée ouverte ; la recette corrigée réussit sur Courrier et Article avec ce
+même retard. Ce retard de diagnostic n’est ni commité ni distribué.
+
+La [passe finale native macOS](../experiments/a5-closure/report-macos-receipts.json)
+réussit ensuite depuis un checkout propre du commit **`1fd3c9d`**, sans retard
+artificiel : Courrier et Article, propositions MCP, version, annulation/
+rétablissement, sauvegardes, réouvertures et exports des trois adaptateurs. Les
+frontends normaux et de recette compilent, les formats et frontières du cœur
+passent, et les diagnostics restent absents des assets distribués.
+
+Les essais détaillés restent dans `output/a5-ci-diagnosis/` (ignoré par Git).
+La réussite locale ne vaut pas qualification des trois plateformes : une nouvelle
+validation complète du candidat corrigé reste nécessaire avant `v0.1.0`.

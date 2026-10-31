@@ -7,6 +7,10 @@ brouillons privés ou captures d’écran.
   `3329f78`, depuis un worktree propre. Tauri, CLI, MCP rattaché/autonome,
   version nommée, reprise par la modale, annulation/rétablissement, réouverture,
   ressources et exports comparés. Les répertoires de sortie cités sont temporaires.
+- `report-macos-receipts.json` : même recette native réussie au commit `1fd3c9d`,
+  depuis un checkout propre, après correction des courses de la recette entre
+  événements documentaires et réponses IPC. Aucun délai artificiel dans cette
+  passe finale ; voir le suivi du bilan A.5 pour la reproduction avec retard.
 - `versions-preservation-macos.json` : après les éditions CLI et MCP puis la
   réouverture native, la version conservée retrouve exactement l’état canonique
   natif au moment de sa création, pour les deux types.
