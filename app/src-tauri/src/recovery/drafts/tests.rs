@@ -248,11 +248,12 @@ fn a_storage_failure_keeps_the_previous_copy_and_can_be_retried() {
 #[test]
 fn a_reloaded_view_does_not_consume_unrestored_private_input() {
     let dir = tempfile::tempdir().unwrap();
-    let mut s = session(dir.path());
+    let root = dir.path().join("new-session");
+    let mut s = session(&root);
     let mut old = input(&mut s, "main");
     old.forms.push(json!({"text":"Unrestored form"}));
     s.conserve_private("main", old.clone()).unwrap();
-    let current_file = path(dir.path(), &s.generation, "main").unwrap();
+    let current_file = path(&root, &s.generation, "main").unwrap();
     let mut current = input(&mut s, "main");
     assert_ne!(current.epoch, old.epoch);
     assert!(!current_file.exists());

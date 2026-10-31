@@ -174,6 +174,7 @@ pub fn clean_confirmed(root: &Path, generation: &str) {
 impl Session {
     pub fn open_private_recovery(&mut self, window: &str, generation: &str) -> Result<u64, String> {
         self.check_peer(window, generation)?;
+        fs::create_dir_all(&self.root).map_err(|e| e.to_string())?;
         // A reloaded view cannot silently consume private input that it has not
         // restored. Keep that envelope for the explicit recovery decision.
         let file = path(&self.root, generation, window)?;

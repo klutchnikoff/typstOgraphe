@@ -21,9 +21,14 @@ export function privateRecovery(
     last = '',
     frozen: ReturnType<typeof capture> | undefined,
     composingTarget: Node | undefined
-  const epoch = provider.transport.invoke<number>('open_private_recovery', { generation })
-  // Attach the rejection handler immediately, even if the welcome screen stays idle.
-  void epoch.catch(failed)
+  let epoch: Promise<number> | undefined
+  const register = () =>
+    (epoch ??= provider.transport
+      .invoke<number>('open_private_recovery', { generation })
+      .catch((error) => {
+        epoch = undefined
+        throw error
+      }))
   function capture() {
     return {
       update: [...Y.encodeStateAsUpdate(provider.doc)],
@@ -38,7 +43,7 @@ export function privateRecovery(
   const scheduler = new RecoveryScheduler(
     async () => {
       if (!active() || provider.generation !== generation) return
-      const version = await epoch
+      const version = await register()
       if (!active() || provider.generation !== generation) return
       if (composingTarget && !composingTarget.isConnected) {
         frozen = undefined
