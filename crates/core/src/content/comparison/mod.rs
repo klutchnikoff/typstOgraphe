@@ -212,6 +212,8 @@ impl Comparison {
                     .splice(target, source.document.content[origin].iter().cloned());
             }
         }
+        // Snapshots carry documentary state, never a runtime/package downgrade.
+        desired.dependencies = crate::packages::for_template(&desired.template);
         let update = engine.prepare_comparison(&self.guard, &desired)?;
         desired.yjs = update.checkpoint();
         Ok(PreparedDecision {

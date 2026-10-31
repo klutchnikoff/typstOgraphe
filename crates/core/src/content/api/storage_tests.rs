@@ -67,32 +67,24 @@ fn cli_mcp_sessions_keep_history_on_save_and_isolate_copies_and_failed_batches()
 }
 
 #[test]
-fn pinned_dependencies_remain_owned_by_the_common_session_after_catalogue_changes() {
+fn cli_mcp_sessions_use_application_libraries_for_reopened_projects_and_exports() {
     let seed = new("courrier");
     let mut archive = seed.archive().unwrap();
     archive.metadata =
         crate::document_types::Metadata::demo(crate::document_types::DocumentType::Courrier);
-    archive.template = archive
-        .template
-        .replace("capabilities/dates.typ", "capabilities/pinned-dates.typ");
+    let application_libraries = archive.dependencies.clone();
     let mut dependencies = (*archive.dependencies).clone();
-    let dates = dependencies.remove("capabilities/dates.typ").unwrap();
-    dependencies.insert("capabilities/pinned-dates.typ".into(), dates);
-    let mut inventory: Value = serde_json::from_slice(&dependencies["dependencies.json"]).unwrap();
-    for capability in inventory["capabilities"].as_array_mut().unwrap() {
-        if capability["id"] == "dates" {
-            capability["entrypoint"] = "capabilities/pinned-dates.typ".into();
-        }
-    }
     dependencies.insert(
-        "dependencies.json".into(),
-        serde_json::to_vec(&inventory).unwrap().into(),
+        "capabilities/dates.typ".into(),
+        b"#panic(\"Old transport copy must not run\")"
+            .as_slice()
+            .into(),
     );
     archive.dependencies = std::sync::Arc::new(dependencies);
     archive.yjs.clear();
     let stored = Project::new(archive).unwrap();
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("pinned.typsto");
+    let path = dir.path().join("transport.typsto");
     stored
         .save(&mut DocumentLease::acquire(&path).unwrap())
         .unwrap();
@@ -106,10 +98,11 @@ fn pinned_dependencies_remain_owned_by_the_common_session_after_catalogue_change
             json!({"target":target(&[0],0,0),"text":"Local edit"}),
         )
         .unwrap();
+    assert!(session.page_png(1).is_ok());
     session.save().unwrap();
     assert_eq!(
         session.archive().unwrap().dependencies,
-        stored.current().dependencies
+        application_libraries
     );
     assert!(session.page_png(1).is_ok());
     let output = dir.path().join("export");
@@ -117,7 +110,7 @@ fn pinned_dependencies_remain_owned_by_the_common_session_after_catalogue_change
         .export(&output, crate::protocol::ExportFormat::Typst, false)
         .unwrap();
     assert_eq!(
-        std::fs::read(output.join("capabilities/pinned-dates.typ")).unwrap(),
-        stored.current().dependencies["capabilities/pinned-dates.typ"].as_ref()
+        std::fs::read(output.join("capabilities/dates.typ")).unwrap(),
+        application_libraries["capabilities/dates.typ"].as_ref()
     );
 }

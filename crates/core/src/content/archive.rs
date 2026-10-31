@@ -60,7 +60,7 @@ impl Archive {
             },
         )
     }
-    /// Verify the project's pinned inventory, independently of the installed catalogue.
+    /// Verify transport integrity, independently of the installed runtime catalogue.
     pub fn validate(&self) -> Result<String, Error> {
         crate::packages::validate_embedded(&self.template, &self.dependencies)?;
         self.validate_content()

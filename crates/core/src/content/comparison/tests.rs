@@ -124,7 +124,7 @@ fn styles_links_unicode_and_meaningful_spaces_are_not_lost() {
     );
 }
 #[test]
-fn metadata_dependencies_and_content_are_one_safe_atomic_unit() {
+fn metadata_and_content_are_one_safe_atomic_unit() {
     let before = archive(&["before", ""]);
     let mut after = archive(&["after", ""]);
     after.metadata.options_mut().landscape = true;
@@ -143,6 +143,42 @@ fn metadata_dependencies_and_content_are_one_safe_atomic_unit() {
     assert_eq!(e.state(), &after.state());
     e.history(&e.guard().clone(), c, Direction::Undo).unwrap();
     assert_eq!(e.state(), &before.state());
+}
+#[test]
+fn transport_packages_do_not_create_or_couple_documentary_decisions() {
+    let mut before = archive(&["old A", "anchor", "old B", ""]);
+    let after = archive(&["new A", "anchor", "new B", ""]);
+    let mut old = (*before.dependencies).clone();
+    old.insert(
+        "capabilities/dates.typ".into(),
+        b"#panic(\"Transport copy must not become a runtime library\")"
+            .as_slice()
+            .into(),
+    );
+    before.dependencies = std::sync::Arc::new(old);
+    for source in [SourceSide::Before, SourceSide::After] {
+        let (mut e, c) = engine(match source {
+            SourceSide::Before => &after,
+            SourceSide::After => &before,
+        });
+        let mut p =
+            Comparison::new(before.clone(), after.clone(), source, e.guard().clone()).unwrap();
+        assert_eq!(p.groups.len(), 2);
+        assert!(p.groups.iter().all(|g| matches!(g.section, Section::Body)));
+        assert!(p.files.is_empty());
+        for id in [1, 0] {
+            let ready = p.prepare(&e, &[id]).unwrap();
+            assert_eq!(ready.archive().dependencies, after.dependencies);
+            p.publish(&mut e, c, ready).unwrap();
+        }
+        assert_eq!(e.context(&e.guard().clone(), c).unwrap().undo_steps, 2);
+    }
+    let (e, _) = engine(&before);
+    let mut same = before.clone();
+    same.dependencies = after.dependencies;
+    let p = Comparison::new(before, same, SourceSide::After, e.guard().clone()).unwrap();
+    assert!(p.groups.is_empty());
+    assert!(p.files.is_empty());
 }
 #[test]
 fn a_foreign_guard_or_edit_during_validation_cannot_replace_confirmed_work() {

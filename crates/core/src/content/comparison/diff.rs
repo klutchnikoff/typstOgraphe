@@ -94,9 +94,8 @@ pub(super) fn groups(before: &Archive, after: &Archive) -> Vec<Group> {
         .iter()
         .map(|n| serde_json::to_string(n).unwrap())
         .collect();
-    let coupled = before.state().settings != after.state().settings
-        || before.assets != after.assets
-        || before.dependencies != after.dependencies;
+    let coupled =
+        before.state().settings != after.state().settings || before.assets != after.assets;
     if coupled {
         return vec![Group {
             id: 0,
@@ -148,11 +147,6 @@ pub(super) fn files(before: &Archive, after: &Archive) -> Vec<FileChange> {
     let mut result = vec![];
     for (kind, left, right) in [
         ("image", before.assets.clone(), after.assets.clone()),
-        (
-            "dependency",
-            (*before.dependencies).clone(),
-            (*after.dependencies).clone(),
-        ),
         (
             "bibliography",
             crate::bibliography::resources(&before.metadata),

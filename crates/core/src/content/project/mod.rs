@@ -60,21 +60,10 @@ impl Project {
     pub fn current(&self) -> &Archive {
         &self.current
     }
-    /// Preserve owned dependencies on ordinary edits; resolve the catalogue only for a new model.
+    /// Runtime libraries belong to this application release, not to a snapshot.
+    /// Archived copies remain transport resources for autonomous Typst exports.
     pub fn dependencies_for(&self, template: &str) -> crate::packages::Dependencies {
-        if template == self.current.template {
-            return self.current.dependencies.clone();
-        }
-        let provided = crate::document_types::DocumentType::ALL
-            .into_iter()
-            .any(|kind| kind.models().any(|model| model.source == template));
-        if !provided
-            && crate::packages::validate_embedded(template, &self.current.dependencies).is_ok()
-        {
-            self.current.dependencies.clone()
-        } else {
-            crate::packages::for_template(template)
-        }
+        crate::packages::for_template(template)
     }
     pub fn versions(&self) -> &[SnapshotRecord] {
         &self.index.snapshots

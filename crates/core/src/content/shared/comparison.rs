@@ -5,20 +5,8 @@ use crate::content::{
     commands::ImageResource,
     contract::{Error, Guard},
 };
-use yrs::{Any, Map, Out, Transact, XmlFragment};
-const BUNDLE: &str = "comparison:bundle";
+use yrs::{Transact, XmlFragment};
 impl SharedSession {
-    pub(in crate::content) fn bundle_token(&self) -> String {
-        match self
-            .shared
-            .doc
-            .get_or_insert_map("settings")
-            .get(&self.shared.doc.transact(), BUNDLE)
-        {
-            Some(Out::Any(Any::String(value))) => value.to_string(),
-            _ => String::new(),
-        }
-    }
     pub(in crate::content) fn prepare_comparison(
         &self,
         guard: &Guard,
@@ -77,24 +65,11 @@ impl SharedSession {
         if state.settings != self.state.settings {
             seed::write_settings(&candidate.doc, &state)?;
         }
-        // A pinned package switch must be visible to causal history even when
-        // the model source and the projected documentary state are identical.
-        // Rotate the opaque reference for every accepted unit. An imported
-        // checkpoint may retain a former token with a different pinned bundle;
-        // content-derived equality must not turn that switch into a no-op.
-        candidate.doc.get_or_insert_map("settings").insert(
-            &mut candidate.doc.transact_mut(),
-            BUNDLE,
-            uuid::Uuid::new_v4().to_string(),
-        );
         structure::validate(&state)?;
-        // Pinned packages belong to the compared state, not the installed catalogue.
-        if state.settings != self.state.settings
-            || archive.dependencies != crate::packages::for_template(&self.state.settings.template)
-        {
+        if state.settings != self.state.settings {
             let mut world = crate::rendering::TypstWorld::default();
             world.set_assets(&assets);
-            world.set_dependencies(&archive.dependencies);
+            world.set_dependencies(&crate::packages::for_template(&archive.template));
             world
                 .validate_model(
                     &state.validate(&assets)?,
