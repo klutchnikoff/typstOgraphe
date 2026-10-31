@@ -287,7 +287,7 @@ export function comparisonView(options: {
         actions.append(linked)
       }
       const selectors = document.createElement('div')
-      selectors.className = 'comparison-selectors'
+      selectors.className = 'comparison-columns comparison-selectors'
       selectors.setAttribute('role', 'radiogroup')
       selectors.setAttribute('aria-label', `${tr('Choisir la version du passage')} ${g.id + 1}`)
       for (const name of ['before', 'after'] as const) {
@@ -305,7 +305,11 @@ export function comparisonView(options: {
           tr(name === 'before' ? 'Sélectionner la version rouge' : 'Sélectionner la version verte'),
         )
         select.disabled = busy || !!state.report.closed
-        selectors.append(select)
+        const column = document.createElement('div')
+        column.className = 'comparison-passage-heading'
+        if (name === 'before') column.append(title)
+        column.append(select)
+        selectors.append(column)
       }
       const navigation = navigationGroup(selectors, {
         axis: 'horizontal',
@@ -316,7 +320,7 @@ export function comparisonView(options: {
       choiceNavigation.set(g.id, navigation)
       disposers.push(navigation.destroy)
       actions.hidden = !g.linked
-      header.append(title, selectors)
+      header.append(selectors)
       row.append(header, columns, summary, actions)
       rows.append(row)
     }

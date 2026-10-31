@@ -101,7 +101,8 @@ Les propositions ne deviennent pas des snapshots, ni des annotations de relectur
 
 La modale à 90 %, ses onglets Contenu / Aperçu / Comparer, ses deux colonnes et
 les actions locales reprennent la maquette interactive validée. Les actions de
-chaque groupe sont alignées à droite dans son en-tête, à côté du titre, sans
+chaque groupe sont alignées au-dessus de leurs colonnes dans son en-tête : rouge
+juste à gauche de la séparation centrale, vert à droite, avec le titre à gauche, sans
 répétition de « Choix provisoire » ni rangée de boutons sous le contenu. Les deux
 « Tout sélectionner » reprennent les couleurs rouge et verte de leurs colonnes.
 L’action principale reste à l’extrémité droite du pied du comparateur.

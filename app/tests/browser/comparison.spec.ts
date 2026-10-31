@@ -299,6 +299,17 @@ test('Article snapshots show deleted and inserted words beside a citation in lig
     const header = dialog.locator('[data-group="0"] > header')
     await expect(header.getByRole('radio')).toHaveCount(2)
     await expect(header).not.toContainText('Choix provisoire')
+    for (const [button, column] of [
+      [red, before],
+      [green, after],
+    ] as const) {
+      const control = (await button.boundingBox())!
+      const content = (await column.boundingBox())!
+      expect(control.x).toBeGreaterThanOrEqual(content.x)
+      const inset = content.x + content.width - (control.x + control.width)
+      expect(inset).toBeGreaterThanOrEqual(0)
+      expect(inset).toBeLessThan(24)
+    }
     for (const [name, mark] of [
       ['Tout sélectionner à gauche', before.locator('del').first()],
       ['Tout sélectionner à droite', after.locator('ins').first()],
