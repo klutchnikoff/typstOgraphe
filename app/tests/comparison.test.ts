@@ -7,6 +7,7 @@ import type { ComparisonAPI, ComparisonState } from '../src/comparison-types'
 import type { Provider, Transport } from '../src/provider'
 import type { Catalogue } from '../src/shell'
 import type { VersionAPI } from '../src/version-types'
+import articleBadges from '../../fixtures/comparison-article-badges.json'
 const originalShowModal = HTMLDialogElement.prototype.showModal,
   originalClose = HTMLDialogElement.prototype.close
 
@@ -45,6 +46,8 @@ function fixture(source: 'before' | 'after' = 'before') {
         after: { start: id * 2, end: id * 2 + 1 },
         linked: false,
         decision: 'pending',
+        before_highlights: [{ path: [0, 0], from: 0, to: 3 }],
+        after_highlights: [{ path: [0, 0], from: 0, to: 3 }],
         changes: [
           { kind: 'delete', text: 'Old' },
           { kind: 'insert', text: 'New' },
@@ -326,4 +329,88 @@ it('shows general options and the archived signature in documentary groups', asy
   view.destroy()
   expect(revoke).toHaveBeenCalledWith('blob:signature')
   expect(create).toHaveBeenCalledTimes(1)
+})
+
+it('marks doit → peut and xx beside a citation without flattening badges or inline styles', () => {
+  const f = fixture()
+  f.state.before.state.document = articleBadges.before
+  f.state.after.state.document = articleBadges.after
+  const oldText = articleBadges.before.content[0].content![2].text!
+  const newText = articleBadges.after.content[0].content![2].text!
+  f.state.report.groups = [
+    {
+      ...f.state.report.groups[0],
+      before: { start: 0, end: 2 },
+      after: { start: 0, end: 2 },
+      before_highlights: [
+        { path: [0, 2], from: oldText.indexOf('doit'), to: oldText.indexOf('doit') + 4 },
+      ],
+      after_highlights: [
+        { path: [0, 2], from: newText.indexOf('peut'), to: newText.indexOf('peut') + 4 },
+        { path: [0, 2], from: newText.indexOf('xx'), to: newText.indexOf('xx') + 3 },
+      ],
+    },
+  ]
+  const view = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn() })
+  disposers.push(view.destroy)
+  const [before, after] = view.element.querySelectorAll('.comparison-side')
+  expect(before.querySelector('del')?.textContent).toBe('doit')
+  expect([...after.querySelectorAll('ins')].map((n) => n.textContent)).toEqual(['peut', 'xx '])
+  for (const side of [before, after]) {
+    expect(side.querySelector('[data-citation]')).not.toBeNull()
+    expect(side.querySelector('[data-footnote]')?.textContent).toBe('Note 1')
+    expect(side.querySelector('em')?.textContent).toBe('suppose')
+    expect(side.querySelector('strong')?.textContent).toBe('présentation')
+  }
+  expect(f.state.before.state.document).toEqual(articleBadges.before)
+  expect(f.state.after.state.document).toEqual(articleBadges.after)
+})
+
+it('marks changed text and notes inside a widget while preserving its structure and styles', () => {
+  const f = fixture()
+  const document = (word: string, note: string) => ({
+    type: 'doc',
+    content: [
+      {
+        type: 'bulletList',
+        content: [
+          {
+            type: 'listItem',
+            content: [
+              {
+                type: 'paragraph',
+                content: [
+                  { type: 'text', text: '😀 Un ' },
+                  { type: 'text', text: word, marks: [{ type: 'bold' }] },
+                  { type: 'footnote', attrs: { text: note } },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  f.state.before.state.document = document('ancien', 'Avant')
+  f.state.after.state.document = document('nouveau', 'Après')
+  f.state.report.groups = [
+    {
+      ...f.state.report.groups[0],
+      before_highlights: [
+        { path: [0, 0, 0, 1], from: 0, to: 6 },
+        { path: [0, 0, 0, 2], from: 0, to: 1 },
+      ],
+      after_highlights: [
+        { path: [0, 0, 0, 1], from: 0, to: 7 },
+        { path: [0, 0, 0, 2], from: 0, to: 1 },
+      ],
+    },
+  ]
+  const view = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn() })
+  disposers.push(view.destroy)
+  expect(view.element.querySelectorAll('ul li')).toHaveLength(2)
+  expect(view.element.querySelector('strong del')?.textContent).toBe('ancien')
+  expect(view.element.querySelector('strong ins')?.textContent).toBe('nouveau')
+  expect(view.element.querySelector('del .footnote-ref')?.getAttribute('title')).toBe('Avant')
+  expect(view.element.querySelector('ins .footnote-ref')?.textContent).toBe('Note 1')
 })

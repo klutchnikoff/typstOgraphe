@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import articleBadges from '../../../fixtures/comparison-article-badges.json' with { type: 'json' }
 async function ready(page: Page) {
   await page.request.post('/__spike/invoke', { data: { command: 'reset', peer: 'main', args: {} } })
   await page.goto('/?client=main')
@@ -110,6 +111,85 @@ test('historical versions stay read only and keyboard tabs preserve a frozen com
   await expect(dialog.locator('.comparison-decisions button')).toHaveCount(0)
   await dialog.locator('.comparison-picker select').selectOption('')
   await expect(dialog.locator('.comparison-decisions button.primary')).toHaveCount(2)
+  await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
+})
+test('Article snapshots show deleted and inserted words beside a citation in light and dark modes', async ({
+  page,
+}) => {
+  await ready(page)
+  const setup = await page.evaluate(async () => {
+    const { provider } = window.__spike!
+    const catalogue =
+      await provider.transport.invoke<import('../../src/shell').Catalogue>('content_catalogue')
+    const kind = catalogue.types.find((t) => t.id === 'article')!
+    const metadata = structuredClone(kind.metadata)
+    metadata.fields.references = [
+      {
+        id: 'demo-books',
+        name: 'books.bib',
+        contents: '@book{lefevre2021, author={Lefèvre, Camille}, title={Écrire}, year={2021}}',
+      },
+    ]
+    return {
+      generation: provider.generation,
+      revision: provider.revision,
+      settings: { metadata, modelId: kind.models[0].id, template: kind.models[0].source },
+    }
+  })
+  const created = await page.request.post('/__spike/invoke', {
+    data: {
+      peer: 'main',
+      command: 'new_document',
+      args: { revision: setup.revision, settings: setup.settings },
+    },
+  })
+  expect((await created.json()).error).toBeUndefined()
+  await page.waitForFunction(
+    (generation) => window.__spike?.ready && window.__spike.provider.generation !== generation,
+    setup.generation,
+  )
+  const content = async (document: typeof articleBadges.before) =>
+    page.evaluate(async (document) => {
+      const { editor, provider } = window.__spike!
+      editor.commands.setContent(document)
+      await provider.flush()
+    }, document)
+  await content(articleBadges.before)
+  await page.locator('.side-rail [data-command="ui.versions"]').click()
+  await capture(page, 'Avant')
+  await content(articleBadges.after)
+  await capture(page, 'Après')
+  await page.locator('.versions-groups [data-version]').filter({ hasText: 'Après' }).click()
+  const dialog = page.locator('.version-dialog[open]')
+  await dialog.getByRole('tab', { name: 'Comparer', exact: true }).click()
+  await dialog.locator('.comparison-picker select').selectOption({ label: 'Avant' })
+  const before = dialog.locator('.comparison-side').first(),
+    after = dialog.locator('.comparison-side').last()
+  await expect(before.locator('del')).toHaveText('doit')
+  await expect(after.locator('ins')).toHaveText(['peut', 'xx '])
+  await expect(before.locator('.citation-ref')).toContainText('Lefèvre, 2021')
+  await expect(after.locator('.citation-ref')).toContainText('Lefèvre, 2021')
+  await expect(before.locator('em')).toHaveText('suppose')
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme })
+    for (const tag of ['del', 'ins']) {
+      const mark = dialog.locator(tag).first()
+      await expect(mark).toBeVisible()
+      const style = await mark.evaluate((node) => {
+        const mark = getComputedStyle(node),
+          parent = getComputedStyle(node.parentElement!)
+        return {
+          color: mark.color,
+          background: mark.backgroundColor,
+          parent: parent.color,
+          decoration: mark.textDecorationLine,
+        }
+      })
+      expect(style.color).not.toBe(style.parent)
+      expect(style.background).not.toBe('rgba(0, 0, 0, 0)')
+      expect(style.decoration).toContain(tag === 'del' ? 'line-through' : 'underline')
+    }
+  }
   await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
 })
 test('MCP proposals use the same modal, partial decisions and human-only publication', async ({

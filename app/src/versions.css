@@ -361,6 +361,11 @@
   background: light-dark(#e9f4ec, #243c30);
   text-underline-offset: 3px;
 }
+.comparison-side :is(del, ins) :is(.footnote-ref, .citation-ref) {
+  color: inherit;
+  background: inherit;
+  border-color: currentColor;
+}
 .comparison-details {
   padding: 0 14px;
 }

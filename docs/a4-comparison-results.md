@@ -118,6 +118,31 @@ graphiques ci-dessus décrivent la vérification initiale du comparateur.
 
 ## Limites et suite
 
+### Correctif des surlignages près des badges
+
+Les snapshots locaux de `examples/article-working.typsto` ont révélé une lacune
+de présentation : le mot `doit` remplacé par `peut` et l’ajout de `xx` étaient
+calculés, mais aucun marquage n’apparaissait dans leur paragraphe contenant une
+citation. L’ancien affichage exigeait l’égalité du texte DOM avec la projection
+interne du moteur ; le libellé humain du badge rendait cette égalité impossible.
+
+Le cœur produit maintenant des plages par chemin de feuille/objet. La projection
+riche les applique comme marques temporaires, avec conservation des styles et
+des widgets, indépendamment des libellés localisés. Les notes modifiées peuvent
+aussi être marquées comme objets entiers. Un extrait minimal des deux snapshots
+est conservé dans `fixtures/comparison-article-badges.json` ; le projet local de
+l’utilisateur n’a pas été modifié ni ajouté au commit.
+
+Validation du correctif : **14 tests du comparateur**, **356 tests Vitest** et
+**5 tests de locales natives** réussis ; TypeScript/Vite, Prettier, Clippy du
+workspace/tous les targets, formatage Rust et contrôle des longueurs réussis.
+Les **8 parcours Chromium/WebKit** passent avec le propriétaire Rust réel, dont
+la comparaison historique Article reproduisant `doit` → `peut` et `xx`, avec
+vérification du rouge barré/vert souligné en modes clair et sombre. Ces contrôles
+sont locaux ; aucune capture n’a été enregistrée.
+
+### Périmètre restant
+
 Le regroupement reste volontairement conservateur : un paragraphe ou un widget
 n’est pas découpé en décisions textuelles plus fines. Un changement de réglages,
 ressources documentaires ou bibliothèque bibliographique regroupe le contenu associé ; aucune

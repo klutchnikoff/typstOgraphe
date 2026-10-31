@@ -133,6 +133,14 @@ Les caractères, espaces significatives, liens et mises en forme sont conservés
 les deux projections riches restent disponibles même lorsque le texte est identique.
 Les fichiers modifiés sont inventoriés et les deux rendus Typst sont isolés.
 
+Le moteur rattache aussi les plages de suppression et d’ajout aux chemins des
+feuilles textuelles de chaque groupe (`before_highlights` / `after_highlights`,
+positions UTF-16 locales). Une annotation modifiée est marquée comme un objet
+entier. L’affichage applique ces plages dans la projection riche statique, sans
+comparer le texte DOM aux chaînes internes de la différence. La présence d’un
+badge de citation ou de note ne peut donc pas masquer les changements voisins.
+Les marques visuelles `del` / `ins` ne rejoignent ni Yjs ni le contenu enregistré.
+
 L’adaptateur capture un checkpoint immuable sous verrou, puis prépare et compile
 le candidat hors du verrou de la session active. La publication reprend le verrou
 et revérifie garde, identité et décisions ; écrire entre la capture et la fin de

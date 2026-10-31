@@ -6,8 +6,14 @@ import { richZoneExtensions } from './rich-zone'
 import type { VersionContent } from './version-types'
 import type { Catalogue } from './shell'
 import { tr } from './i18n'
+import { ComparisonChange, highlightedContent } from './version-highlights'
+import type { ContentHighlight } from './comparison-types'
 
-export function versionContent(content: VersionContent, catalogue: Catalogue) {
+export function versionContent(
+  content: VersionContent,
+  catalogue: Catalogue,
+  changes?: { kind: 'delete' | 'insert'; ranges: ContentHighlight[] },
+) {
   const urls: string[] = []
   const resources = new Map(
     content.resources.map((resource) => {
@@ -20,9 +26,10 @@ export function versionContent(content: VersionContent, catalogue: Catalogue) {
       return [resource.path, url]
     }),
   )
-  const schema = getSchema(
-    richZoneExtensions('document', { imageURL: (path) => resources.get(path) || '' }),
-  )
+  const schema = getSchema([
+    ...richZoneExtensions('document', { imageURL: (path) => resources.get(path) || '' }),
+    ComparisonChange,
+  ])
   const element = document.createElement('article')
   element.className = 'version-document'
   element.setAttribute('aria-label', tr('Contenu de la version'))
@@ -143,7 +150,14 @@ export function versionContent(content: VersionContent, catalogue: Catalogue) {
         field(definition.label, record[definition.key])
       }
   }
-  element.append(information, rich(content.state.document))
+  element.append(
+    information,
+    rich(
+      changes
+        ? highlightedContent(content.state.document, changes.ranges, changes.kind)
+        : content.state.document,
+    ),
+  )
   return {
     element,
     destroy() {

@@ -111,50 +111,13 @@ export function comparisonView(options: {
     const rich = versionContent(
       { ...content, state: { ...content.state, document: { type: 'doc', content: nodes } } },
       options.catalogue,
+      { kind: name === 'before' ? 'delete' : 'insert', ranges: g[`${name}_highlights`] },
     )
     const info = rich.element.querySelector('details')!
     if (g.section !== 'document') info.remove()
     else info.open = true
     section.append(rich.element)
     disposers.push(rich.destroy)
-    // Highlight only faithful text projections. Badges and widgets retain their rich display.
-    const prose = rich.element.querySelector<HTMLElement>('.version-prose')!
-    const changes = g.changes.filter((c) => c.kind !== (name === 'before' ? 'insert' : 'delete'))
-    const expected = changes.map((c) => c.text.replace(/\n/g, '')).join('')
-    if (prose.textContent === expected) {
-      let offset = 0
-      const spans: { from: number; to: number }[] = []
-      for (const c of changes) {
-        if (c.kind !== 'equal')
-          spans.push({ from: offset, to: offset + c.text.replace(/\n/g, '').length })
-        offset += c.text.replace(/\n/g, '').length
-      }
-      const walker = document.createTreeWalker(prose, NodeFilter.SHOW_TEXT)
-      const texts: Text[] = []
-      let node: Node | null
-      while ((node = walker.nextNode())) texts.push(node as Text)
-      offset = 0
-      for (const text of texts) {
-        const value = text.data,
-          start = offset
-        offset += value.length
-        const cuts = spans.filter((s) => s.from < offset && s.to > start)
-        if (!cuts.length) continue
-        const fragment = document.createDocumentFragment()
-        let cursor = 0
-        for (const cut of cuts) {
-          const from = Math.max(0, cut.from - start),
-            to = Math.min(value.length, cut.to - start)
-          fragment.append(document.createTextNode(value.slice(cursor, from)))
-          const mark = document.createElement(name === 'before' ? 'del' : 'ins')
-          mark.textContent = value.slice(from, to)
-          fragment.append(mark)
-          cursor = to
-        }
-        fragment.append(document.createTextNode(value.slice(cursor)))
-        text.replaceWith(fragment)
-      }
-    }
     return section
   }
   async function togglePreviews() {

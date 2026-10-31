@@ -1,6 +1,11 @@
 import type { VersionContent } from './version-types'
 export type ComparisonOrigin =
   { kind: 'version'; id: string; against?: string } | { kind: 'proposal'; id: string }
+export interface ContentHighlight {
+  path: number[]
+  from: number
+  to: number
+}
 export interface ComparisonGroup {
   id: number
   section: 'body' | 'document'
@@ -9,6 +14,8 @@ export interface ComparisonGroup {
   linked: boolean
   decision: 'pending' | 'applied' | 'refused'
   changes: { kind: 'equal' | 'delete' | 'insert'; text: string }[]
+  before_highlights: ContentHighlight[]
+  after_highlights: ContentHighlight[]
 }
 export interface ComparisonReport {
   guard: { document: string; revision: number }
