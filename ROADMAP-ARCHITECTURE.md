@@ -90,6 +90,24 @@ aux autres états conservés.
 
 ### A.4 Snapshots durables — P1
 
+**Décisions validées le 31 octobre 2026 :** capturer uniquement l’état documentaire
+confirmé complet, modèle/dépendances/ressources compris ; conserver les formulaires
+et saisies non validées dans la récupération privée A.3. La création d’une version
+enregistre atomiquement l’état courant et le snapshot dans le `.typsto`, après
+choix d’emplacement si nécessaire. Une sauvegarde ordinaire ne crée pas de version.
+
+Avant toute restauration, créer une version automatique de sauvegarde de l’état
+courant ; publier explicitement l’état restauré sans supprimer les autres versions.
+En collaboration, passer par l’autorité commune et les gardes documentaires,
+jamais par un remplacement silencieux chez les participants. Pas de suppression
+automatique de versions dans le premier périmètre ; le nettoyage des ressources
+doit tenir compte de tous les états retenus, dont les références de relecture.
+
+Commencer par une expérience isolée Git embarqué / stockage d’états à ressources
+dédupliquées sur le même corpus Courrier/Article : taille, création, ouverture,
+suppression et intégrité. Le moteur sera choisi après examen des résultats, avant
+la maquette puis l’implémentation de Versions et de la comparaison commune.
+
 Définir un état cohérent incluant contenu structuré, métadonnées, réglages,
 modèle, dépendances et ressources, avec identité stable, date de création
 automatique, nom libre modifiable, tags facultatifs, auteur du snapshot et
@@ -133,7 +151,8 @@ Les outils d’annotations de J restent dédiés au mode relecture.
 partagées entre états : une image remplacée doit rester accessible depuis
 son ancien snapshot. Le nettoyage prend en compte l’état courant et tous les
 snapshots retenus ; ignorer assets/ dans Git ne dispense pas de cette garantie.
-Définir rétention et suppression avant de stabiliser le schéma de l’archive.
+Préciser les parcours de suppression explicite avant de stabiliser le schéma de
+l’archive ; aucune rétention automatique ne supprime de version au départ.
 
 La restauration doit produire un nouvel état courant sans effacer les états
 conservés ; son interaction avec les révisions Yjs, les participants distants

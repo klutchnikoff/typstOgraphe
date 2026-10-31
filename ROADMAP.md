@@ -98,6 +98,26 @@ aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
 
 ### A.4 — Snapshots durables
 
+**Choix validés le 31 octobre 2026 :**
+
+- Capturer l’état documentaire confirmé complet, avec modèle, dépendances et
+  ressources. Les formulaires ouverts et saisies non validées restent dans la
+  récupération privée d’A.3, hors des snapshots documentaires.
+- Créer une version enregistre atomiquement l’état courant et son nouveau snapshot
+  dans le `.typsto` ; demander l’emplacement si le document n’a pas encore de
+  fichier. Une sauvegarde ordinaire ne crée pas de snapshot supplémentaire.
+- Avant restauration, créer automatiquement une version de sauvegarde de l’état
+  courant. La restauration conserve les autres snapshots et passe par une
+  publication documentaire explicite ; en collaboration, utiliser l’autorité
+  commune sans remplacer silencieusement l’état des autres participants.
+- Ne supprimer aucune version automatiquement au départ. L’utilisateur supprime
+  explicitement les snapshots non protégés ; une ressource reste conservée tant
+  qu’un état retenu en a besoin.
+- Évaluer Git embarqué et un stockage d’états à ressources dédupliquées sur le
+  même corpus Courrier/Article avant de choisir : taille, création, ouverture,
+  suppression et intégrité. Maquetter ensuite Versions et la comparaison avant
+  leur implémentation. L’évaluation n’adopte aucun moteur dans l’application.
+
 - Préciser le contrat de conservation de l’arbre documentaire, de Yjs et du
   Typst généré avec les snapshots avant de stabiliser le format public du .typsto.
 - Conserver dans le projet des états cohérents et identifiables, consultables
@@ -151,7 +171,7 @@ A.4 prépare ce socle sans avancer l’implémentation ni la maquette de J.
 
 **Choix à valider pour A.4 :** périmètre et moment de stabilisation du format.
 Pour les snapshots : autres déclencheurs éventuels, stockage, comparaison,
-rétention et restauration, puis droits et coordination en collaboration.
+parcours détaillés de restauration, puis droits et coordination en collaboration.
 Préciser avec J la conservation des suggestions/commentaires, leur devenir lors
 d’une restauration et la rétention du snapshot de référence après la clôture
 d’une relecture. Ces règles restent à décider ; la référence initiale et les
