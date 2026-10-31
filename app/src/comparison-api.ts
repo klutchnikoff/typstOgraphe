@@ -21,6 +21,20 @@ export function comparisonAPI(provider: Provider, transport: Transport): Compari
     async read(id) {
       return transport.invoke('comparison_read', { id })
     },
+    async prepare(id, choices) {
+      await ready()
+      const result = await transport.invoke<Awaited<ReturnType<ComparisonAPI['prepare']>>>(
+        'comparison_prepare',
+        { id, choices },
+      )
+      try {
+        checkCurrent()
+      } catch (error) {
+        await transport.invoke('comparison_close', { id: result.id }).catch(() => {})
+        throw error
+      }
+      return result
+    },
     async apply(id, choices) {
       await ready()
       return provider.commitCommand(async () => {

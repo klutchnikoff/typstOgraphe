@@ -39,6 +39,7 @@ function fixture(source: 'before' | 'after' = 'before') {
     report: {
       guard: { document: 'doc', revision: 2 },
       source,
+      context: source === 'before' ? 'version' : 'proposal',
       stale: false,
       groups: [0, 1].map((id) => ({
         id,
@@ -62,6 +63,15 @@ function fixture(source: 'before' | 'after' = 'before') {
     read: vi.fn(async () => structuredClone(state)),
     close: vi.fn(async () => {}),
     preview: vi.fn(async () => ({ pages: [] })),
+    prepare: vi.fn(async () => ({
+      ...structuredClone(state),
+      id: 'composed',
+      report: {
+        ...structuredClone(state.report),
+        context: 'composition' as const,
+        source: 'after' as const,
+      },
+    })),
     apply: vi.fn(async (_id, choices) => {
       state.report.guard.revision++
       state.report.closed = true
@@ -82,6 +92,7 @@ function fixture(source: 'before' | 'after' = 'before') {
     api,
     state,
     change(fn: (s: ComparisonState) => void) {
+      state = structuredClone(state)
       fn(state)
       listener()
     },
@@ -100,6 +111,9 @@ afterEach(() => {
 })
 async function tick() {
   for (let i = 0; i < 12; i++) await Promise.resolve()
+}
+function validate(root: Element) {
+  return root.querySelector<HTMLButtonElement>('[data-action="validate-comparison"]')!
 }
 function button(root: Element, text: string) {
   return [...root.querySelectorAll<HTMLButtonElement>('button')].find(
@@ -148,10 +162,10 @@ it.each(['before', 'after'] as const)(
     expect(radio(0, 'after').getAttribute('aria-checked')).toBe('true')
     expect(document.activeElement).toBe(radio(0, 'after'))
     radio(0, 'before').click()
-    button(view.element, 'Appliquer').click()
+    validate(view.element).click()
     await tick()
     expect(f.api.apply).toHaveBeenCalledExactlyOnceWith('review', ['before', 'after'])
-    expect(button(view.element, 'Appliquer').disabled).toBe(true)
+    expect(validate(view.element).disabled).toBe(true)
     expect(radio(0, 'before').disabled).toBe(true)
     expect(view.element.querySelector('del')!.textContent).toBe('Old')
     expect(view.element.querySelector('ins')!.textContent).toBe('New')
@@ -194,7 +208,7 @@ it.each(['before', 'after'] as const)(
     expect(f.state.choices).toEqual(['after', 'after'])
     select('before').click()
     expect(f.api.apply).not.toHaveBeenCalled()
-    button(view.element, 'Appliquer').click()
+    validate(view.element).click()
     expect(select('before').disabled).toBe(true)
     expect(select('after').disabled).toBe(true)
     await tick()
@@ -206,14 +220,21 @@ it.each(['before', 'after'] as const)(
 it('disables bulk choices without differences while keeping identical historical states applicable', () => {
   const f = fixture()
   f.state.report.groups = []
-  const view = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn() })
+  f.state.report.context = 'historical'
+  const view = comparisonView({
+    state: f.state,
+    api: f.api,
+    catalogue,
+    error: vi.fn(),
+    prepared: vi.fn(),
+  })
   disposers.push(view.destroy)
   expect(
     [...view.element.querySelectorAll<HTMLButtonElement>('[data-action^="select-all-"]')].every(
       (b) => b.disabled,
     ),
   ).toBe(true)
-  expect(button(view.element, 'Appliquer').disabled).toBe(false)
+  expect(validate(view.element).disabled).toBe(false)
 })
 it('preserves provisional choices after a refused publication and an external edit', async () => {
   const f = fixture(),
@@ -224,7 +245,7 @@ it('preserves provisional choices after a refused publication and an external ed
   document.body.append(view.element)
   await tick()
   view.element.querySelector<HTMLButtonElement>('[data-group="0"] [data-side="before"]')!.click()
-  button(view.element, 'Appliquer').click()
+  validate(view.element).click()
   await tick()
   expect(error).toHaveBeenCalledOnce()
   expect(
@@ -236,7 +257,7 @@ it('preserves provisional choices after a refused publication and an external ed
     state.report.stale = true
   })
   await tick()
-  expect(button(view.element, 'Appliquer').disabled).toBe(true)
+  expect(validate(view.element).disabled).toBe(true)
   expect(view.element.querySelector('.comparison-notice')!.hasAttribute('hidden')).toBe(false)
 })
 it('disables composition once the comparison is finished', () => {
@@ -244,7 +265,7 @@ it('disables composition once the comparison is finished', () => {
   f.state.report.closed = true
   const view = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn() })
   disposers.push(view.destroy)
-  expect(button(view.element, 'Appliquer').disabled).toBe(true)
+  expect(validate(view.element).disabled).toBe(true)
   expect(
     [...view.element.querySelectorAll<HTMLButtonElement>('[role=radio]')].every((b) => b.disabled),
   ).toBe(true)
@@ -541,4 +562,82 @@ it('marks changed text and notes inside a widget while preserving its structure 
   expect(view.element.querySelector('strong ins')?.textContent).toBe('nouveau')
   expect(view.element.querySelector('del .footnote-ref')?.getAttribute('title')).toBe('Avant')
   expect(view.element.querySelector('ins .footnote-ref')?.textContent).toBe('Note 1')
+})
+
+it('prepares historical choices without applying and releases a late preparation after closing', async () => {
+  const f = fixture(),
+    prepared = vi.fn()
+  f.state.report.context = 'historical'
+  const view = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn(), prepared })
+  disposers.push(view.destroy)
+  view.element.querySelector<HTMLButtonElement>('[data-group="0"] [data-side="before"]')!.click()
+  validate(view.element).click()
+  await tick()
+  expect(f.api.prepare).toHaveBeenCalledExactlyOnceWith('review', ['before', 'after'])
+  expect(f.api.apply).not.toHaveBeenCalled()
+  expect(prepared).toHaveBeenCalledWith(expect.objectContaining({ id: 'composed' }))
+  view.destroy()
+  let finish!: (value: ComparisonState) => void
+  vi.mocked(f.api.prepare).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+  )
+  const late = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn(), prepared })
+  validate(late.element).click()
+  late.destroy()
+  finish({ ...f.state, id: 'late' })
+  await tick()
+  expect(f.api.close).toHaveBeenCalledWith('late')
+  expect(prepared).toHaveBeenCalledTimes(1)
+})
+
+it('prepares privately without committing Yjs or forms, and closes a candidate for a replaced document', async () => {
+  const f = fixture(),
+    provider = {
+      generation: 'doc',
+      revision: 2,
+      composing: false,
+      flush: vi.fn(async () => {}),
+      commitCommand: vi.fn(),
+      confirmSaved: vi.fn(),
+    },
+    invoke = vi.fn(async (command: string) => {
+      if (command === 'comparison_prepare') provider.generation = 'replacement'
+      return { ...f.state, id: 'private' }
+    })
+  const api = comparisonAPI(
+    provider as unknown as Provider,
+    { invoke, listen: vi.fn() } as unknown as Transport,
+  )
+  await expect(api.prepare('review', ['before', 'after'])).rejects.toThrow()
+  expect(provider.flush).toHaveBeenCalledExactlyOnceWith(false)
+  expect(invoke).toHaveBeenCalledWith('comparison_close', { id: 'private' })
+  expect(provider.commitCommand).not.toHaveBeenCalled()
+  expect(provider.confirmSaved).not.toHaveBeenCalled()
+})
+
+it('announces full MCP rejection and preserves its terminal state when the view is reopened', async () => {
+  const f = fixture('after')
+  const view = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn() })
+  document.body.append(view.element)
+  view.element.querySelector<HTMLButtonElement>('[data-action="select-all-before"]')!.click()
+  expect(validate(view.element).textContent).toBe('Refuser la proposition')
+  expect(view.element.querySelector('[data-comparison-summary]')!.textContent).toContain(
+    '2 changements écartés',
+  )
+  validate(view.element).click()
+  await tick()
+  expect(f.api.apply).toHaveBeenCalledExactlyOnceWith('review', ['before', 'before'])
+  expect(view.element.querySelector('[data-comparison-summary]')!.textContent).toBe(
+    'Proposition refusée. Le document est inchangé.',
+  )
+  view.destroy()
+  const reopened = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn() })
+  disposers.push(reopened.destroy)
+  expect(validate(reopened.element).disabled).toBe(true)
+  expect(reopened.element.querySelector('[data-comparison-summary]')!.textContent).toBe(
+    'Proposition refusée. Le document est inchangé.',
+  )
 })

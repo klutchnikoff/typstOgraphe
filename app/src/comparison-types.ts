@@ -18,7 +18,9 @@ export interface ComparisonGroup {
   before_highlights: ContentHighlight[]
   after_highlights: ContentHighlight[]
 }
+export type ComparisonContext = 'version' | 'proposal' | 'historical' | 'composition'
 export interface ComparisonReport {
+  context: ComparisonContext
   guard: { document: string; revision: number }
   source: 'before' | 'after'
   groups: ComparisonGroup[]
@@ -44,6 +46,7 @@ export interface ComparisonState {
 export interface ComparisonAPI {
   open(origin: ComparisonOrigin): Promise<ComparisonState>
   read(id: string): Promise<Pick<ComparisonState, 'id' | 'report'>>
+  prepare(id: string, choices: ComparisonSide[]): Promise<ComparisonState>
   apply(id: string, choices: ComparisonSide[]): Promise<Pick<ComparisonState, 'id' | 'report'>>
   close(id: string): Promise<unknown>
   preview(id: string, side: 'before' | 'after'): Promise<{ pages: string[] }>

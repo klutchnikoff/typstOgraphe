@@ -119,6 +119,7 @@ function stateDialog(options: {
   error.setAttribute('role', 'alert')
   dialog.append(header, tabs, display, bandSlot, error, footer)
   const comparisonAPI = options.version?.api.comparison || options.proposal?.api
+  let composition: ComparisonState | undefined
   let comparison: ComparisonState | undefined,
     loading: Promise<ComparisonState> | undefined,
     against: string | undefined
@@ -163,6 +164,7 @@ function stateDialog(options: {
     target.focus({ preventScroll: true })
   }
   async function frozenComparison() {
+    if (composition) return composition
     if (comparison) return comparison
     if (!loading) {
       const origin: ComparisonOrigin = options.proposal
@@ -185,6 +187,13 @@ function stateDialog(options: {
   async function render() {
     const request = ++ticket
     error.textContent = ''
+    title.textContent = composition
+      ? tr('Vérifier la composition')
+      : record?.details.name || options.proposal!.title
+    date.hidden = !options.version || !!composition
+    edit.hidden = remove.hidden = !options.version || !!composition
+    if (composition) details.hidden = true
+    else showDetails()
     for (const b of tabButtons) {
       b.setAttribute('aria-selected', String(b.dataset.view === view))
       b.tabIndex = b.dataset.view === view ? 0 : -1
@@ -223,12 +232,25 @@ function stateDialog(options: {
           void render()
         }
         picker.append(select)
-        picker.hidden = !!options.proposal
+        picker.hidden = !!options.proposal || !!composition
         const rendered = comparisonView({
           state: value,
           api: comparisonAPI!,
           catalogue: options.catalogue,
-          picker: options.proposal ? undefined : picker,
+          picker: options.proposal || composition ? undefined : picker,
+          prepared: (value) => {
+            composition = value
+            view = 'compare'
+            void render()
+          },
+          back: composition
+            ? () => {
+                const previous = composition!
+                composition = undefined
+                void comparisonAPI!.close(previous.id).catch(() => {})
+                void render()
+              }
+            : undefined,
           busy: (value) => {
             busy = value
             if (value) error.textContent = ''
@@ -248,18 +270,22 @@ function stateDialog(options: {
         disposeContent = rendered.destroy
         display.replaceChildren(rendered.element)
       } else if (view === 'content') {
-        const value = options.version
-          ? await options.version.api.read(record!.id)
-          : (await frozenComparison()).after
+        const value = composition
+          ? composition.after
+          : options.version
+            ? await options.version.api.read(record!.id)
+            : (await frozenComparison()).after
         if (!alive || request !== ticket) return
         const rendered = versionContent(value, options.catalogue)
         disposeContent?.()
         disposeContent = rendered.destroy
         display.replaceChildren(rendered.element)
       } else {
-        const preview = options.version
-          ? await options.version.api.preview(record!.id)
-          : await comparisonAPI!.preview((await frozenComparison()).id, 'after')
+        const preview = composition
+          ? await comparisonAPI!.preview(composition.id, 'after')
+          : options.version
+            ? await options.version.api.preview(record!.id)
+            : await comparisonAPI!.preview((await frozenComparison()).id, 'after')
         if (!alive || request !== ticket) return
         const pages = preview.pages.map((src, i) => {
           const image = document.createElement('img')

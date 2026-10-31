@@ -69,7 +69,7 @@ test('Versions: guarded local reprise, immutable right column, real independent 
     )
     .toBe(true)
   await dialog.getByRole('button', { name: 'Voir les changements', exact: true }).click()
-  await expect(dialog.getByRole('button', { name: 'Appliquer', exact: true })).toBeEnabled()
+  await expect(dialog.locator('[data-action="validate-comparison"]')).toBeEnabled()
   await page.evaluate(() => window.__spike!.provider.setSynchronization(true))
   const other = await context.newPage()
   await other.goto('/?client=other')
@@ -79,14 +79,14 @@ test('Versions: guarded local reprise, immutable right column, real independent 
     await window.__spike!.provider.flush()
   })
   await expect(dialog.locator('.comparison-notice')).toBeVisible()
-  await expect(dialog.getByRole('button', { name: 'Appliquer', exact: true })).toBeDisabled()
+  await expect(dialog.locator('[data-action="validate-comparison"]')).toBeDisabled()
   await expect(dialog.locator('[data-group="0"] .comparison-side').nth(1)).toHaveText('Current one')
   await dialog.getByRole('button', { name: 'Fermer', exact: true }).press('Escape')
   await expect(dialog).toHaveCount(0)
   await expect(page.locator('.versions-groups [data-version]')).toBeFocused()
   await other.close()
 })
-test('historical versions compose once and keyboard tabs preserve frozen states', async ({
+test('historical composition is reviewed against all current changes before one undoable publication', async ({
   page,
 }) => {
   await ready(page)
@@ -94,25 +94,49 @@ test('historical versions compose once and keyboard tabs preserve frozen states'
   await capture(page, 'Before')
   await writing(page, 'Current one', 'Current two')
   await capture(page, 'After')
-  const rows = page.locator('.versions-groups [data-version]')
-  await rows.filter({ hasText: 'Before' }).click()
+  await writing(page, 'Only in current one', 'Only in current two')
+  const current = await page.evaluate(() => window.__spike!.editor.getText())
+  await page.locator('.versions-groups [data-version]').filter({ hasText: 'Before' }).click()
   const dialog = page.locator('.version-dialog[open]')
-  await dialog.getByRole('tab', { name: 'Contenu', exact: true }).focus()
-  await page.keyboard.press('ArrowRight')
-  await page.keyboard.press('ArrowRight')
-  await expect(dialog.getByRole('tab', { name: 'Comparer', exact: true })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
-  await expect(dialog.locator('.comparison')).toBeVisible()
+  await dialog.getByRole('tab', { name: 'Comparer', exact: true }).click()
   await dialog.locator('.comparison-picker select').selectOption({ label: 'After' })
   await expect(dialog.locator('[role=radio]')).toHaveCount(4)
   await dialog.locator('[data-group="0"] [data-side="before"]').click()
-  await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click()
+  const validate = dialog.locator('[data-action="validate-comparison"]')
+  await expect(validate).toHaveText('Comparer la composition au document courant')
+  await validate.click()
+  await expect(dialog.locator('h2')).toHaveText('Vérifier la composition')
+  expect(await page.evaluate(() => window.__spike!.editor.getText())).toBe(current)
+  await expect(dialog.locator('.comparison-headings')).toContainText('Document courant figé')
+  await expect(dialog.locator('.comparison-headings')).toContainText('Composition préparée')
+  await expect(dialog.locator('[data-group="1"] .comparison-side').first()).toHaveText(
+    'Only in current two',
+  )
+  await expect(dialog.locator('[data-group="1"] .comparison-side').last()).toHaveText('Current two')
+  await dialog.getByRole('button', { name: 'Modifier la composition', exact: true }).click()
+  await expect(dialog.locator('[data-group="0"] [data-side="before"]')).toHaveAttribute(
+    'aria-checked',
+    'true',
+  )
+  await validate.click()
+  await expect(dialog.locator('h2')).toHaveText('Vérifier la composition')
+  await dialog.getByRole('tab', { name: 'Contenu', exact: true }).click()
+  await expect(dialog.locator('.version-prose')).toContainText('Original one')
+  await expect(dialog.locator('.version-prose')).toContainText('Current two')
+  await dialog.getByRole('tab', { name: 'Comparer', exact: true }).click()
+  await expect(validate).toHaveText('Appliquer 2 changements')
+  await dialog.locator('[data-group="1"] [data-side="before"]').click()
+  await expect(validate).toHaveText('Appliquer 1 changement')
+  await validate.click()
   await expect(dialog).toContainText('Choix appliqués. Vous pouvez enregistrer le document.')
   expect(await page.evaluate(() => window.__spike!.editor.getText())).toContain('Original one')
-  expect(await page.evaluate(() => window.__spike!.editor.getText())).toContain('Current two')
+  expect(await page.evaluate(() => window.__spike!.editor.getText())).toContain(
+    'Only in current two',
+  )
   await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
+  await page.locator('.writing .tiptap').click()
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect.poll(() => page.evaluate(() => window.__spike!.editor.getText())).toBe(current)
 })
 test('neighboring paragraph edits can be resumed and refused independently', async ({ page }) => {
   await ready(page)
@@ -140,7 +164,7 @@ test('neighboring paragraph edits can be resumed and refused independently', asy
     'aria-checked',
     'true',
   )
-  await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click()
+  await dialog.locator('[data-action="validate-comparison"]').click()
   await expect(dialog).toContainText('Choix appliqués. Vous pouvez enregistrer le document.')
   const paragraphs = await page.evaluate(() => {
     const nodes: string[] = []
@@ -168,24 +192,20 @@ test('selecting a complete version remains provisional, preserves the file bindi
   await page.locator('.versions-groups [data-version]').filter({ hasText: 'Original' }).click()
   const dialog = page.locator('.version-dialog[open]')
   await dialog.getByRole('tab', { name: 'Comparer', exact: true }).click()
-  await dialog.getByRole('button', { name: 'Tout sélectionner à gauche', exact: true }).focus()
+  await dialog.locator('[data-action="select-all-before"]').focus()
   await page.keyboard.press('Enter')
   await expect(dialog.locator('[data-side="before"][aria-checked="true"]')).toHaveCount(2)
-  await expect(
-    dialog.getByRole('button', { name: 'Tout sélectionner à gauche', exact: true }),
-  ).toBeFocused()
+  await expect(dialog.locator('[data-action="select-all-before"]')).toBeFocused()
   expect(await page.evaluate(() => window.__spike!.editor.getText())).toBe(current)
   await page.keyboard.press('ArrowRight')
-  await expect(
-    dialog.getByRole('button', { name: 'Tout sélectionner à droite', exact: true }),
-  ).toBeFocused()
+  await expect(dialog.locator('[data-action="select-all-after"]')).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(dialog.locator('[data-side="after"][aria-checked="true"]')).toHaveCount(2)
-  await dialog.getByRole('button', { name: 'Tout sélectionner à gauche', exact: true }).click()
+  await dialog.locator('[data-action="select-all-before"]').click()
   await dialog.getByRole('tab', { name: 'Contenu', exact: true }).click()
   await dialog.getByRole('tab', { name: 'Comparer', exact: true }).click()
   await expect(dialog.locator('[data-side="before"][aria-checked="true"]')).toHaveCount(2)
-  await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click()
+  await dialog.locator('[data-action="validate-comparison"]').click()
   await expect(dialog).toContainText('Choix appliqués. Vous pouvez enregistrer le document.')
   expect(await page.evaluate(() => window.__spike!.editor.getText())).toBe(original)
   const after = await page.evaluate(() =>
@@ -222,8 +242,10 @@ test('keeping every green choice leaves writing and undo history unchanged', asy
   await page.locator('.versions-groups [data-version]').click()
   const dialog = page.locator('.version-dialog[open]')
   await dialog.getByRole('tab', { name: 'Comparer', exact: true }).click()
-  await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click()
-  await expect(dialog).toContainText('Choix appliqués. Vous pouvez enregistrer le document.')
+  await expect(dialog.locator('[data-action="validate-comparison"]')).toHaveText(
+    'Aucun passage à reprendre',
+  )
+  await expect(dialog.locator('[data-action="validate-comparison"]')).toBeDisabled()
   const result = await page.evaluate(async () => {
     const { provider, editor } = window.__spike!
     const context = await provider.transport.invoke<{ undo_steps: number }>('editing_context', {
@@ -311,11 +333,11 @@ test('Article snapshots show deleted and inserted words beside a citation in lig
       expect(inset).toBeLessThan(24)
     }
     for (const [name, mark] of [
-      ['Tout sélectionner à gauche', before.locator('del').first()],
-      ['Tout sélectionner à droite', after.locator('ins').first()],
+      ['select-all-before', before.locator('del').first()],
+      ['select-all-after', after.locator('ins').first()],
     ] as const) {
       const color = await mark.evaluate((node) => getComputedStyle(node).color)
-      await expect(dialog.getByRole('button', { name, exact: true })).toHaveCSS('color', color)
+      await expect(dialog.locator(`[data-action="${name}"]`)).toHaveCSS('color', color)
     }
     await expect(green).toHaveAttribute('aria-checked', 'true')
     await expect(green.locator('svg path')).toHaveAttribute('d', 'M20 6 9 17l-5-5')
@@ -400,13 +422,13 @@ test('MCP proposals use the same modal, partial decisions and human-only publica
   })
   const dialog = page.locator('.version-dialog[open]')
   await expect(dialog.locator('.comparison-group')).toHaveCount(2)
-  await dialog.getByRole('button', { name: 'Tout sélectionner à gauche', exact: true }).click()
+  await dialog.locator('[data-action="select-all-before"]').click()
   await expect(dialog.locator('[data-side="before"][aria-checked="true"]')).toHaveCount(2)
-  await dialog.getByRole('button', { name: 'Tout sélectionner à droite', exact: true }).click()
+  await dialog.locator('[data-action="select-all-after"]').click()
   await expect(dialog.locator('[data-side="after"][aria-checked="true"]')).toHaveCount(2)
   await dialog.locator('[data-group="1"] [data-side="before"]').click()
   expect(await page.evaluate(() => window.__spike!.editor.getText())).not.toContain('Proposed ')
-  await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click()
+  await dialog.locator('[data-action="validate-comparison"]').click()
   await expect(dialog).toContainText('Choix appliqués. Vous pouvez enregistrer le document.')
   expect(commands).not.toContain('choose_file')
   expect(commands).not.toContain('save_file')

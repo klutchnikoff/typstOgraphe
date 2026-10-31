@@ -3,6 +3,7 @@ import { proposalDetails } from './proposal-preview'
 import { actionRow, navigationGroup, composing, editingControl } from './keyboard-navigation'
 import { icon } from './icons'
 import { tr } from './i18n'
+import { comparisonLabels, comparisonDecision, comparisonOutcome } from './comparison-presentation'
 import type { Catalogue } from './shell'
 import type {
   ComparisonAPI,
@@ -19,6 +20,8 @@ export function comparisonView(options: {
   error(reason: unknown): void
   picker?: HTMLElement
   busy?(value: boolean): void
+  prepared?(state: ComparisonState): void
+  back?(): void
 }) {
   const element = document.createElement('section')
   element.className = 'comparison'
@@ -55,7 +58,7 @@ export function comparisonView(options: {
     }
   })
   const choices = (options.state.choices ||= state.report.groups.map(() => 'after' as const))
-  const sourceBefore = state.report.source === 'before'
+  const labels = comparisonLabels(state.report)
   const button = (label: string, run: () => void) => {
     const b = document.createElement('button')
     b.type = 'button'
@@ -65,7 +68,10 @@ export function comparisonView(options: {
     return b
   }
   function paintChoice(button: HTMLButtonElement, selected: boolean) {
-    button.innerHTML = `${icon(selected ? 'check' : 'x')}<span>${tr('Sélectionner')}</span>`
+    button.innerHTML = icon(selected ? 'check' : 'x')
+    const text = document.createElement('span')
+    text.textContent = labels.choice[button.dataset.side as ComparisonSide]
+    button.append(text)
     button.setAttribute('aria-checked', String(selected))
     button.tabIndex = selected ? 0 : -1
   }
@@ -83,6 +89,31 @@ export function comparisonView(options: {
     else choices[group] = side
     // Preserve live controls and focus, including WebKit's keyboard activation.
     refreshChoices()
+    refreshDecision()
+  }
+  function refreshDecision() {
+    const decision = comparisonDecision(state.report, choices, options.catalogue.locale)
+    const validate = element.querySelector<HTMLButtonElement>('[data-action="validate-comparison"]')
+    if (validate) {
+      validate.textContent = decision.label
+      validate.disabled =
+        busy ||
+        state.report.stale ||
+        !!state.report.closed ||
+        decision.disabled ||
+        (state.report.context === 'historical' && !options.prepared)
+    }
+    const progress = element.querySelector<HTMLElement>('[data-comparison-summary]')
+    if (progress)
+      progress.textContent = state.report.applied
+        ? comparisonOutcome(state.report, choices)
+        : state.report.closed
+          ? tr('Proposition terminée ou connexion révoquée.')
+          : decision.summary
+  }
+  function setReport(report: ComparisonState['report']) {
+    options.state.report = report
+    state = { ...state, report }
   }
   async function refresh() {
     const request = ++serial
@@ -98,7 +129,7 @@ export function comparisonView(options: {
         old.closed !== next.closed ||
         old.groups.some((g, i) => g.decision !== next.groups[i]?.decision) ||
         old.groups.length !== next.groups.length
-      state = { ...state, report: next }
+      setReport(next)
       if (changed) render()
     } catch (e) {
       if (alive && request === serial) options.error(e)
@@ -109,9 +140,15 @@ export function comparisonView(options: {
     busy = true
     options.busy?.(true)
     render()
+    let next: ComparisonState | undefined
     try {
-      const result = await options.api.apply(state.id, [...choices])
-      if (alive && result) state = { ...state, report: result.report }
+      if (state.report.context === 'historical') {
+        next = await options.api.prepare(state.id, [...choices])
+        if (!alive) void options.api.close(next.id).catch(() => {})
+      } else {
+        const result = await options.api.apply(state.id, [...choices])
+        if (alive) setReport(result.report)
+      }
     } catch (e) {
       if (alive) {
         options.error(e)
@@ -121,9 +158,10 @@ export function comparisonView(options: {
       if (alive) {
         busy = false
         options.busy?.(false)
-        render()
+        if (!next) render()
       }
     }
+    if (alive && next) options.prepared?.(next)
   }
   function side(content: VersionContent, g: ComparisonGroup, name: 'before' | 'after') {
     const section = document.createElement('div')
@@ -185,7 +223,11 @@ export function comparisonView(options: {
     const toolbar = document.createElement('div')
     toolbar.className = 'comparison-toolbar'
     const caption = document.createElement('span')
-    caption.textContent = tr('États figés · avant à gauche, après à droite')
+    caption.textContent = tr(
+      state.report.context === 'composition'
+        ? 'Vérifiez la composition avant de modifier le document courant.'
+        : 'États figés · avant à gauche, après à droite',
+    )
     const navigation = actionRow()
     const move = (delta: number) => {
       active = (active + delta + state.report.groups.length) % state.report.groups.length
@@ -216,32 +258,34 @@ export function comparisonView(options: {
     )
     toggle.dataset.action = 'preview-toggle'
     toolbar.append(options.picker || caption, toggle, navigation)
+    if (options.back) {
+      const back = button('Modifier la composition', options.back)
+      back.disabled = busy || !!state.report.closed
+      toolbar.append(back)
+    }
     const notice = document.createElement('p')
     notice.className = 'comparison-notice'
     notice.hidden = !state.report.stale
     notice.setAttribute('role', 'alert')
     notice.textContent = tr(
-      sourceBefore
+      state.report.context !== 'proposal'
         ? 'Le document a changé ailleurs. Fermez puis ouvrez une nouvelle comparaison avant de reprendre les modifications restantes.'
         : 'Le document a changé ailleurs. Demandez une nouvelle proposition à l’agent.',
     )
     const headings = document.createElement('div')
     headings.className = 'comparison-columns comparison-headings'
-    for (const [index, label] of [
-      sourceBefore ? 'Avant · Version conservée' : 'Avant · État de départ',
-      sourceBefore ? 'Après · Document courant figé' : 'Après · Proposition',
-    ].entries()) {
+    for (const [index, label] of labels.headings.entries()) {
       const column = document.createElement('div'),
         h = document.createElement('strong')
       column.className = 'comparison-column-heading'
       const name = index === 0 ? state.report.before_name : state.report.after_name
       h.textContent = name ? `${tr(index === 0 ? 'Avant' : 'Après')} · ${name}` : tr(label)
       const side = index === 0 ? 'before' : 'after'
-      const select = button('Tout sélectionner', () => {
+      const select = button(labels.all[side], () => {
         choose(side)
         select.focus({ preventScroll: true })
       })
-      const title = tr(index === 0 ? 'Tout sélectionner à gauche' : 'Tout sélectionner à droite')
+      const title = labels.allName(side)
       select.className = 'comparison-select-all'
       select.dataset.side = side
       select.setAttribute('aria-label', title)
@@ -300,10 +344,7 @@ export function comparisonView(options: {
         select.dataset.action = `select-${name}`
         select.setAttribute('role', 'radio')
         paintChoice(select, choices[g.id] === name)
-        select.setAttribute(
-          'aria-label',
-          tr(name === 'before' ? 'Sélectionner la version rouge' : 'Sélectionner la version verte'),
-        )
+        select.setAttribute('aria-label', labels.name(name))
         select.disabled = busy || !!state.report.closed
         const column = document.createElement('div')
         column.className = 'comparison-passage-heading'
@@ -356,16 +397,10 @@ export function comparisonView(options: {
     const progress = document.createElement('span')
     progress.setAttribute('role', 'status')
     progress.setAttribute('aria-live', 'polite')
-    progress.textContent = tr(
-      state.report.applied
-        ? 'Choix appliqués. Vous pouvez enregistrer le document.'
-        : state.report.closed
-          ? 'Proposition terminée ou connexion révoquée.'
-          : 'Choix provisoires · aucun changement avant validation.',
-    )
-    const validate = button('Appliquer', () => void apply())
+    progress.dataset.comparisonSummary = ''
+    const validate = button('', () => void apply())
+    validate.dataset.action = 'validate-comparison'
     validate.className = 'primary'
-    validate.disabled = busy || state.report.stale || !!state.report.closed
     footer.append(progress, validate)
     const files = document.createElement('details')
     files.className = 'comparison-files'
@@ -385,6 +420,7 @@ export function comparisonView(options: {
       files.append(row)
     }
     element.replaceChildren(toolbar, notice, headings, rows, files, footer)
+    refreshDecision()
     navigationGroup(navigation, { axis: 'horizontal' })
     if (action) {
       const candidate = [...element.querySelectorAll<HTMLButtonElement>('[data-action]')].find(

@@ -65,6 +65,7 @@ it.each(['review', 'ime'] as const)(
           report: {
             guard: { document: 'doc', revision: 4 },
             source: 'after',
+            context: 'proposal',
             stale: false,
             groups: [],
           },
