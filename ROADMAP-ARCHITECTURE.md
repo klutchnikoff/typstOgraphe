@@ -358,6 +358,13 @@ Conserver les conventions validées des widgets/bandeaux, menus, actions et
 raccourcis ; maqueter les extensions sur l’interface Tauri réelle. Examiner
 focus, lecture d’écran, contraste, mouvement réduit, petite fenêtre et saisie IME.
 
+**À reprendre — localisation des sélecteurs macOS (31 octobre 2026) :** le menu
+Tauri est correctement traduit par Fluent, mais le sélecteur ouvert avec
+`npm start` garde ses boutons anglais. Investigation reportée à la demande de
+l’utilisateur ; [constats, essais retirés et piste dbv-typst-editor](docs/native-localization-investigation.md).
+Comparer les parcours de développement et de bundle et le service natif réel.
+Un contrôle de métadonnées ou du titre du panneau ne valide pas ses boutons.
+
 **À faire — adaptation de la barre d’outils et de la palette au type (30 octobre 2026) :** filtrer
 les capacités exposées à partir du catalogue du type actif et supprimer les
 groupes sans entrée. Ne pas coder « article » ou « courrier » dans la

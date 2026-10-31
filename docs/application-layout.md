@@ -43,10 +43,12 @@ libellés anglais par défaut, indépendamment de ces déclarations. Leurs libel
 sont désormais fournis explicitement par Fluent, avec les actions natives
 préservées. Un test vérifie français, anglais et repli. Le titre et le filtre du
 sélecteur de projet viennent également de Fluent ; ses commandes internes
-restent celles de macOS. Dans la sonde native locale, le bouton effectivement
-affiché est « Ouvrir » alors que `NSOpenPanel.prompt` expose « Open » : cette
-propriété seule ne permet donc pas de tester la traduction visible. L’anglais du
-sélecteur signalé avec `npm start` n’a pas été reproduit dans cette sonde isolée.
+restent celles de macOS. **Problème confirmé, reporté le 31 octobre 2026 :**
+avec `npm start`, ces boutons restent anglais chez l’utilisateur. La première
+sonde pouvait confondre le titre « Ouvrir » avec un bouton : elle ne prouvait
+pas la traduction des commandes du service système. Le
+[diagnostic détaillé](native-localization-investigation.md) consigne cette
+limite, les essais non concluants retirés et la piste `dbv-typst-editor` à examiner.
 
 Recette de cette correction : cinq tests de langues natives (dont négociation
 Foundation en français/anglais/repli), onze tests i18n, quinze tests des scripts,

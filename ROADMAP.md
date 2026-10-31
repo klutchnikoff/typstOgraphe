@@ -437,6 +437,12 @@ validé sur la recette représentative de chaque modèle livré.
   distinguant la police de lecture de l’éditeur de celles du modèle.
 - Vérifier les langues des menus et dialogues natifs dans l’application installée,
   la couverture des glyphes et l’absence de corrections concurrentes avec Spellbook.
+  **Problème reporté le 31 octobre 2026 :** sous macOS avec `npm start`, le menu
+  de l’application est français mais les boutons du sélecteur de fichiers
+  restent anglais. Reprendre le [diagnostic consigné](docs/native-localization-investigation.md)
+  et comparer la solution éventuelle de `dbv-typst-editor` avant une nouvelle
+  expérimentation. Les essais non concluants ont été retirés ; la traduction
+  visible de ces boutons n’est pas considérée comme validée.
 - Tenir un budget de latence de saisie et de rendu sur des documents représentatifs,
   en build natif optimisé ; réutiliser les mesures et références existantes.
   **Budget relatif (29 octobre 2026) :** la latence de bout en bout de l'aperçu
