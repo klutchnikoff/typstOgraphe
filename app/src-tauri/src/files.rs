@@ -10,8 +10,6 @@ use crate::{Bridge, session::Snapshot, settings::Settings};
 use std::path::PathBuf;
 use tauri::{Emitter, State};
 use tauri_plugin_dialog::DialogExt;
-#[cfg(test)]
-use typstographe_core::content::archive::Archive;
 #[tauri::command]
 pub fn quit_app(app: tauri::AppHandle, state: State<Bridge>) -> Result<(), String> {
     {
@@ -239,14 +237,17 @@ pub fn close_document(
 mod tests {
     use super::*;
     use std::io::{Read, Write};
-    use typstographe_core::content::{archive::Error, contract, shared::SharedDocument};
+    use typstographe_core::content::{archive::Error, project::Project, shared::SharedDocument};
 
     #[test]
     fn existing_article_opens_and_compiles_with_its_original_model_and_history() {
         let path =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/article-working.typsto");
         let before = std::fs::read(&path).unwrap();
-        let archive = Archive::read(&path).unwrap();
+        let archive = typstographe_core::content::project::Project::read(&path)
+            .unwrap()
+            .current()
+            .clone();
         SharedDocument::from_update(&archive.yjs)
             .unwrap()
             .verify(&archive.state())
@@ -255,7 +256,10 @@ mod tests {
             .validate(
                 &archive.validate().unwrap(),
                 &archive.assets,
-                &archive.state().settings,
+                crate::rendering::RenderContext {
+                    settings: &archive.state().settings,
+                    dependencies: archive.dependencies.clone(),
+                },
             )
             .unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), before);
@@ -273,7 +277,7 @@ mod tests {
             .unwrap();
         writer.finish().unwrap();
         assert!(matches!(
-            Archive::read(&legacy),
+            Project::read(&legacy),
             Err(Error::Core(
                 typstographe_core::errors::CoreError::StorageError(
                     typstographe_core::errors::StorageError::Unsupported
@@ -285,13 +289,22 @@ mod tests {
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/article-working.typsto");
         let corrupt = dir.path().join("corrupt.typsto");
         let mut source = zip::ZipArchive::new(std::fs::File::open(original).unwrap()).unwrap();
+        let manifest: serde_json::Value =
+            serde_json::from_reader(source.by_name("manifest.json").unwrap()).unwrap();
+        let current = format!(
+            "objects/sha256/{}",
+            manifest["current"]
+                .as_str()
+                .unwrap()
+                .trim_start_matches("sha256:")
+        );
         let mut writer = zip::ZipWriter::new(std::fs::File::create(&corrupt).unwrap());
         for index in 0..source.len() {
             let mut entry = source.by_index(index).unwrap();
             let mut bytes = vec![];
             entry.read_to_end(&mut bytes).unwrap();
             let name = entry.name().unwrap().into_owned();
-            if name == "contenu.typ" {
+            if name == current {
                 bytes = b"A conflicting source".to_vec();
             }
             writer
@@ -300,10 +313,15 @@ mod tests {
             writer.write_all(&bytes).unwrap();
         }
         writer.finish().unwrap();
-        let error = Archive::read(&corrupt).err().unwrap();
-        assert!(
-            matches!(&error, Error::Content(contract::Error::InconsistentState { field }) if field == "source")
-        );
+        let error = typstographe_core::content::project::Project::read(&corrupt)
+            .err()
+            .unwrap();
+        assert!(matches!(
+            &error,
+            Error::Core(typstographe_core::errors::CoreError::StorageError(
+                typstographe_core::errors::StorageError::ObjectIntegrity { .. }
+            ))
+        ));
         let message = typstographe_i18n::archive_error(&error);
         assert!(!message.contains("StorageError"));
         assert!(!message.contains("UnknownEntry"));

@@ -12,7 +12,6 @@ use typstographe_core::{
     DocumentLease,
     assets::Assets,
     content::{
-        archive::Archive,
         contract::{Settings, State},
         shared::SharedDocument,
     },
@@ -92,7 +91,7 @@ impl Fixture {
         let mut s = self.session.lock().unwrap();
         let history = s.ensure_owner().unwrap().snapshot("human").unwrap();
         json!({"guard":s.guard(),"updates":s.updates,"state":s.owner.as_ref().unwrap().state(),
-            "history":history,"clean":s.clean_revision,"lease":s.file_lease.as_ref().map(|l|l.path())})
+            "history":history,"project":s.project.get().map(|p| json!({"id":p.owner.project_id(),"versions":p.owner.versions()})),"clean":s.clean_revision,"lease":s.file_lease.as_ref().map(|l|l.path())})
     }
     fn save(&self, path: &Path) {
         let (snapshot, update) = self.draft();
@@ -123,7 +122,10 @@ fn real_typst_save_and_reopen_preserve_checkpoint_and_release_recovery_only_afte
     f.make_dirty();
     let expected = f.draft();
     f.save(&f.path());
-    let archive = Archive::read(&f.path()).unwrap();
+    let archive = typstographe_core::content::project::Project::read(&f.path())
+        .unwrap()
+        .current()
+        .clone();
     assert_eq!(archive.document, expected.0.document);
     SharedDocument::from_update(&archive.yjs)
         .unwrap()
@@ -428,7 +430,7 @@ fn failed_save_as_cleanup_keeps_the_original_binding_and_external_change_protect
     let copy = f.directory.path().join("copy.typsto");
     let (snapshot, update) = f.draft();
     assert!(save_project(&f.session, &copy, snapshot, update, |_, _, _| Ok(())).is_err());
-    assert!(Archive::read(&copy).is_ok()); // The archive was written, but cleanup did not finish.
+    assert!(typstographe_core::content::project::Project::read(&copy).is_ok()); // The archive was written, but cleanup did not finish.
     let after = f.fingerprint();
     assert_eq!(after["lease"], before["lease"]);
     assert!(after == before, "Refused Save As changed current work");
@@ -455,10 +457,138 @@ fn retrying_an_in_place_save_after_cleanup_failure_recognizes_its_own_written_fi
     let (snapshot, update) = f.draft();
     let expected = snapshot.document.clone();
     assert!(save_project(&f.session, &f.path(), snapshot, update, |_, _, _| Ok(())).is_err());
-    assert_eq!(Archive::read(&f.path()).unwrap().document, expected);
+    assert_eq!(
+        typstographe_core::content::project::Project::read(&f.path())
+            .unwrap()
+            .current()
+            .clone()
+            .document,
+        expected
+    );
     std::fs::remove_dir(&path).unwrap();
     std::fs::rename(backup, &path).unwrap();
     f.save(&f.path());
     assert!(!path.exists());
     assert!(DocumentLease::acquire(&f.path()).is_err());
+}
+
+#[test]
+fn cas_identity_and_versions_survive_native_saves_copies_and_portable_recovery() {
+    use typstographe_core::content::project::{Project, SnapshotDetails, SnapshotReason};
+    let f = Fixture::new();
+    // First save keeps the identity assigned to the unsaved project.
+    f.persist_draft();
+    let initial_id = f
+        .session
+        .lock()
+        .unwrap()
+        .project
+        .get()
+        .unwrap()
+        .owner
+        .project_id();
+    f.save(&f.path());
+    let original = Project::read(&f.path()).unwrap();
+    assert_eq!(original.project_id(), initial_id);
+    let versioned = original
+        .prepare_version(
+            SnapshotDetails {
+                name: "v1".into(),
+                ..Default::default()
+            },
+            SnapshotReason::Manual,
+        )
+        .unwrap();
+    {
+        let mut s = f.session.lock().unwrap();
+        versioned.save(s.file_lease.as_mut().unwrap()).unwrap();
+        s.project =
+            std::sync::OnceLock::from(crate::project::Context::new(versioned.clone(), true));
+    }
+    f.edit("Latest confirmed text. ");
+    f.persist_draft();
+    let checkpoint = std::fs::read(f.recovery_path()).unwrap();
+    f.edit("More text. ");
+    f.persist_draft();
+    let latest: crate::session::Checkpoint = serde_json::from_value(serde_json::from_slice::<Value>(&std::fs::read(f.recovery_path()).unwrap()).unwrap()["checkpoint"].clone()).unwrap();
+    let previous: crate::session::Checkpoint = serde_json::from_value(
+        serde_json::from_slice::<Value>(&checkpoint).unwrap()["checkpoint"].clone(),
+    )
+    .unwrap();
+    // Keystrokes update confirmed JSON/Yjs without recompressing history.
+    assert_eq!(
+        serde_json::to_value(&latest.project).unwrap(),
+        serde_json::to_value(&previous.project).unwrap()
+    );
+    assert_ne!(latest.document, previous.document);
+    f.save(&f.path());
+    let saved = Project::read(&f.path()).unwrap();
+    assert_eq!(saved.project_id(), initial_id);
+    assert_eq!(saved.versions(), versioned.versions());
+    let copy_path = f.directory.path().join("copy.typsto");
+    f.save(&copy_path);
+    let copy = Project::read(&copy_path).unwrap();
+    assert_ne!(copy.project_id(), initial_id);
+    assert_eq!(copy.versions(), versioned.versions());
+    assert_eq!(Project::read(&f.path()).unwrap().project_id(), initial_id);
+    // Recovery carries its own CAS; neither source file is needed anymore.
+    drop(original);
+    drop(saved);
+    drop(copy);
+    std::fs::remove_file(f.path()).unwrap();
+    let recovered =
+        Session::from_checkpoint(f.directory.path().join("portable"), latest.clone()).unwrap();
+    let context = recovered.project.get().unwrap();
+    assert!(recovered.file_lease.is_none());
+    assert!(context.saved_origin);
+    assert_eq!(context.owner.project_id(), initial_id);
+    assert_eq!(context.owner.versions(), versioned.versions());
+    assert_eq!(context.owner.current().document, latest.document);
+    assert_eq!(
+        context
+            .owner
+            .version(versioned.versions()[0].id)
+            .unwrap()
+            .document,
+        versioned.current().document
+    );
+    let recovered = Mutex::new(recovered);
+    let target = f.directory.path().join("recovered.typsto");
+    save_project(
+        &recovered,
+        &target,
+        Snapshot {
+            revision: 0,
+            document: latest.document,
+            settings: Some(latest.settings),
+        },
+        latest.update,
+        |_, _, _| Ok(()),
+    )
+    .unwrap();
+    let independent = Project::read(&target).unwrap();
+    assert_ne!(independent.project_id(), initial_id);
+    assert_eq!(independent.versions(), versioned.versions());
+}
+
+#[test]
+fn recovery_refuses_missing_or_mismatched_project_context_without_publishing() {
+    let f = Fixture::new();
+    f.persist_draft();
+    let bytes = std::fs::read(f.recovery_path()).unwrap();
+    let mut json: Value = serde_json::from_slice::<Value>(&bytes).unwrap()["checkpoint"].clone();
+    json.as_object_mut().unwrap().remove("project");
+    assert!(serde_json::from_value::<crate::session::Checkpoint>(json).is_err());
+    let mut checkpoint: crate::session::Checkpoint = serde_json::from_value(
+        serde_json::from_slice::<Value>(&bytes).unwrap()["checkpoint"].clone(),
+    )
+    .unwrap();
+    checkpoint
+        .settings
+        .template
+        .push_str("\n// Unpinned change");
+    let state = State::new(checkpoint.document.clone(), checkpoint.settings.clone());
+    checkpoint.update = SharedDocument::from_state(&state).unwrap().update();
+    assert!(Session::from_checkpoint(f.directory.path().join("invalid"), checkpoint).is_err());
+    assert_eq!(std::fs::read(f.recovery_path()).unwrap(), bytes);
 }

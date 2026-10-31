@@ -1,4 +1,4 @@
-//! Archive structurée autonome. Les écritures passent par une garde de fichier.
+//! Validated document payload; CAS ownership and IO live in `content::project`.
 use super::{Node, source};
 use crate::{
     assets::Assets,

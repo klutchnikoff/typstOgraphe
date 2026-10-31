@@ -10,6 +10,7 @@ mod menus;
 mod native_locales;
 mod owner;
 mod preferences;
+mod project;
 mod proofing;
 mod recovery;
 mod rendering;
@@ -266,24 +267,20 @@ async fn preview(state: State<'_, Bridge>, snapshot: Snapshot) -> Result<Preview
     let session = state.session.clone();
     let renderer = state.renderer.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let (source, assets, settings) = {
-            let session = session.lock().map_err(|e| e.to_string())?;
-            (
-                session.validate(&snapshot)?,
-                session.assets.clone(),
-                snapshot
-                    .settings
-                    .clone()
-                    .unwrap_or_else(|| session.settings.clone()),
-            )
-        };
+        let (source, assets, settings, dependencies) = session
+            .lock()
+            .map_err(|e| e.to_string())?
+            .render_snapshot(&snapshot)?;
         let map = typstographe_core::content::source_mapped(&snapshot.document, &assets)?.1;
         let result = renderer.render(
             source,
             assets,
             snapshot.revision,
             None,
-            Some(&settings),
+            Some(rendering::RenderContext {
+                settings: &settings,
+                dependencies,
+            }),
             Some(map),
         )?;
         if session.lock().map_err(|e| e.to_string())?.revision != snapshot.revision {
@@ -304,19 +301,22 @@ async fn preview_frame(
     let session = state.session.clone();
     let renderer = state.renderer.clone();
     let bytes = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, String> {
-        let (source, assets, settings) = {
-            let session = session.lock().map_err(|e| e.to_string())?;
-            (
-                session.validate(&snapshot)?,
-                session.assets.clone(),
-                snapshot
-                    .settings
-                    .clone()
-                    .unwrap_or_else(|| session.settings.clone()),
-            )
-        };
+        let (source, assets, settings, dependencies) = session
+            .lock()
+            .map_err(|e| e.to_string())?
+            .render_snapshot(&snapshot)?;
         let map = typstographe_core::content::source_mapped(&snapshot.document, &assets)?.1;
-        let bytes = renderer.frame(source, assets, snapshot.revision, &settings, map, encoding)?;
+        let bytes = renderer.frame(
+            source,
+            assets,
+            snapshot.revision,
+            rendering::RenderContext {
+                settings: &settings,
+                dependencies,
+            },
+            map,
+            encoding,
+        )?;
         if session.lock().map_err(|e| e.to_string())?.revision != snapshot.revision {
             return Err("stale".into());
         }
@@ -335,23 +335,19 @@ async fn save(
     let session = state.session.clone();
     let renderer = state.renderer.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let (source, assets, settings) = {
-            let session = session.lock().map_err(|e| e.to_string())?;
-            (
-                session.validate(&snapshot)?,
-                session.assets.clone(),
-                snapshot
-                    .settings
-                    .clone()
-                    .unwrap_or_else(|| session.settings.clone()),
-            )
-        };
+        let (source, assets, settings, dependencies) = session
+            .lock()
+            .map_err(|e| e.to_string())?
+            .render_snapshot(&snapshot)?;
         renderer.render(
             source,
             assets,
             snapshot.revision,
             None,
-            Some(&settings),
+            Some(rendering::RenderContext {
+                settings: &settings,
+                dependencies,
+            }),
             None,
         )?;
         let session = session.lock().map_err(|e| e.to_string())?;
@@ -369,7 +365,7 @@ async fn export_document(
 ) -> Result<String, String> {
     static NEXT: AtomicU64 = AtomicU64::new(1);
     let renderer = state.renderer.clone();
-    let (source, assets, root, settings) = {
+    let (source, assets, root, settings, dependencies) = {
         let session = state.session.lock().map_err(|e| e.to_string())?;
         (
             session.validate(&snapshot)?,
@@ -379,6 +375,7 @@ async fn export_document(
                 .settings
                 .clone()
                 .unwrap_or_else(|| session.settings.clone()),
+            session.dependencies_for(snapshot.settings.as_ref().unwrap_or(&session.settings)),
         )
     };
     let stamp = std::time::SystemTime::now()
@@ -394,14 +391,17 @@ async fn export_document(
             &settings.metadata,
             &settings.template,
             &assets,
-            &typstographe_core::packages::for_template(&settings.template),
+            &dependencies,
         )?;
         renderer.render(
             source,
             assets,
             snapshot.revision,
             Some(path.clone()),
-            Some(&settings),
+            Some(rendering::RenderContext {
+                settings: &settings,
+                dependencies,
+            }),
             None,
         )?;
         Ok(path.display().to_string())

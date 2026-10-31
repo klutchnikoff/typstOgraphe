@@ -122,10 +122,11 @@ pub async fn agent_accept(
             &id,
             &peer,
             |candidate, assets| {
+                let context = session.lock().map_err(|e| e.to_string())?.render_context(&candidate.settings);
                 renderer.validate(
                     &crate::schema::source(&candidate.after, assets)?,
                     assets,
-                    &candidate.settings,
+                    context,
                 )
             },
             |publication| {

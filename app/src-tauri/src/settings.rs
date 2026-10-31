@@ -13,7 +13,7 @@ pub async fn validate_model(
         renderer.validate(
             &source,
             &s.assets,
-            snapshot.settings.as_ref().unwrap_or(&s.settings),
+            s.render_context(snapshot.settings.as_ref().unwrap_or(&s.settings)),
         )
     })
     .await
@@ -35,18 +35,24 @@ mod tests {
         let renderer = crate::rendering::Renderer::default();
         let assets = Default::default();
         renderer
-            .validate("Texte du courrier", &assets, &settings)
+            .validate("Texte du courrier", &assets, (&settings).into())
             .unwrap();
         let invalid = Settings {
             template: "#let autre(body) = body".into(),
             ..settings.clone()
         };
-        assert!(renderer.validate("Texte", &assets, &invalid).is_err());
+        assert!(
+            renderer
+                .validate("Texte", &assets, (&invalid).into())
+                .is_err()
+        );
         let not_embedded = Settings {
             model_id: Settings::default().model_id,
             ..settings
         };
         not_embedded.validate().unwrap();
-        renderer.validate("Texte", &assets, &not_embedded).unwrap();
+        renderer
+            .validate("Texte", &assets, (&not_embedded).into())
+            .unwrap();
     }
 }

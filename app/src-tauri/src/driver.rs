@@ -184,7 +184,11 @@ fn dispatch(
                     bridge.renderer.validate(
                         &crate::schema::source(&candidate.after, assets)?,
                         assets,
-                        &candidate.settings,
+                        bridge
+                            .session
+                            .lock()
+                            .map_err(|e| e.to_string())?
+                            .render_context(&candidate.settings),
                     )
                 },
             )?;
@@ -213,7 +217,8 @@ fn dispatch(
             )?;
             Ok(serde_json::Value::Null)
         }
-        "model_policy" => serde_json::to_value(bibliography::model_policy(
+        "model_policy" => serde_json::to_value(bibliography::policy(
+            &*bridge.session.lock().map_err(|e| e.to_string())?,
             args["template"].as_str().unwrap_or("").into(),
         )?)
         .map_err(|e| e.to_string()),
@@ -267,7 +272,7 @@ fn dispatch(
             bridge.renderer.validate(
                 &source,
                 &session.assets,
-                snapshot.settings.as_ref().unwrap_or(&session.settings),
+                session.render_context(snapshot.settings.as_ref().unwrap_or(&session.settings)),
             )?;
             Ok(serde_json::Value::Null)
         }
@@ -427,7 +432,7 @@ fn dispatch(
                 source,
                 session.assets.clone(),
                 snapshot.revision,
-                snapshot.settings.as_ref().unwrap_or(&session.settings),
+                session.render_context(snapshot.settings.as_ref().unwrap_or(&session.settings)),
                 map,
                 encoding,
             )?;
@@ -463,7 +468,9 @@ fn dispatch(
                 session.assets.clone(),
                 snapshot.revision,
                 export.clone(),
-                Some(snapshot.settings.as_ref().unwrap_or(&session.settings)),
+                Some(
+                    session.render_context(snapshot.settings.as_ref().unwrap_or(&session.settings)),
+                ),
                 map,
             )?;
             match command {

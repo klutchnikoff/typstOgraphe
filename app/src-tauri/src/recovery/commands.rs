@@ -105,15 +105,7 @@ pub fn work_export(
         .ok_or("recovery_unknown_item")?;
     let resources = s.resources();
     let generation = s.generation.clone();
-    let owner = s.ensure_owner()?;
-    let checkpoint = crate::session::Checkpoint {
-        schema: "typstographe-web-editor-v1".into(),
-        source: String::new(),
-        document: owner.state().document.clone(),
-        settings: owner.state().settings.clone(),
-        update: owner.update_bytes(),
-        resources: resources.clone(),
-    };
+    let checkpoint = s.recovery_checkpoint()?;
     let input = drafts::Input {
         generation,
         epoch: 0,

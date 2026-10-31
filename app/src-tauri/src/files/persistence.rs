@@ -4,14 +4,18 @@ use crate::{
     settings::Settings,
 };
 use std::{path::Path, sync::Mutex};
-use typstographe_core::{DocumentLease, assets::Assets, content::archive::Archive};
+use typstographe_core::{
+    DocumentLease,
+    assets::Assets,
+    content::{archive::Archive, project::Project},
+};
 
 pub(super) fn save_project(
     session: &Mutex<Session>,
     path: &Path,
     snapshot: Snapshot,
     update: Vec<u8>,
-    validate: impl FnOnce(&str, &Assets, &Settings) -> Result<(), String>,
+    validate: impl FnOnce(&str, &Assets, crate::rendering::RenderContext<'_>) -> Result<(), String>,
 ) -> Result<(), String> {
     if path.extension().and_then(|e| e.to_str()) != Some("typsto") {
         return Err("Extension .typsto attendue.".into());
@@ -22,7 +26,11 @@ pub(super) fn save_project(
     };
     let settings = checkpoint.settings;
     let source = checkpoint.source;
-    validate(&source, &assets, &settings)?;
+    let context = {
+        let s = session.lock().map_err(|e| e.to_string())?;
+        s.render_context(&settings)
+    };
+    validate(&source, &assets, context)?;
     let mut s = session.lock().map_err(|e| e.to_string())?;
     s.validate(&snapshot)?;
     let canonical = if path.exists() {
@@ -40,16 +48,30 @@ pub(super) fn save_project(
     } else {
         DocumentLease::acquire(&canonical).map_err(|e| typstographe_i18n::command_error(&e))?
     };
+    let dependencies = s.dependencies_for(&settings);
     let archive = Archive {
         document: snapshot.document,
         metadata: settings.metadata,
         template: settings.template.clone(),
         model_id: settings.model_id,
         assets,
-        dependencies: typstographe_core::packages::for_template(&settings.template),
+        dependencies,
         yjs: checkpoint.update,
     };
-    archive
+    let base = s
+        .project
+        .get()
+        .expect("checkpoint initializes archive owner");
+    let owner = base
+        .owner
+        .with_current(archive)
+        .map_err(crate::project::error)?;
+    let owner = if !same_target && base.saved_origin {
+        owner.independent_copy()
+    } else {
+        owner
+    };
+    owner
         .save(&mut lease)
         .map_err(|e| typstographe_i18n::archive_error(&e))?;
     if let Err(error) = s.mark_clean() {
@@ -63,6 +85,7 @@ pub(super) fn save_project(
         return Err(error);
     }
     s.file_lease = Some(lease);
+    s.project = std::sync::OnceLock::from(crate::project::Context::new(owner, true));
     s.recovered_name = None;
     Ok(())
 }
@@ -71,7 +94,7 @@ pub(super) fn open_project(
     session: &Mutex<Session>,
     path: &Path,
     revision: u64,
-    validate: impl FnOnce(&str, &Assets, &Settings) -> Result<(), String>,
+    validate: impl FnOnce(&str, &Assets, crate::rendering::RenderContext<'_>) -> Result<(), String>,
 ) -> Result<serde_json::Value, String> {
     session
         .lock()
@@ -88,10 +111,11 @@ pub(super) fn open_project(
         .map(Ok)
         .unwrap_or_else(|| DocumentLease::acquire(path))
         .map_err(|e| typstographe_i18n::command_error(&e))?;
-    let archive = Archive::read(path).map_err(|e| {
+    let project = Project::read(path).map_err(|e| {
         eprintln!("Project open failed: {e}");
         typstographe_i18n::archive_error(&e)
     })?;
+    let archive = project.current().clone();
     let settings = Settings {
         metadata: archive.metadata.clone(),
         template: archive.template.clone(),
@@ -105,7 +129,10 @@ pub(super) fn open_project(
             .validate()
             .map_err(|e| typstographe_i18n::archive_error(&e))?,
         &archive.assets,
-        &settings,
+        crate::rendering::RenderContext {
+            settings: &settings,
+            dependencies: archive.dependencies.clone(),
+        },
     )?;
     let resources: Vec<_> = archive
         .assets
@@ -134,6 +161,7 @@ pub(super) fn open_project(
             archive.assets,
             archive.yjs.clone(),
         );
+        current.project = std::sync::OnceLock::from(crate::project::Context::new(project, true));
         current.clean_revision = Some(current.revision);
     }
     let response = serde_json::json!({
@@ -150,6 +178,7 @@ pub(super) fn close_project(session: &mut Session, revision: u64) -> Result<(), 
     session.lifecycle(revision)?;
     session.mark_clean()?;
     session.file_lease = None;
+    session.project = std::sync::OnceLock::new();
     session.opened = false;
     session.owner = None;
     session.reset_document_generation();
