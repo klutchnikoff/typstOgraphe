@@ -206,14 +206,20 @@ y compris si un nettoyage du fichier conserve d’autres racines entre-temps.
 Aucun manifeste confirmé ne pointe vers des objets seulement privés.
 
 La soumission ne modifie pas le document courant et ne crée ni entrée Versions,
-ni relecture J, ni enregistrement implicite. Le candidat reste privé jusqu’à
-acceptation. Celle-ci passe par les commandes gardées du moteur ; sauvegarde et
-export conservent leurs autorisations distinctes. La conservation durable
-éventuelle d’une proposition après décision reste à préciser avec F : cette
+ni relecture J, ni enregistrement implicite. Le candidat reste privé ; seules
+les opérations explicitement acceptées sont publiées. Le contenu des deux états
+de comparaison reste immuable. La publication passe par les commandes gardées
+du moteur ; sauvegarde et export conservent leurs autorisations distinctes.
+La conservation durable éventuelle d’une proposition après décision reste à préciser avec F : cette
 décision n’ajoute pas une origine visible « agent » ou une sauvegarde automatique.
-Le refus ne publie aucune modification. L’acceptation reste celle du lot entier
-jusqu’à F.3 ; les groupes indépendants y seront traités sans réécrire les états
-initiaux ou abandonner les vérifications de concurrence.
+Le refus ne publie aucune modification. Le comparateur commun d’A.4 construira
+les décisions locales et leur application gardée, pour Versions comme pour MCP.
+Les groupes indépendants pourront être appliqués séparément ; les opérations
+liées restent atomiques. Les états initiaux ne sont jamais réécrits. La progression
+et la garde de travail sont distinctes de ces états : une validation locale connue
+peut faire avancer cette garde, sans autoriser un réancrage implicite après une
+intervention extérieure. La production conserve son acceptation par lot entier
+jusqu’au raccordement du nouveau mécanisme commun.
 
 La modale de consultation/comparaison est commune avec Versions, avec les
 onglets Contenu, Aperçu et Comparer. Son contexte MCP choisit par défaut
@@ -240,6 +246,11 @@ La barre latérale distingue **Versions** et **Relectures** :
   La comparaison d’une version prend le document courant par défaut ou une autre
   version explicitement choisie. Restauration et suppression se confirment dans
   la même modale, sans empiler un second dialogue.
+  L’ordre est « avant à gauche, après à droite » : version historique à gauche,
+  document courant figé à droite. Une reprise locale utilise explicitement le
+  passage historique de gauche. Pour MCP, base à gauche et proposition à droite,
+  l’action applique au contraire la modification proposée à droite. Les rôles
+  de source et de cible sont indépendants de l’ordre visuel des colonnes.
 - Relectures conserve les outils d’annotations définis dans J. Le snapshot
   technique initial ne détermine pas son interface et n’ajoute pas une action
   de comparaison non validée.
@@ -335,8 +346,9 @@ La maquette de Versions doit maintenant concrétiser :
 3. La lecture sélective, le traitement explicite d’une ancienne version abîmée
    et les limites retenues, avant les recettes de limites et de conservation.
 
-La sélection du moteur de diff et la validation partielle des propositions MCP
-restent séparées de ce format ; F.3 ne bloque pas A.4.
+La sélection du moteur de diff et le plan d’application locale restent distincts
+du format de stockage. Leur moteur commun pour Versions et MCP appartient à A.4 ;
+F.3 en adapte le protocole. Voir le [contrat de comparaison](a4-comparison-contract.md).
 
 Bornes techniques du premier schéma : 64 Kio pour `manifest.json` ; 4 Mio pour
 `versions.json`, chaque descripteur et chaque manifeste de ressources ; 160

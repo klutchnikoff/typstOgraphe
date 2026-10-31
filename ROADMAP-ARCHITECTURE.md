@@ -26,8 +26,9 @@ dans les bilans de docs/ et l’historique Git.
 - Contextes d’édition séparés ; une préédition IME n’est jamais publiée comme
   une modification validée. Les actions distantes préservent le focus humain.
 - Propositions MCP isolées, gardées par document/révision, acceptées ou refusées
-  actuellement par lot entier. Le lot dédié F.3 préparera les décisions locales
-  sûres ; sauvegarde et export ont leurs autorisations propres.
+  actuellement par lot entier. Le comparateur commun d’A.4 construira les
+  décisions locales sûres pour Versions et MCP ; F.3 en adaptera le protocole,
+  sans second moteur. Sauvegarde et export ont leurs autorisations propres.
 - Les nouvelles interfaces sont maquettées et les choix structurants validés
   ensemble ; rechercher les outils maintenus avant de réimplémenter une brique.
 
@@ -203,11 +204,23 @@ contiguïté et indépendance. Évaluer les briques existantes, dont `similar`
 anciennement utilisé sous egui, avant de retenir un moteur ; il n’est pas une
 dépendance actuelle à considérer comme déjà disponible.
 
-La consultation de différences entre snapshots ne publie aucune modification.
-Une éventuelle reprise locale doit être une commande explicite sur l’état
-courant, sans modifier les snapshots. A.4 prépare les données nécessaires à la
-validation locale MCP, livrée séparément en F.3 et non requise pour clôturer A.4.
+La consultation seule ne publie aucune modification. **Décision confirmée :**
+A.4 construit aussi le moteur commun de décisions locales, pour Versions et MCP.
+Une application locale publie des commandes explicites sur l’état courant sans
+modifier les deux snapshots. Les opérations dépendantes forment une décision
+atomique ; une séparation visuelle ne suffit pas à prouver leur indépendance.
+Les validations successives connues font évoluer le contexte de travail ; une
+intervention extérieure exige un réexamen sans réactivation d’une ancienne garde.
+« Tout appliquer » reste une commodité, pas une étape globale obligatoire.
+F.3 adapte le protocole des propositions à ce contrat, sans dupliquer le moteur.
 Les outils d’annotations de J restent dédiés au mode relecture.
+Voir le [contrat du comparateur commun](docs/a4-comparison-contract.md).
+
+**Ordre confirmé : avant à gauche, après à droite.** Versions affiche la version
+historique à gauche et le document courant figé à droite ; la reprise prend sa
+source à gauche. MCP affiche la base à gauche et la proposition à droite ;
+l’application prend sa source à droite. Le plan explicite ces rôles, sans
+déduire le sens de publication de la position visuelle des colonnes.
 
 **Convergence MCP :** une proposition associe deux états figés complets et
 vérifiés, la base depuis laquelle l’agent a travaillé et le candidat figé à sa
@@ -478,27 +491,25 @@ sans introduire par défaut une nouvelle origine de version « agent ».
 refus/acceptation, péremption, annulation, interruption et révocation. Ne pas
 supposer que les fonctions, forfaits et quotas sont identiques entre agents.
 
-### F.3 Validation locale des propositions MCP — lot distinct après A.4
+### F.3 Raccordement MCP aux décisions locales communes
 
-Réutiliser le contrat et l’interface de comparaison d’A.4 pour accepter/refuser
-des groupes indépendants à partir de la paire base/candidat. Ces états restent
-immuables ; le suivi du reliquat et de ses gardes ne se déduit pas d’un simple
-retour au même contenu. Le calcul de différences ne suffit pas à prouver cette
-indépendance : relier les groupes aux commandes et à leurs dépendances, y compris
-structurelles et de ressources. Des changements éloignés peuvent être liés
-(citation et référence bibliographique). Conserver une décision groupée lorsque
-l’indépendance n’est pas garantie, avec la voie actuelle par lot entier.
+Le moteur de comparaison et d’application locale est développé dans A.4 pour
+Versions et MCP. F.3 ne constitue plus un moteur de validation partielle séparé.
+Il raccorde les propositions, leurs reçus et leurs statuts au même contrat.
 
-Chaque acceptation locale doit revérifier les cibles et publier atomiquement les
-opérations retenues, avec une étape d’annulation cohérente. Définir le suivi des
-groupes acceptés/refusés/restants, la révision de référence et la revalidation ou
-péremption du reliquat après publication ou édition concurrente. Ne pas permettre
-à l’agent d’accepter, ni rejouer implicitement une opération déjà publiée.
+Conserver base/candidat immuables et un contexte de décision distinct : groupes
+appliqués, refusés ou restants, garde de travail et provenance des publications.
+Le passage à une nouvelle garde après notre propre validation n’autorise pas
+une réapplication ni le réancrage silencieux d’une intervention concurrente.
+Les dépendances structurelles et de ressources imposent une décision atomique
+pour les éléments liés, même lorsqu’ils sont éloignés dans le document.
 
-Préciser ensemble le protocole MCP, les garanties d’indépendance et la maquette
-avant de coder. Vérifier dépendances éloignées, cible périmée, acceptations
-successives, refus sans modification et annulation. L’acceptation par lot entier
-reste le contrat actif jusque-là ; F.3 ne conditionne pas la clôture d’A.4.
+Seul l’utilisateur décide. Le refus ne publie rien ; une application locale passe
+par le propriétaire documentaire et une étape d’annulation cohérente. Définir
+ensemble l’enveloppe de protocole et le cycle de vie après décision, sans modifier
+les états de comparaison ni accorder des droits implicites de sauvegarde/export.
+L’acceptation actuelle par lot entier demeure jusqu’au raccordement du socle
+commun ; elle ne limite plus le périmètre cible d’A.4.
 
 ## G. Collaboration et hébergement — P2
 
@@ -571,9 +582,10 @@ revient dans la discussion avant d’engager l’implémentation concernée.
 Représenter les suggestions par des annotations ancrées séparées du contenu,
 applicables par les commandes gardées existantes. Conserver les outils dédiés de
 relecture ; l’interface commune d’A.4 sert aux snapshots et propositions MCP,
-sans imposer sa présentation à J. Mutualiser les composants pertinents ; F.3
-traitera les décisions locales MCP et préservera l’atomicité des opérations liées.
-L’acceptation actuelle reste par lot entier jusqu’à ce lot. La première
+sans imposer sa présentation à J. Mutualiser les composants pertinents ; le
+moteur de décisions locales d’A.4 préserve l’atomicité des opérations liées,
+et F.3 raccorde le protocole MCP à ce moteur. L’acceptation actuelle reste par
+lot entier jusqu’à ce raccordement. La première
 relecture humaine textuelle ne dépend pas d’ACP. Distinguer aperçu confirmé et
 aperçu candidat explicitement signalé ; revérifier le contenu cible avant toute
 acceptation si l’auteur l’a modifié.

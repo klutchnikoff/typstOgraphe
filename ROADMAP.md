@@ -171,12 +171,20 @@ budgets de volume du projet et à une politique de rétention propre à J.
   présenter les différences par groupes avec leur contexte et naviguer entre eux.
   Couvrir texte, structure, paramètres, métadonnées et ressources. Séparer le
   calcul des différences, leur présentation et les actions disponibles.
-  Préparer le contrat des groupes pour les décisions locales ultérieures ; leur
+  Définir le contrat des groupes pour les décisions locales dans A.4 ; leur
   proximité visuelle ne prouve pas leur indépendance documentaire. La comparaison
   de snapshots reste une consultation : reprendre une modification ancienne serait
   une action explicite sur l’état courant, jamais sur le snapshot conservé.
-  La validation partielle MCP relève du lot dédié F, sans conditionner la clôture
-  d’A.4 ; le mode relecture J conserve ses outils dédiés.
+  **Décision confirmée :** construire dans A.4 les décisions locales et leur
+  moteur d’application commun aux versions et aux propositions MCP. Une décision
+  applique un groupe sûr au document courant ; les snapshots restent immuables.
+  Les opérations dépendantes sont décidées ensemble. « Tout appliquer » est une
+  commodité, pas une validation globale obligatoire. Le mode relecture J conserve
+  ses outils dédiés. Voir le [contrat du comparateur](docs/a4-comparison-contract.md).
+  **Ordre confirmé :** avant à gauche, après à droite. Pour Versions, la version
+  historique est à gauche et le document courant figé à droite ; reprendre un
+  passage utilise la gauche. Pour MCP, la base est à gauche et la proposition à
+  droite ; appliquer une modification utilise la droite.
 - **Propositions MCP comme paire d’états figés :** conserver l’état de départ
   depuis lequel l’agent a travaillé et figer l’état candidat à la soumission du
   lot, avec un lien explicite à sa base et à sa garde documentaire. La même
@@ -509,22 +517,23 @@ Les choix fonctionnels détaillés sont dans le [plan technique](ROADMAP-ARCHITE
 **Sortie :** discuter, reformuler une sélection et préparer un document structuré,
 puis accepter/refuser un lot, avec au moins deux agents et sans configuration MCP manuelle.
 
-**Lot dédié — Validation locale des propositions MCP, après la comparaison A.4 :**
+**Raccordement MCP à la validation locale commune d’A.4 :**
 
-- Partir de la paire immuable « État de départ → Proposition » prévue dans A.4 ;
-  sa comparaison ne constitue pas à elle seule un plan d’édition applicable.
-- Permettre d’accepter ou de refuser les groupes de modifications indépendants,
-  en réutilisant l’interface de comparaison commune. Les opérations liées restent
-  soumises à une décision groupée ; à défaut d’indépendance garantie, conserver
-  l’acceptation ou le refus du lot entier. Une citation et sa nouvelle référence
-  bibliographique peuvent par exemple être liées malgré leur éloignement.
-- Chaque acceptation revérifie ses cibles, publie une opération atomique et
-  constitue une étape d’annulation cohérente. Préciser le devenir des groupes
-  restants après une décision et face aux modifications concurrentes, sans
-  réapplication aveugle ni acceptation implicite.
-- Valider ensemble le contrat MCP, les règles de dépendance et la maquette avant
-  implémentation. L’acceptation actuelle par lot entier reste en vigueur jusque-là.
-  Ce lot n’est pas une condition de clôture d’A.4.
+- Le moteur de comparaison et d’application locale est construit une seule fois
+  dans A.4, puis utilisé pour les versions et les propositions MCP ; ne pas
+  reporter son implémentation à un second moteur propre à F.
+- Conserver la paire immuable « État de départ → Proposition », la garde du
+  document et les opérations nécessaires à la publication. Un regroupement
+  visuel ne suffit pas à établir un groupe applicable ; les dépendances entre
+  texte, structure, métadonnées et ressources imposent des décisions groupées.
+- Réutiliser les décisions locales, la progression et les refus du moteur
+  commun. Les validations successives connues font évoluer sa garde de travail ;
+  une intervention extérieure impose un réexamen explicite. Ne jamais réactiver
+  une ancienne garde parce que le contenu est redevenu identique.
+- F précise les adaptations de protocole, les reçus/statuts et le cycle de vie
+  des propositions, sans donner à l’agent le droit d’accepter ses changements.
+  L’acceptation par lot entier reste le comportement de production jusqu’au
+  raccordement du nouveau moteur ; elle n’est plus une limite de sa conception.
 
 ## G — Ajouter la collaboration distante
 
@@ -640,8 +649,9 @@ version, puis être peaufinée.
 - Conserver les outils dédiés de relecture par annotations ; l’interface commune
   de comparaison d’A.4 vise les snapshots et les propositions MCP et ne remplace
   pas ces outils. Mutualiser les composants pertinents sans imposer la même
-  présentation. L’acceptation MCP reste par lot entier jusqu’au lot dédié F de
-  validation locale, qui préservera les décisions groupées pour les opérations liées.
+  présentation. La validation locale des propositions MCP réutilisera le moteur
+  commun d’A.4, avec décisions groupées pour les opérations liées ; l’acceptation
+  par lot entier demeure seulement le fonctionnement actuel avant raccordement.
 - **Relectures** est une entrée propre de la barre latérale, distincte de Versions.
   Son snapshot initial est un support interne protégé, absent des versions affichées
   et de leur quota de 100. Sa rétention relève de la relecture et des budgets de
