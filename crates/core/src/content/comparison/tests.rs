@@ -5,7 +5,7 @@ use crate::content::{
     shared::SharedDocument,
 };
 use serde_json::json;
-fn archive(lines: &[&str]) -> Archive {
+pub(super) fn archive(lines: &[&str]) -> Archive {
     let document=serde_json::from_value(json!({"type":"doc","content":lines.iter().map(|s|if s.is_empty(){json!({"type":"paragraph"})}else{json!({"type":"paragraph","content":[{"type":"text","text":s}]})}).collect::<Vec<_>>()})).unwrap();
     let state = State::new(document, Settings::default());
     Archive {
@@ -18,14 +18,18 @@ fn archive(lines: &[&str]) -> Archive {
         yjs: vec![],
     }
 }
-fn engine(a: &Archive) -> (EditingSession, ContextId) {
+pub(super) fn engine(a: &Archive) -> (EditingSession, ContextId) {
     let guard = Guard {
         document: "document".into(),
         revision: 7,
     };
     let mut engine = EditingSession::open(
         guard.clone(),
-        &SharedDocument::from_state(&a.state()).unwrap().update(),
+        &if a.yjs.is_empty() {
+            SharedDocument::from_state(&a.state()).unwrap().update()
+        } else {
+            a.yjs.clone()
+        },
         a.assets.clone(),
     )
     .unwrap();

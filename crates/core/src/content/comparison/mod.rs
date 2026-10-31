@@ -1,5 +1,6 @@
 //! Immutable documentary comparisons and guarded human decisions, shared by all adapters.
 mod diff;
+mod grouping;
 mod projection;
 use super::{
     Node,
@@ -259,6 +260,9 @@ impl Comparison {
         Ok(result)
     }
 }
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod grouping_tests;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;

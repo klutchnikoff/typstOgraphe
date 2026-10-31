@@ -85,13 +85,13 @@ pub(super) fn groups(before: &Archive, after: &Archive) -> Vec<Group> {
             decision: Decision::Pending,
         }];
     }
+    let boundaries = super::grouping::Boundaries::new(before, after);
     sequence_diff(&a, &b)
         .into_iter()
         .filter(|op| op.tag() != similar::DiffTag::Equal)
+        .flat_map(|op| boundaries.split(op.old_range(), op.new_range()))
         .enumerate()
-        .map(|(id, op)| {
-            let ar = op.old_range();
-            let br = op.new_range();
+        .map(|(id, (ar, br))| {
             let (changes, before_highlights, after_highlights) = words(
                 &before.document.content[ar.clone()],
                 &after.document.content[br.clone()],
@@ -101,10 +101,12 @@ pub(super) fn groups(before: &Archive, after: &Archive) -> Vec<Group> {
                 changes,
                 before_highlights,
                 after_highlights,
-                linked: before.document.content[ar.clone()]
-                    .iter()
-                    .chain(&after.document.content[br.clone()])
-                    .any(linked),
+                linked: ar.len() > 1
+                    || br.len() > 1
+                    || before.document.content[ar.clone()]
+                        .iter()
+                        .chain(&after.document.content[br.clone()])
+                        .any(linked),
                 before: ar,
                 after: br,
                 section: Section::Body,
