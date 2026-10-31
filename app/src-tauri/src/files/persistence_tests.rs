@@ -623,6 +623,23 @@ fn a_composed_document_is_written_only_by_a_later_explicit_save() {
     };
     f.edit("Saved ");
     f.save(&path);
+    // Exercise the real open boundary, rather than retaining the creation session.
+    let revision = f.session.lock().unwrap().revision;
+    open_project(&f.session, &path, revision, |_, _, _| Ok(())).unwrap();
+    let binding = {
+        let mut s = f.session.lock().unwrap();
+        let joined = s.join("human");
+        assert!(joined.recovered_name.is_none());
+        assert_eq!(
+            joined.file_path,
+            Some(path.canonicalize().unwrap().to_string_lossy().into_owned())
+        );
+        (
+            joined.generation,
+            joined.file_path,
+            s.stored_project().unwrap().project_id(),
+        )
+    };
     let disk = std::fs::read(&path).unwrap();
     f.edit("Unsent ");
     let composed = {
@@ -644,6 +661,10 @@ fn a_composed_document_is_written_only_by_a_later_explicit_save() {
             .unwrap();
         crate::comparisons::apply(&mut s, &mut agent, "human", id, ready).unwrap();
         assert_ne!(s.clean_revision, Some(s.revision));
+        let joined = s.join("human");
+        assert_eq!(joined.generation, binding.0);
+        assert_eq!(joined.file_path, binding.1);
+        assert!(joined.recovered_name.is_none());
         s.stored_project().unwrap()
     };
     assert_eq!(std::fs::read(&path).unwrap(), disk);
@@ -652,6 +673,7 @@ fn a_composed_document_is_written_only_by_a_later_explicit_save() {
     let saved = typstographe_core::content::project::Project::read(&path).unwrap();
     assert_eq!(saved.current().state(), composed.current().state());
     assert_eq!(saved.project_id(), composed.project_id());
+    assert_eq!(saved.project_id(), binding.2);
     assert_eq!(saved.versions(), composed.versions());
     assert_eq!(saved.versions().len(), 1);
     let s = f.session.lock().unwrap();
