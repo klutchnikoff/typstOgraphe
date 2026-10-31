@@ -103,10 +103,15 @@ jamais par un remplacement silencieux chez les participants. Pas de suppression
 automatique de versions dans le premier périmètre ; le nettoyage des ressources
 doit tenir compte de tous les états retenus, dont les références de relecture.
 
-Commencer par une expérience isolée Git embarqué / stockage d’états à ressources
-dédupliquées sur le même corpus Courrier/Article : taille, création, ouverture,
-suppression et intégrité. Le moteur sera choisi après examen des résultats, avant
-la maquette puis l’implémentation de Versions et de la comparaison commune.
+L’[expérience isolée de stockage](docs/a4-snapshot-storage-evaluation.md) est réalisée :
+Git embarqué et stockage d’états à ressources dédupliquées, mêmes corpus Courrier,
+Article et Article allongé, 20/100 versions, taille, création, ouverture,
+suppression et intégrité. Les deux candidats utilisent une lecture sélective et
+des manifestes de ressources partagés. Recommandation à valider : objets
+dédupliqués, plus rapides à publier et ouvrir, en acceptant des historiques plus
+volumineux qu’avec Git. Aucun moteur n’est adopté dans la production. Choisir
+après examen du bilan, puis préciser le format, maquetter et implémenter Versions
+et la comparaison commune ; cette expérience ne clôt pas A.4.
 
 Définir un état cohérent incluant contenu structuré, métadonnées, réglages,
 modèle, dépendances et ressources, avec identité stable, date de création

@@ -20,8 +20,9 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** préparer les choix d’**A.4 — Snapshots durables** ensemble,
-en anticipant le mode de relecture **J**, puis terminer le socle par
+**Séquence immédiate :** valider le stockage d’**A.4 — Snapshots durables** à partir
+de son évaluation, puis le format et les maquettes, en anticipant la relecture **J**.
+Terminer ensuite le socle par
 **A.5 — Documentation, nettoyage et recette finale**.
 Les copies privées, la reprise des formulaires et la fermeture sont implémentées.
 La [recette de clôture](docs/a3-closure-results.md) couvre les incidents de
@@ -117,6 +118,12 @@ aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
   même corpus Courrier/Article avant de choisir : taille, création, ouverture,
   suppression et intégrité. Maquetter ensuite Versions et la comparaison avant
   leur implémentation. L’évaluation n’adopte aucun moteur dans l’application.
+
+**Évaluation de stockage réalisée :** le [bilan A.4](docs/a4-snapshot-storage-evaluation.md)
+compare les deux candidats sur Courrier, Article et Article allongé, à 20 et
+100 versions. Le stockage par objets dédupliqués est recommandé pour sa rapidité
+et son intégration plus simple ; Git réduit davantage la taille. Le choix du
+moteur reste à valider avant le format et les maquettes. A.4 n’est pas clos.
 
 - Préciser le contrat de conservation de l’arbre documentaire, de Yjs et du
   Typst généré avec les snapshots avant de stabiliser le format public du .typsto.
@@ -586,9 +593,9 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Préciser ensemble A.4 : contenu, stockage, rétention et restauration des snapshots,
-   en anticipant la relecture J ; évaluer Git embarqué et les alternatives avant
-   de choisir un moteur.
+1. Valider le stockage d’A.4 à partir du [bilan comparatif](docs/a4-snapshot-storage-evaluation.md),
+   puis préciser le format et maquetter Versions, comparaison et restauration,
+   en anticipant la relecture J avant l’implémentation.
 2. Terminer A avec A.5 : documentation, nettoyage et recette depuis un checkout propre.
 3. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
