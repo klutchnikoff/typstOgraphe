@@ -177,3 +177,23 @@ pub fn diagnostic_private_records(
     }
     Ok(records)
 }
+
+/// Fixed handshake with the external native recipe runner. No arbitrary filesystem access.
+#[tauri::command(async)]
+pub fn diagnostic_external_ready(state: State<Bridge>) -> Result<bool, String> {
+    if !state
+        .diagnostic
+        .as_deref()
+        .is_some_and(|mode| mode.starts_with("publication"))
+    {
+        return Err("Publication diagnostic inactive".into());
+    }
+    state
+        .session
+        .lock()
+        .map_err(|e| e.to_string())?
+        .root
+        .join("external-ready")
+        .try_exists()
+        .map_err(|e| e.to_string())
+}

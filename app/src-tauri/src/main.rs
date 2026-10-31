@@ -556,6 +556,9 @@ fn main() {
         if arg == "--diagnostic-draft-verify" {
             diagnostic = Some("draft-verify".to_owned());
         }
+        if arg == "--diagnostic-publication" || arg == "--diagnostic-publication-verify" {
+            diagnostic = Some(arg.trim_start_matches("--diagnostic-").to_owned());
+        }
         if arg == "--diagnostic-closure" {
             diagnostic = Some("closure".to_owned());
         }
@@ -596,10 +599,9 @@ fn main() {
     } else {
         Session::open(root).expect("Impossible de rouvrir la session de recette")
     };
-    if diagnostic
-        .as_deref()
-        .is_some_and(|mode| mode.starts_with("closure") || mode == "draft-recover")
-    {
+    if diagnostic.as_deref().is_some_and(|mode| {
+        mode.starts_with("closure") || mode.starts_with("publication") || mode == "draft-recover"
+    }) {
         // Match the normal welcome document, not the rich historic demo fixture.
         session.fixture = Some(
             serde_json::from_value(
@@ -730,6 +732,7 @@ fn main() {
             diagnostic_mode,
             diagnostic_confirmed,
             recovery::commands::diagnostic_private_records,
+            recovery::commands::diagnostic_external_ready,
             diagnostic_event,
             diagnostic_finish
         ])

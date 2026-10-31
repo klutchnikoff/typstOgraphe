@@ -22,6 +22,7 @@
     "test:rust": "cargo test --locked -p typstographe --features recipe-driver",
     "test:contract": "cargo build --locked -p typstographe --features recipe-driver && npm run test:contract --workspace @typstographe/app",
     "test:closure-native": "npm run test:closure-native --workspace @typstographe/app --",
-    "test:draft-conservation-native": "npm run test:draft-conservation-native --workspace @typstographe/app --"
+    "test:draft-conservation-native": "npm run test:draft-conservation-native --workspace @typstographe/app --",
+    "test:publication-native": "npm run test:publication-native --workspace @typstographe/app --"
   }
 }

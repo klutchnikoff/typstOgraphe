@@ -18,7 +18,8 @@
     "test:contract": "vitest run --config contracts/vitest.config.ts",
     "test:coverage": "vitest run --coverage",
     "test:closure-native": "node scripts/closure-recipe.mjs",
-    "test:draft-conservation-native": "node scripts/draft-conservation-recipe.mjs"
+    "test:draft-conservation-native": "node scripts/draft-conservation-recipe.mjs",
+    "test:publication-native": "node scripts/publication-recipe.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.4",

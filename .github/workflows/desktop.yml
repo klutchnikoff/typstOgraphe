@@ -15,6 +15,12 @@ on:
       wasm:
         type: boolean
         default: false
+      native_conservation:
+        type: boolean
+        default: false
+      acceptance_only:
+        type: boolean
+        default: false
 permissions:
   contents: read
 env:
@@ -58,7 +64,7 @@ jobs:
             rust-${{ runner.os }}-
       - run: npm ci
       - name: Formats and architecture
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !inputs.acceptance_only
         run: |
           npm run check:format
           cargo +stable fmt --all --check
@@ -66,42 +72,75 @@ jobs:
           scripts/check-file-length.sh
           python3 scripts/check_core_dependencies.py
       - name: Web unit tests and native locales
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !inputs.acceptance_only
         run: npm test
       # Each native build embeds this frontend. Pure web tests run only on Linux.
       - run: npm run build:web
       - name: Workspace tests, including recovery and file conservation
+        if: '!inputs.acceptance_only'
         run: cargo +stable test --locked --workspace --features typstographe/recipe-driver
       - name: Clippy, distributed and recipe builds
+        if: '!inputs.acceptance_only'
         run: |
           cargo +stable clippy --locked --workspace --all-targets -- -D warnings
           cargo +stable clippy --locked -p typstographe --all-targets --features recipe-driver -- -D warnings
       - name: Functional recipe driver
         run: cargo +stable build --locked -p typstographe --features recipe-driver
       - name: Yjs and Yrs shared contract recipes
+        if: '!inputs.acceptance_only'
         run: npm run test:contract --workspace @typstographe/app
+      - name: CLI for native publication acceptance
+        if: inputs.native_conservation
+        run: cargo +stable build --locked -p typstographe-cli
+      - name: Virtual native display on Linux
+        if: runner.os == 'Linux' && inputs.native_conservation
+        run: sudo apt-get install -y xvfb dbus-x11
+      - name: Native recovery and publication acceptance
+        if: inputs.native_conservation
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run -a dbus-run-session -- npm run test:draft-conservation-native -- output/a3-native-conservation
+            xvfb-run -a dbus-run-session -- npm run test:publication-native -- output/a3-native-publication
+          else
+            npm run test:draft-conservation-native -- output/a3-native-conservation
+            npm run test:publication-native -- output/a3-native-publication
+          fi
+      - name: Retain native acceptance results, including failures
+        uses: actions/upload-artifact@v7
+        if: always() && inputs.native_conservation
+        with:
+          name: a3-acceptance-${{ runner.os }}
+          path: |
+            output/a3-native-*/**/report.json
+            output/a3-native-*/**/native-*-report.json
+            output/a3-native-*/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: taiki-e/install-action@v2
-        if: runner.os == 'Linux' && inputs.audit
+        if: runner.os == 'Linux' && inputs.audit && !inputs.acceptance_only
         with:
           tool: cargo-deny@0.20.2
       - name: Dependency advisories, licences and sources
-        if: runner.os == 'Linux' && inputs.audit
+        if: runner.os == 'Linux' && inputs.audit && !inputs.acceptance_only
         run: |
           cargo deny --locked check
           npm audit --audit-level=moderate
       - name: Core WebAssembly compatibility
-        if: runner.os == 'Linux' && inputs.wasm
+        if: runner.os == 'Linux' && inputs.wasm && !inputs.acceptance_only
         run: |
           rustup target add wasm32-unknown-unknown
           cargo +stable check --locked -p typstographe-core --target wasm32-unknown-unknown
       - name: Browser engines
-        if: runner.os == 'Linux' && inputs.browsers != 'none'
+        if: runner.os == 'Linux' && inputs.browsers != 'none' && !inputs.acceptance_only
         run: npx playwright install --with-deps chromium webkit
       - name: Critical graphical recipes
-        if: runner.os == 'Linux' && inputs.browsers == 'smoke'
+        if: runner.os == 'Linux' && inputs.browsers == 'smoke' && !inputs.acceptance_only
         run: npm run test:browser:smoke
       - name: Exhaustive graphical recipes
-        if: runner.os == 'Linux' && inputs.browsers == 'full'
+        if: runner.os == 'Linux' && inputs.browsers == 'full' && !inputs.acceptance_only
         run: npm run test:browser
       - uses: actions/upload-artifact@v7
         if: failure() && runner.os == 'Linux' && inputs.browsers != 'none'

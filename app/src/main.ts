@@ -628,6 +628,13 @@ async function start() {
         provider,
         editor,
       )
+    } else if (mode?.startsWith('publication')) {
+      void (await import('./publication-diagnostic')).publicationDiagnostic(
+        mode,
+        host.transport,
+        provider,
+        editor,
+      )
     } else if (mode?.startsWith('closure')) {
       void (await import('./closure-diagnostic')).closureDiagnostic(
         mode,

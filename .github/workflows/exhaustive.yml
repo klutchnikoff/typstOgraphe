@@ -10,6 +10,10 @@ on:
         description: Construire aussi les paquets natifs de test (non signés pour distribution)
         type: boolean
         default: false
+      acceptance_only:
+        description: Exécuter uniquement les recettes natives A.3 sur les trois systèmes
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -57,9 +61,11 @@ jobs:
       browsers: full
       audit: true
       wasm: true
+      native_conservation: true
+      acceptance_only: ${{ github.event_name == 'workflow_dispatch' && inputs.acceptance_only }}
   packages:
     needs: verify
-    if: github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.packages)
+    if: github.ref_type == 'tag' || (github.event_name == 'workflow_dispatch' && inputs.packages && !inputs.acceptance_only)
     strategy:
       fail-fast: false
       matrix:
