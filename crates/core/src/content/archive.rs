@@ -62,10 +62,18 @@ impl Archive {
         )
     }
     pub fn validate(&self) -> Result<String, Error> {
+        crate::packages::validate(&self.template, &self.dependencies)?;
+        self.validate_content()
+    }
+    /// Verify a pinned package inventory without requiring the installed catalogue.
+    pub fn validate_embedded(&self) -> Result<String, Error> {
+        crate::packages::validate_embedded(&self.template, &self.dependencies)?;
+        self.validate_content()
+    }
+    fn validate_content(&self) -> Result<String, Error> {
         self.metadata.validate().map_err(Error::document)?;
         crate::bibliography::validate_document(&self.document, &self.metadata)
             .map_err(Error::document)?;
-        crate::packages::validate(&self.template, &self.dependencies)?;
         for (path, data) in &self.assets {
             if !crate::assets::valid_path(path) {
                 return Err(StorageError::UnexpectedEntry { name: path.clone() }.into());
