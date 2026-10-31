@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
 pub const FORMAT_VERSION: u32 = 11;
+pub(super) const SOURCE_GENERATOR_VERSION: u32 = 2;
 pub const MAX_SNAPSHOTS: usize = 100;
 pub const MAX_ARCHIVE_BYTES: u64 = 512 * 1024 * 1024;
 pub const MAX_OBJECTS: usize = 16_384;
@@ -193,6 +194,7 @@ impl StateDescriptor {
         if self.version != 1
             || self.contract_version != crate::content::contract::VERSION
             || self.yjs.encoding != "yjs-v1"
+            || self.producer.generator != SOURCE_GENERATOR_VERSION
         {
             return Err(crate::errors::StorageError::Unsupported.into());
         }

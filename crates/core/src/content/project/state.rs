@@ -71,7 +71,7 @@ pub(super) fn encode(store: &mut Store, archive: &Archive) -> Result<ObjectId, E
         resources: store.insert_json(&resources)?,
         producer: Producer {
             application: env!("CARGO_PKG_VERSION").into(),
-            generator: 1,
+            generator: super::schema::SOURCE_GENERATOR_VERSION,
             typst: typst::utils::version().raw().into(),
         },
     };

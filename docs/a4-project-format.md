@@ -80,13 +80,19 @@ ce descripteur tout en conservant leurs identifiants, dates et noms distincts.
 | `model` | Identifiant de provenance et référence du source Typst du modèle. |
 | `sources` | Références `main` et `body` des sources dérivées ; chemins logiques actuels `main.typ` et `contenu.typ` à l’export. |
 | `resources` | Référence d’un manifeste de ressources partagé. |
-| `producer` | Versions de l’application/générateur et du moteur Typst, à titre de diagnostic. |
+| `producer` | Numéro du générateur contrôlé lors de la lecture ; versions de l’application et de Typst à titre de diagnostic. |
 
 Le **checkpoint Yjs confirmé et sa projection structurée doivent être cohérents**,
 comme dans le contrat existant. Les métadonnées et le modèle doivent également
 correspondre aux valeurs documentaires partagées. Un arbre ou un source Typst
 isolé n’autorise pas à remplacer silencieusement un état partagé contradictoire.
 Les sources Typst sont conservées mais restent dérivées, hors de la voie d’édition.
+Le générateur courant est **2** : les apostrophes et guillemets du
+texte rédigé gardent la syntaxe `smartquote` de Typst, au lieu d’être échappés.
+Le modèle et la langue du document déterminent les caractères rendus. Les
+chaînes de code (chemins, URL et paramètres) restent encodées séparément.
+Les générations antérieures ou inconnues sont refusées ; les exemples de cette
+phase de développement sont régénérés explicitement, sans lecteur de compatibilité.
 
 Le même descripteur complet sert aux versions conservées, aux références internes
 de relecture et aux états privés base/candidat MCP. Ce partage de forme ne leur

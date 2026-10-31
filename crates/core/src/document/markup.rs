@@ -18,10 +18,12 @@ pub fn typst_string(text: &str) -> String {
     result
 }
 
+/// Keep Typst's smart-quote syntax active; language and typography belong to the model.
+/// Code-bearing delimiters are still escaped, and code strings use `typst_string`.
 pub fn escape_markup(text: &str) -> String {
     let mut result = String::new();
     for c in text.chars() {
-        if "\\#*_[]$`<>@=+-/~{}\"':".contains(c) {
+        if "\\#*_[]$`<>@=+-/~{}:".contains(c) {
             result.push('\\');
         }
         result.push(c);

@@ -398,7 +398,7 @@ mod tests {
             serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"#panic(\"oops\") $x$ [é]"}]}]}),
         );
         let s = source(&d, &Assets::default()).unwrap();
-        assert!(s.contains(r#"\#panic(\"oops\") \$x\$ \[é\]"#));
+        assert!(s.contains(r#"\#panic("oops") \$x\$ \[é\]"#));
         let invalid = node(
             serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"x","marks":[{"type":"link","attrs":{"href":"javascript:alert(1)"}}]}]}]}),
         );

@@ -557,7 +557,11 @@ mod tests {
                 &Model::ArticleWorking.source(),
             )
             .unwrap();
-        assert!(text(&result.pages()[0].frame).contains("#panic(\"injection\") [brackets]"));
+        let output = text(&result.pages()[0].frame).replace(['\u{a0}', '\u{202f}'], "");
+        assert!(
+            output.contains("#panic(«injection») [brackets]"),
+            "{output}"
+        );
     }
     #[test]
     fn identities_associations_and_languages_are_validated_without_rewriting_the_data() {
