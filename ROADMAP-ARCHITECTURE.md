@@ -104,6 +104,11 @@ en conservant les versions, leurs identifiants et leurs métadonnées.
 réutilisant les valeurs documentaires existantes, avec lecture/écriture du format
 11, identité, index, états immuables, références internes, déduplication et gardes
 de publication. Tester conservation, corruption, lecture sélective et limites.
+**Réalisé :** `content::project::Project` et son schéma 11, graphe CAS partagé,
+versions et références internes séparées, préparation immuable puis sauvegarde
+atomique sous garde. Validation des packages à partir de l’inventaire embarqué,
+sans dépendance au catalogue installé. Recettes et limites dans le
+[bilan A.4.1](docs/a4-storage-core.md).
 **A.4.2 — raccordement :** faire conserver ce propriétaire par Tauri/CLI/MCP et
 la récupération, puis retirer le stockage de format 10. L’audit montre que les
 sauvegardes reconstruisent aujourd’hui une archive de l’état courant ; ne pas

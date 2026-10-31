@@ -1,9 +1,10 @@
 # A.4 — Format cible du projet `.typsto`
 
-**Statut : organisation et budgets validés le 31 octobre 2026 ; intégration à faire.**
+**Statut : stockage du cœur A.4.1 implémenté le 31 octobre 2026 ; raccordement A.4.2 à faire.**
 Le **CAS est retenu** après [évaluation](a4-snapshot-storage-evaluation.md).
-L’organisation ci-dessous précise cette décision ; elle n’est pas encore le
-format lu ou écrit par l’application. Le lecteur actuel attend la version 10.
+L’organisation ci-dessous est implémentée par `content::project::Project`.
+Elle n’est pas encore le format lu ou écrit par les adaptateurs de l’application,
+qui utilisent toujours la version 10.
 La version 11 est retenue pour cette rupture, sans lecteur de compatibilité
 préventif ni conversion silencieuse des anciens projets de développement.
 Les exemples seront régénérés explicitement au moment de l’intégration.
@@ -77,7 +78,7 @@ ce descripteur tout en conservant leurs identifiants, dates et noms distincts.
 | `metadata` | Référence des métadonnées et options documentaires JSON. |
 | `yjs` | Référence d’un checkpoint complet, avec encodage déclaré `yjs-v1`. |
 | `model` | Identifiant de provenance et référence du source Typst du modèle. |
-| `sources` | Références des sources dérivées `main.typ` et `body.typ`. |
+| `sources` | Références `main` et `body` des sources dérivées ; chemins logiques actuels `main.typ` et `contenu.typ` à l’export. |
 | `resources` | Référence d’un manifeste de ressources partagé. |
 | `producer` | Versions de l’application/générateur et du moteur Typst, à titre de diagnostic. |
 
@@ -114,13 +115,16 @@ nouvel objet ; les snapshots précédents continuent à référencer l’ancienn
 Modifier une dépendance ou le modèle suit la même règle, sans remplacement au
 chargement par la version du catalogue de l’application.
 
-**Point d’intégration identifié :** `packages::validate` et `valid_path`
-s’appuient actuellement sur le catalogue embarqué de l’application. Le nouveau
-lecteur devra contrôler les dépendances conservées à partir de leur inventaire
-embarqué et de leurs objets, avec des chemins et limites vérifiés. Changer le
-catalogue installé ne doit pas invalider une ancienne version autonome.
-Ce point n’a pas été qualifié par l’essai de stockage, qui utilise les packages
-actuels ; il demande sa propre recette avant livraison.
+Le lecteur CAS utilise `packages::validate_embedded`, indépendant du catalogue
+installé : inventaire embarqué de schéma 1, identifiants et racines uniques,
+chemins relatifs bornés, dépendances déclarées présentes, points d’entrée,
+licences et provenance conservés. Les références explicites du modèle doivent
+être présentes. Le manifeste de ressources fixe les empreintes de tous les
+fichiers fournis, y compris les locales chargées dynamiquement.
+Une recette compile hors ligne un projet avec un package fictif absent du
+catalogue installé. L’ancien validateur reste seulement dans la voie de format 10,
+à retirer lors d’A.4.2. Les empreintes contrôlent l’intégrité des octets conservés ;
+elles ne certifient pas l’origine ou l’authenticité d’un package.
 
 Conserver les sources et ressources ne revient pas à embarquer les binaires de
 Typst, l’ensemble des polices du système ou le système d’exploitation. Les
@@ -150,6 +154,13 @@ Chaque entrée de `snapshots` contient :
 - `creator`, identité disponible du créateur, sans attribution de toutes les modifications ;
 - `reason` : `manual` ou `before_restore` ;
 - `state`, référence CAS immuable de son descripteur.
+
+Le schéma sérialisé regroupe les champs éditables dans l’objet `details` :
+`name`, `tags`, `description`, `creator`. Les autres champs restent au premier
+niveau. `reason` vaut `manual` ou `before_restore`. Les références de relecture
+portent directement `id`, `review_id`, `created_at`, `state`, `active`.
+Les schémas de stockage rejettent les champs inconnus ; les manifestes de
+ressources rejettent aussi les chemins logiques répétés.
 
 Le classement chronologique utilise la date, avec l’identifiant comme départage
 stable. Ni l’ordre de l’index, ni le nom, ni les tags ne définissent le contenu
@@ -324,3 +335,35 @@ La maquette de Versions doit maintenant concrétiser :
 
 La sélection du moteur de diff et la validation partielle des propositions MCP
 restent séparées de ce format ; F.3 ne bloque pas A.4.
+
+Bornes techniques du premier schéma : 64 Kio pour `manifest.json` ; 4 Mio pour
+`versions.json`, chaque descripteur et chaque manifeste de ressources ; 160
+caractères pour un nom de version ; 32 tags de 64 caractères ; 16 Kio pour sa
+description et 512 octets pour l’identité libre de son créateur. Le budget de
+64 Mio compte le descripteur et les fichiers logiques, même lorsque plusieurs
+chemins partagent un objet. Les limites sont contrôlées avant inflation des
+objets lorsque les en-têtes suffisent, puis sur les octets effectivement lus.
+
+## Frontière livrée dans A.4.1
+
+`Project` possède l’identité, l’état courant, l’index et une vue des objets.
+`new` initialise un checkpoint complet si nécessaire pour un nouveau projet.
+`with_current` exige ensuite un état confirmé muni de son checkpoint cohérent :
+aucune régénération implicite à partir de caches JSON ou Typst.
+`prepare_version`, `prepare_version_details`, `prepare_remove_version` et
+`prepare_review_reference` retournent un candidat sans modifier le propriétaire
+initial. L’appelant doit enregistrer le candidat avec `save` avant de le publier.
+La référence d’une relecture existante n’est pas recapturée.
+
+`save` conserve toutes les racines retenues et ne recopie que leurs objets
+accessibles, avec contrôle des empreintes pendant la réécriture. Le fichier
+d’origine et l’empreinte de sa garde restent inchangés si une étape échoue.
+Les objets sont copiés successivement ; la lecture ne décompresse pas l’ensemble
+des anciennes versions. Les vues encore vivantes gardent leur fichier source
+ouvert même après son remplacement atomique.
+
+Cette API n’active ni commandes utilisateur, ni restauration dans une session
+partagée, ni interface Versions. A.4.2 doit faire conserver ce propriétaire par
+Tauri/CLI/MCP et la récupération, puis retirer le stockage de format 10 et
+régénérer explicitement les exemples. Les états privés MCP et le cycle de vie
+des relectures restent à raccorder dans leurs lots respectifs.
