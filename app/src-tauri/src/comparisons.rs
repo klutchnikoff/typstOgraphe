@@ -1,4 +1,4 @@
-//! Shared frozen viewer; staged choices are applied through the durable commit adapter.
+//! Shared frozen viewer; staged choices publish a single undoable document edit.
 use crate::{Bridge, agent::AgentState, session::Session};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -55,7 +55,6 @@ fn payload(
     content: bool,
 ) -> Result<Value, String> {
     let mut value = json!({"id":id,"report":r.plan.report(&s.guard())});
-    value["report"]["path"] = json!(s.file_lease.as_ref().map(|lease| lease.path()));
     value["report"]["applied"] = json!(r.finished);
     value["report"]["before_name"] = json!(r.before_name);
     value["report"]["after_name"] = json!(r.after_name);

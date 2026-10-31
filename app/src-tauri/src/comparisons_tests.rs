@@ -68,7 +68,7 @@ fn review(s: &mut Session, a: &mut AgentState, id: uuid::Uuid) -> String {
         .into()
 }
 #[test]
-fn choices_save_once_without_snapshots_and_have_one_undo_step() {
+fn choices_publish_without_saving_or_snapshots_and_have_one_undo_step() {
     let (root, mut s, mut a) = fixture();
     let path = root.path().join("project.typsto");
     let id = version(&mut s, &path);
@@ -90,11 +90,12 @@ fn choices_save_once_without_snapshots_and_have_one_undo_step() {
     .unwrap();
     assert_eq!(std::fs::read(&path).unwrap(), disk);
     assert_eq!(s.ensure_owner().unwrap().state(), &initial);
-    let (result, publication) = apply(&mut s, &mut a, "human", &r, ready, None).unwrap();
+    let (result, publication) = apply(&mut s, &mut a, "human", &r, ready).unwrap();
     assert!(publication.changed);
     assert_eq!(result["report"]["closed"], true);
-    assert_eq!(result["saved"]["revision"], s.revision);
-    let saved = typstographe_core::content::project::Project::read(&path).unwrap();
+    assert!(result.get("saved").is_none());
+    assert_eq!(std::fs::read(&path).unwrap(), disk);
+    let saved = s.stored_project().unwrap();
     assert_eq!(saved.current().state(), *s.ensure_owner().unwrap().state());
     assert_eq!(
         saved.current().document.content[0].content[0]
@@ -108,7 +109,7 @@ fn choices_save_once_without_snapshots_and_have_one_undo_step() {
     );
     assert_eq!(saved.versions(), versions);
     assert_eq!(saved.project_id(), project_id);
-    assert_eq!(s.clean_revision, Some(s.revision));
+    assert_ne!(s.clean_revision, Some(s.revision));
     let disk = std::fs::read(&path).unwrap();
     s.history("human", Direction::Undo).unwrap();
     assert_eq!(s.ensure_owner().unwrap().state(), &initial);
@@ -118,7 +119,7 @@ fn choices_save_once_without_snapshots_and_have_one_undo_step() {
     assert_eq!(s.ensure_owner().unwrap().state(), &saved.current().state());
 }
 #[test]
-fn stale_preparations_ime_invalid_choices_and_external_file_changes_never_publish() {
+fn stale_preparations_ime_and_invalid_choices_never_publish() {
     let (root, mut s, mut a) = fixture();
     let path = root.path().join("project.typsto");
     let id = version(&mut s, &path);
@@ -133,47 +134,39 @@ fn stale_preparations_ime_invalid_choices_and_external_file_changes_never_publis
     edit(&mut s, 2, "Human ");
     let work = s.updates.clone();
     let disk = std::fs::read(&path).unwrap();
-    assert!(apply(&mut s, &mut a, "human", &r, ready.prepare().unwrap(), None).is_err());
+    assert!(apply(&mut s, &mut a, "human", &r, ready.prepare().unwrap()).is_err());
     assert_eq!(s.updates, work);
     assert_eq!(std::fs::read(&path).unwrap(), disk);
-    let r = review(&mut s, &mut a, id);
-    let ready = prepare(&mut s, &a, "human", &r, &[SourceSide::Before; 2]).unwrap();
-    std::fs::write(&path, b"External change").unwrap();
-    let failure = apply(&mut s, &mut a, "human", &r, ready, None).unwrap_err();
-    assert!(!failure.starts_with('{'));
-    assert_eq!(s.updates, work);
-    assert_eq!(std::fs::read(&path).unwrap(), b"External change");
     assert_eq!(
         read(&s, &a, "human", &r).unwrap()["report"]["closed"],
         false
     );
 }
+
 #[test]
-fn failed_destination_preserves_the_choices_work_and_history_for_retry() {
+fn composition_without_a_file_binding_never_requires_a_destination() {
     let (root, mut s, mut a) = fixture();
-    let id = version(&mut s, &root.path().join("original.typsto"));
+    let path = root.path().join("original.typsto");
+    let id = version(&mut s, &path);
+    let disk = std::fs::read(&path).unwrap();
     s.file_lease = None;
     edit(&mut s, 0, "New ");
     let r = review(&mut s, &mut a, id);
-    let choices = [SourceSide::Before];
-    let work = s.updates.clone();
-    let invalid = root.path().join("missing").join("file.typsto");
-    let ready = prepare(&mut s, &a, "human", &r, &choices).unwrap();
-    assert!(apply(&mut s, &mut a, "human", &r, ready, Some(&invalid)).is_err());
-    assert_eq!(s.updates, work);
+    let ready = prepare(&mut s, &a, "human", &r, &[SourceSide::Before]).unwrap();
+    apply(&mut s, &mut a, "human", &r, ready).unwrap();
     assert!(s.file_lease.is_none());
-    let ready = prepare(&mut s, &a, "human", &r, &choices).unwrap();
-    let path = root.path().join("retry.typsto");
-    apply(&mut s, &mut a, "human", &r, ready, Some(&path)).unwrap();
-    let saved = typstographe_core::content::project::Project::read(&path).unwrap();
-    assert_eq!(saved.versions().len(), 1);
+    assert_eq!(std::fs::read(&path).unwrap(), disk);
+    let current = s.stored_project().unwrap();
+    assert_eq!(current.versions().len(), 1);
     assert_eq!(
-        saved.current().document.content[0].content[0]
+        current.current().document.content[0].content[0]
             .text
             .as_deref(),
         Some("Old one")
     );
+    assert_ne!(s.clean_revision, Some(s.revision));
 }
+
 #[test]
 fn historical_pairs_compose_from_the_right_and_replace_the_captured_live_state() {
     let (root, mut s, mut a) = fixture();
@@ -204,8 +197,8 @@ fn historical_pairs_compose_from_the_right_and_replace_the_captured_live_state()
         &[SourceSide::Before, SourceSide::After],
     )
     .unwrap();
-    apply(&mut s, &mut a, "human", r, ready, None).unwrap();
-    let saved = typstographe_core::content::project::Project::read(&path).unwrap();
+    apply(&mut s, &mut a, "human", r, ready).unwrap();
+    let saved = s.stored_project().unwrap();
     assert_eq!(saved.versions().len(), 2);
     assert_eq!(
         saved.current().document.content[0].content[0]
@@ -242,7 +235,7 @@ fn identical_historical_states_can_replace_a_different_current_document() {
     let r = value["id"].as_str().unwrap();
     assert!(value["report"]["groups"].as_array().unwrap().is_empty());
     let ready = prepare(&mut s, &a, "human", r, &[]).unwrap();
-    apply(&mut s, &mut a, "human", r, ready, None).unwrap();
+    apply(&mut s, &mut a, "human", r, ready).unwrap();
     assert_eq!(
         s.ensure_owner().unwrap().state().document.content[0].content[0]
             .text
@@ -251,7 +244,7 @@ fn identical_historical_states_can_replace_a_different_current_document() {
     );
 }
 #[test]
-fn mcp_choices_stay_private_until_save_then_produce_final_receipts_without_a_snapshot() {
+fn mcp_choices_stay_private_until_applied_then_produce_receipts_without_saving_or_snapshot() {
     let (root, mut s, mut a) = fixture();
     a.token = Some("authorized".into());
     let request = json!({"document":{"id":s.generation,"guard":s.guard()},"request_id":"composed","steps":[{"id":"text.insert","params":{"target":{"zone":{"kind":"body","path":[0]},"from":0,"to":0},"text":"Proposal "}},{"id":"text.insert","params":{"target":{"zone":{"kind":"body","path":[2]},"from":0,"to":0},"text":"Proposal "}}]});
@@ -272,13 +265,15 @@ fn mcp_choices_stay_private_until_save_then_produce_final_receipts_without_a_sna
     assert_eq!(s.guard(), guard);
     let path = root.path().join("proposal.typsto");
     let duplicate = prepare(&mut s, &a, "human", r, &[SourceSide::After; 2]).unwrap();
-    apply(&mut s, &mut a, "human", r, ready, Some(&path)).unwrap();
+    apply(&mut s, &mut a, "human", r, ready).unwrap();
     assert_eq!(a.proposal.as_ref().unwrap().status, "partially_accepted");
     assert_eq!(
         a.proposal.as_ref().unwrap().decisions[1]["decision"],
         "refused"
     );
-    let saved = typstographe_core::content::project::Project::read(&path).unwrap();
+    assert!(!path.exists());
+    assert!(s.file_lease.is_none());
+    let saved = s.stored_project().unwrap();
     assert!(saved.versions().is_empty());
     assert_eq!(
         saved.current().document.content[2].content[0]
@@ -286,31 +281,66 @@ fn mcp_choices_stay_private_until_save_then_produce_final_receipts_without_a_sna
             .as_deref(),
         Some("Old two")
     );
+    let revision = s.revision;
+    assert!(apply(&mut s, &mut a, "human", r, duplicate).is_err());
+    assert_eq!(s.revision, revision);
+    assert!(!path.exists());
+}
+#[test]
+fn composition_preserves_recovery_and_survives_a_new_checkpoint() {
+    let (root, mut s, mut a) = fixture();
+    let path = root.path().join("project.typsto");
+    let id = version(&mut s, &path);
     let disk = std::fs::read(&path).unwrap();
-    assert!(apply(&mut s, &mut a, "human", r, duplicate, None).is_err());
+    edit(&mut s, 0, "New ");
+    edit(&mut s, 2, "New ");
+    let snapshot = crate::session::Snapshot {
+        revision: s.revision,
+        document: s.ensure_owner().unwrap().state().document.clone(),
+        settings: Some(s.settings.clone()),
+    };
+    let update = s.ensure_owner().unwrap().update_bytes();
+    let recovery = s.save(&snapshot, update).unwrap();
+    let checkpoint = std::fs::read(&recovery).unwrap();
+    let r = review(&mut s, &mut a, id);
+    let ready = prepare(
+        &mut s,
+        &a,
+        "human",
+        &r,
+        &[SourceSide::Before, SourceSide::After],
+    )
+    .unwrap();
+    apply(&mut s, &mut a, "human", &r, ready).unwrap();
+    assert_eq!(std::fs::read(&recovery).unwrap(), checkpoint);
+    assert_eq!(std::fs::read(&path).unwrap(), disk);
+    assert_ne!(s.clean_revision, Some(s.revision));
+    s.file_lease.as_ref().unwrap().check().unwrap();
+    let update = s.ensure_owner().unwrap().update_bytes();
+    let snapshot = crate::session::Snapshot {
+        revision: s.revision,
+        document: s.ensure_owner().unwrap().state().document.clone(),
+        settings: Some(s.settings.clone()),
+    };
+    let checkpoint = s.checkpoint(&snapshot, update.clone()).unwrap();
+    s.save(&snapshot, update).unwrap();
+    let stored: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&recovery).unwrap()).unwrap();
+    assert_eq!(
+        stored["checkpoint"]["document"],
+        serde_json::to_value(&snapshot.document).unwrap()
+    );
+    let mut restored = Session::from_checkpoint(root.path().join("restored"), checkpoint).unwrap();
+    assert_eq!(
+        restored.ensure_owner().unwrap().state(),
+        s.ensure_owner().unwrap().state()
+    );
+    assert_eq!(restored.stored_project().unwrap().versions().len(), 1);
     assert_eq!(std::fs::read(&path).unwrap(), disk);
 }
+
 #[test]
-fn recovery_cleanup_failure_keeps_the_successful_save_and_publication() {
-    let (root, mut s, mut a) = fixture();
-    let path = root.path().join("committed.typsto");
-    let id = version(&mut s, &path);
-    edit(&mut s, 0, "New ");
-    let r = review(&mut s, &mut a, id);
-    let recovery = s.root.join("session.json");
-    std::fs::create_dir_all(&recovery).unwrap();
-    let ready = prepare(&mut s, &a, "human", &r, &[SourceSide::Before]).unwrap();
-    let (result, _) = apply(&mut s, &mut a, "human", &r, ready, None).unwrap();
-    assert!(result["saved"]["warning"].is_string());
-    assert_eq!(result["report"]["applied"], true);
-    assert_eq!(s.clean_revision, Some(s.revision));
-    let saved = typstographe_core::content::project::Project::read(&path).unwrap();
-    assert_eq!(saved.current().state(), *s.ensure_owner().unwrap().state());
-    assert_eq!(saved.versions().len(), 1);
-    s.file_lease.as_ref().unwrap().check().unwrap();
-}
-#[test]
-fn a_rejected_private_draft_blocks_before_the_durable_commit() {
+fn a_rejected_private_draft_blocks_before_publication() {
     let (root, mut s, mut a) = fixture();
     let path = root.path().join("pending.typsto");
     let id = version(&mut s, &path);
@@ -326,8 +356,53 @@ fn a_rejected_private_draft_blocks_before_the_durable_commit() {
             .is_err()
     );
     assert!(s.ensure_owner().unwrap().draft("human").unwrap().is_some());
-    let failure = apply(&mut s, &mut a, "human", &r, ready, None).unwrap_err();
+    let failure = apply(&mut s, &mut a, "human", &r, ready).unwrap_err();
     assert!(!failure.starts_with('{') && !failure.contains("pending_draft"));
     assert_eq!(std::fs::read(&path).unwrap(), disk);
     assert_eq!(s.updates, work);
+}
+
+#[test]
+fn an_external_file_change_does_not_block_an_edit_or_overwrite_the_file() {
+    let (root, mut s, mut a) = fixture();
+    let path = root.path().join("external.typsto");
+    let id = version(&mut s, &path);
+    edit(&mut s, 0, "New ");
+    let r = review(&mut s, &mut a, id);
+    let ready = prepare(&mut s, &a, "human", &r, &[SourceSide::Before]).unwrap();
+    std::fs::write(&path, b"External change").unwrap();
+    apply(&mut s, &mut a, "human", &r, ready).unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), b"External change");
+    assert!(s.file_lease.as_ref().unwrap().check().is_err());
+    assert_ne!(s.clean_revision, Some(s.revision));
+    let current = s.stored_project().unwrap();
+    let mut lease = s.file_lease.as_ref().unwrap().clone();
+    assert!(current.save(&mut lease).is_err());
+    assert_eq!(std::fs::read(&path).unwrap(), b"External change");
+}
+#[test]
+fn keeping_current_content_does_not_dirty_a_clean_document_or_add_undo() {
+    let (root, mut s, mut a) = fixture();
+    let path = root.path().join("clean.typsto");
+    let id = version(&mut s, &path);
+    edit(&mut s, 0, "New ");
+    version(&mut s, &path);
+    let disk = std::fs::read(&path).unwrap();
+    let guard = s.guard();
+    let undo = s.ensure_owner().unwrap().snapshot("human").unwrap();
+    let r = review(&mut s, &mut a, id);
+    let ready = prepare(&mut s, &a, "human", &r, &[SourceSide::After]).unwrap();
+    let (_, publication) = apply(&mut s, &mut a, "human", &r, ready).unwrap();
+    assert!(!publication.changed);
+    assert_eq!(s.guard(), guard);
+    assert_eq!(s.clean_revision, Some(s.revision));
+    assert_eq!(
+        s.ensure_owner()
+            .unwrap()
+            .snapshot("human")
+            .unwrap()
+            .undo_steps,
+        undo.undo_steps
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), disk);
 }

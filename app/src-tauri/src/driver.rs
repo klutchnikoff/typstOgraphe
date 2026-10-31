@@ -95,9 +95,8 @@ fn dispatch(
                             dependencies: archive.dependencies.clone(),
                         },
                     )?;
-                    let destination = args["destination"].as_str().map(std::path::Path::new);
                     let (mut result, publication) =
-                        crate::comparisons::apply(&mut s, &mut a, peer, id, ready, destination)?;
+                        crate::comparisons::apply(&mut s, &mut a, peer, id, ready)?;
                     result["publication"] =
                         serde_json::to_value(publication).map_err(|e| e.to_string())?;
                     Ok(result)

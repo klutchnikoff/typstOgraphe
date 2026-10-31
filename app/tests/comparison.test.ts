@@ -71,7 +71,6 @@ function fixture(source: 'before' | 'after' = 'before') {
       })
       return {
         ...structuredClone(state),
-        saved: { document: 'doc', path: '/saved.typsto', revision: state.report.guard.revision },
       }
     }),
     listen: vi.fn(async (fn) => {
@@ -148,29 +147,27 @@ it.each(['before', 'after'] as const)(
     expect(radio(0, 'after').getAttribute('aria-checked')).toBe('true')
     expect(document.activeElement).toBe(radio(0, 'after'))
     radio(0, 'before').click()
-    button(view.element, 'Appliquer et enregistrer').click()
+    button(view.element, 'Appliquer').click()
     await tick()
     expect(f.api.apply).toHaveBeenCalledExactlyOnceWith('review', ['before', 'after'])
-    expect(button(view.element, 'Appliquer et enregistrer').disabled).toBe(true)
+    expect(button(view.element, 'Appliquer').disabled).toBe(true)
     expect(radio(0, 'before').disabled).toBe(true)
     expect(view.element.querySelector('del')!.textContent).toBe('Old')
     expect(view.element.querySelector('ins')!.textContent).toBe('New')
     expect(error).not.toHaveBeenCalled()
   },
 )
-it('preserves provisional choices after cancellation, failure and an external edit', async () => {
+it('preserves provisional choices after a refused publication and an external edit', async () => {
   const f = fixture(),
     error = vi.fn()
-  vi.mocked(f.api.apply).mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('disk full'))
+  vi.mocked(f.api.apply).mockRejectedValueOnce(new Error('invalid candidate'))
   const view = comparisonView({ state: f.state, api: f.api, catalogue, error })
   disposers.push(view.destroy)
   document.body.append(view.element)
   await tick()
   view.element.querySelector<HTMLButtonElement>('[data-group="0"] [data-side="before"]')!.click()
-  for (let i = 0; i < 2; i++) {
-    button(view.element, 'Appliquer et enregistrer').click()
-    await tick()
-  }
+  button(view.element, 'Appliquer').click()
+  await tick()
   expect(error).toHaveBeenCalledOnce()
   expect(view.element.querySelector('[data-side="before"]')?.getAttribute('aria-checked')).toBe(
     'true',
@@ -179,7 +176,7 @@ it('preserves provisional choices after cancellation, failure and an external ed
     state.report.stale = true
   })
   await tick()
-  expect(button(view.element, 'Appliquer et enregistrer').disabled).toBe(true)
+  expect(button(view.element, 'Appliquer').disabled).toBe(true)
   expect(view.element.querySelector('.comparison-notice')!.hasAttribute('hidden')).toBe(false)
 })
 it('disables composition once the comparison is finished', () => {
@@ -187,7 +184,7 @@ it('disables composition once the comparison is finished', () => {
   f.state.report.closed = true
   const view = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn() })
   disposers.push(view.destroy)
-  expect(button(view.element, 'Appliquer et enregistrer').disabled).toBe(true)
+  expect(button(view.element, 'Appliquer').disabled).toBe(true)
   expect(
     [...view.element.querySelectorAll<HTMLButtonElement>('[role=radio]')].every((b) => b.disabled),
   ).toBe(true)
@@ -213,12 +210,9 @@ it('preserves linked groups and isolates late responses from a destroyed compari
   await tick()
   expect(error).not.toHaveBeenCalled()
 })
-it('sends only the review ID and side choices, flushes confirmed writing without committing forms, and blocks IME or replacement', async () => {
-  const invoke = vi.fn(async (command: string) =>
-      command === 'comparison_read'
-        ? { report: { path: '/saved.typsto' } }
-        : { saved: { document: 'doc', path: '/saved.typsto', revision: 2 } },
-    ),
+it('applies without a destination or save acknowledgement, flushes confirmed writing without committing forms, and blocks IME or replacement', async () => {
+  const f = fixture(),
+    invoke = vi.fn(async () => f.state),
     provider = {
       generation: 'doc',
       revision: 2,
@@ -234,41 +228,20 @@ it('sends only the review ID and side choices, flushes confirmed writing without
   await api.apply('trusted', ['after', 'before'])
   expect(provider.flush).toHaveBeenCalledWith(false)
   expect(provider.flush).toHaveBeenCalledTimes(1)
-  expect(invoke).toHaveBeenLastCalledWith('comparison_apply', {
+  expect(invoke).toHaveBeenCalledExactlyOnceWith('comparison_apply', {
     id: 'trusted',
     choices: ['after', 'before'],
-    destination: undefined,
   })
+  expect(provider.confirmSaved).not.toHaveBeenCalled()
   provider.composing = true
   await expect(api.apply('trusted', ['after', 'before'])).rejects.toThrow()
-  expect(invoke).toHaveBeenCalledTimes(2)
+  expect(invoke).toHaveBeenCalledTimes(1)
   provider.composing = false
   provider.generation = 'other'
   await expect(api.open({ kind: 'version', id: 'old' })).rejects.toThrow()
-  expect(invoke).toHaveBeenCalledTimes(2)
+  expect(invoke).toHaveBeenCalledTimes(1)
 })
-it('canceling the first save leaves the native comparison untouched', async () => {
-  const invoke = vi.fn(async (command: string) =>
-    command === 'comparison_read' ? { report: { path: null } } : null,
-  )
-  const provider = {
-    generation: 'doc',
-    revision: 2,
-    composing: false,
-    flush: vi.fn(async () => {}),
-    commitCommand: vi.fn(async (run: () => Promise<unknown>) => run()),
-    confirmSaved: vi.fn(),
-  }
-  const api = comparisonAPI(
-    provider as unknown as Provider,
-    { invoke, listen: vi.fn(async () => () => {}) } as Transport,
-  )
-  expect(await api.apply('review', ['before'])).toBeNull()
-  expect(invoke).toHaveBeenLastCalledWith('choose_file', { save: true })
-  expect(invoke.mock.calls.some(([command]) => command === 'comparison_apply')).toBe(false)
-  expect(provider.confirmSaved).not.toHaveBeenCalled()
-})
-it('acknowledges a successful save without attempting to decode an empty Yjs delta', async () => {
+it('keeps an empty composition delta from creating a Yjs edit or marking the document saved', async () => {
   const doc = new Y.Doc()
   const provider = {
     doc,
@@ -280,20 +253,20 @@ it('acknowledges a successful save without attempting to decode an empty Yjs del
     confirmSaved: vi.fn(),
     refreshHistory: vi.fn(async () => {}),
   }
-  const invoke = vi.fn(async (command: string) =>
-    command === 'comparison_read'
-      ? { report: { path: '/saved.typsto' } }
-      : {
-          publication: { guard: { document: 'doc', revision: 2 }, update: [], resources: [] },
-          saved: { document: 'doc', path: '/saved.typsto', revision: 2 },
-        },
-  )
+  const f = fixture(),
+    invoke = vi.fn(async () => ({
+      ...f.state,
+      publication: { guard: { document: 'doc', revision: 2 }, update: [], resources: [] },
+    })),
+    changed = vi.fn()
+  doc.on('update', changed)
   const api = comparisonAPI(
     provider as unknown as Provider,
     { invoke, listen: vi.fn(async () => () => {}) } as Transport,
   )
   await api.apply('review', ['after'])
-  expect(provider.confirmSaved).toHaveBeenCalledOnce()
+  expect(provider.confirmSaved).not.toHaveBeenCalled()
+  expect(changed).not.toHaveBeenCalled()
   expect(provider.revision).toBe(2)
   doc.destroy()
 })
@@ -362,13 +335,11 @@ it.each([false, true])(
       addResource: vi.fn(),
     }
     const f = fixture(),
-      invoke = vi.fn(async (command: string) => {
-        if (command === 'comparison_read') return { report: { path: '/saved.typsto' } }
+      invoke = vi.fn(async () => {
         if (replaced) provider.generation = 'new-document'
         return {
           ...f.state,
           publication: { guard: { document: 'doc', revision: 3 }, update, resources: [] },
-          saved: { document: 'doc', path: '/saved.typsto', revision: 3 },
         }
       })
     const api = comparisonAPI(
@@ -378,7 +349,7 @@ it.each([false, true])(
     await api.apply('review', ['before', 'after'])
     expect(draft.getText('test').toString()).toBe(replaced ? '' : 'Confirmed')
     expect(provider.refreshHistory).toHaveBeenCalledTimes(replaced ? 0 : 1)
-    expect(provider.confirmSaved).toHaveBeenCalledTimes(replaced ? 0 : 1)
+    expect(provider.confirmSaved).not.toHaveBeenCalled()
     expect(provider.commitCommand).toHaveBeenCalledWith(expect.any(Function))
     draft.destroy()
     confirmed.destroy()

@@ -592,3 +592,68 @@ fn recovery_refuses_missing_or_mismatched_project_context_without_publishing() {
     assert!(Session::from_checkpoint(f.directory.path().join("invalid"), checkpoint).is_err());
     assert_eq!(std::fs::read(f.recovery_path()).unwrap(), bytes);
 }
+
+#[test]
+fn a_composed_document_is_written_only_by_a_later_explicit_save() {
+    use typstographe_core::content::{
+        comparison::SourceSide,
+        project::{SnapshotDetails, VersionAction, VersionChange},
+    };
+    let f = Fixture::new();
+    let path = f.path();
+    let mut agent = crate::agent::AgentState::default();
+    let version = {
+        let mut s = f.session.lock().unwrap();
+        let guard = s.guard();
+        let index = crate::versions::list(&mut s, "human", &guard).unwrap();
+        let result = crate::versions::change(
+            &mut s,
+            "human",
+            &guard,
+            VersionChange {
+                history: index["history"].as_str().unwrap().into(),
+                action: VersionAction::Create {
+                    details: SnapshotDetails::default(),
+                },
+            },
+            Some(&path),
+        )
+        .unwrap();
+        serde_json::from_value(result["versions"][0]["id"].clone()).unwrap()
+    };
+    f.edit("Saved ");
+    f.save(&path);
+    let disk = std::fs::read(&path).unwrap();
+    f.edit("Unsent ");
+    let composed = {
+        let mut s = f.session.lock().unwrap();
+        let guard = s.guard();
+        let review = crate::comparisons::open(
+            &mut s,
+            &mut agent,
+            "human",
+            &guard,
+            crate::comparisons::Origin::Version {
+                id: version,
+                against: None,
+            },
+        )
+        .unwrap();
+        let id = review["id"].as_str().unwrap();
+        let ready = crate::comparisons::prepare(&mut s, &agent, "human", id, &[SourceSide::Before])
+            .unwrap();
+        crate::comparisons::apply(&mut s, &mut agent, "human", id, ready).unwrap();
+        assert_ne!(s.clean_revision, Some(s.revision));
+        s.stored_project().unwrap()
+    };
+    assert_eq!(std::fs::read(&path).unwrap(), disk);
+    f.save(&path);
+    assert_ne!(std::fs::read(&path).unwrap(), disk);
+    let saved = typstographe_core::content::project::Project::read(&path).unwrap();
+    assert_eq!(saved.current().state(), composed.current().state());
+    assert_eq!(saved.project_id(), composed.project_id());
+    assert_eq!(saved.versions(), composed.versions());
+    assert_eq!(saved.versions().len(), 1);
+    let s = f.session.lock().unwrap();
+    assert_eq!(s.clean_revision, Some(s.revision));
+}

@@ -322,12 +322,12 @@ export function comparisonView(options: {
     progress.setAttribute('aria-live', 'polite')
     progress.textContent = tr(
       state.report.applied
-        ? 'Choix appliqués et document enregistré.'
+        ? 'Choix appliqués. Vous pouvez enregistrer le document.'
         : state.report.closed
           ? 'Proposition terminée ou connexion révoquée.'
           : 'Choix provisoires · aucun changement avant validation.',
     )
-    const validate = button('Appliquer et enregistrer', () => void apply())
+    const validate = button('Appliquer', () => void apply())
     validate.className = 'primary'
     validate.disabled = busy || state.report.stale || !!state.report.closed
     footer.append(progress, validate)

@@ -1075,6 +1075,5 @@ web-composition-select-before = Sélectionner la version rouge
 web-composition-select-after = Sélectionner la version verte
 web-composition-choices-applied = Choix appliqués
 web-composition-choice-draft = Choix provisoire
-web-composition-saved = Choix appliqués et document enregistré.
+web-composition-applied = Choix appliqués. Vous pouvez enregistrer le document.
 web-composition-draft-notice = Choix provisoires · aucun changement avant validation.
-web-composition-apply-save = Appliquer et enregistrer

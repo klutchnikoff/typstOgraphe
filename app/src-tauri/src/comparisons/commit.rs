@@ -1,12 +1,8 @@
-//! Durable publication of a human-composed comparison; no snapshot creation.
+//! Undoable publication of a human-composed comparison; saving remains explicit.
 use super::*;
-use std::path::Path;
-use typstographe_core::{
-    DocumentLease,
-    content::{
-        comparison::{Decision, PreparedDecision},
-        shared::Publication,
-    },
+use typstographe_core::content::{
+    comparison::{Decision, PreparedDecision},
+    shared::Publication,
 };
 
 pub struct Preparation {
@@ -65,50 +61,16 @@ pub fn apply(
     peer: &str,
     id: &str,
     prepared: PreparedDecision,
-    destination: Option<&Path>,
 ) -> Result<(Value, Publication), String> {
     authorized(s, a, peer, id)?;
-    let plan = s.comparisons[id].plan.clone();
-    // Every fallible precondition precedes the filesystem commit under this lock.
-    s.ensure_owner()?.check_comparison(peer, &plan, &prepared)?;
-    let existing = s.file_lease.as_ref().map(|lease| lease.path());
-    if existing.is_some() && destination.is_some() && destination != existing {
-        return Err(error("web-versions-existing-path"));
-    }
-    let path = existing
-        .or(destination)
-        .ok_or_else(|| error("web-versions-path-required"))?;
-    if path.extension().and_then(|ext| ext.to_str()) != Some("typsto") {
-        return Err(error("web-versions-extension"));
-    }
-    let mut lease = s
-        .file_lease
-        .clone()
-        .map(Ok)
-        .unwrap_or_else(|| DocumentLease::acquire(path))
-        .map_err(|e| typstographe_i18n::command_error(&e))?;
-    let copy = s.file_lease.is_none() && s.project.get().is_some_and(|p| p.saved_origin);
-    let candidate = s
-        .stored_project()?
-        .with_current(prepared.archive().clone())
-        .map_err(crate::project::error)?;
-    let candidate = if copy {
-        candidate.independent_copy()
-    } else {
-        candidate
-    };
-    candidate.save(&mut lease).map_err(crate::project::error)?;
-    let mut review = s.comparisons.remove(id).unwrap();
+    // Keep choices and the frozen pair available if publication is refused.
+    let mut review = s.comparisons[id].clone();
+    s.ensure_owner()?
+        .check_comparison(peer, &review.plan, &prepared)?;
     let publication = s
         .ensure_owner()?
         .publish_comparison(peer, &mut review.plan, prepared)?;
     s.record(&publication);
-    s.file_lease = Some(lease);
-    s.project = std::sync::OnceLock::from(crate::project::Context::new(candidate, true));
-    s.recovered_name = None;
-    let warning = s.mark_clean().err();
-    // Cleanup cannot negate a successful durable save.
-    s.clean_revision = Some(s.revision);
     review.finished = true;
     if let Origin::Proposal { .. } = &review.origin {
         let groups = review.plan.report(&s.guard()).groups;
@@ -127,8 +89,7 @@ pub fn apply(
         }
         .into();
     }
-    let mut result = payload(s, a, id, &review, false)?;
-    result["saved"] = json!({"document":s.generation,"path":s.file_lease.as_ref().unwrap().path(),"revision":s.revision,"warning":warning});
+    let result = payload(s, a, id, &review, false)?;
     s.comparisons.insert(id.into(), review);
     Ok((result, publication))
 }
@@ -139,7 +100,6 @@ pub async fn comparison_apply(
     state: State<'_, Bridge>,
     id: String,
     choices: Vec<SourceSide>,
-    destination: Option<std::path::PathBuf>,
 ) -> Result<Value, String> {
     let session = state.session.clone();
     let agent = state.agent.clone();
@@ -150,13 +110,12 @@ pub async fn comparison_apply(
         let ready = snapshot.prepare()?;
         let archive = ready.archive();
         renderer.validate(&archive.validate().map_err(crate::project::error)?, &archive.assets, crate::rendering::RenderContext { settings: &archive.state().settings, dependencies: archive.dependencies.clone() })?;
-        let (mut report, publication) = apply(&mut *session.lock().map_err(|e| e.to_string())?, &mut *agent.lock().map_err(|e| e.to_string())?, &peer, &id, ready, destination.as_deref())?;
+        let (mut report, publication) = apply(&mut *session.lock().map_err(|e| e.to_string())?, &mut *agent.lock().map_err(|e| e.to_string())?, &peer, &id, ready)?;
         report["publication"] = serde_json::to_value(&publication).map_err(|e| e.to_string())?;
         for resource in &publication.resources {
             let _ = app.emit("web-editor:asset", json!({"generation":publication.guard.document,"path":resource.path,"data":base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &resource.data)}));
         }
         let _ = app.emit("web-editor:change", json!({"from":"comparison","acceptedBy":peer,"generation":publication.guard.document,"revision":publication.guard.revision,"update":publication.update}));
-        let _ = app.emit("web-editor:saved", &report["saved"]);
         let _ = app.emit("comparison:changed", json!({"id":id}));
         let _ = app.emit("agent:changed", ());
         Ok(report)

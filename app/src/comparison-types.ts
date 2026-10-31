@@ -23,7 +23,6 @@ export interface ComparisonReport {
   source: 'before' | 'after'
   groups: ComparisonGroup[]
   stale: boolean
-  path?: string | null
   closed?: boolean
   applied?: boolean
   before_name?: string | null
@@ -45,12 +44,7 @@ export interface ComparisonState {
 export interface ComparisonAPI {
   open(origin: ComparisonOrigin): Promise<ComparisonState>
   read(id: string): Promise<Pick<ComparisonState, 'id' | 'report'>>
-  apply(
-    id: string,
-    choices: ComparisonSide[],
-  ): Promise<
-    (Pick<ComparisonState, 'id' | 'report'> & { saved: import('./provider').DocumentSaved }) | null
-  >
+  apply(id: string, choices: ComparisonSide[]): Promise<Pick<ComparisonState, 'id' | 'report'>>
   close(id: string): Promise<unknown>
   preview(id: string, side: 'before' | 'after'): Promise<{ pages: string[] }>
   listen(changed: () => void): Promise<() => void>

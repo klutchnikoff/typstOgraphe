@@ -68,9 +68,7 @@ test('Versions: guarded local reprise, immutable right column, real independent 
     )
     .toBe(true)
   await dialog.getByRole('button', { name: 'Voir les changements', exact: true }).click()
-  await expect(
-    dialog.getByRole('button', { name: 'Appliquer et enregistrer', exact: true }),
-  ).toBeEnabled()
+  await expect(dialog.getByRole('button', { name: 'Appliquer', exact: true })).toBeEnabled()
   await page.evaluate(() => window.__spike!.provider.setSynchronization(true))
   const other = await context.newPage()
   await other.goto('/?client=other')
@@ -80,9 +78,7 @@ test('Versions: guarded local reprise, immutable right column, real independent 
     await window.__spike!.provider.flush()
   })
   await expect(dialog.locator('.comparison-notice')).toBeVisible()
-  await expect(
-    dialog.getByRole('button', { name: 'Appliquer et enregistrer', exact: true }),
-  ).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Appliquer', exact: true })).toBeDisabled()
   await expect(dialog.locator('[data-group="0"] .comparison-side').nth(1)).toHaveText('Current one')
   await dialog.getByRole('button', { name: 'Fermer', exact: true }).press('Escape')
   await expect(dialog).toHaveCount(0)
@@ -111,8 +107,8 @@ test('historical versions compose once and keyboard tabs preserve frozen states'
   await dialog.locator('.comparison-picker select').selectOption({ label: 'After' })
   await expect(dialog.locator('[role=radio]')).toHaveCount(4)
   await dialog.locator('[data-group="0"] [data-side="before"]').click()
-  await dialog.getByRole('button', { name: 'Appliquer et enregistrer', exact: true }).click()
-  await expect(dialog).toContainText('Choix appliqués et document enregistré.')
+  await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click()
+  await expect(dialog).toContainText('Choix appliqués. Vous pouvez enregistrer le document.')
   expect(await page.evaluate(() => window.__spike!.editor.getText())).toContain('Original one')
   expect(await page.evaluate(() => window.__spike!.editor.getText())).toContain('Current two')
   await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
@@ -143,8 +139,8 @@ test('neighboring paragraph edits can be resumed and refused independently', asy
     'aria-checked',
     'true',
   )
-  await dialog.getByRole('button', { name: 'Appliquer et enregistrer', exact: true }).click()
-  await expect(dialog).toContainText('Choix appliqués et document enregistré.')
+  await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click()
+  await expect(dialog).toContainText('Choix appliqués. Vous pouvez enregistrer le document.')
   const paragraphs = await page.evaluate(() => {
     const nodes: string[] = []
     window.__spike!.editor.state.doc.forEach((node) => nodes.push(node.textContent))
@@ -153,9 +149,7 @@ test('neighboring paragraph edits can be resumed and refused independently', asy
   expect(paragraphs.slice(0, 2)).toEqual(['Original one', 'New Stable anchor'])
   await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
 })
-test('keeping every green choice saves without a Yjs change or extra undo step', async ({
-  page,
-}) => {
+test('keeping every green choice leaves writing and undo history unchanged', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await ready(page)
@@ -172,8 +166,8 @@ test('keeping every green choice saves without a Yjs change or extra undo step',
   await page.locator('.versions-groups [data-version]').click()
   const dialog = page.locator('.version-dialog[open]')
   await dialog.getByRole('tab', { name: 'Comparer', exact: true }).click()
-  await dialog.getByRole('button', { name: 'Appliquer et enregistrer', exact: true }).click()
-  await expect(dialog).toContainText('Choix appliqués et document enregistré.')
+  await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click()
+  await expect(dialog).toContainText('Choix appliqués. Vous pouvez enregistrer le document.')
   const result = await page.evaluate(async () => {
     const { provider, editor } = window.__spike!
     const context = await provider.transport.invoke<{ undo_steps: number }>('editing_context', {
@@ -285,6 +279,11 @@ test('MCP proposals use the same modal, partial decisions and human-only publica
   page,
 }) => {
   await ready(page)
+  const commands: string[] = []
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && request.url().endsWith('/__spike/invoke'))
+      commands.push(request.postDataJSON().command)
+  })
   await page.evaluate(async () => {
     const { provider } = window.__spike!,
       transport = provider.transport
@@ -324,8 +323,11 @@ test('MCP proposals use the same modal, partial decisions and human-only publica
   await expect(dialog.locator('.comparison-group')).toHaveCount(2)
   await dialog.locator('[data-group="1"] [data-side="before"]').click()
   expect(await page.evaluate(() => window.__spike!.editor.getText())).not.toContain('Proposed ')
-  await dialog.getByRole('button', { name: 'Appliquer et enregistrer', exact: true }).click()
-  await expect(dialog).toContainText('Choix appliqués et document enregistré.')
+  await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click()
+  await expect(dialog).toContainText('Choix appliqués. Vous pouvez enregistrer le document.')
+  expect(commands).not.toContain('choose_file')
+  expect(commands).not.toContain('save_file')
+  expect(commands).not.toContain('versions_change')
   const count = await page.evaluate(async () => {
     const { provider } = window.__spike!
     const index = await provider.transport.invoke<{ versions: unknown[] }>('versions_list', {

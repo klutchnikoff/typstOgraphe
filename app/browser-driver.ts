@@ -112,7 +112,6 @@ export function browserDriver(root: string): Plugin {
                 update: publication.update,
               })
             }
-            broadcast('web-editor:saved', (result as { saved: unknown }).saved)
             broadcast('comparison:changed', { id: outcome.id })
             broadcast('agent:changed', {})
           }

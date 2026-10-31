@@ -26,24 +26,15 @@ export function comparisonAPI(provider: Provider, transport: Transport): Compari
       return provider.commitCommand(async () => {
         // Do not flush from inside the queued command: its tail includes itself.
         checkCurrent()
-        const current = await transport.invoke<Awaited<ReturnType<ComparisonAPI['read']>>>(
-          'comparison_read',
-          { id },
-        )
-        const destination = current.report.path
-          ? undefined
-          : await transport.invoke<string | null>('choose_file', { save: true })
-        if (destination === null) return null
-        checkCurrent()
         const result = await transport.invoke<
-          NonNullable<Awaited<ReturnType<ComparisonAPI['apply']>>> & {
+          Awaited<ReturnType<ComparisonAPI['apply']>> & {
             publication?: {
               guard: { document: string; revision: number }
               update: number[]
               resources: Resource[]
             }
           }
-        >('comparison_apply', { id, choices, destination })
+        >('comparison_apply', { id, choices })
         if (provider.generation !== generation || provider.rejected) return result
         if (result.publication) {
           for (const resource of result.publication.resources) provider.addResource(resource)
@@ -56,7 +47,6 @@ export function comparisonAPI(provider: Provider, transport: Transport): Compari
           provider.revision = Math.max(provider.revision, result.publication.guard.revision)
           await provider.refreshHistory().catch((error) => provider.onError(error))
         }
-        provider.confirmSaved(result.saved)
         return result
       })
     },

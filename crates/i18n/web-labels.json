@@ -399,7 +399,6 @@
   "Sélectionner la version verte": "web-composition-select-after",
   "Choix appliqués": "web-composition-choices-applied",
   "Choix provisoire": "web-composition-choice-draft",
-  "Choix appliqués et document enregistré.": "web-composition-saved",
-  "Choix provisoires · aucun changement avant validation.": "web-composition-draft-notice",
-  "Appliquer et enregistrer": "web-composition-apply-save"
+  "Choix appliqués. Vous pouvez enregistrer le document.": "web-composition-applied",
+  "Choix provisoires · aucun changement avant validation.": "web-composition-draft-notice"
 }
