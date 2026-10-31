@@ -1,5 +1,47 @@
 import { expect, it } from 'vitest'
-import { Provider, type Transport } from '../src/provider'
+import * as Y from 'yjs'
+import { Provider, CONFIRMED_COMMAND, type Transport } from '../src/provider'
+
+it('a checkpoint waits for the history receipt even when its document event arrived first', async () => {
+  const confirmed = new Y.Doc()
+  confirmed.getText('body').insert(0, 'Undo installed before receipt')
+  const update = Y.encodeStateAsUpdate(confirmed)
+  let acknowledge!: (receipt: unknown) => void
+  const provider = new Provider('native-history', {
+    invoke: (command: string) => {
+      if (command !== 'editing_history') throw new Error(`Unexpected ${command}`)
+      Y.applyUpdate(provider.doc, update, CONFIRMED_COMMAND)
+      return new Promise((resolve) => (acknowledge = resolve))
+    },
+  } as unknown as Transport)
+  provider.online = true
+  provider.historyState.undo_steps = 1
+  try {
+    const undo = provider.history('undo')
+    for (let i = 0; i < 12; i++) await Promise.resolve()
+    expect(provider.doc.getText('body').toString()).toBe('Undo installed before receipt')
+    expect(provider.revision).toBe(0)
+    expect(provider.historyBusy).toBe(true)
+    let saved = false
+    const checkpoint = provider.flush(false).then(() => (saved = true))
+    for (let i = 0; i < 12; i++) await Promise.resolve()
+    expect(saved).toBe(false)
+    acknowledge({
+      revision: 1,
+      update: [],
+      history: { undo_steps: 0, redo_steps: 1, pending: false },
+    })
+    await undo
+    await checkpoint
+    expect(saved).toBe(true)
+    expect(provider.revision).toBe(1)
+    expect(provider.historyBusy).toBe(false)
+    expect(provider.historyState.redo_steps).toBe(1)
+  } finally {
+    provider.destroy()
+    confirmed.destroy()
+  }
+})
 
 it('can checkpoint confirmed state while a native field draft awaits a decision', async () => {
   const provider = new Provider('confirmed', { invoke: async () => {} } as unknown as Transport)

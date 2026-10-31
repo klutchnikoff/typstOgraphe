@@ -1,4 +1,6 @@
 import { tr } from './i18n'
+import type { Editor } from '@tiptap/core'
+import type { Provider } from './provider'
 
 /** Native recipe controls follow the same enabled/acknowledged states as a person.
  * A CRDT event can expose new text before the command's IPC reply unlocks the UI.
@@ -36,4 +38,22 @@ export async function finishComparison(dialog: HTMLDialogElement) {
   )
   await clickControl(dialog, '.version-footer .primary', 'comparison close enabled')
   await until(() => !dialog.isConnected, 'comparison modal close')
+}
+
+export async function historyStep(
+  editor: Editor,
+  provider: Provider,
+  direction: 'undo' | 'redo',
+  matches: () => boolean,
+  label: string,
+) {
+  await until(
+    () => editor.isEditable && provider.canHistory(direction === 'redo'),
+    `${label} available`,
+  )
+  editor.view.focus()
+  if (!editor.commands[direction]()) throw new Error(`${label} unavailable`)
+  await until(matches, label)
+  await provider.flush(false)
+  await until(() => !provider.historyBusy && editor.isEditable, `${label} acknowledged`)
 }

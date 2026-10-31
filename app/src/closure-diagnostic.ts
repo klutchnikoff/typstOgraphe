@@ -3,7 +3,13 @@ import * as Y from 'yjs'
 import { documentContent } from './shared-inline-marks'
 import { settingsFor } from './state'
 import { stableJSON, type Bootstrap, type Provider, type Transport } from './provider'
-import { until, clickControl, comparisonDialog, finishComparison } from './closure-controls'
+import {
+  until,
+  clickControl,
+  comparisonDialog,
+  finishComparison,
+  historyStep,
+} from './closure-controls'
 function append(editor: Editor, text: string) {
   editor.commands.setTextSelection(editor.state.doc.content.size - 1)
   editor.view.focus()
@@ -64,12 +70,14 @@ export async function closureDiagnostic(
     }, id)
     return (await proposal())!
   }
-  const save = () =>
-    transport.invoke('save_file', {
+  const save = async () => {
+    await provider.flush(false)
+    return transport.invoke('save_file', {
       path: `${provider.sessionPath}/project.typsto`,
       snapshot: snapshot(),
       update: [...Y.encodeStateAsUpdate(provider.doc)],
     })
+  }
   const openAssistance = async () => {
     document.querySelector<HTMLButtonElement>('[aria-label="Assistance à la rédaction"]')!.click()
     await until(() => !!document.querySelector('.side-panel h3'), 'assistance panel')
@@ -139,10 +147,20 @@ export async function closureDiagnostic(
       append(editor, '[TAURI]')
       await provider.flush()
       const beforeUndo = stableJSON(state())
-      editor.commands.undo()
-      await until(() => !editor.getText().includes('[TAURI]'), 'human undo')
-      editor.commands.redo()
-      await until(() => stableJSON(state()) === beforeUndo, 'human redo')
+      await historyStep(
+        editor,
+        provider,
+        'undo',
+        () => !editor.getText().includes('[TAURI]'),
+        'human undo',
+      )
+      await historyStep(
+        editor,
+        provider,
+        'redo',
+        () => stableJSON(state()) === beforeUndo,
+        'human redo',
+      )
       steps.push('Native header/body input, undo and redo preserve the project.')
       await save()
       await transport.invoke('agent_invite')
@@ -197,11 +215,20 @@ export async function closureDiagnostic(
       if (provider.historyState.undo_steps !== undo + 1)
         throw new Error('MCP lot is not one undo step')
       const accepted = stableJSON(state())
-      editor.view.focus()
-      if (!editor.commands.undo()) throw new Error('Whole-lot undo is unavailable')
-      await until(() => stableJSON(state()) === before, 'single whole-lot undo')
-      if (!editor.commands.redo()) throw new Error('Whole-lot redo is unavailable')
-      await until(() => stableJSON(state()) === accepted, 'whole-lot redo')
+      await historyStep(
+        editor,
+        provider,
+        'undo',
+        () => stableJSON(state()) === before,
+        'single whole-lot undo',
+      )
+      await historyStep(
+        editor,
+        provider,
+        'redo',
+        () => stableJSON(state()) === accepted,
+        'whole-lot redo',
+      )
       if (provider.synchronization?.enabled) throw new Error('Agent enabled human presence')
       steps.push(
         'Real human approval, stable selection, one whole-lot undo/redo; individual mode preserved.',
@@ -249,12 +276,21 @@ export async function closureDiagnostic(
       await progress('versions.content-installed')
       await finishComparison(dialog)
       await progress('versions.closed')
-      editor.view.focus()
-      if (!editor.commands.undo()) throw new Error('Version undo is unavailable')
-      await until(() => stableJSON(state()) === modified, 'version undo')
+      await historyStep(
+        editor,
+        provider,
+        'undo',
+        () => stableJSON(state()) === modified,
+        'version undo',
+      )
       await progress('versions.undone')
-      if (!editor.commands.redo()) throw new Error('Version redo is unavailable')
-      await until(() => stableJSON(state()) === reference, 'version redo')
+      await historyStep(
+        editor,
+        provider,
+        'redo',
+        () => stableJSON(state()) === reference,
+        'version redo',
+      )
       await progress('versions.redone')
       const frozen = await comparisonAPI(provider, transport).open({
         kind: 'version',
