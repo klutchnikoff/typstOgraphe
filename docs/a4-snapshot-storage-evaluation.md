@@ -1,6 +1,6 @@
 # A.4 — Évaluation du stockage des snapshots
 
-**31 octobre 2026 — évaluation locale, choix de moteur à valider.**
+**31 octobre 2026 — évaluation locale ; CAS retenu après examen du bilan.**
 Les [décisions fonctionnelles](../ROADMAP.md#a4--snapshots-durables) sont consignées.
 Ce lot compare deux stockages réellement exécutés en Rust release, sans modifier
 le cœur, le format public du `.typsto` ou les dépendances de l’application.
@@ -100,8 +100,8 @@ cœur devront être étendues lors de l’intégration.
 
 ## Enseignements et recommandation
 
-**Recommandation : retenir le stockage par objets dédupliqués pour A.4, sous
-réserve de validation.** Il est plus rapide à créer/écrire et à ouvrir sur les
+**Recommandation validée : retenir le stockage par objets dédupliqués pour A.4.**
+Il est plus rapide à créer/écrire et à ouvrir sur les
 trois corpus mesurés, en s’appuyant sur les briques déjà utilisées par le projet
 (SHA-256, ZIP et écriture atomique), sans ajouter de moteur Git embarqué.
 
@@ -118,8 +118,9 @@ avec CAS contre 375 ms avec Git, et ouverture/restitution environ 1,7 ms contre
 frappe ; la persistance devra rester hors du chemin critique de l’aperçu. Le
 coût total d’un futur bouton Versions inclura encore les validations du moteur.
 
-Le choix reste ouvert : aucune dépendance Git ni aucun format CAS de production
-n’a été adopté. La publication de ces résultats ne clôt pas A.4.
+Le CAS est retenu ; son format de production reste à préciser et à valider avant
+implémentation. Git n’est pas adopté dans l’application. Cette décision ne clôt
+pas A.4.
 
 Deux points concrets révélés et corrigés **pour les deux candidats** :
 
@@ -141,16 +142,15 @@ existante et l’adaptation documentaire restent des travaux A.4 distincts.
 
 ## Suite à valider
 
-1. Choisir le stockage à partir de cette évaluation ; aucune adoption implicite.
-2. Préciser le schéma versionné du `.typsto`, l’index, les données Yjs conservées,
+1. Le CAS étant retenu, préciser le schéma versionné du `.typsto`, l’index, les données Yjs conservées,
    les contrôles d’intégrité et les budgets de taille/nombre d’entrées. Conserver
    un snapshot complet plutôt qu’une seule frontière causale dépourvue de contenu.
-3. Étendre les commandes/requêtes communes de création, liste, consultation,
+2. Étendre les commandes/requêtes communes de création, liste, consultation,
    nom/tags, suppression et restauration, avec autorisations par adaptateur.
-4. Maquetter Versions, la comparaison commune et les confirmations, puis coder
+3. Maquetter Versions, la comparaison commune et les confirmations, puis coder
    les parcours validés. Préparer le lien de référence avec une future relecture
    et garder la validation locale MCP en F.3.
-5. Vérifier le vrai parcours atomique et gardé : création enregistrée, sauvegarde
+4. Vérifier le vrai parcours atomique et gardé : création enregistrée, sauvegarde
    automatique avant restauration, refus sans perte, références protégées,
    nettoyage des ressources, sauvegarde/réouverture et exports des versions choisies.
 

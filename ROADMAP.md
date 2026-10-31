@@ -20,8 +20,8 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** valider le stockage d’**A.4 — Snapshots durables** à partir
-de son évaluation, puis le format et les maquettes, en anticipant la relecture **J**.
+**Séquence immédiate :** le CAS est retenu pour **A.4 — Snapshots durables**.
+Préciser et valider le format, puis les maquettes, en anticipant la relecture **J**.
 Terminer ensuite le socle par
 **A.5 — Documentation, nettoyage et recette finale**.
 Les copies privées, la reprise des formulaires et la fermeture sont implémentées.
@@ -114,16 +114,18 @@ aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
 - Ne supprimer aucune version automatiquement au départ. L’utilisateur supprime
   explicitement les snapshots non protégés ; une ressource reste conservée tant
   qu’un état retenu en a besoin.
-- Évaluer Git embarqué et un stockage d’états à ressources dédupliquées sur le
-  même corpus Courrier/Article avant de choisir : taille, création, ouverture,
-  suppression et intégrité. Maquetter ensuite Versions et la comparaison avant
-  leur implémentation. L’évaluation n’adopte aucun moteur dans l’application.
+- **CAS retenu après évaluation** : un magasin d’objets identifiés par leur
+  contenu et partagés entre état courant et snapshots, dans le fichier autonome.
+  Git reste limité au candidat expérimental et n’est pas retenu pour le stockage
+  de production. Valider le format puis maquetter Versions et la comparaison
+  avant leur implémentation.
 
 **Évaluation de stockage réalisée :** le [bilan A.4](docs/a4-snapshot-storage-evaluation.md)
 compare les deux candidats sur Courrier, Article et Article allongé, à 20 et
-100 versions. Le stockage par objets dédupliqués est recommandé pour sa rapidité
-et son intégration plus simple ; Git réduit davantage la taille. Le choix du
-moteur reste à valider avant le format et les maquettes. A.4 n’est pas clos.
+100 versions. **Le stockage par objets dédupliqués (CAS) est validé**, pour sa
+rapidité et son intégration plus simple, en acceptant des historiques un peu
+plus volumineux qu’avec Git. L’intégration reste à faire après validation du
+format et des maquettes. A.4 n’est pas clos.
 
 - Préciser le contrat de conservation de l’arbre documentaire, de Yjs et du
   Typst généré avec les snapshots avant de stabiliser le format public du .typsto.
@@ -154,14 +156,11 @@ moteur reste à valider avant le format et les maquettes. A.4 n’est pas clos.
   une action explicite sur l’état courant, jamais sur le snapshot conservé.
   La validation partielle MCP relève du lot dédié F, sans conditionner la clôture
   d’A.4 ; le mode relecture J conserve ses outils dédiés.
-- Séparer stockage des états et calcul des différences. **Git local embarqué
-  est une piste à évaluer, pas une dépendance choisie**, sans serveur GitHub ni
-  connaissance de Git demandée à l’utilisateur. Comparer cette piste à un
-  stockage de snapshots et une bibliothèque de diff existante. Git éventuel
-  ne remplace pas Yjs pour l’édition collaborative.
+- Séparer stockage CAS et calcul des différences : évaluer une bibliothèque de
+  diff existante et l’adaptation au contenu structuré, sans introduire Git pour
+  afficher les changements. Yjs/Yrs reste le moteur de l’édition collaborative.
 - Maîtriser le poids du projet : étudier la déduplication des ressources et
-  leur référencement immuable par snapshot. Exclure assets/ d’un éventuel dépôt
-  Git ne doit pas permettre de perdre les images d’un état conservé. Définir
+  leur référencement immuable par snapshot dans le CAS. Définir
   rétention, suppression et nettoyage ; une ressource utile à un snapshot
   conservé reste dans le .typsto. L’export Typst/PDF porte sur l’état choisi,
   sans embarquer inutilement les ressources des autres états.
@@ -177,7 +176,7 @@ les commandes ordinaires : la comparaison avec le snapshot ne les remplace pas.
 A.4 prépare ce socle sans avancer l’implémentation ni la maquette de J.
 
 **Choix à valider pour A.4 :** périmètre et moment de stabilisation du format.
-Pour les snapshots : autres déclencheurs éventuels, stockage, comparaison,
+Pour les snapshots : autres déclencheurs éventuels, schéma CAS, comparaison,
 parcours détaillés de restauration, puis droits et coordination en collaboration.
 Préciser avec J la conservation des suggestions/commentaires, leur devenir lors
 d’une restauration et la rétention du snapshot de référence après la clôture
@@ -593,8 +592,8 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Valider le stockage d’A.4 à partir du [bilan comparatif](docs/a4-snapshot-storage-evaluation.md),
-   puis préciser le format et maquetter Versions, comparaison et restauration,
+1. Le CAS étant retenu après le [bilan comparatif](docs/a4-snapshot-storage-evaluation.md),
+   valider le format puis maquetter Versions, comparaison et restauration,
    en anticipant la relecture J avant l’implémentation.
 2. Terminer A avec A.5 : documentation, nettoyage et recette depuis un checkout propre.
 3. Reprendre ensuite le périmètre administratif restant, un type à la fois,

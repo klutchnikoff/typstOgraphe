@@ -107,11 +107,10 @@ L’[expérience isolée de stockage](docs/a4-snapshot-storage-evaluation.md) es
 Git embarqué et stockage d’états à ressources dédupliquées, mêmes corpus Courrier,
 Article et Article allongé, 20/100 versions, taille, création, ouverture,
 suppression et intégrité. Les deux candidats utilisent une lecture sélective et
-des manifestes de ressources partagés. Recommandation à valider : objets
-dédupliqués, plus rapides à publier et ouvrir, en acceptant des historiques plus
-volumineux qu’avec Git. Aucun moteur n’est adopté dans la production. Choisir
-après examen du bilan, puis préciser le format, maquetter et implémenter Versions
-et la comparaison commune ; cette expérience ne clôt pas A.4.
+des manifestes de ressources partagés. **Choix validé après examen du bilan : CAS**,
+plus rapide à publier et ouvrir, en acceptant des historiques plus volumineux
+qu’avec Git. Le format et les maquettes précèdent l’intégration de production,
+encore à faire. Git reste dans l’expérience isolée. Cette décision ne clôt pas A.4.
 
 Définir un état cohérent incluant contenu structuré, métadonnées, réglages,
 modèle, dépendances et ressources, avec identité stable, date de création
@@ -126,10 +125,10 @@ conservation ; une capture de l’état collaboratif binaire et une comparaison
 lisible du contenu répondent à des besoins distincts. Ne pas assimiler le
 snapshot à une commande d’annulation ou à la copie de récupération.
 
-Comparer Git embarqué local à un stockage de snapshots avec bibliothèque de
-diff : dépendances, taille, temps de création/lecture, empaquetage dans le
-.typsto et intégrité après incident. Aucun moteur n’est choisi ; ne pas
-introduire de service Git distant ou remplacer la synchronisation Yjs.
+Le CAS stocke les états et ressources immuables dans le `.typsto`, avec lecture
+sélective et manifestes de ressources dédupliqués. Séparer ce stockage du moteur
+de différences ; aucune dépendance Git dans la production, aucun changement du
+moteur Yjs/Yrs pour la synchronisation.
 Évaluer la comparaison documentaire par blocs, texte, annotations, métadonnées
 et ressources, sans exposer les différences d’octets Yjs à l’utilisateur.
 
@@ -155,7 +154,7 @@ Les outils d’annotations de J restent dédiés au mode relecture.
 Étudier un stockage de ressources immuables identifiées par leur contenu,
 partagées entre états : une image remplacée doit rester accessible depuis
 son ancien snapshot. Le nettoyage prend en compte l’état courant et tous les
-snapshots retenus ; ignorer assets/ dans Git ne dispense pas de cette garantie.
+snapshots retenus, indépendamment des ressources visibles dans l’état courant.
 Préciser les parcours de suppression explicite avant de stabiliser le schéma de
 l’archive ; aucune rétention automatique ne supprime de version au départ.
 
