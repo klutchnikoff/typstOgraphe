@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
 import articleBadges from '../../../fixtures/comparison-article-badges.json' with { type: 'json' }
 async function ready(page: Page) {
   await page.request.post('/__spike/invoke', { data: { command: 'reset', peer: 'main', args: {} } })
@@ -149,6 +150,61 @@ test('neighboring paragraph edits can be resumed and refused independently', asy
   expect(paragraphs.slice(0, 2)).toEqual(['Original one', 'New Stable anchor'])
   await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
 })
+test('selecting a complete version remains provisional, preserves the file binding and undoes in one step', async ({
+  page,
+}) => {
+  await ready(page)
+  const original = await page.evaluate(() => window.__spike!.editor.getText())
+  await page.locator('.side-rail [data-command="ui.versions"]').click()
+  await capture(page, 'Original')
+  await writing(page, 'Current one', 'Current two')
+  await capture(page, 'Saved current')
+  const current = await page.evaluate(() => window.__spike!.editor.getText())
+  const joined = await page.evaluate(() =>
+    window.__spike!.provider.transport.invoke<import('../../src/provider').Bootstrap>('join'),
+  )
+  expect(joined.filePath).toBeTruthy()
+  const disk = await readFile(joined.filePath!)
+  await page.locator('.versions-groups [data-version]').filter({ hasText: 'Original' }).click()
+  const dialog = page.locator('.version-dialog[open]')
+  await dialog.getByRole('tab', { name: 'Comparer', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Tout sélectionner à gauche', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  await expect(dialog.locator('[data-side="before"][aria-checked="true"]')).toHaveCount(2)
+  await expect(
+    dialog.getByRole('button', { name: 'Tout sélectionner à gauche', exact: true }),
+  ).toBeFocused()
+  expect(await page.evaluate(() => window.__spike!.editor.getText())).toBe(current)
+  await page.keyboard.press('ArrowRight')
+  await expect(
+    dialog.getByRole('button', { name: 'Tout sélectionner à droite', exact: true }),
+  ).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(dialog.locator('[data-side="after"][aria-checked="true"]')).toHaveCount(2)
+  await dialog.getByRole('button', { name: 'Tout sélectionner à gauche', exact: true }).click()
+  await dialog.getByRole('tab', { name: 'Contenu', exact: true }).click()
+  await dialog.getByRole('tab', { name: 'Comparer', exact: true }).click()
+  await expect(dialog.locator('[data-side="before"][aria-checked="true"]')).toHaveCount(2)
+  await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click()
+  await expect(dialog).toContainText('Choix appliqués. Vous pouvez enregistrer le document.')
+  expect(await page.evaluate(() => window.__spike!.editor.getText())).toBe(original)
+  const after = await page.evaluate(() =>
+    window.__spike!.provider.transport.invoke<import('../../src/provider').Bootstrap>('join'),
+  )
+  expect(after.generation).toBe(joined.generation)
+  expect(after.filePath).toBe(joined.filePath)
+  expect(after.recoveredName).toBeNull()
+  expect(await readFile(joined.filePath!)).toEqual(disk)
+  await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
+  await expect(page.locator('.versions-groups [data-version]')).toHaveCount(2)
+  await expect(page.locator('.recovered-document-line')).toHaveCount(0)
+  await page.locator('.writing .tiptap').click()
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect.poll(() => page.evaluate(() => window.__spike!.editor.getText())).toBe(current)
+  await page.keyboard.press('ControlOrMeta+Shift+z')
+  await expect.poll(() => page.evaluate(() => window.__spike!.editor.getText())).toBe(original)
+  expect(await readFile(joined.filePath!)).toEqual(disk)
+})
 test('keeping every green choice leaves writing and undo history unchanged', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -242,12 +298,14 @@ test('Article snapshots show deleted and inserted words beside a citation in lig
     const green = dialog.locator('[data-group="0"] [data-side="after"]')
     await expect(green).toHaveAttribute('aria-checked', 'true')
     await expect(green.locator('svg path')).toHaveAttribute('d', 'M20 6 9 17l-5-5')
-    await expect(red.locator('svg circle')).toHaveCount(1)
+    await expect(red.locator('svg path')).toHaveCount(2)
+    await expect(red.locator('svg path').first()).toHaveAttribute('d', 'M18 6 6 18')
     await red.click()
     await expect(red).toHaveAttribute('aria-checked', 'true')
     await expect(green).toHaveAttribute('aria-checked', 'false')
     await expect(red.locator('svg path')).toHaveAttribute('d', 'M20 6 9 17l-5-5')
-    await expect(green.locator('svg circle')).toHaveCount(1)
+    await expect(green.locator('svg path')).toHaveCount(2)
+    await expect(green.locator('svg path').first()).toHaveAttribute('d', 'M18 6 6 18')
     const activeColor = await red.evaluate((node) => ({
       background: getComputedStyle(node).backgroundColor,
       color: getComputedStyle(node).color,
@@ -321,6 +379,10 @@ test('MCP proposals use the same modal, partial decisions and human-only publica
   })
   const dialog = page.locator('.version-dialog[open]')
   await expect(dialog.locator('.comparison-group')).toHaveCount(2)
+  await dialog.getByRole('button', { name: 'Tout sélectionner à gauche', exact: true }).click()
+  await expect(dialog.locator('[data-side="before"][aria-checked="true"]')).toHaveCount(2)
+  await dialog.getByRole('button', { name: 'Tout sélectionner à droite', exact: true }).click()
+  await expect(dialog.locator('[data-side="after"][aria-checked="true"]')).toHaveCount(2)
   await dialog.locator('[data-group="1"] [data-side="before"]').click()
   expect(await page.evaluate(() => window.__spike!.editor.getText())).not.toContain('Proposed ')
   await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click()
