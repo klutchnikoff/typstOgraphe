@@ -14,6 +14,8 @@ pub struct Transition {
     pub acknowledged: HashSet<String>,
     pub errors: HashMap<String, String>,
     pub abandon: HashSet<String>,
+    #[serde(skip_serializing)]
+    checkpoints: HashMap<String, (u64, u64)>,
 }
 impl Transition {
     pub fn ready(&self) -> bool {
@@ -45,6 +47,7 @@ impl Session {
             acknowledged: HashSet::new(),
             errors: HashMap::new(),
             abandon: HashSet::new(),
+            checkpoints: self.draft_epochs.clone(),
         };
         self.transition = Some(value.clone());
         Ok(value)
@@ -54,19 +57,22 @@ impl Session {
         window: &str,
         ack: Acknowledgement,
     ) -> Result<(), String> {
-        let conserved = self
-            .draft_epochs
-            .get(window)
-            .is_some_and(|(_, sequence)| *sequence > 0);
-        if ack.error.is_none() && !conserved && self.opened {
-            return Err("recovery_transition_not_conserved".into());
-        }
         let value = self
             .transition
             .as_mut()
             .ok_or("recovery_transition_obsolete")?;
         if value.id != ack.id || !value.windows.contains(window) {
             return Err("recovery_transition_obsolete".into());
+        }
+        let conserved = self.draft_epochs.get(window).is_some_and(|current| {
+            current.1 > 0
+                && value
+                    .checkpoints
+                    .get(window)
+                    .is_none_or(|previous| current.0 != previous.0 || current.1 > previous.1)
+        });
+        if ack.error.is_none() && !conserved && self.opened {
+            return Err("recovery_transition_not_conserved".into());
         }
         if let Some(error) = ack.error {
             value.errors.insert(window.into(), error);
@@ -83,7 +89,8 @@ impl Session {
             .transition
             .as_ref()
             .ok_or("recovery_transition_obsolete")?;
-        if value.id != id {
+        if value.id != id || value.generation != self.generation || value.revision != self.revision
+        {
             return Err("recovery_transition_obsolete".into());
         }
         Ok(value.clone())

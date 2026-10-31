@@ -111,6 +111,11 @@ pub(super) fn open_project(
     {
         let mut current = session.lock().map_err(|e| e.to_string())?;
         current.lifecycle(revision)?;
+        // Reading and compiling happen outside the session lock. A different
+        // process may have replaced the target while either was in progress.
+        lease
+            .check()
+            .map_err(|e| typstographe_i18n::command_error(&e))?;
         current.mark_clean()?;
         current.file_lease = Some(lease);
         current.replace(

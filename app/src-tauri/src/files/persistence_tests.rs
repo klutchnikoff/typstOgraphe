@@ -385,3 +385,31 @@ fn failed_recovery_cleanup_cannot_discard_the_open_document_or_original_draft() 
 mod lifecycle_tests;
 #[path = "resource_tests.rs"]
 mod resource_tests;
+
+#[test]
+fn external_replacement_during_open_validation_cannot_publish_or_clean_the_current_work() {
+    let f = Fixture::new();
+    f.save(&f.path());
+    f.make_dirty();
+    let other = Fixture::new();
+    other.save(&other.path());
+    other.session.lock().unwrap().file_lease = None;
+    let before = f.fingerprint();
+    let recovery = std::fs::read(f.recovery_path()).unwrap();
+    let revision = f.session.lock().unwrap().revision;
+    assert!(
+        open_project(&f.session, &other.path(), revision, |_, _, _| {
+            std::fs::write(other.path(), b"A newer external version").unwrap();
+            Ok(())
+        })
+        .is_err()
+    );
+    assert_eq!(f.fingerprint(), before);
+    assert_eq!(std::fs::read(f.recovery_path()).unwrap(), recovery);
+    assert_eq!(
+        std::fs::read(other.path()).unwrap(),
+        b"A newer external version"
+    );
+    assert!(DocumentLease::acquire(&f.path()).is_err());
+    assert!(DocumentLease::acquire(&other.path()).is_ok());
+}

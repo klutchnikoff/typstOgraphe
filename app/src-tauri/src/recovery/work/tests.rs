@@ -290,3 +290,33 @@ fn a_closed_views_private_copy_remains_available_while_other_views_stay_open() {
     assert_eq!(entries[0].window, "closed");
     assert!(!s.work_list().unwrap().iter().any(|e| e.window == "main"));
 }
+
+#[test]
+fn an_old_checkpoint_cannot_acknowledge_a_new_transition() {
+    use super::super::transition::Acknowledgement;
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = setup(dir.path());
+    conserve(&mut s, "main", "Written before the transition");
+    let transition = s.begin_transition("main", &s.generation.clone()).unwrap();
+    let acknowledgement = || Acknowledgement {
+        id: transition.id.clone(),
+        error: None,
+        abandon: false,
+    };
+    assert_eq!(
+        s.acknowledge_transition("main", acknowledgement())
+            .unwrap_err(),
+        "recovery_transition_not_conserved"
+    );
+    let path = drafts::path(&s.root, &s.generation, "main").unwrap();
+    let mut input = drafts::read(&path).unwrap().input;
+    input.sequence += 1;
+    s.conserve_private("main", input).unwrap();
+    s.acknowledge_transition("main", acknowledgement()).unwrap();
+    assert!(s.transition_status(&transition.id).unwrap().ready());
+    s.revision += 1;
+    assert_eq!(
+        s.transition_status(&transition.id).err().unwrap(),
+        "recovery_transition_obsolete"
+    );
+}
