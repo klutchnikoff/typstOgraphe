@@ -90,8 +90,14 @@ aux autres états conservés.
 ### A.4 Snapshots durables — P1
 
 Définir un état cohérent incluant contenu structuré, métadonnées, réglages,
-modèle, dépendances et ressources, avec identité, nom, date, auteur du snapshot
-et description facultative. Préciser les données Yjs nécessaires à sa
+modèle, dépendances et ressources, avec identité stable, date de création
+automatique, nom libre modifiable, tags facultatifs, auteur du snapshot et
+description facultative. Proposer un nom daté par défaut sans imposer de
+numérotation de version ; permettre le classement chronologique indépendamment
+du nom et des tags. Conserver l’instant de création sans ambiguïté de fuseau
+horaire et l’afficher selon la locale de l’interface. L’auteur du snapshot n’est
+pas nécessairement celui de toutes les modifications conservées.
+Préciser les données Yjs nécessaires à sa
 conservation ; une capture de l’état collaboratif binaire et une comparaison
 lisible du contenu répondent à des besoins distincts. Ne pas assimiler le
 snapshot à une commande d’annulation ou à la copie de récupération.
@@ -118,14 +124,18 @@ aussi archive incomplète, suppression d’un snapshot et absence de nettoyage
 des ressources encore référencées. Une politique de nettoyage de l’historique
 ne doit pas dépendre du seul état courant.
 
-**Articulation avec J :** la piste retenue propose un snapshot manuel à l’entrée
-en relecture, sans création automatique heuristique. Un snapshot peut fournir un
-état de référence durable et comparable ; il ne remplace ni les annotations
+**Articulation avec J — règle retenue :** le démarrage d’une nouvelle relecture
+crée automatiquement un snapshot de l’état initial et rattache la relecture à
+son identité stable. Conserver cette référence inchangée pendant toute la
+relecture et empêcher sa suppression tant que celle-ci est en cours. La reprise
+d’une relecture existante ou la réouverture de son panneau ne crée pas un nouveau
+snapshot. Ce déclencheur explicite n’introduit aucune création automatique
+heuristique. La référence durable et comparable ne remplace ni les annotations
 ancrées de suggestion, ni leurs commandes d’acceptation/refus sous garde.
 
-Avant de coder, préciser ensemble les liens éventuels entre relecture et snapshot
-de référence, la conservation des suggestions/commentaires et leurs ressources,
-ainsi que leur devenir après restauration ou suppression d’un snapshot. Distinguer
+Avant de coder, préciser ensemble la conservation des suggestions/commentaires
+et de leurs ressources, leur devenir après restauration, ainsi que la rétention
+du snapshot de référence après clôture de la relecture. Distinguer
 ces données du contenu confirmé. Prévoir les cas de cibles modifiées, d’ancres
 orphelines et de propositions MCP périmées, sans inventer dès A.4 une politique
 de réapplication automatique. Ces arbitrages et la maquette du mode restent dans
@@ -409,9 +419,11 @@ relecture humaine textuelle ne dépend pas d’ACP. Distinguer aperçu confirmé
 aperçu candidat explicitement signalé ; revérifier le contenu cible avant toute
 acceptation si l’auteur l’a modifié.
 
-A.4 prépare les snapshots utilisables comme points de référence : snapshot manuel
-proposé à l’entrée en relecture, sans création automatique heuristique. Les liens
-avec les suggestions, leur conservation et l’effet d’une restauration ou suppression
-de snapshot restent à préciser ensemble dans A.4/J. Le calcul de différences entre
+A.4 prépare la référence de chaque relecture : créer automatiquement un snapshot
+au démarrage d’une nouvelle relecture, le lui rattacher et le conserver inchangé
+pendant toute sa durée, en empêchant sa suppression tant qu’elle est en cours.
+La reprise ne recrée pas de snapshot ; aucun déclencheur heuristique n’est prévu.
+La conservation des suggestions, l’effet d’une restauration et la rétention de la
+référence après clôture restent à préciser ensemble dans A.4/J. Le calcul de différences entre
 snapshots et les suggestions ancrées ont des rôles distincts ; la relecture ne se
 réduit pas à un retour global à une ancienne version.

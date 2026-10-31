@@ -103,9 +103,12 @@ aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
 - Conserver dans le projet des états cohérents et identifiables, consultables
   hors ligne. Chaque état doit retrouver son contenu, ses métadonnées et réglages, son modèle,
   ses dépendances et les ressources nécessaires au rendu, y compris une image
-  remplacée ou supprimée depuis. Prévoir nom, date, auteur du snapshot et
-  description facultative ; ne pas confondre création du snapshot et attribution
-  de toutes les modifications à cette personne.
+  remplacée ou supprimée depuis. Chaque snapshot possède une date de création
+  enregistrée automatiquement pour le classement chronologique, un nom libre
+  modifiable (par exemple « v1 » ou « Soumission », avec un nom daté proposé par
+  défaut), des tags facultatifs et une description facultative. Aucune numérotation
+  de version n’est imposée. Conserver l’auteur du snapshot sans lui attribuer
+  toutes les modifications de l’état conservé.
 - Distinguer snapshots durables, annuler/rétablir en séance et récupération
   après incident. Prévoir consultation en lecture seule, comparaison et retour
   à un état conservé sans effacer l’historique. Maquetter et valider le parcours
@@ -122,19 +125,23 @@ aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
   conservé reste dans le .typsto. L’export Typst/PDF porte sur l’état choisi,
   sans embarquer inutilement les ressources des autres états.
 
-**Lien avec la relecture J — piste déjà retenue :** proposer un snapshot manuel
-à l’entrée en relecture, sans snapshots automatiques heuristiques. Il peut servir
-de point de référence conservé et comparable ; les suggestions restent des annotations
-ancrées distinctes du contenu, acceptées ou refusées par les commandes ordinaires.
-La comparaison de versions ne remplace pas ces suggestions. A.4 prépare ce socle
-sans avancer l’implémentation ni la maquette du mode de relecture J.
+**Lien avec la relecture J — règle retenue :** démarrer une nouvelle relecture
+crée automatiquement un snapshot de l’état initial et rattache la relecture à
+cette référence. Ce snapshot reste conservé et inchangé pendant toute sa durée ;
+il ne peut pas être supprimé tant que la relecture est en cours. Rouvrir une
+relecture existante ou son panneau ne crée pas un autre snapshot. Ce déclencheur
+explicite ne suppose pas de snapshots automatiques heuristiques. Les suggestions
+restent des annotations ancrées distinctes du contenu, acceptées ou refusées par
+les commandes ordinaires : la comparaison avec le snapshot ne les remplace pas.
+A.4 prépare ce socle sans avancer l’implémentation ni la maquette de J.
 
 **Choix à valider pour A.4 :** périmètre et moment de stabilisation du format.
-Pour les snapshots : déclenchement manuel/automatique, stockage, comparaison,
+Pour les snapshots : autres déclencheurs éventuels, stockage, comparaison,
 rétention et restauration, puis droits et coordination en collaboration.
-Préciser avec J le lien éventuel d’une relecture avec un snapshot de référence,
-la conservation des suggestions/commentaires et leur devenir lors d’une restauration
-ou de la suppression d’un snapshot. Ces règles ne sont pas encore décidées.
+Préciser avec J la conservation des suggestions/commentaires, leur devenir lors
+d’une restauration et la rétention du snapshot de référence après la clôture
+d’une relecture. Ces règles restent à décider ; la référence initiale et les
+métadonnées des snapshots ci-dessus sont retenues.
 Aucune couche de rétrocompatibilité préventive pendant cette phase préliminaire.
 
 ### A.5 — Documentation, nettoyage et recette finale
@@ -507,10 +514,13 @@ version, puis être peaufinée.
   font déjà partie. Un aperçu candidat distinct et explicitement identifié peut
   appliquer les suggestions encore en attente sur un état dérivé, sans les
   accepter. Un aperçu marqué pour l’auteur reste à décider.
-- Snapshot manuel proposé à l’entrée en relecture ; pas de snapshots automatiques
-  heuristiques. A.4 fournit le point de référence durable et sa comparaison,
-  tandis que les suggestions restent des objets distincts. Le lien avec ce
-  snapshot, leur conservation et leur devenir après restauration restent à valider
+- Créer automatiquement un snapshot au démarrage d’une nouvelle relecture et
+  le lui rattacher comme référence initiale, conservée sans modification pendant
+  toute sa durée et protégée de la suppression tant qu’elle est en cours. Reprendre
+  une relecture ne recrée pas ce snapshot ; aucun déclencheur heuristique n’est
+  prévu. A.4 fournit cette référence durable et sa comparaison, tandis que les
+  suggestions restent des objets distincts. Leur conservation, leur devenir après
+  restauration et la rétention de la référence après clôture restent à valider
   ensemble dans A.4/J.
 - La relecture humaine ne dépend pas de la livraison d’ACP : son contrat commun
   de suggestions peut être préparé indépendamment et raccordé ensuite aux agents.
