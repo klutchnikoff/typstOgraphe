@@ -232,9 +232,15 @@ atomique avec nettoyage des seuls objets inaccessibles. Les dépendances épingl
 sont vérifiées sans le catalogue installé. Les tests couvrent conservation,
 corruption, cohérence Yjs/JSON/Typst, quotas et gardes de fichier.
 Voir le [bilan du lot](docs/a4-storage-core.md).
-**Prochain lot : A.4.2**, raccordement des adaptateurs et de la récupération.
-L’application reste en format 10 jusqu’à ce raccordement ; aucune commande ni
-interface Versions n’est encore activée. A.4 n’est pas terminé.
+**A.4.2 livré :** Tauri, CLI et MCP conservent désormais le propriétaire CAS,
+son identité et toutes ses racines retenues. Les sauvegardes utilisent le format 11 ;
+le lecteur/écrivain de format 10 est retiré. La récupération privée transporte
+l’historique et les dépendances épinglées, avec la saisie confirmée la plus récente.
+Une copie indépendante reçoit un nouvel UUID en conservant ses versions.
+L’exemple Article est régénéré depuis sa version Git. Voir le
+[bilan de raccordement](docs/a4-storage-adapters.md).
+**Suite :** commandes et interface Versions, puis comparaison commune et
+restauration dans une session active. A.4 n’est pas terminé.
 
 ### A.5 — Documentation, nettoyage et recette finale
 

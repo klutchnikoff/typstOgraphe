@@ -109,13 +109,17 @@ versions et références internes séparées, préparation immuable puis sauvega
 atomique sous garde. Validation des packages à partir de l’inventaire embarqué,
 sans dépendance au catalogue installé. Recettes et limites dans le
 [bilan A.4.1](docs/a4-storage-core.md).
-**A.4.2 — raccordement :** faire conserver ce propriétaire par Tauri/CLI/MCP et
-la récupération, puis retirer le stockage de format 10. L’audit montre que les
-sauvegardes reconstruisent aujourd’hui une archive de l’état courant ; ne pas
-basculer le format avant de conserver aussi l’historique. Cette séquence de lots
-n’est pas une exigence de rétrocompatibilité : un seul lecteur de production
-reste après le raccordement. Les choix de restauration partagée et du diff
-seront validés avant leurs lots respectifs.
+**A.4.2 — raccordement livré :** Tauri et la session commune CLI/MCP possèdent
+le `Project` CAS au lieu de reconstruire une archive isolée à chaque sauvegarde.
+Un seul lecteur/écrivain de production subsiste : format 11. Sauvegarde ordinaire,
+copie indépendante, lots atomiques et récupération préservent identité/historique
+selon leur contrat. Aperçu, validation de modèle et export utilisent les dépendances
+épinglées du projet, sans les remplacer par le catalogue installé.
+La récupération privée conserve un contexte CAS autonome mis en cache et les
+JSON/Yjs confirmés les plus récents ; formulaires et propositions restent privés.
+Voir le [bilan A.4.2](docs/a4-storage-adapters.md).
+Les commandes et l’interface Versions, la restauration partagée et la comparaison
+commune restent à développer ; leurs choix seront validés avant leurs lots respectifs.
 
 Avant toute restauration, créer une version automatique de sauvegarde de l’état
 courant ; publier explicitement l’état restauré sans supprimer les autres versions.

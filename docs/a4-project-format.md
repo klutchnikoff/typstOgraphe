@@ -1,13 +1,13 @@
 # A.4 — Format cible du projet `.typsto`
 
-**Statut : stockage du cœur A.4.1 implémenté le 31 octobre 2026 ; raccordement A.4.2 à faire.**
+**Statut : stockage A.4.1 et raccordement Tauri/CLI/MCP/récupération A.4.2 implémentés le 31 octobre 2026.**
 Le **CAS est retenu** après [évaluation](a4-snapshot-storage-evaluation.md).
 L’organisation ci-dessous est implémentée par `content::project::Project`.
-Elle n’est pas encore le format lu ou écrit par les adaptateurs de l’application,
-qui utilisent toujours la version 10.
+Tauri, CLI et MCP lisent et écrivent ce même format 11 ; le lecteur/écrivain
+de format 10 a été retiré.
 La version 11 est retenue pour cette rupture, sans lecteur de compatibilité
 préventif ni conversion silencieuse des anciens projets de développement.
-Les exemples seront régénérés explicitement au moment de l’intégration.
+L’exemple Article a été régénéré explicitement depuis son contenu versionné.
 
 ## Conteneur et organisation
 
@@ -122,8 +122,10 @@ licences et provenance conservés. Les références explicites du modèle doiven
 être présentes. Le manifeste de ressources fixe les empreintes de tous les
 fichiers fournis, y compris les locales chargées dynamiquement.
 Une recette compile hors ligne un projet avec un package fictif absent du
-catalogue installé. L’ancien validateur reste seulement dans la voie de format 10,
-à retirer lors d’A.4.2. Les empreintes contrôlent l’intégrité des octets conservés ;
+catalogue installé. `Archive` ne réalise plus d’entrées/sorties ; il valide une
+charge documentaire et son inventaire épinglé. La résolution du catalogue sert
+à un nouveau modèle, pas à la réouverture du projet. Les empreintes contrôlent
+l’intégrité des octets conservés ;
 elles ne certifient pas l’origine ou l’authenticité d’un package.
 
 Conserver les sources et ressources ne revient pas à embarquer les binaires de
@@ -362,8 +364,24 @@ Les objets sont copiés successivement ; la lecture ne décompresse pas l’ense
 des anciennes versions. Les vues encore vivantes gardent leur fichier source
 ouvert même après son remplacement atomique.
 
-Cette API n’active ni commandes utilisateur, ni restauration dans une session
-partagée, ni interface Versions. A.4.2 doit faire conserver ce propriétaire par
-Tauri/CLI/MCP et la récupération, puis retirer le stockage de format 10 et
-régénérer explicitement les exemples. Les états privés MCP et le cycle de vie
+Tauri/CLI/MCP conservent ce propriétaire durant la session. Enregistrer garde
+l’identité ; Enregistrer sous ou une copie indépendante d’un projet déjà enregistré
+crée un nouvel UUID et conserve les identifiants des versions. Le premier
+Enregistrer d’un projet neuf garde son identité initiale. Un brouillon récupéré
+n’acquiert pas de verrou sur le chemin d’origine ; une copie issue d’un projet
+précédemment enregistré reçoit donc une nouvelle identité lors de sa sauvegarde.
+
+La récupération privée utilise le schéma `typstographe-web-editor-v2` : un champ
+`project` obligatoire contient une archive CAS 11 compressée et encodée en base64,
+ainsi que `saved_origin`. Ce contexte est mis en cache par propriétaire et modèle,
+sans recompression de l’historique à chaque frappe. Le JSON/Yjs confirmé et les
+images courantes du checkpoint remplacent son ancien état courant à la reprise ;
+le modèle et son identifiant doivent correspondre au contexte épinglé. Le fichier
+d’origine n’est pas nécessaire. L’enveloppe JSON est bornée à 1 Gio pour inclure
+l’archive encodée et la saisie ; les limites documentaires, Yjs, images et saisies
+privées restent appliquées séparément. Le lecteur contrôle aussi la taille sur
+disque avant lecture. Aucun formulaire privé ne devient un état documentaire.
+
+Cette API n’active ni commandes Versions, ni restauration dans une session
+partagée, ni interface Versions. Les états privés MCP et le cycle de vie
 des relectures restent à raccorder dans leurs lots respectifs.

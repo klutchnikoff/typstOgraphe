@@ -87,14 +87,13 @@ incrémentaux reconstruits pendant ces contrôles ont été nettoyés, puis la r
 de reconnexion a été relancée seule, en séquentiel et sans nouveau cache
 incrémental. Aucun fichier source, rapport ou résultat d’évaluation n’a été supprimé.
 
-## Suite : A.4.2
+## Raccordement A.4.2
 
-Le stockage **n’est pas encore activé dans Tauri/CLI/MCP**. Ces adaptateurs
-continuent à utiliser le format 10 ; aucun projet n’est converti silencieusement.
-Leur sauvegarde actuelle reconstruit une archive de l’état courant. Avant de
-basculer, il faut leur faire conserver l’identité, l’index et les objets retenus,
-y compris dans la récupération et les copies. Le lecteur/écrivain de format 10
-sera alors retiré et les exemples régénérés explicitement.
+Le propriétaire CAS est désormais conservé par Tauri/CLI/MCP et la récupération.
+Le format 11 remplace le lecteur/écrivain de format 10, retiré du projet.
+L’exemple Article a été régénéré explicitement depuis son contenu Git.
+Le [bilan A.4.2](a4-storage-adapters.md) décrit identité, copies, dépendances
+épinglées et récupération autonome.
 
 L’interface Versions, les commandes publiques, la restauration dans une session
 active et la comparaison commune suivent ce raccordement. Le cycle de vie des
