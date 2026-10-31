@@ -3,15 +3,7 @@ import * as Y from 'yjs'
 import { documentContent } from './shared-inline-marks'
 import { settingsFor } from './state'
 import { stableJSON, type Bootstrap, type Provider, type Transport } from './provider'
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-async function until(check: () => boolean | Promise<boolean>, label: string) {
-  const deadline = Date.now() + 30000
-  while (!(await check())) {
-    if (Date.now() > deadline) throw new Error(`Closure timeout: ${label}`)
-    await wait(50)
-  }
-}
+import { until, clickControl, comparisonDialog, finishComparison } from './closure-controls'
 function append(editor: Editor, text: string) {
   editor.commands.setTextSelection(editor.state.doc.content.size - 1)
   editor.view.focus()
@@ -34,6 +26,24 @@ export async function closureDiagnostic(
     { once: true },
   )
   const steps: string[] = []
+  const controls = () => ({
+    revision: provider.revision,
+    editable: editor.isEditable,
+    historyBusy: provider.historyBusy,
+    online: provider.online,
+    history: provider.historyState,
+    focused: document.activeElement?.outerHTML.slice(0, 300),
+    dialogs: [...document.querySelectorAll('dialog')].map((dialog) => ({
+      open: dialog.open,
+      text: dialog.textContent?.slice(-1500),
+      buttons: [...dialog.querySelectorAll('button')].map((button) => ({
+        action: button.dataset.action,
+        text: button.textContent,
+        disabled: button.disabled,
+        inert: !!button.closest('[inert]'),
+      })),
+    })),
+  })
   const progress = (phase: string) =>
     transport.invoke('diagnostic_event', {
       target: provider.id,
@@ -171,25 +181,26 @@ export async function closureDiagnostic(
         () => !!document.querySelector('[data-action="validate-comparison"]'),
         'comparison',
       )
-      const validate = document.querySelector<HTMLButtonElement>(
+      const review = comparisonDialog()
+      const validate = review.querySelector<HTMLButtonElement>(
         '[data-action="validate-comparison"]',
       )!
       if (validate.disabled || !validate.textContent?.startsWith('Appliquer '))
         throw new Error('Missing explicit change count')
-      validate.click()
+      await clickControl(review, '[data-action="validate-comparison"]', 'proposal application')
       await until(() => editor.getText().includes('[MCP-ACCEPTED]'), 'published lot')
-      const dialog = document.querySelector('dialog.version-dialog')!
-      const close = [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Fermer')!
-      close.click()
+      await finishComparison(review)
+      await provider.flush(false)
       await provider.refreshHistory()
       if (stableJSON(editor.state.selection.toJSON()) !== stableJSON(selection))
         throw new Error('Human selection moved')
       if (provider.historyState.undo_steps !== undo + 1)
         throw new Error('MCP lot is not one undo step')
       const accepted = stableJSON(state())
-      editor.commands.undo()
+      editor.view.focus()
+      if (!editor.commands.undo()) throw new Error('Whole-lot undo is unavailable')
       await until(() => stableJSON(state()) === before, 'single whole-lot undo')
-      editor.commands.redo()
+      if (!editor.commands.redo()) throw new Error('Whole-lot redo is unavailable')
       await until(() => stableJSON(state()) === accepted, 'whole-lot redo')
       if (provider.synchronization?.enabled) throw new Error('Agent enabled human presence')
       steps.push(
@@ -221,7 +232,7 @@ export async function closureDiagnostic(
       const modified = stableJSON(state())
       await progress('versions.edited')
       const catalogue = await transport.invoke<import('./shell').Catalogue>('content_catalogue')
-      const viewer = versionDialog({
+      versionDialog({
         record,
         index: created,
         api,
@@ -229,37 +240,20 @@ export async function closureDiagnostic(
         returnFocus: () => undefined,
         changed: () => {},
       })
-      await until(() => !!document.querySelector('.version-prose'), 'version content')
-      ;(document.querySelector('[data-view="compare"]') as HTMLButtonElement).click()
-      await until(
-        () => !!document.querySelector('[data-action="select-all-before"]'),
-        'version comparison',
-      )
-      ;(document.querySelector('[data-action="select-all-before"]') as HTMLButtonElement).click()
-      ;(document.querySelector('[data-action="validate-comparison"]') as HTMLButtonElement).click()
+      const dialog = comparisonDialog()
+      await until(() => !!dialog.querySelector('.version-prose'), 'version content')
+      await clickControl(dialog, '[data-view="compare"]', 'version comparison tab')
+      await clickControl(dialog, '[data-action="select-all-before"]', 'version comparison')
+      await clickControl(dialog, '[data-action="validate-comparison"]', 'version application')
       await until(() => stableJSON(state()) === reference, 'version reprise')
       await progress('versions.content-installed')
-      await until(
-        () =>
-          document.querySelector('[data-comparison-summary]')?.textContent ===
-          'Choix appliqués. Vous pouvez enregistrer le document.',
-        'version application acknowledgement',
-      )
-      await until(
-        () =>
-          !!document.querySelector<HTMLButtonElement>(
-            '.version-dialog .version-footer .primary:not(:disabled)',
-          ),
-        'version close enabled',
-      )
-      viewer.destroy()
-      await until(() => !document.querySelector('dialog.version-dialog'), 'version modal close')
+      await finishComparison(dialog)
       await progress('versions.closed')
       editor.view.focus()
-      editor.commands.undo()
+      if (!editor.commands.undo()) throw new Error('Version undo is unavailable')
       await until(() => stableJSON(state()) === modified, 'version undo')
       await progress('versions.undone')
-      editor.commands.redo()
+      if (!editor.commands.redo()) throw new Error('Version redo is unavailable')
       await until(() => stableJSON(state()) === reference, 'version redo')
       await progress('versions.redone')
       const frozen = await comparisonAPI(provider, transport).open({
@@ -306,7 +300,14 @@ export async function closureDiagnostic(
     // an old invoke while that page unloads; it cannot decide the new view's result.
     if (obsolete) return
     await transport.invoke('diagnostic_finish', {
-      report: { success: false, mode, steps, error: String(error), state: state() },
+      report: {
+        success: false,
+        mode,
+        steps,
+        error: String(error),
+        state: state(),
+        controls: controls(),
+      },
     })
   }
 }

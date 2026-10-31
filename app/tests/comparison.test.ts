@@ -2,7 +2,8 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import * as Y from 'yjs'
 import { comparisonView } from '../src/comparison-view'
 import { comparisonAPI } from '../src/comparison-api'
-import { versionDialog } from '../src/version-dialog'
+import { versionDialog, proposalDialog } from '../src/version-dialog'
+import { comparisonDialog, finishComparison } from '../src/closure-controls'
 import type { ComparisonAPI, ComparisonState } from '../src/comparison-types'
 import type { Provider, Transport } from '../src/provider'
 import type { Catalogue } from '../src/shell'
@@ -641,3 +642,80 @@ it('announces full MCP rejection and preserves its terminal state when the view 
     'Proposition refusée. Le document est inchangé.',
   )
 })
+
+it.each(['version', 'proposal'] as const)(
+  'native %s recipe waits for the command receipt before closing and using history',
+  async (context) => {
+    HTMLDialogElement.prototype.showModal = function () {
+      this.setAttribute('open', '')
+    }
+    HTMLDialogElement.prototype.close = function () {
+      this.removeAttribute('open')
+    }
+    const f = fixture(context === 'version' ? 'before' : 'after')
+    const apply = vi.mocked(f.api.apply).getMockImplementation()!
+    let acknowledge!: () => void
+    const delayedReply = new Promise<void>((resolve) => (acknowledge = resolve))
+    let contentPublished = false
+    vi.mocked(f.api.apply).mockImplementation(async (id, choices) => {
+      const result = await apply(id, choices)
+      // The document event arrives before the IPC reply and editor unlock.
+      contentPublished = true
+      await delayedReply
+      return result
+    })
+    const record = {
+      id: 'v',
+      created_at: '2026-10-31T10:00:00Z',
+      reason: 'manual' as const,
+      state: 'hash',
+      details: { name: 'v1', tags: [], description: null, creator: null },
+    }
+    const viewer =
+      context === 'proposal'
+        ? proposalDialog({
+            id: 'proposal',
+            title: 'Agent',
+            api: f.api,
+            catalogue,
+            returnFocus: () => undefined,
+          })
+        : versionDialog({
+            record,
+            index: { project_id: 'project', history: 'index', limit: 100, versions: [record] },
+            api: {
+              comparison: f.api,
+              read: vi.fn(async () => f.state.before),
+            } as unknown as VersionAPI,
+            catalogue,
+            returnFocus: () => undefined,
+            changed: vi.fn(),
+          })
+    disposers.push(viewer.destroy)
+    await tick()
+    const dialog = comparisonDialog()
+    if (context === 'version') {
+      button(dialog, 'Comparer').click()
+      await tick()
+      dialog.querySelector<HTMLButtonElement>('[data-action="select-all-before"]')!.click()
+    }
+    validate(dialog).click()
+    await tick()
+    expect(contentPublished).toBe(true)
+    const close = dialog.querySelector<HTMLButtonElement>('.version-footer .primary')!
+    expect(close.disabled).toBe(true)
+    // Reproduces the old recipe: seeing the text is not enough to close.
+    close.click()
+    expect(dialog.isConnected).toBe(true)
+    let finished = false
+    const finishing = finishComparison(dialog).then(() => (finished = true))
+    await tick()
+    expect(finished).toBe(false)
+    expect(f.api.close).not.toHaveBeenCalled()
+    acknowledge()
+    await finishing
+    expect(dialog.isConnected).toBe(false)
+    expect(f.api.close).toHaveBeenCalledExactlyOnceWith('review')
+    expect(document.querySelectorAll('dialog')).toHaveLength(0)
+  },
+)
