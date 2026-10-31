@@ -684,7 +684,6 @@ web-words = mots
 web-characters = signes
 web-selection = Sélection
 web-without-spaces = Hors espaces
-web-rust-example = Essai Rust
 web-welcome-title = Le contenu d’abord.
 web-welcome-description = Rédigez simplement. Votre modèle s’occupe de la présentation.
 web-session-saved = Session enregistrée

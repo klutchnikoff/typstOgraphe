@@ -34,6 +34,12 @@ export async function closureDiagnostic(
     { once: true },
   )
   const steps: string[] = []
+  const progress = (phase: string) =>
+    transport.invoke('diagnostic_event', {
+      target: provider.id,
+      step: 'progress',
+      payload: { phase, revision: provider.revision },
+    })
   const state = () => ({
     document: documentContent(editor.getJSON()),
     settings: settingsFor(provider),
@@ -200,17 +206,20 @@ export async function closureDiagnostic(
         destination: async () => undefined,
         saved: async () => {},
       })
+      await progress('versions.begin')
       const index = await api.list()
       const created = await api.change(index.history, {
         kind: 'create',
         details: { name: 'Closure reference', tags: ['recipe'], description: null, creator: null },
       })
       if (!created) throw new Error('Version not created')
+      await progress('versions.created')
       const record = created.versions.find((item) => item.details.name === 'Closure reference')!
       const reference = stableJSON(state())
       append(editor, ' [AFTER-VERSION]')
       await provider.flush()
       const modified = stableJSON(state())
+      await progress('versions.edited')
       const catalogue = await transport.invoke<import('./shell').Catalogue>('content_catalogue')
       const viewer = versionDialog({
         record,
@@ -229,18 +238,30 @@ export async function closureDiagnostic(
       ;(document.querySelector('[data-action="select-all-before"]') as HTMLButtonElement).click()
       ;(document.querySelector('[data-action="validate-comparison"]') as HTMLButtonElement).click()
       await until(() => stableJSON(state()) === reference, 'version reprise')
+      await progress('versions.content-installed')
       await until(
         () =>
           document.querySelector('[data-comparison-summary]')?.textContent ===
           'Choix appliqués. Vous pouvez enregistrer le document.',
         'version application acknowledgement',
       )
+      await until(
+        () =>
+          !!document.querySelector<HTMLButtonElement>(
+            '.version-dialog .version-footer .primary:not(:disabled)',
+          ),
+        'version close enabled',
+      )
       viewer.destroy()
       await until(() => !document.querySelector('dialog.version-dialog'), 'version modal close')
+      await progress('versions.closed')
+      editor.view.focus()
       editor.commands.undo()
       await until(() => stableJSON(state()) === modified, 'version undo')
+      await progress('versions.undone')
       editor.commands.redo()
       await until(() => stableJSON(state()) === reference, 'version redo')
+      await progress('versions.redone')
       const frozen = await comparisonAPI(provider, transport).open({
         kind: 'version',
         id: record.id,
@@ -259,6 +280,7 @@ export async function closureDiagnostic(
       )
       await save()
     }
+    await progress('export.begin')
     const exported = await transport.invoke<string>('export_document', { snapshot: snapshot() })
     const preview = await transport.invoke<{ pageSizes: number[][] }>('preview', {
       snapshot: snapshot(),

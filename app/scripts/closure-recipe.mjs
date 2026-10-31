@@ -66,6 +66,7 @@ async function native(directory, input, verify = false) {
   for (const stream of [child.stdout, child.stderr])
     stream.on('data', (data) => {
       log += data
+      process.stderr.write(data)
     })
   const timer = setInterval(() => {
     if (verify || attached) return

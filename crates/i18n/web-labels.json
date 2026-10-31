@@ -132,7 +132,6 @@
   "signes": "web-characters",
   "Sélection": "web-selection",
   "Hors espaces": "web-without-spaces",
-  "Essai Rust": "web-rust-example",
   "Undo": "cmd-undo",
   "Le contenu d’abord.": "web-welcome-title",
   "Rédigez simplement. Votre modèle s’occupe de la présentation.": "web-welcome-description",

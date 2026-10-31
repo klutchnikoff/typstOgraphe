@@ -682,7 +682,6 @@ web-words = words
 web-characters = characters
 web-selection = Selection
 web-without-spaces = Without spaces
-web-rust-example = Rust example
 web-welcome-title = Content first.
 web-welcome-description = Write naturally. Your model handles the presentation.
 web-session-saved = Session saved
