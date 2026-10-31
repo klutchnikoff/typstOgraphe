@@ -18,8 +18,8 @@ La [maquette validée](mockups/a4-comparison.html) et le
   candidat invalidé ne publient rien.
 - Une publication connue fait avancer la garde des groupes restants. Une édition
   extérieure bloque leur application ; Annuler ne réactive pas une ancienne garde.
-- Les décisions passent par l’historique du participant qui accepte. Images et
-  paquets nécessaires restent disponibles pour Annuler/Rétablir. La réponse
+- Les décisions passent par l’historique du participant qui accepte. Les images
+  nécessaires restent disponibles pour Annuler/Rétablir. La réponse
   transporte aussi le delta confirmé, indépendamment de la notification IPC.
 - L’acceptation ne sauvegarde ni n’exporte implicitement. Les formulaires non
   validés ne sont pas publiés pour ouvrir une comparaison. Les propositions
@@ -47,8 +47,12 @@ Les tests natifs couvrent conservation du fichier enregistré et des snapshots,
 concurrence, composition IME, refus après préparation, isolation des fenêtres,
 comparaison historique en lecture seule, proposition partiellement acceptée,
 consultation périmée, fermeture tardive et écriture après capture du checkpoint.
-Un test de paquets reprend un checkpoint déjà issu d’une reprise, modifie seulement
-son jeu de dépendances, puis exerce Annuler, Rétablir et récupération portable.
+La [clarification des dépendances](typst-dependencies.md) retire l’historique des
+paquets : leurs copies archivées ne créent aucun groupe ni couplage entre passages.
+Les tests vérifient que reprise, Annuler/Rétablir, aperçu historique et récupération
+gardent les bibliothèques de l’application. Une copie transportée défectueuse ne
+doit pas être exécutée. Une ancienne bibliothèque sans les paquets requis par la
+version installée reste rendue/exportée avec le catalogue complet de cette version.
 
 Les tests web couvrent le gel des états entre onglets, les décisions indépendantes,
 les réponses tardives, les groupes liés, les contrôles en lecture seule, les
@@ -57,7 +61,7 @@ Ils vérifient aussi l’installation sans notification et le rejet d’une rép
 d’un document remplacé. Une notification ne peut pas remplacer un autre panneau
 latéral par celui de l’assistance.
 
-## Vérification locale macOS
+## Vérification initiale locale macOS
 
 - Workspace Rust : **368 tests réussis**, un diagnostic de performance ignoré.
   Après le dernier durcissement : les **12 tests du comparateur** puis la suite
@@ -86,11 +90,37 @@ vidéo ou trace graphique n’a été enregistrée.
 
 Ces vérifications locales ne constituent pas une validation CI Windows/Linux.
 
+## Vérification de la clarification des paquets
+
+Le contrat validé ensuite retire le registre des jeux de paquets et le jeton
+`comparison:bundle` de l’historique Yjs. Le comparateur ignore les différences
+de copies transportées ; Tauri et la session commune CLI/MCP résolvent les
+bibliothèques dans le catalogue applicatif, y compris pour les anciennes versions.
+Les snapshots conservent leur état documentaire et leurs ressources sans promettre
+l’identité du PDF entre versions de typstOgraphe. La conversion explicite des
+formats incompatibles reste un parcours futur, non implémenté.
+
+Contrôles locaux après cette simplification :
+
+- **202 tests du cœur et son doctest réussis**, dont les reprises dans les deux
+  sens et l’absence de groupes/couplages créés par des paquets différents.
+- **111 tests natifs réussis**, un diagnostic de performance ignoré. Les sockets
+  locales MCP ont nécessité l’exécution hors du bac à sable ; les quatre refus
+  initiaux étaient des interdictions système, pas des régressions du code.
+- Le test commun CLI/MCP a ensuite été enrichi avec une bibliothèque historique
+  ne transportant aucun paquet : rendu PNG, sauvegarde et export hors ligne
+  réussissent avec les bibliothèques de l’application. Sa relance ciblée réussit.
+- Clippy workspace/tous les targets avec `recipe-driver` et `-D warnings`,
+  formatage Rust, contrôle des longueurs et `git diff --check` réussis.
+
+La présentation web n’a pas changé dans cette correction ; les recettes
+graphiques ci-dessus décrivent la vérification initiale du comparateur.
+
 ## Limites et suite
 
 Le regroupement reste volontairement conservateur : un paragraphe ou un widget
 n’est pas découpé en décisions textuelles plus fines. Un changement de réglages,
-ressources, bibliothèque ou paquets regroupe le contenu associé ; aucune
+ressources documentaires ou bibliothèque bibliographique regroupe le contenu associé ; aucune
 indépendance supplémentaire n’est déduite de la proximité visuelle des changements.
 Les deux aperçus permettent d’examiner aussi les différences de présentation.
 

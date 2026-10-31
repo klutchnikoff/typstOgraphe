@@ -161,7 +161,9 @@ suspendu indéfiniment en attendant une décision humaine.
 ## Comparateur commun et décisions locales (A.4)
 
 La modale commune aux Versions et aux propositions affiche la base à gauche et
-le candidat à droite, figés dès la soumission avec leurs ressources et paquets.
+le candidat à droite, figés dès la soumission avec leurs ressources documentaires.
+Les bibliothèques Typst restent celles de l’application selon le
+[contrat des dépendances](typst-dependencies.md), hors des décisions de l’agent.
 L’utilisateur peut appliquer ou refuser chaque groupe indépendant ; les éléments
 liés restent atomiques. Chaque publication est une étape d’annulation distincte.
 Les groupes restants continuent sous la garde issue des seules publications connues.
