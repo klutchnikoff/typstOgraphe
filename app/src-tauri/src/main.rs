@@ -7,6 +7,7 @@ mod catalogue;
 mod driver;
 mod files;
 mod menus;
+mod native_locales;
 mod owner;
 mod preferences;
 mod proofing;

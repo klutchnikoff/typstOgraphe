@@ -93,6 +93,11 @@ jobs:
       - name: Yjs and Yrs shared contract recipes
         if: '!inputs.acceptance_only'
         run: npm run test:contract --workspace @typstographe/app
+      - name: Embedded native locales for standalone Cargo launches
+        if: runner.os == 'macOS'
+        run: |
+          node --test app/scripts/native-locales.test.mjs
+          node app/scripts/check-native-locales.mjs target/debug/typstographe
       - name: Targeted storage and recovery guards
         if: inputs.native_conservation && inputs.acceptance_only
         run: |

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { checkNativeLocales } from './check-native-locales.mjs'
 import { test } from 'node:test'
 import {
   generateNativeLocaleConfig,
@@ -72,3 +74,67 @@ test('development and packaging share the conventional generated Info.plist', (t
   generateNativeLocaleConfig(project, root)
   assert.equal(readFileSync(plist, 'utf8'), nativeMetadata(readInterfaceLanguages(root)).plist)
 })
+
+test(
+  'macOS binary inspection detects the missing standalone locale section',
+  { skip: process.platform !== 'darwin' },
+  (t) => {
+    const root = fixture(t, 'en', ['en', 'fr'])
+    const source = join(root, 'probe.c')
+    const binary = join(root, 'no-plist')
+    writeFileSync(source, 'int main(void) { return 0; }\n')
+    execFileSync('clang', [source, '-o', binary])
+    assert.throws(
+      () => checkNativeLocales(binary, root),
+      /expected exactly one embedded Info.plist/,
+    )
+  },
+)
+
+test(
+  'macOS negotiates Fluent languages from embedded metadata without an app bundle',
+  { skip: process.platform !== 'darwin' },
+  (t) => {
+    const root = fixture(t, 'en', ['en', 'fr'])
+    generateNativeLocaleConfig(join(root, 'application'), root)
+    const plist = join(root, 'application/src-tauri/Info.plist')
+    const source = join(root, 'probe.m')
+    const binary = join(root, 'with-plist')
+    writeFileSync(
+      source,
+      `#import <Foundation/Foundation.h>
+int main(void) {
+  @autoreleasepool {
+    puts(NSBundle.mainBundle.preferredLocalizations.firstObject.UTF8String);
+  }
+}
+`,
+    )
+    execFileSync('clang', [
+      '-framework',
+      'Foundation',
+      source,
+      '-Wl,-sectcreate,__TEXT,__info_plist,' + plist,
+      '-o',
+      binary,
+    ])
+    assert.deepEqual(checkNativeLocales(binary, root), { fallback: 'en', languages: ['en', 'fr'] })
+    // Process arguments affect only this probe, never the user's system preferences.
+    for (const [requested, expected] of [
+      ['fr-FR', 'fr'],
+      ['en-US', 'en'],
+      ['ja', 'en'],
+    ])
+      assert.equal(
+        execFileSync(binary, ['-AppleLanguages', `(${requested})`], { encoding: 'utf8' }).trim(),
+        expected,
+      )
+    // A valid plist with a stale language list must fail, not merely pass section detection.
+    mkdirSync(join(root, 'i18n/de'))
+    writeFileSync(join(root, 'i18n/de/interface.ftl'), 'hello = Hallo\n')
+    assert.throws(
+      () => checkNativeLocales(binary, root),
+      /Expected values to be strictly deep-equal/,
+    )
+  },
+)
