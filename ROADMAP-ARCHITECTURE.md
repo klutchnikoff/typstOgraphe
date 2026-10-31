@@ -112,6 +112,15 @@ plus rapide à publier et ouvrir, en acceptant des historiques plus volumineux
 qu’avec Git. Le format et les maquettes précèdent l’intégration de production,
 encore à faire. Git reste dans l’expérience isolée. Cette décision ne clôt pas A.4.
 
+La [proposition de format](docs/a4-project-format.md), encore à valider, précise
+un ZIP entièrement CAS, un manifeste pointant sur l’état courant, des descripteurs
+immuables communs aux snapshots et un index de versions distinct. Elle décrit
+la vérification Yjs/projection/sources, les ressources et inventaires embarqués,
+les métadonnées modifiables des snapshots, la lecture sélective et les budgets.
+Point à intégrer : la validation des packages doit s’appuyer sur l’inventaire
+de l’état conservé, sans le rendre dépendant du catalogue installé. Ne pas
+confondre ce document de conception avec le schéma de production déjà livré.
+
 Définir un état cohérent incluant contenu structuré, métadonnées, réglages,
 modèle, dépendances et ressources, avec identité stable, date de création
 automatique, nom libre modifiable, tags facultatifs, auteur du snapshot et

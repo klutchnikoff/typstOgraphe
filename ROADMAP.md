@@ -127,6 +127,13 @@ rapidité et son intégration plus simple, en acceptant des historiques un peu
 plus volumineux qu’avec Git. L’intégration reste à faire après validation du
 format et des maquettes. A.4 n’est pas clos.
 
+**Format proposé, à valider :** la [proposition de conteneur CAS](docs/a4-project-format.md)
+décrit le manifeste du projet, les descripteurs d’états vérifiés, l’index des
+versions et les ressources partagées. Elle distingue contenu immuable et nom/tags
+modifiables, lecture sélective et export compilable. Organisation, budgets et
+traitement d’une ancienne version endommagée restent des propositions avant
+la maquette de Versions et l’implémentation.
+
 - Préciser le contrat de conservation de l’arbre documentaire, de Yjs et du
   Typst généré avec les snapshots avant de stabiliser le format public du .typsto.
 - Conserver dans le projet des états cohérents et identifiables, consultables
@@ -593,7 +600,7 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 ## Prochain lot proposé
 
 1. Le CAS étant retenu après le [bilan comparatif](docs/a4-snapshot-storage-evaluation.md),
-   valider le format puis maquetter Versions, comparaison et restauration,
+   valider la [proposition de format](docs/a4-project-format.md), puis maquetter Versions, comparaison et restauration,
    en anticipant la relecture J avant l’implémentation.
 2. Terminer A avec A.5 : documentation, nettoyage et recette depuis un checkout propre.
 3. Reprendre ensuite le périmètre administratif restant, un type à la fois,

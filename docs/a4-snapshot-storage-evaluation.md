@@ -142,14 +142,15 @@ existante et l’adaptation documentaire restent des travaux A.4 distincts.
 
 ## Suite à valider
 
-1. Le CAS étant retenu, préciser le schéma versionné du `.typsto`, l’index, les données Yjs conservées,
+1. Le CAS étant retenu, valider la [proposition de format](a4-project-format.md) :
+   schéma versionné du `.typsto`, index, données Yjs conservées,
    les contrôles d’intégrité et les budgets de taille/nombre d’entrées. Conserver
    un snapshot complet plutôt qu’une seule frontière causale dépourvue de contenu.
-2. Étendre les commandes/requêtes communes de création, liste, consultation,
+2. Maquetter Versions, la comparaison commune et les confirmations avant de
+   coder les parcours validés. Préparer le lien de référence avec une future
+   relecture et garder la validation locale MCP en F.3.
+3. Étendre les commandes/requêtes communes de création, liste, consultation,
    nom/tags, suppression et restauration, avec autorisations par adaptateur.
-3. Maquetter Versions, la comparaison commune et les confirmations, puis coder
-   les parcours validés. Préparer le lien de référence avec une future relecture
-   et garder la validation locale MCP en F.3.
 4. Vérifier le vrai parcours atomique et gardé : création enregistrée, sauvegarde
    automatique avant restauration, refus sans perte, références protégées,
    nettoyage des ressources, sauvegarde/réouverture et exports des versions choisies.
