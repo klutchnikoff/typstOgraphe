@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { cpus } from "node:os";
 import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 
@@ -211,10 +212,7 @@ const environment = {
   arch: process.arch,
   node: process.version,
   rust: run("rustc", ["--version"]).trim(),
-  machine:
-    process.platform === "darwin"
-      ? run("sysctl", ["-n", "machdep.cpu.brand_string"]).trim()
-      : "See host platform",
+  machine: cpus()[0]?.model || "CPU model unavailable inside sandbox",
   article_sha256: sha(articleBytes),
   runner_sha256: sha(readFileSync(fileURLToPath(import.meta.url))),
   probe_sha256: sha(readFileSync(resolve(here, "src/main.rs"))),

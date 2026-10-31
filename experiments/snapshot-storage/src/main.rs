@@ -3,6 +3,7 @@ use git2::{Buf, Oid, Repository, Signature, Time};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     error::Error,
     fs,
@@ -58,6 +59,11 @@ fn zip_bytes(files: &Files) -> Result<Vec<u8>> {
     zip_to(&mut output, files)?;
     Ok(output.into_inner())
 }
+fn entry_bytes<R: Read + std::io::Seek>(zip: &mut ZipArchive<R>, name: &str) -> Result<Vec<u8>> {
+    let mut bytes = Vec::new();
+    zip.by_name(name)?.read_to_end(&mut bytes)?;
+    Ok(bytes)
+}
 // Used by both backends; all writes replace a single archive atomically.
 fn publish(path: &Path, files: &Files, fail_before_commit: bool) -> Result<()> {
     let mut temporary = atomic_write_file::AtomicWriteFile::open(path)?;
@@ -112,6 +118,7 @@ struct History {
     repo: Option<Repository>,
     records: Vec<Record>,
     objects: Files,
+    source: Option<RefCell<ZipArchive<fs::File>>>,
 }
 impl History {
     fn new(backend: Backend) -> Result<Self> {
@@ -126,6 +133,7 @@ impl History {
             repo,
             records: vec![],
             objects: Files::new(),
+            source: None,
         })
     }
     fn append(&mut self, i: usize, files: &Files) -> Result<()> {
@@ -184,10 +192,7 @@ impl History {
             }
         }
         for digest in needed {
-            files.insert(
-                format!("history/objects/{digest}"),
-                self.objects.get(digest).ok_or("missing object")?.clone(),
-            );
+            files.insert(format!("history/objects/{digest}"), self.object(digest)?);
         }
         if let Some(repo) = &self.repo {
             let mut builder = repo.packbuilder()?;
@@ -207,7 +212,42 @@ impl History {
         publish(path, &self.envelope()?, false)
     }
     fn open(backend: Backend, path: &Path) -> Result<Self> {
-        Self::from_envelope(backend, read_zip(&fs::read(path)?)?)
+        let mut source = ZipArchive::new(fs::File::open(path)?)?;
+        let mut essential = Files::new();
+        essential.insert(
+            "history/index.json".into(),
+            entry_bytes(&mut source, "history/index.json")?,
+        );
+        if matches!(backend, Backend::Git) {
+            essential.insert(
+                "history/git.pack".into(),
+                entry_bytes(&mut source, "history/git.pack")?,
+            );
+        }
+        let mut result = Self::from_envelope(backend, essential)?;
+        result.source = Some(RefCell::new(source));
+        Ok(result)
+    }
+    fn object(&self, digest: &str) -> Result<Vec<u8>> {
+        if let Some(bytes) = self.objects.get(digest) {
+            return Ok(bytes.clone());
+        }
+        let source = self.source.as_ref().ok_or("missing object")?;
+        entry_bytes(
+            &mut source.borrow_mut(),
+            &format!("history/objects/{digest}"),
+        )
+    }
+    fn object_keys(&self) -> Result<BTreeSet<String>> {
+        let mut keys: BTreeSet<_> = self.objects.keys().cloned().collect();
+        if let Some(source) = &self.source {
+            for name in source.borrow().file_names() {
+                if let Some(key) = name?.strip_prefix("history/objects/") {
+                    keys.insert(key.into());
+                }
+            }
+        }
+        Ok(keys)
     }
     fn from_envelope(backend: Backend, files: Files) -> Result<Self> {
         let mut result = Self::new(backend)?;
@@ -262,7 +302,7 @@ impl History {
                     .content()
                     .to_vec()
             } else {
-                self.objects.get(expected).ok_or("missing object")?.clone()
+                self.object(expected)?
             };
             if hash(&data) != *expected {
                 return Err("object integrity mismatch".into());
@@ -455,7 +495,7 @@ fn main() -> Result<()> {
                             assert_equal(&opened.restore(&format!("{i:03}"))?, expected)?;
                             verified_states += 1;
                         }
-                        object_count = opened.objects.len();
+                        object_count = opened.object_keys()?.len();
                         package_entries = opened.envelope()?.len();
                         failure_checks += verify_failures(&opened, &path, "000")?;
                         if count == 100 {
@@ -494,7 +534,7 @@ fn main() -> Result<()> {
                         .filter(|(p, _)| pruned.repo.is_none() || p.contains('/'))
                         .map(|(_, h)| h)
                         .collect();
-                    if pruned.objects.keys().any(|h| !reachable.contains(h)) {
+                    if pruned.object_keys()?.iter().any(|h| !reachable.contains(h)) {
                         return Err("orphan object retained".into());
                     }
                     if sample > 0 {
@@ -529,9 +569,9 @@ fn main() -> Result<()> {
     }
     let version = git2::Version::get();
     let report = serde_json::json!({
-        "schema": 1, "environment": corpus_metadata,
+        "schema": 2, "environment": corpus_metadata,
         "libgit2": {"version":version.libgit2_version(), "vendored":version.vendored(), "https":version.https(), "ssh":version.ssh()},
-        "policy": {"measured_samples":7,"warmup_samples":1,"git_pack_threads":1,"atomic_replacement":true,"zip_deflate":true,"git_pack_stored_without_recompression":true,"timing_excludes_fixture_generation_core_validation_and_typst":true,"warm_filesystem_cache":true},
+        "policy": {"measured_samples":7,"warmup_samples":1,"git_pack_threads":1,"atomic_replacement":true,"zip_deflate":true,"git_pack_stored_without_recompression":true,"timing_excludes_fixture_generation_core_validation_and_typst":true,"warm_filesystem_cache":true,"selective_resource_loading":true},
         "checks": {"byte_exact_snapshots":verified_states,"failure_checks":failure_checks,"prune_preserves_retained_states":true,"prune_removes_orphan_binary_objects":true},
         "measurements":measurements,
     });
@@ -569,13 +609,17 @@ mod tests {
             history.save(&path)?;
             verify_failures(&history, &path, "000")?;
             let mut opened = History::open(backend, &path)?;
+            assert!(
+                opened.objects.is_empty(),
+                "opening must not eagerly decompress objects"
+            );
             opened.retain(&["000", "003"]);
             opened.save(&path)?;
             let restored = History::open(backend, &path)?;
             assert_equal(&restored.restore("000")?, &fixture(0))?;
             assert_equal(&restored.restore("003")?, &fixture(3))?;
             assert!(restored.restore("001").is_err());
-            assert!(restored.objects.values().all(|v| v != &vec![2; 100]));
+            assert!(!restored.object_keys()?.contains(&hash(&[2; 100])));
         }
         Ok(())
     }
