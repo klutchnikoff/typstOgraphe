@@ -37,6 +37,123 @@ fn dispatch(
     let peer = request["peer"].as_str().ok_or("Participant absent.")?;
     let command = request["command"].as_str().ok_or("Commande absente.")?;
     match command {
+        "choose_file" if args["save"] == true => {
+            let folder = bridge
+                .session
+                .lock()
+                .map_err(|e| e.to_string())?
+                .root
+                .clone();
+            std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+            Ok(serde_json::json!(
+                folder.join(format!("document-{}.typsto", uuid::Uuid::new_v4()))
+            ))
+        }
+
+        "comparison_open" | "comparison_read" | "comparison_close" | "comparison_apply"
+        | "comparison_preview" | "comparison_prepare" => {
+            let mut s = bridge.session.lock().map_err(|e| e.to_string())?;
+            let mut a = bridge.agent.lock().map_err(|e| e.to_string())?;
+            let id = args["id"].as_str().unwrap_or("");
+            match command {
+                "comparison_open" => crate::comparisons::open(
+                    &mut s,
+                    &mut a,
+                    peer,
+                    &serde_json::from_value(args["guard"].clone()).map_err(|e| e.to_string())?,
+                    serde_json::from_value(args["origin"].clone()).map_err(|e| e.to_string())?,
+                ),
+                "comparison_prepare" => {
+                    let choices: Vec<typstographe_core::content::comparison::SourceSide> =
+                        serde_json::from_value(args["choices"].clone())
+                            .map_err(|e| e.to_string())?;
+                    let ready =
+                        crate::comparisons::staging::capture(&mut s, &a, peer, id, &choices)?
+                            .prepare()?;
+                    let archive = ready.archive();
+                    bridge.renderer.validate(
+                        &archive.validate().map_err(crate::project::error)?,
+                        &archive.assets,
+                        crate::rendering::RenderContext {
+                            settings: &archive.state().settings,
+                            dependencies: archive.dependencies.clone(),
+                        },
+                    )?;
+                    crate::comparisons::staging::finish(&mut s, &a, peer, ready)
+                }
+                "comparison_read" => crate::comparisons::read(&s, &a, peer, id),
+                "comparison_close" => {
+                    crate::comparisons::close(&mut s, peer, id)?;
+                    Ok(serde_json::Value::Null)
+                }
+                "comparison_preview" => {
+                    crate::comparisons::read(&s, &a, peer, id)?;
+                    let r = &s.comparisons[id];
+                    let archive = if args["side"] == "before" {
+                        r.plan.before().clone()
+                    } else {
+                        r.plan.after().clone()
+                    };
+                    drop(s);
+                    drop(a);
+                    serde_json::to_value(crate::versions::preview(archive)?)
+                        .map_err(|e| e.to_string())
+                }
+                _ => {
+                    let choices: Vec<typstographe_core::content::comparison::SourceSide> =
+                        serde_json::from_value(args["choices"].clone())
+                            .map_err(|e| e.to_string())?;
+                    let ready = crate::comparisons::prepare(&mut s, &a, peer, id, &choices)?;
+                    let archive = ready.archive();
+                    bridge.renderer.validate(
+                        &archive.validate().map_err(crate::project::error)?,
+                        &archive.assets,
+                        crate::rendering::RenderContext {
+                            settings: &archive.state().settings,
+                            dependencies: archive.dependencies.clone(),
+                        },
+                    )?;
+                    let (mut result, publication) =
+                        crate::comparisons::apply(&mut s, &mut a, peer, id, ready)?;
+                    result["publication"] =
+                        serde_json::to_value(publication).map_err(|e| e.to_string())?;
+                    Ok(result)
+                }
+            }
+        }
+
+        "versions_list" | "versions_read" | "versions_preview" | "versions_change" => {
+            let guard = serde_json::from_value(args["guard"].clone()).map_err(|e| e.to_string())?;
+            let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
+            match command {
+                "versions_list" => crate::versions::list(&mut session, peer, &guard),
+                "versions_read" => crate::versions::read(
+                    &mut session,
+                    peer,
+                    &guard,
+                    serde_json::from_value(args["id"].clone()).map_err(|e| e.to_string())?,
+                ),
+                "versions_change" => crate::versions::change(
+                    &mut session,
+                    peer,
+                    &guard,
+                    serde_json::from_value(args["change"].clone()).map_err(|e| e.to_string())?,
+                    args["destination"].as_str().map(std::path::Path::new),
+                ),
+                _ => {
+                    let archive = crate::versions::selected(
+                        &mut session,
+                        peer,
+                        &guard,
+                        serde_json::from_value(args["id"].clone()).map_err(|e| e.to_string())?,
+                    )?;
+                    drop(session);
+                    serde_json::to_value(crate::versions::preview(archive)?)
+                        .map_err(|e| e.to_string())
+                }
+            }
+        }
+
         "diagnostic_request_close" => Ok(serde_json::Value::Null),
         "work_list" => serde_json::to_value(
             bridge
@@ -164,6 +281,15 @@ fn dispatch(
             }
         }
 
+        "diagnostic_agent_authorize" => {
+            let s = bridge.session.lock().map_err(|e| e.to_string())?;
+            s.check_peer(peer, &s.generation)?;
+            *bridge.agent.lock().map_err(|e| e.to_string())? = agent::AgentState {
+                token: Some("isolated-browser-recipe".into()),
+                ..Default::default()
+            };
+            Ok(serde_json::Value::Null)
+        }
         "diagnostic_agent" => {
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
             let mut agent = bridge.agent.lock().map_err(|e| e.to_string())?;
@@ -184,7 +310,11 @@ fn dispatch(
                     bridge.renderer.validate(
                         &crate::schema::source(&candidate.after, assets)?,
                         assets,
-                        &candidate.settings,
+                        bridge
+                            .session
+                            .lock()
+                            .map_err(|e| e.to_string())?
+                            .render_context(&candidate.settings),
                     )
                 },
             )?;
@@ -213,7 +343,8 @@ fn dispatch(
             )?;
             Ok(serde_json::Value::Null)
         }
-        "model_policy" => serde_json::to_value(bibliography::model_policy(
+        "model_policy" => serde_json::to_value(bibliography::policy(
+            &*bridge.session.lock().map_err(|e| e.to_string())?,
             args["template"].as_str().unwrap_or("").into(),
         )?)
         .map_err(|e| e.to_string()),
@@ -267,7 +398,7 @@ fn dispatch(
             bridge.renderer.validate(
                 &source,
                 &session.assets,
-                snapshot.settings.as_ref().unwrap_or(&session.settings),
+                session.render_context(snapshot.settings.as_ref().unwrap_or(&session.settings)),
             )?;
             Ok(serde_json::Value::Null)
         }
@@ -404,7 +535,6 @@ fn dispatch(
                 args["version"].as_u64().unwrap_or(0)
             )?))
         }
-        "prepare_rust_edit" => Ok(prepare_rust_edit()),
         "prepare_image" => serde_json::to_value(prepare_image(
             args["extension"]
                 .as_str()
@@ -427,7 +557,7 @@ fn dispatch(
                 source,
                 session.assets.clone(),
                 snapshot.revision,
-                snapshot.settings.as_ref().unwrap_or(&session.settings),
+                session.render_context(snapshot.settings.as_ref().unwrap_or(&session.settings)),
                 map,
                 encoding,
             )?;
@@ -463,7 +593,9 @@ fn dispatch(
                 session.assets.clone(),
                 snapshot.revision,
                 export.clone(),
-                Some(snapshot.settings.as_ref().unwrap_or(&session.settings)),
+                Some(
+                    session.render_context(snapshot.settings.as_ref().unwrap_or(&session.settings)),
+                ),
                 map,
             )?;
             match command {

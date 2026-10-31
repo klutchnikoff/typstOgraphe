@@ -3,12 +3,18 @@ use base64::Engine as _;
 mod agent;
 mod bibliography;
 mod catalogue;
+mod comparisons;
+#[cfg(feature = "recipe-driver")]
+mod diagnostics;
 #[cfg(feature = "recipe-driver")]
 mod driver;
 mod files;
+mod launch;
 mod menus;
+mod native_locales;
 mod owner;
 mod preferences;
+mod project;
 mod proofing;
 mod recovery;
 mod rendering;
@@ -18,6 +24,7 @@ mod settings;
 #[cfg(feature = "recipe-driver")]
 mod shared_diagnostic;
 mod structured;
+mod versions;
 
 use rendering::{Preview, Renderer};
 use session::{Bootstrap, Session, Snapshot};
@@ -33,6 +40,7 @@ use tauri::{Emitter, Manager, State, WebviewWindow};
 struct Bridge {
     session: Arc<Mutex<Session>>,
     renderer: Arc<Renderer>,
+    #[cfg(feature = "recipe-driver")]
     diagnostic: Option<String>,
     agent: Arc<Mutex<agent::AgentState>>,
 }
@@ -252,37 +260,24 @@ fn awareness(
     .map_err(|e| e.to_string())
 }
 #[tauri::command]
-fn recover(state: State<Bridge>, snapshot: Snapshot, update: Vec<u8>) -> Result<(), String> {
-    state
-        .session
-        .lock()
-        .map_err(|e| e.to_string())?
-        .save(&snapshot, update)
-        .map(|_| ())
-}
-#[tauri::command]
 async fn preview(state: State<'_, Bridge>, snapshot: Snapshot) -> Result<Preview, String> {
     let session = state.session.clone();
     let renderer = state.renderer.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let (source, assets, settings) = {
-            let session = session.lock().map_err(|e| e.to_string())?;
-            (
-                session.validate(&snapshot)?,
-                session.assets.clone(),
-                snapshot
-                    .settings
-                    .clone()
-                    .unwrap_or_else(|| session.settings.clone()),
-            )
-        };
+        let (source, assets, settings, dependencies) = session
+            .lock()
+            .map_err(|e| e.to_string())?
+            .render_snapshot(&snapshot)?;
         let map = typstographe_core::content::source_mapped(&snapshot.document, &assets)?.1;
         let result = renderer.render(
             source,
             assets,
             snapshot.revision,
             None,
-            Some(&settings),
+            Some(rendering::RenderContext {
+                settings: &settings,
+                dependencies,
+            }),
             Some(map),
         )?;
         if session.lock().map_err(|e| e.to_string())?.revision != snapshot.revision {
@@ -303,19 +298,22 @@ async fn preview_frame(
     let session = state.session.clone();
     let renderer = state.renderer.clone();
     let bytes = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, String> {
-        let (source, assets, settings) = {
-            let session = session.lock().map_err(|e| e.to_string())?;
-            (
-                session.validate(&snapshot)?,
-                session.assets.clone(),
-                snapshot
-                    .settings
-                    .clone()
-                    .unwrap_or_else(|| session.settings.clone()),
-            )
-        };
+        let (source, assets, settings, dependencies) = session
+            .lock()
+            .map_err(|e| e.to_string())?
+            .render_snapshot(&snapshot)?;
         let map = typstographe_core::content::source_mapped(&snapshot.document, &assets)?.1;
-        let bytes = renderer.frame(source, assets, snapshot.revision, &settings, map, encoding)?;
+        let bytes = renderer.frame(
+            source,
+            assets,
+            snapshot.revision,
+            rendering::RenderContext {
+                settings: &settings,
+                dependencies,
+            },
+            map,
+            encoding,
+        )?;
         if session.lock().map_err(|e| e.to_string())?.revision != snapshot.revision {
             return Err("stale".into());
         }
@@ -334,23 +332,19 @@ async fn save(
     let session = state.session.clone();
     let renderer = state.renderer.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let (source, assets, settings) = {
-            let session = session.lock().map_err(|e| e.to_string())?;
-            (
-                session.validate(&snapshot)?,
-                session.assets.clone(),
-                snapshot
-                    .settings
-                    .clone()
-                    .unwrap_or_else(|| session.settings.clone()),
-            )
-        };
+        let (source, assets, settings, dependencies) = session
+            .lock()
+            .map_err(|e| e.to_string())?
+            .render_snapshot(&snapshot)?;
         renderer.render(
             source,
             assets,
             snapshot.revision,
             None,
-            Some(&settings),
+            Some(rendering::RenderContext {
+                settings: &settings,
+                dependencies,
+            }),
             None,
         )?;
         let session = session.lock().map_err(|e| e.to_string())?;
@@ -368,7 +362,7 @@ async fn export_document(
 ) -> Result<String, String> {
     static NEXT: AtomicU64 = AtomicU64::new(1);
     let renderer = state.renderer.clone();
-    let (source, assets, root, settings) = {
+    let (source, assets, root, settings, dependencies) = {
         let session = state.session.lock().map_err(|e| e.to_string())?;
         (
             session.validate(&snapshot)?,
@@ -378,6 +372,7 @@ async fn export_document(
                 .settings
                 .clone()
                 .unwrap_or_else(|| session.settings.clone()),
+            session.dependencies_for(snapshot.settings.as_ref().unwrap_or(&session.settings)),
         )
     };
     let stamp = std::time::SystemTime::now()
@@ -393,14 +388,17 @@ async fn export_document(
             &settings.metadata,
             &settings.template,
             &assets,
-            &typstographe_core::packages::for_template(&settings.template),
+            &dependencies,
         )?;
         renderer.render(
             source,
             assets,
             snapshot.revision,
             Some(path.clone()),
-            Some(&settings),
+            Some(rendering::RenderContext {
+                settings: &settings,
+                dependencies,
+            }),
             None,
         )?;
         Ok(path.display().to_string())
@@ -443,72 +441,6 @@ fn open_peer(app: tauri::AppHandle) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
     Ok(())
 }
-#[tauri::command]
-fn prepare_rust_edit() -> serde_json::Value {
-    serde_json::json!({"type":"paragraph","content":[{"type":"text","text":"Cette phrase a été préparée depuis Rust, puis insérée dans l’état partagé."}]})
-}
-#[tauri::command(async)]
-fn diagnostic_confirmed(state: State<Bridge>) -> Result<serde_json::Value, String> {
-    if state.diagnostic.is_none() {
-        return Err("Recette native inactive.".into());
-    }
-    let mut session = state.session.lock().map_err(|e| e.to_string())?;
-    let value = session.ensure_owner()?.state().clone();
-    Ok(serde_json::json!({"guard":session.guard(),"state":value}))
-}
-#[tauri::command]
-fn diagnostic_mode(state: State<Bridge>) -> Option<String> {
-    state.diagnostic.clone()
-}
-#[tauri::command]
-fn diagnostic_event(
-    window: WebviewWindow,
-    app: tauri::AppHandle,
-    state: State<Bridge>,
-    target: String,
-    step: String,
-    payload: serde_json::Value,
-) -> Result<(), String> {
-    if state.diagnostic.is_none() || app.get_webview_window(&target).is_none() {
-        return Err("Recette native inactive.".into());
-    }
-    if step == "progress" {
-        eprintln!("Diagnostic {}: {}", window.label(), payload);
-    }
-    app.emit_to(
-        target,
-        "web-editor:diagnostic",
-        serde_json::json!({"from":window.label(),"step":step,"payload":payload}),
-    )
-    .map_err(|e| e.to_string())
-}
-#[tauri::command]
-fn diagnostic_finish(
-    app: tauri::AppHandle,
-    state: State<Bridge>,
-    report: serde_json::Value,
-) -> Result<(), String> {
-    if state.diagnostic.is_none() {
-        return Err("Recette native inactive.".into());
-    }
-    let session = state.session.lock().map_err(|e| e.to_string())?;
-    std::fs::create_dir_all(&session.root).map_err(|e| e.to_string())?;
-    std::fs::write(
-        session.root.join(format!(
-            "native-{}-report.json",
-            state.diagnostic.as_deref().unwrap_or("inactive")
-        )),
-        serde_json::to_vec_pretty(&report).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
-    drop(session);
-    app.exit(if report["success"].as_bool() == Some(true) {
-        0
-    } else {
-        1
-    });
-    Ok(())
-}
 fn main() {
     let arguments: Vec<_> = std::env::args().collect();
     if arguments.iter().any(|arg| arg == "--mcp") {
@@ -527,77 +459,32 @@ fn main() {
         }
         return;
     }
-    let mut args = std::env::args().skip(1);
-    let mut root =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../output/web-editor/default");
-    let mut custom_root = false;
-    let mut stdio = false;
-    let mut diagnostic = None;
-    let mut initial_path = None;
-    while let Some(arg) = args.next() {
-        if arg == "--diagnostic" {
-            diagnostic = Some("full".to_owned());
-        }
-        if arg == "--diagnostic-synchronization-active" {
-            diagnostic = Some("synchronization-active".to_owned());
-        }
-        if arg == "--diagnostic-synchronization" {
-            diagnostic = Some("synchronization".to_owned());
-        }
-        if arg == "--diagnostic-performance" {
-            diagnostic = Some("performance".to_owned());
-        }
-        if arg == "--diagnostic-draft-conservation" {
-            diagnostic = Some("draft-conservation".to_owned());
-        }
-        if arg == "--diagnostic-draft-recover" {
-            diagnostic = Some("draft-recover".to_owned());
-        }
-        if arg == "--diagnostic-draft-verify" {
-            diagnostic = Some("draft-verify".to_owned());
-        }
-        if arg == "--diagnostic-publication" || arg == "--diagnostic-publication-verify" {
-            diagnostic = Some(arg.trim_start_matches("--diagnostic-").to_owned());
-        }
-        if arg == "--diagnostic-closure" {
-            diagnostic = Some("closure".to_owned());
-        }
-        if arg == "--diagnostic-closure-verify" {
-            diagnostic = Some("closure-verify".to_owned());
-        }
-        if arg == "--diagnostic-restore" {
-            diagnostic = Some("restore".to_owned());
-        }
-        if arg == "--stdio" {
-            stdio = true;
-        }
-        if arg == "--session-dir" {
-            custom_root = true;
-            root = PathBuf::from(args.next().expect("--session-dir attend un chemin"));
-        } else if !arg.starts_with('-') && initial_path.is_none() {
-            initial_path = Some(
-                std::path::absolute(&arg)
-                    .expect("Chemin de document invalide")
-                    .to_string_lossy()
-                    .into_owned(),
-            );
-        }
-    }
-    #[cfg(not(feature = "recipe-driver"))]
-    if stdio {
-        eprintln!("--stdio exige un binaire de recette construit avec --features recipe-driver.");
-        std::process::exit(2);
-    }
+    let options = launch::Options::parse(std::env::args().skip(1), cfg!(feature = "recipe-driver"))
+        .unwrap_or_else(|error| {
+            eprintln!("{error}");
+            std::process::exit(2);
+        });
+    let stdio = options.stdio;
+    let diagnostic = options.diagnostic;
+    let initial_path = options.initial_path;
+    let global_session = options.root.is_none();
+    let root = options.root.unwrap_or_default();
     if stdio || diagnostic.is_some() {
         typstographe_i18n::initialize(&["fr".parse().expect("French locale")]);
     }
-    let global_session = !custom_root && !stdio && diagnostic.is_none();
     let mut session = if diagnostic.as_deref() == Some("draft-recover") {
         Session::fresh(root.clone())
     } else if global_session {
         Session::fresh(PathBuf::new())
     } else {
-        Session::open(root).expect("Impossible de rouvrir la session de recette")
+        #[cfg(feature = "recipe-driver")]
+        {
+            Session::open(root).expect("Impossible de rouvrir la session de recette")
+        }
+        #[cfg(not(feature = "recipe-driver"))]
+        {
+            unreachable!("recipe options were rejected before creating a session")
+        }
     };
     if diagnostic.as_deref().is_some_and(|mode| {
         mode.starts_with("closure") || mode.starts_with("publication") || mode == "draft-recover"
@@ -613,6 +500,7 @@ fn main() {
     let bridge = Bridge {
         session: Arc::new(Mutex::new(session)),
         renderer: Arc::new(Renderer::default()),
+        #[cfg(feature = "recipe-driver")]
         diagnostic,
         agent: Arc::new(Mutex::new(agent::AgentState::default())),
     };
@@ -663,10 +551,19 @@ fn main() {
         })
         .manage(bridge)
         .invoke_handler(tauri::generate_handler![
+            comparisons::comparison_open,
+            comparisons::comparison_read,
+            comparisons::comparison_preview,
+            comparisons::commit::comparison_apply,
+            comparisons::staging::comparison_prepare,
+            comparisons::comparison_close,
+            versions::versions_list,
+            versions::versions_read,
+            versions::versions_change,
+            versions::versions_preview,
             menus::set_menu_availability,
             settings::validate_model,
             catalogue::content_catalogue,
-            recover,
             recovery::drafts::open_private_recovery,
             recovery::drafts::conserve_private,
             recovery::commands::work_list,
@@ -728,16 +625,21 @@ fn main() {
             export_document,
             prepare_image,
             open_peer,
-            prepare_rust_edit,
-            diagnostic_mode,
-            diagnostic_confirmed,
+            #[cfg(feature = "recipe-driver")]
+            diagnostics::diagnostic_mode,
+            #[cfg(feature = "recipe-driver")]
+            diagnostics::diagnostic_confirmed,
+            #[cfg(feature = "recipe-driver")]
             recovery::commands::diagnostic_private_records,
+            #[cfg(feature = "recipe-driver")]
             recovery::commands::diagnostic_external_ready,
-            diagnostic_event,
-            diagnostic_finish
+            #[cfg(feature = "recipe-driver")]
+            diagnostics::diagnostic_event,
+            #[cfg(feature = "recipe-driver")]
+            diagnostics::diagnostic_finish
         ])
         .run(tauri::generate_context!())
-        .expect("Erreur du diagnostic Tauri");
+        .expect("Erreur de l’application typstOgraphe");
 }
 
 #[cfg(test)]

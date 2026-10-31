@@ -6,12 +6,12 @@ pub mod work;
 use crate::{Bridge, session::Checkpoint};
 use serde::{Deserialize, Serialize};
 use std::{
-    io::{Read, Write},
+    io::Write,
     path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::{Emitter, Manager, State};
-use typstographe_core::{DocumentLease, assets::MAX_DOCUMENT_BYTES};
+use typstographe_core::DocumentLease;
 
 pub struct Store {
     base: PathBuf,
@@ -38,16 +38,14 @@ struct Candidate {
 }
 impl Candidate {
     fn read(&self) -> Result<Record, String> {
-        let mut bytes = Vec::new();
-        std::fs::File::open(&self.path)
-            .map_err(|e| e.to_string())?
-            .take(MAX_DOCUMENT_BYTES + 1)
-            .read_to_end(&mut bytes)
-            .map_err(|e| e.to_string())?;
-        if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
-            return Err("Copie de récupération trop volumineuse.".into());
-        }
-        // Keep the last draft made before per-process recovery was introduced.
+        let bytes = crate::project::read_recovery_file(&self.path).map_err(|error| {
+            if error == "recovery_too_large" {
+                "Copie de récupération trop volumineuse.".into()
+            } else {
+                error
+            }
+        })?;
+        // Managed slots use a named record; standalone diagnostic sessions use a raw checkpoint.
         serde_json::from_slice(&bytes)
             .or_else(|_| {
                 serde_json::from_slice::<Checkpoint>(&bytes).map(|checkpoint| Record {
@@ -162,7 +160,7 @@ impl Store {
                 .as_secs(),
         };
         let bytes = serde_json::to_vec(&record).map_err(|e| e.to_string())?;
-        if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
+        if bytes.len() as u64 > crate::project::MAX_RECOVERY_BYTES {
             return Err("Copie de récupération trop volumineuse.".into());
         }
         let options = atomic_write_file::AtomicWriteFile::options();
@@ -220,6 +218,7 @@ fn restore(s: &mut crate::session::Session, id: &str) -> Result<(), String> {
         validated.assets,
         validated.updates.into_iter().next().unwrap(),
     );
+    s.project = validated.project;
     // A retained duplicate is preferable to reporting a failed restoration after publication.
     if let Err(error) = candidate.remove() {
         eprintln!("Nettoyage de la copie restaurée : {error}");
@@ -262,7 +261,15 @@ mod tests {
         .unwrap()
         .update();
         Checkpoint {
-            schema: "typstographe-web-editor-v1".into(),
+            project: crate::project::recovery_for_state(
+                typstographe_core::content::contract::State::new(
+                    document.clone(),
+                    Default::default(),
+                ),
+                update.clone(),
+            )
+            .unwrap(),
+            schema: "typstographe-web-editor-v2".into(),
             source: String::new(),
             document,
             update,
@@ -579,7 +586,7 @@ mod tests {
         (id, path)
     }
     #[test]
-    fn a_bare_checkpoint_from_before_per_process_slots_is_offered_under_a_default_name() {
+    fn a_standalone_checkpoint_is_offered_under_a_default_name() {
         let dir = tempfile::tempdir().unwrap();
         let (id, path) = abandoned_slot(dir.path());
         std::fs::write(&path, serde_json::to_vec(&checkpoint()).unwrap()).unwrap();
@@ -598,7 +605,7 @@ mod tests {
         // Sparse on the supported file systems: the size check reads at most one extra byte.
         std::fs::File::create(&path)
             .unwrap()
-            .set_len(MAX_DOCUMENT_BYTES + 1)
+            .set_len(crate::project::MAX_RECOVERY_BYTES + 1)
             .unwrap();
         let store = Store::new(dir.path().into()).unwrap();
         let entries = store.list().unwrap();

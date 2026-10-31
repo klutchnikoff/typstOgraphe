@@ -1,0 +1,156 @@
+{
+  "before": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Écrire un article "
+          },
+          {
+            "type": "text",
+            "text": "suppose",
+            "marks": [
+              {
+                "type": "italic",
+                "attrs": {}
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " de donner une forme lisible à une démarche qui ne s’est pas nécessairement déroulée dans le même ordre. Les notes de terrain, les échanges entre collègues et les premières analyses constituent un ensemble hétérogène. Le texte final établit entre ces matériaux des relations que le lecteur doit pouvoir comprendre sans avoir participé à leur élaboration "
+          },
+          {
+            "type": "citation",
+            "attrs": {
+              "form": "normal",
+              "items": [
+                {
+                  "file_id": "demo-books",
+                  "key": "lefevre2021",
+                  "supplement": "p. 18–21"
+                }
+              ]
+            }
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Le contenu porte le raisonnement ; la "
+          },
+          {
+            "type": "text",
+            "text": "présentation",
+            "marks": [
+              {
+                "type": "bold",
+                "attrs": {}
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " en facilite le parcours. Un changement de modèle peut modifier la taille des titres ou la disposition des coordonnées sans transformer les auteurs, leurs affiliations ou les paragraphes. Cette séparation devient particulièrement utile lorsqu’un même texte circule entre plusieurs espaces de publication."
+          },
+          {
+            "type": "footnote",
+            "attrs": {
+              "text": "La présente note est un exemple de note de bas de page. Elle appartient au contenu de l’article et suit la numérotation du document."
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph"
+      }
+    ]
+  },
+  "after": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Écrire un article "
+          },
+          {
+            "type": "text",
+            "text": "suppose",
+            "marks": [
+              {
+                "type": "italic",
+                "attrs": {}
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " de donner une forme lisible à une démarche qui ne s’est pas nécessairement déroulée dans le même ordre. Les notes de terrain, les échanges entre collègues et les premières analyses constituent un ensemble hétérogène. Le texte final établit entre ces matériaux des relations que le lecteur peut pouvoir xx comprendre sans avoir participé à leur élaboration "
+          },
+          {
+            "type": "citation",
+            "attrs": {
+              "form": "normal",
+              "items": [
+                {
+                  "file_id": "demo-books",
+                  "key": "lefevre2021",
+                  "supplement": "p. 18–21"
+                }
+              ]
+            }
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Le contenu porte le raisonnement ; la "
+          },
+          {
+            "type": "text",
+            "text": "présentation",
+            "marks": [
+              {
+                "type": "bold",
+                "attrs": {}
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " en facilite le parcours. Un changement de modèle peut modifier la taille des titres ou la disposition des coordonnées sans transformer les auteurs, leurs affiliations ou les paragraphes. Cette séparation devient particulièrement utile lorsqu’un même texte circule entre plusieurs espaces de publication."
+          },
+          {
+            "type": "footnote",
+            "attrs": {
+              "text": "La présente note est un exemple de note de bas de page. Elle appartient au contenu de l’article et suit la numérotation du document."
+            }
+          }
+        ]
+      },
+      {
+        "type": "paragraph"
+      }
+    ]
+  }
+}

@@ -1,9 +1,12 @@
+#[path = "versions.rs"]
+mod versions;
 use super::{Call, archive_error, content_error, decode};
 use crate::content::{
     archive::Archive,
     commands::{Style, Switch},
     contract::{Guard, Settings, State},
     editing::{ContextId, Direction, EditingSession, Selection},
+    project::Project as StoredProject,
     shared::{Publication, SharedDocument},
 };
 use crate::{
@@ -75,7 +78,8 @@ fn identity() -> String {
 struct Project {
     engine: EditingSession,
     context: ContextId,
-    dependencies: packages::Dependencies,
+    storage: StoredProject,
+    saved_origin: bool,
     path: Option<PathBuf>,
     lease: Option<DocumentLease>,
     saved: Vec<u8>,
@@ -139,11 +143,12 @@ impl Session {
     }
     fn replace(
         &mut self,
-        archive: Archive,
+        storage: StoredProject,
         path: Option<PathBuf>,
         lease: Option<DocumentLease>,
         saved: bool,
     ) -> Result<Value, CommandError> {
+        let archive = storage.current().clone();
         let bytes = crate::content::shared::verify_or_initialize(&archive.state(), &archive.yjs)
             .map_err(content_error)?;
         let guard = Guard {
@@ -162,7 +167,8 @@ impl Session {
         self.project = Some(Project {
             engine,
             context,
-            dependencies: archive.dependencies,
+            storage,
+            saved_origin: saved,
             path,
             lease,
             saved: if saved { checkpoint } else { vec![] },
@@ -178,9 +184,10 @@ impl Session {
         }
     }
     pub fn fork(&self) -> Result<Self, CommandError> {
-        let archive = self.archive()?;
+        let storage = self.stored_project()?;
         let mut copy = Self::new();
-        copy.replace(archive, None, None, false)?;
+        copy.replace(storage, None, None, false)?;
+        copy.project.as_mut().unwrap().saved_origin = self.project()?.saved_origin;
         Ok(copy)
     }
     pub fn archive(&self) -> Result<Archive, CommandError> {
@@ -189,8 +196,15 @@ impl Session {
             p.engine.state(),
             p.engine.update(),
             p.engine.assets().clone(),
-            p.dependencies.clone(),
+            p.storage
+                .dependencies_for(&p.engine.state().settings.template),
         ))
+    }
+    pub fn stored_project(&self) -> Result<StoredProject, CommandError> {
+        self.project()?
+            .storage
+            .with_current(self.archive()?)
+            .map_err(archive_error)
     }
     fn archive_for(
         s: &State,
@@ -213,8 +227,16 @@ impl Session {
             return Err(error("file_exists"));
         }
         let mut lease = DocumentLease::acquire(path)?;
-        self.archive()?.save(&mut lease).map_err(archive_error)?;
+        let storage = self.stored_project()?;
+        let storage = if self.project()?.saved_origin {
+            storage.independent_copy()
+        } else {
+            storage
+        };
+        storage.save(&mut lease).map_err(archive_error)?;
         let p = self.project.as_mut().unwrap();
+        p.storage = storage;
+        p.saved_origin = true;
         p.path = Some(path.into());
         p.lease = Some(lease);
         p.saved = p.engine.update();
@@ -223,15 +245,17 @@ impl Session {
     }
     pub fn save(&mut self) -> Result<Value, CommandError> {
         self.writable()?;
-        let archive = self.archive()?;
+        let storage = self.stored_project()?;
         let p = self.project.as_mut().unwrap();
-        archive
+        storage
             .save(
                 p.lease
                     .as_mut()
                     .ok_or_else(|| error("save_path_required"))?,
             )
             .map_err(archive_error)?;
+        p.storage = storage;
+        p.saved_origin = true;
         p.saved = p.engine.update();
         p.saved_assets = p.engine.assets().keys().cloned().collect();
         Ok(json!({"saved":p.path,"guard":p.engine.guard()}))
@@ -258,13 +282,16 @@ impl Session {
         if id == "document.inspect" && !self.is_open() {
             return Ok(json!({"open":false,"guard":null}));
         }
+        if id.starts_with("versions.") {
+            return self.version_query(id, &params);
+        }
         if id == "render.locate" || id == "render.selection_boxes" {
             return self.render_query(id, &params);
         }
         let p = self.project.as_mut().ok_or_else(|| error("no_document"))?;
         match id {
             "document.inspect" => Ok(
-                json!({"guard":p.engine.guard(),"state":p.engine.state(),"document_type":p.engine.state().settings.metadata.document_type(),"path":p.path,"read_only":p.lease.is_none()&&p.path.is_some(),"dirty":p.dirty(),"context":p.engine.context(&p.engine.guard().clone(),p.context).map_err(content_error)?}),
+                json!({"project_id":p.storage.project_id(),"guard":p.engine.guard(),"state":p.engine.state(),"document_type":p.engine.state().settings.metadata.document_type(),"path":p.path,"read_only":p.lease.is_none()&&p.path.is_some(),"dirty":p.dirty(),"context":p.engine.context(&p.engine.guard().clone(),p.context).map_err(content_error)?}),
             ),
             "context.get" => Ok(json!(
                 p.engine
@@ -315,9 +342,14 @@ impl Session {
                         .map_err(content_error)?
                         .update(),
                     Assets::default(),
-                    packages::bundled(),
+                    packages::for_template(model.source),
                 );
-                self.replace(archive, None, None, false)
+                self.replace(
+                    StoredProject::new(archive).map_err(archive_error)?,
+                    None,
+                    None,
+                    false,
+                )
             }
             "document.open" => {
                 let p: Open = decode(params)?;
@@ -325,7 +357,7 @@ impl Session {
                 let lease = (!p.read_only)
                     .then(|| DocumentLease::acquire(&p.path))
                     .transpose()?;
-                let a = Archive::read(&p.path).map_err(archive_error)?;
+                let a = StoredProject::read(&p.path).map_err(archive_error)?;
                 if let Some(l) = &lease {
                     l.check()?
                 }
@@ -342,6 +374,7 @@ impl Session {
                     .ok_or_else(|| content_error(super::invalid("path")))?,
             )),
             "document.save" => self.save(),
+            "versions.change" => self.change_versions(decode(params)?),
             "document.export" => {
                 let p: Export = decode(params)?;
                 self.export(&p.directory, p.format, p.page_images)
@@ -431,27 +464,39 @@ impl Session {
             ));
         }
         let mut new_lease = None;
+        let mut stored = None;
         if let Some(ref save) = save {
             let archive = Self::archive_for(
                 prepared.state(),
                 prepared.checkpoint(),
                 prepared.assets(p.engine.assets()).clone(),
-                p.dependencies.clone(),
+                p.storage
+                    .dependencies_for(&prepared.state().settings.template),
             );
+            let storage = p.storage.with_current(archive).map_err(archive_error)?;
             match save {
-                Save::Current => archive
-                    .save(
-                        p.lease
-                            .as_mut()
-                            .ok_or_else(|| error("save_path_required"))?,
-                    )
-                    .map_err(archive_error)?,
+                Save::Current => {
+                    storage
+                        .save(
+                            p.lease
+                                .as_mut()
+                                .ok_or_else(|| error("save_path_required"))?,
+                        )
+                        .map_err(archive_error)?;
+                    stored = Some(storage);
+                }
                 Save::As { path } => {
                     if std::fs::symlink_metadata(path).is_ok() {
                         return Err(error("file_exists"));
                     }
                     let mut lease = DocumentLease::acquire(path)?;
-                    archive.save(&mut lease).map_err(archive_error)?;
+                    let storage = if p.saved_origin {
+                        storage.independent_copy()
+                    } else {
+                        storage
+                    };
+                    storage.save(&mut lease).map_err(archive_error)?;
+                    stored = Some(storage);
                     new_lease = Some((path.clone(), lease));
                 }
             }
@@ -465,6 +510,8 @@ impl Session {
             p.lease = Some(lease)
         }
         if save.is_some() {
+            p.storage = stored.expect("prepared saved owner");
+            p.saved_origin = true;
             p.saved = p.engine.update();
             p.saved_assets = p.engine.assets().keys().cloned().collect();
         }

@@ -80,17 +80,29 @@ pub struct Renderer(
     pub Mutex<TypstWorld>,
     pub Mutex<Option<typstographe_core::navigation::RenderSync>>,
 );
+pub struct RenderContext<'a> {
+    pub settings: &'a crate::settings::Settings,
+    pub dependencies: typstographe_core::packages::Dependencies,
+}
+impl<'a> From<&'a crate::settings::Settings> for RenderContext<'a> {
+    fn from(settings: &'a crate::settings::Settings) -> Self {
+        Self {
+            settings,
+            dependencies: typstographe_core::packages::for_template(&settings.template),
+        }
+    }
+}
 impl Renderer {
     pub fn validate(
         &self,
         source: &str,
         assets: &Assets,
-        settings: &crate::settings::Settings,
+        context: RenderContext<'_>,
     ) -> Result<(), String> {
         let mut world = self.0.lock().map_err(|e| e.to_string())?;
-        let dependencies = typstographe_core::packages::for_template(&settings.template);
+        let settings = context.settings;
         world.set_assets(assets);
-        world.set_dependencies(&dependencies);
+        world.set_dependencies(&context.dependencies);
         world
             .validate_model(source, &settings.metadata, &settings.template)
             .map(|_| ())
@@ -102,7 +114,7 @@ impl Renderer {
         assets: Assets,
         revision: u64,
         export: Option<PathBuf>,
-        settings: Option<&crate::settings::Settings>,
+        settings: Option<RenderContext<'_>>,
         map: Option<SourceMap>,
     ) -> Result<Preview, String> {
         self.render_output(
@@ -121,7 +133,7 @@ impl Renderer {
         source: String,
         assets: Assets,
         revision: u64,
-        settings: &crate::settings::Settings,
+        settings: RenderContext<'_>,
         map: SourceMap,
         encoding: Encoding,
     ) -> Result<Vec<u8>, String> {
@@ -144,12 +156,13 @@ impl Renderer {
         assets: Assets,
         revision: u64,
         export: Option<PathBuf>,
-        settings: Option<&crate::settings::Settings>,
+        context: Option<RenderContext<'_>>,
         map: Option<SourceMap>,
         encoding: Encoding,
     ) -> Result<Output, String> {
         let fallback = crate::settings::Settings::default();
-        let settings = settings.unwrap_or(&fallback);
+        let context = context.unwrap_or_else(|| (&fallback).into());
+        let settings = context.settings;
         if export.is_some() && !settings.metadata.ready_for_export() {
             return Err(typstographe_i18n::text("export-required-fields"));
         }
@@ -157,7 +170,7 @@ impl Renderer {
         let request = RenderRequest {
             source: source.clone(),
             assets,
-            dependencies: typstographe_core::packages::for_template(&template),
+            dependencies: context.dependencies,
 
             metadata: settings.metadata.clone(),
             template,
@@ -165,7 +178,7 @@ impl Renderer {
         let start = Instant::now();
         let mut timings = PreviewTimings::default();
         let mut world = self.0.lock().map_err(|e| e.to_string())?;
-        typstographe_core::packages::validate(&request.template, &request.dependencies)
+        typstographe_core::packages::validate_embedded(&request.template, &request.dependencies)
             .map_err(|e| e.to_string())?;
         world.set_assets(&request.assets);
         world.set_dependencies(&request.dependencies);
@@ -358,7 +371,7 @@ mod tests {
                 assets,
                 1,
                 Some(root.path().into()),
-                Some(&settings),
+                Some((&settings).into()),
                 None,
             )
             .unwrap();
@@ -420,7 +433,7 @@ mod tests {
                     Assets::default(),
                     1,
                     None,
-                    Some(&settings),
+                    Some((&settings).into()),
                     None,
                 )
                 .unwrap();
@@ -437,7 +450,7 @@ mod tests {
                     source.into(),
                     Assets::default(),
                     1,
-                    &settings,
+                    (&settings).into(),
                     SourceMap::default(),
                     Encoding::Rgba,
                 )
@@ -470,7 +483,7 @@ mod tests {
                     source.into(),
                     Assets::default(),
                     7,
-                    &small_pages(),
+                    (&small_pages()).into(),
                     SourceMap::default(),
                     encoding,
                 )
@@ -520,7 +533,7 @@ mod tests {
                 "Valide".into(),
                 Assets::default(),
                 1,
-                &small_pages(),
+                (&small_pages()).into(),
                 SourceMap::default(),
                 Encoding::Rgba,
             )
@@ -540,7 +553,7 @@ mod tests {
                     Assets::default(),
                     2,
                     Some(root.path().into()),
-                    Some(&settings),
+                    Some((&settings).into()),
                     Some(SourceMap::default())
                 )
                 .is_err()
@@ -551,7 +564,7 @@ mod tests {
                     "#let".into(),
                     Assets::default(),
                     3,
-                    &small_pages(),
+                    (&small_pages()).into(),
                     SourceMap::default(),
                     Encoding::Rgba
                 )
@@ -573,7 +586,7 @@ mod tests {
                 "Texte".into(),
                 Assets::default(),
                 current,
-                &small_pages(),
+                (&small_pages()).into(),
                 SourceMap::default(),
                 Encoding::Rgba,
             )
@@ -627,7 +640,7 @@ mod tests {
                         assets.clone(),
                         iteration,
                         None,
-                        Some(&settings),
+                        Some((&settings).into()),
                         Some(map),
                     )
                     .unwrap();

@@ -20,24 +20,14 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** préparer les choix d’**A.4 — Snapshots durables** ensemble,
-en anticipant le mode de relecture **J**, puis terminer le socle par
-**A.5 — Documentation, nettoyage et recette finale**.
-Les copies privées, la reprise des formulaires et la fermeture sont implémentées.
-La [recette de clôture](docs/a3-closure-results.md) couvre les incidents de
-publication, changements externes et exports Courrier/Article ; sa qualification
-native a réussi sur les trois systèmes ; le workflow vérifie aussi le commit
-courant et conserve ses rapports. Les résultats
-macOS locaux et les résultats CI sont distingués. Ne pas confondre récupération
-et snapshots durables.
-
-**A.2 est clos.** La [recette Courrier/Article](docs/a2-closure-results.md) valide
-le même projet entre Tauri, CLI et MCP, les propositions rattachées, l’historique,
-la sauvegarde/réouverture et les exports hors ligne. Le
-[contrat structuré](docs/structured-contract.md) et le
-[mode individuel allégé](docs/individual-mode.md) constituent le socle conservé.
-Les propositions MCP rattachées restent limitées au corps/cellules/annotations ;
-leur extension demande une relecture adaptée.
+**Socle disponible :** application Tauri, contrat documentaire commun,
+conservation des brouillons, fichiers CAS et Versions avec comparaison locale.
+Les [contrats courants et bilans](docs/README.md) décrivent les garanties livrées ;
+les propositions MCP rattachées restent limitées au corps/cellules/annotations.
+La [clôture A.5](docs/a5-closure-results.md) documente les contrats, l’isolation
+des recettes et la recette finale depuis un checkout propre. La qualification
+CI complète du candidat reste à vérifier avant fusion. Les contrôles matériels
+et de distribution restent dans H.
 
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
@@ -62,20 +52,21 @@ par un espace de stockage imposé.
   créer et ouvrir un projet. Retirer une entrée des récents ne supprime pas
   le fichier.
 - **Document** : naviguer dans le projet actif, avec son plan, ses références
-  bibliographiques, ses ressources et ses versions conservées. Les rubriques
+  bibliographiques, ses ressources, ses versions conservées et ses relectures. Les rubriques
   s’adaptent aux capacités du type ; l’arborescence technique reste masquée.
 
 La piste à maquetter s’appuie sur la barre verticale existante et un seul panneau
 latéral ouvert à la fois, avec les accès aux outils et aux préférences globales.
-« Versions » est le libellé proposé pour les snapshots. Leur consultation,
-leur comparaison et leurs actions demandent une maquette spécifique ; la
-séparation Projets/Document n’en fige pas encore la présentation détaillée.
+**Versions** et **Relectures** sont deux entrées distinctes de la barre latérale.
+Versions expose les états conservés pour consultation/restauration ; Relectures
+conserve le parcours par annotations du chantier J. Les références techniques
+de relecture ne sont pas des lignes de Versions. La modale commune de consultation
+et comparaison sert aux versions et aux propositions MCP, avec des actions adaptées.
 
 ## Priorités et dépendances
 
 | Priorité | Chantier | Résultat attendu |
 | --- | --- | --- |
-| **P0** | A — Socle d’application | Une application Tauri de référence, un contrat documentaire commun et des fichiers fiables |
 | **P1** | B — Types et contrats | Une liste limitée de types utiles, leurs métadonnées et leurs capacités |
 | **P1** | C — Capacités documentaires | Un périmètre quotidien complet et cohérent, puis les outils nécessaires aux documents SHS |
 | **P1** | D — Modèles et bibliothèque | Au moins un modèle réellement utilisable pour chaque type livré |
@@ -90,103 +81,13 @@ L’accessibilité, la protection du travail et les performances accompagnent ch
 lot. La collaboration distante et l’assistance restent facultatives ; la
 rédaction individuelle, l’ouverture et l’export doivent fonctionner hors ligne.
 
-## A — Sortir le code du statut de prototype
+## Socle livré — références
 
-**A.1 à A.3 sont clos** : application Tauri de référence, contrat structuré commun
-aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
-`docs/`. Les lots restants sont A.4 et A.5.
-
-### A.4 — Snapshots durables
-
-- Préciser le contrat de conservation de l’arbre documentaire, de Yjs et du
-  Typst généré avec les snapshots avant de stabiliser le format public du .typsto.
-- Conserver dans le projet des états cohérents et identifiables, consultables
-  hors ligne. Chaque état doit retrouver son contenu, ses métadonnées et réglages, son modèle,
-  ses dépendances et les ressources nécessaires au rendu, y compris une image
-  remplacée ou supprimée depuis. Chaque snapshot possède une date de création
-  enregistrée automatiquement pour le classement chronologique, un nom libre
-  modifiable (par exemple « v1 » ou « Soumission », avec un nom daté proposé par
-  défaut), des tags facultatifs et une description facultative. Aucune numérotation
-  de version n’est imposée. Conserver l’auteur du snapshot sans lui attribuer
-  toutes les modifications de l’état conservé.
-- Distinguer snapshots durables, annuler/rétablir en séance et récupération
-  après incident. Prévoir consultation en lecture seule, comparaison et retour
-  à un état conservé sans effacer l’historique. Maquetter et valider le parcours
-  de restauration, de copie indépendante et de suppression des snapshots.
-- Prévoir dans le panneau latéral du document actif une rubrique **Versions** :
-  navigation chronologique, consultation, nom/tags et suppression des snapshots
-  autorisés. Maquetter cette interface et ses parcours clavier avant codage.
-- Livrer une **interface commune de comparaison pour les snapshots et les
-  propositions MCP** : comparer deux snapshots ou un snapshot et l’état courant,
-  présenter les différences par groupes avec leur contexte et naviguer entre eux.
-  Couvrir texte, structure, paramètres, métadonnées et ressources. Séparer le
-  calcul des différences, leur présentation et les actions disponibles.
-  Préparer le contrat des groupes pour les décisions locales ultérieures ; leur
-  proximité visuelle ne prouve pas leur indépendance documentaire. La comparaison
-  de snapshots reste une consultation : reprendre une modification ancienne serait
-  une action explicite sur l’état courant, jamais sur le snapshot conservé.
-  La validation partielle MCP relève du lot dédié F, sans conditionner la clôture
-  d’A.4 ; le mode relecture J conserve ses outils dédiés.
-- Séparer stockage des états et calcul des différences. **Git local embarqué
-  est une piste à évaluer, pas une dépendance choisie**, sans serveur GitHub ni
-  connaissance de Git demandée à l’utilisateur. Comparer cette piste à un
-  stockage de snapshots et une bibliothèque de diff existante. Git éventuel
-  ne remplace pas Yjs pour l’édition collaborative.
-- Maîtriser le poids du projet : étudier la déduplication des ressources et
-  leur référencement immuable par snapshot. Exclure assets/ d’un éventuel dépôt
-  Git ne doit pas permettre de perdre les images d’un état conservé. Définir
-  rétention, suppression et nettoyage ; une ressource utile à un snapshot
-  conservé reste dans le .typsto. L’export Typst/PDF porte sur l’état choisi,
-  sans embarquer inutilement les ressources des autres états.
-
-**Lien avec la relecture J — règle retenue :** démarrer une nouvelle relecture
-crée automatiquement un snapshot de l’état initial et rattache la relecture à
-cette référence. Ce snapshot reste conservé et inchangé pendant toute sa durée ;
-il ne peut pas être supprimé tant que la relecture est en cours. Rouvrir une
-relecture existante ou son panneau ne crée pas un autre snapshot. Ce déclencheur
-explicite ne suppose pas de snapshots automatiques heuristiques. Les suggestions
-restent des annotations ancrées distinctes du contenu, acceptées ou refusées par
-les commandes ordinaires : la comparaison avec le snapshot ne les remplace pas.
-A.4 prépare ce socle sans avancer l’implémentation ni la maquette de J.
-
-**Choix à valider pour A.4 :** périmètre et moment de stabilisation du format.
-Pour les snapshots : autres déclencheurs éventuels, stockage, comparaison,
-rétention et restauration, puis droits et coordination en collaboration.
-Préciser avec J la conservation des suggestions/commentaires, leur devenir lors
-d’une restauration et la rétention du snapshot de référence après la clôture
-d’une relecture. Ces règles restent à décider ; la référence initiale et les
-métadonnées des snapshots ci-dessus sont retenues.
-Aucune couche de rétrocompatibilité préventive pendant cette phase préliminaire.
-
-### A.5 — Documentation, nettoyage et recette finale
-
-Lot de clôture à mener après A.4, avant de déclarer le socle A terminé :
-
-- **Documentation :** retirer des roadmaps les tâches livrées, identifier les
-  contrats de référence et les bilans historiques, actualiser les commandes et le
-  guide de développement. Garder le README court ; conserver décisions et preuves utiles.
-- **Code :** supprimer les chemins morts, dépendances inutiles et duplications
-  restantes. Séparer diagnostics, fixtures et mesures de l’application livrée,
-  tout en gardant leurs recettes reproductibles.
-- **Dépôt :** ranger exemples et recettes, supprimer les fichiers temporaires et
-  les branches fusionnées devenues inutiles ; conserver les rapports pertinents,
-  références visuelles existantes, licences et provenances. Aucune nouvelle capture.
-- **Contrat du fichier :** documenter le format versionné retenu avec A.4 et ses
-  limites, en distinguant état courant, snapshots et copie de récupération.
-- **Recette de sortie :** depuis un checkout propre, suivre les instructions
-  documentées pour construire, tester et lancer l’application. Vérifier le même
-  corpus Courrier/Article entre Tauri, CLI et MCP, avec sauvegarde, réouverture,
-  consultation/restauration de snapshots et export hors ligne de l’état choisi.
-
-Les contrôles d’installation, signature, mise à jour et les recettes matérielles
-restent dans H. Tout choix structurant découvert pendant A.5 revient dans la
-discussion ; ce lot ne lance pas une réécriture générale ni les fonctionnalités
-des autres chantiers.
-
-**Sortie :** un même document passe de l’interface aux opérations documentaires
-et aux exports sans voie spéciale de prototype ni perte de contenu, avec snapshots
-durables ; le dépôt et sa documentation permettent à une autre personne de
-comprendre, construire et vérifier ce socle.
+A.1–A.5 sont implémentés et recettés localement ; voir l’[index documentaire](docs/README.md)
+et le [bilan de clôture](docs/a5-closure-results.md). La qualification CI du
+candidat sur les trois systèmes reste distincte des résultats macOS locaux.
+Le socle ne constitue pas encore un outil de rédaction complet : les lots
+ci-dessous portent les fonctionnalités restantes et leurs arbitrages.
 
 ## B — Définir les types utiles et leurs contrats
 
@@ -359,6 +260,12 @@ validé sur la recette représentative de chaque modèle livré.
   distinguant la police de lecture de l’éditeur de celles du modèle.
 - Vérifier les langues des menus et dialogues natifs dans l’application installée,
   la couverture des glyphes et l’absence de corrections concurrentes avec Spellbook.
+  **Problème reporté le 31 octobre 2026 :** sous macOS avec `npm start`, le menu
+  de l’application est français mais les boutons du sélecteur de fichiers
+  restent anglais. Reprendre le [diagnostic consigné](docs/native-localization-investigation.md)
+  et comparer la solution éventuelle de `dbv-typst-editor` avant une nouvelle
+  expérimentation. Les essais non concluants ont été retirés ; la traduction
+  visible de ces boutons n’est pas considérée comme validée.
 - Tenir un budget de latence de saisie et de rendu sur des documents représentatifs,
   en build natif optimisé ; réutiliser les mesures et références existantes.
   **Budget relatif (29 octobre 2026) :** la latence de bout en bout de l'aperçu
@@ -390,8 +297,13 @@ MCP pour les capacités documentaires et l’acceptation explicite des propositi
   le document et la sélection confiés, sans suivre ensuite le curseur humain.
 - Distinguer masquer le panneau, interrompre une demande et terminer l’assistance ;
   préciser les erreurs, coupures et reprises sans renvoi automatique d’une demande.
-- Conserver un seul lot proposé en attente, sa relecture, sa péremption et son
+- Conserver un seul lot proposé en attente, sa consultation, sa péremption et son
   acceptation/refus explicites. L’assistance ne doit pas déplacer le focus de rédaction.
+- Représenter le lot soumis par une base figée et un candidat explicitement fondé
+  sur cette base. Réutiliser la consultation/comparaison de Versions, avec les
+  actions propres aux propositions. Les snapshots privés MCP ne deviennent ni
+  des versions conservées ni une relecture J par leur seule création. Conserver
+  garde stricte, commandes autorisées et autorisations de fichiers distinctes.
 - Préciser installation, authentification et distribution des agents/adaptateurs ;
   annoncer uniquement les fonctions et droits effectivement disponibles par agent.
 
@@ -402,20 +314,12 @@ Les choix fonctionnels détaillés sont dans le [plan technique](ROADMAP-ARCHITE
 **Sortie :** discuter, reformuler une sélection et préparer un document structuré,
 puis accepter/refuser un lot, avec au moins deux agents et sans configuration MCP manuelle.
 
-**Lot dédié — Validation locale des propositions MCP, après la comparaison A.4 :**
-
-- Permettre d’accepter ou de refuser les groupes de modifications indépendants,
-  en réutilisant l’interface de comparaison commune. Les opérations liées restent
-  soumises à une décision groupée ; à défaut d’indépendance garantie, conserver
-  l’acceptation ou le refus du lot entier. Une citation et sa nouvelle référence
-  bibliographique peuvent par exemple être liées malgré leur éloignement.
-- Chaque acceptation revérifie ses cibles, publie une opération atomique et
-  constitue une étape d’annulation cohérente. Préciser le devenir des groupes
-  restants après une décision et face aux modifications concurrentes, sans
-  réapplication aveugle ni acceptation implicite.
-- Valider ensemble le contrat MCP, les règles de dépendance et la maquette avant
-  implémentation. L’acceptation actuelle par lot entier reste en vigueur jusque-là.
-  Ce lot n’est pas une condition de clôture d’A.4.
+**Cycle de vie des propositions restant à préciser :** la comparaison et les
+reçus locaux sont livrés ; le [contrat courant](docs/a4-comparison-contract.md)
+est conservé. F doit décider de leur conservation durable après décision,
+des enrichissements de reçus utiles à ACP et du parcours de nouvelle proposition
+sur une base actualisée. Aucun second moteur de validation ni droit implicite
+de sauvegarde/export n’est à développer.
 
 ## G — Ajouter la collaboration distante
 
@@ -480,6 +384,12 @@ identités et droits, transport, stockage, confidentialité, coûts et maintenan
 
 ## H — Préparer une première diffusion
 
+**Versions après export PDF — à implémenter :** après un export réussi, proposer
+« Créer une version de cet export », volontairement et sans modale. Capturer
+l’état exact qui a produit le PDF même si la rédaction a continué. Aucun jalon
+sur échec/annulation ; le quota de versions ne bloque jamais l’export.
+La comparaison entre fichiers reste une piste ultérieure.
+
 - Définir le périmètre de la première version utilisable et ses limites annoncées.
 - Produire des paquets macOS, Windows et Linux, l’association .typsto, l’ouverture
   par un lien d’invitation et une identité d’application stable.
@@ -531,8 +441,14 @@ version, puis être peaufinée.
 - Conserver les outils dédiés de relecture par annotations ; l’interface commune
   de comparaison d’A.4 vise les snapshots et les propositions MCP et ne remplace
   pas ces outils. Mutualiser les composants pertinents sans imposer la même
-  présentation. L’acceptation MCP reste par lot entier jusqu’au lot dédié F de
-  validation locale, qui préservera les décisions groupées pour les opérations liées.
+  présentation. La validation locale des propositions MCP réutilisera le moteur
+  commun d’A.4, avec décisions groupées pour les opérations liées ; l’acceptation
+  commune à A.4 conserve l’atomicité des groupes dépendants.
+- **Relectures** est une entrée propre de la barre latérale, distincte de Versions.
+  Son snapshot initial est un support interne protégé, absent des versions affichées
+  et de leur quota de 100. Sa rétention relève de la relecture et des budgets de
+  volume du projet. Ne pas remplacer les outils déjà définis ici par une simple
+  consultation de snapshots, ni ajouter un bouton de comparaison non validé.
 - Limiter le premier périmètre de relecture humaine aux suggestions de texte dans une zone (insertion,
   suppression, remplacement, commentaire). Les suggestions structurelles (blocs,
   tableaux, notes, citations) et le suivi de formatage viennent plus tard.
@@ -549,8 +465,8 @@ version, puis être peaufinée.
   une relecture ne recrée pas ce snapshot ; aucun déclencheur heuristique n’est
   prévu. A.4 fournit cette référence durable et sa comparaison, tandis que les
   suggestions restent des objets distincts. Leur conservation, leur devenir après
-  restauration et la rétention de la référence après clôture restent à valider
-  ensemble dans A.4/J.
+  reprise de version et la rétention de la référence après clôture restent à
+  valider ensemble dans J.
 - La relecture humaine ne dépend pas de la livraison d’ACP : son contrat commun
   de suggestions peut être préparé indépendamment et raccordé ensuite aux agents.
 - Une ancre déplacée peut suivre le texte ; une cible dont le contenu a changé
@@ -566,13 +482,11 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Préciser ensemble A.4 : contenu, stockage, rétention et restauration des snapshots,
-   en anticipant la relecture J ; évaluer Git embarqué et les alternatives avant
-   de choisir un moteur.
-2. Terminer A avec A.5 : documentation, nettoyage et recette depuis un checkout propre.
-3. Reprendre ensuite le périmètre administratif restant, un type à la fois,
+1. Vérifier la qualification CI du candidat A.5, puis préciser ensemble le
+   prochain périmètre de types et capacités (**B/C**).
+2. Reprendre le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
-4. Engager ACP après stabilisation du contrat documentaire et validation de sa
+3. Engager ACP après stabilisation du contrat documentaire et validation de sa
    maquette (**F**), sans attendre la livraison de tous les types SHS/enseignement.
 
 Ce prochain lot est une proposition à discuter ; cette réécriture documentaire

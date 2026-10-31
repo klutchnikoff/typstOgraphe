@@ -29,4 +29,5 @@ Ces commandes s’exécutent depuis la racine. Tauri est l’application princip
 avec l’accueil animé et les icônes tO. Le [guide de développement](app/README.md)
 décrit aussi le lancement par Cargo et les vérifications.
 
-Voir la [CLI documentaire](docs/cli.md) et la [feuille de route](ROADMAP.md).
+Voir la [documentation](docs/README.md), la [CLI documentaire](docs/cli.md)
+et la [feuille de route](ROADMAP.md).

@@ -10,7 +10,10 @@ fn new_uses_declared_types_models_and_explicit_metadata_without_profile_defaults
         let p = d.path().join(format!("{kind}.typsto"));
         let r = response(cli().args(["new", "--type", kind, "--output"]).arg(&p), 0);
         assert_eq!(r["outcome"]["saved"], true);
-        let a = typstographe_core::content::archive::Archive::read(&p).unwrap();
+        let a = typstographe_core::content::project::Project::read(&p)
+            .unwrap()
+            .current()
+            .clone();
         assert_eq!(
             serde_json::to_value(a.metadata.document_type()).unwrap(),
             kind

@@ -1,5 +1,8 @@
 # Disponibilité et aiguillage des actions
 
+> Référence historique antérieure au contrat structuré Tauri. Pour l’application
+> courante, voir l’[index documentaire](README.md) et le [contrat structuré](structured-contract.md).
+
 Lot de phase 2 du 24 octobre 2026. Les identifiants et schémas du
 [catalogue documentaire](commands.md) restent inchangés : 49 commandes et
 quatorze requêtes. La présentation graphique et les intentions de dialogue

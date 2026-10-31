@@ -91,7 +91,8 @@ Les commandes d’édition ordinaires et `document.batch` restent refusées en a
 direct rattaché : il faut soumettre explicitement une proposition. Le mode autonome
 conserve son exécution immédiate et sa politique de fichiers.
 
-Les états du lot sont `pending`, `accepted`, `rejected`, `stale` ou `cancelled`.
+Les états du lot sont `pending`, `accepted`, `partially_accepted`, `rejected`,
+`stale` ou `cancelled`.
 Un état terminal ne revient jamais à `pending`. Une péremption exige un nouveau
 lot, une nouvelle lecture et une nouvelle approbation ; il n’y a pas de fusion.
 Révocation, fermeture/remplacement du document ou déconnexion détruisent les
@@ -138,12 +139,12 @@ Exemple de soumission, en remplaçant la référence par celle fournie par `docu
 
 ```json
 {
-  "document": { "id": "invitation-document", "guard": { "document_id": 42, "revision": 7 } },
+  "document": { "id": "invitation-document", "guard": { "document": "invitation-document", "revision": 7 } },
   "request_id": "correction-salutation-1",
   "summary": "Corriger la salutation",
   "steps": [
     { "id": "text.insert", "params": {
-      "selector": { "select": "Cheres collègues" },
+      "target": { "zone": { "kind": "body", "path": [0] }, "from": 0, "to": 16 },
       "text": "Chères collègues"
     } }
   ]
@@ -156,6 +157,34 @@ la main à l’utilisateur ; il ne prétend pas que l’édition a eu lieu et ne
 une boucle de consultation. Un prochain échange peut interroger `get`, qui
 renvoie notamment la garde publiée après acceptation. Aucun appel ne reste
 suspendu indéfiniment en attendant une décision humaine.
+
+## Comparateur commun et décisions locales (A.4)
+
+La modale commune aux Versions et aux propositions affiche la base à gauche et
+le candidat à droite, figés dès la soumission avec leurs ressources documentaires.
+Les bibliothèques Typst restent celles de l’application selon le
+[contrat des dépendances](typst-dependencies.md), hors des décisions de l’agent.
+L’utilisateur choisit le rouge ou le vert pour chaque groupe, sans publication
+intermédiaire. Les verts sont retenus par défaut ; les éléments liés restent
+indivisibles. Les boutons sont « Refuser » / « Accepter » ; les actions globales
+« Tout refuser » / « Tout accepter ». La validation annonce « Appliquer N
+changements », avec un bilan des groupes acceptés et écartés. « Refuser la
+proposition » termine un lot entièrement écarté sans édition ni sauvegarde.
+La validation compose depuis la droite et publie le résultat comme
+une édition ordinaire en une étape d’annulation, sans enregistrer le document ni
+créer de snapshot. Un échec de validation conserve le document et les choix.
+Une intervention extérieure bloque la validation même si Annuler retrouve le même
+contenu ; les états comparés restent consultables.
+
+Les reçus ne changent pas pendant les choix provisoires. Après la validation
+unique, ils exposent `decisions` (`group`, `decision` : `applied` ou `refused`) et
+`workingRevision` ; `revision` conserve la révision initiale. Une combinaison de
+choix retenus et écartés se termine par `partially_accepted`. Les reçus terminaux
+restent consultables. Fermer avant validation ne décide rien. Aucun outil MCP ne
+peut accepter ni enregistrer. L’utilisateur décide séparément d’enregistrer ou de
+créer une version après l’application. Aucun export ni snapshot n’est implicite.
+
+Voir le [contrat commun et ses limites](a4-comparison-contract.md).
 
 ## Intégration livrée
 

@@ -21,6 +21,12 @@ pub enum Language {
 
 #[derive(Subcommand)]
 pub enum Action {
+    #[command(about = tr!("cli-versions-help"))]
+    Versions {
+        file: PathBuf,
+        #[command(flatten)]
+        params: Parameters,
+    },
     #[command(about = tr!("cli-mcp-help"))]
     Mcp {
         #[arg(long, value_name = "INVITATION", conflicts_with_all = ["read_only", "read_roots", "write_roots"], help = tr!("cli-mcp-attach-help"))]

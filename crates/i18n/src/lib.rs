@@ -4,7 +4,9 @@
 #[path = "errors.rs"]
 mod command_errors;
 mod content_errors;
+mod native;
 pub use content_errors::{archive_error_with, content_error_with};
+pub use native::{NativeMenuLabels, native_menu_labels};
 pub fn archive_error(error: &typstographe_core::content::archive::Error) -> String {
     archive_error_with(loader(), error)
 }
@@ -134,6 +136,23 @@ mod tests {
             for key in keys.values() {
                 assert!(!loader.get(key).is_empty());
                 assert_ne!(loader.get(key), *key, "{language}: {key}");
+            }
+        }
+    }
+    #[test]
+    fn web_count_and_name_templates_keep_their_literal_markers() {
+        for language in ["fr", "en"] {
+            let loader = requested(&[language]);
+            let keys: std::collections::BTreeMap<String, String> =
+                serde_json::from_str(include_str!("../web-labels.json")).unwrap();
+            for source in ["Reprendre {count} passages", "Choisir dans « {name} »"] {
+                let translated = loader.get(&keys[source]);
+                let marker = if source.contains("{count}") {
+                    "{count}"
+                } else {
+                    "{name}"
+                };
+                assert!(translated.contains(marker), "{language}: {translated}");
             }
         }
     }

@@ -60,6 +60,37 @@ impl Owner {
     pub fn state(&self) -> &typstographe_core::content::contract::State {
         self.engine.state()
     }
+    pub fn prepare_comparison(
+        &self,
+        plan: &typstographe_core::content::comparison::Comparison,
+        ids: &[usize],
+    ) -> Result<typstographe_core::content::comparison::PreparedDecision, String> {
+        plan.prepare(&self.engine, ids)
+            .map_err(|e| typstographe_i18n::content_error(&e))
+    }
+    pub fn publish_comparison(
+        &mut self,
+        peer: &str,
+        plan: &mut typstographe_core::content::comparison::Comparison,
+        prepared: typstographe_core::content::comparison::PreparedDecision,
+    ) -> Result<Publication, String> {
+        let context = self.context(peer)?;
+        plan.publish(&mut self.engine, context, prepared)
+            .map_err(|e| typstographe_i18n::content_error(&e))
+    }
+    pub fn check_comparison(
+        &mut self,
+        peer: &str,
+        plan: &typstographe_core::content::comparison::Comparison,
+        prepared: &typstographe_core::content::comparison::PreparedDecision,
+    ) -> Result<(), String> {
+        plan.check_prepared(&self.engine, prepared)
+            .map_err(|e| typstographe_i18n::content_error(&e))?;
+        let context = self.context(peer)?;
+        self.engine
+            .check_publication_context(plan.guard(), context)
+            .map_err(|e| typstographe_i18n::content_error(&e))
+    }
     pub fn prepare_agent_calls(
         &self,
         guard: &Guard,

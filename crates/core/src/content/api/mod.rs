@@ -92,4 +92,11 @@ pub fn check_params(id: &str, params: &Value) -> Result<(), CommandError> {
 }
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
+mod storage_tests;
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod version_tests;

@@ -21,6 +21,55 @@ les langues natives à partir de Fluent. Le manifeste Tauri, ses variantes
 macOS/Windows et les fichiers d’icônes sont conservés. L’identifiant de bundle
 existant reste inchangé pour retrouver les données locales.
 
+Sur macOS, les trois parcours doivent disposer des déclarations de langues
+issues de Fluent : `npm start`, l’exécutable autonome de `cargo run` et le bundle
+`.app`. Tauri embarque lui-même `Info.plist` en développement ; avec
+`custom-protocol` (frontend embarqué, activé par défaut), `native_locales.rs`
+assure cet embarquement, car l’exécutable peut être lancé sans bundle.
+Le fichier `.app` conserve sa fusion habituelle de ce même `Info.plist`.
+
+Régression identifiée après la promotion de Tauri dans A.1 : le générateur de
+langues était toujours exécuté par Cargo, mais Tauri n’insérait son résultat dans
+le Mach-O qu’en mode développement. Les tests du générateur ne détectaient pas
+l’absence de cette section dans un exécutable autonome. Le contrôle macOS de CI
+lit désormais la section `__TEXT,__info_plist` de l’application réellement
+construite et compare ses langues et son repli aux catalogues Fluent. Les tests
+natifs légers vérifient aussi la négociation Foundation français/anglais/repli,
+sans fenêtre ni changement des préférences système. Ils ne remplacent pas une
+vérification visuelle des libellés fournis par les services WebKit de chaque OS.
+
+Les actions standard créées par Tauri/Muda (`About`, `Hide`, `Cut`, etc.) ont des
+libellés anglais par défaut, indépendamment de ces déclarations. Leurs libellés
+sont désormais fournis explicitement par Fluent, avec les actions natives
+préservées. Un test vérifie français, anglais et repli. Le titre et le filtre du
+sélecteur de projet viennent également de Fluent ; ses commandes internes
+restent celles de macOS. **Problème confirmé, reporté le 31 octobre 2026 :**
+avec `npm start`, ces boutons restent anglais chez l’utilisateur. La première
+sonde pouvait confondre le titre « Ouvrir » avec un bouton : elle ne prouvait
+pas la traduction des commandes du service système. Le
+[diagnostic détaillé](native-localization-investigation.md) consigne cette
+limite, les essais non concluants retirés et la piste `dbv-typst-editor` à examiner.
+
+Recette de cette correction : cinq tests de langues natives (dont négociation
+Foundation en français/anglais/repli), onze tests i18n, quinze tests des scripts,
+Clippy de l’hôte/i18n sur toutes leurs cibles et contrôles de formatage réussis.
+Le binaire autonome avec frontend embarqué a été construit hors ligne ; son
+unique section de langues correspond aux catalogues Fluent. Les libellés
+standard de Tauri étaient déjà laissés en anglais dans la première version de
+ses menus : leur défaut de traduction est distinct du défaut d’embarquement
+introduit par le parcours Cargo autonome.
+
+Lors de cette vérification, le disque a atteint sa capacité. Le nettoyage
+`cargo clean --offline --profile dev -p typstographe -p typstographe-core
+-p typstographe-i18n -p typstographe-cli -p typstographe-mcp` a retiré 51,6 Gio
+d’artefacts accumulés, en conservant les dépendances tierces. `target/` est passé
+d’environ 63 à 13 Go avant reconstruction. Sources, projets, ressources,
+rapports et résultats d’essais ont été conservés.
+La reconstruction hors ligne du mode développement (`--no-default-features`,
+comme `npm start`) a ensuite réussi en réutilisant les dépendances conservées ;
+son binaire passe le contrôle des langues embarquées. Après reconstruction,
+`target/` pèse environ 14 Go.
+
 La CI Tauri construit le frontend et vérifie l’hôte sur les trois systèmes,
 puis les recettes Chromium/WebKit sous Linux, sans captures. La CI Rust vérifie
 le cœur, la CLI et le MCP indépendamment des bibliothèques de l’interface.

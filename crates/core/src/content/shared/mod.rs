@@ -6,6 +6,7 @@ mod break_tests;
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod command_tests;
 pub(super) mod commands;
+mod comparison;
 mod join;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
@@ -348,7 +349,7 @@ impl SharedSession {
             })?;
         }
         whitespace::apply(&candidate.doc, &candidate.state()?)?;
-        self.finish_preparation_with_assets(guard, candidate, assets)
+        self.finish_preparation_with_assets(guard, candidate, assets, true)
     }
 
     /// Same resolver, parameter validation and final validation as execution.
@@ -398,13 +399,14 @@ impl SharedSession {
         guard: &Guard,
         candidate: SharedDocument,
     ) -> Result<PreparedUpdate, Error> {
-        self.finish_preparation_with_assets(guard, candidate, None)
+        self.finish_preparation_with_assets(guard, candidate, None, true)
     }
     fn finish_preparation_with_assets(
         &self,
         guard: &Guard,
         candidate: SharedDocument,
         assets: Option<Assets>,
+        validate_model: bool,
     ) -> Result<PreparedUpdate, Error> {
         // The common typing path borrows the immutable pool; clone its index only for an import.
         let validation_assets = assets.as_ref().unwrap_or(&self.assets);
@@ -423,8 +425,9 @@ impl SharedSession {
                 reason: "document_type_changed".into(),
             });
         }
-        if state.settings.template != self.state.settings.template
-            || state.settings.model_id != self.state.settings.model_id
+        if validate_model
+            && (state.settings.template != self.state.settings.template
+                || state.settings.model_id != self.state.settings.model_id)
         {
             settings::validate_model(&state, validation_assets)?;
         }

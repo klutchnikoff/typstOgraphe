@@ -59,6 +59,13 @@ recovery-load-failed = Impossible de récupérer cette copie : { $error }
 recovery-delete-failed = Impossible de supprimer cette copie : { $error }
 
 save-dialog = Enregistrer le document
+native-menu-about = À propos de typstOgraphe
+native-menu-hide = Masquer typstOgraphe
+native-menu-hide-others = Masquer les autres
+native-menu-cut = Couper
+native-menu-copy = Copier
+native-menu-paste = Coller
+native-menu-select-all = Tout sélectionner
 file-dialog-unavailable = Le système n’a pas pu ouvrir le sélecteur de fichiers. Aucun fichier n’a été ouvert ni enregistré. Réessayez.
 letter-filter = Document typstOgraphe
 default-filename = Document.typsto
@@ -677,7 +684,6 @@ web-words = mots
 web-characters = signes
 web-selection = Sélection
 web-without-spaces = Hors espaces
-web-rust-example = Essai Rust
 web-welcome-title = Le contenu d’abord.
 web-welcome-description = Rédigez simplement. Votre modèle s’occupe de la présentation.
 web-session-saved = Session enregistrée
@@ -833,6 +839,10 @@ storage-project-error = Impossible de lire ou d’enregistrer ce projet : { $err
 storage-unexpected-entry = Fichier inattendu dans l’archive : { $name }.
 storage-duplicate-entry = Un fichier apparaît plusieurs fois dans l’archive : { $name }.
 storage-missing-entry = Un fichier nécessaire au projet est absent : { $name }.
+storage-object-integrity = Le contenu conservé ne correspond pas à son empreinte : { $name }.
+storage-project-index-invalid = L’index des versions ou des références du projet est invalide.
+storage-snapshot-limit = Le projet contient déjà le maximum de { $limit } versions. Supprimez une version pour en créer une nouvelle.
+storage-unknown-snapshot = Cette version n’existe pas dans le projet : { $id }.
 content-invalid-target = La position sélectionnée n’est plus disponible. Sélectionnez de nouveau le passage.
 content-invalid-parameter = Valeur incorrecte pour le paramètre « { $parameter } ».
 content-command-unavailable = La commande « { $command } » ne peut pas s’appliquer à cette sélection.
@@ -940,3 +950,177 @@ web-recovery-error-11 = Cette saisie n’est plus disponible.
 web-recovery-error-12 = récupéré
 
 web-recovery-close-scope = Les autres fenêtres seront fermées. Leurs saisies en cours seront conservées.
+
+storage-version-index-changed = La liste des versions a changé. Actualisez-la puis réessayez.
+
+web-versions-0 = Versions
+
+web-versions-1 = Créer une version
+
+web-versions-2 = Nom de la version
+
+web-versions-3 = Nom daté automatique
+
+web-versions-4 = Tags séparés par des virgules
+
+web-versions-5 = Description facultative
+
+web-versions-6 = Contenu de la version
+
+web-versions-7 = Informations du document
+
+web-versions-8 = Modèle intégré
+
+web-versions-9 = Modifier les informations de la version
+
+web-versions-10 = Fermer la version
+
+web-versions-11 = Affichage de la version
+
+web-versions-12 = Contenu
+
+web-versions-13 = Aperçu
+
+web-versions-14 = Page
+
+web-versions-15 = Supprimer cette version
+
+web-versions-16 = Supprimer cette version ?
+
+web-versions-17 = Informations de la version
+
+web-versions-18 = Seule cette version sera supprimée. Le document courant et les autres versions seront conservés.
+
+web-versions-19 = Aucune version conservée.
+
+web-versions-20 = Versions manuelles
+
+
+web-versions-22 = La limite de versions est atteinte. Supprimez une version pour en créer une nouvelle.
+
+web-versions-23 = Versions enregistrées.
+
+web-versions-24 = Le fichier du projet est déjà choisi.
+
+web-versions-25 = Choisissez où enregistrer le projet pour créer une version.
+
+web-versions-26 = Extension .typsto attendue.
+
+web-versions-28 = Oui
+
+web-versions-29 = Non
+
+cli-versions-help = Créer, renommer ou supprimer une version et enregistrer atomiquement le projet ; utiliser les paramètres de versions.change.
+
+web-versions-existing-path = Le fichier du projet est déjà choisi.
+
+web-versions-path-required = Choisissez où enregistrer le projet pour créer une version.
+
+web-versions-extension = Extension .typsto attendue.
+
+web-version-creator = Créée par
+
+# Shared snapshot comparison and local human decisions.
+web-comparison-compare = Comparer
+web-comparison-frozen-order = États figés · avant à gauche, après à droite
+web-comparison-previous = Différence précédente
+web-comparison-next = Différence suivante
+web-comparison-before = Avant
+web-comparison-after = Après
+web-comparison-empty = Aucun contenu
+web-comparison-stale-notice = Le document a changé ailleurs. Fermez puis ouvrez une nouvelle comparaison avant de reprendre les modifications restantes.
+web-comparison-version-before = Avant · Version conservée
+web-comparison-current-after = Après · Document courant figé
+web-comparison-base-before = Avant · État de départ
+web-comparison-proposal-after = Après · Proposition
+web-comparison-document = Document et éléments liés
+web-comparison-passage = Passage
+web-comparison-pending = À décider
+web-comparison-reused = Repris dans le document
+web-comparison-applied = Appliqué au document
+web-comparison-kept = Passage actuel conservé
+web-comparison-refused = Refusé
+web-comparison-linked = Éléments liés · une décision
+web-comparison-keep = Conserver le passage actuel
+web-comparison-reuse = Reprendre ce passage de la version
+web-comparison-apply = Appliquer cette modification
+web-comparison-identical = Aucune différence.
+web-comparison-progress = décisions prises · états affichés inchangés
+web-comparison-reuse-rest = Reprendre le reste
+web-comparison-apply-rest = Appliquer le reste
+web-comparison-bytes = octets
+web-comparison-absent = Absent
+web-comparison-read-only-notice = Consultation seule · deux versions conservées
+web-comparison-closed = Proposition terminée ou connexion révoquée.
+web-comparison-against = Comparer à
+web-comparison-current = Document courant · état figé
+web-comparison-review = Examiner la proposition
+web-comparison-files = Fichiers modifiés
+web-comparison-modified = Modifié
+web-comparison-previews = Aperçus des deux états
+web-comparison-changes = Voir les changements
+web-comparison-loading-previews = Chargement des aperçus…
+web-comparison-unavailable = Cette comparaison ou cette proposition n’est plus disponible.
+web-comparison-stale = Le document a changé. Ouvrez une nouvelle comparaison.
+web-comparison-composing = Terminez la saisie en cours avant de décider.
+web-comparison-read-only = La comparaison de deux versions conservées est en consultation seule.
+web-comparison-use-review = Cette proposition est ouverte dans le comparateur. Utilisez ses décisions locales.
+web-comparison-stale-proposal = Le document a changé ailleurs. Demandez une nouvelle proposition à l’agent.
+
+web-composition-select = Sélectionner
+web-composition-choose-passage = Choisir la version du passage
+web-composition-select-before = Sélectionner la version rouge
+web-composition-select-after = Sélectionner la version verte
+web-composition-choices-applied = Choix appliqués
+web-composition-choice-draft = Choix provisoire
+web-composition-applied = Choix appliqués. Vous pouvez enregistrer le document.
+web-composition-draft-notice = Choix provisoires · aucun changement avant validation.
+web-composition-select-all = Tout sélectionner
+web-composition-select-all-before = Tout sélectionner à gauche
+web-composition-select-all-after = Tout sélectionner à droite
+web-comparison-review-composition = Comparez d’abord la composition au document courant avant de l’appliquer.
+web-comparison-context-1 = Garder l’actuel
+web-comparison-context-2 = Tout reprendre
+web-comparison-context-3 = Tout conserver
+web-comparison-context-4 = Reprendre ce passage
+web-comparison-context-5 = Garder le passage actuel
+web-comparison-context-6 = Tout reprendre de cette version
+web-comparison-context-7 = Tout conserver du document courant
+web-comparison-context-8 = Refuser
+web-comparison-context-9 = Accepter
+web-comparison-context-10 = Tout refuser
+web-comparison-context-11 = Tout accepter
+web-comparison-context-12 = Refuser ce changement
+web-comparison-context-13 = Accepter ce changement
+web-comparison-context-14 = Choisir cette version
+web-comparison-context-15 = Tout choisir ici
+web-comparison-context-16 = Choisir dans « { "{name}" } »
+web-comparison-context-17 = Tout choisir dans « { "{name}" } »
+web-comparison-context-18 = Avant · Document courant figé
+web-comparison-context-19 = Après · Composition préparée
+web-comparison-context-20 = Reprendre ce passage de la composition
+web-comparison-context-21 = Tout reprendre de la composition
+web-comparison-context-22 = Comparer la composition au document courant
+web-comparison-context-23 = La composition reste privée avant sa comparaison au document courant.
+web-comparison-context-24 = Reprendre { "{count}" } passage
+web-comparison-context-25 = Reprendre { "{count}" } passages
+web-comparison-context-26 = Aucun passage à reprendre
+web-comparison-context-27 = { "{count}" } passage à reprendre
+web-comparison-context-28 = { "{count}" } passages à reprendre
+web-comparison-context-29 = { "{count}" } passage conservé
+web-comparison-context-30 = { "{count}" } passages conservés
+web-comparison-context-31 = { "{count}" } changement accepté
+web-comparison-context-32 = { "{count}" } changements acceptés
+web-comparison-context-33 = { "{count}" } changement écarté
+web-comparison-context-34 = { "{count}" } changements écartés
+web-comparison-context-35 = Appliquer { "{count}" } changement
+web-comparison-context-36 = Appliquer { "{count}" } changements
+web-comparison-context-37 = Refuser la proposition
+web-comparison-context-38 = Terminer sans modification
+web-comparison-context-39 = Conserver le document courant
+web-comparison-context-40 = Vérifiez la composition avant de modifier le document courant.
+web-comparison-context-41 = Modifier la composition
+web-comparison-context-42 = Vérifier la composition
+web-comparison-context-43 = Proposition refusée. Le document est inchangé.
+web-comparison-context-44 = Proposition terminée sans modification.
+web-comparison-context-45 = Document courant conservé.

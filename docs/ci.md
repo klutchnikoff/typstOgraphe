@@ -45,7 +45,7 @@ entier sur chaque PR.
 
 ```sh
 npm run build:web
-cargo build --locked -p typstographe --features recipe-driver
+npm run build:recipe
 npm run test:browser:smoke
 ```
 
@@ -83,3 +83,17 @@ Ces artefacts sont des paquets de test : l'installation interactive, la signatur
 la notarisation et la publication d'une version ne sont pas automatisées ici.
 Les mesures de latence et de mémoire sur un vrai bureau restent des recettes
 manuelles décrites dans [la méthode de mesure](tauri-preview-performance.md).
+
+## Séparation distribution / recette
+
+Chaque construction normale vérifie les assets émis avec `npm run check:distribution` :
+aucun pont JavaScript de recette ni module de diagnostic/mesure ne doit y figurer.
+Les handlers natifs correspondants sont exclus sans `recipe-driver`. Le mode
+`browser-test` reste propre aux recettes navigateur ; les recettes natives utilisent
+`npm run build:recipe` (`dist-recipe/` + overlay Tauri + feature Rust).
+
+La validation complète et son mode `acceptance_only` vérifient aussi la recette
+Courrier/Article `test:closure-native`, avec MCP, Versions, reprise annulable et
+exports entre adaptateurs. Ses rapports et journaux sont conservés, sans fichiers
+d’invitation ni préférences de connexion. Les paquets distribués restent construits
+par le parcours normal ; la recette n’altère pas `app/dist/`.

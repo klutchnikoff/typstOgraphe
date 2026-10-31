@@ -1,0 +1,214 @@
+# A.4 — Comparaison et décisions locales communes
+
+Statut : périmètre et maquette interactive validés le 31 octobre 2026.
+Comparateur commun et premier raccordement des décisions locales implémentés.
+Voir le [bilan de validation](a4-comparison-results.md) et la
+[maquette conservée](mockups/a4-comparison.html).
+
+## Composition validée — choix locaux, application unique
+
+Le même comparateur sert Versions et propositions MCP. **Avant à gauche en
+rouge, après à droite en vert.** Deux versions historiques sont ordonnées par
+leur date ; une comparaison avec le document courant le capture à l’ouverture.
+MCP conserve sa base à gauche et son candidat à droite.
+
+Chaque groupe possède deux boutons exclusifs accessibles au clavier, un dans
+l’en-tête de chaque colonne. Tous les verts sont actifs au départ ; cliquer le
+rouge le sélectionne et désélectionne le vert, et inversement. Le choix actif a
+un fond plein, un texte contrasté et une coche. Les groupes liés et les widgets
+restent des unités indivisibles.
+
+Les choix sont privés à la consultation. Ils persistent entre les onglets de
+cette consultation, sans modifier le document, le fichier, l’historique
+Annuler/Rétablir ou le reçu MCP. Fermer ou choisir une autre paire abandonne ces
+choix, sans publication. Aucun outil de l’agent ne peut les valider.
+
+### Trois contextes, une mécanique de composition
+
+- **Version / document courant :** la version ancienne est à gauche, le courant
+  figé à droite. Les choix sont « Reprendre ce passage » / « Garder l’actuel »,
+  les actions globales « Tout reprendre » / « Tout conserver ». Le bouton annonce
+  « Reprendre N passages ». Avec tous les verts, « Aucun passage à reprendre »
+  est désactivé : aucune édition n’est nécessaire.
+- **Proposition MCP :** base à gauche, proposition à droite. Les choix deviennent
+  « Refuser » / « Accepter », avec « Tout refuser » / « Tout accepter ». Le bouton
+  annonce « Appliquer N changements » ; le résumé précise les changements retenus
+  et écartés. Tous les rouges conduisent à « Refuser la proposition » : le reçu
+  est terminé sans modification documentaire, ni révision ni étape d’annulation.
+- **Deux versions historiques A / B :** elles restent ordonnées par date. Choisir
+  dans chaque colonne prépare **Bnew**, à partir de B et des passages repris de A.
+  « Comparer la composition au document courant » ouvre obligatoirement une seconde
+  comparaison **C → Bnew**, avec le courant figé C à gauche. Toutes les différences
+  avec C sont ainsi visibles, y compris celles absentes d’A / B. L’utilisateur
+  choisit « Garder l’actuel » / « Reprendre ce passage » puis « Appliquer N
+  changements », ou « Conserver le document courant » si tout est écarté.
+
+Les comptes portent sur les unités de décision affichées, pas les mots modifiés
+ni le nombre d’appels de l’agent. Les formulations et pluriels suivent la langue
+de l’interface. L’ordre avant/après et les couleurs ne changent pas.
+
+Bnew et sa comparaison restent privés, hors `.typsto`, versions, récupération
+et historique. Contenu / Aperçu affichent Bnew pendant la vérification finale.
+« Modifier la composition » revient aux choix A / B conservés ; préparer de nouveau
+invalide le candidat précédent. Fermer abandonne les deux comparaisons. Même si
+A et B sont identiques, la vérification C / Bnew peut révéler des différences.
+Rust refuse toute application directe d’A / B : seule la comparaison finale peut
+publier. La garde de C est recontrôlée après la préparation hors verrou et avant
+publication ; aucun rebasage implicite n’est autorisé.
+
+La validation finale remplace le document courant comme une édition ordinaire,
+sans écrire son `.typsto` ni demander de destination. Le projet peut rester sans
+chemin. Enregistrer et créer une version restent des actions distinctes,
+décidées par l’utilisateur.
+
+La validation publie une seule opération annulable. **Aucun snapshot automatique
+n’est créé**, ni du résultat, ni « avant restauration » pour cette composition.
+Créer une version reste une action volontaire. Les versions existantes et leurs
+métadonnées restent intactes. Une composition qui change le contenu marque le
+document comme modifié ; conserver exactement l’état courant ne crée ni révision
+ni étape d’annulation superflue. Annuler revient à l’état précédent dans l’éditeur,
+Rétablir restaure la composition ; ces actions ne réécrivent pas le fichier.
+La reprise complète utilise « Tout reprendre » puis « Reprendre N passages » ;
+la droite dispose de l’action symétrique. Ces boutons affectent uniquement les
+choix provisoires, qui restent ajustables individuellement et conservés entre
+les onglets. Il n’existe pas de parcours Restaurer distinct ni d’origine de
+snapshot `before_restore`. La reprise reste possible au quota maximal de versions.
+Les actions globales sont désactivées pendant l’application, après la fin de la
+comparaison ou en l’absence de différences. Une paire historique sans différence peut toujours préparer la comparaison
+finale si ses états diffèrent du document courant.
+
+Les états de comparaison restent figés après validation. La consultation indique
+que les choix ont été appliqués au document ; elle ne permet pas une seconde
+publication de la même préparation. La vue Contenu et les aperçus sont statiques,
+avec les ressources documentaires de chaque état et le catalogue Typst de la
+version installée. Les copies de paquets transportées ne sont pas restaurables.
+
+## Groupes applicables et dépendances
+
+Un groupe visuel n’est pas automatiquement une unité de décision indépendante.
+Une citation et la référence bibliographique qu’elle nécessite, ou une image et
+sa ressource, doivent être traitées ensemble. Le plan regroupe les opérations
+liées et vérifie la cohérence de l’état résultant avant publication. Une absence
+de preuve d’indépendance impose un regroupement sûr, pas une application partielle
+hasardeuse. Cela peut exceptionnellement produire une seule unité si tout est lié,
+sans imposer ce traitement à tous les lots.
+
+## Préparation, publication et concurrence
+
+Le calcul des différences reste descriptif. Le candidat exécutable est lié à la
+paire, aux choix complets, à son identité/époque et à la révision courante capturée.
+L’adaptateur prépare le candidat et le compile hors du verrou de rédaction, puis
+recontrôle garde, autorisation humaine, contexte privé et composition IME avant
+la publication atomique en mémoire. Une erreur de validation, une garde périmée
+ou un contexte privé refusé ne publie rien et conserve les choix pour réessayer.
+Le verrou et les modifications externes du fichier sont contrôlés lors d’une
+sauvegarde explicite ultérieure, comme pour les autres éditions.
+
+Une intervention documentaire extérieure bloque la validation. Même un retour au
+même texte par Annuler ne réactive pas l’ancienne garde. Il faut ouvrir une nouvelle
+comparaison, ou demander une nouvelle proposition MCP depuis une base relue.
+Les deux colonnes restent consultables. Les publications ne sont jamais
+réancrées ni rebasées implicitement.
+
+La publication confirmée est retournée directement au client, ainsi que diffusée
+aux autres fenêtres. Une notification perdue ne doit pas faire perdre le résultat
+au validateur. Aucun reçu ni événement d’enregistrement n’est émis. La dernière
+révision enregistrée, le chemin et les copies de récupération restent intacts ;
+la composition bénéficie ensuite de la récupération ordinaire des éditions.
+
+## Raccordement MCP
+
+La soumission fige les archives complètes de base et de candidat. Les choix
+rouge/vert n’affectent pas la proposition avant validation. Après l’application
+unique, son reçu distingue les groupes retenus et écartés : `accepted`, `rejected`
+ou `partially_accepted`. La révision de travail est mise à jour ; la révision
+initiale reste celle de la base. Accepter les choix n’accorde aucun droit
+d’enregistrement à l’agent et ne sauvegarde pas le fichier. L’utilisateur décide
+ensuite d’enregistrer ou de créer une version. Aucun export n’est implicite.
+Les propositions ne deviennent pas des snapshots, ni des annotations de relecture.
+
+## Présentation commune
+
+La modale à 90 %, ses onglets Contenu / Aperçu / Comparer, ses deux colonnes et
+les actions locales reprennent la maquette interactive validée. Les actions de
+chaque groupe sont alignées au-dessus de leurs colonnes dans son en-tête : rouge
+juste à gauche de la séparation centrale, vert à droite, avec le titre à gauche, sans
+répétition de « Choix provisoire » ni rangée de boutons sous le contenu. Les deux
+actions globales reprennent les couleurs rouge et verte de leurs colonnes.
+L’action principale reste à l’extrémité droite du pied du comparateur.
+Les dépendances sont indiquées dans la ligne de décision. Les états restent
+figés et les décisions sont affichées séparément. Une intervention
+extérieure conserve la consultation et les choix, mais bloque leur validation.
+
+Une différence de structure non identifiable sans ambiguïté reste groupée.
+Les changements de paramètres et de ressources documentaires sont regroupés
+avec le contenu associé lorsque leur indépendance n’est pas prouvée.
+
+### Découpage par paragraphe validé
+
+- Deux paragraphes modifiés consécutifs donnent deux décisions lorsque leurs
+  frontières sont conservées. Plusieurs changements dans un même paragraphe
+  restent une décision. Un titre conservant son identité suit la même règle.
+- Un widget entier constitue une unité : liste avec ses items, tableau avec sa
+  légende, citation en bloc avec son attribution, image avec sa légende. Aucun
+  découpage interne n’est introduit par cette évolution.
+- Une fusion, une scission, un changement de structure ou une correspondance
+  ambiguë reste groupé. Les dépendances documentaires (bibliographie, réglages,
+  ressources…) restent prioritaires sur le découpage visuel.
+
+Le moteur commence par les ancrages de blocs identiques. Dans un passage
+contenant plusieurs blocs modifiés, il sépare les paires lorsque les checkpoints
+conservent exactement les mêmes identités de blocs, dans le même ordre et en
+même nombre. Il ne déduit pas leur identité de la ressemblance des textes.
+Des frontières ajoutées, supprimées ou recréées, ou l’absence de checkpoints
+permettant cette preuve, conservent le passage groupé. Ces identités sont
+internes au calcul ; les décisions publiques continuent à utiliser leurs groupes
+et leurs gardes documentaires. Le même découpage sert Versions et MCP.
+
+## Implémentation et limites explicites
+
+`content::comparison::Comparison` possède la paire privée, les groupes et la garde
+de travail. `prepare` produit un candidat opaque, lié à l’identité de cette
+comparaison et à l’époque de ses décisions. `publish` recontrôle ces références et
+passe par `EditingSession::publish_prepared`. Un candidat préparé pour une autre
+paire, une décision concurrente ou une ancienne révision est refusé sans publication.
+
+`similar` **3.2.1** a été retenu après évaluation de son API de séquences et de
+mots Unicode : crate Rust sans backend natif supplémentaire, version déjà disponible
+dans le cache local, maintien en amont et délai de calcul configurable. Les
+[sources de la bibliothèque](https://github.com/mitsuhiko/similar) et son
+[API de comparaison](https://docs.rs/similar/latest/similar/algorithms/index.html)
+sont les références. L’alignement exact des blocs et le détail des mots utilisent
+Myers avec échéance de 100 ms par alignement. Une limite atteinte produit un
+regroupement conservateur ; elle n’autorise aucune correspondance approximative.
+
+Le découpage applique les différences entre ancrages de blocs identiques, puis
+sépare les paragraphes ou widgets adjacents dont les frontières sont conservées.
+Plusieurs modifications dans un même paragraphe ou widget restent une décision.
+Si les réglages, la bibliothèque bibliographique ou les ressources documentaires
+changent, le contenu associé est regroupé en une seule décision documentaire :
+le premier moteur ne prétend pas encore prouver des indépendances plus fines.
+Les caractères, espaces significatives, liens et mises en forme sont conservés ;
+les deux projections riches restent disponibles même lorsque le texte est identique.
+Les fichiers modifiés sont inventoriés et les deux rendus Typst sont isolés.
+
+Le moteur rattache aussi les plages de suppression et d’ajout aux chemins des
+feuilles textuelles de chaque groupe (`before_highlights` / `after_highlights`,
+positions UTF-16 locales). Une annotation modifiée est marquée comme un objet
+entier. L’affichage applique ces plages dans la projection riche statique, sans
+comparer le texte DOM aux chaînes internes de la différence. La présence d’un
+badge de citation ou de note ne peut donc pas masquer les changements voisins.
+Les marques visuelles `del` / `ins` ne rejoignent ni Yjs ni le contenu enregistré.
+
+Les paquets appartiennent au catalogue figé de la version installée de
+typstOgraphe, pas à l’historique documentaire. La comparaison ignore les
+différences de leurs copies transportées ; préparer une reprise résout les
+bibliothèques du modèle dans ce catalogue. Annuler/Rétablir ne change pas leurs
+versions et aucun jeton de paquet n’est ajouté à Yjs. Les deux aperçus emploient
+les mêmes bibliothèques applicatives avec leurs propres modèles et ressources.
+On garantit l’état documentaire, pas un PDF identique entre versions de
+typstOgraphe. Voir le [contrat des dépendances](typst-dependencies.md).
+
+Les comparaisons et leurs choix sont temporaires, hors `.typsto` et hors des
+snapshots. La récupération des choix de composition n’est pas ajoutée par ce lot.
+Le bilan conserve les recettes des étapes précédentes et de cette évolution.

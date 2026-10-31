@@ -156,7 +156,7 @@ beforeAll(async () => {
   directory = mkdtempSync(join(tmpdir(), 'tog-shared-contract-'))
   const binary =
     process.env.TOG_SPIKE_BINARY ||
-    resolve('../target/debug/typstographe' + (process.platform === 'win32' ? '.exe' : ''))
+    resolve('../target/recipes/debug/typstographe' + (process.platform === 'win32' ? '.exe' : ''))
   child = spawn(binary, ['--stdio', '--session-dir', directory], {
     stdio: ['pipe', 'pipe', 'pipe'],
   })
@@ -1331,7 +1331,7 @@ it('immutable images and signatures share one guarded batch and remain available
   expect(state(original).settings.metadata.fields.signature).toBe(resource.path)
 })
 
-it('attached MCP accepts the same typed lot into the existing Yjs tree and human history', async () => {
+it('attached MCP publishes its frozen candidate while preserving untouched Yjs branches and human history', async () => {
   const original = seed('article')
   await call('reset', {})
   const joined = await call('join', {})
@@ -1376,8 +1376,15 @@ it('attached MCP accepts the same typed lot into the existing Yjs tree and human
   expect(services.windows).toEqual(['contract-test'])
   expect(publication.guard.revision).toBe(inspect.document.guard.revision + 1)
   Y.applyUpdate(original, new Uint8Array(publication.update))
-  expect(body.toArray()[0]).toBe(nodes[0])
-  expect(body.toArray()[1]).toBe(nodes[1])
+  // The common comparator rebuilds changed blocks; untouched branches retain their identity.
+  const untouched = [nodes[0], ...nodes.slice(2)]
+  expect(untouched.every((node) => body.toArray().includes(node))).toBe(true)
+  expect(
+    state(original)
+      .document.content![1].content!.filter((node) => node.type === 'text')
+      .map((node) => node.text)
+      .join(''),
+  ).toBe('A Ajout 😀é 日本 lien')
   await probe({ action: 'inspect', update: bytes(original), expected: publication.state })
   expect(state(original).settings).toEqual(before.settings)
   expect((await call('editing_context', { generation })).undo_steps).toBe(1)

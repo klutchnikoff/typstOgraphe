@@ -34,7 +34,13 @@ pub struct Proposal {
     #[serde(skip_serializing)]
     pub settings: Settings,
     #[serde(skip_serializing)]
-    pub steps: Vec<Call>,
+    pub base: typstographe_core::content::archive::Archive,
+    #[serde(skip_serializing)]
+    pub candidate: typstographe_core::content::archive::Archive,
+    #[serde(skip_serializing)]
+    pub review: Option<String>,
+    pub decisions: Vec<Value>,
+    pub working_revision: Option<u64>,
 }
 #[derive(Default)]
 pub struct AgentState {
@@ -43,10 +49,15 @@ pub struct AgentState {
     pub seen: std::collections::BTreeMap<String, (String, Value)>,
     pub busy: std::collections::BTreeSet<String>,
 }
-fn proposal(state: &mut AgentState, revision: u64) -> Option<Proposal> {
+fn proposal(state: &mut AgentState, session: &Session) -> Option<Proposal> {
     if let Some(p) = &mut state.proposal
         && p.status == "pending"
-        && p.revision != revision
+        && p.review
+            .as_ref()
+            .and_then(|id| session.comparisons.get(id))
+            .map_or(p.revision != session.revision, |r| {
+                r.plan.guard() != &session.guard()
+            })
     {
         p.status = "stale".into()
     }
@@ -54,15 +65,17 @@ fn proposal(state: &mut AgentState, revision: u64) -> Option<Proposal> {
 }
 #[tauri::command]
 pub fn agent_state(state: State<Bridge>) -> Result<Value, String> {
-    let revision = state.session.lock().map_err(|e| e.to_string())?.revision;
+    let session = state.session.lock().map_err(|e| e.to_string())?;
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    Ok(json!({"connected":agent.token.is_some(),"proposal":proposal(&mut agent,revision)}))
+    Ok(json!({"connected":agent.token.is_some(),"proposal":proposal(&mut agent,&session)}))
 }
 #[tauri::command]
-pub fn agent_revoke(state: State<Bridge>) -> Result<(), String> {
+pub fn agent_revoke(app: tauri::AppHandle, state: State<Bridge>) -> Result<(), String> {
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    revoke(&mut session, &mut agent)
+    revoke(&mut session, &mut agent)?;
+    let _ = app.emit("agent:changed", ());
+    Ok(())
 }
 fn revoke(session: &mut Session, agent: &mut AgentState) -> Result<(), String> {
     if let Some(owner) = &mut session.owner {
@@ -74,9 +87,48 @@ fn revoke(session: &mut Session, agent: &mut AgentState) -> Result<(), String> {
     Ok(())
 }
 #[tauri::command]
-pub fn agent_reject(state: State<Bridge>, id: String) -> Result<(), String> {
+pub fn agent_reject(
+    window: tauri::WebviewWindow,
+    app: tauri::AppHandle,
+    state: State<Bridge>,
+    id: String,
+) -> Result<(), String> {
+    let mut session = state.session.lock().map_err(|e| e.to_string())?;
     let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
-    reject(&mut agent, &id)
+    session.check_peer(window.label(), &session.generation)?;
+    let review = agent
+        .proposal
+        .as_ref()
+        .filter(|p| p.id == id)
+        .and_then(|p| p.review.clone());
+    if let Some(review) = review {
+        let groups = session
+            .comparisons
+            .get(&review)
+            .ok_or_else(|| typstographe_i18n::text("web-comparison-unavailable"))?
+            .plan
+            .report(&session.guard())
+            .groups
+            .into_iter()
+            .filter(|g| g.decision == typstographe_core::content::comparison::Decision::Pending)
+            .map(|g| g.id)
+            .collect::<Vec<_>>();
+        if !groups.is_empty() {
+            session
+                .comparisons
+                .get_mut(&review)
+                .unwrap()
+                .plan
+                .refuse(&groups)
+                .map_err(crate::owner::error)?;
+        }
+        reject(&mut agent, &id)?;
+        let _ = app.emit("comparison:changed", json!({"id":review}));
+    } else {
+        reject(&mut agent, &id)?;
+    }
+    let _ = app.emit("agent:changed", ());
+    Ok(())
 }
 fn reject(agent: &mut AgentState, id: &str) -> Result<(), String> {
     let p = agent
@@ -122,10 +174,11 @@ pub async fn agent_accept(
             &id,
             &peer,
             |candidate, assets| {
+                let context = session.lock().map_err(|e| e.to_string())?.render_context(&candidate.settings);
                 renderer.validate(
                     &crate::schema::source(&candidate.after, assets)?,
                     assets,
-                    &candidate.settings,
+                    context,
                 )
             },
             |publication| {
@@ -167,7 +220,7 @@ pub fn agent_invite(app: tauri::AppHandle, state: State<Bridge>) -> Result<Value
         })
     });
     Ok(
-        json!({"binary":binary,"arguments":["--mcp","--invitation",file],"endpoint":endpoint,"permissions":{"proposals":true,"filesystem":false,"approval":"whole-lot human acceptance only"}}),
+        json!({"binary":binary,"arguments":["--mcp","--invitation",file],"endpoint":endpoint,"permissions":{"proposals":true,"filesystem":false,"approval":"guarded human decisions only"}}),
     )
 }
 /// Stops accepting connections as soon as this invitation is revoked or replaced.
@@ -249,8 +302,31 @@ pub(crate) fn commit_accepted(
                 && p.generation == session.generation
         })
         .ok_or("Proposition périmée.")?;
+    if p.review.is_some() {
+        return Err(typstographe_i18n::text("web-comparison-use-review"));
+    }
     let guard = session.guard();
-    let publication = session.ensure_owner()?.calls(peer, &guard, &p.steps)?;
+    let mut plan = typstographe_core::content::comparison::Comparison::new(
+        p.base.clone(),
+        p.candidate.clone(),
+        typstographe_core::content::comparison::SourceSide::After,
+        guard.clone(),
+    )
+    .map_err(crate::owner::error)?;
+    let ids = plan
+        .report(&guard)
+        .groups
+        .iter()
+        .map(|g| g.id)
+        .collect::<Vec<_>>();
+    let publication = if ids.is_empty() {
+        session.ensure_owner()?.calls(peer, &guard, &[])?
+    } else {
+        let prepared = session.ensure_owner()?.prepare_comparison(&plan, &ids)?;
+        session
+            .ensure_owner()?
+            .publish_comparison(peer, &mut plan, prepared)?
+    };
     session.record(&publication);
     p.status = "accepted".into();
     Ok(publication)
@@ -303,7 +379,7 @@ fn dispatch_outcome(
     params: &Value,
 ) -> Result<Value, String> {
     if method == "proposals.get" || method == "proposals.cancel" {
-        let mut p = proposal(state, session.revision)
+        let mut p = proposal(state, session)
             .filter(|p| params["proposal"] == p.id)
             .ok_or("Proposition absente.")?;
         if method == "proposals.cancel" && p.status == "pending" {
@@ -380,8 +456,7 @@ fn dispatch_outcome(
             .map(|s| json!(s));
     }
     if method == "context.set" {
-        if !state.busy.is_empty()
-            || proposal(state, session.revision).is_some_and(|p| p.status == "pending")
+        if !state.busy.is_empty() || proposal(state, session).is_some_and(|p| p.status == "pending")
         {
             return Err("Editing context is busy".into());
         }
@@ -407,7 +482,7 @@ fn dispatch_outcome(
                 .map(|b| format!("{b:02x}"))
                 .collect::<String>()
         };
-        proposal(state, session.revision);
+        proposal(state, session);
         if let Some((previous, response)) = state.seen.get(request_id) {
             if previous != &fingerprint {
                 return Err("request_id déjà utilisé pour un lot différent.".into());
@@ -450,6 +525,20 @@ fn dispatch_outcome(
         if summary.len() > 2048 {
             return Err("Résumé trop volumineux.".into());
         }
+        let base = session.stored_project()?.current().clone();
+        let assets = typstographe_core::content::retained_assets(
+            &after.document,
+            &after.settings.metadata,
+            &after.settings.template,
+            prepared.assets(&session.assets),
+            &base.dependencies,
+        )?;
+        let candidate = crate::project::archive(
+            after.clone(),
+            prepared.checkpoint(),
+            assets,
+            base.dependencies.clone(),
+        );
         let p = Proposal {
             id: uuid::Uuid::new_v4().to_string(),
             request_id: request_id.into(),
@@ -460,7 +549,11 @@ fn dispatch_outcome(
             before: confirmed.document,
             after: after.document.clone(),
             settings: after.settings,
-            steps,
+            base,
+            candidate,
+            review: None,
+            decisions: vec![],
+            working_revision: None,
         };
         if serde_json::to_vec(&p).map_err(|e| e.to_string())?.len() > 8 * 1024 * 1024 {
             return Err("Proposal exceeds review size limit".into());
@@ -468,7 +561,7 @@ fn dispatch_outcome(
         if let Some(previous) = &state.proposal
             && let Some((_, receipt)) = state.seen.get_mut(&previous.request_id)
         {
-            *receipt = json!({"id":previous.id,"revision":previous.revision,"status":previous.status,"requestId":previous.request_id});
+            *receipt = json!({"id":previous.id,"revision":previous.revision,"status":previous.status,"requestId":previous.request_id,"decisions":previous.decisions,"workingRevision":previous.working_revision});
         }
         state.seen.insert(
             request_id.into(),

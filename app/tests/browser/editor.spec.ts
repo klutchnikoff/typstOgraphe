@@ -113,7 +113,23 @@ test(
     await peer.getByRole('button', { name: 'Annuler', exact: true }).click()
     await expect(page.locator('.tiptap')).not.toContainText(`ALEX-${token}`)
     await expect(page.locator('.tiptap')).toContainText(`CAMILLE-${token}`)
-    await page.getByRole('button', { name: 'Essai Rust', exact: true }).click()
+    await page.evaluate(async () => {
+      const { executeStructured } = await import('../../src/structured-commands.ts')
+      const { editor, provider } = window.__spike!
+      await executeStructured(editor, provider, provider.transport, [
+        {
+          id: 'block.insert',
+          params: {
+            parent: { root: { kind: 'body' } },
+            index: editor.state.doc.childCount - 1,
+            node: {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Cette phrase a été préparée depuis Rust.' }],
+            },
+          },
+        },
+      ])
+    })
     await expect(peer.locator('.tiptap')).toContainText('Cette phrase a été préparée depuis Rust')
     // Seeing the sentence does not yet acknowledge the remote whitespace repair.
     // Save a converged checkpoint; strict revision checks reject concurrent edits.

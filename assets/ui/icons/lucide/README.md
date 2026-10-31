@@ -14,3 +14,10 @@ Les icônes `paperclip`, `pen-line`, `undo-2`, `redo-2`, `search`, `chevron-up` 
 25 octobre 2026 depuis les fichiers officiels de Lucide 0.468.0
 (`https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/<nom>.svg`),
 sans modification. Même masque monochrome que les autres.
+
+L’icône `check` (choix retenu du comparateur) provient également du SVG officiel
+Lucide 0.468.0 (`icons/check.svg`), sans modification. Le choix non retenu utilise
+l’icône `x`, déjà embarquée pour les boutons de fermeture.
+
+L’icône `wrench` de la palette de commandes provient du SVG officiel de Lucide
+0.468.0 (`icons/wrench.svg`), sans modification et sous les mêmes licences.

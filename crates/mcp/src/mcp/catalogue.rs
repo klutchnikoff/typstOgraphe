@@ -11,7 +11,7 @@ pub fn tools(attached: bool) -> Vec<Tool> {
         schema["properties"]["document"]=json!({"$ref":"#/$defs/DocumentRef"});
         let mut doc=reference;doc.as_object_mut().unwrap().remove("$schema");doc.as_object_mut().unwrap().remove("$defs");schema["$defs"]["DocumentRef"]=doc;
         if !matches!(id,"document.inspect"|"document.new"|"document.open"|"commands.list"|"document_types.list"|"document_types.describe"|"capabilities.describe"|"spelling.suggestions") {schema.as_object_mut().unwrap().entry("required").or_insert_with(||json!([])).as_array_mut().unwrap().push(json!("document"));}
-        let mut tool=Tool::new(id.to_owned(),format!("{} Pass the latest outer document reference to document calls. See capabilities.describe. Attached edits require a whole-lot human-approved proposal.",spec["description"].as_str().unwrap()),Arc::new(schema.as_object().unwrap().clone()));
+        let mut tool=Tool::new(id.to_owned(),format!("{} Pass the latest outer document reference to document calls. See capabilities.describe. Attached edits require a human-reviewed proposal; the human may accept independent groups in the shared comparator.",spec["description"].as_str().unwrap()),Arc::new(schema.as_object().unwrap().clone()));
         tool.annotations=Some(ToolAnnotations::new().read_only(api::is_query(id)).open_world(false));tool
     }).collect();
     if attached {
@@ -62,7 +62,10 @@ pub fn tools(attached: bool) -> Vec<Tool> {
 }
 
 pub fn attached_support(id: &str) -> bool {
-    (api::is_query(id) && !id.starts_with("render.") && id != "commands.available")
+    (api::is_query(id)
+        && !id.starts_with("render.")
+        && !id.starts_with("versions.")
+        && id != "commands.available")
         || id == "context.set"
 }
 pub fn attached_id(id: &str) -> bool {

@@ -25,6 +25,15 @@ pub struct Report {
 }
 pub fn execute(cli: Cli) -> Result<Report, CommandError> {
     match cli.action {
+        Action::Versions { file, params } => {
+            let mut session = calls::open(file, true)?;
+            let outcome = session.execute("versions.change", json!(params.load()?))?;
+            Ok(Report {
+                text: format!("{}\n", serde_json::to_string_pretty(&outcome).unwrap()),
+                outcome,
+                exit: 0,
+            })
+        }
         Action::Mcp { .. } => Err(CommandError::new(
             ErrorCode::Unavailable,
             "mcp_stdio_required",

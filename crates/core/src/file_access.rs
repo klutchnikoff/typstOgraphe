@@ -16,7 +16,10 @@ pub(crate) fn fingerprint(file: &mut File) -> io::Result<Fingerprint> {
     let mut hash = Sha256::new();
     let mut buffer = [0; 64 * 1024];
     // Même borne que les archives : pas de lecture sans limite d’un fichier externe.
-    let limit = crate::assets::MAX_DOCUMENT_BYTES + 2 * 1024 * 1024;
+    let limit = crate::content::project::MAX_ARCHIVE_BYTES;
+    if file.metadata()?.len() > limit {
+        return Err(io::Error::other("document size limit"));
+    }
     let mut reader = file.take(limit + 1);
     let mut size = 0;
     loop {

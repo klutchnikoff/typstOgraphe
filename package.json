@@ -20,9 +20,11 @@
     "check:format": "npm run check:format --workspace @typstographe/app",
     "check:rust": "cargo clippy --locked -p typstographe --all-targets -- -D warnings",
     "test:rust": "cargo test --locked -p typstographe --features recipe-driver",
-    "test:contract": "cargo build --locked -p typstographe --features recipe-driver && npm run test:contract --workspace @typstographe/app",
+    "test:contract": "npm run build:recipe && npm run test:contract --workspace @typstographe/app",
     "test:closure-native": "npm run test:closure-native --workspace @typstographe/app --",
     "test:draft-conservation-native": "npm run test:draft-conservation-native --workspace @typstographe/app --",
-    "test:publication-native": "npm run test:publication-native --workspace @typstographe/app --"
+    "test:publication-native": "npm run test:publication-native --workspace @typstographe/app --",
+    "build:recipe": "node app/scripts/build-recipe.mjs",
+    "check:distribution": "node app/scripts/check-distribution.mjs"
   }
 }

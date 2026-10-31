@@ -46,7 +46,23 @@ test('les flèches parcourent les commandes filtrées sans quitter la recherche 
 test('la recherche reste visible pendant le défilement, sans action pour un résultat vide et fermeture avec Échap', async ({
   page,
 }) => {
-  await page.getByRole('button', { name: 'Commandes', exact: true }).click()
+  const palette = page.getByRole('button', { name: 'Commandes', exact: true })
+  const wrench = palette.locator('svg')
+  await expect(wrench.locator('path')).toHaveAttribute(
+    'd',
+    'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z',
+  )
+  await expect(palette).toHaveAttribute('title', /Palette de commandes \((Cmd|Ctrl)\+Shift\+P\)/)
+  for (const appearance of ['light', 'dark']) {
+    await page.evaluate(
+      (value) => (document.documentElement.dataset.appearance = value),
+      appearance,
+    )
+    await expect(wrench).toHaveCSS('fill', 'none')
+    const color = await palette.evaluate((element) => getComputedStyle(element).color)
+    await expect(wrench).toHaveCSS('stroke', color)
+  }
+  await palette.click()
   const input = page.getByRole('combobox', { name: 'Rechercher une commande', exact: true })
   const results = page.getByRole('listbox', { name: 'Commandes', exact: true })
   await expect(input).toBeFocused()

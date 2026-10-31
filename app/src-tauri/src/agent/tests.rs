@@ -250,7 +250,7 @@ fn full_acceptance_validates_real_typst_and_second_click_cannot_reapply_or_relab
         renderer.validate(
             &crate::schema::source(&p.after, assets)?,
             assets,
-            &p.settings,
+            (&p.settings).into(),
         )
     })
     .unwrap();
@@ -290,7 +290,7 @@ fn compilation_failure_keeps_the_proposal_pending_and_all_confirmed_work_intact(
             renderer.validate(
                 "#panic(\"simulated compilation failure\")",
                 assets,
-                &p.settings,
+                (&p.settings).into(),
             )
         })
         .is_err()

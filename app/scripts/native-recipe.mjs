@@ -9,11 +9,13 @@ const repo = fileURLToPath(new URL('../../', import.meta.url))
 const root = path.resolve(
   process.argv[2] || path.join(repo, 'output/web-editor', `native-${Date.now()}`),
 )
-const binary = path.join(
-  repo,
-  'target/debug',
-  `typstographe${process.platform === 'win32' ? '.exe' : ''}`,
-)
+const binary =
+  process.env.TOG_SPIKE_BINARY ||
+  path.join(
+    repo,
+    'target/recipes/debug',
+    `typstographe${process.platform === 'win32' ? '.exe' : ''}`,
+  )
 await mkdir(root, { recursive: true })
 const results = []
 for (const mode of ['full', 'restore']) {

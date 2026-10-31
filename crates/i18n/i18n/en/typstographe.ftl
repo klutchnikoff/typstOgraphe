@@ -1,6 +1,13 @@
 # Interface typstOgraphe. Ne pas traduire les données des courriers.
 
 save-dialog = Save document
+native-menu-about = About typstOgraphe
+native-menu-hide = Hide typstOgraphe
+native-menu-hide-others = Hide Others
+native-menu-cut = Cut
+native-menu-copy = Copy
+native-menu-paste = Paste
+native-menu-select-all = Select All
 file-dialog-unavailable = The system could not open the file dialog. No file was opened or saved. Please try again.
 letter-filter = typstOgraphe document
 default-filename = Document.typsto
@@ -675,7 +682,6 @@ web-words = words
 web-characters = characters
 web-selection = Selection
 web-without-spaces = Without spaces
-web-rust-example = Rust example
 web-welcome-title = Content first.
 web-welcome-description = Write naturally. Your model handles the presentation.
 web-session-saved = Session saved
@@ -831,6 +837,10 @@ storage-project-error = Unable to read or save this project: { $error }
 storage-unexpected-entry = Unexpected file in the archive: { $name }.
 storage-duplicate-entry = A file occurs more than once in the archive: { $name }.
 storage-missing-entry = A required project file is missing: { $name }.
+storage-object-integrity = Stored content does not match its fingerprint: { $name }.
+storage-project-index-invalid = The project version or reference index is invalid.
+storage-snapshot-limit = The project already contains the maximum of { $limit } versions. Delete a version before creating another one.
+storage-unknown-snapshot = This version does not exist in the project: { $id }.
 content-invalid-target = The selected position is no longer available. Select the passage again.
 content-invalid-parameter = Invalid value for the parameter “{ $parameter }”.
 content-command-unavailable = The command “{ $command }” cannot be applied to this selection.
@@ -938,3 +948,177 @@ web-recovery-error-11 = This input is no longer available.
 web-recovery-error-12 = recovered
 
 web-recovery-close-scope = The other windows will close. Their pending input will be kept.
+
+storage-version-index-changed = The version list has changed. Refresh it and try again.
+
+web-versions-0 = Versions
+
+web-versions-1 = Create a version
+
+web-versions-2 = Version name
+
+web-versions-3 = Automatic dated name
+
+web-versions-4 = Comma-separated tags
+
+web-versions-5 = Optional description
+
+web-versions-6 = Version content
+
+web-versions-7 = Document information
+
+web-versions-8 = Embedded model
+
+web-versions-9 = Edit version information
+
+web-versions-10 = Close version
+
+web-versions-11 = Version display
+
+web-versions-12 = Content
+
+web-versions-13 = Preview
+
+web-versions-14 = Page
+
+web-versions-15 = Delete this version
+
+web-versions-16 = Delete this version?
+
+web-versions-17 = Version information
+
+web-versions-18 = Only this version will be deleted. The current document and other versions will be kept.
+
+web-versions-19 = No saved versions.
+
+web-versions-20 = Manual versions
+
+
+web-versions-22 = The version limit has been reached. Delete a version to create a new one.
+
+web-versions-23 = Versions saved.
+
+web-versions-24 = The project file has already been chosen.
+
+web-versions-25 = Choose where to save the project to create a version.
+
+web-versions-26 = Expected the .typsto extension.
+
+web-versions-28 = Yes
+
+web-versions-29 = No
+
+cli-versions-help = Create, relabel or delete a retained version and atomically save the project; use versions.change parameters.
+
+web-versions-existing-path = The project file has already been chosen.
+
+web-versions-path-required = Choose where to save the project to create a version.
+
+web-versions-extension = Expected the .typsto extension.
+
+web-version-creator = Created by
+
+# Shared snapshot comparison and local human decisions.
+web-comparison-compare = Compare
+web-comparison-frozen-order = Frozen states · before on the left, after on the right
+web-comparison-previous = Previous difference
+web-comparison-next = Next difference
+web-comparison-before = Before
+web-comparison-after = After
+web-comparison-empty = No content
+web-comparison-stale-notice = The document changed elsewhere. Close this comparison and open a new one before applying the remaining changes.
+web-comparison-version-before = Before · Saved version
+web-comparison-current-after = After · Frozen current document
+web-comparison-base-before = Before · Base state
+web-comparison-proposal-after = After · Proposal
+web-comparison-document = Document and linked elements
+web-comparison-passage = Passage
+web-comparison-pending = Awaiting decision
+web-comparison-reused = Copied into the document
+web-comparison-applied = Applied to the document
+web-comparison-kept = Current passage kept
+web-comparison-refused = Rejected
+web-comparison-linked = Linked elements · one decision
+web-comparison-keep = Keep the current passage
+web-comparison-reuse = Use this passage from the version
+web-comparison-apply = Apply this change
+web-comparison-identical = No differences.
+web-comparison-progress = decisions made · displayed states unchanged
+web-comparison-reuse-rest = Use the remaining changes
+web-comparison-apply-rest = Apply the remaining changes
+web-comparison-bytes = bytes
+web-comparison-absent = Absent
+web-comparison-read-only-notice = Read only · two saved versions
+web-comparison-closed = Proposal completed or connection revoked.
+web-comparison-against = Compare with
+web-comparison-current = Current document · frozen state
+web-comparison-review = Review the proposal
+web-comparison-files = Changed files
+web-comparison-modified = Changed
+web-comparison-previews = Previews of both states
+web-comparison-changes = Show changes
+web-comparison-loading-previews = Loading previews…
+web-comparison-unavailable = This comparison or proposal is no longer available.
+web-comparison-stale = The document has changed. Open a new comparison.
+web-comparison-composing = Finish the current text composition before deciding.
+web-comparison-read-only = Comparing two saved versions is read only.
+web-comparison-use-review = This proposal is open in the comparator. Use its local decisions.
+web-comparison-stale-proposal = The document changed elsewhere. Ask the agent for a new proposal.
+
+web-composition-select = Select
+web-composition-choose-passage = Choose the passage version
+web-composition-select-before = Select the red version
+web-composition-select-after = Select the green version
+web-composition-choices-applied = Choices applied
+web-composition-choice-draft = Provisional choice
+web-composition-applied = Choices applied. You can save the document.
+web-composition-draft-notice = Provisional choices · nothing changes until confirmation.
+web-composition-select-all = Select all
+web-composition-select-all-before = Select everything on the left
+web-composition-select-all-after = Select everything on the right
+web-comparison-review-composition = Compare the composition with the current document before applying it.
+web-comparison-context-1 = Keep current
+web-comparison-context-2 = Use all
+web-comparison-context-3 = Keep all
+web-comparison-context-4 = Use this passage
+web-comparison-context-5 = Keep the current passage
+web-comparison-context-6 = Use everything from this version
+web-comparison-context-7 = Keep everything from the current document
+web-comparison-context-8 = Reject
+web-comparison-context-9 = Accept
+web-comparison-context-10 = Reject all
+web-comparison-context-11 = Accept all
+web-comparison-context-12 = Reject this change
+web-comparison-context-13 = Accept this change
+web-comparison-context-14 = Choose this version
+web-comparison-context-15 = Choose everything here
+web-comparison-context-16 = Choose from “{ "{name}" }”
+web-comparison-context-17 = Choose everything from “{ "{name}" }”
+web-comparison-context-18 = Before · Frozen current document
+web-comparison-context-19 = After · Prepared composition
+web-comparison-context-20 = Use this passage from the composition
+web-comparison-context-21 = Use the entire composition
+web-comparison-context-22 = Compare the composition with the current document
+web-comparison-context-23 = The composition stays private until it is compared with the current document.
+web-comparison-context-24 = Use { "{count}" } passage
+web-comparison-context-25 = Use { "{count}" } passages
+web-comparison-context-26 = No passages to use
+web-comparison-context-27 = { "{count}" } passage to use
+web-comparison-context-28 = { "{count}" } passages to use
+web-comparison-context-29 = { "{count}" } passage kept
+web-comparison-context-30 = { "{count}" } passages kept
+web-comparison-context-31 = { "{count}" } change accepted
+web-comparison-context-32 = { "{count}" } changes accepted
+web-comparison-context-33 = { "{count}" } change rejected
+web-comparison-context-34 = { "{count}" } changes rejected
+web-comparison-context-35 = Apply { "{count}" } change
+web-comparison-context-36 = Apply { "{count}" } changes
+web-comparison-context-37 = Reject the proposal
+web-comparison-context-38 = Finish without changes
+web-comparison-context-39 = Keep the current document
+web-comparison-context-40 = Review the composition before changing the current document.
+web-comparison-context-41 = Edit the composition
+web-comparison-context-42 = Review the composition
+web-comparison-context-43 = The proposal was rejected. The document is unchanged.
+web-comparison-context-44 = The proposal was completed without changes.
+web-comparison-context-45 = The current document was kept.

@@ -146,8 +146,7 @@ de navigateur (leurs compteurs ne sont pas des mesures d’IPC natif) :
 Depuis la racine du dépôt, après `npm ci` :
 
 ```sh
-npm run build:web
-cargo build --release --locked --offline -p typstographe
+npm run build:recipe -- --release --offline
 npm run test:preview-native
 ```
 

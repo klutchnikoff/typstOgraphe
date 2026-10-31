@@ -1,5 +1,8 @@
 # Lectures du rendu et des compteurs
 
+> Référence historique antérieure au contrat structuré Tauri. Pour l’application
+> courante, voir l’[index documentaire](README.md) et le [contrat structuré](structured-contract.md).
+
 Lot de phase 2 réalisé le 24 octobre 2026. Les opérations sont décrites dans le
 [catalogue généré](commands.md) et ses [schémas JSON](commands.json).
 Elles utilisent `Engine::query` / `query_call` ; les adaptateurs Rust partagent

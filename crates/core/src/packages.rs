@@ -1,6 +1,9 @@
 //! Interfaces Typst des capacités et paquets privés, copiés dans chaque document.
 //! Le catalogue est partagé avec les créateurs de modèles ; aucun téléchargement.
 use crate::errors::{CoreError, PackageError, StorageError};
+mod embedded;
+pub(crate) use embedded::valid_path as valid_embedded_path;
+pub use embedded::validate as validate_embedded;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -19,12 +22,14 @@ struct Packages;
 struct Capabilities;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Catalog {
     version: u32,
     capabilities: Vec<Capability>,
     packages: Vec<Package>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Capability {
     id: String,
     entrypoint: String,
@@ -32,6 +37,7 @@ struct Capability {
     packages: Vec<String>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Package {
     name: String,
     version: String,

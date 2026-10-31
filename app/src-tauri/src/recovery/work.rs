@@ -5,12 +5,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
     fs,
-    io::Read,
     path::{Path, PathBuf},
 };
 use typstographe_core::{
     DocumentLease,
-    assets::MAX_DOCUMENT_BYTES,
     content::{contract::State, shared::SharedDocument},
 };
 
@@ -61,12 +59,15 @@ impl Session {
     pub fn recovery_checkpoint(&mut self) -> Result<Checkpoint, String> {
         let resources = self.resources();
         let owner = self.ensure_owner()?;
+        let state = owner.state().clone();
+        let update = owner.update_bytes();
         Ok(Checkpoint {
-            schema: "typstographe-web-editor-v1".into(),
+            project: self.project_recovery(state.clone(), update.clone())?,
+            schema: "typstographe-web-editor-v2".into(),
             source: String::new(),
-            document: owner.state().document.clone(),
-            settings: owner.state().settings.clone(),
-            update: owner.update_bytes(),
+            document: state.document,
+            settings: state.settings,
+            update,
             resources,
         })
     }
@@ -317,6 +318,7 @@ impl Session {
             validated.assets,
             validated.updates.into_iter().next().unwrap(),
         );
+        self.project = validated.project;
         self.generation = generation;
         self.recovered_name = copied.name;
         self.recovered_items.insert(window.into(), recovered);
@@ -463,15 +465,7 @@ pub fn read_work(path: &Path) -> Result<drafts::Record, String> {
     {
         return Err("recovery_invalid_file".into());
     }
-    let mut bytes = vec![];
-    fs::File::open(path)
-        .map_err(|e| e.to_string())?
-        .take(MAX_DOCUMENT_BYTES + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|e| e.to_string())?;
-    if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
-        return Err("recovery_too_large".into());
-    }
+    let bytes = crate::project::read_recovery_file(path)?;
     let mut value: Value = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
     if value["format"] == "typstographe-rejected-draft-v1" {
         let checkpoint: Checkpoint = if value.get("confirmed").is_some() {
@@ -484,7 +478,8 @@ pub fn read_work(path: &Path) -> Result<drafts::Record, String> {
             );
             let shared = SharedDocument::from_state(&state).map_err(crate::owner::error)?;
             Checkpoint {
-                schema: "typstographe-web-editor-v1".into(),
+                project: crate::project::recovery_for_state(state.clone(), shared.update())?,
+                schema: "typstographe-web-editor-v2".into(),
                 source: String::new(),
                 document: state.document,
                 settings: state.settings,
@@ -522,13 +517,13 @@ pub fn read_work(path: &Path) -> Result<drafts::Record, String> {
             rejected_edition: None,
         });
     }
-    let legacy: super::Record = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
-    let cp: Checkpoint = legacy.checkpoint;
+    let confirmed: super::Record = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    let cp: Checkpoint = confirmed.checkpoint;
     Ok(drafts::Record {
         format: drafts::FORMAT.into(),
-        name: Some(legacy.name),
+        name: Some(confirmed.name),
         window: String::new(),
-        saved_at: legacy.saved_at,
+        saved_at: confirmed.saved_at,
         file_path: None,
         input: drafts::Input {
             generation: uuid::Uuid::new_v4().to_string(),

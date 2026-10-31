@@ -1,5 +1,8 @@
 # Contextes d’édition, positions et propositions — lots 6.3 et 6.4b
 
+> Référence historique antérieure au contrat structuré Tauri. Pour l’application
+> courante, voir l’[index documentaire](README.md) et le [contrat structuré](structured-contract.md).
+
 ## Un document, plusieurs contextes
 
 Le moteur conserve un seul document publié, sa garde complète et son historique.

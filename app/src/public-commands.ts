@@ -15,7 +15,12 @@ export function refreshCommandButton(button: HTMLButtonElement, command: PublicC
   const value = commandAvailability(command)
   button.disabled = !value.enabled
   button.setAttribute('aria-disabled', String(!value.enabled))
-  button.title = [command.label, availabilityLabel(value)].filter(Boolean).join(' — ')
+  const shortcut = command.shortcut?.replace(
+    'Mod',
+    navigator.platform.startsWith('Mac') ? 'Cmd' : 'Ctrl',
+  )
+  const label = shortcut ? `${command.label} (${shortcut})` : command.label
+  button.title = [label, availabilityLabel(value)].filter(Boolean).join(' — ')
 }
 /** Every registration is guarded, including direct calls to .run() from future
  * triggers. The shell adds document/modal policy once, after registering its tools.

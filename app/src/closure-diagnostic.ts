@@ -34,6 +34,12 @@ export async function closureDiagnostic(
     { once: true },
   )
   const steps: string[] = []
+  const progress = (phase: string) =>
+    transport.invoke('diagnostic_event', {
+      target: provider.id,
+      step: 'progress',
+      payload: { phase, revision: provider.revision },
+    })
   const state = () => ({
     document: documentContent(editor.getJSON()),
     settings: settingsFor(provider),
@@ -159,9 +165,22 @@ export async function closureDiagnostic(
       const selection = editor.state.selection.toJSON(),
         undo = provider.historyState.undo_steps
       await openAssistance()
-      await until(() => !!button('Accepter le lot'), 'accept button')
-      button('Accepter le lot')!.click()
+      await until(() => !!button('Examiner la proposition'), 'review button')
+      button('Examiner la proposition')!.click()
+      await until(
+        () => !!document.querySelector('[data-action="validate-comparison"]'),
+        'comparison',
+      )
+      const validate = document.querySelector<HTMLButtonElement>(
+        '[data-action="validate-comparison"]',
+      )!
+      if (validate.disabled || !validate.textContent?.startsWith('Appliquer '))
+        throw new Error('Missing explicit change count')
+      validate.click()
       await until(() => editor.getText().includes('[MCP-ACCEPTED]'), 'published lot')
+      const dialog = document.querySelector('dialog.version-dialog')!
+      const close = [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Fermer')!
+      close.click()
       await provider.refreshHistory()
       if (stableJSON(editor.state.selection.toJSON()) !== stableJSON(selection))
         throw new Error('Human selection moved')
@@ -178,6 +197,79 @@ export async function closureDiagnostic(
       )
       await provider.flush()
       await save()
+      const { versionsAPI } = await import('./versions-api')
+      const { versionDialog } = await import('./version-dialog')
+      const { comparisonAPI } = await import('./comparison-api')
+      const api = versionsAPI({
+        provider,
+        transport,
+        destination: async () => undefined,
+        saved: async () => {},
+      })
+      await progress('versions.begin')
+      const index = await api.list()
+      const created = await api.change(index.history, {
+        kind: 'create',
+        details: { name: 'Closure reference', tags: ['recipe'], description: null, creator: null },
+      })
+      if (!created) throw new Error('Version not created')
+      await progress('versions.created')
+      const record = created.versions.find((item) => item.details.name === 'Closure reference')!
+      const reference = stableJSON(state())
+      append(editor, ' [AFTER-VERSION]')
+      await provider.flush()
+      const modified = stableJSON(state())
+      await progress('versions.edited')
+      const catalogue = await transport.invoke<import('./shell').Catalogue>('content_catalogue')
+      const viewer = versionDialog({
+        record,
+        index: created,
+        api,
+        catalogue,
+        returnFocus: () => undefined,
+        changed: () => {},
+      })
+      await until(() => !!document.querySelector('.version-prose'), 'version content')
+      ;(document.querySelector('[data-view="compare"]') as HTMLButtonElement).click()
+      await until(
+        () => !!document.querySelector('[data-action="select-all-before"]'),
+        'version comparison',
+      )
+      ;(document.querySelector('[data-action="select-all-before"]') as HTMLButtonElement).click()
+      ;(document.querySelector('[data-action="validate-comparison"]') as HTMLButtonElement).click()
+      await until(() => stableJSON(state()) === reference, 'version reprise')
+      await progress('versions.content-installed')
+      await until(
+        () =>
+          document.querySelector('[data-comparison-summary]')?.textContent ===
+          'Choix appliqués. Vous pouvez enregistrer le document.',
+        'version application acknowledgement',
+      )
+      await until(
+        () =>
+          !!document.querySelector<HTMLButtonElement>(
+            '.version-dialog .version-footer .primary:not(:disabled)',
+          ),
+        'version close enabled',
+      )
+      viewer.destroy()
+      await until(() => !document.querySelector('dialog.version-dialog'), 'version modal close')
+      await progress('versions.closed')
+      editor.view.focus()
+      editor.commands.undo()
+      await until(() => stableJSON(state()) === modified, 'version undo')
+      await progress('versions.undone')
+      editor.commands.redo()
+      await until(() => stableJSON(state()) === reference, 'version redo')
+      await progress('versions.redone')
+      const frozen = await comparisonAPI(provider, transport).open({
+        kind: 'version',
+        id: record.id,
+      })
+      if (frozen.report.groups.length) throw new Error('Reprise differs from reference')
+      await transport.invoke('comparison_close', { id: frozen.id })
+      await save()
+      steps.push('Durable version: read-only modal, reprise, single undo/redo and explicit save.')
     } else {
       for (const marker of ['[TAURI]', '[CLI]', '[MCP-AUTONOMOUS]', '[MCP-ACCEPTED]'])
         if (!editor.getText().includes(marker)) throw new Error(`Missing ${marker}`)
@@ -188,6 +280,7 @@ export async function closureDiagnostic(
       )
       await save()
     }
+    await progress('export.begin')
     const exported = await transport.invoke<string>('export_document', { snapshot: snapshot() })
     const preview = await transport.invoke<{ pageSizes: number[][] }>('preview', {
       snapshot: snapshot(),

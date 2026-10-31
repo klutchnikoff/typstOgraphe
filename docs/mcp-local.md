@@ -33,9 +33,16 @@ Leur édition demanderait une relecture qui les montre explicitement. Les ancien
 contrats d’[autorisations de fichiers](mcp-files-attached.md) décrivent egui ; ils
 ne constituent pas des droits disponibles dans Tauri.
 
-Seul l’utilisateur peut accepter ou refuser le lot entier. Aucun outil MCP ne peut
-l’approuver. À l’acceptation, Rust revérifie identité, révision, IME et état du lot,
-revalide son rendu et publie les commandes enregistrées. Le navigateur reçoit le
+Seul l’utilisateur choisit les passages à retenir, via les boutons rouge/vert
+exclusifs du comparateur commun. Aucun outil MCP ne peut les valider. Les choix
+restent privés jusqu’à la validation « Appliquer N changements », accompagnée
+du nombre de groupes acceptés et écartés. Les boutons « Accepter » / « Refuser »
+et « Tout accepter » / « Tout refuser » nomment l’effet ; tous les rouges donnent
+« Refuser la proposition » et clôturent le reçu sans éditer le document.
+Rust revérifie identité, révision, IME et
+état du lot, revalide le rendu et publie la composition en une seule étape
+d’annulation, sans enregistrement ni snapshot automatique. L’utilisateur conserve
+le choix d’enregistrer et de créer une version. Le navigateur reçoit le
 delta Yrs confirmé ; il ne reconstruit plus une modification indépendante. Une
 seule contribution est ajoutée à l’historique de la fenêtre qui accepte ; les
 identités et sélections des zones non touchées sont conservées.

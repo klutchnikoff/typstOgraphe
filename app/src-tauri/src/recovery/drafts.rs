@@ -5,7 +5,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
     fs,
-    io::{Read, Write},
+    io::Write,
     path::{Path, PathBuf},
 };
 use typstographe_core::{
@@ -99,16 +99,9 @@ pub fn read(path: &Path) -> Result<Record, String> {
     {
         return Err("recovery_invalid_file".into());
     }
-    let mut bytes = Vec::new();
-    fs::File::open(path)
-        .map_err(|e| e.to_string())?
-        .take(MAX_DOCUMENT_BYTES + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|e| e.to_string())?;
-    if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
-        return Err("recovery_too_large".into());
-    }
+    let bytes = crate::project::read_recovery_file(path)?;
     let record: Record = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    validate_input(&record.input)?;
     if record.format != FORMAT {
         return Err("recovery_unknown_format".into());
     }
@@ -144,9 +137,16 @@ pub(super) fn private(record: &Record) -> bool {
         || shared.verify(&State::new(document, settings)).is_err()
 }
 
+fn validate_input(input: &Input) -> Result<(), String> {
+    if serde_json::to_vec(input).map_err(|e| e.to_string())?.len() as u64 > MAX_DOCUMENT_BYTES {
+        return Err("recovery_too_large".into());
+    }
+    Ok(())
+}
 pub(super) fn write(path: &Path, record: &Record) -> Result<(), String> {
+    validate_input(&record.input)?;
     let bytes = serde_json::to_vec(record).map_err(|e| e.to_string())?;
-    if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
+    if bytes.len() as u64 > crate::project::MAX_RECOVERY_BYTES {
         return Err("recovery_too_large".into());
     }
     let options = atomic_write_file::AtomicWriteFile::options();
@@ -267,7 +267,8 @@ impl Session {
                 .map(|lease| lease.path().to_path_buf()),
             confirmed_revision: self.revision,
             confirmed: Checkpoint {
-                schema: "typstographe-web-editor-v1".into(),
+                project: self.project_recovery(state.clone(), update.clone())?,
+                schema: "typstographe-web-editor-v2".into(),
                 document: state.document,
                 settings: state.settings,
                 update,

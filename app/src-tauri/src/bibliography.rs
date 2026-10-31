@@ -20,12 +20,24 @@ pub fn validate_bibliography(document: Node, metadata: Metadata) -> Result<(), S
 }
 #[tauri::command]
 pub fn model_policy(
+    state: tauri::State<crate::Bridge>,
+    template: String,
+) -> Result<typstographe_core::document_types::ModelPresentation, String> {
+    policy(&*state.session.lock().map_err(|e| e.to_string())?, template)
+}
+pub(crate) fn policy(
+    session: &crate::session::Session,
     template: String,
 ) -> Result<typstographe_core::document_types::ModelPresentation, String> {
     if template.len() > 2 * 1024 * 1024 {
         return Err("Model too large".into());
     }
-    typstographe_core::rendering::TypstWorld::default()
+    let mut settings = session.settings.clone();
+    settings.template = template.clone();
+    let dependencies = session.dependencies_for(&settings);
+    let mut world = typstographe_core::rendering::TypstWorld::default();
+    world.set_dependencies(&dependencies);
+    world
         .model_presentation(&template)
         .map_err(|e| e.to_string())
 }

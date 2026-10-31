@@ -31,7 +31,10 @@ fn images_and_signature_survive_save_reopen_removal_undo_and_redo_without_unused
     ]);
     f.persist_draft();
     f.save(&f.path());
-    let original = Archive::read(&f.path()).unwrap();
+    let original = typstographe_core::content::project::Project::read(&f.path())
+        .unwrap()
+        .current()
+        .clone();
     assert_eq!(original.assets.len(), 1);
     assert_eq!(original.assets[&image.path].as_ref(), image.data);
     assert_eq!(
@@ -51,7 +54,14 @@ fn images_and_signature_survive_save_reopen_removal_undo_and_redo_without_unused
         ],
     );
     f.save(&f.path());
-    assert!(Archive::read(&f.path()).unwrap().assets.is_empty());
+    assert!(
+        typstographe_core::content::project::Project::read(&f.path())
+            .unwrap()
+            .current()
+            .clone()
+            .assets
+            .is_empty()
+    );
     assert!(f.session.lock().unwrap().assets.contains_key(&image.path));
     f.session
         .lock()
@@ -59,14 +69,28 @@ fn images_and_signature_survive_save_reopen_removal_undo_and_redo_without_unused
         .history("human", Direction::Undo)
         .unwrap();
     f.save(&f.path());
-    assert_eq!(Archive::read(&f.path()).unwrap().state(), original.state());
+    assert_eq!(
+        typstographe_core::content::project::Project::read(&f.path())
+            .unwrap()
+            .current()
+            .clone()
+            .state(),
+        original.state()
+    );
     f.session
         .lock()
         .unwrap()
         .history("human", Direction::Redo)
         .unwrap();
     f.save(&f.path());
-    assert!(Archive::read(&f.path()).unwrap().assets.is_empty());
+    assert!(
+        typstographe_core::content::project::Project::read(&f.path())
+            .unwrap()
+            .current()
+            .clone()
+            .assets
+            .is_empty()
+    );
     f.session
         .lock()
         .unwrap()

@@ -3,13 +3,13 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
-    io::{Read, Write},
+    io::Write,
     path::{Path, PathBuf},
 };
 use typstographe_core::assets::{self, Assets};
 
 const MAX_UPDATES: usize = 32 * 1024 * 1024;
-const SCHEMA: &str = "typstographe-web-editor-v1";
+const SCHEMA: &str = "typstographe-web-editor-v2";
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -32,6 +32,7 @@ pub use typstographe_core::content::contract::Snapshot;
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Checkpoint {
+    pub project: crate::project::RecoveryContext,
     pub schema: String,
     pub document: Node,
     pub source: String,
@@ -73,6 +74,8 @@ pub struct Synchronization {
 }
 
 pub struct Session {
+    pub comparisons: std::collections::HashMap<String, crate::comparisons::Review>,
+    pub project: std::sync::OnceLock<crate::project::Context>,
     pub owner: Option<crate::owner::Owner>,
     pub recovery: Option<crate::recovery::Store>,
     pub initial_path: Option<String>,
@@ -98,9 +101,22 @@ pub struct Session {
     restored: Option<Node>,
     pub settings: crate::settings::Settings,
 }
+fn default_document() -> Node {
+    #[cfg(any(test, feature = "recipe-driver"))]
+    {
+        serde_json::from_str(include_str!("../../fixture.json")).expect("recipe fixture")
+    }
+    #[cfg(not(any(test, feature = "recipe-driver")))]
+    {
+        serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph"}]}))
+            .expect("empty document")
+    }
+}
 impl Session {
     pub fn fresh(root: PathBuf) -> Self {
         Self {
+            comparisons: Default::default(),
+            project: std::sync::OnceLock::new(),
             owner: None,
             recovery: None,
             initial_path: None,
@@ -127,19 +143,12 @@ impl Session {
             settings: Default::default(),
         }
     }
+    #[cfg(any(test, feature = "recipe-driver"))]
     pub fn open(root: PathBuf) -> Result<Self, String> {
         let mut session = Self::fresh(root);
         let path = session.root.join("session.json");
         if path.exists() {
-            let mut bytes = Vec::new();
-            std::fs::File::open(&path)
-                .map_err(|e| e.to_string())?
-                .take(assets::MAX_DOCUMENT_BYTES + 1)
-                .read_to_end(&mut bytes)
-                .map_err(|e| e.to_string())?;
-            if bytes.len() as u64 > assets::MAX_DOCUMENT_BYTES {
-                return Err("Session trop volumineuse.".into());
-            }
+            let bytes = crate::project::read_recovery_file(&path)?;
             let checkpoint: Checkpoint =
                 serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
             session = Self::from_checkpoint(session.root.clone(), checkpoint)?;
@@ -185,6 +194,30 @@ impl Session {
             })
             .map_err(|e| typstographe_i18n::content_error(&e))?;
         session.settings = checkpoint.settings;
+        let base = checkpoint
+            .project
+            .archive
+            .restore()
+            .map_err(crate::project::error)?;
+        let dependencies = base.dependencies_for(&session.settings.template);
+        // The envelope may overlay a newer confirmed body, but its model must
+        // match the cached context. Runtime libraries come from this release.
+        if base.current().template != session.settings.template
+            || base.current().model_id != session.settings.model_id
+        {
+            return Err("recovery_invalid_file".into());
+        }
+        let current = crate::project::archive(
+            state,
+            checkpoint.update.clone(),
+            session.assets.clone(),
+            dependencies,
+        );
+        let project = base.with_current(current).map_err(crate::project::error)?;
+        session.project = std::sync::OnceLock::from(crate::project::Context::new(
+            project,
+            checkpoint.project.saved_origin,
+        ));
         session.updates.push(checkpoint.update);
         session.restored = Some(checkpoint.document);
         session.initialized = true;
@@ -245,9 +278,7 @@ impl Session {
                 .map(|lease| lease.path().to_string_lossy().into_owned()),
             revision: self.revision,
             updates: self.updates.clone(),
-            fixture: self.fixture.clone().unwrap_or_else(|| {
-                serde_json::from_str(include_str!("../../fixture.json")).expect("fixture")
-            }),
+            fixture: self.fixture.clone().unwrap_or_else(default_document),
             initialize,
             resources: self.resources(),
             restored_document: self.restored.take(),
@@ -481,6 +512,7 @@ impl Session {
         Ok(())
     }
     pub fn reset_document_generation(&mut self) {
+        self.comparisons.clear();
         self.offline.clear();
         self.draft_epochs.clear();
         self.recovered_name = None;
@@ -497,6 +529,7 @@ impl Session {
         assets: Assets,
         yjs: Vec<u8>,
     ) {
+        self.project = std::sync::OnceLock::new();
         self.owner = None;
         self.clean_revision = None;
         self.offline.clear();
@@ -559,6 +592,16 @@ impl Session {
         };
         verify().map_err(|e| typstographe_i18n::content_error(&e))?;
         Ok(Checkpoint {
+            project: self.project_recovery(
+                typstographe_core::content::contract::State::new(
+                    snapshot.document.clone(),
+                    snapshot
+                        .settings
+                        .clone()
+                        .unwrap_or_else(|| self.settings.clone()),
+                ),
+                update.clone(),
+            )?,
             schema: SCHEMA.into(),
             document: snapshot.document.clone(),
             source,
@@ -585,7 +628,7 @@ impl Session {
             return store.write(checkpoint, name);
         }
         let bytes = serde_json::to_vec(&checkpoint).map_err(|e| e.to_string())?;
-        if bytes.len() as u64 > assets::MAX_DOCUMENT_BYTES {
+        if bytes.len() as u64 > crate::project::MAX_RECOVERY_BYTES {
             return Err("Session trop volumineuse.".into());
         }
         std::fs::create_dir_all(&self.root).map_err(|e| e.to_string())?;

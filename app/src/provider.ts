@@ -44,6 +44,12 @@ interface Change {
   acceptedBy?: string
 }
 
+export interface DocumentSaved {
+  document: string
+  path: string
+  revision: number
+  warning?: string | null
+}
 export interface HistoryState {
   guard?: { document: string; revision: number }
   selection?: ViewSelection | null
@@ -87,6 +93,7 @@ export class Provider {
   generation = ''
   onChange = () => {}
   onStatus = () => {}
+  onSaved = (_saved: DocumentSaved) => {}
   documentEdits?: { flush: () => Promise<void>; dirty: () => boolean; draft?: () => unknown }
   onResource = () => {}
   onError = (_error: unknown) => {}
@@ -146,6 +153,11 @@ export class Provider {
     )
   }
 
+  confirmSaved(saved: DocumentSaved) {
+    if (saved.document !== this.generation || this.destroyed) return
+    this.recoveredName = null
+    this.onSaved(saved)
+  }
   private updateSynchronization(status: Synchronization) {
     if (!this.generation) {
       this.earlySynchronization = status
@@ -214,6 +226,11 @@ export class Provider {
         },
       ),
     )
+    this.disposers.push(
+      await this.transport.listen<DocumentSaved>('web-editor:saved', (saved) =>
+        this.confirmSaved(saved),
+      ),
+    )
     const bootstrap = await this.transport.invoke<Bootstrap>('join')
     this.load(bootstrap)
     if (bootstrap.initialize) Y.applyUpdate(this.doc, seed(bootstrap.fixture), BOOTSTRAP)
@@ -236,7 +253,7 @@ export class Provider {
   private apply(event: Change) {
     if (event.generation && event.generation !== this.generation) return
     this.revision = Math.max(this.revision, event.revision)
-    if (event.from !== this.id)
+    if (event.from !== this.id && event.update.length)
       Y.applyUpdate(
         this.doc,
         new Uint8Array(event.update),

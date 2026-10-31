@@ -1,4 +1,4 @@
-// A.2 final recipe: actual WebView/IPC, CLI subprocesses and MCP STDIO on the same files.
+// Foundation closure recipe: actual WebView/IPC, CLI subprocesses and MCP STDIO on the same files.
 import assert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile, copyFile, readdir, access } from 'node:fs/promises'
@@ -16,22 +16,24 @@ import {
 } from './closure-tools.mjs'
 const repo = fileURLToPath(new URL('../../', import.meta.url))
 const root = path.resolve(
-  process.argv[2] || path.join(repo, 'output/a2-closure', `run-${Date.now()}`),
+  process.argv[2] || path.join(repo, 'output/foundation-closure', `run-${Date.now()}`),
 )
 await mkdir(root, { recursive: true })
 assert.equal((await readdir(root)).length, 0, 'Use a new, empty recipe directory')
 const extension = process.platform === 'win32' ? '.exe' : ''
 const binary =
-  process.env.TOG_SPIKE_BINARY || path.join(repo, 'target/debug', 'typstographe' + extension)
+  process.env.TOG_SPIKE_BINARY ||
+  path.join(repo, 'target/recipes/debug', 'typstographe' + extension)
 const cliBinary =
-  process.env.TOG_CLI_BINARY || path.join(repo, 'target/debug', 'typstographe-cli' + extension)
+  process.env.TOG_CLI_BINARY ||
+  path.join(repo, 'target/recipes/debug', 'typstographe-cli' + extension)
 const cli = cliClient(cliBinary, repo)
 const catalogue = cli(['commands', 'export'])
 const report = {
   success: false,
   git: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(),
   platform: process.platform,
-  recipe: 'a2-closure-v1',
+  recipe: 'foundation-closure-v2',
   cases: [],
 }
 const inspect = (project) => cli(['inspect', project]).document.state
@@ -64,6 +66,7 @@ async function native(directory, input, verify = false) {
   for (const stream of [child.stdout, child.stderr])
     stream.on('data', (data) => {
       log += data
+      process.stderr.write(data)
     })
   const timer = setInterval(() => {
     if (verify || attached) return

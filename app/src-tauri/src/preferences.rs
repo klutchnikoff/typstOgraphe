@@ -92,7 +92,9 @@ impl Preferences {
     }
 }
 pub fn root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    #[cfg(feature = "recipe-driver")]
     let state = app.state::<crate::Bridge>();
+    #[cfg(feature = "recipe-driver")]
     if state.diagnostic.is_some() {
         return Ok(state
             .session

@@ -1,24 +1,21 @@
 use super::*;
 use crate::{
     DocumentLease,
-    content::{
-        archive::Archive,
-        commands::{TextTarget, TextZone},
-    },
+    content::commands::{TextTarget, TextZone},
 };
 use serde_json::json;
-fn new(kind: &str) -> Session {
+pub(super) fn new(kind: &str) -> Session {
     let mut s = Session::new();
     s.execute("document.new", json!({"type":kind})).unwrap();
     s
 }
-fn call(id: &str, params: Value) -> Call {
+pub(super) fn call(id: &str, params: Value) -> Call {
     Call {
         id: id.into(),
         params,
     }
 }
-fn target(path: &[usize], from: u32, to: u32) -> Value {
+pub(super) fn target(path: &[usize], from: u32, to: u32) -> Value {
     json!(TextTarget {
         zone: TextZone::Body { path: path.into() },
         from,
@@ -79,7 +76,10 @@ fn typed_article_header_cells_and_unicode_roundtrip_without_a_flat_text_engine()
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("article.typsto");
     s.save_as(&path).unwrap();
-    let archive = Archive::read(&path).unwrap();
+    let archive = crate::content::project::Project::read(&path)
+        .unwrap()
+        .current()
+        .clone();
     assert_eq!(archive.state(), *s.state().unwrap());
     assert_eq!(archive.yjs, bytes);
     assert!(
@@ -374,7 +374,15 @@ fn admitted_images_signatures_and_figures_share_retention_and_runtime_undo() {
     let dir = tempfile::tempdir().unwrap();
     let file = dir.path().join("signed.typsto");
     s.save_as(&file).unwrap();
-    assert_eq!(Archive::read(&file).unwrap().assets.len(), 1);
+    assert_eq!(
+        crate::content::project::Project::read(&file)
+            .unwrap()
+            .current()
+            .clone()
+            .assets
+            .len(),
+        1
+    );
     s.batch(
         &[
             call(
@@ -386,11 +394,26 @@ fn admitted_images_signatures_and_figures_share_retention_and_runtime_undo() {
         Some(Save::Current),
     )
     .unwrap();
-    assert!(Archive::read(&file).unwrap().assets.is_empty());
+    assert!(
+        crate::content::project::Project::read(&file)
+            .unwrap()
+            .current()
+            .clone()
+            .assets
+            .is_empty()
+    );
     assert!(s.assets().unwrap().contains_key(path));
     s.execute("edit.undo", json!({})).unwrap();
     s.save().unwrap();
-    assert_eq!(Archive::read(&file).unwrap().assets.len(), 1);
+    assert_eq!(
+        crate::content::project::Project::read(&file)
+            .unwrap()
+            .current()
+            .clone()
+            .assets
+            .len(),
+        1
+    );
     s.export(
         &dir.path().join("export"),
         crate::protocol::ExportFormat::Both,
@@ -442,7 +465,14 @@ fn resource_admission_alone_is_dirty_even_without_a_text_update() {
     );
     s.save().unwrap();
     assert!(!s.dirty());
-    assert!(Archive::read(&path).unwrap().assets.is_empty());
+    assert!(
+        crate::content::project::Project::read(&path)
+            .unwrap()
+            .current()
+            .clone()
+            .assets
+            .is_empty()
+    );
 }
 #[test]
 fn semantic_type_restrictions_cannot_be_bypassed_by_generic_nodes_or_archives() {
