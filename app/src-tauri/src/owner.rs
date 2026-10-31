@@ -89,7 +89,7 @@ impl Owner {
         let context = self.context(peer)?;
         self.engine
             .check_publication_context(plan.guard(), context)
-            .map_err(error)
+            .map_err(|e| typstographe_i18n::content_error(&e))
     }
     pub fn prepare_agent_calls(
         &self,

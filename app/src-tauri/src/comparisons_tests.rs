@@ -139,7 +139,8 @@ fn stale_preparations_ime_invalid_choices_and_external_file_changes_never_publis
     let r = review(&mut s, &mut a, id);
     let ready = prepare(&mut s, &a, "human", &r, &[SourceSide::Before; 2]).unwrap();
     std::fs::write(&path, b"External change").unwrap();
-    assert!(apply(&mut s, &mut a, "human", &r, ready, None).is_err());
+    let failure = apply(&mut s, &mut a, "human", &r, ready, None).unwrap_err();
+    assert!(!failure.starts_with('{'));
     assert_eq!(s.updates, work);
     assert_eq!(std::fs::read(&path).unwrap(), b"External change");
     assert_eq!(
@@ -325,7 +326,8 @@ fn a_rejected_private_draft_blocks_before_the_durable_commit() {
             .is_err()
     );
     assert!(s.ensure_owner().unwrap().draft("human").unwrap().is_some());
-    assert!(apply(&mut s, &mut a, "human", &r, ready, None).is_err());
+    let failure = apply(&mut s, &mut a, "human", &r, ready, None).unwrap_err();
+    assert!(!failure.starts_with('{') && !failure.contains("pending_draft"));
     assert_eq!(std::fs::read(&path).unwrap(), disk);
     assert_eq!(s.updates, work);
 }
