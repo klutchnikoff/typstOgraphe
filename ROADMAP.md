@@ -182,13 +182,10 @@ n’est pas à développer maintenant. Voir le [contrat](docs/typst-dependencies
   calcul des différences, leur présentation et les actions disponibles.
   Définir le contrat des groupes pour les décisions locales dans A.4 ; leur
   proximité visuelle ne prouve pas leur indépendance documentaire. La comparaison
-  de snapshots reste une consultation : reprendre une modification ancienne serait
-  une action explicite sur l’état courant, jamais sur le snapshot conservé.
-  **Décision confirmée :** construire dans A.4 les décisions locales et leur
-  moteur d’application commun aux versions et aux propositions MCP. Une décision
-  applique un groupe sûr au document courant ; les snapshots restent immuables.
-  Les opérations dépendantes sont décidées ensemble. « Tout appliquer » est une
-  commodité, pas une validation globale obligatoire. Le mode relecture J conserve
+  de snapshots reste immuable. Les choix rouge/vert sont provisoires et
+  « Appliquer et enregistrer » construit puis publie leur résultat en une seule
+  opération annulable, sans snapshot automatique. Les changements dépendants
+  restent décidés ensemble. Le mode relecture J conserve
   ses outils dédiés. Voir le [contrat du comparateur](docs/a4-comparison-contract.md).
   **Ordre confirmé :** avant à gauche, après à droite. Pour Versions, la version
   historique est à gauche et le document courant figé à droite ; reprendre un
@@ -252,8 +249,8 @@ Voir le [contrat](docs/a4-comparison-contract.md).
 
 **A.4.4 — Comparateur et décisions locales :** maquette validée et conservée,
 moteur commun Versions/MCP, comparaison figée avant/après, décisions gardées,
-annulation distincte, changements documentaires liés groupés et aperçus isolés. La comparaison de
-deux versions historiques est en consultation seule. Les paragraphes adjacents
+annulation de la composition, changements documentaires liés groupés et aperçus
+isolés. Deux versions historiques permettent aussi de composer le document courant. Les paragraphes adjacents
 modifiés ont des décisions distinctes lorsque leurs frontières sont conservées ;
 les widgets restent entiers, les fusions/scissions et correspondances ambiguës
 restent groupées. Le regroupement reste conservateur pour les réglages et
@@ -556,7 +553,7 @@ puis accepter/refuser un lot, avec au moins deux agents et sans configuration MC
   visuel ne suffit pas à établir un groupe applicable ; les dépendances entre
   texte, structure, métadonnées et ressources imposent des décisions groupées.
 - Réutiliser les décisions locales, la progression et les refus du moteur
-  commun. Les validations successives connues font évoluer sa garde de travail ;
+  commun. Les choix restent provisoires jusqu’à la validation unique enregistrée ;
   une intervention extérieure impose un réexamen explicite. Ne jamais réactiver
   une ancienne garde parce que le contenu est redevenu identique.
 - F précise les adaptations de protocole, les reçus/statuts et le cycle de vie

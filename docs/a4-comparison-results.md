@@ -1,6 +1,9 @@
 # A.4.4 — Comparateur commun et décisions locales
 
-## Livraison
+Ce bilan conserve les étapes successives ; le [contrat courant](a4-comparison-contract.md)
+définit désormais la composition provisoire et son application enregistrée unique.
+
+## Premier raccordement (historique)
 
 Le comparateur Rust et la modale servent aux Versions et aux propositions MCP.
 La [maquette validée](mockups/a4-comparison.html) et le
@@ -170,6 +173,50 @@ de l’autre, ainsi qu’acceptation/refus MCP entre deux voisins. TypeScript/Vi
 Clippy workspace/tous les targets, Prettier, formatage Rust, contrôle des longueurs
 et `git diff --check` réussissent. Aucune capture n’a été enregistrée.
 
+### Composition rouge/vert et enregistrement unique
+
+La règle validée ensuite remplace les publications immédiates de chaque groupe
+par deux choix exclusifs par passage. Tous les verts sont sélectionnés au départ.
+Les choix restent locaux et modifiables jusqu’à « Appliquer et enregistrer » ; ils
+survivent aux changements d’onglet de la consultation. Le résultat part de droite,
+puis reprend les passages rouges. Deux versions historiques peuvent également
+composer le document courant, même si ce dernier est différent des deux états.
+Les états affichés et les snapshots existants restent immuables.
+
+La préparation est liée à la paire et à la garde, compilée hors verrou. La
+validation finale précontrôle aussi le contexte d’édition privé avant l’écriture
+atomique, puis publie le même checkpoint en une étape d’annulation. L’enregistrement
+est explicite, sans aucun snapshot automatique. L’annulation du sélecteur de fichier,
+un échec d’écriture, une garde périmée ou une saisie privée refusée ne publient rien.
+Un nettoyage de récupération défaillant après commit produit un avertissement,
+sans perdre l’état réellement enregistré. La réponse contient le delta confirmé
+et le reçu d’enregistrement, également diffusés aux autres fenêtres.
+
+Les radios réutilisent la navigation commune (Tab, flèches, activation), ont des
+libellés accessibles et une coche, avec fond plein/texte contrasté pour le choix
+actif rouge ou vert. Une proposition terminée/révoquée est distinguée d’une
+composition effectivement enregistrée. Les contrôles de l’ancienne paire sont
+neutralisés pendant le chargement de la suivante. Les choix ne sont pas persistés
+comme formulaires récupérables par ce lot.
+
+Vérification locale : le workspace Rust passe (**378 tests et un diagnostic de
+performance ignoré**). Le test supplémentaire de blocage d’un brouillon privé
+refusé a ensuite été ajouté : les **8 tests natifs de composition** passent, avec
+les **22 tests du comparateur**. Les **358 tests Vitest et 5 tests de locales**
+passent, ainsi que TypeScript/Vite, Prettier et Clippy workspace/tous les targets.
+Les **14 parcours Chromium/WebKit** passent avec le vrai propriétaire Rust :
+choix provisoires, sauvegarde, absence de snapshot MCP, comparaison historique,
+annulation documentaire, concurrence, navigation et couleurs en clair/sombre.
+Deux parcours ciblés supplémentaires (Chromium/WebKit) valident ensuite le cas
+« tous les verts » : sauvegarde réussie, document et révision inchangés, aucune
+étape d’annulation supplémentaire et aucun décodage d’un delta Yjs vide.
+
+Cette recette a révélé deux défauts corrigés : une synchronisation depuis
+l’intérieur de la file s’attendait elle-même, et les boutons d’une ancienne paire
+restaient accessibles pendant le chargement de la nouvelle. Aucune capture,
+vidéo ou trace graphique n’a été enregistrée. Les résultats restent locaux,
+sans prétendre valider la CI Windows/Linux.
+
 ### Périmètre restant
 
 Le regroupement reste volontairement conservateur : un paragraphe ou un widget
@@ -179,7 +226,7 @@ ressources documentaires ou bibliothèque bibliographique regroupe le contenu as
 indépendance supplémentaire n’est déduite de la proximité visuelle des changements.
 Les deux aperçus permettent d’examiner aussi les différences de présentation.
 
-Les décisions de comparaison restent temporaires, en mémoire. Le recalcul après
+Les choix de composition restent temporaires, en mémoire. Le recalcul après
 édition extérieure est explicite : nouvelle comparaison Versions ou nouvelle
 proposition MCP. La reprise vers un tiers état n’est pas proposée.
 

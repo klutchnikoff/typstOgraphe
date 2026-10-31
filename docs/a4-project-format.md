@@ -218,19 +218,20 @@ La conservation durable éventuelle d’une proposition après décision reste �
 décision n’ajoute pas une origine visible « agent » ou une sauvegarde automatique.
 Le refus ne publie aucune modification. Le comparateur commun d’A.4 fournit
 les décisions locales et leur application gardée, pour Versions comme pour MCP.
-Les groupes indépendants peuvent être appliqués séparément ; les opérations
-liées restent atomiques. Les états initiaux ne sont jamais réécrits. La progression
-et la garde de travail sont distinctes de ces états : une validation locale connue
-peut faire avancer cette garde, sans autoriser un réancrage implicite après une
-intervention extérieure. Le premier raccordement emploie maintenant cette voie
-commune pour les décisions locales de la modale MCP.
+Les groupes indépendants font l’objet de choix rouge/vert provisoires ; les
+opérations liées restent indivisibles. Les états initiaux ne sont jamais réécrits.
+La validation humaine « Appliquer et enregistrer » publie la composition et
+l’enregistre sans ajouter de snapshot. La garde capturée est revérifiée avant
+l’écriture ; aucun réancrage implicite n’est autorisé après une intervention
+extérieure. Un échec d’écriture ne publie rien.
 
 La modale de consultation/comparaison est commune avec Versions, avec les
-onglets Contenu, Aperçu et Comparer. Son contexte MCP choisit par défaut
-**« État de départ → Proposition »**, et expose Accepter/Refuser plutôt que les
-actions de restauration/suppression d’une version conservée. Les aperçus et
-ressources des deux états restent isolés du document courant. Les intitulés
-ne prétendent pas que la base est encore le document actuel si celui-ci a évolué.
+onglets Contenu, Aperçu et Comparer. MCP utilise **« État de départ → Proposition »** ;
+les verts sont sélectionnés au départ. Les aperçus des deux états et leurs
+ressources restent isolés du document courant. Les intitulés ne prétendent pas
+que la base est encore le document actuel si celui-ci a évolué. L’enregistrement
+provient de l’action humaine explicitement libellée ; ce n’est pas un droit
+supplémentaire accordé aux outils de l’agent.
 
 Si une intervention extérieure change la révision courante, la proposition devient
 périmée pour publication ;

@@ -164,19 +164,21 @@ La modale commune aux Versions et aux propositions affiche la base à gauche et
 le candidat à droite, figés dès la soumission avec leurs ressources documentaires.
 Les bibliothèques Typst restent celles de l’application selon le
 [contrat des dépendances](typst-dependencies.md), hors des décisions de l’agent.
-L’utilisateur peut appliquer ou refuser chaque groupe indépendant ; les éléments
-liés restent atomiques. Chaque publication est une étape d’annulation distincte.
-Les groupes restants continuent sous la garde issue des seules publications connues.
-Une intervention extérieure interdit leur publication, même si Annuler retrouve
-le même contenu. Les états comparés restent consultables.
+L’utilisateur choisit le rouge ou le vert pour chaque groupe, sans publication
+intermédiaire. Les verts sont retenus par défaut ; les éléments liés restent
+indivisibles. « Appliquer et enregistrer » compose depuis la droite, publie le
+résultat en une étape d’annulation et enregistre le document sans créer de
+snapshot. Un échec de validation ou d’écriture conserve le document et les choix.
+Une intervention extérieure bloque la validation même si Annuler retrouve le même
+contenu ; les états comparés restent consultables.
 
-Les réponses ajoutent `decisions` (`group`, `decision` : `pending`, `applied` ou
-`refused`) et `workingRevision`. `revision` conserve la révision de départ.
-Le statut reste `pending` tant qu’un groupe attend une décision ; une combinaison
-d’applications et de refus se termine par `partially_accepted`. Les reçus terminaux
-conservent ces informations lors d’un nouvel envoi. La fermeture du comparateur
-ne décide rien. Aucun outil d’acceptation n’est exposé à l’agent et aucune décision
-ne déclenche de sauvegarde ou d’export implicite.
+Les reçus ne changent pas pendant les choix provisoires. Après la validation
+unique, ils exposent `decisions` (`group`, `decision` : `applied` ou `refused`) et
+`workingRevision` ; `revision` conserve la révision initiale. Une combinaison de
+choix retenus et écartés se termine par `partially_accepted`. Les reçus terminaux
+restent consultables. Fermer avant validation ne décide rien. Aucun outil MCP ne
+peut accepter ni enregistrer ; l’enregistrement est ici autorisé explicitement par
+le bouton humain. Aucun export ni snapshot n’est implicite.
 
 Voir le [contrat commun et ses limites](a4-comparison-contract.md).
 

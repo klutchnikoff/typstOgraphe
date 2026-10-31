@@ -144,7 +144,8 @@ seront ajoutés à cette même modale lors de leur raccordement ; aucune fausse 
 n’est exposée. Les outils de relecture et les propositions MCP restent séparés.
 A.4 n’est pas terminé.
 
-Avant toute restauration, créer une version automatique de sauvegarde de l’état
+Pour le parcours futur distinct « Restaurer » (hors composition rouge/vert),
+la règle antérieure reste de créer une version de sauvegarde de l’état
 courant ; publier explicitement l’état restauré sans supprimer les autres versions.
 En collaboration, passer par l’autorité commune et les gardes documentaires,
 jamais par un remplacement silencieux chez les participants. Pas de suppression
@@ -214,14 +215,11 @@ contiguïté et indépendance. `similar` 3.2.1 est retenu pour les séquences ex
 et les mots Unicode, avec échéance de calcul ; l’analyse des dépendances et
 les gardes documentaires appartiennent au moteur de typstOgraphe.
 
-La consultation seule ne publie aucune modification. **Décision confirmée :**
-A.4 construit aussi le moteur commun de décisions locales, pour Versions et MCP.
-Une application locale publie des commandes explicites sur l’état courant sans
-modifier les deux snapshots. Les opérations dépendantes forment une décision
-atomique ; une séparation visuelle ne suffit pas à prouver leur indépendance.
-Les validations successives connues font évoluer le contexte de travail ; une
-intervention extérieure exige un réexamen sans réactivation d’une ancienne garde.
-« Tout appliquer » reste une commodité, pas une étape globale obligatoire.
+La consultation et les choix rouge/vert ne publient aucune modification. Le moteur
+commun construit un candidat à partir de tous les choix ; l’action explicite
+« Appliquer et enregistrer » le publie en une opération annulable et l’enregistre,
+sans snapshot automatique. Les changements dépendants restent indivisibles et
+une intervention extérieure impose un réexamen de la paire.
 F.3 adapte le protocole des propositions à ce contrat, sans dupliquer le moteur.
 Les outils d’annotations de J restent dédiés au mode relecture.
 Voir le [contrat du comparateur commun](docs/a4-comparison-contract.md).
@@ -234,16 +232,17 @@ raffinement s’appuie sur les identités des checkpoints, sans rapprochement te
 approximatif, et s’applique au même moteur Versions/MCP.
 
 **Ordre confirmé : avant à gauche, après à droite.** Versions affiche la version
-historique à gauche et le document courant figé à droite ; la reprise prend sa
-source à gauche. MCP affiche la base à gauche et la proposition à droite ;
-l’application prend sa source à droite. Le plan explicite ces rôles, sans
+historique à gauche et le document courant figé à droite, ou deux états historiques
+ordonnés par date. MCP affiche la base à gauche et la proposition à droite. Le
+résultat part de la droite et reprend les groupes explicitement choisis à gauche.
+Le plan explicite ces rôles, sans
 déduire le sens de publication de la position visuelle des colonnes.
 
 **A.4.4 implémenté :** `content::comparison` possède les archives figées,
 les groupes et leur progression ; les candidats opaques sont liés à la paire,
 à l’époque des décisions et à la garde attendue. Tauri et la modale commune
-réutilisent la publication et l’historique par participant. Une publication connue
-fait avancer la garde de travail ; une intervention extérieure bloque la suite.
+réutilisent la publication et l’historique par participant. La validation unique
+recontrôle la garde capturée ; une intervention extérieure bloque la publication.
 Les paquets ne sont pas restaurables et n’ajoutent aucun historique Yjs. Chaque
 version de typstOgraphe fige et valide son catalogue derrière nos wrappers stables.
 La conservation porte sur l’état documentaire, sans garantir l’identité du PDF
@@ -528,10 +527,10 @@ Le moteur de comparaison et d’application locale est développé dans A.4 pour
 Versions et MCP. F.3 ne constitue plus un moteur de validation partielle séparé.
 Il raccorde les propositions, leurs reçus et leurs statuts au même contrat.
 
-Conserver base/candidat immuables et un contexte de décision distinct : groupes
-appliqués, refusés ou restants, garde de travail et provenance des publications.
-Le passage à une nouvelle garde après notre propre validation n’autorise pas
-une réapplication ni le réancrage silencieux d’une intervention concurrente.
+Conserver base/candidat immuables et des choix de composition provisoires distincts.
+La validation unique met à jour les reçus des groupes retenus/écartés. Une garde
+périmée exige une nouvelle proposition ; aucune réapplication ni réancrage
+silencieux d’une intervention concurrente n’est autorisé.
 Les dépendances structurelles et de ressources imposent une décision atomique
 pour les éléments liés, même lorsqu’ils sont éloignés dans le document.
 
@@ -539,9 +538,10 @@ Seul l’utilisateur décide. Le refus ne publie rien ; une application locale p
 par le propriétaire documentaire et une étape d’annulation cohérente. Définir
 ensemble l’enveloppe de protocole et le cycle de vie après décision, sans modifier
 les états de comparaison ni accorder des droits implicites de sauvegarde/export.
-Le premier raccordement A.4 publie déjà les groupes acceptés et expose les
-décisions dans les reçus. F.3 peut enrichir ces reçus et le cycle de vie, sans
-introduire un second moteur ni une validation globale obligatoire.
+A.4 compose désormais les choix du comparateur et publie leur résultat une fois.
+L’enregistrement est autorisé par le bouton humain « Appliquer et enregistrer »,
+sans snapshot automatique. F.3 peut enrichir les reçus et le cycle de vie sans
+introduire un second moteur.
 
 ## G. Collaboration et hébergement — P2
 
