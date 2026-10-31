@@ -205,16 +205,59 @@ fn authorized(s: &Session, a: &AgentState, peer: &str, id: &str) -> Result<(), S
     }
     Ok(())
 }
+/// An immutable checkpoint can be prepared/compiled after releasing the live lock.
+pub struct Preparation {
+    plan: Comparison,
+    guard: Guard,
+    update: Vec<u8>,
+    assets: typstographe_core::assets::Assets,
+    groups: Vec<usize>,
+}
+impl Preparation {
+    pub fn prepare(self) -> Result<PreparedDecision, String> {
+        let engine = typstographe_core::content::editing::EditingSession::open(
+            self.guard,
+            &self.update,
+            self.assets,
+        )
+        .map_err(crate::owner::error)?;
+        self.plan
+            .prepare(&engine, &self.groups)
+            .map_err(|e| typstographe_i18n::content_error(&e))
+    }
+}
+pub fn capture(
+    s: &mut Session,
+    a: &AgentState,
+    peer: &str,
+    id: &str,
+    groups: &[usize],
+) -> Result<Preparation, String> {
+    authorized(s, a, peer, id)?;
+    let plan = s.comparisons[id].plan.clone();
+    let guard = s.guard();
+    plan.guard().check(&guard).map_err(crate::owner::error)?;
+    let settings = s.ensure_owner()?.state().settings.clone();
+    let dependencies = s.dependencies_for(&settings);
+    let owner = s.ensure_owner()?;
+    owner.bind_dependencies(settings.template, dependencies);
+    Ok(Preparation {
+        plan,
+        guard,
+        update: owner.update_bytes(),
+        assets: owner.assets().clone(),
+        groups: groups.to_vec(),
+    })
+}
+#[cfg(any(test, feature = "recipe-driver"))]
 pub fn prepare(
     s: &mut Session,
     a: &AgentState,
     peer: &str,
     id: &str,
-    ids: &[usize],
+    groups: &[usize],
 ) -> Result<PreparedDecision, String> {
-    authorized(s, a, peer, id)?;
-    let plan = s.comparisons[id].plan.clone();
-    s.ensure_owner()?.prepare_comparison(&plan, ids)
+    capture(s, a, peer, id, groups)?.prepare()
 }
 pub fn decide(
     s: &mut Session,
@@ -373,11 +416,12 @@ pub async fn comparison_decide(
     let peer = window.label().to_string();
     tauri::async_runtime::spawn_blocking(move || {
         let prepared = if matches!(action, Action::Apply) {
-            let ready = prepare(
+            let snapshot = capture(
                 &mut *session.lock().map_err(|e| e.to_string())?,
                 &*agent.lock().map_err(|e| e.to_string())?,
                 &peer, &id, &groups,
             )?;
+            let ready = snapshot.prepare()?;
             let archive = ready.archive();
             renderer.validate(
                 &archive.validate().map_err(crate::project::error)?, &archive.assets,

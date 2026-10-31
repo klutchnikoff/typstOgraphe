@@ -324,6 +324,9 @@ pub(crate) fn commit_accepted(
     let publication = if ids.is_empty() {
         session.ensure_owner()?.calls(peer, &guard, &[])?
     } else {
+        session
+            .ensure_owner()?
+            .bind_dependencies(p.base.template.clone(), p.base.dependencies.clone());
         let prepared = session.ensure_owner()?.prepare_comparison(&plan, &ids)?;
         session
             .ensure_owner()?

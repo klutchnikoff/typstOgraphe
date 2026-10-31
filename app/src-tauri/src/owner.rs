@@ -12,7 +12,7 @@ use typstographe_core::{
 
 pub struct Owner {
     engine: EditingSession,
-    bundles: HashMap<String, (String, typstographe_core::packages::Dependencies)>,
+    bundles: HashMap<(String, String), typstographe_core::packages::Dependencies>,
     peers: HashMap<String, ContextId>,
 }
 #[derive(serde::Serialize)]
@@ -68,16 +68,15 @@ impl Owner {
         dependencies: typstographe_core::packages::Dependencies,
     ) {
         self.bundles
-            .insert(self.engine.bundle_token(), (template, dependencies));
+            .insert((self.engine.bundle_token(), template), dependencies);
     }
     pub fn dependencies_for(
         &self,
         template: &str,
     ) -> Option<typstographe_core::packages::Dependencies> {
         self.bundles
-            .get(&self.engine.bundle_token())
-            .filter(|(source, _)| source == template)
-            .map(|(_, deps)| deps.clone())
+            .get(&(self.engine.bundle_token(), template.to_owned()))
+            .cloned()
     }
     pub fn prepare_comparison(
         &self,

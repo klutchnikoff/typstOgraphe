@@ -79,21 +79,14 @@ impl SharedSession {
         }
         // A pinned package switch must be visible to causal history even when
         // the model source and the projected documentary state are identical.
-        use sha2::{Digest, Sha256};
-        let mut hash = Sha256::new();
-        hash.update(archive.template.as_bytes());
-        for (path, bytes) in archive.dependencies.iter() {
-            hash.update((path.len() as u64).to_le_bytes());
-            hash.update(path.as_bytes());
-            hash.update((bytes.len() as u64).to_le_bytes());
-            hash.update(bytes);
-        }
-        let token: String = hash.finalize().iter().map(|b| format!("{b:02x}")).collect();
-        let settings = candidate.doc.get_or_insert_map("settings");
-        let same = matches!(settings.get(&candidate.doc.transact(),BUNDLE),Some(Out::Any(Any::String(value))) if value.as_ref()==token);
-        if !same {
-            settings.insert(&mut candidate.doc.transact_mut(), BUNDLE, token);
-        }
+        // Rotate the opaque reference for every accepted unit. An imported
+        // checkpoint may retain a former token with a different pinned bundle;
+        // content-derived equality must not turn that switch into a no-op.
+        candidate.doc.get_or_insert_map("settings").insert(
+            &mut candidate.doc.transact_mut(),
+            BUNDLE,
+            uuid::Uuid::new_v4().to_string(),
+        );
         structure::validate(&state)?;
         // Pinned packages belong to the compared state, not the installed catalogue.
         if state.settings != self.state.settings

@@ -210,6 +210,21 @@ fn pinned_packages_follow_comparison_undo_redo_and_project_recovery() {
     let (root, mut s, mut a) = fixture();
     let path = root.path().join("packages.typsto");
     let id = version(&mut s, &path);
+    // The starting checkpoint already carries a reference from a previous reprise.
+    edit(&mut s, 0, "Temporary ");
+    let guard = s.guard();
+    let initial = open(
+        &mut s,
+        &mut a,
+        "human",
+        &guard,
+        Origin::Version { id, against: None },
+    )
+    .unwrap();
+    let review = initial["id"].as_str().unwrap();
+    let ready = prepare(&mut s, &a, "human", review, &[0]).unwrap();
+    decide(&mut s, &mut a, "human", review, &[0], Some(ready)).unwrap();
+    let id = version(&mut s, &path);
     let original = s.dependencies_for(&s.settings);
     let mut changed = (*original).clone();
     let key = changed
@@ -306,4 +321,27 @@ fn a_delayed_close_cannot_remove_a_more_recent_frozen_view() {
     .unwrap();
     close(&mut s, "human", one["id"].as_str().unwrap()).unwrap();
     assert!(read(&s, &a, "human", two["id"].as_str().unwrap()).is_ok());
+}
+
+#[test]
+fn detached_preparation_cannot_publish_over_an_edit_made_after_checkpoint_capture() {
+    let (root, mut s, mut a) = fixture();
+    let id = version(&mut s, &root.path().join("p.typsto"));
+    edit(&mut s, 0, "New ");
+    let guard = s.guard();
+    let view = open(
+        &mut s,
+        &mut a,
+        "human",
+        &guard,
+        Origin::Version { id, against: None },
+    )
+    .unwrap();
+    let id = view["id"].as_str().unwrap().to_owned();
+    let checkpoint = capture(&mut s, &a, "human", &id, &[0]).unwrap();
+    edit(&mut s, 2, "Human ");
+    let current = s.updates.clone();
+    let ready = checkpoint.prepare().unwrap();
+    assert!(decide(&mut s, &mut a, "human", &id, &[0], Some(ready)).is_err());
+    assert_eq!(s.updates, current);
 }
