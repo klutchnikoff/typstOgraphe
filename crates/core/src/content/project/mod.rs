@@ -1,5 +1,7 @@
 //! Autonomous format-11 CAS owner. Adapters must preserve this owner across saves.
 //! Preparing a candidate is pure: publish it only after `save` succeeds.
+mod versions;
+pub use versions::{VersionAction, VersionChange};
 mod backup;
 mod schema;
 mod state;

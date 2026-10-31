@@ -63,7 +63,7 @@ pub enum SnapshotReason {
     BeforeRestore,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SnapshotDetails {
     pub name: String,

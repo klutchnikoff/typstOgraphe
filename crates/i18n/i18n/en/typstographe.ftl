@@ -949,3 +949,73 @@ web-recovery-error-11 = This input is no longer available.
 web-recovery-error-12 = recovered
 
 web-recovery-close-scope = The other windows will close. Their pending input will be kept.
+
+storage-version-index-changed = The version list has changed. Refresh it and try again.
+
+web-versions-0 = Versions
+
+web-versions-1 = Create a version
+
+web-versions-2 = Version name
+
+web-versions-3 = Automatic dated name
+
+web-versions-4 = Comma-separated tags
+
+web-versions-5 = Optional description
+
+web-versions-6 = Version content
+
+web-versions-7 = Document information
+
+web-versions-8 = Embedded model
+
+web-versions-9 = Edit version information
+
+web-versions-10 = Close version
+
+web-versions-11 = Version display
+
+web-versions-12 = Content
+
+web-versions-13 = Preview
+
+web-versions-14 = Page
+
+web-versions-15 = Delete this version
+
+web-versions-16 = Delete this version?
+
+web-versions-17 = Version information
+
+web-versions-18 = Only this version will be deleted. The current document and other versions will be kept.
+
+web-versions-19 = No saved versions.
+
+web-versions-20 = Manual versions
+
+web-versions-21 = Before restoration
+
+web-versions-22 = The version limit has been reached. Delete a version to create a new one.
+
+web-versions-23 = Versions saved.
+
+web-versions-24 = The project file has already been chosen.
+
+web-versions-25 = Choose where to save the project to create a version.
+
+web-versions-26 = Expected the .typsto extension.
+
+web-versions-28 = Yes
+
+web-versions-29 = No
+
+cli-versions-help = Create, relabel or delete a retained version and atomically save the project; use versions.change parameters.
+
+web-versions-existing-path = The project file has already been chosen.
+
+web-versions-path-required = Choose where to save the project to create a version.
+
+web-versions-extension = Expected the .typsto extension.
+
+web-version-creator = Created by

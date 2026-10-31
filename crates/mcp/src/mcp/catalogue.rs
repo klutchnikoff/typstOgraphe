@@ -62,7 +62,10 @@ pub fn tools(attached: bool) -> Vec<Tool> {
 }
 
 pub fn attached_support(id: &str) -> bool {
-    (api::is_query(id) && !id.starts_with("render.") && id != "commands.available")
+    (api::is_query(id)
+        && !id.starts_with("render.")
+        && !id.starts_with("versions.")
+        && id != "commands.available")
         || id == "context.set"
 }
 pub fn attached_id(id: &str) -> bool {

@@ -40,3 +40,29 @@ fn missing_roots_fail_before_start_and_create_nothing() {
         .failure();
     assert!(!missing.exists());
 }
+
+#[test]
+fn sdk_versions_keep_reference_guards_and_require_explicit_file_write_authority() {
+    runtime().block_on(async {
+        let dir = tempfile::tempdir().unwrap(); let root = dir.path().to_str().unwrap();
+        let client = start(dir.path(),ProtocolVersion::default(),&["--read-root",root,"--write-root",root]).await;
+        let created = call(&client,"document.new",json!({"type":"article"})).await;
+        let saved = call(&client,"document.save_as",json!({"document":created["document"],"path":"article.typsto"})).await;
+        let document = saved["document"].clone();
+        let index = call(&client,"versions.list",json!({"document":document})).await;
+        let change = json!({"document":document,"history":index["outcome"]["history"],"action":{"kind":"create","details":{"name":"MCP version"}}});
+        let version = call(&client,"versions.change",change.clone()).await;
+        assert_eq!(version["document"],document);
+        let id = version["outcome"]["versions"][0]["id"].clone();
+        let state = call(&client,"versions.read",json!({"document":document,"id":id})).await;
+        assert_eq!(state["outcome"]["state"]["settings"]["metadata"]["type"],"article");
+        let bytes = std::fs::read(dir.path().join("article.typsto")).unwrap();
+        result(&client,"versions.change",change,false).await;
+        let reader = start(dir.path(),ProtocolVersion::default(),&["--read-only","--read-root",root]).await;
+        let opened = call(&reader,"document.open",json!({"path":"article.typsto","read_only":true})).await;
+        call(&reader,"versions.read",json!({"document":opened["document"],"id":id})).await;
+        result(&reader,"versions.change",json!({"document":opened["document"],"history":version["outcome"]["history"],"action":{"kind":"delete","id":id}}),false).await;
+        assert_eq!(bytes,std::fs::read(dir.path().join("article.typsto")).unwrap());
+        reader.cancel().await.unwrap(); client.cancel().await.unwrap();
+    });
+}

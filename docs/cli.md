@@ -88,3 +88,6 @@ Resource data is base64 in `resource.add`; models use their pure Typst source in
 | `text.italic` | edit | Apply or remove this style on a nonempty typed range (value on/off). Never changes future typing; use context.style for that. |
 | `text.link` | edit | Editable label and http, https or mailto URL. Never fetch the URL. |
 | `text.remove_link` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `versions.change` | session | Create, relabel or delete a retained version and atomically save the current confirmed project under its existing lock. Requires the latest versions.list history token. Does not change text, private input or undo history; cannot delete internal review references. |
+| `versions.list` | query | List retained versions with their immutable IDs, creation dates and editable labels. Internal review references are excluded. Read history for index-guarded mutations. |
+| `versions.read` | query | Read one immutable version, including structured content, metadata and original image resources. Never changes the active document. |

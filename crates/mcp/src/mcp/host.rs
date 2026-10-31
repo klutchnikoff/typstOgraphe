@@ -108,7 +108,7 @@ impl Host {
             "document.save_as" => {
                 p["path"] = json!(self.roots.document_write(&Self::path(p, "path")?)?)
             }
-            "document.save" => {
+            "document.save" | "versions.change" => {
                 self.roots
                     .document_write(self.session.file_path().ok_or_else(|| {
                         CommandError::new(ErrorCode::InvalidParams, "save_path_required")

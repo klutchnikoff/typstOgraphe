@@ -1,3 +1,5 @@
+#[path = "versions.rs"]
+mod versions;
 use super::{Call, archive_error, content_error, decode};
 use crate::content::{
     archive::Archive,
@@ -280,6 +282,9 @@ impl Session {
         if id == "document.inspect" && !self.is_open() {
             return Ok(json!({"open":false,"guard":null}));
         }
+        if id.starts_with("versions.") {
+            return self.version_query(id, &params);
+        }
         if id == "render.locate" || id == "render.selection_boxes" {
             return self.render_query(id, &params);
         }
@@ -369,6 +374,7 @@ impl Session {
                     .ok_or_else(|| content_error(super::invalid("path")))?,
             )),
             "document.save" => self.save(),
+            "versions.change" => self.change_versions(decode(params)?),
             "document.export" => {
                 let p: Export = decode(params)?;
                 self.export(&p.directory, p.format, p.page_images)

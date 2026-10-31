@@ -951,3 +951,73 @@ web-recovery-error-11 = Cette saisie n’est plus disponible.
 web-recovery-error-12 = récupéré
 
 web-recovery-close-scope = Les autres fenêtres seront fermées. Leurs saisies en cours seront conservées.
+
+storage-version-index-changed = La liste des versions a changé. Actualisez-la puis réessayez.
+
+web-versions-0 = Versions
+
+web-versions-1 = Créer une version
+
+web-versions-2 = Nom de la version
+
+web-versions-3 = Nom daté automatique
+
+web-versions-4 = Tags séparés par des virgules
+
+web-versions-5 = Description facultative
+
+web-versions-6 = Contenu de la version
+
+web-versions-7 = Informations du document
+
+web-versions-8 = Modèle intégré
+
+web-versions-9 = Modifier les informations de la version
+
+web-versions-10 = Fermer la version
+
+web-versions-11 = Affichage de la version
+
+web-versions-12 = Contenu
+
+web-versions-13 = Aperçu
+
+web-versions-14 = Page
+
+web-versions-15 = Supprimer cette version
+
+web-versions-16 = Supprimer cette version ?
+
+web-versions-17 = Informations de la version
+
+web-versions-18 = Seule cette version sera supprimée. Le document courant et les autres versions seront conservés.
+
+web-versions-19 = Aucune version conservée.
+
+web-versions-20 = Versions manuelles
+
+web-versions-21 = Avant restauration
+
+web-versions-22 = La limite de versions est atteinte. Supprimez une version pour en créer une nouvelle.
+
+web-versions-23 = Versions enregistrées.
+
+web-versions-24 = Le fichier du projet est déjà choisi.
+
+web-versions-25 = Choisissez où enregistrer le projet pour créer une version.
+
+web-versions-26 = Extension .typsto attendue.
+
+web-versions-28 = Oui
+
+web-versions-29 = Non
+
+cli-versions-help = Créer, renommer ou supprimer une version et enregistrer atomiquement le projet ; utiliser les paramètres de versions.change.
+
+web-versions-existing-path = Le fichier du projet est déjà choisi.
+
+web-versions-path-required = Choisissez où enregistrer le projet pour créer une version.
+
+web-versions-extension = Extension .typsto attendue.
+
+web-version-creator = Créée par

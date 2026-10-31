@@ -13,6 +13,14 @@ pub fn types() -> Value {
 }
 const QUERIES: &[(&str, &str)] = &[
     (
+        "versions.list",
+        "List retained versions with their immutable IDs, creation dates and editable labels. Internal review references are excluded. Read history for index-guarded mutations.",
+    ),
+    (
+        "versions.read",
+        "Read one immutable version, including structured content, metadata and original image resources. Never changes the active document.",
+    ),
+    (
         "document_types.list",
         "List built-in document types and their interchangeable visual models.",
     ),
@@ -107,6 +115,10 @@ const QUERIES: &[(&str, &str)] = &[
 ];
 const ACTIONS: &[(&str, &str)] = &[
     (
+        "versions.change",
+        "Create, relabel or delete a retained version and atomically save the current confirmed project under its existing lock. Requires the latest versions.list history token. Does not change text, private input or undo history; cannot delete internal review references.",
+    ),
+    (
         "document.new",
         "Create a structured project of a built-in type; no personal preferences are implied.",
     ),
@@ -162,6 +174,13 @@ fn extra_schema(id: &str) -> Value {
     let string = json!({"type":"string"});
     let mut defs = commands::schema()["$defs"].clone();
     let mut s = match id {
+        "versions.change" => {
+            return serde_json::to_value(schemars::schema_for!(
+                crate::content::project::VersionChange
+            ))
+            .unwrap();
+        }
+        "versions.read" => object(json!({"id":{"type":"string","format":"uuid"}}), &["id"]),
         "document.new" => object(
             json!({"type":{"enum":DocumentType::ALL.map(|k|serde_json::to_value(k).unwrap())},"model":string,"metadata":{"type":"object"},"discard_changes":{"type":"boolean"}}),
             &["type"],

@@ -70,6 +70,7 @@ error_family! { StorageError {
     DuplicateEntry { name: String } => "storage-duplicate-entry";
     MissingEntry { name: String } => "storage-missing-entry";
     ObjectIntegrity { name: String } => "storage-object-integrity";
+    VersionIndexChanged => "storage-version-index-changed";
     ProjectIndexInvalid => "storage-project-index-invalid";
     SnapshotLimit { limit: u32 } => "storage-snapshot-limit";
     UnknownSnapshot { id: String } => "storage-unknown-snapshot";

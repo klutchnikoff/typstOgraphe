@@ -35402,6 +35402,1014 @@
         "required": [],
         "type": "object"
       }
+    },
+    {
+      "batch_step": false,
+      "description": "Create, relabel or delete a retained version and atomically save the current confirmed project under its existing lock. Requires the latest versions.list history token. Does not change text, private input or undo history; cannot delete internal review references.",
+      "family": "session",
+      "id": "versions.change",
+      "params_schema": {
+        "$defs": {
+          "SnapshotDetails": {
+            "additionalProperties": false,
+            "properties": {
+              "creator": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "tags": {
+                "default": [],
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          },
+          "VersionAction": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "details": {
+                    "$ref": "#/$defs/SnapshotDetails"
+                  },
+                  "kind": {
+                    "const": "create",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "details"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "details": {
+                    "$ref": "#/$defs/SnapshotDetails"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "update",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "details"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "delete",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/VersionAction"
+          },
+          "history": {
+            "description": "Optimistic guard for index-only edits, which do not advance document revision.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "history",
+          "action"
+        ],
+        "title": "VersionChange",
+        "type": "object"
+      }
+    },
+    {
+      "batch_step": false,
+      "description": "List retained versions with their immutable IDs, creation dates and editable labels. Internal review references are excluded. Read history for index-guarded mutations.",
+      "family": "query",
+      "id": "versions.list",
+      "params_schema": {
+        "$defs": {
+          "DocumentLanguage": {
+            "enum": [
+              "fr",
+              "en",
+              "de",
+              "es",
+              "it",
+              "pt",
+              "nl"
+            ],
+            "type": "string"
+          },
+          "FieldTarget": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "option",
+                    "type": "string"
+                  },
+                  "name": {
+                    "$ref": "#/$defs/OptionName"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
+          "ImageResource": {
+            "additionalProperties": false,
+            "description": "Validated immutable image bytes, separate from the shared text/history.",
+            "properties": {
+              "data": {
+                "description": "Base64 on the wire; decoded immutable bytes in the engine.",
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "data"
+            ],
+            "type": "object"
+          },
+          "Mark": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "MetadataField": {
+            "enum": [
+              "article.references",
+              "article.citation_style",
+              "article.show_outline",
+              "article.authors",
+              "article.affiliations",
+              "article.localizations",
+              "sender.name",
+              "sender.role",
+              "sender.department",
+              "sender.email",
+              "sender.organisation",
+              "sender.address",
+              "sender.phone",
+              "recipient.name",
+              "recipient.address",
+              "letter.subject",
+              "letter.reference",
+              "letter.place",
+              "letter.date",
+              "meeting.title",
+              "meeting.date",
+              "meeting.place",
+              "meeting.author",
+              "meeting.attendees",
+              "meeting.apologies"
+            ],
+            "type": "string"
+          },
+          "Node": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "content": {
+                "items": {
+                  "$ref": "#/$defs/Node"
+                },
+                "type": "array"
+              },
+              "marks": {
+                "items": {
+                  "$ref": "#/$defs/Mark"
+                },
+                "type": "array"
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "OptionName": {
+            "description": "General document options; values remain JSON, checked against their Rust types.",
+            "enum": [
+              "paper",
+              "landscape",
+              "language",
+              "bullet_marker",
+              "spelling_ignored"
+            ],
+            "type": "string"
+          },
+          "Style": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "bold",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "italic",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "link",
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "url"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "Switch": {
+            "enum": [
+              "on",
+              "off"
+            ],
+            "type": "string"
+          },
+          "TextTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone": {
+                "$ref": "#/$defs/TextZone"
+              }
+            },
+            "required": [
+              "zone",
+              "from",
+              "to"
+            ],
+            "type": "object"
+          },
+          "TextZone": {
+            "description": "Paths use projected child indices in the guarded revision, never Yjs identifiers.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "annotation",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  },
+                  "path": {
+                    "default": [],
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeRoot": {
+            "description": "A body tree or one rich record field. No XML identifiers or global positions.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "default": [],
+                "items": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "root": {
+                "$ref": "#/$defs/TreeRoot"
+              }
+            },
+            "required": [
+              "root"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "batch_step": false,
+      "description": "Read one immutable version, including structured content, metadata and original image resources. Never changes the active document.",
+      "family": "query",
+      "id": "versions.read",
+      "params_schema": {
+        "$defs": {
+          "DocumentLanguage": {
+            "enum": [
+              "fr",
+              "en",
+              "de",
+              "es",
+              "it",
+              "pt",
+              "nl"
+            ],
+            "type": "string"
+          },
+          "FieldTarget": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "option",
+                    "type": "string"
+                  },
+                  "name": {
+                    "$ref": "#/$defs/OptionName"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
+          "ImageResource": {
+            "additionalProperties": false,
+            "description": "Validated immutable image bytes, separate from the shared text/history.",
+            "properties": {
+              "data": {
+                "description": "Base64 on the wire; decoded immutable bytes in the engine.",
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "data"
+            ],
+            "type": "object"
+          },
+          "Mark": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "MetadataField": {
+            "enum": [
+              "article.references",
+              "article.citation_style",
+              "article.show_outline",
+              "article.authors",
+              "article.affiliations",
+              "article.localizations",
+              "sender.name",
+              "sender.role",
+              "sender.department",
+              "sender.email",
+              "sender.organisation",
+              "sender.address",
+              "sender.phone",
+              "recipient.name",
+              "recipient.address",
+              "letter.subject",
+              "letter.reference",
+              "letter.place",
+              "letter.date",
+              "meeting.title",
+              "meeting.date",
+              "meeting.place",
+              "meeting.author",
+              "meeting.attendees",
+              "meeting.apologies"
+            ],
+            "type": "string"
+          },
+          "Node": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "content": {
+                "items": {
+                  "$ref": "#/$defs/Node"
+                },
+                "type": "array"
+              },
+              "marks": {
+                "items": {
+                  "$ref": "#/$defs/Mark"
+                },
+                "type": "array"
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "OptionName": {
+            "description": "General document options; values remain JSON, checked against their Rust types.",
+            "enum": [
+              "paper",
+              "landscape",
+              "language",
+              "bullet_marker",
+              "spelling_ignored"
+            ],
+            "type": "string"
+          },
+          "Style": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "bold",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "italic",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "link",
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "url"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "Switch": {
+            "enum": [
+              "on",
+              "off"
+            ],
+            "type": "string"
+          },
+          "TextTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone": {
+                "$ref": "#/$defs/TextZone"
+              }
+            },
+            "required": [
+              "zone",
+              "from",
+              "to"
+            ],
+            "type": "object"
+          },
+          "TextZone": {
+            "description": "Paths use projected child indices in the guarded revision, never Yjs identifiers.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "annotation",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  },
+                  "path": {
+                    "default": [],
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeRoot": {
+            "description": "A body tree or one rich record field. No XML identifiers or global positions.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "default": [],
+                "items": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "root": {
+                "$ref": "#/$defs/TreeRoot"
+              }
+            },
+            "required": [
+              "root"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      }
     }
   ],
   "target_offsets": "utf16",
