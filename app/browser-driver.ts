@@ -88,6 +88,33 @@ export function browserDriver(root: string): Plugin {
           }
           const input = JSON.parse(Buffer.concat(chunks).toString('utf8'))
           const result = await call(input)
+          if (input.command === 'comparison_decide') {
+            const outcome = result as {
+              id: string
+              publication?: {
+                resources: { path: string; data: string }[]
+                guard: { document: string; revision: number }
+                update: number[]
+              }
+            }
+            const publication = outcome.publication
+            if (publication) {
+              for (const resource of publication.resources)
+                broadcast('web-editor:asset', {
+                  ...resource,
+                  generation: publication.guard.document,
+                })
+              broadcast('web-editor:change', {
+                from: 'comparison',
+                acceptedBy: input.peer,
+                generation: publication.guard.document,
+                revision: publication.guard.revision,
+                update: publication.update,
+              })
+            }
+            broadcast('comparison:changed', { id: outcome.id })
+            broadcast('agent:changed', {})
+          }
           if (input.command === 'versions_change')
             broadcast('web-editor:versions', {
               document: input.args.guard.document,

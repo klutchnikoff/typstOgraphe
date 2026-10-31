@@ -33,7 +33,7 @@ pub struct RecoveryContext {
     pub archive: Backup,
     pub saved_origin: bool,
 }
-type CachedBackup = Option<(String, String, Backup)>;
+type CachedBackup = Option<(String, String, Dependencies, Backup)>;
 pub struct Context {
     pub owner: Project,
     pub saved_origin: bool,
@@ -49,9 +49,10 @@ impl Context {
     }
     pub fn recovery(&self, current: Archive) -> Result<RecoveryContext, String> {
         let mut cache = self.backup.lock().map_err(|e| e.to_string())?;
-        if let Some((template, model, backup)) = &*cache
+        if let Some((template, model, dependencies, backup)) = &*cache
             && *template == current.template
             && *model == current.model_id
+            && *dependencies == current.dependencies
         {
             return Ok(RecoveryContext {
                 archive: backup.clone(),
@@ -60,7 +61,12 @@ impl Context {
         }
         let prepared = self.owner.with_current(current.clone()).map_err(error)?;
         let backup = Backup::capture(&prepared).map_err(error)?;
-        *cache = Some((current.template, current.model_id, backup.clone()));
+        *cache = Some((
+            current.template,
+            current.model_id,
+            current.dependencies,
+            backup.clone(),
+        ));
         Ok(RecoveryContext {
             archive: backup,
             saved_origin: self.saved_origin,
@@ -130,6 +136,13 @@ impl crate::session::Session {
         Ok((source, self.assets.clone(), settings, dependencies))
     }
     pub fn dependencies_for(&self, settings: &crate::settings::Settings) -> Dependencies {
+        if let Some(dependencies) = self
+            .owner
+            .as_ref()
+            .and_then(|owner| owner.dependencies_for(&settings.template))
+        {
+            return dependencies;
+        }
         self.project.get().map_or_else(
             || typstographe_core::packages::for_template(&settings.template),
             |context| context.owner.dependencies_for(&settings.template),

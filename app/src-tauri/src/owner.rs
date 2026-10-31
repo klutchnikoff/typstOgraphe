@@ -12,6 +12,7 @@ use typstographe_core::{
 
 pub struct Owner {
     engine: EditingSession,
+    bundles: HashMap<String, (String, typstographe_core::packages::Dependencies)>,
     peers: HashMap<String, ContextId>,
 }
 #[derive(serde::Serialize)]
@@ -44,6 +45,7 @@ impl Owner {
         Ok(Self {
             engine: EditingSession::open(guard, update, assets).map_err(error)?,
             peers: HashMap::new(),
+            bundles: HashMap::new(),
         })
     }
     fn context(&mut self, peer: &str) -> Result<ContextId, String> {
@@ -59,6 +61,46 @@ impl Owner {
     }
     pub fn state(&self) -> &typstographe_core::content::contract::State {
         self.engine.state()
+    }
+    pub fn bind_dependencies(
+        &mut self,
+        template: String,
+        dependencies: typstographe_core::packages::Dependencies,
+    ) {
+        self.bundles
+            .insert(self.engine.bundle_token(), (template, dependencies));
+    }
+    pub fn dependencies_for(
+        &self,
+        template: &str,
+    ) -> Option<typstographe_core::packages::Dependencies> {
+        self.bundles
+            .get(&self.engine.bundle_token())
+            .filter(|(source, _)| source == template)
+            .map(|(_, deps)| deps.clone())
+    }
+    pub fn prepare_comparison(
+        &self,
+        plan: &typstographe_core::content::comparison::Comparison,
+        ids: &[usize],
+    ) -> Result<typstographe_core::content::comparison::PreparedDecision, String> {
+        plan.prepare(&self.engine, ids)
+            .map_err(|e| typstographe_i18n::content_error(&e))
+    }
+    pub fn publish_comparison(
+        &mut self,
+        peer: &str,
+        plan: &mut typstographe_core::content::comparison::Comparison,
+        prepared: typstographe_core::content::comparison::PreparedDecision,
+    ) -> Result<Publication, String> {
+        let context = self.context(peer)?;
+        let template = prepared.archive().template.clone();
+        let dependencies = prepared.archive().dependencies.clone();
+        let publication = plan
+            .publish(&mut self.engine, context, prepared)
+            .map_err(|e| typstographe_i18n::content_error(&e))?;
+        self.bind_dependencies(template, dependencies);
+        Ok(publication)
     }
     pub fn prepare_agent_calls(
         &self,

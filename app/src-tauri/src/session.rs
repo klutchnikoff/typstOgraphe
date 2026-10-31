@@ -74,6 +74,7 @@ pub struct Synchronization {
 }
 
 pub struct Session {
+    pub comparisons: std::collections::HashMap<String, crate::comparisons::Review>,
     pub project: std::sync::OnceLock<crate::project::Context>,
     pub owner: Option<crate::owner::Owner>,
     pub recovery: Option<crate::recovery::Store>,
@@ -103,6 +104,7 @@ pub struct Session {
 impl Session {
     pub fn fresh(root: PathBuf) -> Self {
         Self {
+            comparisons: Default::default(),
             project: std::sync::OnceLock::new(),
             owner: None,
             recovery: None,
@@ -378,11 +380,16 @@ impl Session {
             let shared =
                 typstographe_core::content::shared::SharedDocument::from_updates(&self.updates)
                     .map_err(crate::owner::error)?;
+            let dependencies = self.dependencies_for(&self.settings);
             self.owner = Some(crate::owner::Owner::open(
                 self.guard(),
                 &shared.update(),
                 self.assets.clone(),
             )?);
+            self.owner
+                .as_mut()
+                .unwrap()
+                .bind_dependencies(self.settings.template.clone(), dependencies);
         }
         Ok(self.owner.as_mut().unwrap())
     }
@@ -462,6 +469,12 @@ impl Session {
                 update,
                 self.assets.clone(),
             )?);
+            let settings = self.owner.as_ref().unwrap().state().settings.clone();
+            let dependencies = self.dependencies_for(&settings);
+            self.owner
+                .as_mut()
+                .unwrap()
+                .bind_dependencies(settings.template, dependencies);
             self.revision = guard.revision;
             self.bytes = update.len();
             self.updates.push(update.to_vec());
@@ -500,6 +513,7 @@ impl Session {
         Ok(())
     }
     pub fn reset_document_generation(&mut self) {
+        self.comparisons.clear();
         self.offline.clear();
         self.draft_epochs.clear();
         self.recovered_name = None;

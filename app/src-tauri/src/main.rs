@@ -3,6 +3,7 @@ use base64::Engine as _;
 mod agent;
 mod bibliography;
 mod catalogue;
+mod comparisons;
 #[cfg(feature = "recipe-driver")]
 mod driver;
 mod files;
@@ -665,6 +666,11 @@ fn main() {
         })
         .manage(bridge)
         .invoke_handler(tauri::generate_handler![
+            comparisons::comparison_open,
+            comparisons::comparison_read,
+            comparisons::comparison_preview,
+            comparisons::comparison_decide,
+            comparisons::comparison_close,
             versions::versions_list,
             versions::versions_read,
             versions::versions_change,

@@ -50,6 +50,64 @@ fn dispatch(
             ))
         }
 
+        "comparison_open" | "comparison_read" | "comparison_close" | "comparison_decide"
+        | "comparison_preview" => {
+            let mut s = bridge.session.lock().map_err(|e| e.to_string())?;
+            let mut a = bridge.agent.lock().map_err(|e| e.to_string())?;
+            let id = args["id"].as_str().unwrap_or("");
+            match command {
+                "comparison_open" => crate::comparisons::open(
+                    &mut s,
+                    &mut a,
+                    peer,
+                    &serde_json::from_value(args["guard"].clone()).map_err(|e| e.to_string())?,
+                    serde_json::from_value(args["origin"].clone()).map_err(|e| e.to_string())?,
+                ),
+                "comparison_read" => crate::comparisons::read(&s, &a, peer, id),
+                "comparison_close" => {
+                    crate::comparisons::close(&mut s, peer, id)?;
+                    Ok(serde_json::Value::Null)
+                }
+                "comparison_preview" => {
+                    crate::comparisons::read(&s, &a, peer, id)?;
+                    let r = &s.comparisons[id];
+                    let archive = if args["side"] == "before" {
+                        r.plan.before().clone()
+                    } else {
+                        r.plan.after().clone()
+                    };
+                    drop(s);
+                    drop(a);
+                    serde_json::to_value(crate::versions::preview(archive)?)
+                        .map_err(|e| e.to_string())
+                }
+                _ => {
+                    let ids: Vec<usize> = serde_json::from_value(args["groups"].clone())
+                        .map_err(|e| e.to_string())?;
+                    let prepared = if args["action"] == "apply" {
+                        let ready = crate::comparisons::prepare(&mut s, &a, peer, id, &ids)?;
+                        let archive = ready.archive();
+                        bridge.renderer.validate(
+                            &archive.validate().map_err(crate::project::error)?,
+                            &archive.assets,
+                            crate::rendering::RenderContext {
+                                settings: &archive.state().settings,
+                                dependencies: archive.dependencies.clone(),
+                            },
+                        )?;
+                        Some(ready)
+                    } else {
+                        None
+                    };
+                    let (mut result, publication) =
+                        crate::comparisons::decide(&mut s, &mut a, peer, id, &ids, prepared)?;
+                    result["publication"] =
+                        serde_json::to_value(publication).map_err(|e| e.to_string())?;
+                    Ok(result)
+                }
+            }
+        }
+
         "versions_list" | "versions_read" | "versions_preview" | "versions_change" => {
             let guard = serde_json::from_value(args["guard"].clone()).map_err(|e| e.to_string())?;
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
@@ -209,6 +267,15 @@ fn dispatch(
             }
         }
 
+        "diagnostic_agent_authorize" => {
+            let s = bridge.session.lock().map_err(|e| e.to_string())?;
+            s.check_peer(peer, &s.generation)?;
+            *bridge.agent.lock().map_err(|e| e.to_string())? = agent::AgentState {
+                token: Some("isolated-browser-recipe".into()),
+                ..Default::default()
+            };
+            Ok(serde_json::Value::Null)
+        }
         "diagnostic_agent" => {
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
             let mut agent = bridge.agent.lock().map_err(|e| e.to_string())?;
