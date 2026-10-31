@@ -3,6 +3,11 @@ typstOgraphe — identité tO
 La source du signe est ligature.svg. Les lettres sont dessinées en courbes,
 sans dépendance à une police. La traverse du t rejoint la panse du O.
 
+PALETTE DE COMMANDES
+La barre latérale utilise directement optical/24.svg, en monochrome et sans
+contour ajouté. Son affichage à 20 px équilibre son dessin rempli avec les
+icônes filaires voisines, dans un bouton de mêmes dimensions.
+
 APERÇU
 Servir la racine du dépôt avec :
 python3 -m http.server 8341 --bind 127.0.0.1

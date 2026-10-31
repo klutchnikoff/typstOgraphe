@@ -47,8 +47,18 @@ test('la recherche reste visible pendant le défilement, sans action pour un ré
   page,
 }) => {
   const palette = page.getByRole('button', { name: 'Commandes', exact: true })
-  await expect(palette.locator('svg polyline')).toHaveAttribute('points', '4 17 10 11 4 5')
-  await expect(palette.locator('svg line')).toHaveAttribute('y1', '19')
+  const monogram = palette.locator('svg.icon-monogram')
+  await expect(monogram.locator('path')).toHaveCount(3)
+  await expect(palette).toHaveAttribute('title', /Palette de commandes \((Cmd|Ctrl)\+Shift\+P\)/)
+  for (const appearance of ['light', 'dark']) {
+    await page.evaluate(
+      (value) => (document.documentElement.dataset.appearance = value),
+      appearance,
+    )
+    await expect(monogram).toHaveCSS('stroke', 'none')
+    const color = await palette.evaluate((element) => getComputedStyle(element).color)
+    await expect(monogram.locator('path').first()).toHaveCSS('fill', color)
+  }
   await palette.click()
   const input = page.getByRole('combobox', { name: 'Rechercher une commande', exact: true })
   const results = page.getByRole('listbox', { name: 'Commandes', exact: true })

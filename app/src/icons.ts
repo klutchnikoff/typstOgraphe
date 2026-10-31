@@ -1,9 +1,13 @@
+import monogram from '../../assets/branding/optical/24.svg?raw'
+
 const assets = import.meta.glob('../../assets/ui/icons/lucide/*.svg', {
   query: '?raw',
   import: 'default',
   eager: true,
 }) as Record<string, string>
 export function availableIcon(name: string): string | undefined {
+  if (name === 'typstographe')
+    return monogram.replace('<svg ', '<svg class="icon-monogram" aria-hidden="true" ')
   if (name === 'history')
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2.6 8.4M3 4v6h6M12 7v5l3 2"/></svg>'
   if (name === 'pencil') return availableIcon('pen-line')

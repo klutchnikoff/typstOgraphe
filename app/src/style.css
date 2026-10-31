@@ -1008,6 +1008,15 @@ main {
 .side-rail button {
   padding: 7px;
 }
+.side-rail button:has(.icon-monogram) {
+  padding: 6px;
+}
+.side-rail .icon-monogram {
+  /* The optical drawing has more breathing room than the outline icons. */
+  width: 20px;
+  height: 20px;
+  stroke: none;
+}
 .preview {
   margin-right: 36px;
 }
