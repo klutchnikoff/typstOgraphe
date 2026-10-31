@@ -1,3 +1,5 @@
+import { comparisonView } from './comparison-view'
+import type { ComparisonAPI, ComparisonOrigin, ComparisonState } from './comparison-types'
 import { contextPanel } from './context-panel'
 import { keyboardScope, navigationGroup, actionRow } from './keyboard-navigation'
 import { versionContent } from './version-content'
@@ -16,6 +18,36 @@ export function versionDialog(options: {
   returnFocus(): HTMLElement | undefined
   changed(index: VersionCatalogue): void
 }) {
+  return stateDialog({
+    version: options,
+    catalogue: options.catalogue,
+    returnFocus: options.returnFocus,
+  })
+}
+export function proposalDialog(options: {
+  id: string
+  title: string
+  api: ComparisonAPI
+  catalogue: Catalogue
+  returnFocus(): HTMLElement | undefined
+}) {
+  return stateDialog({
+    proposal: options,
+    catalogue: options.catalogue,
+    returnFocus: options.returnFocus,
+  })
+}
+function stateDialog(options: {
+  version?: {
+    record: VersionRecord
+    index: VersionCatalogue
+    api: VersionAPI
+    changed(index: VersionCatalogue): void
+  }
+  proposal?: { id: string; title: string; api: ComparisonAPI }
+  catalogue: Catalogue
+  returnFocus(): HTMLElement | undefined
+}) {
   const dialog = document.createElement('dialog')
   dialog.className = 'app-dialog form-dialog version-dialog'
   dialog.setAttribute('aria-labelledby', 'version-dialog-title')
@@ -24,12 +56,20 @@ export function versionDialog(options: {
   const title = document.createElement('h2'),
     date = document.createElement('time')
   title.id = 'version-dialog-title'
-  title.textContent = options.record.details.name
-  date.dateTime = options.record.created_at
-  date.textContent = new Date(options.record.created_at).toLocaleString(options.catalogue.locale)
+  title.textContent = options.version?.record.details.name || options.proposal!.title
+  if (options.version) {
+    date.dateTime = options.version.record.created_at
+    date.textContent = new Date(options.version.record.created_at).toLocaleString(
+      options.catalogue.locale,
+    )
+  } else date.hidden = true
   const details = document.createElement('p')
   details.className = 'version-description'
   const showDetails = () => {
+    if (!record) {
+      details.hidden = true
+      return
+    }
     const info = record.details
     details.textContent = [
       info.tags.join(' · '),
@@ -54,6 +94,7 @@ export function versionDialog(options: {
   }
   const edit = button('Modifier les informations de la version', 'pencil')
   const close = button('Fermer la version', 'x')
+  edit.hidden = !options.version
   header.append(heading, edit, close)
   const tabs = document.createElement('nav')
   tabs.className = 'version-tabs'
@@ -69,6 +110,7 @@ export function versionDialog(options: {
   footer.classList.add('version-footer')
   const remove = button('Supprimer cette version', 'trash-2')
   remove.classList.add('danger')
+  remove.hidden = !options.version
   const done = button('Fermer')
   done.className = 'primary'
   footer.append(remove, done)
@@ -76,27 +118,33 @@ export function versionDialog(options: {
   error.className = 'version-error'
   error.setAttribute('role', 'alert')
   dialog.append(header, tabs, display, bandSlot, error, footer)
-  let record = options.record,
-    index = options.index,
-    view = 'content',
+  const comparisonAPI = options.version?.api.comparison || options.proposal?.api
+  let comparison: ComparisonState | undefined,
+    loading: Promise<ComparisonState> | undefined,
+    against: string | undefined
+  let record = options.version?.record,
+    index = options.version?.index,
+    view = options.proposal ? 'compare' : 'content',
     ticket = 0,
     alive = true
   let disposeContent: (() => void) | undefined,
     band: ReturnType<typeof contextPanel> | undefined,
     busy = false
-  const tabButtons = ['Contenu', 'Aperçu'].map((label, i) => {
-    const b = button(label)
-    b.dataset.view = i ? 'preview' : 'content'
-    b.id = `version-tab-${b.dataset.view}`
-    b.setAttribute('role', 'tab')
-    b.setAttribute('aria-controls', display.id)
-    b.onclick = () => {
-      view = b.dataset.view!
-      void render()
-    }
-    tabs.append(b)
-    return b
-  })
+  const tabButtons = ['Contenu', 'Aperçu', ...(comparisonAPI ? ['Comparer'] : [])].map(
+    (label, i) => {
+      const b = button(label)
+      b.dataset.view = ['content', 'preview', 'compare'][i]
+      b.id = `version-tab-${b.dataset.view}`
+      b.setAttribute('role', 'tab')
+      b.setAttribute('aria-controls', display.id)
+      b.onclick = () => {
+        view = b.dataset.view!
+        void render()
+      }
+      tabs.append(b)
+      return b
+    },
+  )
   navigationGroup(tabs, { axis: 'horizontal', roving: true, activateOnMove: true })
   keyboardScope(dialog, {
     close: () => (band ? cancelBand() : destroy()),
@@ -114,6 +162,26 @@ export function versionDialog(options: {
     edit.disabled = false
     target.focus({ preventScroll: true })
   }
+  async function frozenComparison() {
+    if (comparison) return comparison
+    if (!loading) {
+      const origin: ComparisonOrigin = options.proposal
+        ? { kind: 'proposal', id: options.proposal.id }
+        : { kind: 'version', id: record!.id, ...(against ? { against } : {}) }
+      loading = comparisonAPI!
+        .open(origin)
+        .then((value) => {
+          if (!alive) void comparisonAPI!.close(value.id).catch(() => {})
+          else comparison = value
+          return value
+        })
+        .catch((reason) => {
+          loading = undefined
+          throw reason
+        })
+    }
+    return loading
+  }
   async function render() {
     const request = ++ticket
     error.textContent = ''
@@ -124,15 +192,62 @@ export function versionDialog(options: {
     display.setAttribute('aria-labelledby', `version-tab-${view}`)
     display.setAttribute('aria-busy', 'true')
     try {
-      if (view === 'content') {
-        const value = await options.api.read(record.id)
+      if (view === 'compare') {
+        const value = await frozenComparison()
+        if (!alive || request !== ticket) return
+        const picker = document.createElement('label')
+        picker.className = 'comparison-picker'
+        picker.append(document.createTextNode(tr('Comparer à')))
+        const select = document.createElement('select')
+        const current = document.createElement('option')
+        current.value = ''
+        current.textContent = tr('Document courant · état figé')
+        select.append(current)
+        for (const item of index?.versions || []) {
+          if (item.id === record?.id) continue
+          const option = document.createElement('option')
+          option.value = item.id
+          option.textContent = item.details.name
+          select.append(option)
+        }
+        select.value = against || ''
+        select.onchange = () => {
+          const previous = comparison
+          against = select.value || undefined
+          comparison = undefined
+          loading = undefined
+          disposeContent?.()
+          disposeContent = undefined
+          if (previous) void comparisonAPI!.close(previous.id).catch(() => {})
+          void render()
+        }
+        picker.append(select)
+        picker.hidden = !!options.proposal
+        const rendered = comparisonView({
+          state: value,
+          api: comparisonAPI!,
+          catalogue: options.catalogue,
+          picker: options.proposal ? undefined : picker,
+          error: (reason) => {
+            error.textContent = String(reason)
+          },
+        })
+        disposeContent?.()
+        disposeContent = rendered.destroy
+        display.replaceChildren(rendered.element)
+      } else if (view === 'content') {
+        const value = options.version
+          ? await options.version.api.read(record!.id)
+          : (await frozenComparison()).after
         if (!alive || request !== ticket) return
         const rendered = versionContent(value, options.catalogue)
         disposeContent?.()
         disposeContent = rendered.destroy
         display.replaceChildren(rendered.element)
       } else {
-        const preview = await options.api.preview(record.id)
+        const preview = options.version
+          ? await options.version.api.preview(record!.id)
+          : await comparisonAPI!.preview((await frozenComparison()).id, 'after')
         if (!alive || request !== ticket) return
         const pages = preview.pages.map((src, i) => {
           const image = document.createElement('img')
@@ -156,6 +271,7 @@ export function versionDialog(options: {
     }
   }
   function openBand(kind: 'metadata' | 'delete') {
+    if (!options.version || !record || !index) return
     if (band) cancelBand()
     band = contextPanel({
       id: 'version-decision',
@@ -170,7 +286,7 @@ export function versionDialog(options: {
     form.title.textContent = tr(
       kind === 'delete' ? 'Supprimer cette version ?' : 'Informations de la version',
     )
-    const fields = kind === 'metadata' ? versionFields(record.details) : undefined
+    const fields = kind === 'metadata' ? versionFields(record!.details) : undefined
     if (fields) form.body.append(fields.element)
     else {
       const text = document.createElement('p')
@@ -188,18 +304,18 @@ export function versionDialog(options: {
       try {
         const action =
           kind === 'delete'
-            ? { kind: 'delete' as const, id: record.id }
-            : { kind: 'update' as const, id: record.id, details: fields!.value() }
-        const next = await options.api.change(index.history, action)
+            ? { kind: 'delete' as const, id: record!.id }
+            : { kind: 'update' as const, id: record!.id, details: fields!.value() }
+        const next = await options.version!.api.change(index!.history, action)
         if (!next || !alive) return
         index = next
-        options.changed(next)
+        options.version!.changed(next)
         if (kind === 'delete') {
           busy = false
           destroy()
           return
         }
-        record = next.versions.find((v) => v.id === record.id)!
+        record = next.versions.find((v) => v.id === record!.id)!
         title.textContent = record.details.name
         showDetails()
         busy = false
@@ -230,6 +346,7 @@ export function versionDialog(options: {
     alive = false
     ticket++
     disposeContent?.()
+    if (comparison) void comparisonAPI?.close(comparison.id).catch(() => {})
     dialog.close()
     dialog.remove()
     options.returnFocus()?.focus({ preventScroll: true })

@@ -31,6 +31,7 @@ export interface VersionContent {
   resources: Resource[]
 }
 export interface VersionAPI {
+  comparison?: import('./comparison-types').ComparisonAPI
   list(): Promise<VersionCatalogue>
   read(id: string): Promise<VersionContent>
   preview(id: string): Promise<{ pages: string[] }>

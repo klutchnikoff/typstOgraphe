@@ -1,5 +1,6 @@
 import type { Provider, Transport } from './provider'
 import type { VersionAPI, VersionCatalogue } from './version-types'
+import { comparisonAPI } from './comparison-api'
 import { tr } from './i18n'
 export function versionsAPI(options: {
   creator?: string | null
@@ -19,6 +20,7 @@ export function versionsAPI(options: {
     return { document: generation, revision: options.provider.revision }
   }
   return {
+    comparison: comparisonAPI(options.provider, options.transport),
     async list() {
       return options.transport.invoke('versions_list', { guard: await guard() })
     },

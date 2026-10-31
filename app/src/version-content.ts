@@ -77,7 +77,16 @@ export function versionContent(content: VersionContent, catalogue: Catalogue) {
         typeof value === 'boolean'
           ? tr(value ? 'Oui' : 'Non')
           : Array.isArray(value)
-            ? value.map((v) => (typeof v === 'string' ? v : '')).join(', ')
+            ? value
+                .map((v) =>
+                  typeof v === 'string'
+                    ? v
+                    : v && typeof v === 'object' && typeof v.name === 'string'
+                      ? v.name
+                      : '',
+                )
+                .filter(Boolean)
+                .join(', ')
             : String(value)
       row.append(text)
     }
@@ -89,6 +98,37 @@ export function versionContent(content: VersionContent, catalogue: Catalogue) {
     kind?.models.find((model) => model.id === content.state.settings.modelId)?.label ||
       tr('Modèle intégré'),
   )
+  const options = fields.options as Record<string, unknown> | undefined
+  if (options?.paper)
+    field(
+      tr('Format'),
+      catalogue.papers?.find((p) => p.value === options.paper)?.label ||
+        String(options.paper).toUpperCase(),
+    )
+  if (typeof options?.landscape === 'boolean')
+    field(tr('Orientation'), tr(options.landscape ? 'Paysage' : 'Portrait'))
+  if (options?.language)
+    field(
+      tr('Langue du document'),
+      catalogue.languages?.find((l) => l.value === options.language)?.label || options.language,
+    )
+  if (options && 'bullet_marker' in options)
+    field(tr('Puces des listes'), options.bullet_marker ?? tr('Automatique (modèle)'))
+  if ('signature' in fields) {
+    const url = typeof fields.signature === 'string' ? resources.get(fields.signature) : undefined
+    if (url) {
+      const row = document.createElement('div'),
+        label = document.createElement('strong'),
+        image = document.createElement('img')
+      row.className = 'version-field'
+      label.textContent = tr('Signature du document')
+      image.src = url
+      image.alt = tr('Signature du document')
+      image.className = 'version-signature'
+      row.append(label, image)
+      information.append(row)
+    } else field(tr('Signature du document'), tr('Sans signature'))
+  }
   for (const definition of kind?.fields || []) field(definition.label, fields[definition.parameter])
   const collections = kind?.structured?.collections || []
   for (const collection of collections) {

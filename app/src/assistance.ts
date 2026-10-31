@@ -1,9 +1,11 @@
-import { historyFor } from './editing-history'
+import { comparisonAPI } from './comparison-api'
+import { proposalDialog } from './version-dialog'
+import type { Catalogue } from './shell'
 import { actionRow } from './keyboard-navigation'
 import { tr } from './i18n'
 import { icon } from './icons'
 import { type Editor, type JSONContent } from '@tiptap/core'
-import { proposalPreview, proposalDetails } from './proposal-preview'
+
 import type { Provider, Transport } from './provider'
 interface Proposal {
   id: string
@@ -26,10 +28,16 @@ export function mountAssistance(
   button.title = tr('Assistance à la rédaction')
   button.setAttribute('aria-label', tr('Assistance à la rédaction'))
   document.querySelector('.side-rail')!.prepend(button)
-  let displayed = false
+  let currentContent: HTMLElement | undefined
+  let request = 0
+  let viewer: ReturnType<typeof proposalDialog> | undefined
   const show = async () => {
-    displayed = true
-    const content = showPanel(tr('Assistance à la rédaction'))
+    const ticket = ++request
+    const host = showPanel(tr('Assistance à la rédaction'))
+    const content = document.createElement('div')
+    content.className = 'assistance-panel'
+    host.append(content)
+    currentContent = content
     if (!isTauri) {
       content.textContent = tr('La connexion à un agent est disponible dans l’application Tauri.')
       return
@@ -37,6 +45,7 @@ export function mountAssistance(
     const state = await transport.invoke<{ connected: boolean; proposal: Proposal | null }>(
       'agent_state',
     )
+    if (ticket !== request || !content.isConnected) return
     if (!state.connected) {
       const paragraph = document.createElement('p')
       paragraph.textContent = tr(
@@ -83,59 +92,35 @@ export function mountAssistance(
     const heading = document.createElement('h3')
     heading.textContent = p.summary
     content.append(heading)
-    const details = document.createElement('ul')
-    for (const detail of proposalDetails(p.before, p.after)) {
-      const row = document.createElement('li')
-      row.textContent = detail
-      details.append(row)
-    }
-    content.append(details)
-    for (const [label, document] of [
-      [tr('Actuel'), p.before],
-      [tr('Proposition'), p.after],
-    ] as const) {
-      const section = window.document.createElement('section')
-      const title = window.document.createElement('h4')
-      title.textContent = label
-      const text = proposalPreview(document, (path) => provider.imageURL(path))
-      section.append(title, text)
-      content.append(section)
-    }
-    if (p.status !== 'pending' || p.revision !== provider.revision) {
-      const status = document.createElement('p')
-      status.className = 'error'
-      status.textContent =
-        p.status === 'accepted'
-          ? tr('Proposition acceptée.')
-          : p.status === 'rejected'
-            ? tr('Proposition refusée.')
-            : tr('Proposition périmée ou terminée. Le document doit être relu par l’agent.')
-      content.append(status)
-      return
+    const review = document.createElement('button')
+    review.className = 'primary'
+    review.textContent = tr('Examiner la proposition')
+    review.onclick = () => {
+      void (async () => {
+        if (editor.view.composing)
+          throw new Error(tr('Terminez la saisie en cours avant de décider.'))
+        const catalogue = await transport.invoke<Catalogue>('content_catalogue')
+        viewer?.destroy()
+        viewer = proposalDialog({
+          id: p.id,
+          title: p.summary,
+          api: comparisonAPI(provider, transport),
+          catalogue,
+          returnFocus: () => (review.isConnected ? review : button),
+        })
+      })().catch((error) => message(String(error), true))
     }
     const actions = actionRow()
     const reject = document.createElement('button')
     reject.textContent = tr('Refuser le lot')
-    reject.className = 'danger'
     reject.onclick = () => {
-      void transport.invoke('agent_reject', { id: p.id }).then(show)
+      void transport
+        .invoke('agent_reject', { id: p.id })
+        .then(show)
+        .catch((error) => message(String(error), true))
     }
-    const accept = document.createElement('button')
-    accept.className = 'primary'
-    accept.textContent = tr('Accepter le lot')
-    accept.onclick = () => {
-      void (async () => {
-        if (editor.view.composing)
-          throw new Error(tr('Terminez la saisie en cours avant de décider.'))
-        await provider.flush()
-        if (provider.revision !== p.revision) throw new Error(tr('Proposition périmée.'))
-        historyFor(editor)?.stopCapturing()
-        await transport.invoke('agent_accept', { id: p.id })
-        message(tr('Lot accepté. Vous pouvez l’annuler en une seule fois.'))
-        await show()
-      })().catch((error) => message(String(error), true))
-    }
-    actions.append(reject, accept)
+    reject.hidden = p.status !== 'pending'
+    actions.append(reject, review)
     content.append(actions)
   }
   button.onclick = () => {
@@ -143,6 +128,7 @@ export function mountAssistance(
   }
   void transport.listen('agent:changed', () => {
     button.classList.add('has-proposal')
-    if (displayed && !document.querySelector<HTMLElement>('.side-panel')!.hidden) void show()
+    if (currentContent?.isConnected && !document.querySelector<HTMLElement>('.side-panel')!.hidden)
+      void show().catch((error) => message(String(error), true))
   })
 }
