@@ -47,10 +47,8 @@ test('la recherche reste visible pendant le défilement, sans action pour un ré
   page,
 }) => {
   const palette = page.getByRole('button', { name: 'Commandes', exact: true })
-  await expect(palette.locator('svg path')).toHaveAttribute(
-    'd',
-    'M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3',
-  )
+  await expect(palette.locator('svg polyline')).toHaveAttribute('points', '4 17 10 11 4 5')
+  await expect(palette.locator('svg line')).toHaveAttribute('y1', '19')
   await palette.click()
   const input = page.getByRole('combobox', { name: 'Rechercher une commande', exact: true })
   const results = page.getByRole('listbox', { name: 'Commandes', exact: true })

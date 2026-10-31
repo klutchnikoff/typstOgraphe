@@ -19,5 +19,5 @@ Les icônes `check` et `circle-minus` (choix retenu et non retenu du comparateur
 proviennent également des SVG officiels de Lucide 0.468.0, sans modification,
 aux mêmes adresses versionnées `icons/check.svg` et `icons/circle-minus.svg`.
 
-L’icône `command` de la palette latérale provient de la même distribution
-Lucide 0.468.0 (`icons/command.svg`), sans modification.
+L’icône `terminal` de la palette latérale, comme dans Obsidian, provient de la même
+distribution Lucide 0.468.0 (`icons/terminal.svg`), sans modification.
