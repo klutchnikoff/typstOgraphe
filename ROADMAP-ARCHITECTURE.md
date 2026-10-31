@@ -33,8 +33,9 @@ dans les bilans de docs/ et l’historique Git.
   ensemble ; rechercher les outils maintenus avant de réimplémenter une brique.
 
 Le [contrat structuré](docs/structured-contract.md) est le socle documentaire
-commun. La conservation après incident est livrée dans A.3 ; les snapshots restent
-à préciser dans A.4, puis A.5 clôt le socle par la documentation et le nettoyage.
+commun. La conservation après incident est livrée dans A.3 ; A.4 est clos avec
+les snapshots et la reprise par comparaison. A.5 reste à mener pour clore le
+socle par la documentation, le nettoyage et la recette depuis un checkout propre.
 Aucun maintien artificiel de la projection plate ou des anciens formats n’est demandé.
 
 ## A. Socle et convergence — P0
@@ -89,7 +90,7 @@ l’archive celles requises par l’état courant et tous les snapshots retenus.
 Un export Typst/PDF de l’état choisi ne requiert pas les ressources propres
 aux autres états conservés.
 
-### A.4 Snapshots durables — P1
+### A.4 Snapshots durables — clos le 31 octobre 2026
 
 **Décisions validées le 31 octobre 2026 :** capturer uniquement l’état documentaire
 confirmé complet, modèle/dépendances/ressources compris ; conserver les formulaires
@@ -140,19 +141,16 @@ verrou avant la publication atomique en mémoire, puis retourner et diffuser le
 delta confirmé. Préserver chemin, dernière révision enregistrée et récupération ;
 une sauvegarde ultérieure réutilise les protections ordinaires du fichier.
 
-**Découpage confirmé :** la comparaison commune, puis la restauration dans une
-session active, sont des lots distincts. L’onglet Comparer et l’action Restaurer
-seront ajoutés à cette même modale lors de leur raccordement ; aucune fausse action
-n’est exposée. Les outils de relecture et les propositions MCP restent séparés.
-A.4 n’est pas terminé.
-
-Pour le parcours futur distinct « Restaurer » (hors composition rouge/vert),
-la règle antérieure reste de créer une version de sauvegarde de l’état
-courant ; publier explicitement l’état restauré sans supprimer les autres versions.
-En collaboration, passer par l’autorité commune et les gardes documentaires,
-jamais par un remplacement silencieux chez les participants. Pas de suppression
-automatique de versions dans le premier périmètre ; le nettoyage des ressources
-doit tenir compte de tous les états retenus, dont les références de relecture.
+**Reprise complète par le comparateur :** « Tout sélectionner à gauche » et son
+symétrique à droite affectent uniquement les choix provisoires. « Appliquer »
+publie le résultat par la voie ordinaire en une étape d’annulation, en conservant
+identité, chemin et versions. Aucun parcours Restaurer distinct ni snapshot
+`before_restore` : cette origine inutilisée est retirée du contrat.
+En collaboration, passer par l’autorité commune et les gardes documentaires ;
+une intervention extérieure bloque la publication et exige une nouvelle paire.
+Pas de suppression automatique de versions ; le nettoyage des ressources tient
+compte de tous les états retenus, dont les références de relecture. Les outils
+de relecture et les propositions MCP restent séparés.
 
 L’[expérience isolée de stockage](docs/a4-snapshot-storage-evaluation.md) est réalisée :
 Git embarqué et stockage d’états à ressources dédupliquées, mêmes corpus Courrier,
@@ -160,20 +158,19 @@ Article et Article allongé, 20/100 versions, taille, création, ouverture,
 suppression et intégrité. Les deux candidats utilisent une lecture sélective et
 des manifestes de ressources partagés. **Choix validé après examen du bilan : CAS**,
 plus rapide à publier et ouvrir, en acceptant des historiques plus volumineux
-qu’avec Git. Le format et les maquettes précèdent l’intégration de production,
-encore à faire. Git reste dans l’expérience isolée. Cette décision ne clôt pas A.4.
+qu’avec Git. Le format et les maquettes ont précédé l’intégration de production.
+Git reste dans l’expérience isolée ; les bilans documentent les garanties livrées.
 
 Le [format cible validé](docs/a4-project-format.md) précise
 un ZIP entièrement CAS, un manifeste pointant sur l’état courant, des descripteurs
 immuables communs aux snapshots et un index de versions distinct. Il décrit
 la vérification Yjs/projection/sources, les ressources et inventaires embarqués,
 les métadonnées modifiables des snapshots, la lecture sélective et les budgets.
-Retenir **100 versions affichées maximum** (`manual`, `before_restore`), hors
-état courant, références internes de relecture et candidats MCP privés. Cette
-règle remplace le quota initial toutes origines confondues. Une sauvegarde
-ordinaire ne consomme pas de place. Une restauration nécessitant `before_restore`
-à la limite est refusée avant mutation, sans suppression automatique. Le quota
-visible ne bloque pas à lui seul une nouvelle relecture : ses références
+Retenir **100 versions manuelles affichées maximum**, hors état courant,
+références internes de relecture et candidats MCP privés. Cette règle remplace
+le quota initial toutes origines confondues. Ni une sauvegarde ordinaire ni une
+reprise par comparaison ne consomme de place ; aucune suppression automatique.
+Le quota visible ne bloque pas à lui seul une nouvelle relecture : ses références
 internes restent soumises aux budgets de volume et à la rétention de J.
 Point à intégrer : la validation des packages doit s’appuyer sur l’inventaire
 de l’état conservé, sans le rendre dépendant du catalogue installé. Ne pas
@@ -200,11 +197,10 @@ moteur Yjs/Yrs pour la synchronisation.
 et ressources, sans exposer les différences d’octets Yjs à l’utilisateur.
 
 Livrer deux entrées latérales distinctes : **Versions** et **Relectures**. Versions
-groupe les origines visibles (manuelles, avant restauration), avec ordre
-chronologique dans chaque groupe. Le clic ouvre une modale centrée à 90 % de
+affiche les versions manuelles par ordre chronologique. Le clic ouvre une modale centrée à 90 % de
 la fenêtre, sur fond atténué/flouté : Contenu, Aperçu, Comparer et choix de l’état
-comparé dans ce dernier mode. Confirmer restauration/suppression dans la même
-modale. Échap annule d’abord la confirmation, puis ferme la consultation avec
+comparé dans ce dernier mode. Confirmer la suppression dans la même modale ;
+la reprise complète utilise les sélections globales puis « Appliquer ». Échap annule d’abord la confirmation, puis ferme la consultation avec
 retour du focus à la ligne d’origine. Les références internes de relecture ne
 s’affichent pas dans Versions ; conserver les outils dédiés de J.
 
@@ -252,8 +248,8 @@ La conservation porte sur l’état documentaire, sans garantir l’identité du
 entre versions de l’application. Une future incompatibilité de format `.typsto`
 proposera une importation/conversion explicite ; ce parcours n’est pas à développer
 maintenant. Voir le [contrat des dépendances](docs/typst-dependencies.md) et le
-[bilan](docs/a4-comparison-results.md). La restauration complète
-et son snapshot `before_restore` restent à implémenter séparément.
+[bilan](docs/a4-comparison-results.md). Les sélections globales gauche/droite
+complètent ce moteur sans commande de restauration ni snapshot automatique.
 
 **Convergence MCP :** une proposition associe deux états figés complets et
 vérifiés, la base depuis laquelle l’agent a travaillé et le candidat figé à sa
@@ -276,9 +272,11 @@ snapshots retenus, indépendamment des ressources visibles dans l’état couran
 Préciser les parcours de suppression explicite avant de stabiliser le schéma de
 l’archive ; aucune rétention automatique ne supprime de version au départ.
 
-La restauration doit produire un nouvel état courant sans effacer les états
-conservés ; son interaction avec les révisions Yjs, les participants distants
-et les propositions MCP gardées par révision reste à spécifier avant codage.
+La reprise complète produit un nouvel état courant sans effacer les états
+conservés, par la même publication Yjs/Yrs et la même garde que les compositions
+partielles. L’historique de la fenêtre permet Annuler/Rétablir ; les propositions
+MCP sont rendues périmées par les éditions concurrentes. G précisera le réseau
+et les droits distants, sans introduire un second moteur de restauration.
 Vérifier hors ligne l’ouverture et le rendu d’un état ancien après changement
 de modèle, remplacement/suppression d’image, sauvegarde et réouverture ; tester
 aussi archive incomplète, suppression d’un snapshot et absence de nettoyage
@@ -303,7 +301,15 @@ du snapshot de référence après clôture de la relecture. Distinguer
 ces données du contenu confirmé. Prévoir les cas de cibles modifiées, d’ancres
 orphelines et de propositions MCP périmées, sans inventer dès A.4 une politique
 de réapplication automatique. Ces arbitrages et la maquette du mode restent dans
-A.4/J ; livrer les snapshots ne suppose pas de livrer J ni ACP.
+J ; livrer les snapshots ne suppose pas de livrer J ni ACP.
+
+**Clôture A.4 :** le CAS, ses adaptateurs, les commandes et l’interface Versions,
+le comparateur commun et la reprise complète en une édition annulable sont
+livrés. Les ressources historiques, l’identité et le chemin du projet restent
+conservés selon le contrat ; une composition ne sauvegarde pas et ne crée pas de
+version. Le [bilan](docs/a4-comparison-results.md) réunit la recette locale et ses
+limites. La coordination réseau de G et le cycle de relecture de J ne sont pas
+déclarés livrés par ces tests.
 
 ### A.5 Documentation, nettoyage et recette finale — clôture de A
 
@@ -632,6 +638,7 @@ Cette référence est interne à Relectures, hors liste Versions et quota des
 100 versions affichées. Son cycle de vie relève de J, sous les limites de volume
 du projet ; ne pas dériver son interface des actions de comparaison de snapshots.
 La conservation des suggestions, l’effet d’une restauration et la rétention de la
-référence après clôture restent à préciser ensemble dans A.4/J. Le calcul de différences entre
-snapshots et les suggestions ancrées ont des rôles distincts ; la relecture ne se
+référence après clôture restent à préciser ensemble dans J. Le calcul des
+différences entre snapshots et les suggestions ancrées ont des rôles distincts ;
+la relecture ne se
 réduit pas à un retour global à une ancienne version.

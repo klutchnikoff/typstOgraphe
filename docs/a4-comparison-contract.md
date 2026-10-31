@@ -38,7 +38,14 @@ métadonnées restent intactes. Une composition qui change le contenu marque le
 document comme modifié ; conserver exactement l’état courant ne crée ni révision
 ni étape d’annulation superflue. Annuler revient à l’état précédent dans l’éditeur,
 Rétablir restaure la composition ; ces actions ne réécrivent pas le fichier.
-Le futur parcours distinct de restauration complète n’est pas livré par ce lot.
+La reprise complète utilise « Tout sélectionner à gauche » puis « Appliquer » ;
+la droite dispose de l’action symétrique. Ces boutons affectent uniquement les
+choix provisoires, qui restent ajustables individuellement et conservés entre
+les onglets. Il n’existe pas de parcours Restaurer distinct ni d’origine de
+snapshot `before_restore`. La reprise reste possible au quota maximal de versions.
+Les actions globales sont désactivées pendant l’application, après la fin de la
+comparaison ou en l’absence de différences. Une comparaison sans différence
+peut toujours s’appliquer si ses états historiques diffèrent du document courant.
 
 Les états de comparaison restent figés après validation. La consultation indique
 que les choix ont été appliqués au document ; elle ne permet pas une seconde

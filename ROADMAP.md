@@ -20,10 +20,10 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** le CAS est retenu pour **A.4 — Snapshots durables**.
-Le format cible est validé ; préparer les maquettes en anticipant la relecture **J**.
-Terminer ensuite le socle par
-**A.5 — Documentation, nettoyage et recette finale**.
+**Séquence immédiate : A.4 est clos le 31 octobre 2026**, avec CAS, Versions,
+comparateur commun et reprise complète comme édition ordinaire. Les garanties et
+la recette locale sont consignées dans le [bilan A.4](docs/a4-comparison-results.md).
+Terminer le socle par **A.5 — Documentation, nettoyage et recette finale**.
 Les copies privées, la reprise des formulaires et la fermeture sont implémentées.
 La [recette de clôture](docs/a3-closure-results.md) couvre les incidents de
 publication, changements externes et exports Courrier/Article ; sa qualification
@@ -97,9 +97,9 @@ rédaction individuelle, l’ouverture et l’export doivent fonctionner hors li
 
 **A.1 à A.3 sont clos** : application Tauri de référence, contrat structuré commun
 aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
-`docs/`. Les lots restants sont A.4 et A.5.
+`docs/`. A.4 est également clos ; A.5 reste à mener pour terminer le socle.
 
-### A.4 — Snapshots durables
+### A.4 — Snapshots durables — clos le 31 octobre 2026
 
 **Choix validés le 31 octobre 2026 :**
 
@@ -112,36 +112,37 @@ aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
 - Créer une version enregistre atomiquement l’état courant et son nouveau snapshot
   dans le `.typsto` ; demander l’emplacement si le document n’a pas encore de
   fichier. Une sauvegarde ordinaire ne crée pas de snapshot supplémentaire.
-- Avant restauration, créer automatiquement une version de sauvegarde de l’état
-  courant. La restauration conserve les autres snapshots et passe par une
-  publication documentaire explicite ; en collaboration, utiliser l’autorité
-  commune sans remplacer silencieusement l’état des autres participants.
+- Reprendre une version complète via le comparateur : « Tout sélectionner à
+  gauche », puis « Appliquer ». La droite possède l’action symétrique et les
+  choix restent ajustables passage par passage. Aucun parcours Restaurer distinct
+  ni snapshot automatique : le résultat est une édition ordinaire annulable.
+  En collaboration, utiliser l’autorité commune et la garde de révision.
 - Ne supprimer aucune version automatiquement au départ. L’utilisateur supprime
   explicitement les snapshots non protégés ; une ressource reste conservée tant
   qu’un état retenu en a besoin.
 - **CAS retenu après évaluation** : un magasin d’objets identifiés par leur
   contenu et partagés entre état courant et snapshots, dans le fichier autonome.
   Git reste limité au candidat expérimental et n’est pas retenu pour le stockage
-  de production. Le format cible étant validé, maquetter Versions et la comparaison
-  avant leur implémentation.
+  de production. Les maquettes validées de Versions et de la comparaison restent
+  conservées comme références des parcours livrés.
 
 **Évaluation de stockage réalisée :** le [bilan A.4](docs/a4-snapshot-storage-evaluation.md)
 compare les deux candidats sur Courrier, Article et Article allongé, à 20 et
 100 versions. **Le stockage par objets dédupliqués (CAS) est validé**, pour sa
 rapidité et son intégration plus simple, en acceptant des historiques un peu
-plus volumineux qu’avec Git. L’intégration reste à faire après validation des
-maquettes. A.4 n’est pas clos.
+plus volumineux qu’avec Git. Le CAS et les parcours de Versions sont intégrés ;
+la recette de clôture vérifie leur convergence avec le comparateur commun.
 
 **Format cible validé :** le [contrat de conteneur CAS](docs/a4-project-format.md)
 décrit le manifeste du projet, les descripteurs d’états vérifiés, l’index des
 versions et les ressources partagées. Il distingue contenu immuable et nom/tags
 modifiables, lecture sélective et export compilable. Limites retenues : 64 Mio par
-état, 512 Mio pour l’archive et **100 versions affichées maximum** (manuelles et
-sauvegardes avant restauration). Les références internes de relecture et les
-candidats MCP ne consomment pas ce quota. Aucune suppression automatique ; une
-restauration exigeant une nouvelle sauvegarde est refusée sans modification si
-les 100 places sont occupées. Les références de relecture restent soumises aux
-budgets de volume du projet et à une politique de rétention propre à J.
+état, 512 Mio pour l’archive et **100 versions manuelles affichées maximum**.
+Les références internes de relecture et les candidats MCP ne consomment pas ce
+quota. Aucune suppression automatique ; une reprise par comparaison ne crée
+pas de version et reste possible lorsque les 100 places sont occupées.
+Les références de relecture restent soumises aux budgets de volume du projet
+et à une politique de rétention propre à J.
 
 **Conservation documentaire et dépendances :** chaque version de typstOgraphe
 fournit ses paquets Typst figés et validés derrière nos wrappers publics. Versions,
@@ -152,8 +153,8 @@ pas l’identité du PDF entre versions de typstOgraphe. Une future incompatibil
 de format `.typsto` proposera clairement une importation/conversion ; ce parcours
 n’est pas à développer maintenant. Voir le [contrat](docs/typst-dependencies.md).
 
-- Préciser le contrat de conservation de l’arbre documentaire, de Yjs et du
-  Typst généré avec les snapshots avant de stabiliser le format public du .typsto.
+- Le contrat de conservation relie arbre documentaire, Yjs et Typst généré :
+  les archives incohérentes sont refusées avant publication, selon le format CAS.
 - Conserver dans le projet des états cohérents et identifiables, consultables
   hors ligne. Chaque état doit retrouver son contenu, ses métadonnées et réglages, son modèle,
   les ressources documentaires nécessaires au rendu, y compris une image
@@ -168,7 +169,7 @@ n’est pas à développer maintenant. Voir le [contrat](docs/typst-dependencies
   à un état conservé sans effacer l’historique. Maquetter et valider le parcours
   de restauration, de copie indépendante et de suppression des snapshots.
 - Prévoir dans la barre latérale une entrée **Versions**, distincte de **Relectures** :
-  groupes par origine visible (manuelles, avant restauration), ordre chronologique
+  versions manuelles classées par ordre chronologique
   dans chaque groupe, nom/tags et suppression autorisée. Un clic ouvre une modale
   centrée à 90 % de la fenêtre, sur fond atténué et légèrement flouté : Contenu,
   Aperçu, Comparer, avec sélecteur de comparaison dans ce dernier mode. Garder
@@ -221,13 +222,12 @@ les commandes ordinaires : la comparaison avec le snapshot ne les remplace pas.
 A.4 prépare ce socle sans avancer l’implémentation ni la maquette de J, et sans
 imposer une action « Comparer à l’état initial » ou la modale Versions à ce parcours.
 
-**Choix restant à valider pour A.4 :** restauration complète et coordination associée.
-Pour les snapshots : autres déclencheurs éventuels,
-parcours détaillés de restauration, puis droits et coordination en collaboration.
-Préciser avec J la conservation des suggestions/commentaires, leur devenir lors
-d’une restauration et la rétention du snapshot de référence après la clôture
-d’une relecture. Ces règles restent à décider ; la référence initiale et les
-métadonnées des snapshots ci-dessus sont retenues.
+**Frontière de clôture :** la reprise complète suit la composition ordinaire,
+sans seconde commande ni sauvegarde automatique. Les autres déclencheurs
+éventuels, les droits distants et la coordination réseau restent dans G.
+J précisera la conservation des suggestions/commentaires, leur devenir après
+une reprise de version et la rétention de la référence après clôture d’une
+relecture. Ces choix n’empêchent pas de clore les snapshots d’A.4.
 Aucune couche de rétrocompatibilité préventive pendant cette phase préliminaire.
 
 **Découpage d’implémentation :** commencer par A.4.1, propriétaire d’archive CAS
@@ -256,8 +256,9 @@ isolés. Deux versions historiques permettent aussi de composer le document cour
 modifiés ont des décisions distinctes lorsque leurs frontières sont conservées ;
 les widgets restent entiers, les fusions/scissions et correspondances ambiguës
 restent groupées. Le regroupement reste conservateur pour les réglages et
-ressources documentaires. La restauration complète
-avec snapshot `before_restore` reste le lot suivant. Voir le
+ressources documentaires. La reprise complète utilise désormais les sélections
+globales gauche/droite du même comparateur ; l’origine inutilisée `before_restore`
+est retirée, sans ajouter un second mécanisme. Voir le
 [contrat et les limites](docs/a4-comparison-contract.md) et le
 [bilan de validation](docs/a4-comparison-results.md).
 
@@ -284,11 +285,17 @@ autonome ; les opérations de fichier conservent leurs autorisations propres.
 Une garde d’index protège les changements concurrents sans créer une révision
 documentaire ni une entrée d’annulation. Voir le [bilan A.4.3](docs/a4-versions-interface.md).
 
-**Découpage confirmé :** la comparaison commune, puis la restauration dans une
-session active, sont des lots distincts. L’onglet Comparer et l’action Restaurer
-seront ajoutés à cette même modale lors de leur raccordement ; aucune fausse action
-n’est exposée. Les outils de relecture et les propositions MCP restent séparés.
-A.4 n’est pas terminé.
+**Parcours confirmé :** l’onglet Comparer couvre les choix locaux et la reprise
+complète d’un état. Les sélections globales ne publient rien ; « Appliquer »
+réutilise le même moteur et une seule étape d’annulation. La garde bloque toute
+publication périmée, y compris après une modification dans une autre fenêtre.
+Les outils de relecture et les propositions MCP restent séparés.
+
+**Clôture locale A.4 :** stockage, conservation/récupération, commandes Versions,
+consultation, comparaison et reprise complète sont livrés. Les tests du workspace,
+des contrats et des navigateurs vérifient ces parcours ; voir le
+[bilan](docs/a4-comparison-results.md). Les droits/réseaux distants restent dans G,
+le cycle de relecture dans J et la qualification de distribution dans H.
 
 ### A.5 — Documentation, nettoyage et recette finale
 
@@ -701,8 +708,8 @@ version, puis être peaufinée.
   une relecture ne recrée pas ce snapshot ; aucun déclencheur heuristique n’est
   prévu. A.4 fournit cette référence durable et sa comparaison, tandis que les
   suggestions restent des objets distincts. Leur conservation, leur devenir après
-  restauration et la rétention de la référence après clôture restent à valider
-  ensemble dans A.4/J.
+  reprise de version et la rétention de la référence après clôture restent à
+  valider ensemble dans J.
 - La relecture humaine ne dépend pas de la livraison d’ACP : son contrat commun
   de suggestions peut être préparé indépendamment et raccordé ensuite aux agents.
 - Une ancre déplacée peut suivre le texte ; une cible dont le contenu a changé
@@ -718,13 +725,12 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Le CAS étant retenu après le [bilan comparatif](docs/a4-snapshot-storage-evaluation.md),
-   suivre le [format cible validé](docs/a4-project-format.md) pour maquetter Versions, comparaison et restauration,
-   en anticipant la relecture J avant l’implémentation.
-2. Terminer A avec A.5 : documentation, nettoyage et recette depuis un checkout propre.
-3. Reprendre ensuite le périmètre administratif restant, un type à la fois,
+1. A.4 étant clos, terminer A avec **A.5** : documentation, nettoyage et recette
+   depuis un checkout propre. Le [bilan A.4](docs/a4-comparison-results.md) décrit
+   les preuves locales et les limites conservées hors de ce lot.
+2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
-4. Engager ACP après stabilisation du contrat documentaire et validation de sa
+3. Engager ACP après stabilisation du contrat documentaire et validation de sa
    maquette (**F**), sans attendre la livraison de tous les types SHS/enseignement.
 
 Ce prochain lot est une proposition à discuter ; cette réécriture documentaire

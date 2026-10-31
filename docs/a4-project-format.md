@@ -1,6 +1,6 @@
 # A.4 — Format cible du projet `.typsto`
 
-**Statut : stockage A.4.1, raccordement A.4.2 et gestion/consultation Versions A.4.3 implémentés le 31 octobre 2026.**
+**Statut : stockage CAS, adaptateurs, Versions et comparateur commun avec reprise complète implémentés le 31 octobre 2026.**
 Le **CAS est retenu** après [évaluation](a4-snapshot-storage-evaluation.md).
 L’organisation ci-dessous est implémentée par `content::project::Project`.
 Tauri, CLI et MCP lisent et écrivent ce même format 11 ; le lecteur/écrivain
@@ -142,8 +142,7 @@ entre catalogue de l’application, état documentaire et autonomie des exports.
 
 `versions.json` porte sa version de schéma et deux collections distinctes :
 
-- `snapshots` : les versions affichées dans **Versions**, créées manuellement ou
-  conservées automatiquement avant restauration ;
+- `snapshots` : les versions créées volontairement et affichées dans **Versions** ;
 - `review_references` : les snapshots de référence internes à **Relectures**,
   gérés avec leur relecture et absents de la liste ordinaire des versions.
 
@@ -158,12 +157,12 @@ Chaque entrée de `snapshots` contient :
 - `name`, nom libre modifiable, daté par défaut ;
 - `tags`, liste facultative, et `description`, texte facultatif ;
 - `creator`, identité disponible du créateur, sans attribution de toutes les modifications ;
-- `reason` : `manual` ou `before_restore` ;
+- `reason` : `manual` ;
 - `state`, référence CAS immuable de son descripteur.
 
 Le schéma sérialisé regroupe les champs éditables dans l’objet `details` :
 `name`, `tags`, `description`, `creator`. Les autres champs restent au premier
-niveau. `reason` vaut `manual` ou `before_restore`. Les références de relecture
+niveau. `reason` vaut `manual`. Les références de relecture
 portent directement `id`, `review_id`, `created_at`, `state`, `active`.
 Les schémas de stockage rejettent les champs inconnus ; les manifestes de
 ressources rejettent aussi les chemins logiques répétés.
@@ -268,7 +267,7 @@ d’abord une confirmation, puis la consultation ; le focus revient à l’élé
 d’ouverture du contexte concerné. Ce partage porte sur la présentation et le
 calcul des différences, pas sur l’identité des opérations autorisées.
 
-## Sauvegarde, création, restauration et suppression
+## Sauvegarde, création, reprise et suppression
 
 L’index des versions reste extérieur à l’arbre documentaire et au checkpoint
 Yjs : un état ne contient pas récursivement son propre historique. Sa gestion
@@ -279,18 +278,20 @@ adaptateurs autorisés ; aucun adaptateur ne modifie directement le ZIP.
   puis remplace atomiquement le fichier. Aucun snapshot implicite.
 - **Créer une version** ajoute son entrée et enregistre l’état courant dans la
   même publication du `.typsto`, après choix d’emplacement si nécessaire.
-- **Restaurer** prépare une version `before_restore` de l’état courant et la
-  restauration dans une même opération protégée. En cas d’échec, les deux sont
-  refusées. Restaurer ne consiste pas à injecter l’ancien binaire Yjs ou à
-  ramener une révision en arrière : le moteur publie un nouvel état courant en
-  préservant les garanties de concurrence et les autres versions conservées.
+- **Reprendre une version** utilise le comparateur : tout sélectionner à gauche,
+  puis appliquer. Le résultat est une édition ordinaire en mémoire, avec une
+  étape d’annulation, sans enregistrement ni snapshot automatique. Le moteur
+  publie un nouvel état courant sous garde ; il n’injecte pas un ancien binaire
+  Yjs et ne ramène pas la révision en arrière. Identité, chemin et versions
+  restent inchangés. L’origine inutilisée `before_restore` est retirée du schéma.
 - **Supprimer une version** retire seulement une entrée autorisée de `snapshots`,
   sans pouvoir détacher une référence active de `review_references`, puis ne nettoie que les
   objets devenus inaccessibles depuis l’état courant, tous les snapshots retenus
   et les références protégées. Aucun effacement automatique de versions.
 
-La création, suppression ou restauration ne doit pas laisser dans le fichier un
-index partiellement publié. Gardes de révision, contrôle d’une modification
+La création ou suppression ne doit pas laisser dans le fichier un index
+partiellement publié. La reprise ne modifie le fichier qu’à l’enregistrement
+explicite suivant. Gardes de révision, contrôle d’une modification
 externe et verrou coopératif restent applicables. Sauvegarde et export gardent
 leurs autorisations propres ; le MCP rattaché ne gagne aucun droit implicite.
 
@@ -321,7 +322,7 @@ Des limites distinctes évitent de confondre taille du document et poids de son
 historique. **Budgets retenus :** conserver le plafond
 de 64 Mio par état documentaire, 32 Mio par checkpoint Yjs et 16 Mio par image ;
 autoriser jusqu’à 512 Mio sur disque et décompressés pour l’archive, 16 384 objets
-et **100 versions affichées maximum** (`manual`, `before_restore`). Le quota
+et **100 versions manuelles affichées maximum**. Le quota
 porte sur les entrées de `snapshots`, pas sur le nombre d’objets CAS. L’état
 courant et les références internes de `review_references` n’y sont pas comptés.
 Les paires privées MCP sont également hors quota ; leurs limites et leur
@@ -336,8 +337,8 @@ l’intégration ; ils ne sont pas une garantie de latence sur ces volumes.
 À 100 versions affichées, l’édition et la sauvegarde ordinaire restent possibles dans les
 limites de volume. Pour créer une nouvelle version, l’utilisateur est invité à
 supprimer explicitement une version non protégée. Aucun roulement automatique.
-Si une restauration exige une sauvegarde `before_restore` et qu’aucune place n’est
-disponible, la restauration est refusée avant toute modification.
+Une reprise par comparaison ne crée pas de version et reste possible au quota
+maximal, sous les mêmes gardes documentaires et budgets de volume.
 Une référence de relecture ne consomme pas silencieusement une place visible :
 sa rétention et ses limites propres restent à préciser dans J, sous les plafonds
 de volume et d’objets du projet. Atteindre ceux-ci refuse une nouvelle référence
@@ -405,6 +406,8 @@ consultation graphique Contenu/Aperçu sont raccordées. Le paramètre `history`
 `versions.change` est une empreinte de l’index fournie par `versions.list` : une
 modification concurrente de nom, de tags ou de liste est refusée, même si la
 révision documentaire n’a pas changé. La garde du document reste distincte.
-La comparaison commune et la restauration dans une session active restent dans
-leurs lots suivants, de même que les états privés MCP et le cycle de vie des
-relectures. Le [bilan A.4.3](a4-versions-interface.md) décrit les parcours livrés.
+La comparaison commune publie les compositions locales ou complètes comme une
+édition ordinaire, pour Versions et les propositions MCP privées. Le cycle de
+vie des relectures reste dans J. Le [bilan A.4.3](a4-versions-interface.md) décrit
+la consultation ; le [bilan du comparateur](a4-comparison-results.md) précise
+les choix provisoires, la publication et les garanties de conservation.

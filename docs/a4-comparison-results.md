@@ -246,10 +246,11 @@ Les deux aperçus permettent d’examiner aussi les différences de présentatio
 
 Les choix de composition restent temporaires, en mémoire. Le recalcul après
 édition extérieure est explicite : nouvelle comparaison Versions ou nouvelle
-proposition MCP. La reprise vers un tiers état n’est pas proposée.
+proposition MCP. Aucune fusion automatique à trois états ni réapplication sur
+une garde périmée n’est proposée.
 
-La restauration complète avec snapshot `before_restore`, ses confirmations et sa
-coordination avec les autres fenêtres restent le prochain lot A.4. Les relectures J
+Le parcours distinct de restauration avec snapshot `before_restore` a ensuite
+été abandonné au profit des sélections globales du comparateur (voir ci-dessous). Les relectures J
 conservent leurs outils dédiés. F.3 peut enrichir le cycle de vie et les reçus des
 propositions sans construire un second moteur de décisions.
 
@@ -279,3 +280,66 @@ implicites, puis l’annulation de la publication. TypeScript/Vite, Clippy de
 l’application et tous ses targets, Prettier, formatage Rust, limites de taille,
 frontière des dépendances du cœur et `git diff --check` réussissent. Aucune
 capture, vidéo ou trace n’a été enregistrée.
+
+### Reprise complète par les sélections globales
+
+Chaque en-tête de colonne propose « Tout sélectionner », avec un libellé
+accessible indiquant gauche ou droite. Les boutons réutilisent la navigation
+clavier commune, préservent le focus et ne changent que les choix provisoires.
+Les choix individuels restent disponibles et survivent au changement d’onglet.
+La paire figée, les dépendances et la publication ordinaire restent inchangées.
+Une comparaison terminée ou une application en cours désactive les actions ;
+sans différence, seuls ces raccourcis de sélection sont désactivés, car deux
+états historiques identiques peuvent encore remplacer un document courant différent.
+
+Ce parcours remplace définitivement le projet de commande Restaurer distincte.
+L’origine de snapshot `before_restore`, jamais produite par l’application, est
+retirée du schéma et de l’interface. Le quota porte sur les 100 versions manuelles ;
+la reprise n’en crée aucune. Les références internes de relecture restent séparées.
+
+La recette de reprise complète couvre la sélection des deux côtés au clavier,
+les choix restés privés avant validation, une seule publication, Annuler/Rétablir,
+la conservation du chemin et de la génération, l’absence de bandeau de récupération,
+l’absence d’écriture du fichier et de version automatique. Le moteur vérifie
+également la reprise complète du contenu, des réglages, du modèle et des images
+pour Versions comme pour MCP, avec les deux archives comparées intactes.
+
+Le contrôle contractuel MCP contenait encore une assertion de l’ancien parcours
+par commandes : il exigeait l’identité Yjs du paragraphe modifié. La publication
+par état candidat reconstruit les blocs modifiés et préserve les branches intactes.
+Le test vérifie désormais toutes les branches inchangées, le texte attendu,
+la cohérence du checkpoint et l’historique humain. Les assertions graphiques
+attendant encore le cercle ont également été mises à jour pour les deux tracés
+du X Lucide.
+
+La recette WebKit a révélé une perte de focus lors de la reconstruction des
+contrôles après sélection au clavier. Les sélections globales et individuelles
+passent désormais par la même mise à jour des choix, sans remplacer les boutons ;
+leur navigation et leurs points d’entrée Tab restent cohérents. Le test couvre
+le maintien du focus, les flèches et l’activation par Entrée.
+
+### Clôture locale d’A.4 — 31 octobre 2026
+
+**Résultats :** 383 tests Rust du workspace et ses doctests réussis, avec un
+seul diagnostic de performance ignoré ; 360 tests Vitest, 6 tests Node,
+29 tests de contrat Yjs/Yrs et 18 parcours Chromium/WebKit réussis.
+TypeScript/Vite, Clippy workspace/tous les targets, Prettier, formatage Rust,
+limites de taille, frontière des dépendances du cœur et `git diff --check`
+réussissent. Le driver de recette a été reconstruit depuis les sources courantes
+et isolé des relances de l’application de travail. Aucune capture, vidéo ou
+trace graphique n’a été enregistrée.
+
+Les tests Rust couvrent le format CAS, les commandes CLI/MCP, la conservation des
+versions/ressources, l’intégrité, les gardes, la sauvegarde, l’export et la
+récupération. Les parcours graphiques vérifient Courrier et Article, les aperçus
+réels, les différences lisibles avec badges, la suppression/édition des versions,
+la concurrence entre fenêtres, la composition complète et les décisions MCP.
+Le test natif de sauvegarde vérifie aussi ouvrir → composer → enregistrer avec
+le même identifiant et le même chemin. Les comparaisons ne créent ni projet
+indépendant ni version automatique.
+
+**A.4 est clos dans ce périmètre.** Ce bilan décrit des contrôles locaux sur
+macOS ; il ne prétend pas qualifier les binaires Windows/Linux ni une nouvelle
+CI distante. La recette depuis un checkout propre et le nettoyage/documentation
+restent A.5 ; la distribution matérielle reste H. Le réseau et les droits distants
+restent G ; le cycle de vie des annotations et références de relecture reste J.
