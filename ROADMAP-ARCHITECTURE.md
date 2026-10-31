@@ -26,7 +26,8 @@ dans les bilans de docs/ et l’historique Git.
 - Contextes d’édition séparés ; une préédition IME n’est jamais publiée comme
   une modification validée. Les actions distantes préservent le focus humain.
 - Propositions MCP isolées, gardées par document/révision, acceptées ou refusées
-  par lot entier ; sauvegarde et export ont leurs autorisations propres.
+  actuellement par lot entier. Le lot dédié F.3 préparera les décisions locales
+  sûres ; sauvegarde et export ont leurs autorisations propres.
 - Les nouvelles interfaces sont maquettées et les choix structurants validés
   ensemble ; rechercher les outils maintenus avant de réimplémenter une brique.
 
@@ -108,6 +109,25 @@ diff : dépendances, taille, temps de création/lecture, empaquetage dans le
 introduire de service Git distant ou remplacer la synchronisation Yjs.
 Évaluer la comparaison documentaire par blocs, texte, annotations, métadonnées
 et ressources, sans exposer les différences d’octets Yjs à l’utilisateur.
+
+Livrer une interface **Versions** dans le panneau latéral du document actif :
+parcours chronologique, consultation, nom/tags et suppression autorisée. Maquetter
+la navigation, la comparaison et les confirmations, y compris au clavier.
+
+Partager entre snapshots et propositions MCP un contrat de différences et une
+interface de comparaison, en séparant calcul, présentation et décisions. Comparer
+deux snapshots ou un snapshot et l’état courant ; présenter des groupes de
+modifications proches avec contexte et navigation. Préparer leur identification
+et leur correspondance aux cibles/opérations documentaires sans confondre
+contiguïté et indépendance. Évaluer les briques existantes, dont `similar`
+anciennement utilisé sous egui, avant de retenir un moteur ; il n’est pas une
+dépendance actuelle à considérer comme déjà disponible.
+
+La consultation de différences entre snapshots ne publie aucune modification.
+Une éventuelle reprise locale doit être une commande explicite sur l’état
+courant, sans modifier les snapshots. A.4 prépare les données nécessaires à la
+validation locale MCP, livrée séparément en F.3 et non requise pour clôturer A.4.
+Les outils d’annotations de J restent dédiés au mode relecture.
 
 Étudier un stockage de ressources immuables identifiées par leur contenu,
 partagées entre états : une image remplacée doit rester accessible depuis
@@ -344,6 +364,26 @@ Une reprise ne renvoie ni une demande ni une édition automatiquement.
 refus/acceptation, péremption, annulation, interruption et révocation. Ne pas
 supposer que les fonctions, forfaits et quotas sont identiques entre agents.
 
+### F.3 Validation locale des propositions MCP — lot distinct après A.4
+
+Réutiliser le contrat et l’interface de comparaison d’A.4 pour accepter/refuser
+des groupes indépendants. Le calcul de différences ne suffit pas à prouver cette
+indépendance : relier les groupes aux commandes et à leurs dépendances, y compris
+structurelles et de ressources. Des changements éloignés peuvent être liés
+(citation et référence bibliographique). Conserver une décision groupée lorsque
+l’indépendance n’est pas garantie, avec la voie actuelle par lot entier.
+
+Chaque acceptation locale doit revérifier les cibles et publier atomiquement les
+opérations retenues, avec une étape d’annulation cohérente. Définir le suivi des
+groupes acceptés/refusés/restants, la révision de référence et la revalidation ou
+péremption du reliquat après publication ou édition concurrente. Ne pas permettre
+à l’agent d’accepter, ni rejouer implicitement une opération déjà publiée.
+
+Préciser ensemble le protocole MCP, les garanties d’indépendance et la maquette
+avant de coder. Vérifier dépendances éloignées, cible périmée, acceptations
+successives, refus sans modification et annulation. L’acceptation par lot entier
+reste le contrat actif jusque-là ; F.3 ne conditionne pas la clôture d’A.4.
+
 ## G. Collaboration et hébergement — P2
 
 Étudier Hocuspocus et son connecteur avant de figer le transport distant.
@@ -413,8 +453,11 @@ revient dans la discussion avant d’engager l’implémentation concernée.
 ## J. Relecture par suggestions — P2
 
 Représenter les suggestions par des annotations ancrées séparées du contenu,
-applicables par les commandes gardées existantes. Mutualiser la présentation des propositions sans
-perdre l’acceptation atomique des lots d’agent, y compris structurels. La première
+applicables par les commandes gardées existantes. Conserver les outils dédiés de
+relecture ; l’interface commune d’A.4 sert aux snapshots et propositions MCP,
+sans imposer sa présentation à J. Mutualiser les composants pertinents ; F.3
+traitera les décisions locales MCP et préservera l’atomicité des opérations liées.
+L’acceptation actuelle reste par lot entier jusqu’à ce lot. La première
 relecture humaine textuelle ne dépend pas d’ACP. Distinguer aperçu confirmé et
 aperçu candidat explicitement signalé ; revérifier le contenu cible avant toute
 acceptation si l’auteur l’a modifié.

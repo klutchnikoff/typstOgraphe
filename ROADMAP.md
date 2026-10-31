@@ -113,6 +113,20 @@ aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
   après incident. Prévoir consultation en lecture seule, comparaison et retour
   à un état conservé sans effacer l’historique. Maquetter et valider le parcours
   de restauration, de copie indépendante et de suppression des snapshots.
+- Prévoir dans le panneau latéral du document actif une rubrique **Versions** :
+  navigation chronologique, consultation, nom/tags et suppression des snapshots
+  autorisés. Maquetter cette interface et ses parcours clavier avant codage.
+- Livrer une **interface commune de comparaison pour les snapshots et les
+  propositions MCP** : comparer deux snapshots ou un snapshot et l’état courant,
+  présenter les différences par groupes avec leur contexte et naviguer entre eux.
+  Couvrir texte, structure, paramètres, métadonnées et ressources. Séparer le
+  calcul des différences, leur présentation et les actions disponibles.
+  Préparer le contrat des groupes pour les décisions locales ultérieures ; leur
+  proximité visuelle ne prouve pas leur indépendance documentaire. La comparaison
+  de snapshots reste une consultation : reprendre une modification ancienne serait
+  une action explicite sur l’état courant, jamais sur le snapshot conservé.
+  La validation partielle MCP relève du lot dédié F, sans conditionner la clôture
+  d’A.4 ; le mode relecture J conserve ses outils dédiés.
 - Séparer stockage des états et calcul des différences. **Git local embarqué
   est une piste à évaluer, pas une dépendance choisie**, sans serveur GitHub ni
   connaissance de Git demandée à l’utilisateur. Comparer cette piste à un
@@ -388,6 +402,21 @@ Les choix fonctionnels détaillés sont dans le [plan technique](ROADMAP-ARCHITE
 **Sortie :** discuter, reformuler une sélection et préparer un document structuré,
 puis accepter/refuser un lot, avec au moins deux agents et sans configuration MCP manuelle.
 
+**Lot dédié — Validation locale des propositions MCP, après la comparaison A.4 :**
+
+- Permettre d’accepter ou de refuser les groupes de modifications indépendants,
+  en réutilisant l’interface de comparaison commune. Les opérations liées restent
+  soumises à une décision groupée ; à défaut d’indépendance garantie, conserver
+  l’acceptation ou le refus du lot entier. Une citation et sa nouvelle référence
+  bibliographique peuvent par exemple être liées malgré leur éloignement.
+- Chaque acceptation revérifie ses cibles, publie une opération atomique et
+  constitue une étape d’annulation cohérente. Préciser le devenir des groupes
+  restants après une décision et face aux modifications concurrentes, sans
+  réapplication aveugle ni acceptation implicite.
+- Valider ensemble le contrat MCP, les règles de dépendance et la maquette avant
+  implémentation. L’acceptation actuelle par lot entier reste en vigueur jusque-là.
+  Ce lot n’est pas une condition de clôture d’A.4.
+
 ## G — Ajouter la collaboration distante
 
 La collaboration entre fenêtres sert de base technique. Le réseau distant,
@@ -499,11 +528,11 @@ sans modifier le contenu documentaire partagé. Cette voie évite d’annuler de
 concurrentes dans le CRDT. Elle doit être imparfaite mais utile dès sa première
 version, puis être peaufinée.
 
-- Réutiliser la comparaison à deux colonnes et le calcul de différences des
-  propositions MCP : une proposition d’agent est un ensemble de suggestions dont
-  l’auteur est l’agent. Partager les composants de relecture, tout en conservant
-  l’acceptation ou le refus du lot entier pour les propositions d’agent, y compris
-  leurs opérations structurelles déjà disponibles.
+- Conserver les outils dédiés de relecture par annotations ; l’interface commune
+  de comparaison d’A.4 vise les snapshots et les propositions MCP et ne remplace
+  pas ces outils. Mutualiser les composants pertinents sans imposer la même
+  présentation. L’acceptation MCP reste par lot entier jusqu’au lot dédié F de
+  validation locale, qui préservera les décisions groupées pour les opérations liées.
 - Limiter le premier périmètre de relecture humaine aux suggestions de texte dans une zone (insertion,
   suppression, remplacement, commentaire). Les suggestions structurelles (blocs,
   tableaux, notes, citations) et le suivi de formatage viennent plus tard.
