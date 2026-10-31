@@ -20,10 +20,11 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** préparer ensemble **A.3 — Conservation et publication** :
+**Séquence immédiate :** mettre en œuvre **A.3 — Conservation et publication**, selon le
+[contrat validé](docs/a3-conservation.md) :
 conservation durable des brouillons refusés et des saisies en attente, récupération,
-fermeture et modifications externes. Préciser les garanties et les recettes avant
-l’implémentation ; ne pas confondre récupération et snapshots durables (A.4).
+fermeture et modifications externes. Commencer par la conservation des brouillons, y compris les formulaires ouverts.
+Maquetter ensuite la reprise ; ne pas confondre récupération et snapshots durables (A.4).
 
 **A.2 est clos.** La [recette Courrier/Article](docs/a2-closure-results.md) valide
 le même projet entre Tauri, CLI et MCP, les propositions rattachées, l’historique,
@@ -484,10 +485,9 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Définir ensemble le lot **A.3 — Conservation et publication**, à partir des
-   garanties déjà vérifiées dans le [bilan de clôture A.2](docs/a2-closure-results.md).
-   Prioriser la conservation durable des brouillons refusés et des champs en
-   attente ; préciser récupération, fermeture et conflits de fichiers avant de coder.
+1. Livrer le premier lot **A.3 — Conservation des brouillons**, selon le
+   [contrat validé](docs/a3-conservation.md), puis valider la maquette de reprise
+   avant les parcours de fermeture et les recettes natives restantes.
 2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
 3. Engager ACP après stabilisation du contrat documentaire et validation de sa

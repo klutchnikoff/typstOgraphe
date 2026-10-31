@@ -52,6 +52,15 @@ la fusion de cellules et les listes imbriquées dans C.
 
 ### A.3 Conservation et publication
 
+**Décisions validées le 31 octobre 2026 :** [contrat de conservation et reprise](docs/a3-conservation.md).
+Enregistrement explicite du `.typsto` ; secours indépendant après deux secondes
+sans modification, échéance de dix secondes en rédaction continue. Protéger aussi
+les saisies privées, champs en attente et formulaires ouverts, avec leurs ressources,
+sans publication automatique. Une copie par document/fenêtre ; reprise isolée et
+fermeture explicite à maquetter. L’annulation reste limitée à la séance.
+Premier lot engagé : conservation des brouillons. Reprise graphique et recettes
+natives multisystèmes restent des lots distincts avant clôture d’A.3.
+
 Fixer les responsabilités de l’état Yjs, de l’arbre validé et du Typst généré.
 Tester identité/révision, sauvegarde pendant des éditions, récupération après
 incident, fermeture, changement externe et refus d’une archive incohérente.
