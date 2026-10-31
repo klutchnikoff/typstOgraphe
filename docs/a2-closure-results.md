@@ -140,3 +140,21 @@ La clôture porte sur A.2. **A.3** reste à préparer ensemble : conservation du
 des brouillons refusés et des champs en attente, récupération et conflits de
 fichiers. Les snapshots (A.4), la collaboration réseau (G), les cellules
 fusionnées et listes imbriquées (C) restent hors de ce lot.
+
+## Ajustement des recettes après la CI de la PR nº 3
+
+La [CI du 31 octobre](https://github.com/klutchnikoff/typstOgraphe/actions/runs/41147750004)
+a validé Rust, les tests web, les contrats et les audits, puis relevé deux
+scénarios obsolètes dans les deux moteurs navigateur : l’ajout d’une ligne était
+encore cherché dans les paramètres du tableau ; le libellé du curseur distant
+était compté comme du texte de citation. Le scénario utilise désormais la poignée
+de ligne et son action clavier. L’assertion commune `expectEditorText` compare
+exactement le texte rendu en retirant uniquement les widgets décoratifs
+ProseMirror d’une copie du DOM, sans modifier le DOM réel ni retirer un nom ou
+une portion arbitraire du texte documentaire. Elle est partagée par les recettes
+multizones et d’en-têtes de tableau.
+
+Validation locale de cet ajustement : **18 scénarios critiques**, **16 autres
+parcours multizones** et **2 parcours d’en-têtes de tableau**, tous réussis dans
+Chromium/WebKit ; TypeScript et formatage réussis. Les workflows de CI et le
+comportement de l’application ne sont pas modifiés par ce correctif de recettes.

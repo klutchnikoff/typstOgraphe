@@ -1,4 +1,5 @@
 import type { JSONContent } from '@tiptap/core'
+import { expectEditorText } from './editor-content'
 import { expect, test, type Page } from '@playwright/test'
 
 async function blank(page: Page) {
@@ -553,20 +554,7 @@ test('les axes d’en-tête d’une cellule restent indépendants et le lot est 
   await page.evaluate(() => window.__spike!.provider.clearHistory())
   const peer = await page.context().newPage()
   const expectHeader = async (view: Page, scope: string) => {
-    await expect(view.locator(`th[data-header-scope="${scope}"]`)).toHaveCount(1)
-    // Presence labels are DOM decorations, not document content. Assert the
-    // exact cell text in the document and its displayed role independently.
-    await expect
-      .poll(() =>
-        view.evaluate(() => {
-          const table = window.__spike!.editor.state.doc.content.content.find(
-            (node) => node.type.name === 'tableFigure',
-          )
-          const cell = table?.firstChild?.firstChild?.firstChild
-          return cell && { kind: cell.type.name, scope: cell.attrs.scope, text: cell.textContent }
-        }),
-      )
-      .toEqual({ kind: 'tableHeader', scope, text: 'Nom é😀' })
+    await expectEditorText(view.locator(`th[data-header-scope="${scope}"]`), 'Nom é😀')
   }
   try {
     await peer.goto('/?client=header-peer')

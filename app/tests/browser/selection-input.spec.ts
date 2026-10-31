@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { confirmNewDocument } from './document-lifecycle'
+import { expectEditorText } from './editor-content'
 const html =
   '<p>Avant</p><blockquote><p>Corps</p><cite data-attribution>Source</cite></blockquote><dl><div data-description-item><dt>Terme</dt><dd>Définition</dd></div></dl><figure data-table><table><tbody><tr><td><p>Alpha</p></td><td><p>Bravo</p></td></tr></tbody></table><figcaption data-table-caption>Légende</figcaption></figure><p>Après</p>'
 const body = (page: Page) => page.getByRole('textbox', { name: 'Corps du document', exact: true })
@@ -58,10 +59,10 @@ test(
     await ready(peer, 'clipboard-peer')
     await select(page, 'Corps', 'Source')
     await paste(page, '<p><strong>Ajout</strong></p><p><em>Suite</em></p>')
-    await expect(body(page).locator('blockquote p')).toHaveText('CAjoutSuite')
-    await expect(body(page).locator('blockquote cite')).toHaveText('urce')
-    await expect(body(page).locator('blockquote strong')).toHaveText('Ajout')
-    await expect(body(peer).locator('blockquote p')).toHaveText('CAjoutSuite')
+    await expectEditorText(body(page).locator('blockquote p'), 'CAjoutSuite')
+    await expectEditorText(body(page).locator('blockquote cite'), 'urce')
+    await expectEditorText(body(page).locator('blockquote strong'), 'Ajout')
+    await expectEditorText(body(peer).locator('blockquote p'), 'CAjoutSuite')
     expect(
       await page.evaluate(async () => {
         await window.__spike!.provider.flush()
@@ -69,8 +70,8 @@ test(
       }),
     ).toBe(1)
     await body(page).press('ControlOrMeta+z')
-    await expect(body(peer).locator('blockquote p')).toHaveText('Corps')
-    await expect(body(peer).locator('blockquote cite')).toHaveText('Source')
+    await expectEditorText(body(peer).locator('blockquote p'), 'Corps')
+    await expectEditorText(body(peer).locator('blockquote cite'), 'Source')
     await peer.close()
   },
 )
@@ -88,25 +89,25 @@ test('coupe DOM conserve les deux champs, remplit le presse-papiers et reste ann
   expect(copied.text).toContain('erme')
   expect(copied.text).toContain('Dé')
   expect(copied.html).toContain('data-description-item')
-  await expect(body(page).locator('dt')).toHaveText('T')
-  await expect(body(page).locator('dd')).toHaveText('finition')
+  await expectEditorText(body(page).locator('dt'), 'T')
+  await expectEditorText(body(page).locator('dd'), 'finition')
   await page.evaluate(() => window.__spike!.provider.flush())
   await body(page).press('ControlOrMeta+z')
-  await expect(body(page).locator('dt')).toHaveText('Terme')
-  await expect(body(page).locator('dd')).toHaveText('Définition')
+  await expectEditorText(body(page).locator('dt'), 'Terme')
+  await expectEditorText(body(page).locator('dd'), 'Définition')
 })
 test('saisie et suppression entre cellules conservent la grille ; une sélection rectangulaire reste native', async ({
   page,
 }) => {
   await select(page, 'Alpha', 'Bravo')
   await page.keyboard.insertText('Remplacement')
-  await expect(body(page).locator('td')).toHaveText(['ARemplacement', 'avo'])
+  await expectEditorText(body(page).locator('td'), ['ARemplacement', 'avo'])
   await expect(body(page).locator('tr')).toHaveCount(1)
   await page.evaluate(async () => {
     await window.__spike!.provider.flush()
     await window.__spike!.provider.history('undo')
   })
-  await expect(body(page).locator('td')).toHaveText(['Alpha', 'Bravo'])
+  await expectEditorText(body(page).locator('td'), ['Alpha', 'Bravo'])
   await page.evaluate(() => {
     const e = window.__spike!.editor
     const positions: number[] = []
@@ -117,9 +118,9 @@ test('saisie et suppression entre cellules conservent la grille ; une sélection
     e.view.focus()
   })
   await page.keyboard.press('Delete')
-  await expect(body(page).locator('td')).toHaveText(['', ''])
+  await expectEditorText(body(page).locator('td'), ['', ''])
   await expect(body(page).locator('tr')).toHaveCount(1)
-  await expect(body(page).locator('figcaption')).toHaveText('Légende')
+  await expectEditorText(body(page).locator('figcaption'), 'Légende')
 })
 test('un vrai événement paste de tableau crée une seule figure sans enveloppe imbriquée', async ({
   page,
@@ -130,7 +131,7 @@ test('un vrai événement paste de tableau crée une seule figure sans enveloppe
   await page.keyboard.press('Enter')
   await paste(page, '<table><tbody><tr><td><p>Collé</p></td></tr></tbody></table>')
   await expect(body(page).locator('[data-editor-widget="tableFigure"]')).toHaveCount(1)
-  await expect(body(page).locator('td')).toHaveText('Collé')
+  await expectEditorText(body(page).locator('td'), 'Collé')
   await expect(body(page).locator('figcaption')).toHaveCount(1)
   await expect(page.getByRole('region', { name: 'Brouillon non synchronisé' })).toBeHidden()
 })
@@ -174,7 +175,7 @@ test('une image absente collée garde le brouillon et ne publie aucun morceau du
   await expect(page.getByRole('region', { name: 'Brouillon non synchronisé' })).toBeVisible()
   await expect(body(page)).toContainText('Brouillon à conserver')
   await expect(body(peer)).not.toContainText('Brouillon à conserver')
-  await expect(body(peer).locator('blockquote p')).toHaveText('Corps')
+  await expectEditorText(body(peer).locator('blockquote p'), 'Corps')
   await peer.close()
 })
 
@@ -187,22 +188,22 @@ test('la composition multizone garde les frontières et la préédition privée 
   await select(page, 'Corps', 'Source')
   await body(page).dispatchEvent('compositionstart', { data: '' })
   await page.evaluate(() => window.__spike!.editor.commands.insertContent('にほん'))
-  await expect(body(page).locator('blockquote p')).toHaveText('Cにほん')
-  await expect(body(peer).locator('blockquote p')).toHaveText('Corps')
-  await expect(body(page).locator('blockquote cite')).toHaveText('urce')
+  await expectEditorText(body(page).locator('blockquote p'), 'Cにほん')
+  await expectEditorText(body(peer).locator('blockquote p'), 'Corps')
+  await expectEditorText(body(page).locator('blockquote cite'), 'urce')
   await body(page).dispatchEvent('compositionend', { data: 'にほん' })
-  await expect(body(peer).locator('blockquote p')).toHaveText('Cにほん')
+  await expectEditorText(body(peer).locator('blockquote p'), 'Cにほん')
   await page.evaluate(() => window.__spike!.provider.flush())
   await body(page).press('ControlOrMeta+z')
-  await expect(body(peer).locator('blockquote p')).toHaveText('Corps')
+  await expectEditorText(body(peer).locator('blockquote p'), 'Corps')
   await select(page, 'Corps', 'Source')
   await body(page).dispatchEvent('compositionstart', { data: '' })
   await body(page).dispatchEvent('compositionend', { data: '' })
   await expect.poll(() => page.evaluate(() => window.__spike!.provider.composing)).toBe(false)
   await page.evaluate(() => window.__spike!.provider.flush())
-  await expect(body(page).locator('blockquote p')).toHaveText('Corps')
-  await expect(body(page).locator('blockquote cite')).toHaveText('Source')
-  await expect(body(peer).locator('blockquote cite')).toHaveText('Source')
+  await expectEditorText(body(page).locator('blockquote p'), 'Corps')
+  await expectEditorText(body(page).locator('blockquote cite'), 'Source')
+  await expectEditorText(body(peer).locator('blockquote cite'), 'Source')
   await peer.close()
 })
 
@@ -231,15 +232,15 @@ test('un déplacement DOM interzones conserve le widget source et une seule annu
       }),
     )
   })
-  await expect(body(page).locator('blockquote').first().locator('p')).toHaveText('C')
-  await expect(body(page).locator('blockquote').first().locator('cite')).toHaveText('urce')
+  await expectEditorText(body(page).locator('blockquote').first().locator('p'), 'C')
+  await expectEditorText(body(page).locator('blockquote').first().locator('cite'), 'urce')
   await page.evaluate(() => window.__spike!.provider.flush())
   await expect(page.getByRole('region', { name: 'Brouillon non synchronisé' })).toBeHidden()
   expect(await page.evaluate(() => window.__spike!.provider.historyState.undo_steps)).toBe(1)
   await body(page).press('ControlOrMeta+z')
   await expect(body(page).locator('blockquote')).toHaveCount(1)
-  await expect(body(page).locator('blockquote p')).toHaveText('Corps')
-  await expect(body(page).locator('blockquote cite')).toHaveText('Source')
+  await expectEditorText(body(page).locator('blockquote p'), 'Corps')
+  await expectEditorText(body(page).locator('blockquote cite'), 'Source')
 })
 
 test('le collage rectangulaire remplace le contenu sans perdre les rôles d’en-tête ni la légende', async ({
@@ -307,9 +308,9 @@ test('le collage rectangulaire remplace le contenu sans perdre les rôles d’en
     page,
     '<table><tr><td><p>A</p></td><td><p>B</p></td></tr><tr><td><p>C</p></td><td><p>D</p></td></tr></table>',
   )
-  await expect(body(page).locator('th')).toHaveText(['A', 'B', 'C'])
-  await expect(body(page).locator('td')).toHaveText('D')
-  await expect(body(page).locator('figcaption')).toHaveText('Légende conservée')
+  await expectEditorText(body(page).locator('th'), ['A', 'B', 'C'])
+  await expectEditorText(body(page).locator('td'), 'D')
+  await expectEditorText(body(page).locator('figcaption'), 'Légende conservée')
   expect(
     await body(page)
       .locator('th')
@@ -317,6 +318,6 @@ test('le collage rectangulaire remplace le contenu sans perdre les rôles d’en
   ).toEqual(['both', 'column', 'row'])
   await page.evaluate(() => window.__spike!.provider.flush())
   await body(page).press('ControlOrMeta+z')
-  await expect(body(page).locator('th')).toHaveText(['Nom', 'Valeur', 'Ancien'])
-  await expect(body(page).locator('td')).toHaveText('Contenu')
+  await expectEditorText(body(page).locator('th'), ['Nom', 'Valeur', 'Ancien'])
+  await expectEditorText(body(page).locator('td'), 'Contenu')
 })
