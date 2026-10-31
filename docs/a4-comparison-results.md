@@ -217,6 +217,24 @@ restaient accessibles pendant le chargement de la nouvelle. Aucune capture,
 vidéo ou trace graphique n’a été enregistrée. Les résultats restent locaux,
 sans prétendre valider la CI Windows/Linux.
 
+### Catalogue d’icônes dans un serveur déjà lancé
+
+Après ajout des SVG de coche et de sens interdit, le serveur Vite déjà utilisé
+par l’application continuait à servir un catalogue sans ces deux fichiers. Le
+module `/src/icons.ts` a été inspecté sur ce serveur : les SVG étaient présents
+sur disque, mais absents du résultat de `import.meta.glob`. Les icônes sont hors
+de la racine `app/` ; leur répertoire doit être surveillé explicitement pour
+recevoir aussi les événements d’ajout et de suppression.
+
+`watchExternalAssets` ajoute cette surveillance au serveur de développement.
+Le test Node crée un serveur unique, consulte son catalogue, ajoute deux SVG puis
+en retire un, sans redémarrage ni réécriture du module. Il est intégré à `npm test`.
+Sur macOS, sa vérification locale nécessite les notifications de fichiers réelles,
+non délivrées dans le bac à sable de l’agent. Les **358 tests Vitest**, **6 tests
+Node**, TypeScript/Vite et Prettier passent. Les deux parcours Chromium/WebKit
+vérifient désormais les tracés SVG réels et leur inversion, dans les deux thèmes,
+pour éviter de confondre une icône de repli avec le symbole attendu.
+
 ### Périmètre restant
 
 Le regroupement reste volontairement conservateur : un paragraphe ou un widget

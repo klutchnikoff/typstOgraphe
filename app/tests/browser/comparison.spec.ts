@@ -247,9 +247,13 @@ test('Article snapshots show deleted and inserted words beside a citation in lig
     const red = dialog.locator('[data-group="0"] [data-side="before"]')
     const green = dialog.locator('[data-group="0"] [data-side="after"]')
     await expect(green).toHaveAttribute('aria-checked', 'true')
+    await expect(green.locator('svg path')).toHaveAttribute('d', 'M20 6 9 17l-5-5')
+    await expect(red.locator('svg circle')).toHaveCount(1)
     await red.click()
     await expect(red).toHaveAttribute('aria-checked', 'true')
     await expect(green).toHaveAttribute('aria-checked', 'false')
+    await expect(red.locator('svg path')).toHaveAttribute('d', 'M20 6 9 17l-5-5')
+    await expect(green.locator('svg circle')).toHaveCount(1)
     const activeColor = await red.evaluate((node) => ({
       background: getComputedStyle(node).backgroundColor,
       color: getComputedStyle(node).color,
