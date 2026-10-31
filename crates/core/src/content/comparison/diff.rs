@@ -13,41 +13,12 @@ pub(in crate::content) fn sequence_diff<T: Eq + std::hash::Hash + Ord>(
         Some(std::time::Instant::now() + std::time::Duration::from_millis(100)),
     )
 }
-fn text(node: &Node) -> String {
-    if let Some(s) = &node.text {
-        return s.clone();
-    }
-    match node.kind.as_str() {
-        "footnote" => format!(
-            "[{}]",
-            node.attrs
-                .as_ref()
-                .and_then(|a| a["text"].as_str())
-                .unwrap_or("")
-        ),
-        "citation" => format!(
-            "[{}]",
-            node.attrs.as_ref().map_or(String::new(), |a| a.to_string())
-        ),
-        "softBreak" | "hardBreak" => "\n".into(),
-        _ => node.content.iter().map(text).collect::<Vec<_>>().join(
-            if matches!(
-                node.kind.as_str(),
-                "paragraph" | "heading" | "figure" | "postscript" | "attachment"
-            ) {
-                ""
-            } else {
-                "\n"
-            },
-        ),
-    }
-}
-pub(super) fn words(before: &[Node], after: &[Node]) -> Vec<TextChange> {
-    let a = before.iter().map(text).collect::<Vec<_>>().join("\n");
-    let b = after.iter().map(text).collect::<Vec<_>>().join("\n");
-    let old: Vec<_> = a.split_word_bounds().collect();
-    let new: Vec<_> = b.split_word_bounds().collect();
-    sequence_diff(&old, &new)
+fn words(before: &[Node], after: &[Node]) -> (Vec<TextChange>, Vec<Highlight>, Vec<Highlight>) {
+    let a = super::projection::Projection::new(before);
+    let b = super::projection::Projection::new(after);
+    let old: Vec<_> = a.text.split_word_bounds().collect();
+    let new: Vec<_> = b.text.split_word_bounds().collect();
+    let changes = sequence_diff(&old, &new)
         .into_iter()
         .flat_map(|op| {
             let (tag, a, b) = op.as_tag_tuple();
@@ -73,7 +44,10 @@ pub(super) fn words(before: &[Node], after: &[Node]) -> Vec<TextChange> {
             }
             out
         })
-        .collect()
+        .collect::<Vec<_>>();
+    let before = a.highlights(&changes, TextChangeKind::Delete);
+    let after = b.highlights(&changes, TextChangeKind::Insert);
+    (changes, before, after)
 }
 fn linked(node: &Node) -> bool {
     !matches!(
@@ -97,13 +71,17 @@ pub(super) fn groups(before: &Archive, after: &Archive) -> Vec<Group> {
     let coupled =
         before.state().settings != after.state().settings || before.assets != after.assets;
     if coupled {
+        let (changes, before_highlights, after_highlights) =
+            words(&before.document.content, &after.document.content);
         return vec![Group {
             id: 0,
             before: 0..a.len(),
             after: 0..b.len(),
             section: Section::Document,
             linked: true,
-            changes: words(&before.document.content, &after.document.content),
+            changes,
+            before_highlights,
+            after_highlights,
             decision: Decision::Pending,
         }];
     }
@@ -114,12 +92,15 @@ pub(super) fn groups(before: &Archive, after: &Archive) -> Vec<Group> {
         .map(|(id, op)| {
             let ar = op.old_range();
             let br = op.new_range();
+            let (changes, before_highlights, after_highlights) = words(
+                &before.document.content[ar.clone()],
+                &after.document.content[br.clone()],
+            );
             Group {
                 id,
-                changes: words(
-                    &before.document.content[ar.clone()],
-                    &after.document.content[br.clone()],
-                ),
+                changes,
+                before_highlights,
+                after_highlights,
                 linked: before.document.content[ar.clone()]
                     .iter()
                     .chain(&after.document.content[br.clone()])

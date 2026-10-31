@@ -124,6 +124,86 @@ fn styles_links_unicode_and_meaningful_spaces_are_not_lost() {
     );
 }
 #[test]
+fn word_highlights_are_attached_to_source_leaves_even_beside_inline_badges() {
+    use crate::document_types::{DocumentType, Metadata};
+    let fixture: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../fixtures/comparison-article-badges.json"
+    ))
+    .unwrap();
+    let mut before = archive(&[""]);
+    before.document = serde_json::from_value(fixture["before"].clone()).unwrap();
+    before.metadata = Metadata::demo(DocumentType::Article);
+    let Metadata::Article(metadata) = &mut before.metadata else {
+        unreachable!()
+    };
+    metadata
+        .references
+        .push(crate::bibliography::ReferenceFile {
+            id: "demo-books".into(),
+            name: "books.bib".into(),
+            contents: "@book{lefevre2021, author={Lefèvre, Camille}, title={Écrire}, year={2021}}"
+                .into(),
+        });
+    before.template = DocumentType::Article.default_model();
+    before.model_id = "article.model.working".into();
+    before.dependencies = crate::packages::for_template(&before.template);
+    let mut after = before.clone();
+    after.document = serde_json::from_value(fixture["after"].clone()).unwrap();
+    let (e, _) = engine(&before);
+    let p = Comparison::new(
+        before.clone(),
+        after.clone(),
+        SourceSide::After,
+        e.guard().clone(),
+    )
+    .unwrap();
+    let group = &p.groups[0];
+    fn marked(archive: &Archive, ranges: &[Highlight]) -> Vec<String> {
+        ranges
+            .iter()
+            .map(|r| {
+                let mut node = &archive.document;
+                for index in &r.path {
+                    node = &node.content[*index];
+                }
+                let text: Vec<u16> = node.text.as_ref().unwrap().encode_utf16().collect();
+                String::from_utf16(&text[r.from as usize..r.to as usize]).unwrap()
+            })
+            .collect()
+    }
+    assert_eq!(marked(&before, &group.before_highlights), ["doit"]);
+    assert_eq!(marked(&after, &group.after_highlights), ["peut", "xx "]);
+    assert_eq!(group.before_highlights[0].path, [0, 2]);
+    assert!(group.linked);
+    after.document.content[1].content[3].attrs.as_mut().unwrap()["text"] = json!("Une autre note");
+    let p = Comparison::new(before.clone(), after, SourceSide::After, e.guard().clone()).unwrap();
+    // The annotation text is represented by a localized badge, marked as one atom.
+    for ranges in [
+        &p.groups[0].before_highlights,
+        &p.groups[0].after_highlights,
+    ] {
+        assert!(ranges.contains(&Highlight {
+            path: vec![1, 3],
+            from: 0,
+            to: 1
+        }));
+    }
+
+    // Local offsets use UTF-16, including astral characters before the changed word.
+    let before = archive(&["😀 doit rester", ""]);
+    let after = archive(&["😀 peut rester", ""]);
+    let p = Comparison::new(
+        before.clone(),
+        after.clone(),
+        SourceSide::After,
+        e.guard().clone(),
+    )
+    .unwrap();
+    assert_eq!(p.groups[0].before_highlights[0].from, 3);
+    assert_eq!(marked(&before, &p.groups[0].before_highlights), ["doit"]);
+    assert_eq!(marked(&after, &p.groups[0].after_highlights), ["peut"]);
+}
+#[test]
 fn metadata_and_content_are_one_safe_atomic_unit() {
     let before = archive(&["before", ""]);
     let mut after = archive(&["after", ""]);

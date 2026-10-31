@@ -1,5 +1,6 @@
 //! Immutable documentary comparisons and guarded human decisions, shared by all adapters.
 mod diff;
+mod projection;
 use super::{
     Node,
     archive::Archive,
@@ -41,6 +42,14 @@ pub struct TextChange {
     pub kind: TextChangeKind,
     pub text: String,
 }
+/// UTF-16 ranges in a text leaf, or 0..1 for an inline object. Paths are relative
+/// to the group's document slice, independent of localized DOM badge labels.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct Highlight {
+    pub path: Vec<usize>,
+    pub from: u32,
+    pub to: u32,
+}
 #[derive(Clone, Debug, Serialize)]
 pub struct Group {
     pub id: usize,
@@ -49,6 +58,8 @@ pub struct Group {
     pub after: Range<usize>,
     pub linked: bool,
     pub changes: Vec<TextChange>,
+    pub before_highlights: Vec<Highlight>,
+    pub after_highlights: Vec<Highlight>,
     pub decision: Decision,
 }
 #[derive(Clone, Debug, Serialize)]
