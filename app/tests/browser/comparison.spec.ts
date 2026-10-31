@@ -113,6 +113,42 @@ test('historical versions stay read only and keyboard tabs preserve a frozen com
   await expect(dialog.locator('.comparison-decisions button.primary')).toHaveCount(2)
   await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
 })
+test('neighboring paragraph edits can be resumed and refused independently', async ({ page }) => {
+  await ready(page)
+  await page.locator('.side-rail [data-command="ui.versions"]').click()
+  await capture(page, 'Paragraphes de départ')
+  await page.evaluate(async () => {
+    const { editor, provider } = window.__spike!
+    editor.commands.insertContentAt(editor.state.doc.child(0).nodeSize + 1, 'New ')
+    editor.commands.insertContentAt(1, 'New ')
+    await provider.flush()
+  })
+  await page.locator('.versions-groups [data-version]').click()
+  const dialog = page.locator('.version-dialog[open]')
+  await dialog.getByRole('tab', { name: 'Comparer', exact: true }).click()
+  await expect(dialog.locator('.comparison-group')).toHaveCount(2)
+  await expect(dialog.locator('[data-group="0"] .comparison-side').first()).toHaveText(
+    'Original one',
+  )
+  await expect(dialog.locator('[data-group="1"] .comparison-side').first()).toHaveText(
+    'Stable anchor',
+  )
+  await dialog.locator('[data-group="0"] button.primary').click()
+  await expect(dialog.locator('[data-group="0"]')).toContainText('Repris dans le document')
+  await expect(dialog.locator('[data-group="1"] button.primary')).toBeEnabled()
+  await dialog
+    .locator('[data-group="1"]')
+    .getByRole('button', { name: 'Conserver le passage actuel', exact: true })
+    .click()
+  await expect(dialog.locator('[data-group="1"]')).toContainText('Passage actuel conservé')
+  const paragraphs = await page.evaluate(() => {
+    const nodes: string[] = []
+    window.__spike!.editor.state.doc.forEach((node) => nodes.push(node.textContent))
+    return nodes
+  })
+  expect(paragraphs.slice(0, 2)).toEqual(['Original one', 'New Stable anchor'])
+  await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
+})
 test('Article snapshots show deleted and inserted words beside a citation in light and dark modes', async ({
   page,
 }) => {
@@ -210,7 +246,7 @@ test('MCP proposals use the same modal, partial decisions and human-only publica
         document,
         request_id: 'browser-local',
         summary: 'Two revisions',
-        steps: [0, 2].map((i) => ({
+        steps: [0, 1].map((i) => ({
           id: 'text.insert',
           params: {
             target: { zone: { kind: 'body', path: [i] }, from: 0, to: 0 },
@@ -248,7 +284,7 @@ test('MCP proposals use the same modal, partial decisions and human-only publica
     'Proposed Original one',
   )
   expect(await page.evaluate(() => window.__spike!.editor.getText())).not.toContain(
-    'Proposed Original two',
+    'Proposed Stable anchor',
   )
   await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
   await page.locator('.writing .tiptap').click()

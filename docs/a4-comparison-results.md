@@ -141,10 +141,40 @@ la comparaison historique Article reproduisant `doit` → `peut` et `xx`, avec
 vérification du rouge barré/vert souligné en modes clair et sombre. Ces contrôles
 sont locaux ; aucune capture n’a été enregistrée.
 
+### Décisions distinctes entre paragraphes voisins
+
+Le découpage initial regroupait tous les blocs modifiés consécutifs entre deux
+ancrages inchangés. Les versions extrêmes de l’exemple local ont confirmé que deux
+paragraphes conservant leurs propres frontières pouvaient ainsi partager une
+décision sans dépendance documentaire le justifiant.
+
+Le raffinement validé utilise les identités de blocs des checkpoints. Lorsque
+les frontières d’un passage sont conservées dans le même ordre et en même nombre,
+chaque bloc donne sa propre décision. Le découpage ne descend jamais à l’intérieur
+d’un widget : corps et attribution d’une citation, items d’une liste, cellules et
+légende d’un tableau restent solidaires. Un changement de réglages, bibliothèque
+ou ressources conserve le regroupement documentaire prioritaire.
+
+Les fusions/scissions, identités absentes ou recréées et correspondances ambiguës
+restent groupées. Le nombre de paragraphes ne suffit pas : une fusion suivie
+d’une scission peut conserver ce nombre en changeant les frontières. Ces passages
+portent l’indication commune « Éléments liés · une décision ».
+
+Validation locale : **208 tests du cœur et son doctest** réussis, dont les
+**19 tests du comparateur**. Les nouveaux tests couvrent les deux sens de reprise,
+l’acceptation/refus entre voisins, l’ordre arbitraire, les étapes d’annulation
+distinctes, les widgets entiers, la priorité des dépendances et les frontières
+recréées ou issues d’une fusion/scission. **10 parcours Chromium/WebKit** passent
+avec le vrai moteur, notamment reprise d’un paragraphe voisin et conservation
+de l’autre, ainsi qu’acceptation/refus MCP entre deux voisins. TypeScript/Vite,
+Clippy workspace/tous les targets, Prettier, formatage Rust, contrôle des longueurs
+et `git diff --check` réussissent. Aucune capture n’a été enregistrée.
+
 ### Périmètre restant
 
 Le regroupement reste volontairement conservateur : un paragraphe ou un widget
-n’est pas découpé en décisions textuelles plus fines. Un changement de réglages,
+n’est pas découpé en décisions textuelles plus fines ; les frontières non prouvées
+restent groupées. Un changement de réglages,
 ressources documentaires ou bibliothèque bibliographique regroupe le contenu associé ; aucune
 indépendance supplémentaire n’est déduite de la proximité visuelle des changements.
 Les deux aperçus permettent d’examiner aussi les différences de présentation.
