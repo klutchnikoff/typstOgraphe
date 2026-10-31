@@ -120,18 +120,27 @@ polices dont un modèle exige l’embarquement devront être déclarées comme
 ressources du projet. Une identité absolue du PDF entre versions du moteur ou
 machines n’est pas promise par ce premier schéma.
 
-## Index des versions et protection des références
+## Index des versions et références internes de relecture
 
-`versions.json` porte sa version de schéma, une collection de snapshots et les
-références typées nécessaires pour savoir lesquels sont protégés.
-Chaque entrée de snapshot contient :
+`versions.json` porte sa version de schéma et deux collections distinctes :
+
+- `snapshots` : les versions affichées dans **Versions**, créées manuellement ou
+  conservées automatiquement avant restauration ;
+- `review_references` : les snapshots de référence internes à **Relectures**,
+  gérés avec leur relecture et absents de la liste ordinaire des versions.
+
+Ces collections partagent les mêmes descripteurs et objets CAS. Deux entrées
+latérales restent distinctes : le partage du stockage ne définit pas les outils
+de relecture, qui restent ceux du chantier J.
+
+Chaque entrée de `snapshots` contient :
 
 - un `id` UUID stable, indépendant de son nom et du descripteur CAS ;
 - `created_at`, instant UTC automatique, affiché selon la locale de l’interface ;
 - `name`, nom libre modifiable, daté par défaut ;
 - `tags`, liste facultative, et `description`, texte facultatif ;
 - `creator`, identité disponible du créateur, sans attribution de toutes les modifications ;
-- `reason` : `manual`, `review_start` ou `before_restore` ;
+- `reason` : `manual` ou `before_restore` ;
 - `state`, référence CAS immuable de son descripteur.
 
 Le classement chronologique utilise la date, avec l’identifiant comme départage
@@ -139,13 +148,19 @@ stable. Ni l’ordre de l’index, ni le nom, ni les tags ne définissent le con
 d’une version. Renommer ou étiqueter ne crée pas un nouveau snapshot et ne
 change ni sa date, ni son créateur, ni sa référence d’état.
 
-Les références de relecture lient un identifiant de relecture à un identifiant
-de snapshot, avec une indication d’activité. Elles constituent la source de la
-protection contre la suppression ; une simple étiquette « relecture » ne suffit
-pas. Supprimer une version référencée par une relecture active est refusé.
-La collection reste vide tant qu’aucune relecture n’existe. Le stockage
-des suggestions/commentaires et la politique après clôture restent à préciser
-dans J ; ce format ne définit pas déjà le contenu de ces annotations.
+Chaque référence interne associe un identifiant de snapshot, un `review_id`, un
+instant de création, une référence `state` immuable et une indication d’activité.
+Elle est créée automatiquement au démarrage d’une nouvelle relecture, conservée
+et protégée pendant toute sa durée. Reprendre une relecture existante ne recrée
+pas sa référence. Son gestionnaire refuse la suppression tant qu’elle est active ;
+une simple étiquette « relecture » dans une version manuelle ne crée pas ce lien.
+
+La collection reste vide tant qu’aucune relecture n’existe. Une version visible
+et une référence interne peuvent pointer vers le même état CAS : supprimer la
+ligne de version ne libère pas l’état encore référencé par la relecture. Le
+stockage des suggestions/commentaires et la rétention après clôture restent à
+préciser dans J. Ce format n’impose ni nouvelle action « Comparer à l’état
+initial », ni usage de la modale Versions dans les outils de relecture.
 
 ## Sauvegarde, création, restauration et suppression
 
@@ -199,18 +214,22 @@ Des limites distinctes évitent de confondre taille du document et poids de son
 historique. **Budgets retenus :** conserver le plafond
 de 64 Mio par état documentaire, 32 Mio par checkpoint Yjs et 16 Mio par image ;
 autoriser jusqu’à 512 Mio sur disque et décompressés pour l’archive, 16 384 objets
-et **100 snapshots maximum**, toutes origines confondues (`manual`, `review_start`,
-`before_restore`). L’état courant ne compte pas comme un snapshot supplémentaire.
+et **100 versions affichées maximum** (`manual`, `before_restore`). Le quota
+porte sur les entrées de `snapshots`, pas sur le nombre d’objets CAS. L’état
+courant et les références internes de `review_references` n’y sont pas comptés.
 Un plafond est un refus explicite sans perte, jamais une autorisation de supprimer
 des versions. Ces budgets doivent être vérifiés lors de
 l’intégration ; ils ne sont pas une garantie de latence sur ces volumes.
 
-À 100 snapshots, l’édition et la sauvegarde ordinaire restent possibles dans les
+À 100 versions affichées, l’édition et la sauvegarde ordinaire restent possibles dans les
 limites de volume. Pour créer une nouvelle version, l’utilisateur est invité à
 supprimer explicitement une version non protégée. Aucun roulement automatique.
 Si une restauration exige une sauvegarde `before_restore` et qu’aucune place n’est
-disponible, la restauration est refusée avant toute modification ; même règle
-pour le démarrage d’une nouvelle relecture exigeant sa référence initiale.
+disponible, la restauration est refusée avant toute modification.
+Une référence de relecture ne consomme pas silencieusement une place visible :
+sa rétention et ses limites propres restent à préciser dans J, sous les plafonds
+de volume et d’objets du projet. Atteindre ceux-ci refuse une nouvelle référence
+sans supprimer un état conservé ni commencer une relecture sans sa base.
 
 La maquette de Versions doit maintenant concrétiser :
 

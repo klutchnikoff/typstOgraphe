@@ -68,9 +68,11 @@ par un espace de stockage imposé.
 
 La piste à maquetter s’appuie sur la barre verticale existante et un seul panneau
 latéral ouvert à la fois, avec les accès aux outils et aux préférences globales.
-« Versions » est le libellé proposé pour les snapshots. Leur consultation,
-leur comparaison et leurs actions demandent une maquette spécifique ; la
-séparation Projets/Document n’en fige pas encore la présentation détaillée.
+**Versions** et **Relectures** sont deux entrées distinctes de la barre latérale.
+Versions expose les états conservés pour consultation/restauration ; Relectures
+conserve le parcours par annotations du chantier J. Les références techniques
+de relecture ne sont pas des lignes de Versions. La modale commune de consultation
+et comparaison sert aux versions et aux propositions MCP, avec des actions adaptées.
 
 ## Priorités et dépendances
 
@@ -129,12 +131,14 @@ maquettes. A.4 n’est pas clos.
 
 **Format cible validé :** le [contrat de conteneur CAS](docs/a4-project-format.md)
 décrit le manifeste du projet, les descripteurs d’états vérifiés, l’index des
-versions et les ressources partagées. Elle distingue contenu immuable et nom/tags
+versions et les ressources partagées. Il distingue contenu immuable et nom/tags
 modifiables, lecture sélective et export compilable. Limites retenues : 64 Mio par
-état, 512 Mio pour l’archive et **100 snapshots maximum**, toutes origines
-confondues. Aucune suppression automatique à la limite ; une création obligatoire
-avant restauration ou relecture est refusée sans modification si aucune place
-n’est disponible. La maquette de Versions précède l’implémentation.
+état, 512 Mio pour l’archive et **100 versions affichées maximum** (manuelles et
+sauvegardes avant restauration). Les références internes de relecture et les
+candidats MCP ne consomment pas ce quota. Aucune suppression automatique ; une
+restauration exigeant une nouvelle sauvegarde est refusée sans modification si
+les 100 places sont occupées. Les références de relecture restent soumises aux
+budgets de volume du projet et à une politique de rétention propre à J.
 
 - Préciser le contrat de conservation de l’arbre documentaire, de Yjs et du
   Typst généré avec les snapshots avant de stabiliser le format public du .typsto.
@@ -151,9 +155,14 @@ n’est disponible. La maquette de Versions précède l’implémentation.
   après incident. Prévoir consultation en lecture seule, comparaison et retour
   à un état conservé sans effacer l’historique. Maquetter et valider le parcours
   de restauration, de copie indépendante et de suppression des snapshots.
-- Prévoir dans le panneau latéral du document actif une rubrique **Versions** :
-  navigation chronologique, consultation, nom/tags et suppression des snapshots
-  autorisés. Maquetter cette interface et ses parcours clavier avant codage.
+- Prévoir dans la barre latérale une entrée **Versions**, distincte de **Relectures** :
+  groupes par origine visible (manuelles, avant restauration), ordre chronologique
+  dans chaque groupe, nom/tags et suppression autorisée. Un clic ouvre une modale
+  centrée à 90 % de la fenêtre, sur fond atténué et légèrement flouté : Contenu,
+  Aperçu, Comparer, avec sélecteur de comparaison dans ce dernier mode. Garder
+  l’espace restant pour l’affichage et les confirmations dans la même modale.
+  Échap ferme d’abord la confirmation, puis la consultation et rend le focus à
+  la version dans la liste. Vérifier ces parcours avant codage.
 - Livrer une **interface commune de comparaison pour les snapshots et les
   propositions MCP** : comparer deux snapshots ou un snapshot et l’état courant,
   présenter les différences par groupes avec leur contexte et naviguer entre eux.
@@ -176,13 +185,15 @@ n’est disponible. La maquette de Versions précède l’implémentation.
 
 **Lien avec la relecture J — règle retenue :** démarrer une nouvelle relecture
 crée automatiquement un snapshot de l’état initial et rattache la relecture à
-cette référence. Ce snapshot reste conservé et inchangé pendant toute sa durée ;
+cette référence **interne, absente de la liste Versions**. Ce snapshot reste
+conservé et inchangé pendant toute sa durée ;
 il ne peut pas être supprimé tant que la relecture est en cours. Rouvrir une
 relecture existante ou son panneau ne crée pas un autre snapshot. Ce déclencheur
 explicite ne suppose pas de snapshots automatiques heuristiques. Les suggestions
 restent des annotations ancrées distinctes du contenu, acceptées ou refusées par
 les commandes ordinaires : la comparaison avec le snapshot ne les remplace pas.
-A.4 prépare ce socle sans avancer l’implémentation ni la maquette de J.
+A.4 prépare ce socle sans avancer l’implémentation ni la maquette de J, et sans
+imposer une action « Comparer à l’état initial » ou la modale Versions à ce parcours.
 
 **Choix restant à valider pour A.4 :** parcours graphiques et détails de comparaison.
 Pour les snapshots : autres déclencheurs éventuels,
@@ -568,6 +579,11 @@ version, puis être peaufinée.
   pas ces outils. Mutualiser les composants pertinents sans imposer la même
   présentation. L’acceptation MCP reste par lot entier jusqu’au lot dédié F de
   validation locale, qui préservera les décisions groupées pour les opérations liées.
+- **Relectures** est une entrée propre de la barre latérale, distincte de Versions.
+  Son snapshot initial est un support interne protégé, absent des versions affichées
+  et de leur quota de 100. Sa rétention relève de la relecture et des budgets de
+  volume du projet. Ne pas remplacer les outils déjà définis ici par une simple
+  consultation de snapshots, ni ajouter un bouton de comparaison non validé.
 - Limiter le premier périmètre de relecture humaine aux suggestions de texte dans une zone (insertion,
   suppression, remplacement, commentaire). Les suggestions structurelles (blocs,
   tableaux, notes, citations) et le suivi de formatage viennent plus tard.

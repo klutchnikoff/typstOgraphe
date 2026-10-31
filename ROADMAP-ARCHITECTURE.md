@@ -114,14 +114,16 @@ encore à faire. Git reste dans l’expérience isolée. Cette décision ne clô
 
 Le [format cible validé](docs/a4-project-format.md) précise
 un ZIP entièrement CAS, un manifeste pointant sur l’état courant, des descripteurs
-immuables communs aux snapshots et un index de versions distinct. Elle décrit
+immuables communs aux snapshots et un index de versions distinct. Il décrit
 la vérification Yjs/projection/sources, les ressources et inventaires embarqués,
 les métadonnées modifiables des snapshots, la lecture sélective et les budgets.
-Retenir **100 snapshots maximum**, toutes origines confondues, hors état courant.
-Une sauvegarde ordinaire ne consomme pas de place dans ce quota. Une création
-à la limite est refusée sans suppression automatique ; restauration et démarrage
-de relecture sont refusés avant mutation si leur snapshot obligatoire ne peut
-pas être créé. Inviter à supprimer explicitement une version non protégée.
+Retenir **100 versions affichées maximum** (`manual`, `before_restore`), hors
+état courant, références internes de relecture et candidats MCP privés. Cette
+règle remplace le quota initial toutes origines confondues. Une sauvegarde
+ordinaire ne consomme pas de place. Une restauration nécessitant `before_restore`
+à la limite est refusée avant mutation, sans suppression automatique. Le quota
+visible ne bloque pas à lui seul une nouvelle relecture : ses références
+internes restent soumises aux budgets de volume et à la rétention de J.
 Point à intégrer : la validation des packages doit s’appuyer sur l’inventaire
 de l’état conservé, sans le rendre dépendant du catalogue installé. Ne pas
 confondre ce document de conception avec le schéma de production déjà livré.
@@ -146,9 +148,14 @@ moteur Yjs/Yrs pour la synchronisation.
 Évaluer la comparaison documentaire par blocs, texte, annotations, métadonnées
 et ressources, sans exposer les différences d’octets Yjs à l’utilisateur.
 
-Livrer une interface **Versions** dans le panneau latéral du document actif :
-parcours chronologique, consultation, nom/tags et suppression autorisée. Maquetter
-la navigation, la comparaison et les confirmations, y compris au clavier.
+Livrer deux entrées latérales distinctes : **Versions** et **Relectures**. Versions
+groupe les origines visibles (manuelles, avant restauration), avec ordre
+chronologique dans chaque groupe. Le clic ouvre une modale centrée à 90 % de
+la fenêtre, sur fond atténué/flouté : Contenu, Aperçu, Comparer et choix de l’état
+comparé dans ce dernier mode. Confirmer restauration/suppression dans la même
+modale. Échap annule d’abord la confirmation, puis ferme la consultation avec
+retour du focus à la ligne d’origine. Les références internes de relecture ne
+s’affichent pas dans Versions ; conserver les outils dédiés de J.
 
 Partager entre snapshots et propositions MCP un contrat de différences et une
 interface de comparaison, en séparant calcul, présentation et décisions. Comparer
@@ -183,12 +190,15 @@ ne doit pas dépendre du seul état courant.
 
 **Articulation avec J — règle retenue :** le démarrage d’une nouvelle relecture
 crée automatiquement un snapshot de l’état initial et rattache la relecture à
-son identité stable. Conserver cette référence inchangée pendant toute la
+son identité stable, dans une collection interne distincte des versions affichées.
+Conserver cette référence inchangée pendant toute la
 relecture et empêcher sa suppression tant que celle-ci est en cours. La reprise
 d’une relecture existante ou la réouverture de son panneau ne crée pas un nouveau
 snapshot. Ce déclencheur explicite n’introduit aucune création automatique
 heuristique. La référence durable et comparable ne remplace ni les annotations
 ancrées de suggestion, ni leurs commandes d’acceptation/refus sous garde.
+Cette base commune n’impose pas de bouton « Comparer à l’état initial » ou de
+parcours Versions dans Relectures.
 
 Avant de coder, préciser ensemble la conservation des suggestions/commentaires
 et de leurs ressources, leur devenir après restauration, ainsi que la rétention
@@ -336,9 +346,10 @@ entrée ne les supprime pas. Préférences et bibliothèque globales restent
 distinctes des données du projet.
 
 Maquetter cette séparation sur la barre verticale existante ; un seul panneau
-ouvert à la fois et le libellé « Versions » sont les pistes proposées. La
-disposition détaillée, la consultation en lecture seule, la comparaison et les
-actions de restauration restent à valider. Le choix fenêtres/onglets pour
+ouvert à la fois. **Versions** et **Relectures** sont des entrées distinctes.
+La consultation de Versions et des propositions MCP partage une modale à 90 %,
+avec onglets Contenu/Aperçu/Comparer et confirmations intégrées ; Relectures
+garde les interactions prévues dans J. Le choix fenêtres/onglets pour
 plusieurs projets ouverts reste lui aussi distinct de cette séparation.
 
 Les tests graphiques Chromium/WebKit vérifient le frontend ; les recettes natives
@@ -503,6 +514,9 @@ A.4 prépare la référence de chaque relecture : créer automatiquement un snap
 au démarrage d’une nouvelle relecture, le lui rattacher et le conserver inchangé
 pendant toute sa durée, en empêchant sa suppression tant qu’elle est en cours.
 La reprise ne recrée pas de snapshot ; aucun déclencheur heuristique n’est prévu.
+Cette référence est interne à Relectures, hors liste Versions et quota des
+100 versions affichées. Son cycle de vie relève de J, sous les limites de volume
+du projet ; ne pas dériver son interface des actions de comparaison de snapshots.
 La conservation des suggestions, l’effet d’une restauration et la rétention de la
 référence après clôture restent à préciser ensemble dans A.4/J. Le calcul de différences entre
 snapshots et les suggestions ancrées ont des rôles distincts ; la relecture ne se
