@@ -1,6 +1,13 @@
 # Interface typstOgraphe. Ne pas traduire les données des courriers.
 
 save-dialog = Save document
+native-menu-about = About typstOgraphe
+native-menu-hide = Hide typstOgraphe
+native-menu-hide-others = Hide Others
+native-menu-cut = Cut
+native-menu-copy = Copy
+native-menu-paste = Paste
+native-menu-select-all = Select All
 file-dialog-unavailable = The system could not open the file dialog. No file was opened or saved. Please try again.
 letter-filter = typstOgraphe document
 default-filename = Document.typsto

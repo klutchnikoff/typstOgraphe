@@ -32,7 +32,15 @@ pub async fn choose_file(
     default_name: Option<String>,
 ) -> Result<Option<String>, String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
-    let dialog = app.dialog().file().add_filter("typstOgraphe", &["typsto"]);
+    let dialog = app
+        .dialog()
+        .file()
+        .set_title(typstographe_i18n::text(if save {
+            "save-dialog"
+        } else {
+            "open-dialog"
+        }))
+        .add_filter(typstographe_i18n::text("letter-filter"), &["typsto"]);
     if save {
         dialog
             .set_file_name(

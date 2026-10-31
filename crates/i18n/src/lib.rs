@@ -4,7 +4,9 @@
 #[path = "errors.rs"]
 mod command_errors;
 mod content_errors;
+mod native;
 pub use content_errors::{archive_error_with, content_error_with};
+pub use native::{NativeMenuLabels, native_menu_labels};
 pub fn archive_error(error: &typstographe_core::content::archive::Error) -> String {
     archive_error_with(loader(), error)
 }

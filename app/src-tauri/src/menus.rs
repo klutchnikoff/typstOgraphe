@@ -39,6 +39,7 @@ pub fn install(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     #[cfg(target_os = "macos")]
     {
         use tauri::menu::{MenuBuilder, SubmenuBuilder};
+        let native = typstographe_i18n::native_menu_labels();
         let labels = typstographe_i18n::web_messages();
         let label = |source: &str| {
             labels
@@ -55,12 +56,12 @@ pub fn install(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
             Some("CmdOrCtrl+Q"),
         )?;
         let application = SubmenuBuilder::new(app, "typstOgraphe")
-            .about(None)
+            .about_with_text(&native.about, None)
             .separator()
             .text("ui.preferences", label("Préférences…"))
             .separator()
-            .hide()
-            .hide_others()
+            .hide_with_text(&native.hide)
+            .hide_others_with_text(&native.hide_others)
             .separator()
             .item(&quit)
             .build()?;
@@ -80,10 +81,10 @@ pub fn install(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
             .text("history.undo", typstographe_i18n::text("cmd-undo"))
             .text("history.redo", label("Rétablir"))
             .separator()
-            .cut()
-            .copy()
-            .paste()
-            .select_all()
+            .cut_with_text(&native.cut)
+            .copy_with_text(&native.copy)
+            .paste_with_text(&native.paste)
+            .select_all_with_text(&native.select_all)
             .separator()
             .text("ui.find", label("Rechercher et remplacer…"))
             .text("find.next", label("Occurrence suivante"))

@@ -59,6 +59,13 @@ recovery-load-failed = Impossible de récupérer cette copie : { $error }
 recovery-delete-failed = Impossible de supprimer cette copie : { $error }
 
 save-dialog = Enregistrer le document
+native-menu-about = À propos de typstOgraphe
+native-menu-hide = Masquer typstOgraphe
+native-menu-hide-others = Masquer les autres
+native-menu-cut = Couper
+native-menu-copy = Copier
+native-menu-paste = Coller
+native-menu-select-all = Tout sélectionner
 file-dialog-unavailable = Le système n’a pas pu ouvrir le sélecteur de fichiers. Aucun fichier n’a été ouvert ni enregistré. Réessayez.
 letter-filter = Document typstOgraphe
 default-filename = Document.typsto
