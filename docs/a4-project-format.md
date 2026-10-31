@@ -212,14 +212,14 @@ de comparaison reste immuable. La publication passe par les commandes gardées
 du moteur ; sauvegarde et export conservent leurs autorisations distinctes.
 La conservation durable éventuelle d’une proposition après décision reste à préciser avec F : cette
 décision n’ajoute pas une origine visible « agent » ou une sauvegarde automatique.
-Le refus ne publie aucune modification. Le comparateur commun d’A.4 construira
+Le refus ne publie aucune modification. Le comparateur commun d’A.4 fournit
 les décisions locales et leur application gardée, pour Versions comme pour MCP.
-Les groupes indépendants pourront être appliqués séparément ; les opérations
+Les groupes indépendants peuvent être appliqués séparément ; les opérations
 liées restent atomiques. Les états initiaux ne sont jamais réécrits. La progression
 et la garde de travail sont distinctes de ces états : une validation locale connue
 peut faire avancer cette garde, sans autoriser un réancrage implicite après une
-intervention extérieure. La production conserve son acceptation par lot entier
-jusqu’au raccordement du nouveau mécanisme commun.
+intervention extérieure. Le premier raccordement emploie maintenant cette voie
+commune pour les décisions locales de la modale MCP.
 
 La modale de consultation/comparaison est commune avec Versions, avec les
 onglets Contenu, Aperçu et Comparer. Son contexte MCP choisit par défaut
@@ -228,7 +228,8 @@ actions de restauration/suppression d’une version conservée. Les aperçus et
 ressources des deux états restent isolés du document courant. Les intitulés
 ne prétendent pas que la base est encore le document actuel si celui-ci a évolué.
 
-Si la révision courante change, la proposition devient périmée pour publication ;
+Si une intervention extérieure change la révision courante, la proposition devient
+périmée pour publication ;
 la comparaison des deux états figés reste consultable, sans fusion ni réancrage
 automatique. Revenir au même contenu ou à la même empreinte par Annuler ne
 réactive pas la garde. Une proposition applicable doit être préparée à partir

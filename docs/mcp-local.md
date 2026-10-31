@@ -33,7 +33,7 @@ Leur édition demanderait une relecture qui les montre explicitement. Les ancien
 contrats d’[autorisations de fichiers](mcp-files-attached.md) décrivent egui ; ils
 ne constituent pas des droits disponibles dans Tauri.
 
-Seul l’utilisateur peut accepter ou refuser le lot entier. Aucun outil MCP ne peut
+Seul l’utilisateur peut accepter ou refuser les groupes applicables dans le comparateur commun. Les changements liés restent atomiques. Aucun outil MCP ne peut
 l’approuver. À l’acceptation, Rust revérifie identité, révision, IME et état du lot,
 revalide son rendu et publie les commandes enregistrées. Le navigateur reçoit le
 delta Yrs confirmé ; il ne reconstruit plus une modification indépendante. Une

@@ -1,7 +1,9 @@
 # A.4 — Comparaison et décisions locales communes
 
 Statut : périmètre et maquette interactive validés le 31 octobre 2026.
-Implémentation du comparateur commun et des décisions locales en cours.
+Comparateur commun et premier raccordement des décisions locales implémentés.
+Voir le [bilan de validation](a4-comparison-results.md) et la
+[maquette conservée](mockups/a4-comparison.html).
 
 ## Socle commun retenu
 
@@ -68,8 +70,9 @@ le reliquat sous la nouvelle garde, sans le rejouer aveuglément.
 
 Une intervention extérieure ne bénéficie pas de cette progression connue.
 Elle impose un contrôle et un réexamen explicites avant toute nouvelle application.
-Revenir au même contenu par Annuler ne réactive pas une ancienne garde. Le contrat
-détaillé des conflits, du recalcul éventuel et des gardes sera arrêté avant codage.
+Revenir au même contenu par Annuler ne réactive pas une ancienne garde. Le premier raccordement bloque les publications restantes après une intervention
+extérieure ; il ne recalcule ni ne réancre implicitement la paire. Versions demande
+une nouvelle ouverture ; MCP demande une nouvelle proposition depuis une base relue.
 
 ## Raccordement MCP
 
@@ -81,8 +84,8 @@ ni export implicite. Les propositions ne deviennent pas automatiquement des
 versions confirmées et ne remplacent pas les annotations de relecture du chantier J.
 
 F.3 adapte le protocole, les reçus et le cycle de vie des propositions. Il ne
-reconstruit pas un deuxième moteur d’application locale. L’acceptation par lot
-entier reste le comportement actuel tant que ce raccordement n’est pas livré.
+reconstruit pas un deuxième moteur d’application locale. La modale MCP réutilise maintenant les décisions locales. Les changements liés
+restent atomiques ; une commodité permet d’appliquer les groupes restants.
 
 ## Maquette validée et règles du premier raccordement
 
@@ -103,9 +106,58 @@ Une différence de structure non identifiable sans ambiguïté reste groupée.
 Les changements de paramètres, de ressources et de dépendances sont regroupés
 avec le contenu associé lorsque leur indépendance n’est pas prouvée.
 
-## Points à préciser au fil de l’implémentation
+## Implémentation et limites explicites
 
-- Présentation des dépendances, progression des décisions, conflits et éventuel
-  recalcul explicite après une intervention extérieure.
-- Bibliothèque de diff : évaluer une brique existante avant de la retenir ;
-  l’ancien usage de `similar` ne constitue pas une sélection actuelle.
+`content::comparison::Comparison` possède la paire privée, les groupes et la garde
+de travail. `prepare` produit un candidat opaque, lié à l’identité de cette
+comparaison et à l’époque de ses décisions. `publish` recontrôle ces références et
+passe par `EditingSession::publish_prepared`. Un candidat préparé pour une autre
+paire, une décision concurrente ou une ancienne révision est refusé sans publication.
+
+`similar` **3.2.1** a été retenu après évaluation de son API de séquences et de
+mots Unicode : crate Rust sans backend natif supplémentaire, version déjà disponible
+dans le cache local, maintien en amont et délai de calcul configurable. Les
+[sources de la bibliothèque](https://github.com/mitsuhiko/similar) et son
+[API de comparaison](https://docs.rs/similar/latest/similar/algorithms/index.html)
+sont les références. L’alignement exact des blocs et le détail des mots utilisent
+Myers avec échéance de 100 ms par alignement. Une limite atteinte produit un
+regroupement conservateur ; elle n’autorise aucune correspondance approximative.
+
+Le premier découpage applique les différences entre ancrages de blocs identiques.
+Plusieurs modifications dans un même paragraphe ou widget restent une décision.
+Si les réglages, la bibliothèque bibliographique, les ressources ou les paquets
+changent, le contenu associé est regroupé en une seule décision documentaire :
+le premier moteur ne prétend pas encore prouver des indépendances plus fines.
+Les caractères, espaces significatives, liens et mises en forme sont conservés ;
+les deux projections riches restent disponibles même lorsque le texte est identique.
+Les fichiers modifiés sont inventoriés et les deux rendus Typst sont isolés.
+
+L’adaptateur capture un checkpoint immuable sous verrou, puis prépare et compile
+le candidat hors du verrou de la session active. La publication reprend le verrou
+et revérifie garde, identité et décisions ; écrire entre la capture et la fin de
+la compilation ne permet jamais d’écraser la nouvelle saisie. La fenêtre qui accepte
+reçoit aussi le delta confirmé dans la réponse, indépendamment des notifications.
+
+La référence aux dépendances épinglées participe au même historique causal que
+les réglages, y compris si seul le contenu d’un paquet change. Cette référence
+opaque est renouvelée pour chaque décision publiée : réutiliser une empreinte de
+contenu pourrait confondre deux jeux après réouverture d’un ancien checkpoint.
+Le propriétaire résout la référence avec la source du modèle et
+retient les jeux immuables nécessaires à Annuler/Rétablir. La récupération invalide
+son cache lors d’un changement de ce jeu. Les octets Yjs et ces références internes
+ne constituent pas la présentation des différences.
+
+La soumission MCP fige les archives complètes de base et de candidat, pas seulement
+leurs textes. Une proposition devenue périmée avant sa première consultation
+reste lisible. Les reçus exposent `decisions` et `workingRevision` ; `revision`
+reste celle de la base initiale. `partially_accepted` est terminal quand des groupes
+ont été appliqués et les autres refusés. Aucun outil MCP ne peut décider ; aucun
+accord ne sauvegarde ni n’exporte implicitement.
+
+Les comparaisons restent temporaires en mémoire, hors `.typsto` et hors récupération
+des formulaires. Fermer une consultation Versions libère son contexte ; fermer la
+modale d’une proposition en attente conserve ses décisions pendant l’invitation.
+Après intervention extérieure, un retour au même texte par Annuler ne réactive pas
+la garde. Aucun rebase automatique ni reprise vers un tiers état n’est livré.
+Une collision entre deux ressources d’image immuables de même chemin et de contenu
+différent est refusée ; l’import normal utilise des chemins fondés sur le contenu.

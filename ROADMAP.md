@@ -190,7 +190,7 @@ budgets de volume du projet et à une politique de rétention propre à J.
   lot, avec un lien explicite à sa base et à sa garde documentaire. La même
   modale propose par défaut « État de départ → Proposition ». Le candidat reste
   privé jusqu’à l’acceptation ; les décisions sont Accepter/Refuser, pas Restaurer.
-  Une modification du document courant rend la proposition périmée pour la
+  Une intervention extérieure sur le document courant rend la proposition périmée pour la
   publication, sans rendre mensongère la comparaison des deux états figés.
   Voir le [contrat du candidat privé](docs/a4-project-format.md#propositions-mcp--paire-détats-privés).
 - Séparer stockage CAS et calcul des différences : évaluer une bibliothèque de
@@ -214,7 +214,7 @@ les commandes ordinaires : la comparaison avec le snapshot ne les remplace pas.
 A.4 prépare ce socle sans avancer l’implémentation ni la maquette de J, et sans
 imposer une action « Comparer à l’état initial » ou la modale Versions à ce parcours.
 
-**Choix restant à valider pour A.4 :** parcours graphiques et détails de comparaison.
+**Choix restant à valider pour A.4 :** restauration complète et coordination associée.
 Pour les snapshots : autres déclencheurs éventuels,
 parcours détaillés de restauration, puis droits et coordination en collaboration.
 Préciser avec J la conservation des suggestions/commentaires, leur devenir lors
@@ -232,6 +232,15 @@ Ne pas activer le nouveau format dans l’application avant que ses parcours de
 sauvegarde conservent identité et historique. Les commandes et l’interface Versions,
 puis la comparaison commune, suivent ce socle ; les choix encore ouverts de J/F
 ne bloquent pas A.4.1.
+
+**A.4.4 — Comparateur et décisions locales :** maquette validée et conservée,
+moteur commun Versions/MCP, comparaison figée avant/après, décisions gardées,
+annulation distincte, dépendances groupées et aperçus isolés. La comparaison de
+deux versions historiques est en consultation seule. Le premier regroupement
+reste conservateur pour les réglages et ressources. La restauration complète
+avec snapshot `before_restore` reste le lot suivant. Voir le
+[contrat et les limites](docs/a4-comparison-contract.md) et le
+[bilan de validation](docs/a4-comparison-results.md).
 
 **A.4.1 livré dans le cœur :** format 11 et propriétaire `Project`, identité et
 copies indépendantes, états complets, versions immuables avec métadonnées
@@ -532,8 +541,8 @@ puis accepter/refuser un lot, avec au moins deux agents et sans configuration MC
   une ancienne garde parce que le contenu est redevenu identique.
 - F précise les adaptations de protocole, les reçus/statuts et le cycle de vie
   des propositions, sans donner à l’agent le droit d’accepter ses changements.
-  L’acceptation par lot entier reste le comportement de production jusqu’au
-  raccordement du nouveau moteur ; elle n’est plus une limite de sa conception.
+  Le premier raccordement A.4 permet déjà les décisions locales. F.3 complète
+  les reçus et le cycle de vie sans introduire un second moteur.
 
 ## G — Ajouter la collaboration distante
 
@@ -651,7 +660,7 @@ version, puis être peaufinée.
   pas ces outils. Mutualiser les composants pertinents sans imposer la même
   présentation. La validation locale des propositions MCP réutilisera le moteur
   commun d’A.4, avec décisions groupées pour les opérations liées ; l’acceptation
-  par lot entier demeure seulement le fonctionnement actuel avant raccordement.
+  commune à A.4 conserve l’atomicité des groupes dépendants.
 - **Relectures** est une entrée propre de la barre latérale, distincte de Versions.
   Son snapshot initial est un support interne protégé, absent des versions affichées
   et de leur quota de 100. Sa rétention relève de la relecture et des budgets de

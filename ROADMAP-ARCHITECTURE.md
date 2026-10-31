@@ -26,8 +26,8 @@ dans les bilans de docs/ et l’historique Git.
 - Contextes d’édition séparés ; une préédition IME n’est jamais publiée comme
   une modification validée. Les actions distantes préservent le focus humain.
 - Propositions MCP isolées, gardées par document/révision, acceptées ou refusées
-  actuellement par lot entier. Le comparateur commun d’A.4 construira les
-  décisions locales sûres pour Versions et MCP ; F.3 en adaptera le protocole,
+  par décisions locales dans le comparateur commun d’A.4. Les groupes dépendants
+  restent atomiques ; F.3 complète les reçus et le cycle de vie,
   sans second moteur. Sauvegarde et export ont leurs autorisations propres.
 - Les nouvelles interfaces sont maquettées et les choix structurants validés
   ensemble ; rechercher les outils maintenus avant de réimplémenter une brique.
@@ -200,9 +200,9 @@ interface de comparaison, en séparant calcul, présentation et décisions. Comp
 deux snapshots ou un snapshot et l’état courant ; présenter des groupes de
 modifications proches avec contexte et navigation. Préparer leur identification
 et leur correspondance aux cibles/opérations documentaires sans confondre
-contiguïté et indépendance. Évaluer les briques existantes, dont `similar`
-anciennement utilisé sous egui, avant de retenir un moteur ; il n’est pas une
-dépendance actuelle à considérer comme déjà disponible.
+contiguïté et indépendance. `similar` 3.2.1 est retenu pour les séquences exactes
+et les mots Unicode, avec échéance de calcul ; l’analyse des dépendances et
+les gardes documentaires appartiennent au moteur de typstOgraphe.
 
 La consultation seule ne publie aucune modification. **Décision confirmée :**
 A.4 construit aussi le moteur commun de décisions locales, pour Versions et MCP.
@@ -221,6 +221,15 @@ historique à gauche et le document courant figé à droite ; la reprise prend s
 source à gauche. MCP affiche la base à gauche et la proposition à droite ;
 l’application prend sa source à droite. Le plan explicite ces rôles, sans
 déduire le sens de publication de la position visuelle des colonnes.
+
+**A.4.4 implémenté :** `content::comparison` possède les archives figées,
+les groupes et leur progression ; les candidats opaques sont liés à la paire,
+à l’époque des décisions et à la garde attendue. Tauri et la modale commune
+réutilisent la publication et l’historique par participant. Une publication connue
+fait avancer la garde de travail ; une intervention extérieure bloque la suite.
+Les références de paquets suivent Annuler/Rétablir, sans devenir des différences
+Yjs visibles. Voir le [bilan](docs/a4-comparison-results.md). La restauration complète
+et son snapshot `before_restore` restent à implémenter séparément.
 
 **Convergence MCP :** une proposition associe deux états figés complets et
 vérifiés, la base depuis laquelle l’agent a travaillé et le candidat figé à sa
@@ -508,8 +517,9 @@ Seul l’utilisateur décide. Le refus ne publie rien ; une application locale p
 par le propriétaire documentaire et une étape d’annulation cohérente. Définir
 ensemble l’enveloppe de protocole et le cycle de vie après décision, sans modifier
 les états de comparaison ni accorder des droits implicites de sauvegarde/export.
-L’acceptation actuelle par lot entier demeure jusqu’au raccordement du socle
-commun ; elle ne limite plus le périmètre cible d’A.4.
+Le premier raccordement A.4 publie déjà les groupes acceptés et expose les
+décisions dans les reçus. F.3 peut enrichir ces reçus et le cycle de vie, sans
+introduire un second moteur ni une validation globale obligatoire.
 
 ## G. Collaboration et hébergement — P2
 
@@ -584,8 +594,7 @@ applicables par les commandes gardées existantes. Conserver les outils dédiés
 relecture ; l’interface commune d’A.4 sert aux snapshots et propositions MCP,
 sans imposer sa présentation à J. Mutualiser les composants pertinents ; le
 moteur de décisions locales d’A.4 préserve l’atomicité des opérations liées,
-et F.3 raccorde le protocole MCP à ce moteur. L’acceptation actuelle reste par
-lot entier jusqu’à ce raccordement. La première
+et F.3 complète le protocole MCP de ce moteur. La première
 relecture humaine textuelle ne dépend pas d’ACP. Distinguer aperçu confirmé et
 aperçu candidat explicitement signalé ; revérifier le contenu cible avant toute
 acceptation si l’auteur l’a modifié.

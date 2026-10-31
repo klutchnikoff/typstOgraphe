@@ -91,7 +91,8 @@ Les commandes d’édition ordinaires et `document.batch` restent refusées en a
 direct rattaché : il faut soumettre explicitement une proposition. Le mode autonome
 conserve son exécution immédiate et sa politique de fichiers.
 
-Les états du lot sont `pending`, `accepted`, `rejected`, `stale` ou `cancelled`.
+Les états du lot sont `pending`, `accepted`, `partially_accepted`, `rejected`,
+`stale` ou `cancelled`.
 Un état terminal ne revient jamais à `pending`. Une péremption exige un nouveau
 lot, une nouvelle lecture et une nouvelle approbation ; il n’y a pas de fusion.
 Révocation, fermeture/remplacement du document ou déconnexion détruisent les
@@ -138,12 +139,12 @@ Exemple de soumission, en remplaçant la référence par celle fournie par `docu
 
 ```json
 {
-  "document": { "id": "invitation-document", "guard": { "document_id": 42, "revision": 7 } },
+  "document": { "id": "invitation-document", "guard": { "document": "invitation-document", "revision": 7 } },
   "request_id": "correction-salutation-1",
   "summary": "Corriger la salutation",
   "steps": [
     { "id": "text.insert", "params": {
-      "selector": { "select": "Cheres collègues" },
+      "target": { "zone": { "kind": "body", "path": [0] }, "from": 0, "to": 16 },
       "text": "Chères collègues"
     } }
   ]
@@ -156,6 +157,26 @@ la main à l’utilisateur ; il ne prétend pas que l’édition a eu lieu et ne
 une boucle de consultation. Un prochain échange peut interroger `get`, qui
 renvoie notamment la garde publiée après acceptation. Aucun appel ne reste
 suspendu indéfiniment en attendant une décision humaine.
+
+## Comparateur commun et décisions locales (A.4)
+
+La modale commune aux Versions et aux propositions affiche la base à gauche et
+le candidat à droite, figés dès la soumission avec leurs ressources et paquets.
+L’utilisateur peut appliquer ou refuser chaque groupe indépendant ; les éléments
+liés restent atomiques. Chaque publication est une étape d’annulation distincte.
+Les groupes restants continuent sous la garde issue des seules publications connues.
+Une intervention extérieure interdit leur publication, même si Annuler retrouve
+le même contenu. Les états comparés restent consultables.
+
+Les réponses ajoutent `decisions` (`group`, `decision` : `pending`, `applied` ou
+`refused`) et `workingRevision`. `revision` conserve la révision de départ.
+Le statut reste `pending` tant qu’un groupe attend une décision ; une combinaison
+d’applications et de refus se termine par `partially_accepted`. Les reçus terminaux
+conservent ces informations lors d’un nouvel envoi. La fermeture du comparateur
+ne décide rien. Aucun outil d’acceptation n’est exposé à l’agent et aucune décision
+ne déclenche de sauvegarde ou d’export implicite.
+
+Voir le [contrat commun et ses limites](a4-comparison-contract.md).
 
 ## Intégration livrée
 
