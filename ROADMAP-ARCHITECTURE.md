@@ -118,8 +118,20 @@ selon leur contrat. Aperçu, validation de modèle et export utilisent les dépe
 La récupération privée conserve un contexte CAS autonome mis en cache et les
 JSON/Yjs confirmés les plus récents ; formulaires et propositions restent privés.
 Voir le [bilan A.4.2](docs/a4-storage-adapters.md).
-Les commandes et l’interface Versions, la restauration partagée et la comparaison
-commune restent à développer ; leurs choix seront validés avant leurs lots respectifs.
+**A.4.3 livré — commandes et consultation Versions :** liste latérale par origine
+et date, création avec nom daté par défaut, nom/tags/description modifiables,
+suppression confirmée dans la même modale. Consultation Contenu/Aperçu en lecture
+seule, centrée à 90 % de la fenêtre sur fond atténué et flouté, avec navigation
+clavier et retour du focus. Le contrat typé commun alimente Tauri, CLI et MCP
+autonome ; les opérations de fichier conservent leurs autorisations propres.
+Une garde d’index protège les changements concurrents sans créer une révision
+documentaire ni une entrée d’annulation. Voir le [bilan A.4.3](docs/a4-versions-interface.md).
+
+**Découpage confirmé :** la comparaison commune, puis la restauration dans une
+session active, sont des lots distincts. L’onglet Comparer et l’action Restaurer
+seront ajoutés à cette même modale lors de leur raccordement ; aucune fausse action
+n’est exposée. Les outils de relecture et les propositions MCP restent séparés.
+A.4 n’est pas terminé.
 
 Avant toute restauration, créer une version automatique de sauvegarde de l’état
 courant ; publier explicitement l’état restauré sans supprimer les autres versions.

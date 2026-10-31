@@ -1,6 +1,6 @@
 # A.4 — Format cible du projet `.typsto`
 
-**Statut : stockage A.4.1 et raccordement Tauri/CLI/MCP/récupération A.4.2 implémentés le 31 octobre 2026.**
+**Statut : stockage A.4.1, raccordement A.4.2 et gestion/consultation Versions A.4.3 implémentés le 31 octobre 2026.**
 Le **CAS est retenu** après [évaluation](a4-snapshot-storage-evaluation.md).
 L’organisation ci-dessous est implémentée par `content::project::Project`.
 Tauri, CLI et MCP lisent et écrivent ce même format 11 ; le lecteur/écrivain
@@ -382,6 +382,11 @@ l’archive encodée et la saisie ; les limites documentaires, Yjs, images et sa
 privées restent appliquées séparément. Le lecteur contrôle aussi la taille sur
 disque avant lecture. Aucun formulaire privé ne devient un état documentaire.
 
-Cette API n’active ni commandes Versions, ni restauration dans une session
-partagée, ni interface Versions. Les états privés MCP et le cycle de vie
-des relectures restent à raccorder dans leurs lots respectifs.
+Les commandes `versions.list`, `versions.read` et `versions.change` et la
+consultation graphique Contenu/Aperçu sont raccordées. Le paramètre `history` de
+`versions.change` est une empreinte de l’index fournie par `versions.list` : une
+modification concurrente de nom, de tags ou de liste est refusée, même si la
+révision documentaire n’a pas changé. La garde du document reste distincte.
+La comparaison commune et la restauration dans une session active restent dans
+leurs lots suivants, de même que les états privés MCP et le cycle de vie des
+relectures. Le [bilan A.4.3](a4-versions-interface.md) décrit les parcours livrés.
