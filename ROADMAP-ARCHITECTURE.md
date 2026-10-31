@@ -63,8 +63,11 @@ atomiques par document/fenêtre, conservation des refus et ressources, échéanc
 reprises d’écriture. La recette native macOS vérifie un arrêt brutal sans publication
 d’un formulaire ouvert. Voir le [contrat et les limites](docs/a3-conservation.md) et le
 [bilan du premier lot](docs/a3-conservation-results.md).
-Reprise graphique, décisions de fermeture, coordination des transitions entre fenêtres
-et recettes natives multisystèmes restent à traiter avant clôture d’A.3.
+Le [parcours de reprise et de fermeture](docs/a3-recovery-interface.md) est validé :
+accueil sans ouverture automatique, copie indépendante, saisies privées reprises
+dans les interfaces existantes, conservation à la fermeture par défaut. Sa maquette
+reste à valider avant implémentation. La coordination des transitions entre fenêtres
+et les recettes natives multisystèmes restent aussi à traiter avant clôture d’A.3.
 
 Fixer les responsabilités de l’état Yjs, de l’arbre validé et du Typst généré.
 Tester identité/révision, sauvegarde pendant des éditions, récupération après

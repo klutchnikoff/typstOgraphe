@@ -58,6 +58,9 @@ explicite ; le nettoyage des snapshots et ressources historiques reste dans A.4.
 
 ## Reprise et décisions explicites
 
+Le [parcours de reprise et les choix de fermeture](a3-recovery-interface.md) sont
+validés ; leur présentation graphique reste à valider sur maquette.
+
 Le prochain lot présentera à l’accueil le nom, la date et la présence de saisies
 non confirmées. Le document confirmé peut être repris normalement ; un brouillon
 refusé revient dans un espace de récupération isolé permettant de retrouver et
