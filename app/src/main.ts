@@ -592,6 +592,13 @@ async function start() {
         snapshot,
         mode === 'synchronization-active',
       )
+    } else if (mode?.startsWith('draft-')) {
+      void (await import('./draft-diagnostic')).draftDiagnostic(
+        mode,
+        host.transport,
+        provider,
+        editor,
+      )
     } else if (mode?.startsWith('closure')) {
       void (await import('./closure-diagnostic')).closureDiagnostic(
         mode,
