@@ -2,7 +2,7 @@
 
 Décisions validées le **28 octobre 2026**. Elles guident l'unification entre
 l'application Tauri, la CLI, MCP autonome et MCP rattaché. Ce document décrit
-la cible ; les lots ci-dessous distinguent sa mise en œuvre progressive.
+le contrat courant ; les bilans liés conservent l’historique de sa mise en œuvre.
 
 ## Représentation et moteur partagé
 
@@ -41,7 +41,9 @@ la cible ; les lots ci-dessous distinguent sa mise en œuvre progressive.
 - Une acceptation publie une seule transaction et constitue une seule étape
   d'annulation pour le participant concerné. Les contributions distantes restent
   distinctes. La frappe conserve ses groupes naturels.
-- Les propositions MCP rattachées exigent l'acceptation humaine du lot entier.
+- Les propositions MCP rattachées passent par le comparateur humain commun :
+  décisions par groupe indépendant, dépendances indivisibles et publication
+  unique de la composition. Voir le [contrat](a4-comparison-contract.md).
   Sauvegarde et export ont leurs opérations et autorisations propres.
 - Le moteur fournit des erreurs structurées et les motifs d'indisponibilité.
   La traduction, les dialogues et la présentation appartiennent aux adaptateurs,
@@ -50,7 +52,8 @@ la cible ; les lots ci-dessous distinguent sa mise en œuvre progressive.
   second lecteur sans reconnaissance explicite du format.
 - La pile d'annulation en séance, la récupération et les snapshots durables ont
   des contrats distincts. Yrs ne persiste pas automatiquement la pile d'annulation.
-  La politique de rétention des snapshots reste à décider dans A.4.
+  Le [format CAS](a4-project-format.md) limite les versions manuelles à 100,
+  sans suppression automatique. Les références de relecture sont distinctes.
 
 ## Saisie et mode individuel
 
@@ -61,7 +64,8 @@ la cible ; les lots ci-dessous distinguent sa mise en œuvre progressive.
   validés ; la préédition IME reste locale jusqu'à sa validation.
 - Un refus conserve le brouillon local et permet une remise en cohérence
   explicite. Il ne doit pas effacer silencieusement la saisie. Le parcours de
-  refus doit être implémenté et testé avant de durcir le relais de production.
+  refus conserve le travail et suspend la synchronisation jusqu’au choix explicite
+  de reprise ou d’export ; voir le [contrat de conservation](a3-conservation.md).
 - Focus, sélection, style de frappe et présence appartiennent aux participants.
   Les panneaux et brouillons d'interface ne font pas partie du document partagé.
 - **Mode individuel par défaut** : même moteur et mêmes fichiers, services
@@ -76,44 +80,13 @@ la cible ; les lots ci-dessous distinguent sa mise en œuvre progressive.
   d’échec d’activation. Le placement de l’action et les transitions entre
   participants seront précisés avant codage ; le serveur distant reste dans G.
 
-## Mise en œuvre et critères de sortie
+## Mise en œuvre et recettes
 
-Le [premier lot du socle](structured-contract-foundation.md) est livré : valeurs
-partagées, projection Yrs, préparation/publication gardée et conservation cohérente.
-Les cibles multizones et commandes sont livrées dans le cœur. Le relais et
-l’historique Tauri y sont raccordés, ainsi que les tableaux, styles, liens,
-titres, widgets, objets en ligne et contextes de sélection/styles de frappe.
-Les raccordements documentaires Tauri, CLI et MCP sont en place : voir le
-[bilan des adaptateurs structurés](structured-adapters.md). La séquence ci-dessous
-conserve les choix de migration. Les [transformations R1–R3](a2-transformations-results.md)
-issues de l’inventaire sont livrées : retours en ligne localisés, items de listes
-et entrées natives conservant les frontières. Le [mode individuel](individual-mode.md)
-et la [recette Courrier/Article](a2-closure-results.md) sont livrés : **A.2 clos
-le 31 octobre 2026**. La séquence ci-dessous est conservée comme historique des
-choix de migration ; les travaux restants sont dans A.3 de la feuille de route.
-
-1. **Socle partagé** : valeurs de réglages et d'instantané dans le cœur,
-   gardes/cibles/erreurs structurées, projection Yrs et contrôle de cohérence
-   lors de la conservation. Éditions préparées et refus sans mutation publiée.
-2. **Commandes structurées** : les [cibles multizones et premières commandes](structured-commands.md)
-   sont livrées dans le cœur et vérifiées avec Tiptap, y compris l’en-tête, les
-   ressources, les options et les modèles. Poursuivre les transformations restantes,
-   le catalogue et la disponibilité communs. Préserver les identités lors des éditions.
-3. **Application** : le relais et l’historique par fenêtre sont raccordés au
-   moteur, avec groupement, accusés/refus et export du brouillon avant abandon.
-   Les sélections et styles privés Tauri sont aussi raccordés, avec des cibles
-   multizones et une frontière causale compacte. Poursuivre les autres commandes
-   typées et le mode individuel. Conserver la réactivité et les comportements
-   de l’éditeur ;
-   étendre la recette IME aux systèmes réels.
-4. **CLI et MCP** : migrer les opérations et requêtes documentaires, les fichiers
-   et les exports ; rendre les capacités découvrables, avec les nouvelles cibles.
-5. **Recette et retrait** : même corpus Courrier/Article sur tous les adaptateurs,
-   propositions, annulation, enregistrement/réouverture, rendu/export hors ligne,
-   vérifications macOS/Windows/Linux ; retirer les anciennes voies après recette.
-
-Les lots sont livrés par commits cohérents, avec une poussée à la fin du lot.
-Les captures restent suspendues. La clôture d'un lot ne vaut pas clôture de A.2.
+Les cibles multizones, commandes structurelles, contextes privés, adaptations
+Tauri/CLI/MCP et mode individuel sont livrés. Les chemins de migration ne sont
+plus des tâches ouvertes. Voir les [adaptateurs structurés](structured-adapters.md),
+les [transformations](a2-transformations-results.md), le [mode individuel](individual-mode.md)
+et la [recette de clôture](a5-closure-results.md).
 
 ## Modèle conservé dans le projet
 

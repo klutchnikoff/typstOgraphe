@@ -1,5 +1,8 @@
 # K.2 — Coordinateur de vue
 
+> Référence historique antérieure au contrat structuré Tauri. Pour l’application
+> courante, voir l’[index documentaire](README.md) et le [contrat structuré](structured-contract.md).
+
 Le [contrat général des interfaces](interface-contract.md) relie ce composant
 aux commandes, lectures et services. Cette page détaille ses événements et actions.
 
@@ -110,12 +113,12 @@ publication approuvée et ses interruptions restent en 6.4.
 
 ## Vérifications
 
-Les [tests de transitions](../crates/core/src/view_sync/tests/transitions.rs)
+Les `tests de transitions` (ancien fichier retiré avec egui, disponible dans Git)
 contrôlent commandes sans changement, sauvegardes, publications natives, origines,
 effets et demandes explicites, dernière intention à révision égale, rejet des faits
 périmés/étrangers, fermeture/remplacement et sérialisation stricte.
 
-Les [tests de géométrie](../crates/core/src/view_sync/tests/geometry.rs) compilent
+Les `tests de géométrie` (ancien fichier retiré avec egui, disponible dans Git) compilent
 réellement du Typst sans egui et vérifient points et surbrillances, consommation
 unique, rendu périmé/échoué, absence de position éditable, double sens, indépendance
 des vues et absence de mutation du document, du style, de la sélection et de

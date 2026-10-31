@@ -1,5 +1,8 @@
 # Raccordement MCP fixe à typstOgraphe
 
+> Référence historique antérieure au contrat structuré Tauri. Pour l’application
+> courante, voir l’[index documentaire](README.md) et le [contrat structuré](structured-contract.md).
+
 Choix validé le 25 octobre 2026 : **configuration fixe, reconnexion explicite**.
 L’autorisation reste temporaire et liée à un document. La configuration de Codex
 ou d’un autre client MCP n’a plus à contenir le chemin de chaque invitation.

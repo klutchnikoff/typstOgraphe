@@ -1,5 +1,8 @@
 # Lots documentaires atomiques
 
+> Référence historique antérieure au contrat structuré Tauri. Pour l’application
+> courante, voir l’[index documentaire](README.md) et le [contrat structuré](structured-contract.md).
+
 Contrat de phase 2, implémenté le 24 octobre 2026 conformément à D15/D16.
 La commande `document.batch` utilise le même registre, les mêmes validations et le
 même moteur que les éditions individuelles. Elle prépare un document en mémoire,

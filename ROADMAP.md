@@ -20,25 +20,12 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate : A.4 est clos le 31 octobre 2026**, avec CAS, Versions,
-comparateur commun et reprise complète comme édition ordinaire. Les garanties et
-la recette locale sont consignées dans le [bilan A.4](docs/a4-comparison-results.md).
-Terminer le socle par **A.5 — Documentation, nettoyage et recette finale**.
-Les copies privées, la reprise des formulaires et la fermeture sont implémentées.
-La [recette de clôture](docs/a3-closure-results.md) couvre les incidents de
-publication, changements externes et exports Courrier/Article ; sa qualification
-native a réussi sur les trois systèmes ; le workflow vérifie aussi le commit
-courant et conserve ses rapports. Les résultats
-macOS locaux et les résultats CI sont distingués. Ne pas confondre récupération
-et snapshots durables.
-
-**A.2 est clos.** La [recette Courrier/Article](docs/a2-closure-results.md) valide
-le même projet entre Tauri, CLI et MCP, les propositions rattachées, l’historique,
-la sauvegarde/réouverture et les exports hors ligne. Le
-[contrat structuré](docs/structured-contract.md) et le
-[mode individuel allégé](docs/individual-mode.md) constituent le socle conservé.
-Les propositions MCP rattachées restent limitées au corps/cellules/annotations ;
-leur extension demande une relecture adaptée.
+**Socle disponible :** application Tauri, contrat documentaire commun,
+conservation des brouillons, fichiers CAS et Versions avec comparaison locale.
+Les [contrats courants et bilans](docs/README.md) décrivent les garanties livrées ;
+les propositions MCP rattachées restent limitées au corps/cellules/annotations.
+A.5 vérifie la documentation, l’isolation des recettes et le corpus final avant
+la clôture du socle. Les contrôles matériels et de distribution restent dans H.
 
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
@@ -93,260 +80,17 @@ L’accessibilité, la protection du travail et les performances accompagnent ch
 lot. La collaboration distante et l’assistance restent facultatives ; la
 rédaction individuelle, l’ouverture et l’export doivent fonctionner hors ligne.
 
-## A — Sortir le code du statut de prototype
+## A — Clôture du socle
 
-**A.1 à A.3 sont clos** : application Tauri de référence, contrat structuré commun
-aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
-`docs/`. A.4 est également clos ; A.5 reste à mener pour terminer le socle.
+A.1–A.4 sont livrés ; voir l’[index des contrats et bilans](docs/README.md).
+**A.5 en cours :** documentation de référence, retrait des chemins inutiles,
+recettes explicitement séparées de l’application normale, puis vérification
+Courrier/Article depuis un checkout propre (Tauri, CLI, MCP, Versions, export
+hors ligne). La recette ne crée ni capture, ni vidéo, ni trace graphique.
 
-### A.4 — Snapshots durables — clos le 31 octobre 2026
-
-**Choix validés le 31 octobre 2026 :**
-
-- Conserver l’identité du projet lors d’une sauvegarde, d’un déplacement ou d’un
-  renommage. Enregistrer sous / copie indépendante depuis l’application crée
-  une nouvelle identité, avec conservation des versions et de leurs métadonnées.
-- Capturer l’état documentaire confirmé complet, avec modèle et ressources
-  documentaires. Les formulaires ouverts et saisies non validées restent dans la
-  récupération privée d’A.3, hors des snapshots documentaires.
-- Créer une version enregistre atomiquement l’état courant et son nouveau snapshot
-  dans le `.typsto` ; demander l’emplacement si le document n’a pas encore de
-  fichier. Une sauvegarde ordinaire ne crée pas de snapshot supplémentaire.
-- Reprendre une version complète via le comparateur : « Tout reprendre »,
-  puis « Reprendre N passages ». La droite possède l’action symétrique et les
-  choix restent ajustables passage par passage. Aucun parcours Restaurer distinct
-  ni snapshot automatique : le résultat est une édition ordinaire annulable.
-  En collaboration, utiliser l’autorité commune et la garde de révision.
-- Ne supprimer aucune version automatiquement au départ. L’utilisateur supprime
-  explicitement les snapshots non protégés ; une ressource reste conservée tant
-  qu’un état retenu en a besoin.
-- **CAS retenu après évaluation** : un magasin d’objets identifiés par leur
-  contenu et partagés entre état courant et snapshots, dans le fichier autonome.
-  Git reste limité au candidat expérimental et n’est pas retenu pour le stockage
-  de production. Les maquettes validées de Versions et de la comparaison restent
-  conservées comme références des parcours livrés.
-
-**Évaluation de stockage réalisée :** le [bilan A.4](docs/a4-snapshot-storage-evaluation.md)
-compare les deux candidats sur Courrier, Article et Article allongé, à 20 et
-100 versions. **Le stockage par objets dédupliqués (CAS) est validé**, pour sa
-rapidité et son intégration plus simple, en acceptant des historiques un peu
-plus volumineux qu’avec Git. Le CAS et les parcours de Versions sont intégrés ;
-la recette de clôture vérifie leur convergence avec le comparateur commun.
-
-**Format cible validé :** le [contrat de conteneur CAS](docs/a4-project-format.md)
-décrit le manifeste du projet, les descripteurs d’états vérifiés, l’index des
-versions et les ressources partagées. Il distingue contenu immuable et nom/tags
-modifiables, lecture sélective et export compilable. Limites retenues : 64 Mio par
-état, 512 Mio pour l’archive et **100 versions manuelles affichées maximum**.
-Les références internes de relecture et les candidats MCP ne consomment pas ce
-quota. Aucune suppression automatique ; une reprise par comparaison ne crée
-pas de version et reste possible lorsque les 100 places sont occupées.
-Les références de relecture restent soumises aux budgets de volume du projet
-et à une politique de rétention propre à J.
-
-**Conservation documentaire et dépendances :** chaque version de typstOgraphe
-fournit ses paquets Typst figés et validés derrière nos wrappers publics. Versions,
-MCP et Annuler/Rétablir ne restaurent pas de versions techniques de paquets.
-Le projet et l’export gardent leurs copies de transport pour l’autonomie hors
-ligne ; l’application utilise son catalogue. On garantit l’état documentaire,
-pas l’identité du PDF entre versions de typstOgraphe. Une future incompatibilité
-de format `.typsto` proposera clairement une importation/conversion ; ce parcours
-n’est pas à développer maintenant. Voir le [contrat](docs/typst-dependencies.md).
-
-- Le contrat de conservation relie arbre documentaire, Yjs et Typst généré :
-  les archives incohérentes sont refusées avant publication, selon le format CAS.
-- Conserver dans le projet des états cohérents et identifiables, consultables
-  hors ligne. Chaque état doit retrouver son contenu, ses métadonnées et réglages, son modèle,
-  les ressources documentaires nécessaires au rendu, y compris une image
-  remplacée ou supprimée depuis. Chaque snapshot possède une date de création
-  enregistrée automatiquement pour le classement chronologique, un nom libre
-  modifiable (par exemple « v1 » ou « Soumission », avec un nom daté proposé par
-  défaut), des tags facultatifs et une description facultative. Aucune numérotation
-  de version n’est imposée. Conserver l’auteur du snapshot sans lui attribuer
-  toutes les modifications de l’état conservé.
-- Distinguer snapshots durables, annuler/rétablir en séance et récupération
-  après incident. Prévoir consultation en lecture seule, comparaison et retour
-  à un état conservé sans effacer l’historique. Maquetter et valider le parcours
-  de restauration, de copie indépendante et de suppression des snapshots.
-- Prévoir dans la barre latérale une entrée **Versions**, distincte de **Relectures** :
-  versions manuelles classées par ordre chronologique
-  dans chaque groupe, nom/tags et suppression autorisée. Un clic ouvre une modale
-  centrée à 90 % de la fenêtre, sur fond atténué et légèrement flouté : Contenu,
-  Aperçu, Comparer, avec sélecteur de comparaison dans ce dernier mode. Garder
-  l’espace restant pour l’affichage et les confirmations dans la même modale.
-  Échap ferme d’abord la confirmation, puis la consultation et rend le focus à
-  la version dans la liste. Vérifier ces parcours avant codage.
-- Livrer une **interface commune de comparaison pour les snapshots et les
-  propositions MCP** : comparer deux snapshots ou un snapshot et l’état courant,
-  présenter les différences par groupes avec leur contexte et naviguer entre eux.
-  Couvrir texte, structure, paramètres, métadonnées et ressources. Séparer le
-  calcul des différences, leur présentation et les actions disponibles.
-  Définir le contrat des groupes pour les décisions locales dans A.4 ; leur
-  proximité visuelle ne prouve pas leur indépendance documentaire. La comparaison
-  de snapshots reste immuable. Les choix rouge/vert sont provisoires et
-  « Appliquer » construit puis publie leur résultat en une seule opération
-  annulable, sans enregistrement ni snapshot automatique. L’utilisateur décide
-  séparément d’enregistrer et de créer une version. Les changements dépendants
-  restent décidés ensemble. Le mode relecture J conserve
-  ses outils dédiés. Voir le [contrat du comparateur](docs/a4-comparison-contract.md).
-  **Ordre confirmé :** avant à gauche, après à droite. Pour Versions, la version
-  historique est à gauche et le document courant figé à droite ; reprendre un
-  passage utilise la gauche. Pour MCP, la base est à gauche et la proposition à
-  droite ; appliquer une modification utilise la droite.
-- **Propositions MCP comme paire d’états figés :** conserver l’état de départ
-  depuis lequel l’agent a travaillé et figer l’état candidat à la soumission du
-  lot, avec un lien explicite à sa base et à sa garde documentaire. La même
-  modale propose par défaut « État de départ → Proposition ». Le candidat reste
-  privé jusqu’à l’acceptation ; les décisions sont Accepter/Refuser, pas Restaurer.
-  Une intervention extérieure sur le document courant rend la proposition périmée pour la
-  publication, sans rendre mensongère la comparaison des deux états figés.
-  Voir le [contrat du candidat privé](docs/a4-project-format.md#propositions-mcp--paire-détats-privés).
-- Séparer stockage CAS et calcul des différences : évaluer une bibliothèque de
-  diff existante et l’adaptation au contenu structuré, sans introduire Git pour
-  afficher les changements. Yjs/Yrs reste le moteur de l’édition collaborative.
-- Maîtriser le poids du projet : étudier la déduplication des ressources et
-  leur référencement immuable par snapshot dans le CAS. Définir
-  rétention, suppression et nettoyage ; une ressource utile à un snapshot
-  conservé reste dans le .typsto. L’export Typst/PDF porte sur l’état choisi,
-  sans embarquer inutilement les ressources des autres états.
-
-**Lien avec la relecture J — règle retenue :** démarrer une nouvelle relecture
-crée automatiquement un snapshot de l’état initial et rattache la relecture à
-cette référence **interne, absente de la liste Versions**. Ce snapshot reste
-conservé et inchangé pendant toute sa durée ;
-il ne peut pas être supprimé tant que la relecture est en cours. Rouvrir une
-relecture existante ou son panneau ne crée pas un autre snapshot. Ce déclencheur
-explicite ne suppose pas de snapshots automatiques heuristiques. Les suggestions
-restent des annotations ancrées distinctes du contenu, acceptées ou refusées par
-les commandes ordinaires : la comparaison avec le snapshot ne les remplace pas.
-A.4 prépare ce socle sans avancer l’implémentation ni la maquette de J, et sans
-imposer une action « Comparer à l’état initial » ou la modale Versions à ce parcours.
-
-**Frontière de clôture :** la reprise complète suit la composition ordinaire,
-sans seconde commande ni sauvegarde automatique. Les autres déclencheurs
-éventuels, les droits distants et la coordination réseau restent dans G.
-J précisera la conservation des suggestions/commentaires, leur devenir après
-une reprise de version et la rétention de la référence après clôture d’une
-relecture. Ces choix n’empêchent pas de clore les snapshots d’A.4.
-Aucune couche de rétrocompatibilité préventive pendant cette phase préliminaire.
-
-**Découpage d’implémentation :** commencer par A.4.1, propriétaire d’archive CAS
-dans le cœur : format 11, identité, états complets, index, déduplication,
-lecture sélective, publication atomique et tests d’intégrité/limites/conservation.
-Le raccordement des adaptateurs et de la récupération constitue A.4.2 : il
-supprime alors le lecteur/écrivain de format 10, sans couche de compatibilité.
-Ne pas activer le nouveau format dans l’application avant que ses parcours de
-sauvegarde conservent identité et historique. Les commandes et l’interface Versions,
-puis la comparaison commune, suivent ce socle ; les choix encore ouverts de J/F
-ne bloquent pas A.4.1.
-
-**Composition validée :** dans Comparer, choix rouge/gauche et vert/droite exclusifs
-par passage, verts sélectionnés par défaut. Les choix ne publient rien.
-« Appliquer » compose depuis la droite et remplace le document courant en une
-opération annulable, sans écriture du `.typsto` ni snapshot automatique. Le résultat
-est une édition ordinaire, récupérable après incident ; l’utilisateur décide de
-l’enregistrement et des versions. Deux états historiques préparent une composition
-privée, obligatoirement comparée au document courant avant publication. Une édition extérieure bloque l’application sans perte du travail.
-Voir le [contrat](docs/a4-comparison-contract.md).
-
-**A.4.4 — Comparateur et décisions locales :** maquette validée et conservée,
-moteur commun Versions/MCP, comparaison figée avant/après, décisions gardées,
-annulation de la composition, changements documentaires liés groupés et aperçus
-isolés. Deux versions historiques préparent une composition revue contre le
-courant avant toute édition. Les paragraphes adjacents
-modifiés ont des décisions distinctes lorsque leurs frontières sont conservées ;
-les widgets restent entiers, les fusions/scissions et correspondances ambiguës
-restent groupées. Le regroupement reste conservateur pour les réglages et
-ressources documentaires. La reprise complète utilise désormais les sélections
-globales gauche/droite du même comparateur ; l’origine inutilisée `before_restore`
-est retirée, sans ajouter un second mécanisme. Voir le
-[contrat et les limites](docs/a4-comparison-contract.md) et le
-[bilan de validation](docs/a4-comparison-results.md).
-
-**A.4.1 livré dans le cœur :** format 11 et propriétaire `Project`, identité et
-copies indépendantes, états complets, versions immuables avec métadonnées
-modifiables, références internes de relecture, lecture sélective et réécriture
-atomique avec nettoyage des seuls objets inaccessibles. Les copies de dépendances
-transportées sont vérifiées sans le catalogue installé. Les tests couvrent conservation,
-corruption, cohérence Yjs/JSON/Typst, quotas et gardes de fichier.
-Voir le [bilan du lot](docs/a4-storage-core.md).
-**A.4.2 livré :** Tauri, CLI et MCP conservent désormais le propriétaire CAS,
-son identité et toutes ses racines retenues. Les sauvegardes utilisent le format 11 ;
-le lecteur/écrivain de format 10 est retiré. La récupération privée transporte
-l’historique et les ressources transportées, avec la saisie confirmée la plus récente.
-Une copie indépendante reçoit un nouvel UUID en conservant ses versions.
-L’exemple Article est régénéré depuis sa version Git. Voir le
-[bilan de raccordement](docs/a4-storage-adapters.md).
-**A.4.3 livré — commandes et consultation Versions :** liste latérale par origine
-et date, création avec nom daté par défaut, nom/tags/description modifiables,
-suppression confirmée dans la même modale. Consultation Contenu/Aperçu en lecture
-seule, centrée à 90 % de la fenêtre sur fond atténué et flouté, avec navigation
-clavier et retour du focus. Le contrat typé commun alimente Tauri, CLI et MCP
-autonome ; les opérations de fichier conservent leurs autorisations propres.
-Une garde d’index protège les changements concurrents sans créer une révision
-documentaire ni une entrée d’annulation. Voir le [bilan A.4.3](docs/a4-versions-interface.md).
-
-**Parcours confirmé :** l’onglet Comparer couvre les choix locaux et la reprise
-complète d’un état. Les sélections globales ne publient rien ; « Appliquer »
-réutilise le même moteur et une seule étape d’annulation. La garde bloque toute
-publication périmée, y compris après une modification dans une autre fenêtre.
-Les outils de relecture et les propositions MCP restent séparés.
-
-**Clôture locale A.4 :** stockage, conservation/récupération, commandes Versions,
-consultation, comparaison et reprise complète sont livrés. Les tests du workspace,
-des contrats et des navigateurs vérifient ces parcours ; voir le
-[bilan](docs/a4-comparison-results.md). Les droits/réseaux distants restent dans G,
-le cycle de relecture dans J et la qualification de distribution dans H.
-
-**Validation selon le contexte (choix validés le 31 octobre 2026) :**
-Version / courant affiche « Reprendre » / « Garder l’actuel » et annonce le nombre
-de passages à reprendre ; sans reprise, la validation est désactivée. MCP affiche
-« Refuser » / « Accepter », le nombre de changements à appliquer et le bilan des
-choix ; tous les rouges refusent le lot sans édition. Pour deux versions A / B,
-les choix préparent Bnew, puis une seconde comparaison obligatoire **C → Bnew**
-montre les différences avec le document courant C avant toute publication.
-L’application directe A / B est interdite dans Rust. Revenir aux choix initiaux
-est possible ; une intervention concurrente impose une nouvelle comparaison.
-Le résultat final reste une édition annulable du même projet, sans sauvegarde
-ni version automatique. Les comptes représentent les groupes de décision.
-
-**Jalon d’export PDF — à implémenter ultérieurement :** proposer discrètement,
-après un export réussi, « Créer une version de cet export ». L’action reste
-volontaire et non modale ; elle doit capturer l’état exact qui a produit le PDF,
-même si la rédaction a continué entre-temps. Annulation ou échec d’export ne
-produit aucune proposition de version. Le quota de versions ne bloque jamais
-l’export. Ce déclencheur explicite ne crée aucun snapshot heuristique. La liste
-Versions et ses groupes restent inchangés ; comparaison entre fichiers différée.
-
-### A.5 — Documentation, nettoyage et recette finale
-
-Lot de clôture à mener après A.4, avant de déclarer le socle A terminé :
-
-- **Documentation :** retirer des roadmaps les tâches livrées, identifier les
-  contrats de référence et les bilans historiques, actualiser les commandes et le
-  guide de développement. Garder le README court ; conserver décisions et preuves utiles.
-- **Code :** supprimer les chemins morts, dépendances inutiles et duplications
-  restantes. Séparer diagnostics, fixtures et mesures de l’application livrée,
-  tout en gardant leurs recettes reproductibles.
-- **Dépôt :** ranger exemples et recettes, supprimer les fichiers temporaires et
-  les branches fusionnées devenues inutiles ; conserver les rapports pertinents,
-  références visuelles existantes, licences et provenances. Aucune nouvelle capture.
-- **Contrat du fichier :** documenter le format versionné retenu avec A.4 et ses
-  limites, en distinguant état courant, snapshots et copie de récupération.
-- **Recette de sortie :** depuis un checkout propre, suivre les instructions
-  documentées pour construire, tester et lancer l’application. Vérifier le même
-  corpus Courrier/Article entre Tauri, CLI et MCP, avec sauvegarde, réouverture,
-  consultation/restauration de snapshots et export hors ligne de l’état choisi.
-
-Les contrôles d’installation, signature, mise à jour et les recettes matérielles
-restent dans H. Tout choix structurant découvert pendant A.5 revient dans la
-discussion ; ce lot ne lance pas une réécriture générale ni les fonctionnalités
-des autres chantiers.
-
-**Sortie :** un même document passe de l’interface aux opérations documentaires
-et aux exports sans voie spéciale de prototype ni perte de contenu, avec snapshots
-durables ; le dépôt et sa documentation permettent à une autre personne de
-comprendre, construire et vérifier ce socle.
+La clôture porte sur les fondations, pas sur la complétude des outils de rédaction.
+Les types, les capacités manquantes, ACP et la distribution gardent leurs propres
+lots et arbitrages. Tout choix structurant découvert reste à discuter ensemble.
 
 ## B — Définir les types utiles et leurs contrats
 
@@ -654,6 +398,12 @@ identités et droits, transport, stockage, confidentialité, coûts et maintenan
 
 ## H — Préparer une première diffusion
 
+**Versions après export PDF — à implémenter :** après un export réussi, proposer
+« Créer une version de cet export », volontairement et sans modale. Capturer
+l’état exact qui a produit le PDF même si la rédaction a continué. Aucun jalon
+sur échec/annulation ; le quota de versions ne bloque jamais l’export.
+La comparaison entre fichiers reste une piste ultérieure.
+
 - Définir le périmètre de la première version utilisable et ses limites annoncées.
 - Produire des paquets macOS, Windows et Linux, l’association .typsto, l’ouverture
   par un lien d’invitation et une identité d’application stable.
@@ -746,9 +496,8 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. A.4 étant clos, terminer A avec **A.5** : documentation, nettoyage et recette
-   depuis un checkout propre. Le [bilan A.4](docs/a4-comparison-results.md) décrit
-   les preuves locales et les limites conservées hors de ce lot.
+1. Clore **A.5** avec la recette depuis un checkout propre ; le
+   [bilan de clôture](docs/a5-closure-results.md) distingue résultats locaux et CI.
 2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
 3. Engager ACP après stabilisation du contrat documentaire et validation de sa
