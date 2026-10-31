@@ -3,10 +3,11 @@ typstOgraphe — identité tO
 La source du signe est ligature.svg. Les lettres sont dessinées en courbes,
 sans dépendance à une police. La traverse du t rejoint la panse du O.
 
-PALETTE DE COMMANDES
-La barre latérale utilise directement optical/24.svg, en monochrome et sans
-contour ajouté. Son affichage à 20 px équilibre son dessin rempli avec les
-icônes filaires voisines, dans un bouton de mêmes dimensions.
+ICÔNE D’INTERFACE RÉUTILISABLE
+Le catalogue d’icônes expose le monogramme sous le nom « typstographe », depuis
+optical/24.svg, en monochrome et sans contour ajouté. Son style dans la barre
+latérale est conservé pour un usage ultérieur. La palette utilise désormais
+l’icône Lucide « wrench ».
 
 APERÇU
 Servir la racine du dépôt avec :
