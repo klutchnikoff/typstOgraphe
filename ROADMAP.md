@@ -21,7 +21,8 @@ avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
 **Séquence immédiate :** préparer les choix d’**A.4 — Snapshots durables** ensemble,
-après validation de la dernière qualification d’A.3.
+en anticipant le mode de relecture **J**, puis terminer le socle par
+**A.5 — Documentation, nettoyage et recette finale**.
 Les copies privées, la reprise des formulaires et la fermeture sont implémentées.
 La [recette de clôture](docs/a3-closure-results.md) couvre les incidents de
 publication, changements externes et exports Courrier/Article ; sa qualification
@@ -91,19 +92,16 @@ rédaction individuelle, l’ouverture et l’export doivent fonctionner hors li
 
 ## A — Sortir le code du statut de prototype
 
-- Unifier le contrat structuré entre l’interface, la CLI et MCP : capacités,
-  cibles, erreurs, disponibilité, fichiers et exports. Retirer les chemins
-  historiques devenus inutiles après vérification de la nouvelle voie.
-- Séparer les diagnostics, fixtures et outils de mesure de l’application livrée.
-- Consolider le cycle de vie : sauvegarde, récupération, fermeture, verrou,
-  modification externe, réouverture et ressources réellement utilisées.
-  Distinguer la copie de récupération d’un éventuel enregistrement automatique
-  du fichier, dont le comportement reste à choisir.
+**A.1 à A.3 sont clos** : application Tauri de référence, contrat structuré commun
+aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
+`docs/`. Les lots restants sont A.4 et A.5.
+
+### A.4 — Snapshots durables
+
 - Préciser le contrat de conservation de l’arbre documentaire, de Yjs et du
-  Typst généré avant de stabiliser le format public du fichier .typsto.
-- **Snapshots — P1, à préparer dès le contrat du fichier :** conserver dans le
-  projet des états cohérents et identifiables, consultables hors ligne. Chaque
-  état doit retrouver son contenu, ses métadonnées et réglages, son modèle,
+  Typst généré avec les snapshots avant de stabiliser le format public du .typsto.
+- Conserver dans le projet des états cohérents et identifiables, consultables
+  hors ligne. Chaque état doit retrouver son contenu, ses métadonnées et réglages, son modèle,
   ses dépendances et les ressources nécessaires au rendu, y compris une image
   remplacée ou supprimée depuis. Prévoir nom, date, auteur du snapshot et
   description facultative ; ne pas confondre création du snapshot et attribution
@@ -124,13 +122,50 @@ rédaction individuelle, l’ouverture et l’export doivent fonctionner hors li
   conservé reste dans le .typsto. L’export Typst/PDF porte sur l’état choisi,
   sans embarquer inutilement les ressources des autres états.
 
-**Choix à valider :** périmètre et moment de stabilisation du format.
+**Lien avec la relecture J — piste déjà retenue :** proposer un snapshot manuel
+à l’entrée en relecture, sans snapshots automatiques heuristiques. Il peut servir
+de point de référence conservé et comparable ; les suggestions restent des annotations
+ancrées distinctes du contenu, acceptées ou refusées par les commandes ordinaires.
+La comparaison de versions ne remplace pas ces suggestions. A.4 prépare ce socle
+sans avancer l’implémentation ni la maquette du mode de relecture J.
+
+**Choix à valider pour A.4 :** périmètre et moment de stabilisation du format.
 Pour les snapshots : déclenchement manuel/automatique, stockage, comparaison,
 rétention et restauration, puis droits et coordination en collaboration.
+Préciser avec J le lien éventuel d’une relecture avec un snapshot de référence,
+la conservation des suggestions/commentaires et leur devenir lors d’une restauration
+ou de la suppression d’un snapshot. Ces règles ne sont pas encore décidées.
 Aucune couche de rétrocompatibilité préventive pendant cette phase préliminaire.
 
+### A.5 — Documentation, nettoyage et recette finale
+
+Lot de clôture à mener après A.4, avant de déclarer le socle A terminé :
+
+- **Documentation :** retirer des roadmaps les tâches livrées, identifier les
+  contrats de référence et les bilans historiques, actualiser les commandes et le
+  guide de développement. Garder le README court ; conserver décisions et preuves utiles.
+- **Code :** supprimer les chemins morts, dépendances inutiles et duplications
+  restantes. Séparer diagnostics, fixtures et mesures de l’application livrée,
+  tout en gardant leurs recettes reproductibles.
+- **Dépôt :** ranger exemples et recettes, supprimer les fichiers temporaires et
+  les branches fusionnées devenues inutiles ; conserver les rapports pertinents,
+  références visuelles existantes, licences et provenances. Aucune nouvelle capture.
+- **Contrat du fichier :** documenter le format versionné retenu avec A.4 et ses
+  limites, en distinguant état courant, snapshots et copie de récupération.
+- **Recette de sortie :** depuis un checkout propre, suivre les instructions
+  documentées pour construire, tester et lancer l’application. Vérifier le même
+  corpus Courrier/Article entre Tauri, CLI et MCP, avec sauvegarde, réouverture,
+  consultation/restauration de snapshots et export hors ligne de l’état choisi.
+
+Les contrôles d’installation, signature, mise à jour et les recettes matérielles
+restent dans H. Tout choix structurant découvert pendant A.5 revient dans la
+discussion ; ce lot ne lance pas une réécriture générale ni les fonctionnalités
+des autres chantiers.
+
 **Sortie :** un même document passe de l’interface aux opérations documentaires
-et aux exports sans voie spéciale de prototype ni perte de contenu.
+et aux exports sans voie spéciale de prototype ni perte de contenu, avec snapshots
+durables ; le dépôt et sa documentation permettent à une autre personne de
+comprendre, construire et vérifier ce socle.
 
 ## B — Définir les types utiles et leurs contrats
 
@@ -473,7 +508,10 @@ version, puis être peaufinée.
   appliquer les suggestions encore en attente sur un état dérivé, sans les
   accepter. Un aperçu marqué pour l’auteur reste à décider.
 - Snapshot manuel proposé à l’entrée en relecture ; pas de snapshots automatiques
-  heuristiques.
+  heuristiques. A.4 fournit le point de référence durable et sa comparaison,
+  tandis que les suggestions restent des objets distincts. Le lien avec ce
+  snapshot, leur conservation et leur devenir après restauration restent à valider
+  ensemble dans A.4/J.
 - La relecture humaine ne dépend pas de la livraison d’ACP : son contrat commun
   de suggestions peut être préparé indépendamment et raccordé ensuite aux agents.
 - Une ancre déplacée peut suivre le texte ; une cible dont le contenu a changé
@@ -489,12 +527,13 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Après réussite de la [qualification native d’A.3](docs/a3-closure-results.md),
-   préciser ensemble A.4 : contenu, stockage, rétention et restauration des snapshots,
-   puis évaluer Git embarqué et les alternatives avant de choisir un moteur.
-2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
+1. Préciser ensemble A.4 : contenu, stockage, rétention et restauration des snapshots,
+   en anticipant la relecture J ; évaluer Git embarqué et les alternatives avant
+   de choisir un moteur.
+2. Terminer A avec A.5 : documentation, nettoyage et recette depuis un checkout propre.
+3. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
-3. Engager ACP après stabilisation du contrat documentaire et validation de sa
+4. Engager ACP après stabilisation du contrat documentaire et validation de sa
    maquette (**F**), sans attendre la livraison de tous les types SHS/enseignement.
 
 Ce prochain lot est une proposition à discuter ; cette réécriture documentaire

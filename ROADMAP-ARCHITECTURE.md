@@ -31,7 +31,8 @@ dans les bilans de docs/ et l’historique Git.
   ensemble ; rechercher les outils maintenus avant de réimplémenter une brique.
 
 Le [contrat structuré](docs/structured-contract.md) est le socle documentaire
-commun. La conservation durable et les snapshots restent à préciser dans A.3/A.4.
+commun. La conservation après incident est livrée dans A.3 ; les snapshots restent
+à préciser dans A.4, puis A.5 clôt le socle par la documentation et le nettoyage.
 Aucun maintien artificiel de la projection plate ou des anciens formats n’est demandé.
 
 ## A. Socle et convergence — P0
@@ -86,7 +87,7 @@ l’archive celles requises par l’état courant et tous les snapshots retenus.
 Un export Typst/PDF de l’état choisi ne requiert pas les ressources propres
 aux autres états conservés.
 
-### A.4 Snapshots durables — P1, contrat à préparer avec A.3
+### A.4 Snapshots durables — P1
 
 Définir un état cohérent incluant contenu structuré, métadonnées, réglages,
 modèle, dépendances et ressources, avec identité, nom, date, auteur du snapshot
@@ -117,8 +118,53 @@ aussi archive incomplète, suppression d’un snapshot et absence de nettoyage
 des ressources encore référencées. Une politique de nettoyage de l’historique
 ne doit pas dépendre du seul état courant.
 
+**Articulation avec J :** la piste retenue propose un snapshot manuel à l’entrée
+en relecture, sans création automatique heuristique. Un snapshot peut fournir un
+état de référence durable et comparable ; il ne remplace ni les annotations
+ancrées de suggestion, ni leurs commandes d’acceptation/refus sous garde.
+
+Avant de coder, préciser ensemble les liens éventuels entre relecture et snapshot
+de référence, la conservation des suggestions/commentaires et leurs ressources,
+ainsi que leur devenir après restauration ou suppression d’un snapshot. Distinguer
+ces données du contenu confirmé. Prévoir les cas de cibles modifiées, d’ancres
+orphelines et de propositions MCP périmées, sans inventer dès A.4 une politique
+de réapplication automatique. Ces arbitrages et la maquette du mode restent dans
+A.4/J ; livrer les snapshots ne suppose pas de livrer J ni ACP.
+
+### A.5 Documentation, nettoyage et recette finale — clôture de A
+
+Après A.4, vérifier le socle complet avant de quitter le chantier A :
+
+1. **Documentation de référence :** mettre à jour contrats et instructions,
+   retirer des deux roadmaps les tâches terminées et distinguer clairement bilans
+   historiques et documentation courante. Conserver un README court et les preuves
+   utiles, sans perdre les décisions d’architecture.
+2. **Application livrée :** retirer code mort, anciens chemins et duplications
+   vérifiées, examiner les dépendances et isoler tous les diagnostics, fixtures et
+   outils de mesure dans des constructions/cibles de recette adaptées. Le binaire
+   normal ne doit plus embarquer les comportements de prototype ; les tests et
+   recettes restent disponibles. Le choix concret d’isolation est à valider.
+3. **Organisation du dépôt :** ranger exemples et outils, retirer les fichiers
+   temporaires et branches fusionnées inutiles ; conserver résultats, rapports,
+   licences, provenances et références visuelles historiques. Ne pas réintroduire
+   d’outillage de capture.
+4. **Contrat de conservation :** documenter le format versionné retenu après A.4,
+   ses invariants et limites, sans couche de rétrocompatibilité préventive.
+5. **Recette depuis un checkout propre :** vérifier les instructions de dépendances
+   et de build, tests appropriés, lancement normal et accès CLI/MCP. Faire passer le
+   corpus Courrier/Article par édition, sauvegarde/réouverture, consultation et
+   restauration de snapshots, compilation et export hors ligne de l’état choisi.
+   Vérifier contenu, métadonnées, modèle, dépendances et ressources sans voie de
+   prototype ni duplication du contrat entre adaptateurs.
+
+Consigner les résultats et les limites résiduelles. Les qualifications matérielles,
+paquets, signature/notarisation et mises à jour restent dans H. Une nouvelle
+dépendance, une réécriture ou un choix graphique structurant demande un arbitrage
+distinct ; ce lot ne les autorise pas implicitement.
+
 **Sortie A :** même corpus relu et modifié par les adaptateurs concernés,
-sauvegardé, rouvert, rendu et exporté sans branche documentaire spéciale.
+sauvegardé, rouvert, restauré depuis un snapshot, rendu et exporté sans branche
+documentaire spéciale ; constructions et instructions vérifiées depuis un checkout propre.
 
 ## B. Types, paramètres et manifestes — P1
 
@@ -356,9 +402,16 @@ revient dans la discussion avant d’engager l’implémentation concernée.
 
 ## J. Relecture par suggestions — P2
 
- annotations ancrées séparées du contenu, applicables par les
-commandes gardées existantes. Mutualiser la présentation des propositions sans
+Représenter les suggestions par des annotations ancrées séparées du contenu,
+applicables par les commandes gardées existantes. Mutualiser la présentation des propositions sans
 perdre l’acceptation atomique des lots d’agent, y compris structurels. La première
 relecture humaine textuelle ne dépend pas d’ACP. Distinguer aperçu confirmé et
 aperçu candidat explicitement signalé ; revérifier le contenu cible avant toute
 acceptation si l’auteur l’a modifié.
+
+A.4 prépare les snapshots utilisables comme points de référence : snapshot manuel
+proposé à l’entrée en relecture, sans création automatique heuristique. Les liens
+avec les suggestions, leur conservation et l’effet d’une restauration ou suppression
+de snapshot restent à préciser ensemble dans A.4/J. Le calcul de différences entre
+snapshots et les suggestions ancrées ont des rôles distincts ; la relecture ne se
+réduit pas à un retour global à une ancienne version.
