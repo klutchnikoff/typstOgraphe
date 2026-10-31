@@ -501,6 +501,7 @@ fn diagnostic_finish(
         serde_json::to_vec_pretty(&report).map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
+    drop(session);
     app.exit(if report["success"].as_bool() == Some(true) {
         0
     } else {
@@ -546,6 +547,18 @@ fn main() {
         if arg == "--diagnostic-performance" {
             diagnostic = Some("performance".to_owned());
         }
+        if arg == "--diagnostic-draft-conservation" {
+            diagnostic = Some("draft-conservation".to_owned());
+        }
+        if arg == "--diagnostic-draft-recover" {
+            diagnostic = Some("draft-recover".to_owned());
+        }
+        if arg == "--diagnostic-draft-verify" {
+            diagnostic = Some("draft-verify".to_owned());
+        }
+        if arg == "--diagnostic-publication" || arg == "--diagnostic-publication-verify" {
+            diagnostic = Some(arg.trim_start_matches("--diagnostic-").to_owned());
+        }
         if arg == "--diagnostic-closure" {
             diagnostic = Some("closure".to_owned());
         }
@@ -579,15 +592,16 @@ fn main() {
         typstographe_i18n::initialize(&["fr".parse().expect("French locale")]);
     }
     let global_session = !custom_root && !stdio && diagnostic.is_none();
-    let mut session = if global_session {
+    let mut session = if diagnostic.as_deref() == Some("draft-recover") {
+        Session::fresh(root.clone())
+    } else if global_session {
         Session::fresh(PathBuf::new())
     } else {
         Session::open(root).expect("Impossible de rouvrir la session de recette")
     };
-    if diagnostic
-        .as_deref()
-        .is_some_and(|mode| mode.starts_with("closure"))
-    {
+    if diagnostic.as_deref().is_some_and(|mode| {
+        mode.starts_with("closure") || mode.starts_with("publication") || mode == "draft-recover"
+    }) {
         // Match the normal welcome document, not the rich historic demo fixture.
         session.fixture = Some(
             serde_json::from_value(
@@ -653,6 +667,19 @@ fn main() {
             settings::validate_model,
             catalogue::content_catalogue,
             recover,
+            recovery::drafts::open_private_recovery,
+            recovery::drafts::conserve_private,
+            recovery::commands::work_list,
+            recovery::commands::work_delete,
+            recovery::commands::work_restore,
+            recovery::commands::work_abandon,
+            recovery::commands::choose_work_file,
+            recovery::commands::work_import,
+            recovery::commands::work_export,
+            recovery::transition::transition_begin,
+            recovery::transition::transition_ack,
+            recovery::transition::transition_status,
+            recovery::transition::transition_end,
             recovery::recovery_list,
             recovery::recovery_restore,
             recovery::recovery_delete,
@@ -704,6 +731,8 @@ fn main() {
             prepare_rust_edit,
             diagnostic_mode,
             diagnostic_confirmed,
+            recovery::commands::diagnostic_private_records,
+            recovery::commands::diagnostic_external_ready,
             diagnostic_event,
             diagnostic_finish
         ])

@@ -70,6 +70,7 @@ export function bibliographyPanel(
     id: 'remove-bibliography-file',
     closeLabel: tr('Annuler'),
     close: () => {
+      confirm.discardRecovery()
       confirm.element.hidden = true
       add.focus()
     },
@@ -80,6 +81,7 @@ export function bibliographyPanel(
   confirm.action({
     label: tr('Annuler'),
     run: () => {
+      confirm.discardRecovery()
       confirm.element.hidden = true
       add.focus()
     },
@@ -117,6 +119,7 @@ export function bibliographyPanel(
           before === JSON.stringify(referenceFiles(provider)) &&
           editor.state.doc.eq(editor.schema.nodeFromJSON(document)),
       )
+      confirm.discardRecovery()
       confirm.element.hidden = true
       refresh()
       return true
@@ -248,6 +251,7 @@ export function bibliographyPanel(
               confirm.body.textContent = file.name
               confirm.error.textContent = ''
               confirm.element.hidden = false
+              confirm.trackRecovery(provider, { kind: 'bibliography-removal', file: file.id })
               confirm.focus()
             },
           ],
@@ -270,6 +274,7 @@ export function bibliographyPanel(
   return {
     refresh,
     destroy() {
+      confirm.detachRecovery()
       alive = false
       styleBinding.destroy()
       root.remove()

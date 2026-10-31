@@ -20,10 +20,15 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** préparer ensemble **A.3 — Conservation et publication** :
-conservation durable des brouillons refusés et des saisies en attente, récupération,
-fermeture et modifications externes. Préciser les garanties et les recettes avant
-l’implémentation ; ne pas confondre récupération et snapshots durables (A.4).
+**Séquence immédiate :** préparer les choix d’**A.4 — Snapshots durables** ensemble,
+après validation de la dernière qualification d’A.3.
+Les copies privées, la reprise des formulaires et la fermeture sont implémentées.
+La [recette de clôture](docs/a3-closure-results.md) couvre les incidents de
+publication, changements externes et exports Courrier/Article ; sa qualification
+native a réussi sur les trois systèmes ; le workflow vérifie aussi le commit
+courant et conserve ses rapports. Les résultats
+macOS locaux et les résultats CI sont distingués. Ne pas confondre récupération
+et snapshots durables.
 
 **A.2 est clos.** La [recette Courrier/Article](docs/a2-closure-results.md) valide
 le même projet entre Tauri, CLI et MCP, les propositions rattachées, l’historique,
@@ -484,10 +489,9 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Définir ensemble le lot **A.3 — Conservation et publication**, à partir des
-   garanties déjà vérifiées dans le [bilan de clôture A.2](docs/a2-closure-results.md).
-   Prioriser la conservation durable des brouillons refusés et des champs en
-   attente ; préciser récupération, fermeture et conflits de fichiers avant de coder.
+1. Après réussite de la [qualification native d’A.3](docs/a3-closure-results.md),
+   préciser ensemble A.4 : contenu, stockage, rétention et restauration des snapshots,
+   puis évaluer Git embarqué et les alternatives avant de choisir un moteur.
 2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
 3. Engager ACP après stabilisation du contrat documentaire et validation de sa

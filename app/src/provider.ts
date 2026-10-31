@@ -21,6 +21,8 @@ export interface Bootstrap {
   restoredDocument: JSONContent | null
   sessionPath: string
   settings?: Settings
+  recoveredName?: string | null
+  recoveredItems?: import('./recovered-work').RecoveredItem[]
   hasRecovery?: boolean
   opened?: boolean
   filePath?: string | null
@@ -79,12 +81,16 @@ export class Provider {
   revision = 0
   online = false
   sessionPath = ''
+  retainRecovery = false
+  recoveredName: string | null = null
+  recoveredItems: import('./recovered-work').RecoveredItem[] = []
   generation = ''
   onChange = () => {}
   onStatus = () => {}
   documentEdits?: { flush: () => Promise<void>; dirty: () => boolean; draft?: () => unknown }
   onResource = () => {}
   onError = (_error: unknown) => {}
+  privateRecovery?: { flush: () => Promise<void>; force: () => Promise<void>; stop: () => void }
   nativeEditing = false
   historyState: HistoryState = { undo_steps: 0, redo_steps: 0, pending: false }
   historyBusy = false
@@ -252,6 +258,10 @@ export class Provider {
     this.revision = Math.max(this.revision, bootstrap.revision)
     this.nativeEditing = !!bootstrap.nativeEditing
     this.sessionPath = bootstrap.sessionPath
+    if (!this.generation || this.generation !== bootstrap.generation) {
+      this.recoveredName = bootstrap.recoveredName || null
+      this.recoveredItems = structuredClone(bootstrap.recoveredItems || [])
+    }
     this.generation = bootstrap.generation || ''
     this.updateSynchronization(bootstrap.synchronization)
     if (this.earlySynchronization) this.updateSynchronization(this.earlySynchronization)

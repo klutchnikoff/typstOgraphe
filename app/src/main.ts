@@ -1,3 +1,4 @@
+import { registerRecoveryOpener } from './form-recovery'
 import { refreshCommandButton } from './public-commands'
 import { draftRecovery } from './draft-recovery'
 import { historyFor } from './editing-history'
@@ -220,13 +221,14 @@ function snapshot() {
     settings: settingsFor(provider),
   }
 }
-async function save() {
+async function save(includeDocumentEdits = true) {
   if (!provider.online || restoringError)
     throw new Error(tr('Reconnectez cette fenêtre avant d’enregistrer.'))
   const path = await withCurrentSnapshot(
     provider,
     () => ({ snapshot: snapshot(), update: Array.from(Y.encodeStateAsUpdate(provider.doc)) }),
     (checkpoint) => host.transport.invoke<string>('save', checkpoint),
+    includeDocumentEdits,
   )
   message(`${tr('Session enregistrée')} · ${path}`)
 }
@@ -491,6 +493,33 @@ async function start() {
       else removeWidget(editor)
     },
   })
+  registerRecoveryOpener(provider, editor, (pos, draft) => {
+    bands.close(false)
+    const details = (draft.data as any)?.data
+    if (draft.form === 'proofing-band') {
+      const context = draft.context as any
+      editor.commands.setTextSelection({
+        from: pos,
+        to: pos + context.range.to - context.range.from,
+      })
+      return openCorrection(editor)
+    }
+    if (editor.state.doc.nodeAt(pos)?.type.name === 'tableFigure')
+      return tables?.resume(pos, details) || false
+    if (
+      details?.new &&
+      (draft.form === 'citation-properties' || draft.form === 'table-properties')
+    ) {
+      editor.commands.setTextSelection(pos)
+      if (draft.form === 'citation-properties') citations?.open()
+      else tables?.open()
+      return bands.isOpen
+    }
+    const kind = details?.kind || editor.state.doc.nodeAt(pos)?.type.name
+    if (!kind) return false
+    openProperties(pos, kind, !!details?.remove)
+    return bands.isOpen
+  })
   toolbar(element('toolbar'), commands, contentCatalogue.entries)
   await mountShell({
     editor,
@@ -512,7 +541,7 @@ async function start() {
       !!(
         browserHost ||
         window.__SPIKE_TRANSPORT__ ||
-        (isTauri && (await host.transport.invoke('diagnostic_mode')))
+        (isTauri && diagnosticMode !== 'draft-recover' && diagnosticMode)
       ),
   })
   if (provider.nativeEditing) await provider.clearHistory()
@@ -591,6 +620,20 @@ async function start() {
         rendering.pause,
         snapshot,
         mode === 'synchronization-active',
+      )
+    } else if (mode?.startsWith('draft-')) {
+      void (await import('./draft-diagnostic')).draftDiagnostic(
+        mode,
+        host.transport,
+        provider,
+        editor,
+      )
+    } else if (mode?.startsWith('publication')) {
+      void (await import('./publication-diagnostic')).publicationDiagnostic(
+        mode,
+        host.transport,
+        provider,
+        editor,
       )
     } else if (mode?.startsWith('closure')) {
       void (await import('./closure-diagnostic')).closureDiagnostic(

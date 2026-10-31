@@ -74,7 +74,9 @@ it('retains refused input, blocks snapshots and never retries over a peer edit w
   native.calls[0].finish()
   await expect(s.controller.flush()).rejects.toThrow('Le document a changé')
   expect(s.controller.value(s.target, s.read())).toBe('Mon brouillon')
-  expect(s.controller.draft()).toEqual([{ target: s.target, value: 'Mon brouillon' }])
+  expect(s.controller.draft()).toEqual([
+    { target: s.target, value: 'Mon brouillon', base: 'Initial' },
+  ])
   expect(s.read()).toBe('Modification distante')
   expect(native.calls).toHaveLength(1)
   s.controller.discard(s.target)

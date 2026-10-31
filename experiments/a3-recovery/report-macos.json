@@ -1,0 +1,20 @@
+{
+  "checks": [
+    "welcome lists interrupted work",
+    "resume creates independent project without original lease",
+    "ordinary band restores private note without publication",
+    "Escape retains recovered source",
+    "Cmd Enter publishes through typed command",
+    "consumption follows durable acknowledgement",
+    "native draft export preserves private input and confirmed base"
+  ],
+  "success": true,
+  "confirmedReopen": [
+    "private input survives process interruption",
+    "confirmed archive reopens without private publication",
+    "confirmed recovery checkpoint validates"
+  ],
+  "git": "56eba4da633cbe6ec39e316d70d0abad8fefab4c",
+  "platform": "darwin",
+  "interruption": "SIGKILL after automatic checkpoint and explicit confirmed save"
+}

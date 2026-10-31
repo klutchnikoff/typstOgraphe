@@ -48,6 +48,8 @@ pub struct Bootstrap {
     pub synchronization: Synchronization,
     pub opened: bool,
     pub has_recovery: bool,
+    pub recovered_name: Option<String>,
+    pub recovered_items: Vec<crate::recovery::work::Item>,
     pub initial_path: Option<String>,
     pub file_path: Option<String>,
     pub revision: u64,
@@ -74,7 +76,11 @@ pub struct Session {
     pub owner: Option<crate::owner::Owner>,
     pub recovery: Option<crate::recovery::Store>,
     pub initial_path: Option<String>,
+    pub recovered_name: Option<String>,
+    pub recovered_items: std::collections::HashMap<String, Vec<crate::recovery::work::Item>>,
+    pub transition: Option<crate::recovery::transition::Transition>,
     pub clean_revision: Option<u64>,
+    pub(crate) draft_epochs: std::collections::HashMap<String, (u64, u64)>,
     pub offline: HashSet<String>,
     pub generation: String,
     pub opened: bool,
@@ -99,6 +105,10 @@ impl Session {
             recovery: None,
             initial_path: None,
             clean_revision: None,
+            recovered_name: None,
+            recovered_items: Default::default(),
+            transition: None,
+            draft_epochs: Default::default(),
             offline: HashSet::new(),
             generation: uuid::Uuid::new_v4().to_string(),
             opened: false,
@@ -194,9 +204,18 @@ impl Session {
         Ok(session)
     }
     pub fn mark_clean(&mut self) -> Result<(), String> {
+        if let Some(transition) = &self.transition {
+            for window in &transition.abandon {
+                let file = crate::recovery::drafts::path(&self.root, &self.generation, window)?;
+                if file.exists() {
+                    std::fs::remove_file(file).map_err(|e| e.to_string())?;
+                }
+            }
+        }
         if let Some(store) = &self.recovery {
             store.clear()?;
         }
+        crate::recovery::drafts::clean_confirmed(&self.root, &self.generation);
         self.clean_revision = Some(self.revision);
         Ok(())
     }
@@ -212,6 +231,8 @@ impl Session {
             synchronization: self.synchronization(),
             generation: self.generation.clone(),
             opened: self.opened,
+            recovered_name: self.recovered_name.clone(),
+            recovered_items: self.recovered_items.get(peer).cloned().unwrap_or_default(),
             has_recovery: if let Some(store) = &self.recovery {
                 !store.list().unwrap_or_default().is_empty()
             } else {
@@ -250,6 +271,9 @@ impl Session {
         }
         self.activate_for_windows();
         Ok(())
+    }
+    pub(crate) fn registered_windows(&self) -> Vec<String> {
+        self.peers.iter().cloned().collect()
     }
     pub fn leave(&mut self, peer: &str) {
         self.offline.remove(peer);
@@ -440,15 +464,28 @@ impl Session {
         self.receipt(peer, publication.update)
     }
     pub fn lifecycle(&self, revision: u64) -> Result<(), String> {
+        if self.transition.as_ref().is_some_and(|t| {
+            !t.ready() || t.revision != self.revision || t.generation != self.generation
+        }) {
+            return Err("recovery_transition_not_ready".into());
+        }
+        if self.synchronization().windows.len() > 1 && self.transition.is_none() {
+            return Err("recovery_transition_required".into());
+        }
         if self.revision != revision {
             return Err("Le document a changé ; réessayez après synchronisation.".into());
         }
-        if !self.offline.is_empty() {
+        if !self.offline.is_empty() && self.transition.is_none() {
             return Err("Reconnectez les autres fenêtres avant de remplacer le document.".into());
         }
         Ok(())
     }
     pub fn reset_document_generation(&mut self) {
+        self.offline.clear();
+        self.draft_epochs.clear();
+        self.recovered_name = None;
+        self.recovered_items.clear();
+        self.transition = None;
         self.generation = uuid::Uuid::new_v4().to_string();
         self.synchronization_enabled = false;
         self.synchronization_version = 0;

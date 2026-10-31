@@ -1,3 +1,5 @@
+import { bindRecoveryPanel } from './form-recovery'
+import { trackForm } from './form-drafts'
 import { actionRow, initialNavigationGroup, keyboardScope, visible } from './keyboard-navigation'
 /** Shared panel anatomy. Only body and actions belong to a capability/corrector. */
 export function contextPanel(options: {
@@ -36,9 +38,56 @@ export function contextPanel(options: {
   error.setAttribute('role', 'alert')
   if (options.errorId) error.id = options.errorId
   element.append(header, body, actions, error)
+  let recovery: ReturnType<typeof trackForm> | undefined
+  let compositions = 0
+  element.addEventListener(
+    'compositionstart',
+    () => {
+      compositions++
+    },
+    true,
+  )
+  element.addEventListener(
+    'compositionend',
+    () => {
+      compositions = Math.max(0, compositions - 1)
+    },
+    true,
+  )
   let preferred: HTMLButtonElement | undefined
   const panel = {
     element,
+    recoveryData: (): unknown => null,
+    restoreRecoveryData: (_data: any): boolean => true,
+    recoveryApplied: async (): Promise<void> => {},
+    recoveryFailed: (reason: unknown) => {
+      error.textContent = String(reason)
+    },
+    committed() {
+      const done = panel.recoveryApplied,
+        failed = panel.recoveryFailed
+      queueMicrotask(() => void done().catch(failed))
+    },
+    bindRecoverySource(id: string) {
+      recovery?.source(id)
+    },
+    trackRecovery(owner: object, context: unknown) {
+      panel.recoveryApplied = async () => {}
+      element.querySelector('.recovery-form-notice')?.remove()
+      recovery?.detach()
+      recovery = trackForm(owner, element, context, () => panel.recoveryData())
+    },
+    discardRecovery() {
+      recovery?.discard()
+      recovery = undefined
+    },
+    detachRecovery() {
+      recovery?.detach()
+      recovery = undefined
+    },
+    draftChanged() {
+      recovery?.changed()
+    },
     title,
     body,
     actions,
@@ -59,7 +108,7 @@ export function contextPanel(options: {
     },
     confirm: () => preferred?.click(),
     submit() {
-      if (options.canConfirm()) panel.confirm()
+      if (!compositions && options.canConfirm()) panel.confirm()
     },
     action(options: {
       id?: string
@@ -74,7 +123,9 @@ export function contextPanel(options: {
       button.textContent = options.label
       if (options.id) button.id = options.id
       button.classList.toggle('danger', !!options.danger)
-      button.onclick = options.run
+      button.onclick = () => {
+        if (!options.primary || !compositions) options.run()
+      }
       ;(options.parent || actions).append(button)
       if (options.primary) panel.setDefault(button)
       return button
@@ -95,7 +146,7 @@ export function contextPanel(options: {
     canConfirm: options.canConfirm,
     tab: true,
     tabLoop: options.modal,
-    modifiedEnter: options.modal,
+    modifiedEnter: true,
     tabExit: options.tabExit,
     enterMultiline: !options.modal,
     priority: options.modal ? 40 : 20,
@@ -105,6 +156,7 @@ export function contextPanel(options: {
     event.preventDefault()
     panel.submit()
   }
+  bindRecoveryPanel(panel)
   return panel
 }
 

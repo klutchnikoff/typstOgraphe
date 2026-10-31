@@ -1,3 +1,5 @@
+import { trackForm } from './form-drafts'
+import { editingProvider } from './editing-history'
 import { actionRow, composing, navigationGroup } from './keyboard-navigation'
 import type { Editor } from '@tiptap/core'
 import { tr } from './i18n'
@@ -141,6 +143,11 @@ export function searchPanel(content: HTMLElement, editor: Editor) {
   next.textContent = tr('Occurrence suivante')
   next.onclick = () => navigateSearch(editor, false, false)
   actions.prepend(previous, next)
-  content.append(query, replacement, label, actions, error, results)
+  const root = document.createElement('section')
+  root.id = 'document-search-draft'
+  root.append(query, replacement, label, actions, error, results)
+  content.append(root)
+  const provider = editingProvider(editor)
+  if (provider) trackForm(provider, root, { kind: 'search-replace' })
   query.focus()
 }

@@ -50,15 +50,37 @@ presse-papiers physiques des trois systèmes restent une recette manuelle ; cett
 clôture n’en revendique pas une validation exhaustive. Le réseau reste dans G,
 la fusion de cellules et les listes imbriquées dans C.
 
-### A.3 Conservation et publication
+### A.3 Conservation et publication — clôture livrée
+
+**Décisions validées le 31 octobre 2026 :** [contrat de conservation et reprise](docs/a3-conservation.md).
+Enregistrement explicite du `.typsto` ; secours indépendant après deux secondes
+sans modification, échéance de dix secondes en rédaction continue. Protéger aussi
+les saisies privées, champs en attente et formulaires ouverts, avec leurs ressources,
+sans publication automatique. Une copie par document/fenêtre ; reprise isolée et
+fermeture explicite livrées. L’annulation reste limitée à la séance.
+Premier lot livré : collecte commune des formulaires et zones riches, copies privées
+atomiques par document/fenêtre, conservation des refus et ressources, échéances et
+reprises d’écriture. La recette native macOS vérifie un arrêt brutal sans publication
+d’un formulaire ouvert. Voir le [contrat et les limites](docs/a3-conservation.md) et le
+[bilan du premier lot](docs/a3-conservation-results.md).
+Le [parcours de reprise et de fermeture](docs/a3-recovery-interface.md) est validé :
+accueil sans ouverture automatique, copie indépendante, saisies privées reprises
+dans les interfaces existantes, conservation à la fermeture par défaut. La maquette
+est validée et son implémentation livrée, avec une barrière de conservation de
+toutes les fenêtres avant remplacement du document. Voir le [bilan de reprise](docs/a3-recovery-results.md).
+Les recettes d’incident, de changement externe et de publication Courrier/Article
+sont livrées, avec comparaison des états et exports Tauri/CLI. La [recette de
+clôture](docs/a3-closure-results.md) précise la qualification native des trois systèmes,
+réussie lors de la première passe CI, les contrôles finaux du commit courant et
+les contrôles matériels de distribution restant dans H.
 
 Fixer les responsabilités de l’état Yjs, de l’arbre validé et du Typst généré.
 Tester identité/révision, sauvegarde pendant des éditions, récupération après
 incident, fermeture, changement externe et refus d’une archive incohérente.
 Les copies de récupération Tauri sont désormais isolées par processus,
 protégées par un verrou et restaurées explicitement ; ne pas les confondre avec
-les snapshots durables. Étendre les recettes aux systèmes et situations réelles
-encore non couverts.
+les snapshots durables. Les recettes natives sont exécutables sur les trois systèmes dans la validation
+complète ; les rapports locaux et les résultats CI sont distingués.
 Conserver en séance les ressources utiles à l’annulation ; conserver dans
 l’archive celles requises par l’état courant et tous les snapshots retenus.
 Un export Typst/PDF de l’état choisi ne requiert pas les ressources propres

@@ -18,6 +18,9 @@ type Draft = {
   read: () => unknown
   base: string
   version: number
+  manual?: boolean
+  sourceId?: string
+  recoveredDone?: () => Promise<void>
   error?: Error
 }
 const owners = new WeakMap<Provider, MetadataCommands>()
@@ -72,9 +75,49 @@ export class MetadataCommands {
   error(target: FieldTarget) {
     return this.drafts.get(key(target))?.error
   }
+  recovering(target: FieldTarget) {
+    return !!this.drafts.get(key(target))?.manual
+  }
+  restore(
+    target: FieldTarget,
+    value: unknown,
+    read: () => unknown,
+    done: () => Promise<void>,
+    sourceId?: string,
+  ) {
+    this.checkDocument()
+    this.drafts.set(key(target), {
+      target,
+      value,
+      read,
+      base: stableJSON(read()),
+      version: 0,
+      manual: true,
+      recoveredDone: done,
+      sourceId,
+    })
+    this.changed()
+  }
+  confirm(target: FieldTarget, value: unknown, read: () => unknown) {
+    const previous = this.drafts.get(key(target))
+    if (previous) {
+      if (previous.error) previous.base = stableJSON(read())
+      previous.manual = false
+      previous.error = undefined
+    }
+    this.set(target, value, read)
+    this.pump()
+  }
   draft() {
     this.checkDocument()
-    return [...this.drafts.values()].map(({ target, value }) => structuredClone({ target, value }))
+    return [...this.drafts.values()].map(({ target, value, base, sourceId }) =>
+      structuredClone({
+        target,
+        value,
+        ...(base === undefined ? {} : { base: JSON.parse(base) }),
+        ...(sourceId ? { sourceId } : {}),
+      }),
+    )
   }
   dirty() {
     this.checkDocument()
@@ -89,6 +132,12 @@ export class MetadataCommands {
     this.checkDocument()
     const id = key(target),
       previous = this.drafts.get(id)
+    if (previous?.manual) {
+      previous.value = value
+      previous.version++
+      this.changed()
+      return
+    }
     if (previous && !previous.error && stableJSON(previous.value) === stableJSON(value)) return
     if (!previous || previous.error)
       this.drafts.set(id, { target, value, read, base: stableJSON(read()), version: 0 })
@@ -117,7 +166,9 @@ export class MetadataCommands {
         for (;;) {
           this.checkDocument()
           if (generation !== this.provider.generation || identity !== this.identity) return
-          const entry = [...this.drafts.entries()].find(([, draft]) => !draft.error)
+          const entry = [...this.drafts.entries()].find(
+            ([, draft]) => !draft.error && !draft.manual,
+          )
           if (!entry) return
           const [id, draft] = entry,
             value = structuredClone(draft.value),
@@ -143,8 +194,11 @@ export class MetadataCommands {
               { guardSelection: false, flushMetadata: false, lockEditors: false },
             )
             if (this.drafts.get(id) !== draft) continue
-            if (version === draft.version) this.drafts.delete(id)
-            else {
+            if (version === draft.version) {
+              this.drafts.delete(id)
+              if (draft.recoveredDone)
+                queueMicrotask(() => void draft.recoveredDone!().catch(this.provider.onError))
+            } else {
               if (stableJSON(draft.read()) !== stableJSON(value))
                 throw new Error(tr('Le document a changé. Réessayez.'))
               draft.base = stableJSON(value)
@@ -158,7 +212,7 @@ export class MetadataCommands {
       })
       .finally(() => {
         this.running = undefined
-        if ([...this.drafts.values()].some((draft) => !draft.error)) this.pump()
+        if ([...this.drafts.values()].some((draft) => !draft.error && !draft.manual)) this.pump()
       })
   }
   private async flushFields() {
@@ -166,6 +220,8 @@ export class MetadataCommands {
     while (this.running) await this.running
     const refused = [...this.drafts.values()].find((draft) => draft.error)
     if (refused) throw refused.error
+    if ([...this.drafts.values()].some((draft) => draft.manual))
+      throw new Error(tr('Saisie récupérée · à valider'))
     if (this.compositions.size) throw new Error(tr('Terminez la saisie en cours avant de décider.'))
   }
   async flush() {

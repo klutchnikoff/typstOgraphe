@@ -1,4 +1,11 @@
 mod persistence;
+#[cfg(feature = "recipe-driver")]
+pub fn close_for_recipe(
+    session: &mut crate::session::Session,
+    revision: u64,
+) -> Result<(), String> {
+    persistence::close_project(session, revision)
+}
 use crate::{Bridge, session::Snapshot, settings::Settings};
 use std::path::PathBuf;
 use tauri::{Emitter, State};
@@ -7,11 +14,10 @@ use tauri_plugin_dialog::DialogExt;
 use typstographe_core::content::archive::Archive;
 #[tauri::command]
 pub fn quit_app(app: tauri::AppHandle, state: State<Bridge>) -> Result<(), String> {
-    state
-        .session
-        .lock()
-        .map_err(|e| e.to_string())?
-        .mark_clean()?;
+    {
+        let session = state.session.lock().map_err(|e| e.to_string())?;
+        session.lifecycle(session.revision)?;
+    }
     app.exit(0);
     Ok(())
 }
@@ -20,12 +26,20 @@ pub fn set_window_title(window: tauri::WebviewWindow, title: String) -> Result<(
     window.set_title(&title).map_err(|e| e.to_string())
 }
 #[tauri::command]
-pub async fn choose_file(app: tauri::AppHandle, save: bool) -> Result<Option<String>, String> {
+pub async fn choose_file(
+    app: tauri::AppHandle,
+    save: bool,
+    default_name: Option<String>,
+) -> Result<Option<String>, String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     let dialog = app.dialog().file().add_filter("typstOgraphe", &["typsto"]);
     if save {
         dialog
-            .set_file_name("Sans titre.typsto")
+            .set_file_name(
+                default_name
+                    .filter(|s| s.len() <= 255 && !s.contains(['/', '\\', '\0']))
+                    .unwrap_or_else(|| "Sans titre.typsto".into()),
+            )
             .save_file(move |path| {
                 let _ = tx.send(path);
             });
@@ -57,6 +71,8 @@ pub async fn export_editing_draft(
     {
         let mut session = state.session.lock().map_err(|e| e.to_string())?;
         if draft["generation"].as_str() == Some(session.generation.as_str()) {
+            draft["confirmed"] =
+                serde_json::to_value(session.recovery_checkpoint()?).map_err(|e| e.to_string())?;
             draft["rejectedEdition"] =
                 serde_json::to_value(session.ensure_owner()?.draft(window.label())?)
                     .map_err(|e| e.to_string())?;

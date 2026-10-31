@@ -1,0 +1,107 @@
+/* Recovery uses the same surfaces, action rows and forms as ordinary editing. */
+.recovery-home {
+  margin-top: 24px;
+  text-align: left;
+  width: 100%;
+}
+.recovery-home > h2 {
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+.recovery-work-list {
+  display: grid;
+  gap: 14px;
+}
+.recovery-work-list > article {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 15px;
+  background: var(--panel);
+}
+.recovery-work-list h3 {
+  font-size: 14px;
+  margin: 0 0 9px;
+  overflow-wrap: anywhere;
+}
+.recovery-work-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.recovery-work-row + .recovery-work-row {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.recovery-work-row p {
+  margin: 3px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.recovery-work-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.recovery-home > button {
+  margin-top: 14px;
+}
+.recovered-document-line {
+  padding: 7px 14px;
+  background: var(--soft);
+  color: var(--accent);
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.recovered-items > p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0 0 15px;
+}
+.recovered-items section {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.recovered-items h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+.recovered-items section p {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 6px 0;
+}
+.recovered-items .danger {
+  margin-right: auto;
+}
+.recovery-close-dialog .panel-actions .danger {
+  margin-right: auto;
+}
+.recovery-close-dialog p[role='alert'] {
+  color: var(--danger);
+}
+.recovery-close-dialog > p {
+  max-width: 50ch;
+}
+#isolated-recovered-item textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 160px;
+}
+.recovery-progress {
+  text-align: center;
+}
+.recovery-progress button {
+  display: block;
+  margin: 18px 0 0 auto;
+}
+.recovery-form-notice {
+  padding: 7px 9px;
+  border-radius: 4px;
+  background: var(--soft);
+  color: var(--accent);
+  font-size: 12px;
+}

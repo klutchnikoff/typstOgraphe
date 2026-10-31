@@ -3,7 +3,10 @@ import type { FieldTarget, MetadataCommands } from './metadata-commands'
 import { actionRow, keyboardScope } from './keyboard-navigation'
 
 type Control = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-const bindings = new WeakMap<Control, { refresh: () => void; destroy: () => void }>()
+const bindings = new WeakMap<
+  Control,
+  { target: FieldTarget; refresh: () => void; destroy: () => void }
+>()
 /** Same pending value, IME isolation, refusal and explicit retry/discard for every native field. */
 export function bindMetadataInput(
   input: Control,
@@ -24,7 +27,7 @@ export function bindMetadataInput(
   retry.type = cancel.type = 'button'
   retry.textContent = tr('Valider')
   cancel.textContent = tr('Annuler')
-  retry.onclick = () => commands.set(target, parse(), read)
+  retry.onclick = () => commands.confirm(target, parse(), read)
   cancel.onclick = () => {
     commands.discard(target)
     input.focus()
@@ -36,7 +39,7 @@ export function bindMetadataInput(
   const root = input.closest<HTMLElement>('.field') || input.parentElement!.parentElement!
   root.append(status)
   keyboardScope(root, {
-    active: () => !!commands.error(target),
+    active: () => !!commands.error(target) || commands.recovering(target),
     close: () => cancel.click(),
     confirm: () => retry.click(),
   })
@@ -55,8 +58,10 @@ export function bindMetadataInput(
   }
   const refresh = () => {
     const reason = commands.error(target)
-    status.hidden = !reason
-    error.textContent = reason?.message || ''
+    const recovering = commands.recovering(target)
+    status.hidden = !reason && !recovering
+    error.textContent = reason?.message || (recovering ? tr('Saisie récupérée · à valider') : '')
+    error.role = reason ? 'alert' : 'status'
     input.setAttribute('aria-invalid', String(!!reason))
     if (composing) return
     const value = commands.value(target, read())
@@ -87,6 +92,7 @@ export function bindMetadataInput(
   input.addEventListener('compositionend', end)
   const unsubscribe = commands.watch(refresh)
   const binding = {
+    target,
     refresh,
     destroy() {
       unsubscribe()

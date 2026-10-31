@@ -37,6 +37,133 @@ fn dispatch(
     let peer = request["peer"].as_str().ok_or("Participant absent.")?;
     let command = request["command"].as_str().ok_or("Commande absente.")?;
     match command {
+        "diagnostic_request_close" => Ok(serde_json::Value::Null),
+        "work_list" => serde_json::to_value(
+            bridge
+                .session
+                .lock()
+                .map_err(|e| e.to_string())?
+                .work_list()?,
+        )
+        .map_err(|e| e.to_string()),
+        "work_delete" => {
+            bridge
+                .session
+                .lock()
+                .map_err(|e| e.to_string())?
+                .work_delete(args["id"].as_str().ok_or("id missing")?)?;
+            Ok(serde_json::Value::Null)
+        }
+        "work_restore" => {
+            bridge
+                .session
+                .lock()
+                .map_err(|e| e.to_string())?
+                .work_restore(
+                    peer,
+                    args["id"].as_str().ok_or("id missing")?,
+                    args["revision"].as_u64().ok_or("revision missing")?,
+                )?;
+            Ok(serde_json::Value::Null)
+        }
+        "work_abandon" => {
+            bridge
+                .session
+                .lock()
+                .map_err(|e| e.to_string())?
+                .abandon_window_work(
+                    peer,
+                    args["generation"].as_str().ok_or("generation missing")?,
+                )?;
+            Ok(serde_json::Value::Null)
+        }
+        "work_import" => {
+            let record = crate::recovery::work::read_work(std::path::Path::new(
+                args["path"].as_str().ok_or("path missing")?,
+            ))?;
+            let mut s = bridge.session.lock().map_err(|e| e.to_string())?;
+            s.lifecycle(args["revision"].as_u64().ok_or("revision missing")?)?;
+            s.restore_work_record(peer, record)?;
+            Ok(serde_json::Value::Null)
+        }
+        "transition_begin" => serde_json::to_value(
+            bridge
+                .session
+                .lock()
+                .map_err(|e| e.to_string())?
+                .begin_transition(
+                    peer,
+                    args["generation"].as_str().ok_or("generation missing")?,
+                )?,
+        )
+        .map_err(|e| e.to_string()),
+        "transition_ack" => {
+            bridge
+                .session
+                .lock()
+                .map_err(|e| e.to_string())?
+                .acknowledge_transition(
+                    peer,
+                    serde_json::from_value(args["ack"].clone()).map_err(|e| e.to_string())?,
+                )?;
+            Ok(serde_json::Value::Null)
+        }
+        "transition_status" => serde_json::to_value(
+            bridge
+                .session
+                .lock()
+                .map_err(|e| e.to_string())?
+                .transition_status(args["id"].as_str().ok_or("id missing")?)?,
+        )
+        .map_err(|e| e.to_string()),
+        "transition_end" => {
+            let mut s = bridge.session.lock().map_err(|e| e.to_string())?;
+            if s.transition
+                .as_ref()
+                .is_some_and(|t| Some(t.id.as_str()) == args["id"].as_str())
+            {
+                s.transition = None;
+            }
+            Ok(serde_json::Value::Null)
+        }
+        "close_document" => {
+            crate::files::close_for_recipe(
+                &mut *bridge.session.lock().map_err(|e| e.to_string())?,
+                args["revision"].as_u64().ok_or("revision missing")?,
+            )?;
+            Ok(serde_json::Value::Null)
+        }
+        "open_private_recovery" => {
+            let generation = args["generation"].as_str().ok_or("generation missing")?;
+            Ok(serde_json::json!(
+                bridge
+                    .session
+                    .lock()
+                    .map_err(|e| e.to_string())?
+                    .open_private_recovery(peer, generation)?
+            ))
+        }
+        "conserve_private" => {
+            let input = serde_json::from_value(args["input"].clone()).map_err(|e| e.to_string())?;
+            Ok(serde_json::json!(
+                bridge
+                    .session
+                    .lock()
+                    .map_err(|e| e.to_string())?
+                    .conserve_private(peer, input)?
+            ))
+        }
+        "diagnostic_private_recovery" => {
+            let s = bridge.session.lock().map_err(|e| e.to_string())?;
+            let path = crate::recovery::drafts::path(&s.root, &s.generation, peer)?;
+            if path.exists() {
+                serde_json::to_value(crate::recovery::drafts::read(&path)?)
+                    .map_err(|e| e.to_string())
+            } else {
+                Ok(serde_json::Value::Null)
+            }
+        }
+
         "diagnostic_agent" => {
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
             let mut agent = bridge.agent.lock().map_err(|e| e.to_string())?;
