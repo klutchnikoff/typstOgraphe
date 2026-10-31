@@ -348,6 +348,13 @@ impl EditingSession {
         self.contexts.get_mut(&id).unwrap().receive(&publication)?;
         Ok(publication)
     }
+    pub(in crate::content) fn prepare_comparison(
+        &self,
+        guard: &Guard,
+        archive: &super::archive::Archive,
+    ) -> Result<super::shared::PreparedUpdate, Error> {
+        self.owner.prepare_comparison(guard, archive)
+    }
     pub fn prepare_calls(
         &self,
         guard: &Guard,

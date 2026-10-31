@@ -28,18 +28,7 @@ pub struct VersionChange {
 }
 impl Project {
     pub fn version_content(&self, id: Uuid) -> Result<serde_json::Value, Error> {
-        use base64::Engine;
-        let version = self.version(id)?;
-        let references =
-            if let crate::document_types::Metadata::Article(metadata) = &version.metadata {
-                crate::bibliography::index(&metadata.references)
-                    .map_err(|reason| crate::content::contract::Error::InvalidDocument { reason })?
-            } else {
-                vec![]
-            };
-        Ok(
-            serde_json::json!({"state":version.state(),"references":references,"resources":version.assets.iter().map(|(path,data)|serde_json::json!({"path":path,"data":base64::engine::general_purpose::STANDARD.encode(data)})).collect::<Vec<_>>()}),
-        )
+        self.version(id)?.view()
     }
     pub fn history_token(&self) -> String {
         super::ObjectId::of(&serde_json::to_vec(&self.index).expect("version index"))

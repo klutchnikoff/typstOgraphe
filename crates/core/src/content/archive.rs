@@ -37,6 +37,19 @@ pub struct Archive {
     pub yjs: Vec<u8>,
 }
 impl Archive {
+    /// Isolated read-only payload shared by Versions and proposal comparisons.
+    pub fn view(&self) -> Result<serde_json::Value, Error> {
+        use base64::Engine;
+        let references = if let Metadata::Article(metadata) = &self.metadata {
+            crate::bibliography::index(&metadata.references).map_err(Error::document)?
+        } else {
+            vec![]
+        };
+        Ok(
+            serde_json::json!({"state":self.state(), "references":references,
+            "resources":self.assets.iter().map(|(path,data)|serde_json::json!({"path":path,"data":base64::engine::general_purpose::STANDARD.encode(data)})).collect::<Vec<_>>()}),
+        )
+    }
     pub fn state(&self) -> super::contract::State {
         super::contract::State::new(
             self.document.clone(),

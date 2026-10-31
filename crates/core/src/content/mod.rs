@@ -8,6 +8,7 @@ pub mod availability;
 mod availability_tests;
 pub mod catalogue;
 pub mod commands;
+pub mod comparison;
 pub mod contract;
 pub mod editing;
 pub mod editorial;

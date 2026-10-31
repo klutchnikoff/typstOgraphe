@@ -75,9 +75,24 @@ pub(super) fn children(
 }
 pub(super) fn write(doc: &Doc, state: &State) -> Result<(), Error> {
     let body = doc.get_or_insert_xml_fragment("default");
+    children(
+        body,
+        &mut doc.transact_mut(),
+        &state.document.content,
+        0,
+        1,
+        &mut 0,
+    )?;
+    write_settings(doc, state)
+}
+/// Replace settings only inside a guarded, isolated comparison candidate.
+pub(super) fn write_settings(doc: &Doc, state: &State) -> Result<(), Error> {
     let settings = doc.get_or_insert_map("settings");
     let mut tx = doc.transact_mut();
-    children(body, &mut tx, &state.document.content, 0, 1, &mut 0)?;
+    let keys: Vec<_> = settings.keys(&tx).map(str::to_owned).collect();
+    for key in keys {
+        settings.remove(&mut tx, &key);
+    }
     settings.insert(
         &mut tx,
         "document",
