@@ -1,7 +1,8 @@
 # Exemples
 
 [article-working.typsto](article-working.typsto) est un article de démonstration
-au format CAS 11, régénéré depuis le contenu versionné avant A.4.2 : auteurs et affiliations, résumés bilingues, sommaire, titres, citation
+au format CAS 11, avec le générateur Typst 2 (guillemets et apostrophes typographiques),
+régénéré depuis le contenu versionné : auteurs et affiliations, résumés bilingues, sommaire, titres, citation
 en bloc, note de bas de page, liste, tableau et citations bibliographiques.
 
 Sa bibliothèque contient deux fichiers internes (BibLaTeX et Hayagriva), avec

@@ -78,6 +78,8 @@ fn valid_hashes_do_not_hide_mismatched_projections_sources_or_bibliography() {
         "contract",
         "encoding",
         "schema",
+        "old-generator",
+        "future-generator",
         "bibliography",
         "bibliography-changed",
         "bibliography-unclaimed",
@@ -105,6 +107,8 @@ fn valid_hashes_do_not_hide_mismatched_projections_sources_or_bibliography() {
             "contract" => d.contract_version += 1,
             "encoding" => d.yjs.encoding = "yjs-v2".into(),
             "schema" => d.version += 1,
+            "old-generator" => d.producer.generator = 1,
+            "future-generator" => d.producer.generator = schema::SOURCE_GENERATOR_VERSION + 1,
             "bibliography" => {
                 let mut resources: schema::ResourceMap =
                     project.store.read_json(&d.resources).unwrap();
