@@ -1,7 +1,7 @@
 // Pair the explicit Vite recipe mode with recipe-only Rust IPC; normal assets stay intact.
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, renameSync, constants } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import assert from 'node:assert/strict'
@@ -57,25 +57,30 @@ const artifacts = compilation.stdout
 for (const artifact of artifacts)
   if (artifact.reason === 'compiler-message')
     process.stderr.write(artifact.message.rendered || artifact.message.message)
-let application
-for (const name of ['typstographe', 'typstographe-cli']) {
-  const artifact = artifacts.find(
-    (value) =>
-      value.reason === 'compiler-artifact' && value.target.name === name && value.executable,
-  )
-  assert.ok(artifact, `No executable artifact for ${name}`)
-  if (name === 'typstographe') assert.ok(artifact.features.includes('recipe-driver'))
-  const profile = path.dirname(artifact.executable)
-  const directory = path.resolve(profile, '../recipes', path.basename(profile))
-  mkdirSync(directory, { recursive: true })
-  const destination = path.join(directory, path.basename(artifact.executable))
-  copyFileSync(artifact.executable, destination)
-  if (name === 'typstographe') application = destination
-  console.log(`Recipe executable: ${destination}`)
-}
-// Fail immediately if a concurrent development build replaced Cargo's conventional output.
+const staged = []
 const probe = mkdtempSync(path.join(tmpdir(), 'tog-recipe-build-'))
 try {
+  let application
+  for (const name of ['typstographe', 'typstographe-cli']) {
+    const artifact = artifacts.find(
+      (value) =>
+        value.reason === 'compiler-artifact' && value.target.name === name && value.executable,
+    )
+    assert.ok(artifact, `No executable artifact for ${name}`)
+    if (name === 'typstographe') assert.ok(artifact.features.includes('recipe-driver'))
+    const profile = path.dirname(artifact.executable)
+    const directory = path.resolve(profile, '../recipes', path.basename(profile))
+    mkdirSync(directory, { recursive: true })
+    const destination = path.join(directory, path.basename(artifact.executable))
+    const temporary = path.join(
+      directory,
+      `.build-${process.pid}-${path.basename(artifact.executable)}`,
+    )
+    staged.push({ temporary, destination })
+    copyFileSync(artifact.executable, temporary, constants.COPYFILE_FICLONE)
+    if (name === 'typstographe') application = temporary
+  }
+  // Check the candidate before replacing a previously working recipe executable.
   const checked = spawnSync(application, ['--stdio', '--session-dir', probe], {
     input: '',
     encoding: 'utf8',
@@ -86,6 +91,13 @@ try {
     0,
     `Recipe capability check failed: ${checked.stderr}. Rebuild the recipe.`,
   )
+  for (const { temporary, destination } of staged) {
+    // Atomic replacement leaves an already running Unix process on its original inode.
+    // Windows refuses replacement of an in-use executable instead of truncating it.
+    renameSync(temporary, destination)
+    console.log(`Recipe executable: ${destination}`)
+  }
 } finally {
+  for (const { temporary } of staged) rmSync(temporary, { force: true })
   rmSync(probe, { recursive: true, force: true })
 }
