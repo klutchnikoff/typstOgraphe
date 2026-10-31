@@ -67,6 +67,8 @@ pub fn install(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
         let file = SubmenuBuilder::new(app, label("Fichier"))
             .text("document.new", label("Nouveau document"))
             .text("document.open", label("Ouvrir…"))
+            .text("recovery.list", label("Travail à reprendre"))
+            .text("recovery.import", label("Ouvrir un brouillon de secours…"))
             .separator()
             .text("document.save", label("Enregistrer"))
             .text("document.save_as", label("Enregistrer sous…"))

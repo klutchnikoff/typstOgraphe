@@ -53,6 +53,7 @@ pub(super) fn save_project(
         .map_err(|e| typstographe_i18n::archive_error(&e))?;
     s.file_lease = Some(lease);
     s.mark_clean()?;
+    s.recovered_name = None;
     Ok(())
 }
 

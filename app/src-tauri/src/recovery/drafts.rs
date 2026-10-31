@@ -13,7 +13,7 @@ use typstographe_core::{
     content::{contract::State, shared::SharedDocument},
 };
 
-const FORMAT: &str = "typstographe-private-recovery-v1";
+pub(super) const FORMAT: &str = "typstographe-private-recovery-v1";
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -28,12 +28,18 @@ pub struct Input {
     pub forms: Vec<Value>,
     pub resources: Vec<Resource>,
     pub rejected: bool,
+    #[serde(default)]
+    pub recovered: Vec<super::work::Item>,
+    #[serde(default)]
+    pub retain: bool,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Record {
     pub format: String,
+    #[serde(default)]
+    pub name: Option<String>,
     pub window: String,
     pub saved_at: u64,
     pub file_path: Option<PathBuf>,
@@ -109,9 +115,11 @@ pub fn read(path: &Path) -> Result<Record, String> {
     Ok(record)
 }
 
-fn private(record: &Record) -> bool {
+pub(super) fn private(record: &Record) -> bool {
     let input = &record.input;
-    if input.rejected
+    if input.retain
+        || !input.recovered.is_empty()
+        || input.rejected
         || !input.fields.is_empty()
         || !input.forms.is_empty()
         || record.rejected_edition.is_some()
@@ -136,7 +144,7 @@ fn private(record: &Record) -> bool {
         || shared.verify(&State::new(document, settings)).is_err()
 }
 
-fn write(path: &Path, record: &Record) -> Result<(), String> {
+pub(super) fn write(path: &Path, record: &Record) -> Result<(), String> {
     let bytes = serde_json::to_vec(record).map_err(|e| e.to_string())?;
     if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
         return Err("recovery_too_large".into());
@@ -183,7 +191,9 @@ impl Session {
         {
             return Err("recovery_invalid_file".into());
         }
-        if file.exists() && read(&file).map_or(true, |record| private(&record)) {
+        if file.exists()
+            && read(&file).map_or(true, |record| record.input.epoch != 0 && private(&record))
+        {
             let retained = file.with_file_name(format!("retained-{}.json", uuid::Uuid::new_v4()));
             fs::rename(&file, retained).map_err(|e| e.to_string())?;
         }
@@ -205,7 +215,11 @@ impl Session {
             return Ok(false);
         }
         SharedDocument::from_update(&input.update).map_err(crate::owner::error)?;
-        if input.forms.len() > 128 || input.fields.len() > 1024 || input.resources.len() > 4096 {
+        if input.forms.len() > 128
+            || input.fields.len() > 1024
+            || input.resources.len() > 4096
+            || input.recovered.len() > 2048
+        {
             return Err("recovery_too_large".into());
         }
         let resource_size = input
@@ -241,6 +255,7 @@ impl Session {
             .map_err(|e| e.to_string())?;
         let record = Record {
             format: FORMAT.into(),
+            name: self.recovered_name.clone(),
             window: window.into(),
             saved_at: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -290,6 +305,8 @@ impl Session {
                 )?;
             }
         }
+        self.recovered_items
+            .insert(window.into(), record.input.recovered.clone());
         self.draft_epochs.get_mut(window).unwrap().1 = record.input.sequence;
         Ok(true)
     }

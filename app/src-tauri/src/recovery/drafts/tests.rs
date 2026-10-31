@@ -30,6 +30,8 @@ fn input(s: &mut Session, window: &str) -> Input {
         forms: vec![],
         resources: vec![],
         rejected: false,
+        recovered: vec![],
+        retain: false,
     }
 }
 
