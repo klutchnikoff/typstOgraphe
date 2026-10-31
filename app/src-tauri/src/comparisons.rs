@@ -8,12 +8,22 @@ use typstographe_core::content::{
     contract::Guard,
 };
 pub(crate) mod commit;
+pub(crate) mod staging;
 #[cfg(any(test, feature = "recipe-driver"))]
 pub use commit::apply;
 #[cfg(test)]
 pub use commit::capture;
 #[cfg(any(test, feature = "recipe-driver"))]
 pub use commit::prepare;
+
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Context {
+    Version,
+    Proposal,
+    Historical,
+    Composition,
+}
 
 #[derive(Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -30,6 +40,8 @@ pub enum Origin {
 #[derive(Clone)]
 pub struct Review {
     pub plan: Comparison,
+    context: Context,
+    parent: Option<String>,
     peer: Option<String>,
     origin: Origin,
     finished: bool,
@@ -55,6 +67,7 @@ fn payload(
     content: bool,
 ) -> Result<Value, String> {
     let mut value = json!({"id":id,"report":r.plan.report(&s.guard())});
+    value["report"]["context"] = json!(r.context);
     value["report"]["applied"] = json!(r.finished);
     value["report"]["before_name"] = json!(r.before_name);
     value["report"]["after_name"] = json!(r.after_name);
@@ -158,11 +171,19 @@ pub fn open(
     if peers.len() >= 8
         && let Some((oldest, _)) = peers.into_iter().min_by_key(|(_, created)| *created)
     {
-        s.comparisons.remove(&oldest);
+        remove(s, &oldest);
     }
     let id = uuid::Uuid::new_v4().to_string();
     let r = Review {
         plan,
+        context: match &origin {
+            Origin::Version {
+                against: Some(_), ..
+            } => Context::Historical,
+            Origin::Version { .. } => Context::Version,
+            Origin::Proposal { .. } => Context::Proposal,
+        },
+        parent: None,
         peer: owner,
         origin,
         finished: false,
@@ -235,11 +256,15 @@ pub fn comparison_read(
         &id,
     )
 }
+fn remove(s: &mut Session, id: &str) {
+    s.comparisons.remove(id);
+    s.comparisons.retain(|_, r| r.parent.as_deref() != Some(id));
+}
 pub fn close(s: &mut Session, peer: &str, id: &str) -> Result<(), String> {
     if let Some(r) = s.comparisons.get(id) {
         check(s, peer, r)?;
         if r.peer.is_some() {
-            s.comparisons.remove(id);
+            remove(s, id);
         }
     }
     Ok(())

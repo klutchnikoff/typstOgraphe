@@ -670,6 +670,7 @@ fn main() {
             comparisons::comparison_read,
             comparisons::comparison_preview,
             comparisons::commit::comparison_apply,
+            comparisons::staging::comparison_prepare,
             comparisons::comparison_close,
             versions::versions_list,
             versions::versions_read,

@@ -67,6 +67,13 @@ fn review(s: &mut Session, a: &mut AgentState, id: uuid::Uuid) -> String {
         .unwrap()
         .into()
 }
+fn stage(s: &mut Session, a: &AgentState, parent: &str, choices: &[SourceSide]) -> Value {
+    let ready = staging::capture(s, a, "human", parent, choices)
+        .unwrap()
+        .prepare()
+        .unwrap();
+    staging::finish(s, a, "human", ready).unwrap()
+}
 #[test]
 fn choices_publish_without_saving_or_snapshots_and_have_one_undo_step() {
     let (root, mut s, mut a) = fixture();
@@ -168,7 +175,7 @@ fn composition_without_a_file_binding_never_requires_a_destination() {
 }
 
 #[test]
-fn historical_pairs_compose_from_the_right_and_replace_the_captured_live_state() {
+fn historical_composition_is_private_until_reviewed_against_the_current_document() {
     let (root, mut s, mut a) = fixture();
     let path = root.path().join("history.typsto");
     let first = version(&mut s, &path);
@@ -197,7 +204,27 @@ fn historical_pairs_compose_from_the_right_and_replace_the_captured_live_state()
         &[SourceSide::Before, SourceSide::After],
     )
     .unwrap();
-    apply(&mut s, &mut a, "human", r, ready).unwrap();
+    assert_eq!(value["report"]["context"], "historical");
+    let work = s.guard();
+    let disk = std::fs::read(&path).unwrap();
+    assert!(apply(&mut s, &mut a, "human", r, ready).is_err());
+    let next = stage(&mut s, &a, r, &[SourceSide::Before, SourceSide::After]);
+    assert_eq!(s.guard(), work);
+    assert_eq!(std::fs::read(&path).unwrap(), disk);
+    assert_eq!(next["report"]["context"], "composition");
+    assert_eq!(
+        next["before"]["state"]["document"]["content"][0]["content"][0]["text"],
+        "Current Second Old one"
+    );
+    assert_eq!(
+        next["after"]["state"]["document"]["content"][0]["content"][0]["text"],
+        "Old one"
+    );
+    let child = next["id"].as_str().unwrap();
+    let choices = vec![SourceSide::After; next["report"]["groups"].as_array().unwrap().len()];
+    let ready = prepare(&mut s, &a, "human", child, &choices).unwrap();
+    apply(&mut s, &mut a, "human", child, ready).unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), disk);
     let saved = s.stored_project().unwrap();
     assert_eq!(saved.versions().len(), 2);
     assert_eq!(
@@ -234,8 +261,13 @@ fn identical_historical_states_can_replace_a_different_current_document() {
     .unwrap();
     let r = value["id"].as_str().unwrap();
     assert!(value["report"]["groups"].as_array().unwrap().is_empty());
-    let ready = prepare(&mut s, &a, "human", r, &[]).unwrap();
-    apply(&mut s, &mut a, "human", r, ready).unwrap();
+    let current = s.guard();
+    let next = stage(&mut s, &a, r, &[]);
+    assert_eq!(s.guard(), current);
+    assert_eq!(next["report"]["groups"].as_array().unwrap().len(), 1);
+    let child = next["id"].as_str().unwrap();
+    let ready = prepare(&mut s, &a, "human", child, &[SourceSide::After]).unwrap();
+    apply(&mut s, &mut a, "human", child, ready).unwrap();
     assert_eq!(
         s.ensure_owner().unwrap().state().document.content[0].content[0]
             .text
@@ -405,4 +437,85 @@ fn keeping_current_content_does_not_dirty_a_clean_document_or_add_undo() {
         undo.undo_steps
     );
     assert_eq!(std::fs::read(&path).unwrap(), disk);
+}
+
+#[test]
+fn staged_compositions_reject_stale_guards_other_windows_and_obsolete_candidates() {
+    let (root, mut s, mut a) = fixture();
+    let path = root.path().join("staged.typsto");
+    let first = version(&mut s, &path);
+    edit(&mut s, 0, "Second ");
+    let second = version(&mut s, &path);
+    edit(&mut s, 2, "Current ");
+    let guard = s.guard();
+    let parent = open(
+        &mut s,
+        &mut a,
+        "human",
+        &guard,
+        Origin::Version {
+            id: first,
+            against: Some(second),
+        },
+    )
+    .unwrap();
+    let id = parent["id"].as_str().unwrap();
+    assert!(staging::capture(&mut s, &a, "other", id, &[SourceSide::After]).is_err());
+    let child = stage(&mut s, &a, id, &[SourceSide::After]);
+    let child_id = child["id"].as_str().unwrap().to_string();
+    let choices = vec![SourceSide::After; child["report"]["groups"].as_array().unwrap().len()];
+    let obsolete = prepare(&mut s, &a, "human", &child_id, &choices).unwrap();
+    let next = stage(&mut s, &a, id, &[SourceSide::Before]);
+    assert!(read(&s, &a, "human", &child_id).is_err());
+    assert!(apply(&mut s, &mut a, "human", &child_id, obsolete).is_err());
+    let pending = staging::capture(&mut s, &a, "human", id, &[SourceSide::After])
+        .unwrap()
+        .prepare()
+        .unwrap();
+    edit(&mut s, 2, "Later ");
+    let work = s.guard();
+    assert!(staging::finish(&mut s, &a, "human", pending).is_err());
+    let child_id = next["id"].as_str().unwrap();
+    assert_eq!(
+        read(&s, &a, "human", child_id).unwrap()["report"]["stale"],
+        true
+    );
+    assert!(prepare(&mut s, &a, "human", child_id, &[SourceSide::After]).is_err());
+    assert_eq!(s.guard(), work);
+    close(&mut s, "human", id).unwrap();
+    assert!(read(&s, &a, "human", child_id).is_err());
+    assert!(staging::capture(&mut s, &a, "human", id, &[SourceSide::After]).is_err());
+}
+
+#[test]
+fn refusing_every_mcp_change_closes_the_proposal_without_editing_or_saving() {
+    let (root, mut s, mut a) = fixture();
+    let path = root.path().join("unchanged.typsto");
+    version(&mut s, &path);
+    let disk = std::fs::read(&path).unwrap();
+    a.token = Some("authorized".into());
+    let request = json!({"document":{"id":s.generation,"guard":s.guard()},"request_id":"refuse-all","steps":[{"id":"text.insert","params":{"target":{"zone":{"kind":"body","path":[0]},"from":0,"to":0},"text":"Proposal "}}]});
+    let result = crate::agent::dispatch(&mut s, &mut a, "proposals.submit", &request).unwrap();
+    let id = result["outcome"]["id"].as_str().unwrap().to_owned();
+    let guard = s.guard();
+    let state = s.stored_project().unwrap();
+    let context = s.ensure_owner().unwrap().snapshot("human").unwrap();
+    let value = open(&mut s, &mut a, "human", &guard, Origin::Proposal { id }).unwrap();
+    let r = value["id"].as_str().unwrap();
+    let ready = prepare(&mut s, &a, "human", r, &[SourceSide::Before]).unwrap();
+    let (value, publication) = apply(&mut s, &mut a, "human", r, ready).unwrap();
+    assert_eq!(a.proposal.as_ref().unwrap().status, "rejected");
+    assert_eq!(value["report"]["closed"], true);
+    assert!(publication.update.is_empty());
+    assert_eq!(s.guard(), guard);
+    assert_eq!(
+        s.stored_project().unwrap().current().state(),
+        state.current().state()
+    );
+    assert_eq!(s.stored_project().unwrap().versions(), state.versions());
+    assert_eq!(
+        s.ensure_owner().unwrap().snapshot("human").unwrap(),
+        context
+    );
+    assert_eq!(std::fs::read(path).unwrap(), disk);
 }

@@ -140,6 +140,23 @@ mod tests {
         }
     }
     #[test]
+    fn web_count_and_name_templates_keep_their_literal_markers() {
+        for language in ["fr", "en"] {
+            let loader = requested(&[language]);
+            let keys: std::collections::BTreeMap<String, String> =
+                serde_json::from_str(include_str!("../web-labels.json")).unwrap();
+            for source in ["Reprendre {count} passages", "Choisir dans « {name} »"] {
+                let translated = loader.get(&keys[source]);
+                let marker = if source.contains("{count}") {
+                    "{count}"
+                } else {
+                    "{name}"
+                };
+                assert!(translated.contains(marker), "{language}: {translated}");
+            }
+        }
+    }
+    #[test]
     fn negotiates_system_preferences_and_falls_back_to_english() {
         for (languages, expected, save) in [
             (vec!["en-US"], "en", "Save"),

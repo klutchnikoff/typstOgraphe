@@ -65,6 +65,9 @@ pub fn apply(
     authorized(s, a, peer, id)?;
     // Keep choices and the frozen pair available if publication is refused.
     let mut review = s.comparisons[id].clone();
+    if review.context == Context::Historical {
+        return Err(error("web-comparison-review-composition"));
+    }
     s.ensure_owner()?
         .check_comparison(peer, &review.plan, &prepared)?;
     let publication = s

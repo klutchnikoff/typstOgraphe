@@ -51,7 +51,7 @@ fn dispatch(
         }
 
         "comparison_open" | "comparison_read" | "comparison_close" | "comparison_apply"
-        | "comparison_preview" => {
+        | "comparison_preview" | "comparison_prepare" => {
             let mut s = bridge.session.lock().map_err(|e| e.to_string())?;
             let mut a = bridge.agent.lock().map_err(|e| e.to_string())?;
             let id = args["id"].as_str().unwrap_or("");
@@ -63,6 +63,24 @@ fn dispatch(
                     &serde_json::from_value(args["guard"].clone()).map_err(|e| e.to_string())?,
                     serde_json::from_value(args["origin"].clone()).map_err(|e| e.to_string())?,
                 ),
+                "comparison_prepare" => {
+                    let choices: Vec<typstographe_core::content::comparison::SourceSide> =
+                        serde_json::from_value(args["choices"].clone())
+                            .map_err(|e| e.to_string())?;
+                    let ready =
+                        crate::comparisons::staging::capture(&mut s, &a, peer, id, &choices)?
+                            .prepare()?;
+                    let archive = ready.archive();
+                    bridge.renderer.validate(
+                        &archive.validate().map_err(crate::project::error)?,
+                        &archive.assets,
+                        crate::rendering::RenderContext {
+                            settings: &archive.state().settings,
+                            dependencies: archive.dependencies.clone(),
+                        },
+                    )?;
+                    crate::comparisons::staging::finish(&mut s, &a, peer, ready)
+                }
                 "comparison_read" => crate::comparisons::read(&s, &a, peer, id),
                 "comparison_close" => {
                     crate::comparisons::close(&mut s, peer, id)?;
