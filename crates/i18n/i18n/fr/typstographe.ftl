@@ -882,3 +882,5 @@ sync-enabled = Synchronisation active
 sync-pending = Activation après la saisie…
 sync-solo = Mode individuel · validation et historique actifs
 sync-close-windows = Fermez les autres fenêtres avant d’arrêter la synchronisation.
+
+web-private-recovery-failed = La copie de secours n’a pas pu être enregistrée. Votre travail reste dans cette fenêtre.

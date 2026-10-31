@@ -1,3 +1,4 @@
+import { trackForm } from './form-drafts'
 import { actionRow, initialNavigationGroup, keyboardScope, visible } from './keyboard-navigation'
 /** Shared panel anatomy. Only body and actions belong to a capability/corrector. */
 export function contextPanel(options: {
@@ -36,9 +37,41 @@ export function contextPanel(options: {
   error.setAttribute('role', 'alert')
   if (options.errorId) error.id = options.errorId
   element.append(header, body, actions, error)
+  let recovery: ReturnType<typeof trackForm> | undefined
+  let compositions = 0
+  element.addEventListener(
+    'compositionstart',
+    () => {
+      compositions++
+    },
+    true,
+  )
+  element.addEventListener(
+    'compositionend',
+    () => {
+      compositions = Math.max(0, compositions - 1)
+    },
+    true,
+  )
   let preferred: HTMLButtonElement | undefined
   const panel = {
     element,
+    recoveryData: (): unknown => null,
+    trackRecovery(owner: object, context: unknown) {
+      recovery?.detach()
+      recovery = trackForm(owner, element, context, () => panel.recoveryData())
+    },
+    discardRecovery() {
+      recovery?.discard()
+      recovery = undefined
+    },
+    detachRecovery() {
+      recovery?.detach()
+      recovery = undefined
+    },
+    draftChanged() {
+      recovery?.changed()
+    },
     title,
     body,
     actions,
@@ -59,7 +92,7 @@ export function contextPanel(options: {
     },
     confirm: () => preferred?.click(),
     submit() {
-      if (options.canConfirm()) panel.confirm()
+      if (!compositions && options.canConfirm()) panel.confirm()
     },
     action(options: {
       id?: string
@@ -74,7 +107,9 @@ export function contextPanel(options: {
       button.textContent = options.label
       if (options.id) button.id = options.id
       button.classList.toggle('danger', !!options.danger)
-      button.onclick = options.run
+      button.onclick = () => {
+        if (!options.primary || !compositions) options.run()
+      }
       ;(options.parent || actions).append(button)
       if (options.primary) panel.setDefault(button)
       return button

@@ -85,6 +85,7 @@ export class Provider {
   documentEdits?: { flush: () => Promise<void>; dirty: () => boolean; draft?: () => unknown }
   onResource = () => {}
   onError = (_error: unknown) => {}
+  privateRecovery?: { flush: () => Promise<void>; stop: () => void }
   nativeEditing = false
   historyState: HistoryState = { undo_steps: 0, redo_steps: 0, pending: false }
   historyBusy = false

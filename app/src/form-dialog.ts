@@ -37,8 +37,7 @@ export function formDialog(options: {
     )
       target.focus({ preventScroll: true })
   })
-  return {
-    ...form,
+  return Object.assign(form, {
     dialog: element,
     open() {
       document.body.append(element)
@@ -46,8 +45,9 @@ export function formDialog(options: {
       form.focus()
     },
     destroy() {
+      form.detachRecovery()
       if (element.open) element.close()
       element.remove()
     },
-  }
+  })
 }

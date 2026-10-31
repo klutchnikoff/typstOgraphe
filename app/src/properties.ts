@@ -86,6 +86,16 @@ export function propertyPanel(
         drafts: Record<string, Scalar | undefined>
       }
     | undefined
+  panel.recoveryData = () =>
+    opened
+      ? {
+          kind: opened.kind,
+          selected: opened.selected,
+          remove: opened.remove,
+          drafts: opened.drafts,
+          resource: opened.resource || null,
+        }
+      : null
   function valid() {
     const anchor = bands.target,
       current = opened
@@ -290,6 +300,7 @@ export function propertyPanel(
         if (opened !== current || !valid() || !fields.replaceImage(resource.path))
           throw new Error(tr('Le document a changé. Réessayez.'))
         opened.resource = resource
+        panel.draftChanged()
       }
     },
   }

@@ -269,5 +269,6 @@
   "Synchronisation active": "sync-enabled",
   "Activation après la saisie…": "sync-pending",
   "Mode individuel · validation et historique actifs": "sync-solo",
-  "Fermez les autres fenêtres avant d’arrêter la synchronisation.": "sync-close-windows"
+  "Fermez les autres fenêtres avant d’arrêter la synchronisation.": "sync-close-windows",
+  "La copie de secours n’a pas pu être enregistrée. Votre travail reste dans cette fenêtre.": "web-private-recovery-failed"
 }

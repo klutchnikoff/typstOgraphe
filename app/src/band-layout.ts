@@ -1,3 +1,6 @@
+import { editingProvider } from './editing-history'
+import { formOwner } from './form-drafts'
+import { editorRoot, nodePath } from './editor-targets'
 import { historyFor } from './editing-history'
 import { Extension, type Editor } from '@tiptap/core'
 import {
@@ -101,6 +104,7 @@ export class BandHost {
       this.schedule()
     })
     editor.on('destroy', () => {
+      this.shell?.detachRecovery()
       this.observer.disconnect()
       cancelAnimationFrame(this.frame)
       this.layer.remove()
@@ -171,6 +175,16 @@ export class BandHost {
     this.reanchor = true
     this.layout()
     this.schedule()
+    const owner = editingProvider(this.historyOwner) || formOwner(this.historyOwner)
+    if (owner)
+      shell.trackRecovery(owner, {
+        kind: 'band',
+        root: editorRoot(this.editor) || { kind: 'body' },
+        path: nodePath(this.editor, target.from),
+        range: { from: target.from, to: target.to },
+        placement: target.placement,
+        original: this.editor.state.doc.slice(target.from, target.to).toJSON(),
+      })
     shell.focus()
     this.reveal()
     return true
@@ -182,6 +196,7 @@ export class BandHost {
     historyFor(this.historyOwner)?.stopCapturing()
     const anchor = this.target
     this.observer.unobserve(this.panel)
+    this.shell?.discardRecovery()
     this.panel.hidden = true
     this.panel = undefined
     this.shell = undefined

@@ -1,3 +1,4 @@
+import { bindFormOwner } from './form-drafts'
 import { historyFor } from './editing-history'
 import type { Editor } from '@tiptap/core'
 import type { Provider } from './provider'
@@ -320,6 +321,7 @@ export function metadataCollections(
       id: `delete-record-${definition.parameter}-${id}`,
       closeLabel: tr('Annuler'),
       close: () => {
+        confirm.discardRecovery()
         confirm.element.hidden = true
         remove.focus()
       },
@@ -337,6 +339,7 @@ export function metadataCollections(
     confirm.action({
       label: tr('Annuler'),
       run: () => {
+        confirm.discardRecovery()
         confirm.element.hidden = true
         remove.focus()
       },
@@ -363,6 +366,7 @@ export function metadataCollections(
         void commands
           .run(batch, () => root.isConnected && !confirm.element.hidden)
           .then(() => {
+            confirm.discardRecovery()
             refresh()
             focusAdd(definition)
           })
@@ -381,6 +385,11 @@ export function metadataCollections(
       detach.hidden = true
       element.open = true
       confirm.element.hidden = false
+      confirm.trackRecovery(provider, {
+        kind: 'record-deletion',
+        collection: definition.parameter,
+        record: id,
+      })
       confirm.focus()
     })
     const up = button(
@@ -471,6 +480,7 @@ export function metadataCollections(
       element,
       refresh: render,
       destroy() {
+        confirm.detachRecovery()
         for (const view of views) view.destroy()
         element.remove()
       },
@@ -539,9 +549,11 @@ export function metadataCollections(
           binding: { kind: 'document', document: draft.doc },
         })
       : undefined
+    if (owner) bindFormOwner(owner, provider)
     let views: ReturnType<typeof fieldView>[] = []
     let returnFocus: HTMLElement | undefined
     const discard = (saved?: string) => {
+      form.discardRecovery()
       state.draft?.destroy()
       state.draft = undefined
       refresh()
@@ -577,6 +589,14 @@ export function metadataCollections(
     views = fields(definition).map((field) =>
       fieldView(form.body, definition, draft.record, field, draft, owner || main),
     )
+    form.recoveryData = () => ({ record: draft.value() })
+    form.trackRecovery(provider, {
+      kind: 'record',
+      collection: definition.parameter,
+      record: editing || null,
+      after: after || null,
+      base: draft.value(),
+    })
     form.action({ label: tr('Annuler'), run: () => discard() })
     let pending = false
     const submit = form.action({
@@ -626,6 +646,7 @@ export function metadataCollections(
       },
     })
     const update = () => {
+      form.draftChanged()
       for (const view of views) view.refresh()
     }
     draft.record.observeDeep(update)
@@ -638,6 +659,7 @@ export function metadataCollections(
           .querySelector<HTMLElement>('input, textarea, select, [contenteditable=true]')
           ?.focus(),
       destroy() {
+        form.detachRecovery()
         draft.record.unobserveDeep(update)
         for (const view of views) view.destroy()
         owner?.destroy()

@@ -53,6 +53,7 @@ export function citationPanel(
   choices.role = 'listbox'
   choices.setAttribute('aria-label', tr('Références'))
   input.setAttribute('aria-controls', choices.id)
+  panel.recoveryData = () => (opened ? { items: opened.items, form: opened.form } : null)
   const chosen = document.createElement('div')
   chosen.className = 'citation-selected'
   const formLabel = document.createElement('label')

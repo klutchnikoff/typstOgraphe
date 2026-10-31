@@ -1,3 +1,4 @@
+import { privateRecovery } from './private-recovery'
 import { historyFor } from './editing-history'
 import { commandEditor } from './command-context'
 import { interactionAvailability } from './command-availability'
@@ -114,6 +115,7 @@ export async function mountShell(s: Shell) {
     dirty = false,
     path: string | null = s.filePath || null,
     savedRevision = provider.revision
+  let recovery: ReturnType<typeof privateRecovery> | undefined
   let preferences: Preferences = (await transport.invoke('preferences_load').catch(() => ({
     appearance: 'system',
     font: 'serif',
@@ -300,8 +302,13 @@ export async function mountShell(s: Shell) {
     header.dataset.document = title
   }
   function confirmDiscard(next: () => void) {
+    const advance = () =>
+      guarded(async () => {
+        await recovery?.flush()
+        next()
+      })
     if (!active || (!dirty && !metadataEditor.dirty())) {
-      next()
+      advance()
       return
     }
     overlay.replaceChildren()
@@ -319,7 +326,7 @@ export async function mountShell(s: Shell) {
         () => {
           overlay.close()
           metadataEditor.discardAll()
-          next()
+          advance()
         },
       ],
       [tr('Annuler'), '', () => overlay.close()],
@@ -330,7 +337,7 @@ export async function mountShell(s: Shell) {
           guarded(async () => {
             if (!(await saveFile())) return
             overlay.close()
-            next()
+            advance()
           }),
       ],
     ] as const) {
@@ -345,6 +352,7 @@ export async function mountShell(s: Shell) {
     overlay.showModal()
   }
   async function saveFile(as = false) {
+    await recovery?.flush()
     await provider.flush()
     if (!s.isTauri) {
       await s.save()
@@ -384,6 +392,7 @@ export async function mountShell(s: Shell) {
   async function open(file?: string) {
     const selected = file || (await transport.invoke<string | null>('choose_file', { save: false }))
     if (!selected) return
+    await recovery?.flush()
     await provider.flush()
     const opened = await transport.invoke<{
       document: unknown
@@ -449,6 +458,7 @@ export async function mountShell(s: Shell) {
           metadata.fields.signature = preferences.signature.path
         guarded(async () => {
           await provider.flush()
+          await recovery?.flush()
           await transport.invoke('new_document', {
             settings: { metadata, template: m.source, modelId: m.id },
             resources: t.id === 'courrier' && preferences.signature ? [preferences.signature] : [],
@@ -698,6 +708,7 @@ export async function mountShell(s: Shell) {
       if (s.isTauri) {
         guarded(async () => {
           await provider.flush()
+          await recovery?.flush()
           await transport.invoke('close_document', { revision: provider.revision })
         })
         return
@@ -988,30 +999,19 @@ export async function mountShell(s: Shell) {
   }
   add('recovery.list', tr('Récupération après incident'), showRecovery)
   $('resume-document').onclick = showRecovery
-  let recoveryTimer: ReturnType<typeof setTimeout>
-  function scheduleRecovery() {
-    if (!s.isTauri || !active) return
-    clearTimeout(recoveryTimer)
-    recoveryTimer = setTimeout(
-      () =>
-        void guarded(async () => {
-          // Recovery protects the confirmed body even while a native field needs
-          // a decision. Manual save/export still wait for every field draft.
-          await provider.flush(false)
-          await transport.invoke('recover', {
-            snapshot: {
-              revision: provider.revision,
-              document: documentContent(editor.getJSON()),
-              settings: settingsFor(provider),
-            },
-            update: Array.from(Y.encodeStateAsUpdate(provider.doc)),
-          })
-        }),
-      2000,
-    )
-  }
+  recovery = provider.nativeEditing
+    ? privateRecovery(
+        editor,
+        provider,
+        () => active,
+        (error) => s.message(String(error), true),
+      )
+    : undefined
+  const scheduleRecovery = () => recovery?.changed()
+  if (active && !path) scheduleRecovery()
   let metadataRefreshQueued = false
   document.addEventListener('metadata:draft', () => {
+    scheduleRecovery()
     if (metadataEditor.dirty()) {
       dirty = true
       updateTitle()
@@ -1052,7 +1052,7 @@ export async function mountShell(s: Shell) {
         event.preventDefault()
         confirmDiscard(() =>
           guarded(async () => {
-            clearTimeout(recoveryTimer)
+            await recovery?.flush()
             await transport.invoke('recovery_discard')
             await getCurrentWindow().destroy()
           }),
@@ -1065,7 +1065,7 @@ export async function mountShell(s: Shell) {
     })
   }
   await transport.listen('app:document', () => {
-    clearTimeout(recoveryTimer)
+    recovery?.stop()
     window.location.reload()
   })
   applyPreferences()

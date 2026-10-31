@@ -1033,21 +1033,27 @@ main {
   font-size: 15px;
   margin: 0;
 }
-#side-content {
+#side-content,
+#document-search-draft {
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+#document-search-draft {
+  padding: 0;
 }
 #side-content form {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-#side-content > input {
+#side-content > input,
+#document-search-draft > input {
   padding: 8px;
 }
-#side-content > div:not(.panel-actions):has(> button) {
+#side-content > div:not(.panel-actions):has(> button),
+#document-search-draft > div:not(.panel-actions):has(> button) {
   display: flex;
   flex-direction: column;
   gap: 4px;
