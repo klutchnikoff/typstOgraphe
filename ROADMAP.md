@@ -242,6 +242,14 @@ sauvegarde conservent identité et historique. Les commandes et l’interface Ve
 puis la comparaison commune, suivent ce socle ; les choix encore ouverts de J/F
 ne bloquent pas A.4.1.
 
+**Composition validée :** dans Comparer, choix rouge/gauche et vert/droite exclusifs
+par passage, verts sélectionnés par défaut. Les choix ne publient rien.
+« Appliquer et enregistrer » compose depuis la droite, remplace le document courant
+et l’enregistre en une opération annulable, sans aucun snapshot automatique.
+Les deux états historiques deviennent également composables. Une édition
+extérieure ou un échec d’écriture bloque l’application sans perte du travail.
+Voir le [contrat](docs/a4-comparison-contract.md).
+
 **A.4.4 — Comparateur et décisions locales :** maquette validée et conservée,
 moteur commun Versions/MCP, comparaison figée avant/après, décisions gardées,
 annulation distincte, changements documentaires liés groupés et aperçus isolés. La comparaison de

@@ -129,6 +129,15 @@ autonome ; les opérations de fichier conservent leurs autorisations propres.
 Une garde d’index protège les changements concurrents sans créer une révision
 documentaire ni une entrée d’annulation. Voir le [bilan A.4.3](docs/a4-versions-interface.md).
 
+**Composition rouge/vert confirmée :** le découpage et les dépendances ci-dessous
+servent à des choix temporaires exclusifs, initialement tous à droite. Une seule
+action humaine « Appliquer et enregistrer » remplace l’état courant et écrit le
+`.typsto`, avec une étape d’annulation et aucun snapshot automatique, y compris
+entre deux versions historiques. Les décisions immédiates du premier raccordement
+sont remplacées dans l’interface. Préparer/valider hors verrou, recontrôler sous
+verrou avant le commit durable, puis publier le delta confirmé et le statut
+enregistré. Un échec d’écriture ne doit pas modifier le document courant.
+
 **Découpage confirmé :** la comparaison commune, puis la restauration dans une
 session active, sont des lots distincts. L’onglet Comparer et l’action Restaurer
 seront ajoutés à cette même modale lors de leur raccordement ; aucune fausse action
