@@ -37,6 +37,7 @@ import { activeInlineObject } from './inline-object-focus'
 import { citationPanel } from './citation-panel'
 import { referenceFiles, setCitationEntries, type ReferenceEntry } from './citation-index'
 import './style.css'
+import './versions.css'
 
 declare global {
   interface Window {

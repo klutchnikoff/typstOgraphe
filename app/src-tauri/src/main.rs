@@ -20,6 +20,7 @@ mod settings;
 #[cfg(feature = "recipe-driver")]
 mod shared_diagnostic;
 mod structured;
+mod versions;
 
 use rendering::{Preview, Renderer};
 use session::{Bootstrap, Session, Snapshot};
@@ -664,6 +665,10 @@ fn main() {
         })
         .manage(bridge)
         .invoke_handler(tauri::generate_handler![
+            versions::versions_list,
+            versions::versions_read,
+            versions::versions_change,
+            versions::versions_preview,
             menus::set_menu_availability,
             settings::validate_model,
             catalogue::content_catalogue,

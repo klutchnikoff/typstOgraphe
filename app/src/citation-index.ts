@@ -40,12 +40,17 @@ export function citationLabel(
   items: CitationItem[],
   form: Citation['form'] = 'normal',
 ) {
+  return formatCitationLabel(indexes.get(editor) || [], items, form)
+}
+export function formatCitationLabel(
+  entries: ReferenceEntry[],
+  items: CitationItem[],
+  form: Citation['form'] = 'normal',
+) {
   const label = items
     .map(
       (item) =>
-        indexes
-          .get(editor)
-          ?.find((entry) => entry.file_id === item.file_id && entry.key === item.key)?.label ||
+        entries.find((entry) => entry.file_id === item.file_id && entry.key === item.key)?.label ||
         item.key,
     )
     .join(' ; ')

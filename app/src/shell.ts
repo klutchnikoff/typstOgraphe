@@ -1,3 +1,5 @@
+import { versionsPanel } from './versions-panel'
+import { versionsAPI } from './versions-api'
 import { metadataInputBinding } from './metadata-input'
 import { recoveryError } from './recovery-errors'
 import { workList, type WorkEntry } from './work-list'
@@ -132,6 +134,7 @@ export async function mountShell(s: Shell) {
   let recovery: ReturnType<typeof privateRecovery> | undefined
   let transitions: Awaited<ReturnType<typeof recoveryTransitions>> | undefined
   let disposition: CloseChoice | null = null
+  let versionPanel: ReturnType<typeof versionsPanel> | undefined
   let releaseRecoveredPanel: (() => void) | undefined
   const switchDocument = <T>(task: (revision: number) => Promise<T>) =>
     transitions ? transitions.run(task, disposition === 'discard') : task(provider.revision)
@@ -198,6 +201,8 @@ export async function mountShell(s: Shell) {
     '<div class="panel-title"><h2 id="side-title"></h2><button id="close-side" aria-label="Fermer le panneau">×</button></div><div id="side-content"></div>'
   workspace.append(panel)
   $('close-side').onclick = () => {
+    versionPanel?.destroy()
+    versionPanel = undefined
     searchState(editor, '')
     panel.hidden = true
     editor.commands.focus()
@@ -274,6 +279,7 @@ export async function mountShell(s: Shell) {
     }
   }
   const requiresDocument = new Set([
+    'ui.versions',
     'document.save',
     'document.save_as',
     'document.export',
@@ -297,6 +303,11 @@ export async function mountShell(s: Shell) {
       enabled: () => !requiresDocument.has(id) || active,
     })
   const setActive = (value: boolean) => {
+    if (versionPanel) {
+      versionPanel.destroy()
+      versionPanel = undefined
+      panel.hidden = true
+    }
     active = value
     $('synchronization').hidden = !value
     welcome.hidden = value
@@ -664,6 +675,8 @@ export async function mountShell(s: Shell) {
     }
   }
   function showPanel(title: string) {
+    versionPanel?.destroy()
+    versionPanel = undefined
     releaseRecoveredPanel?.()
     releaseRecoveredPanel = undefined
     searchState(editor, '')
@@ -776,6 +789,44 @@ export async function mountShell(s: Shell) {
         s.message(`PDF et sources Typst exportés · ${destination}`)
       }),
     'Mod+E',
+  )
+  add('ui.versions', tr('Versions'), () => {
+    const api = versionsAPI({
+      creator: preferences.profile['sender.name'] || null,
+      provider,
+      transport,
+      destination: async () =>
+        path ? undefined : transport.invoke<string | null>('choose_file', { save: true }),
+      saved: async (result) => {
+        path = result.path
+        savedRevision = result.revision
+        dirty = provider.revision !== result.revision
+        provider.recoveredName = null
+        updateTitle()
+        try {
+          await remember(result.path)
+        } catch (error) {
+          s.message(recoveryError(error), true)
+          return
+        }
+        if (result.warning) s.message(result.warning, true)
+        else s.message(tr('Versions enregistrées.'))
+      },
+    })
+    versionPanel = versionsPanel(showPanel(tr('Versions')), api, catalogue, (error) =>
+      s.message(recoveryError(error), true),
+    )
+  })
+  void transport.listen<{ document: string; path: string; revision: number }>(
+    'web-editor:versions',
+    (event) => {
+      if (event.document !== provider.generation) return
+      path = event.path
+      savedRevision = event.revision
+      dirty = provider.revision !== event.revision
+      updateTitle()
+      void versionPanel?.refresh()
+    },
   )
   add('ui.preferences', tr('Préférences'), prefs, 'Mod+,')
   add('ui.palette', tr('Palette de commandes'), palette, 'Mod+Shift+P')
@@ -916,6 +967,7 @@ export async function mountShell(s: Shell) {
     [
       tr('Affichage'),
       [
+        'ui.versions',
         'ui.preferences',
         'ui.peer',
         'synchronization.enable',
@@ -948,6 +1000,7 @@ export async function mountShell(s: Shell) {
   for (const [label, name, action] of [
     [tr('Commandes'), 'pilcrow', 'ui.palette'],
     [tr('Rechercher'), 'search', 'ui.find'],
+    [tr('Versions'), 'history', 'ui.versions'],
     [tr('Préférences'), 'settings-2', 'ui.preferences'],
   ] as const) {
     const button = document.createElement('button')

@@ -37,6 +37,51 @@ fn dispatch(
     let peer = request["peer"].as_str().ok_or("Participant absent.")?;
     let command = request["command"].as_str().ok_or("Commande absente.")?;
     match command {
+        "choose_file" if args["save"] == true => {
+            let folder = bridge
+                .session
+                .lock()
+                .map_err(|e| e.to_string())?
+                .root
+                .clone();
+            std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+            Ok(serde_json::json!(
+                folder.join(format!("document-{}.typsto", uuid::Uuid::new_v4()))
+            ))
+        }
+
+        "versions_list" | "versions_read" | "versions_preview" | "versions_change" => {
+            let guard = serde_json::from_value(args["guard"].clone()).map_err(|e| e.to_string())?;
+            let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
+            match command {
+                "versions_list" => crate::versions::list(&mut session, peer, &guard),
+                "versions_read" => crate::versions::read(
+                    &mut session,
+                    peer,
+                    &guard,
+                    serde_json::from_value(args["id"].clone()).map_err(|e| e.to_string())?,
+                ),
+                "versions_change" => crate::versions::change(
+                    &mut session,
+                    peer,
+                    &guard,
+                    serde_json::from_value(args["change"].clone()).map_err(|e| e.to_string())?,
+                    args["destination"].as_str().map(std::path::Path::new),
+                ),
+                _ => {
+                    let archive = crate::versions::selected(
+                        &mut session,
+                        peer,
+                        &guard,
+                        serde_json::from_value(args["id"].clone()).map_err(|e| e.to_string())?,
+                    )?;
+                    drop(session);
+                    serde_json::to_value(crate::versions::preview(archive)?)
+                        .map_err(|e| e.to_string())
+                }
+            }
+        }
+
         "diagnostic_request_close" => Ok(serde_json::Value::Null),
         "work_list" => serde_json::to_value(
             bridge

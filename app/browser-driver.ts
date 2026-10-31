@@ -88,6 +88,11 @@ export function browserDriver(root: string): Plugin {
           }
           const input = JSON.parse(Buffer.concat(chunks).toString('utf8'))
           const result = await call(input)
+          if (input.command === 'versions_change')
+            broadcast('web-editor:versions', {
+              document: input.args.guard.document,
+              ...(result as object),
+            })
           if (input.command === 'join') {
             const bootstrap = result as { generation: string; synchronization: unknown }
             const lease = connections.get(input.peer)

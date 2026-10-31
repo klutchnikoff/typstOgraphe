@@ -99,6 +99,7 @@ pub fn install(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
             .text("ui.palette", label("Palette de commandes…"))
             .build()?;
         let view = SubmenuBuilder::new(app, label("Fenêtre"))
+            .text("ui.versions", label("Versions"))
             .text("ui.peer", label("Deuxième fenêtre"))
             .text(
                 "synchronization.enable",

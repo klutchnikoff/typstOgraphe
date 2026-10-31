@@ -97,6 +97,26 @@ pub fn recovery_for_state(state: State, update: Vec<u8>) -> Result<RecoveryConte
 }
 
 impl crate::session::Session {
+    pub fn stored_project(&mut self) -> Result<Project, String> {
+        let owner = self.ensure_owner()?;
+        let state = owner.state().clone();
+        let update = owner.update_bytes();
+        let dependencies = self.dependencies_for(&state.settings);
+        let current = archive(state, update, self.assets.clone(), dependencies);
+        if self.project.get().is_none() {
+            let _ = self.project.set(Context::new(
+                Project::new(current.clone()).map_err(error)?,
+                false,
+            ));
+        }
+        self.project
+            .get()
+            .expect("initialized owner")
+            .owner
+            .with_current(current)
+            .map_err(error)
+    }
+
     pub fn render_snapshot(
         &self,
         snapshot: &crate::session::Snapshot,
