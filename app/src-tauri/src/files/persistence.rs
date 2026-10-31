@@ -136,7 +136,7 @@ pub(super) fn close_project(session: &mut Session, revision: u64) -> Result<(), 
     session.file_lease = None;
     session.opened = false;
     session.owner = None;
-    session.generation = uuid::Uuid::new_v4().to_string();
+    session.reset_document_generation();
     session.revision += 1;
     Ok(())
 }

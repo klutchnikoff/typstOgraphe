@@ -31,6 +31,8 @@ beforeEach(() => {
     extensions: richZoneExtensions('document'),
     content: '<p>Test du rendu</p>',
   })
+  document.body.append(editor.view.dom)
+  editor.commands.setTextSelection(1)
   provider = { revision: 1, generation: 'document-a' } as Provider
   version = 1
   decode = vi.fn(() => Promise.resolve())
@@ -172,4 +174,24 @@ it('libère les URL binaires périmées et conserve celles de l’aperçu visibl
   } finally {
     vi.unstubAllGlobals()
   }
+})
+
+it('seule la dernière navigation demandée peut déplacer et repérer le curseur', async () => {
+  const finishes: ((pos: number) => void)[] = []
+  transport.invoke = vi.fn((command) =>
+    command === 'sync_backward'
+      ? new Promise<number>((resolve) => finishes.push(resolve))
+      : Promise.resolve(null),
+  ) as Transport['invoke']
+  await controller.show(result(1), 1)
+  const page = document.querySelector('.preview-page')!
+  page.dispatchEvent(new MouseEvent('dblclick'))
+  page.dispatchEvent(new MouseEvent('dblclick'))
+  finishes[1](10)
+  await Promise.resolve()
+  expect(editor.state.selection.from).toBe(10)
+  expect(editor.view.dom.querySelector('.sync-location')?.textContent).toBe('rendu')
+  finishes[0](2)
+  await Promise.resolve()
+  expect(editor.state.selection.from).toBe(10)
 })

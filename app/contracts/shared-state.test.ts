@@ -154,9 +154,9 @@ function state(value: Y.Doc) {
 }
 beforeAll(async () => {
   directory = mkdtempSync(join(tmpdir(), 'tog-shared-contract-'))
-  const binary = resolve(
-    '../target/debug/typstographe' + (process.platform === 'win32' ? '.exe' : ''),
-  )
+  const binary =
+    process.env.TOG_SPIKE_BINARY ||
+    resolve('../target/debug/typstographe' + (process.platform === 'win32' ? '.exe' : ''))
   child = spawn(binary, ['--stdio', '--session-dir', directory], {
     stdio: ['pipe', 'pipe', 'pipe'],
   })
@@ -1336,6 +1336,7 @@ it('attached MCP accepts the same typed lot into the existing Yjs tree and human
   await call('reset', {})
   const joined = await call('join', {})
   const generation = joined.generation
+  expect(joined.synchronization.enabled).toBe(false)
   await call('relay', { generation, update: bytes(original), capture: false })
   const body = original.getXmlFragment('default')
   const nodes = body.toArray()
@@ -1370,6 +1371,9 @@ it('attached MCP accepts the same typed lot into the existing Yjs tree and human
   })
   expect((await agent('document.inspect', {})).outcome.state).toEqual(inspect.outcome.state)
   const publication = await call('diagnostic_agent_accept', { id: pending.outcome.id })
+  const services = await call('connection', { generation, online: true })
+  expect(services.enabled).toBe(false)
+  expect(services.windows).toEqual(['contract-test'])
   expect(publication.guard.revision).toBe(inspect.document.guard.revision + 1)
   Y.applyUpdate(original, new Uint8Array(publication.update))
   expect(body.toArray()[0]).toBe(nodes[0])
@@ -1383,4 +1387,464 @@ it('attached MCP accepts the same typed lot into the existing Yjs tree and human
   const redo = await call('editing_history', { generation, direction: 'redo' })
   Y.applyUpdate(original, new Uint8Array(redo.update))
   await probe({ action: 'inspect', update: bytes(original), expected: publication.state })
+})
+
+it('the immediate prose join and typed native join agree on Unicode, badges, marks and block kinds', async () => {
+  const { joinParagraphs } = await import('../src/paragraph-join')
+  for (const [leftKind, rightKind] of [
+    ['paragraph', 'paragraph'],
+    ['heading', 'paragraph'],
+    ['paragraph', 'heading'],
+    ['heading', 'heading'],
+  ]) {
+    const initial = seed('article')
+    const root = initial.getXmlFragment('default')
+    const paragraph = (type: string, content: JSONContent[]) => ({
+      type,
+      ...(type === 'heading' ? { attrs: { level: 2 } } : {}),
+      content,
+    })
+    const content = {
+      type: 'doc',
+      content: [
+        paragraph(leftKind, [{ type: 'text', text: 'A😀', marks: [{ type: 'bold' }] }]),
+        paragraph(rightKind, [
+          { type: 'footnote', attrs: { text: 'Note 日本' } },
+          {
+            type: 'text',
+            text: 'é日本',
+            marks: [{ type: 'italic' }, { type: 'link', attrs: { href: 'https://example.org' } }],
+          },
+        ]),
+        { type: 'paragraph' },
+      ],
+    }
+    initial.transact(() => {
+      root.delete(0, root.length)
+      prosemirrorJSONToYXmlFragment(schema, content, root)
+    })
+    const native = doc(bytes(initial)),
+      local = doc(bytes(initial))
+    const editor = createRichZone({
+      profile: 'document',
+      label: 'Join contract',
+      binding: { kind: 'document', document: local },
+    })
+    editors.push(editor)
+    if (!editor.isInitialized)
+      await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+    editor.commands.setTextSelection(6)
+    expect(joinParagraphs(editor, true, true)).toBe(true)
+    expect(editor.state.selection.from).toBe(
+      leftKind === 'paragraph' && rightKind === 'paragraph' ? 5 : 4,
+    )
+    const guard = { document: 'join-contract', revision: 0 }
+    const outcome = await probe({
+      action: 'commands',
+      update: bytes(native),
+      guard,
+      expected: guard,
+      commands: [
+        {
+          id: 'block.join',
+          params: {
+            left: { root: { kind: 'body' }, path: [0] },
+            right: { root: { kind: 'body' }, path: [1] },
+          },
+        },
+      ],
+    })
+    Y.applyUpdate(native, new Uint8Array(outcome.update))
+    expect(state(native)).toEqual(state(local))
+    await probe({ action: 'inspect', update: bytes(local), expected: state(native) })
+  }
+})
+
+it('native and local whitespace repair preserve Unicode, marks and NBSP in body and rich header fields', async () => {
+  const { normalizeSharedSpaces } = await import('../src/horizontal-space')
+  const initial = seed('article'),
+    native = doc(bytes(initial)),
+    local = doc(bytes(initial))
+  const rich = {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'A😀  ', marks: [{ type: 'bold' }] },
+          { type: 'text', text: '  Bé\u00a0\u00a0fin', marks: [{ type: 'italic' }] },
+        ],
+      },
+    ],
+  }
+  const root = local.getXmlFragment('default')
+  const definition = catalogue.types
+    .find((t) => t.id === 'article')!
+    .structured!.collections.find((c) => c.parameter === 'localizations')!
+  const localizations = recordMap(store(local), definition)
+  const localized = Array.from(localizations.values())[0] as Y.Map<unknown>
+  const id = Array.from(localizations.keys())[0]
+  for (const target of [root, localized.get('title'), localized.get('abstract')]) {
+    const fragment = target as Y.XmlFragment
+    fragment.doc!.transact(() => {
+      fragment.delete(0, fragment.length)
+      prosemirrorJSONToYXmlFragment(schema, rich, fragment)
+      normalizeSharedSpaces(fragment)
+    })
+  }
+  // The body retains its mandatory editing slot; rich headers do not gain one.
+  local.transact(() => root.insert(root.length, [new Y.XmlElement('paragraph')]))
+  const guard = { document: 'space-contract', revision: 0 }
+  const result = await probe({
+    action: 'commands',
+    update: bytes(native),
+    guard,
+    expected: guard,
+    commands: [
+      {
+        id: 'block.replace',
+        params: { target: { root: { kind: 'body' }, path: [0] }, node: rich.content[0] },
+      },
+      ...['title', 'abstract'].map((field) => ({
+        id: 'block.replace',
+        params: {
+          target: { root: { kind: 'record', collection: 'localizations', id, field }, path: [0] },
+          node: rich.content[0],
+        },
+      })),
+      {
+        id: 'block.splice',
+        params: {
+          parent: { root: { kind: 'body' }, path: [] },
+          index: 1,
+          delete_count: state(native).document.content!.length - 1,
+          nodes: [{ type: 'paragraph' }],
+        },
+      },
+    ],
+  })
+  Y.applyUpdate(native, new Uint8Array(result.update))
+  expect(state(native)).toEqual(state(local))
+  await probe({ action: 'inspect', update: bytes(local), expected: state(native) })
+})
+
+it('header axes round-trip between native commands, Yjs and the editor without losing cell text', async () => {
+  const native = seed('courrier')
+  const guard = { document: 'table-header-contract', revision: 0 }
+  const result = await probe({
+    action: 'commands',
+    update: bytes(native),
+    guard,
+    expected: guard,
+    commands: [
+      {
+        id: 'insert.table',
+        params: {
+          parent: { root: { kind: 'body' }, path: [] },
+          index: 0,
+          rows: 2,
+          columns: 2,
+          header: false,
+          row_headers: true,
+        },
+      },
+      {
+        id: 'text.insert',
+        params: {
+          target: { zone: { kind: 'body', path: [0, 0, 1, 0, 0] }, from: 0, to: 0 },
+          text: 'Nom é😀日本',
+          marks: [{ type: 'bold' }],
+        },
+      },
+      {
+        id: 'table.header',
+        params: { target: { root: { kind: 'body' }, path: [0] }, axis: 'columns', enabled: true },
+      },
+    ],
+  })
+  Y.applyUpdate(native, new Uint8Array(result.update))
+  const projected = state(native)
+  const element = document.createElement('div')
+  document.body.append(element)
+  const editor = createRichZone({
+    profile: 'document',
+    element,
+    label: 'Table header contract',
+    content: projected.document,
+  })
+  editors.push(editor)
+  const table = (editor.getJSON() as JSONContent).content![0].content![0]
+  expect(table.content![0].content![0].attrs!.scope).toBe('both')
+  expect(table.content![1].content![0].attrs!.scope).toBe('row')
+  expect(table.content![1].content![0].content![0].content![0]).toMatchObject({
+    text: 'Nom é😀日本',
+    marks: [{ type: 'bold' }],
+  })
+  const roundtrip = doc(bytes(native))
+  const fragment = roundtrip.getXmlFragment('default')
+  roundtrip.transact(() => {
+    fragment.delete(0, fragment.length)
+    prosemirrorJSONToYXmlFragment(schema, editor.getJSON(), fragment)
+  })
+  await probe({ action: 'inspect', update: bytes(roundtrip), expected: projected })
+})
+
+it.each(['softBreak', 'hardBreak'])(
+  'inline.replace inserts %s exactly like the immediate rich editor, preserving neighboring identities and undo',
+  async (kind) => {
+    for (const path of [[1], [2, 0], [2, 1], [3, 0, 0], [4, 0, 0, 0, 0], [5]]) {
+      const original = seed('courrier')
+      const native = doc(bytes(original)),
+        local = doc(bytes(original))
+      const editor = createRichZone({
+        profile: 'document',
+        label: 'Break contract',
+        binding: { kind: 'document', document: local },
+      })
+      editors.push(editor)
+      if (!editor.isInitialized)
+        await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+      // Pick only actual inline zones from the fixture; tables are wrapped by the schema.
+      const start = positionAtPath(editor, path)
+      const node = editor.state.doc.nodeAt(start)!
+      expect(node.isTextblock).toBe(true)
+      const offset = 1
+      editor.commands.setTextSelection(start + 1 + offset)
+      editor.commands.insertContent({ type: kind })
+      const guard = { document: 'break-contract', revision: 0 }
+      const result = await probe({
+        action: 'commands',
+        update: bytes(native),
+        guard,
+        expected: guard,
+        commands: [
+          {
+            id: 'inline.replace',
+            params: {
+              target: { zone: { kind: 'body', path }, from: offset, to: offset },
+              node: { type: kind },
+            },
+          },
+        ],
+      })
+      const undo = new Y.UndoManager(native.getXmlFragment('default'))
+      Y.applyUpdate(native, new Uint8Array(result.update))
+      expect(state(native)).toEqual(state(local))
+      await probe({ action: 'inspect', update: bytes(local), expected: state(native) })
+      const confirmed = state(native)
+      undo.undo()
+      expect(state(native)).toEqual(state(original))
+      undo.redo()
+      expect(state(native)).toEqual(confirmed)
+      undo.destroy()
+    }
+  },
+)
+
+it('flat item plans and native operations agree on split, symmetric join, exit, rich content and one undo', async () => {
+  const { planListSplit, planListJoin, planListExit } = await import('../src/list-transforms')
+  for (const kind of ['bulletList', 'orderedList', 'descriptionList']) {
+    for (const action of ['split', 'join', 'exit']) {
+      if (kind === 'descriptionList' && action === 'join') continue
+      const initial = seed('courrier')
+      const root = initial.getXmlFragment('default')
+      const paragraph = (text: string) => ({
+        type: 'paragraph',
+        content: text ? [{ type: 'text', text, marks: [{ type: 'italic' }] }] : [],
+      })
+      const node = {
+        type: kind,
+        content: ['A😀BC', action === 'exit' ? '' : 'Second', 'Voisin'].map((text) =>
+          kind === 'descriptionList'
+            ? {
+                type: 'descriptionItem',
+                content: [
+                  { type: 'descriptionTerm' },
+                  {
+                    type: 'descriptionDefinition',
+                    content: text ? [{ type: 'text', text, marks: [{ type: 'bold' }] }] : [],
+                  },
+                ],
+              }
+            : {
+                type: 'listItem',
+                content: [
+                  paragraph(text),
+                  ...(action === 'split' && text === 'A😀BC'
+                    ? [paragraph('Deuxième paragraphe')]
+                    : []),
+                ],
+              },
+        ),
+      }
+      initial.transact(() => {
+        root.delete(0, root.length)
+        prosemirrorJSONToYXmlFragment(
+          schema,
+          { type: 'doc', content: [node, { type: 'paragraph' }] },
+          root,
+        )
+      })
+      const native = doc(bytes(initial)),
+        local = doc(bytes(initial))
+      const editor = createRichZone({
+        profile: 'document',
+        label: 'Item contract',
+        binding: { kind: 'document', document: local },
+      })
+      editors.push(editor)
+      if (!editor.isInitialized)
+        await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+      const path = [0, action === 'exit' ? 1 : 0, kind === 'descriptionList' ? 1 : 0]
+      const start = positionAtPath(editor, path)
+      editor.commands.setTextSelection(
+        start + 1 + (action === 'split' ? 3 : action === 'join' ? 5 : 0),
+      )
+      const plan =
+        action === 'split'
+          ? planListSplit(editor)
+          : action === 'join'
+            ? planListJoin(editor, false)
+            : planListExit(editor)
+      expect(plan).toBeDefined()
+      const listXML = local.getXmlFragment('default').get(0) as Y.XmlElement
+      const survivor = listXML.get(0)
+      const neighbor = listXML.get(2)
+      editor.view.dispatch(plan!.transaction)
+      expect(local.getXmlFragment('default').get(0)).toBe(listXML)
+      expect(listXML.get(0)).toBe(survivor)
+      expect(listXML.get(listXML.length - 1)).toBe(neighbor)
+      const guard = { document: 'list-contract', revision: 0 }
+      const result = await probe({
+        action: 'commands',
+        update: bytes(native),
+        guard,
+        expected: guard,
+        commands: plan!.commands,
+      })
+      const undo = new Y.UndoManager(native.getXmlFragment('default'))
+      Y.applyUpdate(native, new Uint8Array(result.update))
+      expect(state(native), kind + ' ' + action).toEqual(state(local))
+      await probe({ action: 'inspect', update: bytes(local), expected: state(native) })
+      const confirmed = state(native)
+      expect(undo.undoStack).toHaveLength(1)
+      undo.undo()
+      expect(state(native)).toEqual(state(initial))
+      undo.redo()
+      expect(state(native)).toEqual(confirmed)
+      undo.destroy()
+    }
+  }
+})
+
+it('protected multizone replacement plans match one native atomic lot without deleting partial widget boundaries', async () => {
+  const { protectedSelectionPlan } = await import('../src/selection-edits')
+  const { DOMParser, Slice } = await import('@tiptap/pm/model')
+  for (const [first, last] of [
+    ['Corps', 'Source'],
+    ['Terme', 'Définition'],
+    ['Alpha', 'Bravo'],
+    ['Avant', 'Définition'],
+  ]) {
+    for (const paste of [false, true]) {
+      const initial = seed('courrier'),
+        root = initial.getXmlFragment('default')
+      const element = document.createElement('div')
+      element.innerHTML =
+        '<p>Avant</p><blockquote><p>Corps</p><cite data-attribution>Source</cite></blockquote><dl><div data-description-item><dt>Terme</dt><dd>Définition</dd></div></dl><figure data-table><table><tbody><tr><td><p>Alpha</p></td><td><p>Bravo</p></td></tr></tbody></table><figcaption data-table-caption>Légende</figcaption></figure><p>Après</p><p></p>'
+      const content = DOMParser.fromSchema(schema).parse(element)
+      initial.transact(() => {
+        root.delete(0, root.length)
+        prosemirrorJSONToYXmlFragment(schema, content.toJSON(), root)
+      })
+      const native = doc(bytes(initial)),
+        local = doc(bytes(initial))
+      const editor = createRichZone({
+        profile: 'document',
+        label: 'Protected selection contract',
+        binding: { kind: 'document', document: local },
+      })
+      editors.push(editor)
+      if (!editor.isInitialized)
+        await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+      let from = 0,
+        to = 0
+      editor.state.doc.descendants((node, pos) => {
+        if (node.isTextblock) {
+          if (node.textContent === first) from = pos + 2
+          if (node.textContent === last) to = pos + 3
+        }
+      })
+      editor.commands.setTextSelection({ from, to })
+      const payload = document.createElement('div')
+      payload.innerHTML = '<p><strong>Ajout</strong></p><p><em>Suite</em></p>'
+      const plan = protectedSelectionPlan(
+        editor,
+        paste ? DOMParser.fromSchema(editor.schema).parseSlice(payload) : Slice.empty,
+      )!
+      expect(plan).toBeDefined()
+      editor.view.dispatch(plan.transaction)
+      const guard = { document: 'selection-contract', revision: 0 }
+      const result = await probe({
+        action: 'commands',
+        update: bytes(native),
+        guard,
+        expected: guard,
+        commands: plan.commands,
+      })
+      const undo = new Y.UndoManager(native.getXmlFragment('default'))
+      Y.applyUpdate(native, new Uint8Array(result.update))
+      expect(state(native), first + ' / ' + last).toEqual(state(local))
+      await probe({ action: 'inspect', update: bytes(local), expected: state(native) })
+      expect(undo.undoStack).toHaveLength(1)
+      undo.undo()
+      expect(state(native)).toEqual(state(initial))
+      undo.destroy()
+    }
+  }
+})
+
+it('rectangular paste uses native cell-content splices without changing grid identities or header roles', async () => {
+  const { cellPastePlan } = await import('../src/cell-paste')
+  const { DOMParser } = await import('@tiptap/pm/model')
+  const initial = seed('courrier'),
+    root = initial.getXmlFragment('default')
+  const html = document.createElement('div')
+  html.innerHTML =
+    '<figure data-table><table><tr><th data-header-scope="both"><p>Nom</p></th><th data-header-scope="column"><p>Valeur</p></th></tr><tr><th data-header-scope="row"><p>Ligne</p></th><td><p>Ancien</p></td></tr></table><figcaption data-table-caption>Légende</figcaption></figure><p></p>'
+  initial.transact(() => {
+    root.delete(0, root.length)
+    prosemirrorJSONToYXmlFragment(schema, DOMParser.fromSchema(schema).parse(html).toJSON(), root)
+  })
+  const native = doc(bytes(initial)),
+    local = doc(bytes(initial))
+  const editor = createRichZone({
+    profile: 'document',
+    label: 'Cell paste contract',
+    binding: { kind: 'document', document: local },
+  })
+  editors.push(editor)
+  if (!editor.isInitialized)
+    await new Promise<void>((resolve) => editor.once('create', () => resolve()))
+  const positions: number[] = []
+  editor.state.doc.descendants((n, pos) => {
+    if (['tableCell', 'tableHeader'].includes(n.type.name)) positions.push(pos)
+  })
+  editor.commands.setCellSelection({ anchorCell: positions[0], headCell: positions[3] })
+  const pasted = document.createElement('div')
+  pasted.innerHTML =
+    '<table><tr><td><p>A</p></td><td><p>B</p></td></tr><tr><td><p>C</p></td><td><p>D</p></td></tr></table>'
+  const plan = cellPastePlan(editor, DOMParser.fromSchema(editor.schema).parseSlice(pasted))!
+  editor.view.dispatch(plan.transaction)
+  const guard = { document: 'cell-paste-contract', revision: 0 }
+  const result = await probe({
+    action: 'commands',
+    update: bytes(native),
+    guard,
+    expected: guard,
+    commands: plan.commands,
+  })
+  Y.applyUpdate(native, new Uint8Array(result.update))
+  expect(state(native)).toEqual(state(local))
+  await probe({ action: 'inspect', update: bytes(local), expected: state(native) })
 })

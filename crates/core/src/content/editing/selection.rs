@@ -95,6 +95,7 @@ fn text_root(zone: &TextZone) -> Option<TreeRoot> {
         _ => None,
     }
 }
+#[derive(Clone)]
 pub(super) struct NodeAnchor {
     root: TreeRoot,
     identity: StickyIndex,
@@ -140,6 +141,7 @@ fn same_table(a: &TreeTarget, b: &TreeTarget) -> bool {
         && b.path.len() >= 3
         && a.path[..a.path.len() - 2] == b.path[..b.path.len() - 2]
 }
+#[derive(Clone)]
 pub(super) enum AnchoredSelection {
     Range {
         range: Range,

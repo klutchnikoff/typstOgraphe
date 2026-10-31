@@ -35,8 +35,12 @@ export function setCitationEntries(editor: Editor, entries: ReferenceEntry[]) {
   indexes.set(editor, entries)
   editor.view.dispatch(editor.state.tr.setMeta('bibliography-index', true))
 }
-export function citationLabel(editor: Editor, items: CitationItem[]) {
-  return items
+export function citationLabel(
+  editor: Editor,
+  items: CitationItem[],
+  form: Citation['form'] = 'normal',
+) {
+  const label = items
     .map(
       (item) =>
         indexes
@@ -45,4 +49,5 @@ export function citationLabel(editor: Editor, items: CitationItem[]) {
         item.key,
     )
     .join(' ; ')
+  return label && form === 'normal' ? `(${label})` : label
 }

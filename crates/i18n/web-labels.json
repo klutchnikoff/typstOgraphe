@@ -227,7 +227,14 @@
   "Colonnes": "web-table-columns",
   "Ligne": "web-table-row",
   "Colonne": "web-table-column",
-  "Première ligne d’en-tête": "web-table-header",
+  "Actions sur la ligne": "web-table-row-actions",
+  "Actions sur la colonne": "web-table-column-actions",
+  "Au-dessus": "web-table-before-row-short",
+  "Au-dessous": "web-table-after-row-short",
+  "À gauche": "web-table-before-column-short",
+  "À droite": "web-table-after-column-short",
+  "Première ligne : en-têtes de colonnes": "web-table-header",
+  "Première colonne : en-têtes de lignes": "web-table-row-headers",
   "Modifier le tableau": "web-table-edit",
   "Dimensions de tableau invalides.": "web-table-invalid-dimensions",
   "Ajouter une ligne au-dessus": "web-table-row-before",
@@ -256,5 +263,11 @@
   "Conservez ou abandonnez le brouillon refusé avant de continuer.": "web-command-pending-draft",
   "Ouvrez ou créez un document.": "web-command-no-document",
   "Terminez ou annulez le formulaire ouvert.": "web-command-modal",
-  "Cette commande n’est pas disponible dans ce contexte.": "web-command-unavailable"
+  "Cette commande n’est pas disponible dans ce contexte.": "web-command-unavailable",
+  "Activer la synchronisation": "sync-enable",
+  "Arrêter la synchronisation": "sync-disable",
+  "Synchronisation active": "sync-enabled",
+  "Activation après la saisie…": "sync-pending",
+  "Mode individuel · validation et historique actifs": "sync-solo",
+  "Fermez les autres fenêtres avant d’arrêter la synchronisation.": "sync-close-windows"
 }

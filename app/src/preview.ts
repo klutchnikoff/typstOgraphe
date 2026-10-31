@@ -1,6 +1,7 @@
 import type { Editor } from '@tiptap/core'
 import type { Transport, Provider } from './provider'
 import type { BinaryPage } from './preview-frame'
+import { revealEditorPosition } from './editor-reveal'
 interface Result {
   revision: number
   pages: (string | BinaryPage)[]
@@ -21,6 +22,7 @@ export function previewController(
     shown = -1,
     ticket = 0,
     displayTicket = 0,
+    backwardTicket = 0,
     timer: ReturnType<typeof setTimeout>
   let visibleUrls: string[] = []
   const clear = () => {
@@ -77,6 +79,7 @@ export function previewController(
     destroy: () => {
       ticket++
       displayTicket++
+      backwardTicket++
       clearTimeout(timer)
       visibleUrls.forEach((url) => URL.revokeObjectURL(url))
       visibleUrls = []
@@ -84,6 +87,7 @@ export function previewController(
     invalidate: () => {
       ticket++
       displayTicket++
+      backwardTicket++
       clear()
     },
     show: async (value: Result, currentVersion: number) => {
@@ -141,9 +145,14 @@ export function previewController(
           if (size) svg.setAttribute('viewBox', `0 0 ${size[0]} ${size[1]}`)
           page.append(image, svg)
           const displayed = () =>
-            result === value && shown === version() && provider.revision === value.revision
+            !editor.isDestroyed &&
+            generation === provider.generation &&
+            result === value &&
+            shown === version() &&
+            provider.revision === value.revision
           page.ondblclick = (event) => {
             if (!displayed() || !size) return
+            const request = ++backwardTicket
             const rect = image.getBoundingClientRect()
             const location = {
               page: index,
@@ -155,8 +164,8 @@ export function previewController(
             void transport
               .invoke<number | null>('sync_backward', { revision: value.revision, location })
               .then((pos) => {
-                if (pos !== null && displayed())
-                  editor.chain().focus().setTextSelection(pos).scrollIntoView().run()
+                if (pos !== null && displayed() && request === backwardTicket)
+                  revealEditorPosition(editor, pos)
               })
               .catch(() => {})
           }

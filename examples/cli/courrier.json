@@ -2,34 +2,150 @@
   "version": 1,
   "document": {
     "kind": "new",
-    "type": "courrier",
-    "params": {
-      "initial_values": [
-        { "field": "sender.name", "value": "Camille Martin" },
-        { "field": "sender.address", "value": "12 rue des Fleurs\n35000 Rennes" },
-        { "field": "recipient.name", "value": "Service des équipements" },
-        { "field": "recipient.address", "value": "1 place de la Mairie\n35000 Rennes" },
-        { "field": "letter.place", "value": "Rennes" },
-        { "field": "letter.date", "value": "2026-10-24" }
-      ]
-    }
+    "type": "courrier"
   },
   "steps": [
     {
       "id": "metadata.set",
-      "params": { "field": "letter.subject", "value": "Demande de réservation" }
-    },
-    {
-      "id": "text.insert",
       "params": {
-        "text": "Madame, Monsieur,\n\nJe souhaite connaître les modalités de réservation de votre salle.\n\nJe vous remercie pour votre retour."
+        "target": {
+          "kind": "metadata",
+          "field": "sender.name"
+        },
+        "value": "Camille Martin"
       }
     },
-    { "id": "text.bold", "target": { "select": "réservation" } },
-    { "id": "letter.insert_postscript" },
-    { "id": "text.insert", "params": { "text": "Vous pouvez me répondre par courrier." } },
-    { "id": "letter.insert_attachment" },
-    { "id": "text.insert", "params": { "text": "Formulaire de demande" } }
+    {
+      "id": "metadata.set",
+      "params": {
+        "target": {
+          "kind": "metadata",
+          "field": "sender.address"
+        },
+        "value": "12 rue des Fleurs\n35000 Rennes"
+      }
+    },
+    {
+      "id": "metadata.set",
+      "params": {
+        "target": {
+          "kind": "metadata",
+          "field": "recipient.name"
+        },
+        "value": "Service des équipements"
+      }
+    },
+    {
+      "id": "metadata.set",
+      "params": {
+        "target": {
+          "kind": "metadata",
+          "field": "recipient.address"
+        },
+        "value": "1 place de la Mairie\n35000 Rennes"
+      }
+    },
+    {
+      "id": "metadata.set",
+      "params": {
+        "target": {
+          "kind": "metadata",
+          "field": "letter.place"
+        },
+        "value": "Rennes"
+      }
+    },
+    {
+      "id": "metadata.set",
+      "params": {
+        "target": {
+          "kind": "metadata",
+          "field": "letter.date"
+        },
+        "value": "2026-10-24"
+      }
+    },
+    {
+      "id": "metadata.set",
+      "params": {
+        "target": {
+          "kind": "metadata",
+          "field": "letter.subject"
+        },
+        "value": "Demande de réservation"
+      }
+    },
+    {
+      "id": "block.splice",
+      "params": {
+        "parent": {
+          "root": {
+            "kind": "body"
+          }
+        },
+        "index": 0,
+        "delete_count": 1,
+        "nodes": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Madame, Monsieur,"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Je souhaite connaître les modalités de réservation de votre salle."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Je vous remercie pour votre retour."
+              }
+            ]
+          },
+          {
+            "type": "postscript",
+            "content": [
+              {
+                "type": "text",
+                "text": "Vous pouvez me répondre par courrier."
+              }
+            ]
+          },
+          {
+            "type": "attachment",
+            "content": [
+              {
+                "type": "text",
+                "text": "Formulaire de demande"
+              }
+            ]
+          },
+          {
+            "type": "paragraph"
+          }
+        ]
+      }
+    },
+    {
+      "id": "text.bold",
+      "target": {
+        "select": "modalités de réservation"
+      }
+    }
   ],
-  "save": { "kind": "as", "path": "../../output/courrier-script.typsto" }
+  "save": {
+    "kind": "as",
+    "path": "../../output/courrier-script.typsto"
+  }
 }

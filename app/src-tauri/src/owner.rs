@@ -29,6 +29,13 @@ pub struct ContextRequest {
     pub selection: Option<Selection>,
     pub typing_styles: Vec<Style>,
 }
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HistoryViewRequest {
+    pub frontier: Vec<u8>,
+    pub selection: Option<Selection>,
+    pub typing_styles: Vec<Style>,
+}
 pub fn error(error: Error) -> String {
     serde_json::to_string(&error).expect("typed content error")
 }
@@ -155,9 +162,18 @@ impl Owner {
         update: &[u8],
         group: Option<u64>,
         capture: bool,
+        view: Option<HistoryViewRequest>,
     ) -> Result<Publication, String> {
         let id = self.context(peer)?;
         let guard = self.engine.guard().clone();
+        if let Some(view) = view
+            && capture
+            && self.engine.check_frontier(&guard, &view.frontier).is_ok()
+        {
+            self.engine
+                .set_context(&guard, id, view.selection, view.typing_styles)
+                .map_err(error)?;
+        }
         if !capture {
             return self
                 .engine
@@ -296,6 +312,55 @@ mod tests {
             selected
         );
         assert_eq!(session.updates, bytes);
+    }
+    #[test]
+    fn a_history_view_is_causally_checked_and_cannot_retarget_a_stale_path() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut s = Session::fresh(temp.path().into());
+        seed(&mut s);
+        let before = view_request(&s, 2);
+        let expected = before.selection.clone();
+        let update = addition(&s, "Added");
+        let view = HistoryViewRequest {
+            frontier: before.frontier,
+            selection: before.selection,
+            typing_styles: before.typing_styles,
+        };
+        s.relay_view("a", &update, Some(1), true, Some(view))
+            .unwrap();
+        s.history("a", Direction::Undo).unwrap();
+        let restored = s.ensure_owner().unwrap().snapshot("a").unwrap();
+        assert_eq!(restored.selection, expected);
+        assert_eq!(restored.typing_styles, vec![Style::Bold]);
+
+        // A remote edit makes the browser's revision-relative path untrustworthy.
+        // Its outdated view is ignored; text still goes through normal validation.
+        let stale = view_request(&s, 0);
+        let update = addition(&s, "Remote");
+        s.relay_group("b", &update, Some(1), true).unwrap();
+        let update = addition(&s, "Local");
+        s.relay_view(
+            "a",
+            &update,
+            Some(2),
+            true,
+            Some(HistoryViewRequest {
+                frontier: stale.frontier,
+                selection: Some(Selection::Node {
+                    target: typstographe_core::content::commands::TreeTarget {
+                        root: typstographe_core::content::commands::TreeRoot::Body,
+                        path: vec![999],
+                    },
+                }),
+                typing_styles: vec![],
+            }),
+        )
+        .unwrap();
+        assert!(!s.ensure_owner().unwrap().snapshot("a").unwrap().pending);
+        s.history("a", Direction::Undo).unwrap();
+        let restored = s.ensure_owner().unwrap().snapshot("a").unwrap();
+        assert_eq!(restored.typing_styles, vec![Style::Bold]);
+        assert!(!restored.selection_lost);
     }
     #[test]
     fn native_owner_confirms_typing_once_and_keeps_histories_separate() {

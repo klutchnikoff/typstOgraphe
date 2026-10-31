@@ -35,11 +35,59 @@ typographiques et de présentation imposés par le modèle restent à sa charge.
 
 Les tableaux utilisent un seul widget, avec grille et légende facultative intégrée.
 Leur génération Typst passe par `figure(table(...), caption: ...)`, à partir de la
-même enveloppe native que les images. La roue dentée ouvre les opérations de
-lignes/colonnes et le rôle d’en-tête de la première ligne ; la corbeille concerne
-le tableau entier. Les dimensions se choisissent avant l’insertion. Voir le
+même enveloppe native que les images. La roue dentée propose deux options
+indépendantes : première ligne comme en-têtes de colonnes (activée à la création),
+première colonne comme en-têtes de lignes (désactivée à la création). Leurs
+libellés et valeurs initiales viennent du catalogue commun. Les opérations de
+lignes/colonnes restent dans les poignées ; la corbeille concerne le tableau
+entier. Les dimensions se choisissent avant l’insertion. Voir le
 [contrat exécuté](structured-commands.md#figures-et-tableaux--contrat-mis-en-place)
 pour la publication gardée, l’annulation et les limites de ce premier périmètre.
+
+Les poignées en marge gauche et au-dessus de la grille ciblent une ligne ou une
+colonne sans déplacer la sélection de texte. Leur bandeau B apparaît sous
+l’en-tête inchangé du widget : Supprimer (à gauche, désactivé pour la dernière
+ligne ou colonne), Annuler, Au-dessus/Au-dessous ou À gauche/À droite. L’ajout
+après reste l’action par défaut à droite. Échap referme le bandeau et rend le
+focus à sa poignée ; les flèches parcourent les poignées du même axe et Entrée
+ouvre leur bandeau. La dernière poignée permet également d’ajouter en fin de grille ; aucun bouton
+« + » supplémentaire n’est nécessaire.
+Après confirmation, le curseur entre dans la première cellule de la nouvelle
+ligne. Dans une nouvelle colonne, il conserve sa ligne de travail si le curseur
+appartenait à ce tableau ; sinon il entre dans la cellule supérieure. Le focus
+est rétabli avant de demander le défilement vers la cellule ciblée, notamment
+pour éviter un retour au début de l’éditeur sous WebKit. Après suppression,
+il revient dans une cellule voisine. La légende reste dans le même widget.
+Les cellules fusionnées sont hors de ce périmètre.
+
+Ces contrôles sont des décorations ProseMirror non éditables : ils ne créent ni
+ligne ni cellule dans Yjs, le JSON public ou Typst. Les poignées rejoignent le
+même contrôleur que les paramètres et les commandes du registre,
+puis les commandes typées communes du cœur. Les limites, le refus d’un lot
+concurrent et l’historique natif sont donc conservés. Aucun composant React ou
+service payant n’est ajouté.
+
+## Espacement des badges en ligne
+
+Notes, citations bibliographiques et futurs objets en ligne partagent
+`InlineObjectSpacing`. Le dégagement visuel de 0,2 ex précède seulement un badge
+attaché au texte : il disparaît en début de paragraphe, après un retour à la ligne
+ou après une espace normale, insécable ou fine insécable. Une espace normale
+permet le renvoi du badge au début de la ligne suivante, sans retrait ; son
+libellé reste d’un seul tenant. L’espace insécable conserve son rôle habituel.
+Le cadre du libellé est une boîte en ligne indivisible (`inline-block`) : son
+padding et sa bordure restent à l’intérieur de la boîte, hors du point
+d’insertion situé juste avant le badge, même sans dégagement supplémentaire.
+
+Les citations conservent une représentation auteur–année dans l’éditeur,
+indépendante du style bibliographique du modèle. En forme standard, un seul jeu
+de parenthèses entoure le groupe : `(Imaginaire, 1200 ; Exemple, 2026)`.
+La forme « Dans la phrase » ne reçoit pas ces parenthèses extérieures.
+
+Cette règle repose sur des décorations locales, recalculées lorsque le document
+change. Elle n’ajoute aucun caractère, attribut ou marque au document, à Yjs ou
+à l’export Typst et ne mesure pas la mise en page pendant la frappe. Le curseur,
+la sélection et l’ouverture du bandeau conservent le contrat commun des badges.
 
 ## Bandeau contextuel unique
 
@@ -57,7 +105,7 @@ champ ne crée pas implicitement un nouveau paramètre Typst.
 
 - Ouvrir, fermer et modifier un réglage provisoire ne publie aucune édition.
 - Appliquer vérifie la cible gardée, puis utilise la commande du moteur.
-- Annuler/Échap abandonne les réglages et restitue le contexte précédent.
+- Annuler/Échap abandonne les réglages et restitue le contexte ciblé.
 - Supprimer retire tout le widget ; l’historique permet de le rétablir.
 - `Ctrl+Retour arrière` supprime directement le widget entier depuis son corps
   ou une annotation, en une étape d’annulation. Sur macOS, `Cmd+Retour arrière`
@@ -75,6 +123,32 @@ champ ne crée pas implicitement un nouveau paramètre Typst.
   ne force la validation ou l’abandon de la composition.
 - L’interaction graphique reste distincte de la sélection et des styles publiés.
   Le focus de ses champs ne déclenche pas les raccourcis de rédaction du corps.
+
+L’ouverture et le retour au texte relèvent de `BandHost`, pour tous les widgets
+et bandeaux en ligne. Si le curseur appartient déjà au widget, sa sélection est
+conservée. Sinon, ouvrir ses paramètres ou sa corbeille établit un contexte dans
+ce widget ; un ancien curseur situé au début du document ne devient pas la cible
+du retour. Un bandeau en ligne conserve la sélection liée à sa cible ou y place
+le point de reprise si elle était ailleurs. Cette navigation reste privée et
+ne crée aucune étape d’annulation documentaire.
+
+Validation, annulation et sortie au clavier utilisent `focusEditorSelection` :
+restaurer la sélection, synchroniser le focus DOM, puis révéler le curseur. Aucun
+focus différé ne peut revenir écraser une navigation ultérieure. Les éditions
+gardées préparées avec `applyPlannedEdit` restaurent leur sélection projetée même
+si Yrs renouvelle une identité de cellule ou de widget. Avec `focus: false`, elles
+laissent le focus et le défilement au bandeau jusqu’à sa fermeture. Les paramètres
+des tableaux suivent cette même voie ; seuls les indices de la cellule cible
+après une insertion ou suppression restent propres au tableau. Une validation
+sans changement referme également le bandeau.
+
+Un remplacement complet de widget peut faire sortir automatiquement la sélection
+ProseMirror. La planification commune conserve alors ses extrémités et leur sens
+si le contenu interne est identique. Si la structure du contenu change, elle
+reprend dans la première zone du widget remplacé. Une destination explicite déjà
+située dans ce widget est respectée ; une suppression ne réutilise jamais le
+widget voisin. Ces règles concernent la transaction locale gardée, pas une
+réinterprétation des changements distants.
 
 Les raccourcis textuels interactifs (`- `, `1. `, etc.), boutons et palette
 rejoignent les mêmes commandes. Collage et appels MCP conservent leurs règles

@@ -1,3 +1,4 @@
+import { focusEditorSelection } from './editor-focus'
 import { editingAvailability } from './command-availability'
 import { editingProvider } from './editing-history'
 import type { Editor } from '@tiptap/core'
@@ -35,7 +36,7 @@ export function citationPanel(
       if (!pending) bands.close()
     },
     canConfirm: () => !!opened?.items.length && !pending && !editor.view.composing,
-    tabExit: () => editor.view.focus(),
+    tabExit: () => focusEditorSelection(editor),
   })
   panel.title.textContent = tr('Citer une référence')
   const input = document.createElement('input')

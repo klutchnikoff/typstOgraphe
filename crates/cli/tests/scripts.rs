@@ -153,3 +153,20 @@ fn stdin_is_relative_to_cwd_and_uses_the_same_documentary_commands() {
     );
     assert!(source(&d.path().join("stdin.typsto")).contains("Depuis stdin"));
 }
+
+#[test]
+fn checked_letter_example_uses_the_public_contract_and_is_ready_for_export() {
+    let d = tempfile::tempdir().unwrap();
+    let mut example: Value =
+        serde_json::from_str(include_str!("../../../examples/cli/courrier.json")).unwrap();
+    example["save"]["path"] = json!("example.typsto");
+    let job = job(d.path(), example);
+    let result = response(cli().arg("script").arg(job), 0);
+    assert_eq!(result["outcome"]["document"]["context"]["undo_steps"], 1);
+    let project = d.path().join("example.typsto");
+    assert!(has_mark(&project, "modalités de réservation", "bold"));
+    let rendered_source = source(&project);
+    assert!(rendered_source.contains("Formulaire de demande"));
+    assert!(rendered_source.contains("#postscript[Vous pouvez me répondre par courrier"));
+    response(cli().arg("check").arg(project).arg("--for-export"), 0);
+}

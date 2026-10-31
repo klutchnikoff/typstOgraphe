@@ -35,15 +35,19 @@ utilisent maintenant la même façade.
 | `block.insert` | Insérer un sous-arbre à une frontière de blocs |
 | `block.replace` | Remplacer explicitement un sous-arbre |
 | `block.splice` | Remplacer une suite de blocs d’un conteneur, puis réparer ses frontières une seule fois |
-| `inline.replace` | Remplacer une plage en ligne par un badge de note ou de citation, avec marques explicites |
+| `inline.replace` | Remplacer une plage en ligne par un badge de note/citation ou un retour simple/forcé |
 | `node.set_attrs` | Modifier en place les paramètres publics d’un widget ou badge, en conservant son contenu et son identité |
 | `block.remove` | Supprimer un bloc ou un item, en respectant les frontières |
+| `block.join` | Fusionner deux voisins dans le même conteneur ; conserver un retour simple entre paragraphes non vides |
 | `block.split` | Séparer un paragraphe ou un titre au curseur ; la suite devient un paragraphe |
+| `list.item.split` | Séparer un item ordinaire dans un paragraphe ou une description dans sa définition |
+| `list.item.join` | Joindre deux items ordinaires voisins de la même liste, sans espace ou retour ajouté |
+| `list.item.exit` | Sortir d’un item entièrement vide et préserver une ligne de reprise après la liste |
 | `block.paragraph`, `block.heading_1` à `block.heading_3` | Convertir un paragraphe/titre ou changer son niveau |
 | `insert.table` | Construire un tableau avec grille et légende facultative à une frontière de blocs |
 | `table.row.insert`, `table.row.remove` | Ajouter ou retirer une ligne à un indice explicite |
 | `table.column.insert`, `table.column.remove` | Ajouter ou retirer une colonne à un indice explicite |
-| `table.header` | Définir le rôle d’en-tête de la première ligne |
+| `table.header` | Définir les rôles d’en-tête de la première ligne et de la première colonne, indépendamment |
 | `record.add` | Ajouter un enregistrement avec son identifiant et les valeurs par défaut du type |
 | `record.move` | Changer sa position dans une collection ordonnée |
 | `record.remove` | Supprimer un enregistrement sans détacher silencieusement ses références |
@@ -167,6 +171,21 @@ et refuse les annotations brutes et les zones qui ne sont pas des paragraphes/ti
 Il fonctionne aussi dans les cellules et les résumés. Un titre d’en-tête ne peut
 pas devenir deux paragraphes : son profil `rich_inline` continue à s’appliquer.
 
+Les zones riches partagent également la saisie des espaces : un premier appui
+insère une espace simple ; les suivants, au même emplacement, alternent entre
+espace simple et insécable Unicode U+00A0, sans en accumuler. Une insécable
+explicitement saisie reste insécable. Le collage et les commandes documentaires
+réduisent les séquences d’espaces simples/insécables à leur premier caractère,
+y compris à cheval sur des styles, sans modifier les espaces fines U+202F.
+Cette normalisation ne franchit ni les objets en ligne ni les retours et ne
+réécrit pas les champs bruts ou les métadonnées de formulaire.
+
+L’insécable est du texte ordinaire pour la sélection, le copier-coller,
+l’historique et Yjs/Yrs. Un `~` décoratif de la couleur du `¶` la signale dans
+l’éditeur ; il n’entre pas dans le contenu. L’export Typst produit `~` pour
+U+00A0, avec les offsets de synchronisation correspondants ; un tilde littéral
+reste échappé. La préédition IME n’est normalisée qu’après sa validation.
+
 `block.replace` reçoit `target` et `node`, `block.remove` seulement `target`.
 Les racines, cellules, lignes de tableau, badges et zones d’attribution ne sont
 pas supprimables comme des blocs ordinaires. Un item de liste peut être retiré,
@@ -189,12 +208,14 @@ candidat : pas de première ligne vide devant du contenu, pas de paragraphes
 vides consécutifs dans le flux, et un point de saisie final dans le corps.
 Les cellules et items gardent leurs frontières. Les résumés suivent le profil
 riche sans paragraphe final imposé. Cette politique Rust est confrontée à celle
-de la frappe immédiate dans Tiptap ; le raccordement de production reste à faire.
+de la frappe immédiate dans Tiptap ; le relais de production est depuis raccordé
+au propriétaire Rust, qui valide le delta complet. La normalisation locale et
+celle des lots typés restent deux réalisations confrontées par les recettes.
 
 ## Figures et tableaux — contrat mis en place
 
-Les commandes communes et le parcours Tauri exécutent ce contrat. Son exposition
-complète en CLI/MCP dépend toujours de la migration des adaptateurs.
+Les commandes communes et le parcours Tauri exécutent ce contrat. Les adaptateurs
+CLI/MCP utilisent désormais ces mêmes commandes, selon leurs autorisations.
 
 Images et tableaux sont toujours enveloppés dans une `figure` Typst, même sans
 légende. La génération partage la légende facultative et la politique
@@ -232,14 +253,24 @@ aucun widget supplémentaire n’entoure la grille. Les images conservent leur
 nœud et leur interface existants. Le parseur HTML construit également cette
 enveloppe lors du collage d’un tableau.
 
-Les paramètres communs sont `parent`/`index` et `rows`/`columns`/`header` pour
+Les paramètres communs sont `parent`/`index` et `rows`/`columns`/`header`/`row_headers` pour
 `insert.table`, puis `target` et `index` pour les lignes/colonnes. La cible désigne
 `tableFigure` ; l’indice d’insertion va de zéro au nombre courant de lignes ou
-colonnes. `table.header` reçoit `target` et `enabled`. Les insertions/suppressions
+colonnes. `table.header` reçoit `target`, `enabled` et `axis` : `columns`
+(par défaut) pour la première ligne, `rows` pour la première colonne. Les
+insertions/suppressions
 modifient directement les objets Yrs de la grille et préservent les voisins et
 la légende. Un changement de rôle d’en-tête renouvelle uniquement les cellules
 concernées, dont le texte et les marques sont conservés. Une insertion au-dessus
 de l’en-tête crée une nouvelle ligne d’en-tête et transforme l’ancienne en données.
+La règle est symétrique pour une colonne insérée avant les noms de lignes.
+Retirer la première ligne ou colonne reporte son rôle sur la nouvelle première
+ligne ou colonne. Les rôles restent ainsi des options indépendantes du tableau.
+
+Les cellules `tableHeader` portent une portée `scope` : `column` (défaut), `row`
+ou `both` au croisement des deux en-têtes. Aucun drapeau redondant n’est stocké
+sur la grille ; cette représentation distingue les quatre combinaisons même
+dans un tableau d’une cellule. JSON, Yjs/Yrs, CLI et MCP partagent ce contrat.
 
 Le parcours Tauri prépare le lot dans un candidat privé après acquittement des
 relais en cours. Le cœur vérifie que le checkpoint fourni correspond à l’historique
@@ -263,9 +294,14 @@ Accessibilité :
 - Aucun `figure(alt: ...)` n’est ajouté autour d’un tableau : cela remplacerait
   la lecture de ses cellules par la description. Les cellules et leurs en-têtes
   restent accessibles comme un véritable tableau.
-- Les en-têtes de colonnes utilisent `table.header`. Les en-têtes de lignes
-  nécessitent l’évaluation de l’API Typst actuellement expérimentale
-  `pdf.header-cell`, sous le drapeau `a11y-extras`.
+- Les en-têtes de colonnes utilisent `table.header`. Les en-têtes de lignes et
+  la cellule d’angle utilisent `table-header-cell(body, scope: "row" | "both")`,
+  défini dans `capabilities/tables.typ` et inscrit dans `dependencies.json`.
+  Ce wrapper isole l’API expérimentale `pdf.header-cell`. Seul le drapeau
+  `a11y-extras` est activé dans le moteur embarqué. L’export Typst reste autonome
+  avec ce fichier et indique la commande externe
+  `typst compile --features a11y-extras main.typ`. Aucun paquet réseau n’est requis.
+  Les tests vérifient les portées `/Row` et `/Both` dans le PDF exporté.
 - La cible d’export à préparer est PDF/UA-1, éventuellement combinée à un profil
   PDF/A compatible pour l’archivage. Ce choix ne signifie pas que l’export courant
   vérifie déjà la conformité ; les modèles et les métadonnées devront la permettre.
@@ -330,7 +366,7 @@ Les opérations spécialisées de tableau gardent leurs commandes déjà raccord
   supplémentaire issue d’un état intermédiaire vide. Les frontières de cellules,
   rôles de tableau et grammaires de conteneurs restent protégés.
 - `inline.replace` reçoit une cible textuelle dans une seule zone riche et un
-  nœud `footnote` ou `citation`. Les frontières UTF-16 sont contrôlées avant toute
+  nœud `footnote`, `citation`, `softBreak` ou `hardBreak`. Les frontières UTF-16 sont contrôlées avant toute
   modification. Pour insérer un badge au milieu d’un Y.XmlText, seul son suffixe
   est reconstruit ; paragraphe, autres badges et éléments voisins sont conservés.
   Les marques du nœud sont explicites. `text.delete` supprime le badge sur sa plage
@@ -356,9 +392,11 @@ la même validation finale que les autres commandes, sans seconde édition local
 après une prévalidation indépendante.
 
 La frappe, les retours, les règles « - espace » et « 1. espace », le collage et
-les jointures d’items au clavier restent immédiats via le relais validé. Cette
-exception est volontaire : leur migration éventuelle vers des plans locaux
-communs ne doit pas introduire un aller-retour avant l’affichage de la saisie.
+les jointures d’items au clavier restent immédiats via le relais validé. Les
+[lots R1–R3](a2-transformations-results.md) raccordent les plans d’items et les
+entrées multizones aux contrats typés équivalents, sans aller-retour avant
+l’affichage de la saisie. Suppr et Retour arrière joignent les items ordinaires
+symétriquement ; les descriptions conservent leurs frontières terme/définition.
 Les tests de collaboration attendent la confirmation du bandeau avant d’enchaîner
 une seconde commande ; les tests de concurrence vérifient séparément son refus.
 
@@ -582,19 +620,16 @@ les normalisations différées de l’éditeur, les références des objets part
 les métadonnées et une seule étape d’annulation/rétablissement. Le transport de
 diagnostic reste réservé aux tests ; ce n’est pas une nouvelle voie publique MCP.
 
-Restent dans A.2 :
+La disponibilité, la façade CLI/MCP, la [fusion de paragraphes](paragraph-join.md),
+les tableaux et l’historique sont raccordés. Les commandes de style à cible
+explicite refusent toujours une plage vide ; les styles de frappe appartiennent
+à l’API de contexte.
 
-- Le raccordement global de la disponibilité à l’interface. La façade commune
-  et les adaptateurs CLI/MCP utilisent désormais les commandes, requêtes et
-  contextes structurés ; voir le [bilan du lot](structured-adapters.md).
-  Les commandes de style à cible explicite refusent toujours une plage vide ;
-  les styles de frappe appartiennent à l’API de contexte.
-- La fusion de paragraphes et les transformations supplémentaires. L’insertion,
-  la suppression de lignes/colonnes et les en-têtes de tableaux sont désormais
-  communs ; la fusion de cellules reste différée.
-  Les retours riches passent par `block.split` ou des nœuds de retour explicites,
-  pas par des sauts de ligne cachés dans `text.insert`.
-- La conservation durable automatique et la réimportation des brouillons refusés.
-  Le groupement de frappe, l’IME, l’historique natif par fenêtre et le parcours
-  export/abandon sont raccordés dans Tauri.
-- Le mode individuel allégé, avec le même propriétaire documentaire.
+Les [lots R1–R3](a2-transformations-results.md) issus de l’inventaire sont livrés.
+Ils complètent les retours en ligne, opérations internes aux listes et garanties
+des entrées natives. Une saisie immédiate validée par le relais n’est pas une
+voie historique à remplacer par un RPC bloquant.
+
+Le mode individuel allégé et la recette finale des adaptateurs restent dans A.2.
+La conservation durable et la réimportation des brouillons refusés relèvent d’A.3 ;
+la fusion de cellules et les listes imbriquées restent différées.

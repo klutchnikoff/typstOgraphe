@@ -16,7 +16,11 @@ pub(super) fn node(value: &Node) -> Node {
         // The Yjs binding omits null attributes; the editor materializes them.
         attrs.retain(|_, v| !v.is_null());
         for (key, default) in match n.kind.as_str() {
-            "tableCell" | "tableHeader" => vec![("colspan", json!(1)), ("rowspan", json!(1))],
+            "tableCell" | "tableHeader" => vec![
+                ("colspan", json!(1)),
+                ("rowspan", json!(1)),
+                ("scope", json!("column")),
+            ],
             "orderedList" => vec![("start", json!(1))],
             "heading" => vec![("level", json!(1))],
             _ => vec![],

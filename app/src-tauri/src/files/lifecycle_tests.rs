@@ -108,3 +108,28 @@ fn new_signed_document_requires_valid_resources_before_clearing_the_previous_wor
     assert!(s.updates.is_empty());
     assert!(!s.root.join("session.json").exists());
 }
+
+#[test]
+fn reopening_or_closing_a_single_window_project_does_not_inherit_presence_services() {
+    let f = Fixture::new();
+    f.save(&f.path());
+    let old_generation = {
+        let mut s = f.session.lock().unwrap();
+        let generation = s.generation.clone();
+        s.set_synchronization("human", &generation, true).unwrap();
+        generation
+    };
+    let revision = f.session.lock().unwrap().revision;
+    open_project(&f.session, &f.path(), revision, |_, _, _| Ok(())).unwrap();
+    let mut s = f.session.lock().unwrap();
+    assert_ne!(s.generation, old_generation);
+    assert!(!s.synchronization().enabled);
+    let joined = s.join("human");
+    s.set_synchronization("human", &joined.generation, true)
+        .unwrap();
+    let revision = s.revision;
+    assert!(close_project(&mut s, revision - 1).is_err());
+    assert!(s.synchronization().enabled); // A refusal must preserve the live session.
+    close_project(&mut s, revision).unwrap();
+    assert!(!s.synchronization().enabled);
+}

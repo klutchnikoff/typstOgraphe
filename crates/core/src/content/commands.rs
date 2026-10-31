@@ -5,6 +5,17 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// The axis labelled by the header cells (columns = first row, rows = first column).
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum HeaderAxis {
+    #[default]
+    Columns,
+    Rows,
+}
+
 /// Paths use projected child indices in the guarded revision, never Yjs identifiers.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -196,6 +207,14 @@ pub enum Command {
     RemoveBlock { target: TreeTarget },
     #[serde(rename = "block.split")]
     SplitBlock { target: TextTarget },
+    #[serde(rename = "block.join")]
+    JoinBlocks { left: TreeTarget, right: TreeTarget },
+    #[serde(rename = "list.item.split")]
+    SplitListItem { target: TextTarget },
+    #[serde(rename = "list.item.join")]
+    JoinListItems { left: TreeTarget, right: TreeTarget },
+    #[serde(rename = "list.item.exit")]
+    ExitListItem { target: TreeTarget },
     #[serde(rename = "block.paragraph")]
     Paragraph { target: TreeTarget },
     #[serde(rename = "block.heading_1")]
@@ -211,6 +230,8 @@ pub enum Command {
         rows: u32,
         columns: u32,
         header: bool,
+        #[serde(default)]
+        row_headers: bool,
     },
     #[serde(rename = "table.row.insert")]
     InsertTableRow { target: TreeTarget, index: u32 },
@@ -221,7 +242,12 @@ pub enum Command {
     #[serde(rename = "table.column.remove")]
     RemoveTableColumn { target: TreeTarget, index: u32 },
     #[serde(rename = "table.header")]
-    TableHeader { target: TreeTarget, enabled: bool },
+    TableHeader {
+        target: TreeTarget,
+        enabled: bool,
+        #[serde(default)]
+        axis: HeaderAxis,
+    },
     #[serde(rename = "record.add")]
     AddRecord {
         collection: String,
@@ -264,6 +290,10 @@ impl Command {
             Self::SetNodeAttrs { .. } => "node.set_attrs",
             Self::RemoveBlock { .. } => "block.remove",
             Self::SplitBlock { .. } => "block.split",
+            Self::JoinBlocks { .. } => "block.join",
+            Self::SplitListItem { .. } => "list.item.split",
+            Self::JoinListItems { .. } => "list.item.join",
+            Self::ExitListItem { .. } => "list.item.exit",
             Self::Paragraph { .. } => "block.paragraph",
             Self::Heading1 { .. } => "block.heading_1",
             Self::Heading2 { .. } => "block.heading_2",
@@ -298,6 +328,10 @@ pub const IDS: &[&str] = &[
     "node.set_attrs",
     "block.remove",
     "block.split",
+    "block.join",
+    "list.item.split",
+    "list.item.join",
+    "list.item.exit",
     "block.paragraph",
     "block.heading_1",
     "block.heading_2",

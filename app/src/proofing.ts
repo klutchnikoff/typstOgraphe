@@ -1,3 +1,4 @@
+import { focusEditorSelection } from './editor-focus'
 import { navigationGroup } from './keyboard-navigation'
 import { tr } from './i18n'
 import { Extension, type Editor } from '@tiptap/core'
@@ -235,7 +236,7 @@ export function mountProofing(
       closeLabel: tr('Fermer la correction'),
       close,
       canConfirm: () => !pending && !editor.view.composing,
-      tabExit: () => editor.view.focus(),
+      tabExit: () => focusEditorSelection(editor),
     })
     const band = panel.element
     const kind = document.createElement('span')

@@ -2,7 +2,9 @@ import type { Transport } from './provider'
 
 export async function browserTransport(): Promise<{ id: string; transport: Transport }> {
   const id = new URLSearchParams(location.search).get('client') || 'main'
-  const events = new EventSource('/__spike/events')
+  const token = crypto.randomUUID()
+  const events = new EventSource(`/__spike/events?peer=${encodeURIComponent(id)}&token=${token}`)
+  window.addEventListener('pagehide', () => events.close(), { once: true })
   await new Promise<void>((resolve, reject) => {
     events.onopen = () => resolve()
     events.onerror = () => reject(new Error('Relais de recette inaccessible.'))
@@ -18,7 +20,7 @@ export async function browserTransport(): Promise<{ id: string; transport: Trans
         const response = await fetch('/__spike/invoke', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command, args, peer: id }),
+          body: JSON.stringify({ command, args, peer: id, token }),
         })
         if (response.headers.get('Content-Type') === 'application/octet-stream')
           return (await response.arrayBuffer()) as T

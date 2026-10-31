@@ -4,7 +4,7 @@ use crate::errors::{CoreError, TemplateError};
 use comemo::Track;
 use std::collections::HashMap;
 use typst::{
-    Library, LibraryExt, World, WorldExt,
+    Feature, Library, LibraryExt, World, WorldExt,
     diag::{FileError, FileResult},
     engine::{Route, Sink, Traced},
     foundations::{Bytes, Datetime, Duration, Module, Value},
@@ -31,7 +31,11 @@ impl Default for TypstWorld {
         let book = FontBook::from_fonts(fonts.iter());
         let main = file_id("main.typ");
         Self {
-            library: LazyHash::new(Library::default()),
+            library: LazyHash::new(
+                Library::builder()
+                    .with_features([Feature::A11yExtras].into_iter().collect())
+                    .build(),
+            ),
             book: LazyHash::new(book),
             fonts,
             files: HashMap::new(),

@@ -8,7 +8,7 @@ import {
 } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
-import Caret from '@tiptap/extension-collaboration-caret'
+import { bindPresenceCaret } from './presence-caret'
 import { ySyncPlugin, yUndoPluginKey, ySyncPluginKey } from '@tiptap/y-tiptap'
 import type * as Y from 'yjs'
 import type { Provider } from './provider'
@@ -22,7 +22,10 @@ import { Plugin } from '@tiptap/pm/state'
 import { ContextBand } from './band-layout'
 import { DocumentInput, SoftBreak, TypstInlineInput } from './editing'
 import { DocumentWhitespace } from './document-whitespace'
+import { HorizontalSpace } from './horizontal-space'
+import { EditorLocation } from './editor-reveal'
 import { SharedInlineMarks } from './shared-inline-marks'
+import { SelectionEdits } from './selection-edits'
 import { documentExtensions } from './document-zone-extensions'
 import { inlineObjectKey } from './inline-objects'
 import { widgetKey } from './widgets'
@@ -76,12 +79,16 @@ export function richZoneExtensions(
     ContextBand,
     SoftBreak,
     SharedInlineMarks,
+    SelectionEdits.configure({ singleLine: !policy.multiline }),
     TypstInlineInput,
+    HorizontalSpace,
+    EditorLocation,
+    DocumentWhitespace.configure({
+      trailingParagraph: policy.trailingParagraph,
+      paragraphs: policy.multiline,
+    }),
     ...(policy.multiline
-      ? [
-          DocumentInput,
-          DocumentWhitespace.configure({ trailingParagraph: policy.trailingParagraph }),
-        ]
+      ? [DocumentInput.configure({ trailingParagraph: policy.trailingParagraph })]
       : [
           Extension.create({
             name: 'singleLineInput',
@@ -126,18 +133,6 @@ export function richZoneExtensions(
         }),
       )
     else extensions.push(Collaboration.configure({ document: binding.document, field: 'default' }))
-    if (binding.presence) {
-      const provider = binding.presence
-      extensions.push(
-        Caret.configure({
-          provider,
-          user: {
-            name: provider.id === 'main' ? 'Camille' : 'Alex',
-            color: provider.id === 'main' ? '#286b91' : '#99733b',
-          },
-        }),
-      )
-    }
   } else if (binding?.kind === 'fragment') {
     // A rich field shares the document undo owner; destroying the field must never destroy it.
     extensions.push(
@@ -402,8 +397,15 @@ export function createRichZone(options: RichZoneOptions): Editor {
     onFocus: () => historyFor(editor)?.stopCapturing(),
     onBlur: () => historyFor(editor)?.stopCapturing(),
   })
-  if (binding?.kind === 'document') bindEditorTarget(editor, { kind: 'body' })
-  else if (binding?.kind === 'fragment' && binding.target) bindEditorTarget(editor, binding.target)
+  if (binding?.kind === 'document') {
+    bindEditorTarget(editor, { kind: 'body' })
+    if (binding.presence) {
+      const presence = binding.presence.presence
+      if (editor.isInitialized) bindPresenceCaret(editor, presence)
+      else editor.once('create', () => bindPresenceCaret(editor, presence))
+    }
+  } else if (binding?.kind === 'fragment' && binding.target)
+    bindEditorTarget(editor, binding.target)
   if (native) bindEditingHistory(editor, native)
   bindCommandContext(
     editor,

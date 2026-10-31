@@ -82,6 +82,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -521,6 +529,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -1031,6 +1047,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -1539,6 +1563,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -2049,6 +2081,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -2419,6 +2459,458 @@
     },
     {
       "batch_step": true,
+      "description": "Join explicit adjacent left/right paragraphs or headings in the same container. Two nonempty paragraphs retain a single soft break at the seam (a Typst space); an existing break is reused. Joins involving headings concatenate directly. The nonempty left block keeps its kind and attributes. Remove an empty neighbor without converting its survivor. Widgets, cells and annotation boundaries are protected; the mandatory final editing slot is a no-op.",
+      "family": "edit",
+      "id": "block.join",
+      "params_schema": {
+        "$defs": {
+          "DocumentLanguage": {
+            "enum": [
+              "fr",
+              "en",
+              "de",
+              "es",
+              "it",
+              "pt",
+              "nl"
+            ],
+            "type": "string"
+          },
+          "FieldTarget": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "option",
+                    "type": "string"
+                  },
+                  "name": {
+                    "$ref": "#/$defs/OptionName"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
+          "ImageResource": {
+            "additionalProperties": false,
+            "description": "Validated immutable image bytes, separate from the shared text/history.",
+            "properties": {
+              "data": {
+                "description": "Base64 on the wire; decoded immutable bytes in the engine.",
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "data"
+            ],
+            "type": "object"
+          },
+          "Mark": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "MetadataField": {
+            "enum": [
+              "article.references",
+              "article.citation_style",
+              "article.show_outline",
+              "article.authors",
+              "article.affiliations",
+              "article.localizations",
+              "sender.name",
+              "sender.role",
+              "sender.department",
+              "sender.email",
+              "sender.organisation",
+              "sender.address",
+              "sender.phone",
+              "recipient.name",
+              "recipient.address",
+              "letter.subject",
+              "letter.reference",
+              "letter.place",
+              "letter.date",
+              "meeting.title",
+              "meeting.date",
+              "meeting.place",
+              "meeting.author",
+              "meeting.attendees",
+              "meeting.apologies"
+            ],
+            "type": "string"
+          },
+          "Node": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "content": {
+                "items": {
+                  "$ref": "#/$defs/Node"
+                },
+                "type": "array"
+              },
+              "marks": {
+                "items": {
+                  "$ref": "#/$defs/Mark"
+                },
+                "type": "array"
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "OptionName": {
+            "description": "General document options; values remain JSON, checked against their Rust types.",
+            "enum": [
+              "paper",
+              "landscape",
+              "language",
+              "bullet_marker",
+              "spelling_ignored"
+            ],
+            "type": "string"
+          },
+          "Style": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "bold",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "italic",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "link",
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "url"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "Switch": {
+            "enum": [
+              "on",
+              "off"
+            ],
+            "type": "string"
+          },
+          "TextTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone": {
+                "$ref": "#/$defs/TextZone"
+              }
+            },
+            "required": [
+              "zone",
+              "from",
+              "to"
+            ],
+            "type": "object"
+          },
+          "TextZone": {
+            "description": "Paths use projected child indices in the guarded revision, never Yjs identifiers.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "annotation",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  },
+                  "path": {
+                    "default": [],
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeRoot": {
+            "description": "A body tree or one rich record field. No XML identifiers or global positions.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "default": [],
+                "items": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "root": {
+                "$ref": "#/$defs/TreeRoot"
+              }
+            },
+            "required": [
+              "root"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "left": {
+            "$ref": "#/$defs/TreeTarget"
+          },
+          "right": {
+            "$ref": "#/$defs/TreeTarget"
+          }
+        },
+        "required": [
+          "left",
+          "right"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "batch_step": true,
       "description": "Ordinary prose. A soft return stays inside the paragraph; two returns create a paragraph.",
       "family": "edit",
       "id": "block.paragraph",
@@ -2498,6 +2990,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -3008,6 +3508,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -3516,6 +4024,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -4031,6 +4547,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -4489,6 +5013,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -4999,6 +5531,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -5439,6 +5979,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -5863,6 +6411,14 @@
                     "type": "object"
                   }
                 ]
+              },
+              "HeaderAxis": {
+                "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+                "enum": [
+                  "columns",
+                  "rows"
+                ],
+                "type": "string"
               },
               "ImageResource": {
                 "additionalProperties": false,
@@ -6762,6 +7318,118 @@
                 "additionalProperties": false,
                 "properties": {
                   "id": {
+                    "const": "block.join",
+                    "type": "string"
+                  },
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "left": {
+                        "$ref": "#/$defs/TreeTarget"
+                      },
+                      "right": {
+                        "$ref": "#/$defs/TreeTarget"
+                      }
+                    },
+                    "required": [
+                      "left",
+                      "right"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "id",
+                  "params"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "const": "list.item.split",
+                    "type": "string"
+                  },
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "target": {
+                        "$ref": "#/$defs/TextTarget"
+                      }
+                    },
+                    "required": [
+                      "target"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "id",
+                  "params"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "const": "list.item.join",
+                    "type": "string"
+                  },
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "left": {
+                        "$ref": "#/$defs/TreeTarget"
+                      },
+                      "right": {
+                        "$ref": "#/$defs/TreeTarget"
+                      }
+                    },
+                    "required": [
+                      "left",
+                      "right"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "id",
+                  "params"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "const": "list.item.exit",
+                    "type": "string"
+                  },
+                  "params": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "target": {
+                        "$ref": "#/$defs/TreeTarget"
+                      }
+                    },
+                    "required": [
+                      "target"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "id",
+                  "params"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
                     "const": "block.paragraph",
                     "type": "string"
                   },
@@ -6887,6 +7555,10 @@
                       },
                       "parent": {
                         "$ref": "#/$defs/TreeTarget"
+                      },
+                      "row_headers": {
+                        "default": false,
+                        "type": "boolean"
                       },
                       "rows": {
                         "format": "uint32",
@@ -7048,6 +7720,10 @@
                   "params": {
                     "additionalProperties": false,
                     "properties": {
+                      "axis": {
+                        "$ref": "#/$defs/HeaderAxis",
+                        "default": "columns"
+                      },
                       "enabled": {
                         "type": "boolean"
                       },
@@ -7296,6 +7972,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -7731,6 +8415,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -8164,6 +8856,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -8604,6 +9304,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -9156,6 +9864,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -9599,6 +10315,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -10075,6 +10799,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -10512,6 +11244,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -10964,6 +11704,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -11397,6 +12145,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -11851,6 +12607,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -12298,6 +13062,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -12731,6 +13503,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -13171,6 +13951,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -13616,6 +14404,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -14056,6 +14852,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -14489,6 +15293,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -14928,6 +15740,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -15361,6 +16181,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -15800,6 +16628,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -16233,6 +17069,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -16674,6 +17518,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -17107,6 +17959,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -17542,6 +18402,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -17896,7 +18764,7 @@
     },
     {
       "batch_step": true,
-      "description": "Replace a typed inline range with one node (for example footnote or citation). Discover the node via capabilities.describe.",
+      "description": "Replace one typed rich range with a footnote, citation, softBreak (a Typst space) or hardBreak (forced line break). Breaks are unavailable in single-line header fields and plain fields. A break is one UTF-16 unit; paragraph separation uses block.split. No implicit CR/LF interpretation in text.insert. Discover objects via capabilities.describe.",
       "family": "edit",
       "id": "inline.replace",
       "params_schema": {
@@ -17975,6 +18843,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -18410,7 +19286,7 @@
     },
     {
       "batch_step": true,
-      "description": "Table figure with an optional rich caption, 1–12 columns and 1–100 rows. No merged cells; header row optional.",
+      "description": "Insert a table figure. header marks the first row as column headers; row_headers marks the first column as row headers. They are independent, including a one-cell table. No merged cells.",
       "family": "edit",
       "id": "insert.table",
       "params_schema": {
@@ -18489,6 +19365,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -18854,6 +19738,10 @@
           "parent": {
             "$ref": "#/$defs/TreeTarget"
           },
+          "row_headers": {
+            "default": false,
+            "type": "boolean"
+          },
           "rows": {
             "format": "uint32",
             "minimum": 0,
@@ -18867,6 +19755,1492 @@
           "columns",
           "header"
         ],
+        "type": "object"
+      }
+    },
+    {
+      "batch_step": true,
+      "description": "Remove an entirely empty item and create/reuse a continuation paragraph after its list. Remove the whole list only when it was the last item. A badge is content: an item containing a note cannot be exited as empty.",
+      "family": "edit",
+      "id": "list.item.exit",
+      "params_schema": {
+        "$defs": {
+          "DocumentLanguage": {
+            "enum": [
+              "fr",
+              "en",
+              "de",
+              "es",
+              "it",
+              "pt",
+              "nl"
+            ],
+            "type": "string"
+          },
+          "FieldTarget": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "option",
+                    "type": "string"
+                  },
+                  "name": {
+                    "$ref": "#/$defs/OptionName"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
+          "ImageResource": {
+            "additionalProperties": false,
+            "description": "Validated immutable image bytes, separate from the shared text/history.",
+            "properties": {
+              "data": {
+                "description": "Base64 on the wire; decoded immutable bytes in the engine.",
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "data"
+            ],
+            "type": "object"
+          },
+          "Mark": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "MetadataField": {
+            "enum": [
+              "article.references",
+              "article.citation_style",
+              "article.show_outline",
+              "article.authors",
+              "article.affiliations",
+              "article.localizations",
+              "sender.name",
+              "sender.role",
+              "sender.department",
+              "sender.email",
+              "sender.organisation",
+              "sender.address",
+              "sender.phone",
+              "recipient.name",
+              "recipient.address",
+              "letter.subject",
+              "letter.reference",
+              "letter.place",
+              "letter.date",
+              "meeting.title",
+              "meeting.date",
+              "meeting.place",
+              "meeting.author",
+              "meeting.attendees",
+              "meeting.apologies"
+            ],
+            "type": "string"
+          },
+          "Node": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "content": {
+                "items": {
+                  "$ref": "#/$defs/Node"
+                },
+                "type": "array"
+              },
+              "marks": {
+                "items": {
+                  "$ref": "#/$defs/Mark"
+                },
+                "type": "array"
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "OptionName": {
+            "description": "General document options; values remain JSON, checked against their Rust types.",
+            "enum": [
+              "paper",
+              "landscape",
+              "language",
+              "bullet_marker",
+              "spelling_ignored"
+            ],
+            "type": "string"
+          },
+          "Style": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "bold",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "italic",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "link",
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "url"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "Switch": {
+            "enum": [
+              "on",
+              "off"
+            ],
+            "type": "string"
+          },
+          "TextTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone": {
+                "$ref": "#/$defs/TextZone"
+              }
+            },
+            "required": [
+              "zone",
+              "from",
+              "to"
+            ],
+            "type": "object"
+          },
+          "TextZone": {
+            "description": "Paths use projected child indices in the guarded revision, never Yjs identifiers.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "annotation",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  },
+                  "path": {
+                    "default": [],
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeRoot": {
+            "description": "A body tree or one rich record field. No XML identifiers or global positions.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "default": [],
+                "items": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "root": {
+                "$ref": "#/$defs/TreeRoot"
+              }
+            },
+            "required": [
+              "root"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "not": {
+              "required": [
+                "selector"
+              ]
+            },
+            "required": [
+              "target"
+            ]
+          },
+          {
+            "not": {
+              "required": [
+                "target"
+              ]
+            },
+            "required": [
+              "selector"
+            ]
+          }
+        ],
+        "properties": {
+          "selector": {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "not": {
+                  "required": [
+                    "block"
+                  ]
+                },
+                "required": [
+                  "select"
+                ]
+              },
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "select"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "occurrence"
+                      ]
+                    }
+                  ]
+                },
+                "required": [
+                  "block"
+                ]
+              }
+            ],
+            "properties": {
+              "block": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "occurrence": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "select": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "target": {
+            "$ref": "#/$defs/TreeTarget"
+          }
+        },
+        "required": [],
+        "type": "object"
+      }
+    },
+    {
+      "batch_step": true,
+      "description": "Join adjacent bullet/numbered items of the same list, concatenating the last left paragraph and first right paragraph without an added space or break. Keep the left item and prefix. An empty right item is removed. Refuse description term/definition boundaries and different lists.",
+      "family": "edit",
+      "id": "list.item.join",
+      "params_schema": {
+        "$defs": {
+          "DocumentLanguage": {
+            "enum": [
+              "fr",
+              "en",
+              "de",
+              "es",
+              "it",
+              "pt",
+              "nl"
+            ],
+            "type": "string"
+          },
+          "FieldTarget": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "option",
+                    "type": "string"
+                  },
+                  "name": {
+                    "$ref": "#/$defs/OptionName"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
+          "ImageResource": {
+            "additionalProperties": false,
+            "description": "Validated immutable image bytes, separate from the shared text/history.",
+            "properties": {
+              "data": {
+                "description": "Base64 on the wire; decoded immutable bytes in the engine.",
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "data"
+            ],
+            "type": "object"
+          },
+          "Mark": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "MetadataField": {
+            "enum": [
+              "article.references",
+              "article.citation_style",
+              "article.show_outline",
+              "article.authors",
+              "article.affiliations",
+              "article.localizations",
+              "sender.name",
+              "sender.role",
+              "sender.department",
+              "sender.email",
+              "sender.organisation",
+              "sender.address",
+              "sender.phone",
+              "recipient.name",
+              "recipient.address",
+              "letter.subject",
+              "letter.reference",
+              "letter.place",
+              "letter.date",
+              "meeting.title",
+              "meeting.date",
+              "meeting.place",
+              "meeting.author",
+              "meeting.attendees",
+              "meeting.apologies"
+            ],
+            "type": "string"
+          },
+          "Node": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "content": {
+                "items": {
+                  "$ref": "#/$defs/Node"
+                },
+                "type": "array"
+              },
+              "marks": {
+                "items": {
+                  "$ref": "#/$defs/Mark"
+                },
+                "type": "array"
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "OptionName": {
+            "description": "General document options; values remain JSON, checked against their Rust types.",
+            "enum": [
+              "paper",
+              "landscape",
+              "language",
+              "bullet_marker",
+              "spelling_ignored"
+            ],
+            "type": "string"
+          },
+          "Style": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "bold",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "italic",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "link",
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "url"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "Switch": {
+            "enum": [
+              "on",
+              "off"
+            ],
+            "type": "string"
+          },
+          "TextTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone": {
+                "$ref": "#/$defs/TextZone"
+              }
+            },
+            "required": [
+              "zone",
+              "from",
+              "to"
+            ],
+            "type": "object"
+          },
+          "TextZone": {
+            "description": "Paths use projected child indices in the guarded revision, never Yjs identifiers.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "annotation",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  },
+                  "path": {
+                    "default": [],
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeRoot": {
+            "description": "A body tree or one rich record field. No XML identifiers or global positions.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "default": [],
+                "items": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "root": {
+                "$ref": "#/$defs/TreeRoot"
+              }
+            },
+            "required": [
+              "root"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "left": {
+            "$ref": "#/$defs/TreeTarget"
+          },
+          "right": {
+            "$ref": "#/$defs/TreeTarget"
+          }
+        },
+        "required": [
+          "left",
+          "right"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "batch_step": true,
+      "description": "Split a flat bullet/numbered list item at one paragraph range, or a description item at its definition range. Preserve the left item and prefix; the suffix and following paragraphs become a new item. Description terms remain separate, and the new term is empty. Empty-item exit is a separate operation.",
+      "family": "edit",
+      "id": "list.item.split",
+      "params_schema": {
+        "$defs": {
+          "DocumentLanguage": {
+            "enum": [
+              "fr",
+              "en",
+              "de",
+              "es",
+              "it",
+              "pt",
+              "nl"
+            ],
+            "type": "string"
+          },
+          "FieldTarget": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "option",
+                    "type": "string"
+                  },
+                  "name": {
+                    "$ref": "#/$defs/OptionName"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
+          "ImageResource": {
+            "additionalProperties": false,
+            "description": "Validated immutable image bytes, separate from the shared text/history.",
+            "properties": {
+              "data": {
+                "description": "Base64 on the wire; decoded immutable bytes in the engine.",
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "data"
+            ],
+            "type": "object"
+          },
+          "Mark": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "MetadataField": {
+            "enum": [
+              "article.references",
+              "article.citation_style",
+              "article.show_outline",
+              "article.authors",
+              "article.affiliations",
+              "article.localizations",
+              "sender.name",
+              "sender.role",
+              "sender.department",
+              "sender.email",
+              "sender.organisation",
+              "sender.address",
+              "sender.phone",
+              "recipient.name",
+              "recipient.address",
+              "letter.subject",
+              "letter.reference",
+              "letter.place",
+              "letter.date",
+              "meeting.title",
+              "meeting.date",
+              "meeting.place",
+              "meeting.author",
+              "meeting.attendees",
+              "meeting.apologies"
+            ],
+            "type": "string"
+          },
+          "Node": {
+            "additionalProperties": false,
+            "properties": {
+              "attrs": true,
+              "content": {
+                "items": {
+                  "$ref": "#/$defs/Node"
+                },
+                "type": "array"
+              },
+              "marks": {
+                "items": {
+                  "$ref": "#/$defs/Mark"
+                },
+                "type": "array"
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "type": "object"
+          },
+          "OptionName": {
+            "description": "General document options; values remain JSON, checked against their Rust types.",
+            "enum": [
+              "paper",
+              "landscape",
+              "language",
+              "bullet_marker",
+              "spelling_ignored"
+            ],
+            "type": "string"
+          },
+          "Style": {
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "bold",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "italic",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "type": {
+                    "const": "link",
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "url"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "Switch": {
+            "enum": [
+              "on",
+              "off"
+            ],
+            "type": "string"
+          },
+          "TextTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "to": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "zone": {
+                "$ref": "#/$defs/TextZone"
+              }
+            },
+            "required": [
+              "zone",
+              "from",
+              "to"
+            ],
+            "type": "object"
+          },
+          "TextZone": {
+            "description": "Paths use projected child indices in the guarded revision, never Yjs identifiers.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "annotation",
+                    "type": "string"
+                  },
+                  "path": {
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "$ref": "#/$defs/MetadataField"
+                  },
+                  "kind": {
+                    "const": "metadata",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "field"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  },
+                  "path": {
+                    "default": [],
+                    "items": {
+                      "format": "uint",
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeRoot": {
+            "description": "A body tree or one rich record field. No XML identifiers or global positions.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "body",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "collection": {
+                    "type": "string"
+                  },
+                  "field": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "record",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "collection",
+                  "id",
+                  "field"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "TreeTarget": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "default": [],
+                "items": {
+                  "format": "uint",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "root": {
+                "$ref": "#/$defs/TreeRoot"
+              }
+            },
+            "required": [
+              "root"
+            ],
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "not": {
+              "required": [
+                "selector"
+              ]
+            },
+            "required": [
+              "target"
+            ]
+          },
+          {
+            "not": {
+              "required": [
+                "target"
+              ]
+            },
+            "required": [
+              "selector"
+            ]
+          }
+        ],
+        "properties": {
+          "selector": {
+            "additionalProperties": false,
+            "oneOf": [
+              {
+                "not": {
+                  "required": [
+                    "block"
+                  ]
+                },
+                "required": [
+                  "select"
+                ]
+              },
+              {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "select"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "occurrence"
+                      ]
+                    }
+                  ]
+                },
+                "required": [
+                  "block"
+                ]
+              }
+            ],
+            "properties": {
+              "block": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "occurrence": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "select": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "target": {
+            "$ref": "#/$defs/TextTarget"
+          }
+        },
+        "required": [],
         "type": "object"
       }
     },
@@ -18951,6 +21325,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -19385,6 +21767,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -19898,6 +22288,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -20331,6 +22729,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -20847,6 +23253,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -21303,6 +23717,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -21754,6 +24176,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -22198,6 +24628,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -22631,6 +25069,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -23114,6 +25560,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -23555,6 +26009,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -23994,6 +26456,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -24435,6 +26905,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -24868,6 +27346,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -25312,6 +27798,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -25831,6 +28325,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -26264,6 +28766,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -26708,6 +29218,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -27225,6 +29743,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -27661,7 +30187,7 @@
     },
     {
       "batch_step": true,
-      "description": "Typed structured document operation; discover targets and parameters in params_schema.",
+      "description": "Set a header axis on an existing tableFigure: axis columns (default) labels columns using the first row; axis rows labels rows using the first column. Text and other cells are preserved. Leading-track insertions and removals retain the chosen roles.",
       "family": "edit",
       "id": "table.header",
       "params_schema": {
@@ -27740,6 +30266,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -28111,6 +30645,10 @@
           }
         ],
         "properties": {
+          "axis": {
+            "$ref": "#/$defs/HeaderAxis",
+            "default": "columns"
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -28254,6 +30792,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -28771,6 +31317,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -29287,6 +31841,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -29800,6 +32362,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -30309,6 +32879,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -30817,6 +33395,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -31339,6 +33925,14 @@
               }
             ]
           },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
+          },
           "ImageResource": {
             "additionalProperties": false,
             "description": "Validated immutable image bytes, separate from the shared text/history.",
@@ -31851,6 +34445,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,
@@ -32365,6 +34967,14 @@
                 "type": "object"
               }
             ]
+          },
+          "HeaderAxis": {
+            "description": "The axis labelled by the header cells (columns = first row, rows = first column).",
+            "enum": [
+              "columns",
+              "rows"
+            ],
+            "type": "string"
           },
           "ImageResource": {
             "additionalProperties": false,

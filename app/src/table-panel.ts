@@ -1,17 +1,26 @@
+import { focusEditorSelection } from './editor-focus'
 import { editingAvailability } from './command-availability'
 import { tableCursor } from './table-selection'
 import type { Editor } from '@tiptap/core'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { contextPanel } from './context-panel'
-import { navigationGroup } from './keyboard-navigation'
 import type { BandHost } from './band-layout'
 import type { Provider, Transport } from './provider'
 import type { Registry, Capability, TableAction } from './commands'
 import { positionAtPath } from './commands'
 import { widgetTarget, widgetContinuation } from './widgets'
-import { executeStructured, type StructuredCommand } from './structured-commands'
+import { applyPlannedEdit, executeStructured, type StructuredCommand } from './structured-commands'
+import { TextSelection } from '@tiptap/pm/state'
 import { tr } from './i18n'
 import { nodePath } from './editor-targets'
+import {
+  bindTableHandles,
+  refreshTableHandles,
+  selectTableAxis,
+  type TableAxis,
+  type TableHandleTarget,
+} from './table-handles'
+import { commandCapabilities } from './command-context'
 
 export function tableContext(editor: Editor) {
   const target = widgetTarget(editor)
@@ -40,16 +49,48 @@ export function tablePanel(
   const rowSpec = capability.parameters.properties!.rows
   const columnSpec = capability.parameters.properties!.columns
   let opened:
-    { pos: number; node?: PMNode; row: number; column: number; action?: string } | undefined
+    | {
+        pos: number
+        node?: PMNode
+        row: number
+        column: number
+        action?: string
+        axis?: TableAxis
+        returnHandle?: boolean
+      }
+    | undefined
   let pending = false
+  let availability = ''
+  function refresh() {
+    const value = `${pending}:${editor.isEditable}:${provider.online}:${!!provider.rejected}:${editor.view.composing}:${provider.composing}:${commandCapabilities(editor)?.available()?.includes('insert.table')}`
+    if (value !== availability) {
+      availability = value
+      refreshTableHandles(editor)
+    }
+  }
+  function cancel() {
+    if (pending) return
+    const draft = opened,
+      anchor = bands.forPanel(panel.element)
+    const pos = anchor?.from
+    bands.close()
+    if (draft?.returnHandle && pos !== undefined && editor.state.doc.nodeAt(pos)?.eq(draft.node!)) {
+      const index = draft.axis === 'row' ? draft.row : draft.column
+      const element = editor.view.nodeDOM(pos)
+      if (element instanceof HTMLElement)
+        element
+          .querySelector<HTMLElement>(
+            `[data-table-axis="${draft.axis}"][data-table-index="${index}"]`,
+          )
+          ?.focus()
+    }
+  }
   const panel = contextPanel({
     id: 'table-properties',
     closeLabel: tr('Annuler'),
-    close: () => {
-      if (!pending) bands.close()
-    },
+    close: cancel,
     canConfirm: () => !!opened && !pending && !editor.view.composing,
-    tabExit: () => editor.view.focus(),
+    tabExit: () => focusEditorSelection(editor),
   })
   const dimensions = document.createElement('div')
   dimensions.className = 'table-dimensions'
@@ -67,40 +108,33 @@ export function tablePanel(
     dimensions.append(field)
     return input
   })
-  const headerLabel = document.createElement('label')
-  headerLabel.className = 'table-header-choice'
-  const header = document.createElement('input')
-  header.type = 'checkbox'
-  headerLabel.append(header, document.createTextNode(tr('Première ligne d’en-tête')))
+  const headerOptions = document.createElement('div')
+  const headerInputs = ['header', 'row_headers'].map((name) => {
+    const label = document.createElement('label')
+    label.className = 'table-header-choice'
+    const input = document.createElement('input')
+    input.type = 'checkbox'
+    label.append(
+      input,
+      document.createTextNode(capability.parameters.properties![name].title || name),
+    )
+    headerOptions.append(label)
+    return input
+  })
+  const [header, rowHeaders] = headerInputs
   const info = document.createElement('p')
   info.className = 'band-hint'
-  const choices = document.createElement('div')
-  choices.className = 'table-actions'
-  choices.role = 'radiogroup'
-  choices.setAttribute('aria-label', tr('Modifier le tableau'))
-  navigationGroup(choices, { axis: 'both', roving: true, activateOnMove: true })
-  const buttons = operations.map(({ id, label, remove }) => {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.role = 'radio'
-    button.textContent = label
-    button.setAttribute('aria-label', label)
-    button.classList.toggle('danger', remove)
-    button.onclick = () => {
-      if (!opened || pending) return
-      opened.action = id
-      renderChoices()
-    }
-    choices.append(button)
-    return button
+  panel.body.append(dimensions, headerOptions, info)
+  const remove = panel.action({
+    label: tr('Supprimer'),
+    danger: true,
+    run: () => chooseAxisAction(true),
   })
-  panel.body.append(dimensions, headerLabel, info, choices)
-  panel.action({
+  const dismiss = panel.action({
     label: tr('Annuler'),
-    run: () => {
-      if (!pending) bands.close()
-    },
+    run: cancel,
   })
+  const before = panel.action({ label: '', run: () => chooseAxisAction(false, false) })
   const apply = panel.action({ label: tr('Valider'), primary: true, run: () => panel.submit() })
   function available(operation: TableAction, node: PMNode) {
     const grid = node.firstChild!
@@ -108,22 +142,43 @@ export function tablePanel(
     const count = row ? grid.childCount : grid.firstChild!.childCount
     return operation.remove ? count > 1 : count < Number((row ? rowSpec : columnSpec).maximum)
   }
-  function renderChoices() {
+  function refreshActions() {
+    apply.disabled = before.disabled = remove.disabled = pending
     if (!opened?.node) return
-    operations.forEach((operation, index) => {
-      const { id } = operation
-      buttons[index].disabled = pending || !available(operation, opened!.node!)
-      buttons[index].setAttribute('aria-checked', String(opened!.action === id))
-      buttons[index].tabIndex = opened!.action === id || (!opened!.action && index === 0) ? 0 : -1
-    })
+    if (opened.axis) {
+      for (const [button, operation] of [
+        [remove, axisAction(true)],
+        [before, axisAction(false, false)],
+        [apply, axisAction(false, true)],
+      ] as const)
+        button.disabled = pending || !operation || !available(operation, opened.node)
+    }
   }
+
   panel.confirm = () => {
+    if (opened?.axis) {
+      chooseAxisAction(false, true)
+      return
+    }
+    void confirm()
+  }
+  function axisAction(remove: boolean, after = true) {
+    return operations.find(
+      (op) =>
+        op.axis === opened?.axis && op.remove === remove && (remove || op.offset === Number(after)),
+    )
+  }
+  function chooseAxisAction(remove: boolean, after = true) {
+    if (!opened?.axis || pending) return
+    const operation = axisAction(remove, after)
+    if (!operation || !opened.node || !available(operation, opened.node)) return
+    opened.action = operation.id
     void confirm()
   }
   async function confirm() {
     if (!opened || pending) return
     const draft = opened,
-      anchor = bands.target
+      anchor = bands.forPanel(panel.element)
     if (!anchor || (draft.node && !editor.state.doc.nodeAt(anchor.from)?.eq(draft.node))) {
       panel.error.textContent = tr(
         'Ce bloc a été modifié ailleurs. Fermez puis rouvrez ses paramètres.',
@@ -165,7 +220,14 @@ export function tablePanel(
         })
       commands.push({
         id: 'insert.table',
-        params: { parent: tree([]), index, rows, columns, header: header.checked },
+        params: {
+          parent: tree([]),
+          index,
+          rows,
+          columns,
+          header: header.checked,
+          row_headers: rowHeaders.checked,
+        },
       })
       const continuation = widgetContinuation(
         selection.parent.copy(selection.parent.content.cut(selection.parentOffset)),
@@ -185,36 +247,64 @@ export function tablePanel(
           isRow = operation.axis === 'row'
         commands.push({ id, params: { target, index: (isRow ? row : column) + offset } })
         if (id.endsWith('insert')) {
-          if (isRow) row += offset
-          else column += offset
+          if (isRow) {
+            row += offset
+            column = 0
+          } else {
+            column += offset
+          }
         }
       }
-      commands.push({ id: 'table.header', params: { target, enabled: header.checked } })
+      if (!draft.axis) {
+        commands.push({
+          id: 'table.header',
+          params: { target, axis: 'columns', enabled: header.checked },
+        })
+        commands.push({
+          id: 'table.header',
+          params: { target, axis: 'rows', enabled: rowHeaders.checked },
+        })
+      }
     }
     pending = true
+    refresh()
     apply.disabled = true
-    renderChoices()
+    before.disabled = true
+    refreshActions()
     // Keep the pending band focused until the owner has committed the guarded batch.
     try {
-      await executeStructured(editor, provider, transport, commands)
-      bands.close()
+      const current = () => opened === draft && !!bands.forPanel(panel.element)
+      if (draft.node && !draft.action) {
+        // Header roles preserve projected positions even when Yrs replaces a
+        // cell's identity. Use the same selection restoration as other settings.
+        await applyPlannedEdit(editor, editor.state.tr, commands, { focus: false, current })
+      } else {
+        await executeStructured(editor, provider, transport, commands, current)
+      }
+      if (!current()) return
+      let returned = editor.state.selection.getBookmark()
       const figure = editor.state.doc.nodeAt(positionAtPath(editor, path))
       if (figure?.type.name === 'tableFigure' && (!draft.node || draft.action)) {
         const grid = figure.firstChild!
         row = Math.min(row, grid.childCount - 1)
         column = Math.min(column, grid.firstChild!.childCount - 1)
-        editor.commands.setTextSelection(positionAtPath(editor, [...path, 0, row, column, 0]) + 1)
+        returned = TextSelection.create(
+          editor.state.doc,
+          positionAtPath(editor, [...path, 0, row, column, 0]) + 1,
+        ).getBookmark()
       }
-      editor.view.focus()
+      bands.close(true, returned)
     } catch (error) {
-      bands.close(false)
+      if (bands.forPanel(panel.element)) bands.close(false)
       provider.onError(error)
     } finally {
       pending = false
-      apply.disabled = false
+      selectTableAxis(editor, null)
+      refresh()
+      refreshActions()
     }
   }
-  function open(pos?: number, action?: string) {
+  function open(pos?: number) {
     if (pending || !editingAvailability(editor).enabled) return
     const context = pos === undefined ? undefined : tableContext(editor)
     const node = pos === undefined ? undefined : editor.state.doc.nodeAt(pos)
@@ -233,24 +323,36 @@ export function tablePanel(
       node: node || undefined,
       row: context?.row || 0,
       column: context?.column || 0,
-      action,
     }
     dimensions.hidden = !!node
-    choices.hidden = !node
-    info.hidden = !node
+    remove.hidden = true
+    before.hidden = true
+    headerOptions.hidden = false
+    apply.textContent = tr('Valider')
+    info.hidden = true
     panel.title.textContent = tr(node ? 'Modifier le tableau' : 'Insérer un tableau')
-    header.checked = node
-      ? node.firstChild!.firstChild!.content.content.every(
-          (cell) => cell.type.name === 'tableHeader',
+    const grid = node?.firstChild
+    header.checked = grid
+      ? grid.firstChild!.content.content.every(
+          (cell) =>
+            cell.type.name === 'tableHeader' &&
+            ['column', 'both'].includes(cell.attrs.scope || 'column'),
         )
-      : true
+      : capability.parameters.properties!.header.default === true
+    rowHeaders.checked = grid
+      ? grid.content.content.every(
+          (row) =>
+            row.firstChild!.type.name === 'tableHeader' &&
+            ['row', 'both'].includes(row.firstChild!.attrs.scope),
+        )
+      : capability.parameters.properties!.row_headers.default === true
     inputs[0].value = String(rowSpec.default)
     inputs[1].value = String(columnSpec.default)
     info.textContent = node
       ? `${tr('Ligne')} ${opened.row + 1} · ${tr('Colonne')} ${opened.column + 1}`
       : ''
     panel.error.textContent = ''
-    renderChoices()
+    refreshActions()
     bands.open(
       panel,
       {
@@ -260,11 +362,64 @@ export function tablePanel(
       },
       () => {
         opened = undefined
+        selectTableAxis(editor, null)
       },
     )
   }
+  function canOpen(target: TableHandleTarget, axis: TableAxis) {
+    return (
+      !pending &&
+      provider.online &&
+      editingAvailability(editor, false).enabled &&
+      commandCapabilities(editor)?.available()?.includes('insert.table') !== false &&
+      operations.some((op) => op.axis === axis && available(op, target.node))
+    )
+  }
+  function openAxis(target: TableHandleTarget, axis: TableAxis, initial?: TableAction) {
+    if (!canOpen(target, axis)) return
+    const context = tableContext(editor)
+    bands.close(false)
+    opened = {
+      ...target,
+      // Column handles live above the first row, but editing continues on the
+      // user's row when its caret belongs to this table.
+      row: axis === 'column' && context?.pos === target.pos ? context.row : target.row,
+      axis,
+      returnHandle: true,
+    }
+    const draft = opened
+    dimensions.hidden = headerOptions.hidden = true
+    info.hidden = before.hidden = remove.hidden = false
+    info.textContent = `${tr(axis === 'row' ? 'Ligne' : 'Colonne')} ${(axis === 'row' ? target.row : target.column) + 1}`
+    panel.title.textContent = tr('Modifier le tableau')
+    before.textContent = tr(axis === 'row' ? 'Au-dessus' : 'À gauche')
+    apply.textContent = tr(axis === 'row' ? 'Au-dessous' : 'À droite')
+    panel.error.textContent = ''
+    refreshActions()
+    bands.open(
+      panel,
+      { from: target.pos, to: target.pos + target.node.nodeSize, placement: 'widget-header' },
+      () => {
+        if (opened === draft) opened = undefined
+        selectTableAxis(editor, null)
+      },
+    )
+    selectTableAxis(editor, {
+      pos: target.pos,
+      node: target.node,
+      axis,
+      index: axis === 'row' ? target.row : target.column,
+    })
+    const focus = initial?.remove ? remove : initial?.offset === 0 ? before : apply
+    ;(focus.disabled ? dismiss : focus).focus({ preventScroll: true })
+  }
+  bindTableHandles(editor, {
+    available: canOpen,
+    open: openAxis,
+  })
   return {
     open,
+    refresh,
     register(registry: Registry) {
       for (const operation of operations) {
         const { id, label } = operation
@@ -283,7 +438,7 @@ export function tablePanel(
           },
           run: () => {
             const target = tableContext(editor)
-            if (target) open(target.pos, id)
+            if (target) openAxis(target, operation.axis, operation)
           },
         })
       }

@@ -2,7 +2,7 @@
 use super::{commands, projection, seed, structure, targets};
 use crate::content::{
     Node,
-    commands::{Command, TextTarget, TreeTarget},
+    commands::{Command, TextTarget, TextZone, TreeTarget},
     contract::{Error, State, TargetReason, UnavailableReason},
 };
 use serde_json::{Map, Value};
@@ -35,10 +35,10 @@ fn attributes(
                 properties.iter().find_map(|(name, field)| {
                     let hint = &field["x-editor"];
                     let attribute = hint["attribute"].as_str().unwrap_or(name);
-                    let external =
-                        matches!(hint["placement"].as_str(), Some("structure" | "creation"))
-                            || (hint["placement"] == "body"
-                                && !matches!(element.tag().as_ref(), "footnote" | "citation"));
+                    let external = hint["storage"] == "structure"
+                        || matches!(hint["placement"].as_str(), Some("structure" | "creation"))
+                        || (hint["placement"] == "body"
+                            && !matches!(element.tag().as_ref(), "footnote" | "citation"));
                     (attribute == key && !external).then_some(field)
                 })
             })
@@ -72,8 +72,24 @@ fn attributes(
     Ok(())
 }
 fn inline(doc: &Doc, state: &State, target: &TextTarget, node: &Node) -> Result<(), Error> {
-    if !["footnote", "citation"].contains(&node.kind.as_str()) {
+    let line_break = matches!(node.kind.as_str(), "softBreak" | "hardBreak");
+    if !line_break && !["footnote", "citation"].contains(&node.kind.as_str()) {
         return Err(parameter("node"));
+    }
+    if line_break
+        && let TextZone::Record {
+            collection,
+            id,
+            field,
+            ..
+        } = &target.zone
+        && targets::record(doc, &doc.transact(), state, collection, id, field)?.1["kind"]
+            == "rich_inline"
+    {
+        return Err(Error::CommandUnavailable {
+            command: "inline.replace".into(),
+            reason: UnavailableReason::UnsupportedTransformation,
+        });
     }
     structure::new_subtree(node)?;
     let targets::Resolved::Rich(parent) = commands::range(doc, state, target)? else {

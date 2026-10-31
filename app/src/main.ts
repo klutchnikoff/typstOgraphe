@@ -1,3 +1,4 @@
+import { refreshCommandButton } from './public-commands'
 import { draftRecovery } from './draft-recovery'
 import { historyFor } from './editing-history'
 import { documentContent } from './shared-inline-marks'
@@ -54,7 +55,7 @@ app.innerHTML = `
     <div id="editor-scroll"><div id="editor"></div></div>
   </section><div class="splitter" role="separator" tabindex="0" aria-label="Largeur des colonnes" aria-orientation="vertical" aria-valuemin="10" aria-valuemax="90" aria-valuenow="50"></div>
   <section class="preview" aria-label="Aperçu Typst"><div class="preview-title"><strong>Aperçu Typst</strong><span id="render-status" role="status">Préparation…</span></div><div id="pages"><p class="empty">Le rendu du document apparaîtra ici.</p></div></section></main>
-  <footer><span id="statistics">Chargement…</span><span id="presence"></span><span id="message" role="status"></span></footer>
+  <footer><span id="statistics">Chargement…</span><span id="presence"></span><button id="synchronization" type="button" aria-pressed="false"></button><span id="message" role="status"></span></footer>
   <input id="image-file" type="file" accept="image/png,image/jpeg,image/svg+xml" hidden>
 `
 const element = <T extends HTMLElement = HTMLElement>(id: string) =>
@@ -77,6 +78,13 @@ const host = window.__SPIKE_TRANSPORT__ ??
         listen<T>(name, (event) => handler(event.payload)),
     } satisfies Transport,
   }
+const diagnosticMode = isTauri
+  ? await host.transport.invoke<string | null>('diagnostic_mode')
+  : null
+const synchronizationMeter = diagnosticMode?.startsWith('synchronization')
+  ? (await import('./synchronization-performance')).measureTransport(host.transport)
+  : undefined
+if (synchronizationMeter) host.transport = synchronizationMeter.transport
 const provider = new Provider(host.id, host.transport)
 let editor: Editor
 let properties: ReturnType<typeof propertyPanel> | undefined
@@ -118,6 +126,7 @@ let contentCatalogue: Catalogue
 function refresh() {
   if (!editor || stopping) return
   refreshCommands(commands)
+  tables?.refresh()
   const leaf = (node: import('@tiptap/pm/model').Node) =>
     node.type.name === 'footnote'
       ? `\n${node.attrs.text || ''}\n`
@@ -141,13 +150,29 @@ function refresh() {
       element('statistics').title = counts.hint
     })
     .catch(() => {})
-  const people = [...provider.awareness.getStates().values()]
-    .map((s) => s.user?.name)
-    .filter(Boolean)
-  element('presence').textContent = people.join(' · ')
+  refreshSynchronization()
   const connection = element<HTMLButtonElement>('connection')
   connection.textContent = provider.online ? tr('Connecté') : tr('Hors connexion')
   connection.setAttribute('aria-pressed', String(provider.online))
+}
+function refreshSynchronization() {
+  const people = [...(provider.awareness?.getStates().values() || [])]
+    .map((s) => s.user?.name)
+    .filter(Boolean)
+  element('presence').textContent = people.join(' · ')
+  const button = element<HTMLButtonElement>('synchronization')
+  const enabled = !!provider.synchronization?.enabled
+  button.textContent = provider.synchronizationBusy
+    ? tr('Activation après la saisie…')
+    : enabled
+      ? tr('Synchronisation active')
+      : tr('Activer la synchronisation')
+  button.setAttribute('aria-pressed', String(enabled))
+  const command = commands.get(enabled ? 'synchronization.disable' : 'synchronization.enable')
+  if (command) refreshCommandButton(button, command)
+  if (enabled && provider.synchronization!.windows.length > 1)
+    button.title = tr('Fermez les autres fenêtres avant d’arrêter la synchronisation.')
+  refreshCommands(commands)
 }
 function schedule() {
   if (stopping) return
@@ -219,6 +244,12 @@ element('export').addEventListener('click', () =>
     message(`${tr('PDF et sources Typst exportés')} · ${path}`)
   }),
 )
+element('synchronization').addEventListener('click', () => {
+  commands
+    .get(provider.synchronization?.enabled ? 'synchronization.disable' : 'synchronization.enable')
+    ?.run()
+})
+element('synchronization').addEventListener('mousedown', (event) => event.preventDefault())
 element('connection').addEventListener('click', () =>
   action(async () => {
     if (provider.online) await provider.disconnect()
@@ -507,7 +538,10 @@ async function start() {
     )
   }
   provider.onStatus = () => {
-    if (!stopping) refreshCommands(commands)
+    if (!stopping) {
+      refreshCommands(commands)
+      tables?.refresh()
+    }
   }
   provider.onChange = () => {
     refresh()
@@ -534,14 +568,38 @@ async function start() {
     )
     refresh()
   }
-  provider.awareness.on('change', refresh)
+  provider.onSynchronization = refreshSynchronization
+  provider.presence.observe(refreshSynchronization)
   window.__spike = { editor, provider, save, ready: true }
   refresh()
   schedule()
-  message('Session locale · modifications partagées entre les fenêtres ouvertes')
+  message(
+    tr(
+      provider.synchronization?.enabled
+        ? 'Synchronisation active'
+        : 'Mode individuel · validation et historique actifs',
+    ),
+  )
   if (isTauri) {
-    const mode = await host.transport.invoke<string | null>('diagnostic_mode')
-    if (mode === 'performance') {
+    const mode = diagnosticMode
+    if (mode?.startsWith('synchronization') && synchronizationMeter) {
+      void (await import('./synchronization-performance')).synchronizationPerformance(
+        host.transport,
+        provider,
+        editor,
+        synchronizationMeter,
+        rendering.pause,
+        snapshot,
+        mode === 'synchronization-active',
+      )
+    } else if (mode?.startsWith('closure')) {
+      void (await import('./closure-diagnostic')).closureDiagnostic(
+        mode,
+        host.transport,
+        provider,
+        editor,
+      )
+    } else if (mode === 'performance') {
       void (await import('./preview-performance')).nativePreviewPerformance(
         host.transport,
         provider,

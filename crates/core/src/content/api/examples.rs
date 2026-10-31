@@ -2,7 +2,11 @@
 use super::Call;
 use serde_json::{Value, json};
 fn paragraph(text: &str) -> Value {
-    json!({"type":"paragraph","content":[{"type":"text","text":text}]})
+    if text.is_empty() {
+        json!({"type":"paragraph"})
+    } else {
+        json!({"type":"paragraph","content":[{"type":"text","text":text}]})
+    }
 }
 fn at() -> Value {
     json!({"zone":{"kind":"body","path":[0]},"from":0,"to":0})
@@ -26,7 +30,7 @@ pub fn for_id(id: &str) -> Vec<Call> {
             json!({"type":"citation","attrs":{"items":[{"file_id":"main","key":"example2026"}],"form":"normal"}})
         }
         "insert.image" => {
-            json!({"type":"figure","attrs":{"src":"images/example.svg","alt":"Describe the image","placement":"inline"},"content":[{"type":"text","text":"Optional caption"}]})
+            json!({"type":"figure","attrs":{"src":"images/example.svg","alt":"Describe the image"},"content":[{"type":"text","text":"Optional caption"}]})
         }
         "letter.insert_postscript" => {
             json!({"type":"postscript","content":[{"type":"text","text":"Additional information."}]})
@@ -39,6 +43,32 @@ pub fn for_id(id: &str) -> Vec<Call> {
                 id: id.into(),
                 params: json!({"target":at(),"text":"Literal prose","marks":[{"type":"bold"}]}),
             }];
+        }
+        "inline.replace" => {
+            return vec![Call {
+                id: id.into(),
+                params: json!({"target":at(),"node":{"type":"softBreak"}}),
+            }];
+        }
+        "list.item.split" | "list.item.join" | "list.item.exit" => {
+            return vec![
+                Call {
+                    id: "block.insert".into(),
+                    params: json!({"parent":{"root":{"kind":"body"}},"index":0,"node":{"type":"bulletList","content":[{"type":"listItem","content":[paragraph("Left right")]},{"type":"listItem","content":[paragraph("")]}]}}),
+                },
+                Call {
+                    id: id.into(),
+                    params: match id {
+                        "list.item.split" => {
+                            json!({"target":{"zone":{"kind":"body","path":[0,0,0]},"from":4,"to":5}})
+                        }
+                        "list.item.join" => {
+                            json!({"left":{"root":{"kind":"body"},"path":[0,0]},"right":{"root":{"kind":"body"},"path":[0,1]}})
+                        }
+                        _ => json!({"target":{"root":{"kind":"body"},"path":[0,1]}}),
+                    },
+                },
+            ];
         }
         "text.bold" | "text.italic" => {
             return vec![
@@ -57,6 +87,22 @@ pub fn for_id(id: &str) -> Vec<Call> {
                 id: id.into(),
                 params: json!({"parent":{"root":{"kind":"body"}},"index":0,"rows":3,"columns":2,"header":true}),
             }];
+        }
+        "block.join" => {
+            return vec![
+                Call {
+                    id: "block.insert".into(),
+                    params: json!({"parent":{"root":{"kind":"body"}},"index":0,"node":paragraph("Left ")}),
+                },
+                Call {
+                    id: "block.insert".into(),
+                    params: json!({"parent":{"root":{"kind":"body"}},"index":1,"node":paragraph("right")}),
+                },
+                Call {
+                    id: id.into(),
+                    params: json!({"left":{"root":{"kind":"body"},"path":[0]},"right":{"root":{"kind":"body"},"path":[1]}}),
+                },
+            ];
         }
         _ => return vec![],
     };

@@ -114,17 +114,22 @@ fn dispatch(
                 ))),
             }
         }
-        "connection" => {
-            bridge
-                .session
-                .lock()
-                .map_err(|e| e.to_string())?
-                .connection(
+        "connection" | "set_synchronization" | "leave" => {
+            let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
+            let generation = args["generation"].as_str().unwrap_or("");
+            if command == "connection" {
+                session.connection(peer, generation, args["online"].as_bool() == Some(true))?;
+            } else if command == "leave" {
+                session.check_peer(peer, generation)?;
+                session.leave(peer);
+            } else {
+                session.set_synchronization(
                     peer,
-                    args["generation"].as_str().unwrap_or(""),
-                    args["online"].as_bool() == Some(true),
+                    generation,
+                    args["enabled"].as_bool() == Some(true),
                 )?;
-            Ok(serde_json::Value::Null)
+            }
+            serde_json::to_value(session.synchronization()).map_err(|e| e.to_string())
         }
         "content_catalogue" => Ok(catalogue::content_catalogue()),
         "validate_model" => {
@@ -200,12 +205,11 @@ fn dispatch(
         "commit_structured_commands" => {
             let request =
                 serde_json::from_value(args["request"].clone()).map_err(|e| e.to_string())?;
-            serde_json::to_value(structured::commit(
-                &mut *bridge.session.lock().map_err(|e| e.to_string())?,
-                peer,
-                request,
-            )?)
-            .map_err(|e| e.to_string())
+            let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
+            let publication = structured::commit(&mut session, peer, request)?;
+            let mut value = serde_json::to_value(publication).map_err(|e| e.to_string())?;
+            value["broadcast"] = serde_json::json!(session.should_broadcast(peer));
+            Ok(value)
         }
         "prepare_structured_commands" => {
             let request =
@@ -221,21 +225,28 @@ fn dispatch(
                 serde_json::from_value(args["update"].clone()).map_err(|e| e.to_string())?;
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
             session.check_peer(peer, args["generation"].as_str().unwrap_or(""))?;
-            serde_json::to_value(session.relay_group(
+            let receipt = session.relay_view(
                 peer,
                 &update,
                 args["group"].as_u64(),
                 args["capture"].as_bool().unwrap_or(true),
-            )?)
-            .map_err(|e| e.to_string())
+                serde_json::from_value(args["historyView"].clone()).map_err(|e| e.to_string())?,
+            )?;
+            let mut value = serde_json::to_value(receipt).map_err(|e| e.to_string())?;
+            value["broadcast"] = serde_json::json!(session.should_broadcast(peer));
+            Ok(value)
         }
         "editing_history" => {
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
             session.check_peer(peer, args["generation"].as_str().unwrap_or(""))?;
             let direction =
                 serde_json::from_value(args["direction"].clone()).map_err(|e| e.to_string())?;
-            serde_json::to_value(session.history(peer, direction)?).map_err(|e| e.to_string())
+            let mut value = serde_json::to_value(session.history(peer, direction)?)
+                .map_err(|e| e.to_string())?;
+            value["broadcast"] = serde_json::json!(session.should_broadcast(peer));
+            Ok(value)
         }
+
         "editing_context" => {
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
             session.check_peer(peer, args["generation"].as_str().unwrap_or(""))?;
@@ -254,7 +265,18 @@ fn dispatch(
             session.check_peer(peer, args["generation"].as_str().unwrap_or(""))?;
             serde_json::to_value(session.ensure_owner()?.reset(peer)?).map_err(|e| e.to_string())
         }
-        "awareness" => Ok(serde_json::Value::Null),
+        "awareness" => {
+            let update = args["update"].as_array().ok_or("Présence absente")?;
+            if update.len() > 64 * 1024 {
+                return Err("Présence trop volumineuse.".into());
+            }
+            let session = bridge.session.lock().map_err(|e| e.to_string())?;
+            Ok(serde_json::json!(session.accepts_awareness(
+                peer,
+                args["generation"].as_str().unwrap_or(""),
+                args["version"].as_u64().unwrap_or(0)
+            )?))
+        }
         "prepare_rust_edit" => Ok(prepare_rust_edit()),
         "prepare_image" => serde_json::to_value(prepare_image(
             args["extension"]

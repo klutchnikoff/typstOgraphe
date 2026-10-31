@@ -34,7 +34,7 @@ function consume(event: KeyboardEvent) {
 let nextId = 0
 interface NavigationOptions {
   axis: 'vertical' | 'horizontal' | 'both'
-  items?: string
+  items?: string | (() => HTMLElement[])
   input?: HTMLInputElement
   roving?: boolean
   activateOnMove?: boolean
@@ -74,14 +74,13 @@ function createNavigation(root: HTMLElement, options: NavigationOptions) {
   root.dataset.keyboardAxis = options.axis
   let selected: HTMLElement | undefined
   let lastIndex = 0
+  const discover = () =>
+    typeof options.items === 'function'
+      ? options.items()
+      : [...root.querySelectorAll<HTMLElement>(options.items || 'button, summary, a[href]')]
   const items = () =>
-    [...root.querySelectorAll<HTMLElement>(options.items || 'button, summary, a[href]')].filter(
-      (item) => item.closest('[data-keyboard-group]') === root && available(item),
-    )
-  const allItems = () =>
-    [...root.querySelectorAll<HTMLElement>(options.items || 'button, summary, a[href]')].filter(
-      (item) => item.closest('[data-keyboard-group]') === root,
-    )
+    discover().filter((item) => item.closest('[data-keyboard-group]') === root && available(item))
+  const allItems = () => discover().filter((item) => item.closest('[data-keyboard-group]') === root)
   const select = (item?: HTMLElement, reveal = false, notify = false) => {
     selected = item
     const all = allItems()

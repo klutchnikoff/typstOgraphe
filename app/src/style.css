@@ -350,7 +350,8 @@ main {
   white-space: nowrap;
 }
 .inline-object-label {
-  display: inline;
+  /* Keep border/padding inside one atomic box, outside the insertion caret. */
+  display: inline-block;
   vertical-align: baseline;
   background: var(--badge-surface);
   border: 1px solid var(--badge-border);
@@ -358,9 +359,17 @@ main {
   border-radius: 5px;
   cursor: pointer;
 }
+.tiptap .inline-object > .inline-object-label {
+  /* Tiptap resets noneditable descendants to normal whitespace. Keep a badge whole. */
+  white-space: nowrap;
+}
 .inline-object::before {
   content: '\2060'; /* Join the badge to the preceding word without editing the document. */
-  padding-inline-end: 0.5ex;
+  padding-inline-end: 0.2ex;
+}
+.inline-object-flush::before {
+  content: none;
+  padding-inline-end: 0;
 }
 .inline-object-label:focus-visible {
   outline: 2px solid var(--badge-ink);
@@ -550,6 +559,19 @@ summary svg {
 }
 .tool-menu summary::-webkit-details-marker {
   display: none;
+}
+#toolbar .tool-menu > summary {
+  position: relative;
+}
+#toolbar .tool-menu > summary::after {
+  content: '';
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  border-left: 4px solid transparent;
+  border-bottom: 4px solid currentColor;
+  opacity: 0.65;
+  pointer-events: none;
 }
 .tool-menu summary:hover,
 .tool-menu[open] summary {
@@ -1223,6 +1245,11 @@ main {
   background: #e8b74c55;
   border-radius: 2px;
 }
+.sync-location {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 2px;
+}
 .spelling-error {
   text-decoration: underline wavy var(--danger);
   text-decoration-skip-ink: none;
@@ -1410,6 +1437,24 @@ li:has(.interline-band-gap[data-marker])::marker {
   user-select: none;
   font-size: 0.8em;
   line-height: 1.8em;
+}
+.nonbreaking-space {
+  position: relative;
+  /* The underlying NBSP and its decorative tilde need the same advance.
+     Keep a text character: no atomic wrapper or extra caret stop. */
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-weight: normal;
+  font-style: normal;
+}
+.nonbreaking-space::before {
+  content: '~'/ '';
+  position: absolute;
+  left: 0;
+  color: var(--muted);
+  opacity: 0.65;
+  font-weight: normal;
+  font-style: normal;
+  pointer-events: none;
 }
 .tiptap dl {
   margin: 0.35em 0;
@@ -1656,8 +1701,7 @@ li:has(.interline-band-gap[data-marker])::marker {
   min-width: 0;
 }
 
-.table-dimensions,
-.table-actions {
+.table-dimensions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
@@ -1680,16 +1724,61 @@ li:has(.interline-band-gap[data-marker])::marker {
 }
 
 .tiptap .widget-tableFigure [data-widget-body] {
-  padding: 10px;
+  padding: 6px 7px 10px;
 }
-
-.table-actions {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
+.tiptap .widget-tableFigure .tableWrapper {
+  /* Keep controls inside the scrollable area, including their hit targets. */
+  padding: 34px 35px 0;
 }
-
-.table-actions button {
-  min-width: 0;
-  white-space: normal;
+.table-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+.table-handle:hover:not(:disabled),
+.table-handle[aria-pressed='true'] {
+  color: var(--accent);
+  background: var(--soft);
+  border-color: var(--accent);
+}
+.table-handle:disabled {
+  opacity: 0.4;
+}
+.table-handle svg {
+  width: 16px;
+  height: 16px;
+}
+.table-column-handle {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.table-row-handle {
+  position: absolute;
+  left: -35px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.table-grip {
+  width: 12px;
+  height: 8px;
+  background: radial-gradient(circle at 2px 2px, currentColor 1px, transparent 1.4px) 0 0 / 4px 4px;
+}
+.table-row-handle .table-grip {
+  width: 8px;
+  height: 12px;
+}
+.tiptap td.table-axis-selected,
+.tiptap th.table-axis-selected {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
 }
 
 .draft-recovery {
@@ -1699,4 +1788,15 @@ li:has(.interline-band-gap[data-marker])::marker {
 }
 .draft-recovery p {
   margin: 0 0 0.5rem;
+}
+
+/* Presence services are optional; the status action preserves the writing focus. */
+#synchronization {
+  margin-left: auto;
+  padding: 2px 8px;
+  font: inherit;
+  border-radius: 5px;
+}
+#synchronization[aria-pressed='true'] {
+  color: var(--accent);
 }

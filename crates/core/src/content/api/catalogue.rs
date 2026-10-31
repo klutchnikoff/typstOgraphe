@@ -280,12 +280,18 @@ pub fn describe(id: &str) -> Option<Value> {
 fn command_description(id: &str) -> String {
     match id {
         "text.insert" => "Insert/replace literal prose in one typed range; marks are explicit and default to none. No Typst/Markdown input rules.",
+        "block.join" => "Join explicit adjacent left/right paragraphs or headings in the same container. Two nonempty paragraphs retain a single soft break at the seam (a Typst space); an existing break is reused. Joins involving headings concatenate directly. The nonempty left block keeps its kind and attributes. Remove an empty neighbor without converting its survivor. Widgets, cells and annotation boundaries are protected; the mandatory final editing slot is a no-op.",
+        "list.item.split" => "Split a flat bullet/numbered list item at one paragraph range, or a description item at its definition range. Preserve the left item and prefix; the suffix and following paragraphs become a new item. Description terms remain separate, and the new term is empty. Empty-item exit is a separate operation.",
+        "list.item.join" => "Join adjacent bullet/numbered items of the same list, concatenating the last left paragraph and first right paragraph without an added space or break. Keep the left item and prefix. An empty right item is removed. Refuse description term/definition boundaries and different lists.",
+        "list.item.exit" => "Remove an entirely empty item and create/reuse a continuation paragraph after its list. Remove the whole list only when it was the last item. A badge is content: an item containing a note cannot be exited as empty.",
         "text.bold" | "text.italic" => "Apply or remove this style on a nonempty typed range (value on/off). Never changes future typing; use context.style for that.",
-        "inline.replace" => "Replace a typed inline range with one node (for example footnote or citation). Discover the node via capabilities.describe.",
+        "inline.replace" => "Replace one typed rich range with a footnote, citation, softBreak (a Typst space) or hardBreak (forced line break). Breaks are unavailable in single-line header fields and plain fields. A break is one UTF-16 unit; paragraph separation uses block.split. No implicit CR/LF interpretation in text.insert. Discover objects via capabilities.describe.",
         "block.insert" | "block.replace" | "block.splice" => "Edit a guarded tree with explicit nodes (quote, list, figure, postscript…). Discover examples via capabilities.describe.",
         "resource.add" => "Admit immutable image bytes (base64), validated before use; a batch may add the resource then insert its figure or signature.",
         "document.set_model" => "Set the model ID and full pure Typst source together. The model must implement this document type; publication validates its policy.",
         "metadata.set" => "Set a typed metadata, record field or document option. Values are validated against the type and model policy.",
+        "insert.table" => "Insert a table figure. header marks the first row as column headers; row_headers marks the first column as row headers. They are independent, including a one-cell table. No merged cells.",
+        "table.header" => "Set a header axis on an existing tableFigure: axis columns (default) labels columns using the first row; axis rows labels rows using the first column. Text and other cells are preserved. Leading-track insertions and removals retain the chosen roles.",
         "record.add" | "record.remove" | "record.move" => "Edit a header collection using stable record IDs. Forward references inside an atomic lot are checked only on its final state.",
         _ => return capabilities::find(id).map(|c|c.description).unwrap_or("Typed structured document operation; discover targets and parameters in params_schema.").into(),
     }.into()

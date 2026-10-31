@@ -800,8 +800,15 @@ web-table-columns = Colonnes
 web-table-row = Ligne
 
 web-table-column = Colonne
+web-table-row-actions = Actions sur la ligne
+web-table-column-actions = Actions sur la colonne
+web-table-before-row-short = Au-dessus
+web-table-after-row-short = Au-dessous
+web-table-before-column-short = À gauche
+web-table-after-column-short = À droite
 
-web-table-header = Première ligne d’en-tête
+web-table-header = Première ligne : en-têtes de colonnes
+web-table-row-headers = Première colonne : en-têtes de lignes
 
 web-table-edit = Modifier le tableau
 
@@ -867,3 +874,11 @@ web-command-pending-draft = Conservez ou abandonnez le brouillon refusé avant d
 web-command-no-document = Ouvrez ou créez un document.
 web-command-modal = Terminez ou annulez le formulaire ouvert.
 web-command-unavailable = Cette commande n’est pas disponible dans ce contexte.
+
+# Optional local synchronization services
+sync-enable = Activer la synchronisation
+sync-disable = Arrêter la synchronisation
+sync-enabled = Synchronisation active
+sync-pending = Activation après la saisie…
+sync-solo = Mode individuel · validation et historique actifs
+sync-close-windows = Fermez les autres fenêtres avant d’arrêter la synchronisation.

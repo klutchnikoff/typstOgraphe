@@ -22,6 +22,7 @@ Resource data is base64 in `resource.add`; models use their pure Typst source in
 | `block.heading_2` | edit | Level-two heading. |
 | `block.heading_3` | edit | Level-three heading. |
 | `block.insert` | edit | Edit a guarded tree with explicit nodes (quote, list, figure, postscript…). Discover examples via capabilities.describe. |
+| `block.join` | edit | Join explicit adjacent left/right paragraphs or headings in the same container. Two nonempty paragraphs retain a single soft break at the seam (a Typst space); an existing break is reused. Joins involving headings concatenate directly. The nonempty left block keeps its kind and attributes. Remove an empty neighbor without converting its survivor. Widgets, cells and annotation boundaries are protected; the mandatory final editing slot is a no-op. |
 | `block.paragraph` | edit | Ordinary prose. A soft return stays inside the paragraph; two returns create a paragraph. |
 | `block.remove` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
 | `block.replace` | edit | Edit a guarded tree with explicit nodes (quote, list, figure, postscript…). Discover examples via capabilities.describe. |
@@ -53,8 +54,11 @@ Resource data is base64 in `resource.add`; models use their pure Typst source in
 | `document_types.list` | query | List built-in document types and their interchangeable visual models. |
 | `edit.redo` | session | Redo this participant's contribution. |
 | `edit.undo` | session | Undo this participant's last confirmed contribution. |
-| `inline.replace` | edit | Replace a typed inline range with one node (for example footnote or citation). Discover the node via capabilities.describe. |
-| `insert.table` | edit | Table figure with an optional rich caption, 1–12 columns and 1–100 rows. No merged cells; header row optional. |
+| `inline.replace` | edit | Replace one typed rich range with a footnote, citation, softBreak (a Typst space) or hardBreak (forced line break). Breaks are unavailable in single-line header fields and plain fields. A break is one UTF-16 unit; paragraph separation uses block.split. No implicit CR/LF interpretation in text.insert. Discover objects via capabilities.describe. |
+| `insert.table` | edit | Insert a table figure. header marks the first row as column headers; row_headers marks the first column as row headers. They are independent, including a one-cell table. No merged cells. |
+| `list.item.exit` | edit | Remove an entirely empty item and create/reuse a continuation paragraph after its list. Remove the whole list only when it was the last item. A badge is content: an item containing a note cannot be exited as empty. |
+| `list.item.join` | edit | Join adjacent bullet/numbered items of the same list, concatenating the last left paragraph and first right paragraph without an added space or break. Keep the left item and prefix. An empty right item is removed. Refuse description term/definition boundaries and different lists. |
+| `list.item.split` | edit | Split a flat bullet/numbered list item at one paragraph range, or a description item at its definition range. Preserve the left item and prefix; the suffix and following paragraphs become a new item. Description terms remain separate, and the new term is empty. Empty-item exit is a separate operation. |
 | `metadata.get` | query | Read document metadata and field/collection definitions. |
 | `metadata.set` | edit | Set a typed metadata, record field or document option. Values are validated against the type and model policy. |
 | `models.list` | query | Read brief visual model cards, including the active embedded model. |
@@ -74,7 +78,7 @@ Resource data is base64 in `resource.add`; models use their pure Typst source in
 | `spelling.suggestions` | query | Get local suggestions for a literal word and language. |
 | `table.column.insert` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
 | `table.column.remove` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
-| `table.header` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
+| `table.header` | edit | Set a header axis on an existing tableFigure: axis columns (default) labels columns using the first row; axis rows labels rows using the first column. Text and other cells are preserved. Leading-track insertions and removals retain the chosen roles. |
 | `table.row.insert` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
 | `table.row.remove` | edit | Typed structured document operation; discover targets and parameters in params_schema. |
 | `text.bold` | edit | Apply or remove this style on a nonempty typed range (value on/off). Never changes future typing; use context.style for that. |

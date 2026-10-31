@@ -29,6 +29,11 @@ citation en bloc, une liste ou une image utilise `block.insert/replace`, une not
 ou citation bibliographique utilise `inline.replace`. Leurs exemples décrivent le
 nœud attendu. Ajouter d’abord une image avec `resource.add` (octets base64) ; une
 citation bibliographique doit référencer une entrée réellement présente.
+Les retours simples/forcés utilisent aussi `inline.replace` avec un nœud
+`softBreak`/`hardBreak` ; les sauts de paragraphe utilisent `block.split`, pas un
+caractère LF dans `text.insert`. Les items non imbriqués disposent de
+`list.item.split`, `list.item.join` et `list.item.exit` ; leurs exemples et
+restrictions sont exposés par `capabilities.describe` et `tools/list`.
 `document.set_model` reçoit son identifiant et son source Typst, sans import
 implicite depuis un chemin. Les collections d’en-tête utilisent des IDs stables.
 

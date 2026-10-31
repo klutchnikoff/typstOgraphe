@@ -78,14 +78,13 @@ test(
       )
       .toBe('30')
     await page.keyboard.type(' vérifié')
-    await page.getByRole('button', { name: 'Paramètres · Tableau', exact: true }).click()
+    await page.getByRole('button', { name: 'Actions sur la ligne 2', exact: true }).click()
     await expect(page.locator('#table-properties')).toBeVisible()
     await expect(page.locator('table')).toContainText('vérifié')
-    await page.getByRole('radio', { name: 'Ajouter une ligne au-dessous', exact: true }).click()
     await page
       .locator('#table-properties')
-      .getByRole('button', { name: 'Valider', exact: true })
-      .click()
+      .getByRole('button', { name: 'Au-dessous', exact: true })
+      .press('Enter')
     await expect(page.locator('tr')).toHaveCount(4)
     await expect(page.locator('#render-status')).not.toContainText('corriger')
     await page.waitForFunction(() =>

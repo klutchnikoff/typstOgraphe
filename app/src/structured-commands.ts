@@ -7,6 +7,8 @@ import { yUndoPluginKey } from '@tiptap/y-tiptap'
 import { CONFIRMED_COMMAND, type Provider, type Transport } from './provider'
 import { installResources, type ImageResource } from './resource-commands'
 import { draftGuard } from './snapshot-operation'
+import { focusEditorSelection } from './editor-focus'
+import { retainWidgetSelection } from './planned-selection'
 
 export interface StructuredCommand {
   id: string
@@ -136,13 +138,14 @@ export async function applyPlannedEdit(
   options: { focus?: boolean; current?: () => boolean; installed?: () => void } = {},
 ): Promise<boolean> {
   if (!editor.isEditable || editor.view.composing || editor.isDestroyed) return false
+  retainWidgetSelection(transaction, editor.state.selection)
   const provider = editingProvider(editor)
   if (!provider) {
     historyFor(editor)?.stopCapturing()
-    editor.view.dispatch(transaction.scrollIntoView())
+    editor.view.dispatch(transaction)
     historyFor(editor)?.stopCapturing()
     options.installed?.()
-    if (options.focus !== false) editor.view.focus()
+    if (options.focus !== false) focusEditorSelection(editor)
     return transaction.docChanged
   }
   if (!commands.length) return false
@@ -157,9 +160,9 @@ export async function applyPlannedEdit(
       [focused, document.body, editor.view.dom].includes(document.activeElement),
     () => {
       editor.view.dispatch(
-        editor.state.tr
-          .setSelection(Selection.fromJSON(editor.state.doc, transaction.selection.toJSON()))
-          .scrollIntoView(),
+        editor.state.tr.setSelection(
+          Selection.fromJSON(editor.state.doc, transaction.selection.toJSON()),
+        ),
       )
       options.installed?.()
     },
@@ -169,6 +172,6 @@ export async function applyPlannedEdit(
     !editor.isDestroyed &&
     [focused, document.body, editor.view.dom].includes(document.activeElement)
   )
-    editor.view.focus()
+    focusEditorSelection(editor)
   return changed
 }

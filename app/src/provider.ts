@@ -1,10 +1,5 @@
 import * as Y from 'yjs'
-import {
-  Awareness,
-  applyAwarenessUpdate,
-  encodeAwarenessUpdate,
-  removeAwarenessStates,
-} from 'y-protocols/awareness'
+import { LocalPresence, type Synchronization } from './local-presence'
 import type { JSONContent } from '@tiptap/core'
 import type { Settings } from './state'
 import { tr } from './i18n'
@@ -15,6 +10,7 @@ export interface Resource {
   data: string
 }
 export interface Bootstrap {
+  synchronization: Synchronization
   nativeEditing?: boolean
   generation?: string
   revision: number
@@ -61,12 +57,24 @@ interface Receipt {
   update: number[]
   history: HistoryState
 }
+interface HistoryView extends EditingView {
+  frontier: number[]
+}
 const CONFIRMED_HISTORY = { confirmedHistory: true }
 
 /** Deux Y.Doc indépendants ; le relais ne partage jamais d'objet JavaScript. */
 export class Provider {
   readonly doc = new Y.Doc()
-  readonly awareness = new Awareness(this.doc)
+  readonly presence: LocalPresence
+  synchronization?: Synchronization
+  synchronizationBusy = false
+  onSynchronization = () => {}
+  private destroyed = false
+  private compositionWaiters = new Set<() => void>()
+  private earlySynchronization?: Synchronization
+  get awareness() {
+    return this.presence.awareness
+  }
   readonly resources = new Map<string, Resource>()
   revision = 0
   online = false
@@ -90,11 +98,14 @@ export class Provider {
   private acceptedContextRead = 0
   private frontier?: Uint8Array
   private compositionToken = 0
+  private presenceCommitting = false
   onHistoryLock = (_locked: boolean) => {}
+  onHistorySelection = (_state: HistoryState) => {}
+  private pendingHistoryView?: HistoryView
   rejected: { error: unknown; generation: string } | null = null
   private group = 0
   private lastEdit = 0
-  private buffered: { update: Uint8Array; capture: boolean }[] = []
+  private buffered: { update: Uint8Array; capture: boolean; view?: HistoryView }[] = []
   private scheduled = false
   private queued = 0
   private epoch = 0
@@ -124,17 +135,52 @@ export class Provider {
         this.onChange()
       },
     )
-    this.awareness.on(
-      'update',
-      (
-        { added, updated, removed }: { added: number[]; updated: number[]; removed: number[] },
-        origin: unknown,
-      ) => {
-        if (origin !== REMOTE && this.online) this.sendAwareness([...added, ...updated, ...removed])
-        if (origin === REMOTE && added.length && this.online)
-          this.sendAwareness([this.doc.clientID])
-      },
+    this.presence = new LocalPresence(this.doc, this.id, this.transport, (error) =>
+      this.onError(error),
     )
+  }
+
+  private updateSynchronization(status: Synchronization) {
+    if (!this.generation) {
+      this.earlySynchronization = status
+      return
+    }
+    if (
+      status.generation !== this.generation ||
+      (this.synchronization && status.version < this.synchronization.version)
+    )
+      return
+    this.synchronization = status
+    this.configurePresence()
+    this.onSynchronization()
+  }
+  private configurePresence() {
+    this.presence.configure(
+      this.synchronization,
+      this.online && !this.rejected && !this.destroyed,
+      this.composing || this.presenceCommitting,
+    )
+  }
+  async setSynchronization(enabled: boolean) {
+    if (this.synchronizationBusy || !this.online || this.rejected || this.destroyed) return
+    this.synchronizationBusy = true
+    this.onSynchronization()
+    const generation = this.generation
+    try {
+      // The click is remembered, but no private preedit or unconfirmed draft is shared.
+      while (this.composing && !this.destroyed)
+        await new Promise<void>((resolve) => this.compositionWaiters.add(resolve))
+      if (this.destroyed || generation !== this.generation) return
+      await this.flush()
+      const status = await this.transport.invoke<Synchronization>('set_synchronization', {
+        generation,
+        enabled,
+      })
+      if (!this.destroyed) this.updateSynchronization(status)
+    } finally {
+      this.synchronizationBusy = false
+      if (!this.destroyed) this.onSynchronization()
+    }
   }
 
   async start(
@@ -148,12 +194,8 @@ export class Provider {
       }),
     )
     this.disposers.push(
-      await this.transport.listen<{ from: string; update: number[] }>(
-        'web-editor:awareness',
-        (event) => {
-          if (this.online && event.from !== this.id)
-            applyAwarenessUpdate(this.awareness, new Uint8Array(event.update), REMOTE)
-        },
+      await this.transport.listen<Synchronization>('web-editor:synchronization', (status) =>
+        this.updateSynchronization(status),
       ),
     )
     this.disposers.push(
@@ -171,11 +213,17 @@ export class Provider {
     if (bootstrap.initialize) Y.applyUpdate(this.doc, seed(bootstrap.fixture), BOOTSTRAP)
     initialize?.(bootstrap)
     this.online = true
+    this.configurePresence()
     this.finishJoin()
     this.send(Y.encodeStateAsUpdate(this.doc))
     await this.flush()
     if (this.generation)
-      await this.transport.invoke('connection', { online: true, generation: this.generation })
+      this.updateSynchronization(
+        await this.transport.invoke<Synchronization>('connection', {
+          online: true,
+          generation: this.generation,
+        }),
+      )
     return bootstrap
   }
 
@@ -205,6 +253,9 @@ export class Provider {
     this.nativeEditing = !!bootstrap.nativeEditing
     this.sessionPath = bootstrap.sessionPath
     this.generation = bootstrap.generation || ''
+    this.updateSynchronization(bootstrap.synchronization)
+    if (this.earlySynchronization) this.updateSynchronization(this.earlySynchronization)
+    this.earlySynchronization = undefined
     for (const resource of bootstrap.resources) this.addResource(resource)
     for (const update of bootstrap.updates) Y.applyUpdate(this.doc, new Uint8Array(update), REMOTE)
   }
@@ -216,6 +267,8 @@ export class Provider {
   beginComposition() {
     this.stopCapturing()
     this.composing = true
+    this.presenceCommitting = true
+    this.configurePresence()
     return ++this.compositionToken
   }
   endComposition(token = this.compositionToken) {
@@ -226,12 +279,23 @@ export class Provider {
     this.drain()
     this.stopCapturing()
     this.scheduleEditingContext()
+    // Wait for the relay confirmation before publishing a cursor into the new text.
+    void this.flush()
+      .then(() => {
+        if (this.compositionToken !== token) return
+        this.presenceCommitting = false
+        this.configurePresence()
+      })
+      .catch(this.onError)
+    for (const resolve of this.compositionWaiters) resolve()
+    this.compositionWaiters.clear()
     this.onChange()
   }
   private buffer(update: Uint8Array, capture: boolean) {
     // A single editor dispatch can also repair whitespace. Validate that final
     // synchronous state, never an intermediate transaction missing its repair.
-    this.buffered.push({ update, capture })
+    this.buffered.push({ update, capture, view: this.pendingHistoryView })
+    this.pendingHistoryView = undefined
     if (this.composing) return
     if (this.scheduled) return
     this.scheduled = true
@@ -243,10 +307,26 @@ export class Provider {
     if (!this.buffered.length) return
     const update = Y.mergeUpdates(this.buffered.map((item) => item.update))
     const capture = this.buffered.some((item) => item.capture)
+    const view = this.buffered.find((item) => item.view)?.view
     this.buffered = []
-    this.send(update, capture)
+    this.send(update, capture, view)
   }
-  private send(update: Uint8Array, capture = true) {
+  /** Capture the synchronous view before a structural keystroke. It travels
+   * with its update, so queued context notifications cannot overwrite it. */
+  withHistoryView(view: EditingView, dispatch: () => void) {
+    this.stopCapturing()
+    this.pendingHistoryView = {
+      ...view,
+      frontier: Array.from(Y.encodeSnapshot(Y.snapshot(this.doc))),
+    }
+    try {
+      dispatch()
+    } finally {
+      this.pendingHistoryView = undefined
+      this.stopCapturing()
+    }
+  }
+  private send(update: Uint8Array, capture = true, historyView?: HistoryView) {
     if (!this.online || this.rejected) return
     const now = Date.now()
     if (now - this.lastEdit >= 500) this.group++
@@ -263,6 +343,7 @@ export class Provider {
           generation,
           group,
           capture,
+          ...(historyView ? { historyView } : {}),
         })
         if (generation !== this.generation || this.epoch !== epoch) return
         if (typeof receipt === 'number') this.revision = Math.max(this.revision, receipt)
@@ -414,6 +495,7 @@ export class Provider {
     this.online = false
     this.buffered = [] // The complete local replica remains intact in doc/draft().
     this.rejected = { error, generation }
+    this.configurePresence()
     this.epoch++ // Already queued callbacks may never submit dependent edits.
     void this.transport.invoke('connection', { online: false, generation }).catch(() => {})
     this.onError(error)
@@ -479,6 +561,7 @@ export class Provider {
         if (receipt.update.length)
           Y.applyUpdate(this.doc, new Uint8Array(receipt.update), CONFIRMED_HISTORY)
         this.acknowledge(receipt)
+        this.onHistorySelection(receipt.history)
       })
       .catch((error) => {
         if (!this.rejected && epoch === this.epoch) this.refuse(error, generation)
@@ -542,11 +625,6 @@ export class Provider {
       headerDrafts: this.documentEdits?.draft?.(),
     }
   }
-  private sendAwareness(clients: number[]) {
-    void this.transport
-      .invoke('awareness', { update: Array.from(encodeAwarenessUpdate(this.awareness, clients)) })
-      .catch(this.onError)
-  }
   addResource(resource: Resource) {
     if (this.resources.get(resource.path)?.data === resource.data) return
     this.resources.set(resource.path, { path: resource.path, data: resource.data })
@@ -583,17 +661,17 @@ export class Provider {
   }
   async disconnect() {
     await this.flush()
-    const own = this.awareness.getLocalState()
-    this.awareness.setLocalState(null)
-    if (this.generation)
-      await this.transport.invoke('connection', { online: false, generation: this.generation })
+    this.presence.stop()
     this.online = false
-    this.awareness.setLocalState(own)
-    removeAwarenessStates(
-      this.awareness,
-      [...this.awareness.getStates().keys()].filter((id) => id !== this.doc.clientID),
-      REMOTE,
-    )
+    if (this.generation)
+      this.updateSynchronization(
+        await this.transport.invoke<Synchronization>('connection', {
+          online: false,
+          generation: this.generation,
+        }),
+      )
+    this.online = false
+    this.configurePresence()
     this.onChange()
   }
   async reconnect() {
@@ -609,15 +687,24 @@ export class Provider {
     }
     this.load(bootstrap)
     this.online = true
+    this.configurePresence()
     this.finishJoin()
     this.send(Y.encodeStateAsUpdate(this.doc))
     await this.flush()
     if (this.generation)
-      await this.transport.invoke('connection', { online: true, generation: this.generation })
-    this.sendAwareness([this.doc.clientID])
+      this.updateSynchronization(
+        await this.transport.invoke<Synchronization>('connection', {
+          online: true,
+          generation: this.generation,
+        }),
+      )
+    this.configurePresence()
     this.onChange()
   }
   destroy() {
+    this.destroyed = true
+    for (const resolve of this.compositionWaiters) resolve()
+    this.compositionWaiters.clear()
     this.online = false
     this.epoch++
     this.composing = false
@@ -627,7 +714,7 @@ export class Provider {
     this.contextTicket++
     this.buffered = []
     for (const dispose of this.disposers) dispose()
-    this.awareness.destroy()
+    this.presence.destroy()
     this.doc.destroy()
   }
 }

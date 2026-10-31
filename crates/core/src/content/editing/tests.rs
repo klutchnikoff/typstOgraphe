@@ -323,6 +323,7 @@ fn undo_cannot_hide_later_contributions_inside_an_inserted_container() {
             rows: 1,
             columns: 1,
             header: false,
+            row_headers: false,
         }],
     );
     select(&mut s, b, target(&[1, 0, 0, 0, 0], 0, 0));
@@ -373,6 +374,7 @@ fn cell_caption_and_annotation_contexts_keep_their_own_boundaries() {
             rows: 1,
             columns: 1,
             header: false,
+            row_headers: false,
         }],
     );
     select(&mut s, a, target(&[1, 0, 0, 0, 0], 0, 0));
@@ -850,6 +852,7 @@ fn cell_and_all_selections_are_structural_and_reject_cross_table_ranges() {
             rows: 2,
             columns: 2,
             header: true,
+            row_headers: false,
         }],
     );
     let cell = |r, c| TreeTarget {
@@ -933,3 +936,53 @@ fn a_stale_view_and_plain_field_styles_cannot_partially_replace_private_state() 
 
 #[path = "guarantee_tests.rs"]
 mod guarantees;
+
+#[test]
+fn joining_restores_the_participants_selection_and_explicit_styles_through_native_history() {
+    let mut s = open();
+    let c = ctx(&mut s);
+    let peer = ctx(&mut s);
+    select(&mut s, peer, target(&[1], 3, 3));
+    let before = Selection::from(target(&[1], 0, 0));
+    s.set_context(&s.guard().clone(), c, Some(before.clone()), vec![])
+        .unwrap();
+    execute(
+        &mut s,
+        c,
+        &[Command::JoinBlocks {
+            left: TreeTarget {
+                root: TreeRoot::Body,
+                path: vec![0],
+            },
+            right: TreeTarget {
+                root: TreeRoot::Body,
+                path: vec![1],
+            },
+        }],
+    );
+    let seam = Selection::from(target(&[0], 4, 4));
+    s.set_context(
+        &s.guard().clone(),
+        c,
+        Some(seam.clone()),
+        vec![Style::Italic],
+    )
+    .unwrap();
+    for _ in 0..3 {
+        history(&mut s, c, Direction::Undo);
+        let view = snapshot(&mut s, c);
+        assert_eq!(view.selection, Some(before.clone()));
+        assert!(view.typing_styles.is_empty());
+        assert!(!view.selection_lost);
+        assert_eq!(
+            s.state().document.content[1].content[0].text.as_deref(),
+            Some("Second")
+        );
+        history(&mut s, c, Direction::Redo);
+        let view = snapshot(&mut s, c);
+        assert_eq!(view.selection, Some(seam.clone()));
+        assert_eq!(view.typing_styles, vec![Style::Italic]);
+    }
+    // Never guess a replacement for the other participant's removed text zone.
+    assert!(snapshot(&mut s, peer).selection_lost);
+}

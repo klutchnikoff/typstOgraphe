@@ -53,6 +53,12 @@ impl RichText {
     }
     pub fn is_inline(&self) -> bool {
         self.0.content.len() <= 1
+            && self.0.content.iter().all(|p| {
+                p.content.iter().all(|n| {
+                    !matches!(n.kind.as_str(), "softBreak" | "hardBreak")
+                        && n.text.as_ref().is_none_or(|t| !t.contains(['\r', '\n']))
+                })
+            })
     }
     pub fn source(&self, inline: bool) -> String {
         if self.is_empty() {

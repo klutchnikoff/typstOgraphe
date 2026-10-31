@@ -1,8 +1,19 @@
 //! Yjs-compatible state owned by Rust. Shared types never cross this boundary.
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
+mod break_tests;
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod command_tests;
 pub(super) mod commands;
+mod join;
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod join_tests;
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod list_tests;
+mod lists;
 mod normalization;
 mod objects;
 pub(super) mod projection;

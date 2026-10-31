@@ -798,8 +798,15 @@ web-table-columns = Columns
 web-table-row = Row
 
 web-table-column = Column
+web-table-row-actions = Row actions
+web-table-column-actions = Column actions
+web-table-before-row-short = Above
+web-table-after-row-short = Below
+web-table-before-column-short = Left
+web-table-after-column-short = Right
 
-web-table-header = Header row
+web-table-header = First row: column headers
+web-table-row-headers = First column: row headers
 
 web-table-edit = Edit table
 
@@ -865,3 +872,11 @@ web-command-pending-draft = Keep or discard the rejected draft before continuing
 web-command-no-document = Open or create a document.
 web-command-modal = Complete or cancel the open form.
 web-command-unavailable = This command is unavailable in this context.
+
+# Optional local synchronization services
+sync-enable = Enable synchronization
+sync-disable = Stop synchronization
+sync-enabled = Synchronization active
+sync-pending = Waiting for input to finish…
+sync-solo = Individual mode · validation and history active
+sync-close-windows = Close the other windows before stopping synchronization.

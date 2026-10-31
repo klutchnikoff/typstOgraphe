@@ -233,6 +233,7 @@ pub fn resolve_call(state: &State, call: &Call) -> Result<Command, Error> {
             }
             if call.id.starts_with("text.")
                 || call.id == "block.split"
+                || call.id == "list.item.split"
                 || call.id == "inline.replace"
             {
                 let zone = TextZone::Body {

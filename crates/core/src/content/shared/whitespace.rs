@@ -1,12 +1,12 @@
 //! Documentary whitespace policy, applied to a private typed-command candidate.
-//! Mirrors the immediate typing policy until the production relay is migrated.
+//! Mirrors the immediate editor repair carried by validated typing deltas.
 use super::{seed, targets};
 use crate::content::{
     Node,
     contract::{Error, State},
 };
 use yrs::{
-    Doc, Map, Out, ReadTxn, Text, Transact, XmlElementRef, XmlFragment, XmlFragmentRef, XmlOut,
+    Any, Doc, Map, Out, ReadTxn, Text, Transact, XmlElementRef, XmlFragment, XmlFragmentRef, XmlOut,
 };
 fn fragment(value: &XmlElementRef) -> XmlFragmentRef {
     <XmlElementRef as AsRef<XmlFragmentRef>>::as_ref(value).clone()
@@ -22,6 +22,42 @@ fn empty<T: ReadTxn>(value: &XmlOut, tx: &T, heading: bool) -> bool {
 }
 fn ending_break<T: ReadTxn>(value: &XmlOut, tx: &T) -> bool {
     matches!(value, XmlOut::Element(e) if e.tag().as_ref() == "paragraph" && e.children(tx).filter(|c| !text_empty(c, tx)).last().is_some_and(|c| is_break(&c)))
+}
+/// Preserve the first ordinary/NBSP space in each run, deleting only excess
+/// characters. A mark boundary is not a word boundary; inline atoms are.
+fn spaces(parent: &XmlFragmentRef, tx: &mut yrs::TransactionMut) {
+    let mut previous = false;
+    let children: Vec<_> = parent.children(tx).collect();
+    for child in children {
+        if let XmlOut::Text(text) = child {
+            let mut offset = 0;
+            let mut remove = Vec::new();
+            let plain = text
+                .diff(tx, |_| ())
+                .into_iter()
+                .map(|part| match part.insert {
+                    Out::Any(Any::String(value)) => value.to_string(),
+                    _ => "\u{fffc}".into(),
+                })
+                .collect::<String>();
+            for ch in plain.chars() {
+                let current = matches!(ch, ' ' | '\u{a0}');
+                if current && previous {
+                    remove.push(offset);
+                }
+                previous = current;
+                offset += ch.len_utf16() as u32;
+            }
+            for offset in remove.into_iter().rev() {
+                text.remove_range(tx, offset, 1);
+            }
+        } else {
+            previous = false;
+            if let XmlOut::Element(element) = child {
+                spaces(&fragment(&element), tx);
+            }
+        }
+    }
 }
 fn visit(parent: &XmlFragmentRef, tx: &mut yrs::TransactionMut, flow: bool) {
     let children: Vec<_> = parent.children(tx).collect();
@@ -70,6 +106,7 @@ fn visit(parent: &XmlFragmentRef, tx: &mut yrs::TransactionMut, flow: bool) {
 }
 fn normalize(doc: &Doc, root: XmlFragmentRef, trailing: bool) -> Result<(), Error> {
     let mut tx = doc.transact_mut();
+    spaces(&root, &mut tx);
     if root.children(&tx).any(|c| !empty(&c, &tx, true)) {
         while root.get(&tx, 0).is_some_and(|c| empty(&c, &tx, true)) {
             root.remove(&mut tx, 0);
@@ -132,7 +169,7 @@ pub(super) fn apply(doc: &Doc, state: &State) -> Result<(), Error> {
                 .as_array()
                 .into_iter()
                 .flatten()
-                .filter(|f| f["kind"] == "rich")
+                .filter(|f| f["kind"] == "rich" || f["kind"] == "rich_inline")
             {
                 let key = field["key"].as_str().unwrap();
                 for record in data["fields"][name].as_array().into_iter().flatten() {
@@ -146,7 +183,11 @@ pub(super) fn apply(doc: &Doc, state: &State) -> Result<(), Error> {
                     )?;
                     let value = map.get(&doc.transact(), key);
                     if let Some(Out::YXmlFragment(root)) = value {
-                        normalize(doc, root, false)?;
+                        if field["kind"] == "rich" {
+                            normalize(doc, root, false)?;
+                        } else {
+                            spaces(&root, &mut doc.transact_mut());
+                        }
                     }
                 }
             }

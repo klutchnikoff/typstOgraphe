@@ -1,3 +1,4 @@
+import { focusEditorSelection } from './editor-focus'
 import { editingAvailability } from './command-availability'
 import { navigationGroup } from './keyboard-navigation'
 import { getMarkRange, type Editor } from '@tiptap/core'
@@ -36,7 +37,7 @@ export function propertyPanel(
       if (!pending) bands.close()
     },
     canConfirm: () => !pending && !editor.view.composing,
-    tabExit: () => editor.view.focus(),
+    tabExit: () => focusEditorSelection(editor),
   })
   const form = panel.element
   const group = document.createElement('div')
@@ -151,7 +152,8 @@ export function propertyPanel(
     try {
       await change(current)
       if (current()) bands.close(true, editor.state.selection.getBookmark())
-      else if (!bands.isOpen && document.activeElement === document.body) editor.view.focus()
+      else if (!bands.isOpen && document.activeElement === document.body)
+        focusEditorSelection(editor)
     } catch (error) {
       if (current())
         panel.error.textContent = error instanceof Error ? error.message : String(error)

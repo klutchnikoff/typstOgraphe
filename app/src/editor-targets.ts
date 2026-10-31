@@ -47,3 +47,16 @@ export function textTargets(
     return from < to ? [{ zone: { ...root, path }, from, to }] : []
   })
 }
+
+export function positionAtPath(editor: Editor, path: number[]): number {
+  let node = editor.state.doc,
+    pos = 0
+  for (const [depth, index] of path.entries()) {
+    if (!Number.isInteger(index) || index < 0 || index >= node.childCount)
+      throw new Error('Cible structurée invalide.')
+    if (depth) pos++
+    for (let i = 0; i < index; i++) pos += node.child(i).nodeSize
+    node = node.child(index)
+  }
+  return pos
+}

@@ -68,6 +68,13 @@ la cible ; les lots ci-dessous distinguent sa mise en œuvre progressive.
   collaboratifs et présence activés seulement à la demande. On conserve Yjs/Yrs ;
   on ne crée pas une seconde implémentation de l'édition. Le gain de réactivité
   sera mesuré sur le parcours réel, sans assimiler le coût CRDT au rendu Typst.
+- **Activation depuis un document en cours, précisée le 30 octobre :** une action
+  explicite en un clic, sans conversion ou réouverture. Conserver identité,
+  contenu, ressources, historique, sélection et focus ; l’activation ne crée pas
+  d’étape d’annulation. Traiter les confirmations en attente sans publier une
+  préédition IME ou un brouillon privé/refusé, et conserver le travail en cas
+  d’échec d’activation. Le placement de l’action et les transitions entre
+  participants seront précisés avant codage ; le serveur distant reste dans G.
 
 ## Mise en œuvre et critères de sortie
 
@@ -78,8 +85,12 @@ l’historique Tauri y sont raccordés, ainsi que les tableaux, styles, liens,
 titres, widgets, objets en ligne et contextes de sélection/styles de frappe.
 Les raccordements documentaires Tauri, CLI et MCP sont en place : voir le
 [bilan des adaptateurs structurés](structured-adapters.md). La séquence ci-dessous
-conserve les choix de migration ; les transformations restantes et le mode
-individuel allégé ne sont pas encore clos.
+conserve les choix de migration. Les [transformations R1–R3](a2-transformations-results.md)
+issues de l’inventaire sont livrées : retours en ligne localisés, items de listes
+et entrées natives conservant les frontières. Le [mode individuel](individual-mode.md)
+et la [recette Courrier/Article](a2-closure-results.md) sont livrés : **A.2 clos
+le 31 octobre 2026**. La séquence ci-dessous est conservée comme historique des
+choix de migration ; les travaux restants sont dans A.3 de la feuille de route.
 
 1. **Socle partagé** : valeurs de réglages et d'instantané dans le cœur,
    gardes/cibles/erreurs structurées, projection Yrs et contrôle de cohérence
@@ -116,3 +127,13 @@ L’interface n’identifie un modèle comme fourni que si son identifiant **et*
 source correspondent au catalogue courant. Sinon elle présente « Modèle embarqué »
 et propose toujours de choisir explicitement une version du catalogue. Le simple
 chargement ne remplace ni le modèle du projet ni son historique.
+
+## Paramètres de panneau et état structurel
+
+`x-editor.placement` décrit l’interface ; il ne suffit pas à décrire le stockage.
+Un paramètre avec `x-editor.storage: "structure"` reste présenté dans le panneau,
+mais sa valeur provient de la structure et se modifie avec une commande dédiée.
+Ainsi `header` et `row_headers` des tableaux sont portés par les rôles des cellules,
+sans attribut concurrent sur `tableFigure`. L’éditeur n’y ajoute pas de défaut
+sérialisé et `node.set_attrs` refuse de contourner ce contrat. Les attributs de
+nœud non déclarés sont refusés avant publication, y compris dans les lots génériques.

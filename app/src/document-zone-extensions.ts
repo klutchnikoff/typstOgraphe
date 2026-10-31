@@ -6,7 +6,7 @@ import {
   type Extensions,
 } from '@tiptap/core'
 import { ListItem } from '@tiptap/extension-list'
-import { TableKit, Table } from '@tiptap/extension-table'
+import { TableKit, Table, TableHeader } from '@tiptap/extension-table'
 import { simpleWidgets } from './widgets'
 import { widgetFrame, type WidgetPresentations } from './widget-frame'
 import { tr } from './i18n'
@@ -15,6 +15,8 @@ import { inlineObjectView } from './inline-objects'
 import { InlineObjectNumbering, inlineObjectNumber } from './inline-object-numbering'
 import { citationLabel } from './citation-index'
 import { InlineObjectFocus } from './inline-object-focus'
+import { InlineObjectSpacing } from './inline-object-spacing'
+import { TableHandles } from './table-handles'
 
 export function documentExtensions(
   imageURL: (path: string) => string,
@@ -25,6 +27,7 @@ export function documentExtensions(
     Proofing,
     InlineObjectNumbering.configure({ kinds: ['footnote'] }),
     InlineObjectFocus,
+    InlineObjectSpacing,
     ListItem.extend({ content: 'paragraph+' }),
     ...simpleWidgets(properties, presentations),
     Extension.create({
@@ -42,8 +45,31 @@ export function documentExtensions(
         ]
       },
     }),
-    TableKit.configure({ table: false }),
+    TableKit.configure({ table: false, tableHeader: false }),
+    TableHeader.extend({
+      addAttributes() {
+        return {
+          ...this.parent?.(),
+          scope: {
+            default: 'column',
+            parseHTML: (element: HTMLElement) => {
+              const scope = element.dataset.headerScope
+              return scope && ['column', 'row', 'both'].includes(scope)
+                ? scope
+                : element.getAttribute('scope') === 'row'
+                  ? 'row'
+                  : 'column'
+            },
+            renderHTML: (attrs: Record<string, string>) => ({
+              scope: attrs.scope === 'row' ? 'row' : 'col',
+              'data-header-scope': attrs.scope,
+            }),
+          },
+        }
+      },
+    }),
     Table.extend({ group: '' }).configure({ resizable: false }),
+    TableHandles,
     Node.create({
       name: 'tableFigure',
       group: 'block',
@@ -116,7 +142,7 @@ export function documentExtensions(
             badge.describe(
               current.attrs.items.map((item: { key: string }) => item.key).join('; '),
               undefined,
-              citationLabel(editor, current.attrs.items),
+              citationLabel(editor, current.attrs.items, current.attrs.form),
             )
           const transaction = ({
             transaction,
@@ -247,7 +273,9 @@ export function documentExtensions(
       addAttributes() {
         const existing = this.parent?.() || {}
         const declared = Object.fromEntries(
-          fields.map((field) => [field.attribute, { default: field.schema.default ?? null }]),
+          fields
+            .filter((field) => field.schema['x-editor']?.storage !== 'structure')
+            .map((field) => [field.attribute, { default: field.schema.default ?? null }]),
         )
         return { ...declared, ...existing }
       },

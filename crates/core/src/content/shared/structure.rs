@@ -147,7 +147,11 @@ pub(in crate::content) fn root(
         }
     }
 }
-fn container(doc: &Doc, state: &State, target: &TreeTarget) -> Result<XmlFragmentRef, Error> {
+pub(super) fn container(
+    doc: &Doc,
+    state: &State,
+    target: &TreeTarget,
+) -> Result<XmlFragmentRef, Error> {
     let root = root(doc, state, &target.root)?;
     if target.path.is_empty() {
         return Ok(root);
@@ -471,6 +475,7 @@ pub(super) fn apply(doc: &Doc, state: &State, command: &Command) -> Result<(), E
         Command::ReplaceBlock { target, node } => replace(doc, state, target, Some(node)),
         Command::RemoveBlock { target } => replace(doc, state, target, None),
         Command::SplitBlock { target } => split(doc, state, target),
+        Command::JoinBlocks { left, right } => super::join::apply(doc, state, left, right),
         Command::Paragraph { target } => convert(doc, state, command, target, None),
         Command::Heading1 { target } => convert(doc, state, command, target, Some(1)),
         Command::Heading2 { target } => convert(doc, state, command, target, Some(2)),

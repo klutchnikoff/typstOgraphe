@@ -39,6 +39,14 @@ export function browserDriver(root: string): Plugin {
       }
       child.on('error', fail)
       child.on('exit', (code) => fail(`Le moteur de diagnostic est arrêté (${code}).`))
+      const call = (input: Record<string, unknown>): Promise<unknown> => {
+        const id = ++next
+        return new Promise((resolve, reject) => {
+          requests.set(id, { resolve, reject })
+          child.stdin.write(JSON.stringify({ ...input, id }) + '\n')
+        })
+      }
+      const connections = new Map<string, { token: string; generation?: string }>()
       const broadcast = (name: string, payload: unknown) => {
         for (const stream of streams) stream.write(`data: ${JSON.stringify({ name, payload })}\n\n`)
       }
@@ -50,7 +58,20 @@ export function browserDriver(root: string): Plugin {
         })
         response.write(': connected\n\n')
         streams.add(response)
-        request.on('close', () => streams.delete(response))
+        const query = new URL(request.url || '/', 'http://localhost').searchParams
+        const peer = query.get('peer') || '',
+          token = query.get('token') || ''
+        if (peer && token) connections.set(peer, { token })
+        request.on('close', () => {
+          streams.delete(response)
+          const lease = connections.get(peer)
+          if (lease?.token !== token) return
+          connections.delete(peer)
+          if (lease.generation)
+            void call({ command: 'leave', peer, args: { generation: lease.generation } })
+              .then((status) => broadcast('web-editor:synchronization', status))
+              .catch(() => {})
+        })
       })
       server.middlewares.use('/__spike/invoke', async (request, response) => {
         if (request.method !== 'POST') {
@@ -66,12 +87,19 @@ export function browserDriver(root: string): Plugin {
             chunks.push(chunk)
           }
           const input = JSON.parse(Buffer.concat(chunks).toString('utf8'))
-          const id = ++next
-          const result = await new Promise((resolve, reject) => {
-            requests.set(id, { resolve, reject })
-            child.stdin.write(JSON.stringify({ ...input, id }) + '\n')
-          })
-          if (input.command === 'commit_structured_commands') {
+          const result = await call(input)
+          if (input.command === 'join') {
+            const bootstrap = result as { generation: string; synchronization: unknown }
+            const lease = connections.get(input.peer)
+            if (lease && lease.token === input.token) lease.generation = bootstrap.generation
+            broadcast('web-editor:synchronization', bootstrap.synchronization)
+          }
+          if (input.command === 'connection' || input.command === 'set_synchronization')
+            broadcast('web-editor:synchronization', result)
+          if (
+            input.command === 'commit_structured_commands' &&
+            (result as { broadcast: boolean }).broadcast
+          ) {
             const publication = result as {
               resources: { path: string; data: string }[]
               changed: boolean
@@ -93,8 +121,8 @@ export function browserDriver(root: string): Plugin {
               })
           }
           if (input.command === 'relay' || input.command === 'editing_history') {
-            const receipt = result as { revision: number; update: number[] }
-            if (receipt.update.length)
+            const receipt = result as { revision: number; update: number[]; broadcast: boolean }
+            if (receipt.update.length && receipt.broadcast)
               broadcast('web-editor:change', {
                 from: input.peer,
                 generation: input.args.generation,
@@ -103,8 +131,8 @@ export function browserDriver(root: string): Plugin {
               })
           }
           if (input.command === 'new_document') broadcast('app:document', null)
-          if (input.command === 'awareness')
-            broadcast('web-editor:awareness', { from: input.peer, update: input.args.update })
+          if (input.command === 'awareness' && result === true)
+            broadcast('web-editor:awareness', { from: input.peer, ...input.args })
           if (input.command === 'preview_frame') {
             response.setHeader('Content-Type', 'application/octet-stream')
             response.end(Buffer.from((result as { binary: string }).binary, 'base64'))

@@ -130,6 +130,25 @@ fn header_targets_and_header_selectors_cannot_bypass_body_only_review() {
     let p=s.owner.as_mut().unwrap().calls("human",&guard,&[Call{id:"metadata.set".into(),params:json!({"target":{"kind":"metadata","field":"letter.subject"},"value":"ONLY HEADER"})}]).unwrap();
     s.record(&p);
     let before = s.updates.clone();
+    for (left, right) in [
+        (
+            json!({"kind":"body"}),
+            json!({"kind":"record","collection":"localizations","id":"x","field":"abstract"}),
+        ),
+        (
+            json!({"kind":"record","collection":"localizations","id":"x","field":"abstract"}),
+            json!({"kind":"body"}),
+        ),
+    ] {
+        let p = submit(
+            &s,
+            "hidden-join",
+            json!([{"id":"block.join","params":{
+                "left":{"root":left,"path":[0]},"right":{"root":right,"path":[1]}
+            }}]),
+        );
+        assert!(dispatch(&mut s, &mut a, "proposals.submit", &p).is_err());
+    }
     for target in [
         json!({"zone":{"kind":"metadata","field":"letter.subject"},"from":0,"to":0}),
         json!({"zone":{"kind":"record","collection":"localizations","id":"x","field":"title","path":[0]},"from":0,"to":0}),
