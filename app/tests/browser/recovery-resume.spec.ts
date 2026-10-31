@@ -270,7 +270,10 @@ test('une image remplacée reste privée après reprise et utilise les paramètr
   )
 })
 
-test('un brouillon JSON refusé reste isolé et consultable après import', async ({ page }) => {
+test('un brouillon JSON refusé reste isolé et consultable après import', async ({
+  page,
+  request,
+}) => {
   const directory = await mkdtemp(path.join(tmpdir(), 'typstographe-recovery-import-'))
   const file = path.join(directory, 'private.json')
   const data = JSON.stringify({
@@ -280,16 +283,14 @@ test('un brouillon JSON refusé reste isolé et consultable après import', asyn
   })
   try {
     await writeFile(file, data)
+    const revision = await page.evaluate(() => window.__spike!.provider.revision)
     await Promise.all([
       page.waitForEvent('domcontentloaded'),
-      page.evaluate(
-        (path) =>
-          window.__spike!.provider.transport.invoke('work_import', {
-            path,
-            revision: window.__spike!.provider.revision,
-          }),
-        file,
-      ),
+      request
+        .post('/__spike/invoke', {
+          data: { command: 'work_import', peer: 'main', args: { path: file, revision } },
+        })
+        .then(async (response) => expect((await response.json()).error).toBeUndefined()),
     ])
     await page.waitForFunction(() => window.__spike?.ready)
     expect(

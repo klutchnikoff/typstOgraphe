@@ -272,6 +272,9 @@ impl Session {
         self.activate_for_windows();
         Ok(())
     }
+    pub(crate) fn registered_windows(&self) -> Vec<String> {
+        self.peers.iter().cloned().collect()
+    }
     pub fn leave(&mut self, peer: &str) {
         self.offline.remove(peer);
         if self.peers.remove(peer) {

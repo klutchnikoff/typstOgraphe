@@ -113,7 +113,14 @@ impl Session {
             let parent = directory.join("drafts").join(parts[1]);
             plain_dir(&parent)?;
             // The live current view is never offered as a second recovery project.
-            if is_own && parts[1] == self.generation && !parts[2].starts_with("retained-") {
+            if is_own
+                && parts[1] == self.generation
+                && self.registered_windows().iter().any(|window| {
+                    drafts::path(&self.root, &self.generation, window)
+                        .ok()
+                        .is_some_and(|path| path.file_name().is_some_and(|name| name == parts[2]))
+                })
+            {
                 return Err("recovery_live_copy".into());
             }
             parent.join(parts[2])

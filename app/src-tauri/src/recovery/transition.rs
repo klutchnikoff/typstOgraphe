@@ -41,7 +41,7 @@ impl Session {
             id: uuid::Uuid::new_v4().to_string(),
             generation: generation.into(),
             revision: self.revision,
-            windows: self.synchronization().windows.into_iter().collect(),
+            windows: self.registered_windows().into_iter().collect(),
             acknowledged: HashSet::new(),
             errors: HashMap::new(),
             abandon: HashSet::new(),

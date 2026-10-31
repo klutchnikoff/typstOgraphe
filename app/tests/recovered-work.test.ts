@@ -118,3 +118,22 @@ it('a contextual band accepts Ctrl/Cmd Enter through the common panel keyboard s
   input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }))
   expect(confirm).toHaveBeenCalledTimes(2)
 })
+
+it('quitting from a clean view still asks to preserve work in the other windows', async () => {
+  const keep = vi.fn(async () => {})
+  const save = vi.fn(async () => true)
+  const result = decideClose({
+    dirty: false,
+    pending: 0,
+    otherWindows: 1,
+    keep,
+    save,
+    discard: async () => {},
+  })
+  const dialog = document.querySelector('dialog')!
+  expect(dialog.textContent).toContain('Leurs saisies en cours seront conservées.')
+  dialog.querySelector<HTMLButtonElement>('button.primary')!.click()
+  await expect(result).resolves.toBe('keep')
+  expect(keep).toHaveBeenCalledOnce()
+  expect(save).not.toHaveBeenCalled()
+})

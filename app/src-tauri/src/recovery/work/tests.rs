@@ -259,3 +259,34 @@ fn a_pending_field_keeps_its_original_base_when_a_later_checkpoint_contains_peer
         .unwrap();
     assert_eq!(field.payload["base"], "Subject before concurrent editing");
 }
+
+#[test]
+fn a_transition_also_waits_for_registered_windows_with_suspended_synchronization() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = setup(dir.path());
+    s.join("suspended");
+    s.connection("suspended", &s.generation.clone(), false)
+        .unwrap();
+    assert!(
+        !s.synchronization()
+            .windows
+            .contains(&"suspended".to_string())
+    );
+    let transition = s.begin_transition("main", &s.generation.clone()).unwrap();
+    assert!(transition.windows.contains("suspended"));
+    assert!(!transition.ready());
+}
+
+#[test]
+fn a_closed_views_private_copy_remains_available_while_other_views_stay_open() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = setup(dir.path());
+    s.join("closed");
+    conserve(&mut s, "closed", "Private closed view");
+    assert!(s.work_list().unwrap().is_empty());
+    s.leave("closed");
+    let entries = s.work_list().unwrap();
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].window, "closed");
+    assert!(!s.work_list().unwrap().iter().any(|e| e.window == "main"));
+}
