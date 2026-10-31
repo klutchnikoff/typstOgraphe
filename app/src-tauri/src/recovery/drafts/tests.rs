@@ -88,7 +88,13 @@ fn revisions_views_and_windows_cannot_overwrite_or_clean_each_others_private_inp
     );
     s.reset_document_generation();
     assert!(s.conserve_private("main", main).is_err());
-    assert!(file.exists());
+    assert!(
+        fs::read_dir(file.parent().unwrap())
+            .unwrap()
+            .flatten()
+            .any(|entry| read(&entry.path())
+                .is_ok_and(|r| r.window == "main" && r.input.forms[0]["name"] == "Latest"))
+    );
 }
 
 #[test]
@@ -236,5 +242,38 @@ fn a_storage_failure_keeps_the_previous_copy_and_can_be_retried() {
     assert_eq!(
         read(&file).unwrap().input.forms[0]["text"],
         "Retried private work"
+    );
+}
+
+#[test]
+fn a_reloaded_view_does_not_consume_unrestored_private_input() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = session(dir.path());
+    let mut old = input(&mut s, "main");
+    old.forms.push(json!({"text":"Unrestored form"}));
+    s.conserve_private("main", old.clone()).unwrap();
+    let current_file = path(dir.path(), &s.generation, "main").unwrap();
+    let mut current = input(&mut s, "main");
+    assert_ne!(current.epoch, old.epoch);
+    assert!(!current_file.exists());
+    current.forms.push(json!({"text":"New view input"}));
+    s.conserve_private("main", current).unwrap();
+    assert!(s.conserve_private("main", old).is_err());
+    s.mark_clean().unwrap();
+    let records: Vec<_> = fs::read_dir(current_file.parent().unwrap())
+        .unwrap()
+        .flatten()
+        .filter_map(|entry| read(&entry.path()).ok())
+        .collect();
+    assert_eq!(records.len(), 2);
+    assert!(
+        records
+            .iter()
+            .any(|r| r.input.forms[0]["text"] == "Unrestored form")
+    );
+    assert!(
+        records
+            .iter()
+            .any(|r| r.input.forms[0]["text"] == "New view input")
     );
 }

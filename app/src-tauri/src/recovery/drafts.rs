@@ -174,6 +174,18 @@ pub fn clean_confirmed(root: &Path, generation: &str) {
 impl Session {
     pub fn open_private_recovery(&mut self, window: &str, generation: &str) -> Result<u64, String> {
         self.check_peer(window, generation)?;
+        // A reloaded view cannot silently consume private input that it has not
+        // restored. Keep that envelope for the explicit recovery decision.
+        let file = path(&self.root, generation, window)?;
+        if let Ok(meta) = file.symlink_metadata()
+            && (!meta.is_file() || meta.file_type().is_symlink())
+        {
+            return Err("recovery_invalid_file".into());
+        }
+        if file.exists() && read(&file).map_or(true, |record| private(&record)) {
+            let retained = file.with_file_name(format!("retained-{}.json", uuid::Uuid::new_v4()));
+            fs::rename(&file, retained).map_err(|e| e.to_string())?;
+        }
         let version = self.draft_epochs.entry(window.into()).or_default();
         version.0 += 1;
         version.1 = 0;
