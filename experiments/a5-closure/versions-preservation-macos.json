@@ -1,0 +1,19 @@
+{
+  "git": "3329f7810b64eec0eb60282c9cc72a61e5e98a14",
+  "cases": [
+    {
+      "kind": "courrier",
+      "version_id": "fbc33611-7350-410d-8492-66e45f88e97a",
+      "state": "sha256:5d0c8c3130d552e28669bf5832f37bfac7d3ed5cbf038c33d341d48f603d9f43",
+      "retained_versions": 1,
+      "matches_native_reference_after_cli_mcp_and_reopen": true
+    },
+    {
+      "kind": "article",
+      "version_id": "199ce493-9df6-4c69-92aa-d245072c0019",
+      "state": "sha256:c243f9ac35c532366deeb3a6ebba2580500668df5392868a2a64dbe622afd147",
+      "retained_versions": 1,
+      "matches_native_reference_after_cli_mcp_and_reopen": true
+    }
+  ]
+}

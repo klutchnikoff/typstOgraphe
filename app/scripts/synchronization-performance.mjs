@@ -1,4 +1,4 @@
-// Native IPC, embedded production frontend. Build before running; no Vite server.
+// Native IPC, embedded recipe frontend with the shared editor. Build with build:recipe; no Vite server.
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'

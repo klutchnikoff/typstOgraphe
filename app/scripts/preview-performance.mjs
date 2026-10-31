@@ -1,5 +1,5 @@
 // Build first with npm run build:recipe -- --release.
-// Runs the real native app with embedded production frontend assets, never Vite/HTTP.
+// Runs the real native app with embedded recipe assets and the shared editor/render pipeline, never Vite/HTTP.
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
@@ -42,7 +42,9 @@ report.environment = {
   totalMemoryBytes: os.totalmem(),
   binary,
   git: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(),
-  profile: process.env.TOG_BENCH_PROFILE || 'release; embedded production frontend',
+  profile:
+    process.env.TOG_BENCH_PROFILE ||
+    'release; embedded recipe frontend, shared editor/render pipeline',
 }
 const percentile = (values, p) =>
   [...values].sort((a, b) => a - b)[Math.ceil(values.length * p) - 1]

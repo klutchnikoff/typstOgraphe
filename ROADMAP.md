@@ -24,8 +24,10 @@ seule poussée par lot, sauf correction nécessaire d’une vérification distan
 conservation des brouillons, fichiers CAS et Versions avec comparaison locale.
 Les [contrats courants et bilans](docs/README.md) décrivent les garanties livrées ;
 les propositions MCP rattachées restent limitées au corps/cellules/annotations.
-A.5 vérifie la documentation, l’isolation des recettes et le corpus final avant
-la clôture du socle. Les contrôles matériels et de distribution restent dans H.
+La [clôture A.5](docs/a5-closure-results.md) documente les contrats, l’isolation
+des recettes et la recette finale depuis un checkout propre. La qualification
+CI complète du candidat reste à vérifier avant fusion. Les contrôles matériels
+et de distribution restent dans H.
 
 **Aucune capture d’écran pour le moment** : les tests fonctionnels restent actifs,
 sans captures automatiques ni références au pixel près. L’interface n’est pas figée.
@@ -65,7 +67,6 @@ et comparaison sert aux versions et aux propositions MCP, avec des actions adapt
 
 | Priorité | Chantier | Résultat attendu |
 | --- | --- | --- |
-| **P0** | A — Socle d’application | Une application Tauri de référence, un contrat documentaire commun et des fichiers fiables |
 | **P1** | B — Types et contrats | Une liste limitée de types utiles, leurs métadonnées et leurs capacités |
 | **P1** | C — Capacités documentaires | Un périmètre quotidien complet et cohérent, puis les outils nécessaires aux documents SHS |
 | **P1** | D — Modèles et bibliothèque | Au moins un modèle réellement utilisable pour chaque type livré |
@@ -80,17 +81,13 @@ L’accessibilité, la protection du travail et les performances accompagnent ch
 lot. La collaboration distante et l’assistance restent facultatives ; la
 rédaction individuelle, l’ouverture et l’export doivent fonctionner hors ligne.
 
-## A — Clôture du socle
+## Socle livré — références
 
-A.1–A.4 sont livrés ; voir l’[index des contrats et bilans](docs/README.md).
-**A.5 en cours :** documentation de référence, retrait des chemins inutiles,
-recettes explicitement séparées de l’application normale, puis vérification
-Courrier/Article depuis un checkout propre (Tauri, CLI, MCP, Versions, export
-hors ligne). La recette ne crée ni capture, ni vidéo, ni trace graphique.
-
-La clôture porte sur les fondations, pas sur la complétude des outils de rédaction.
-Les types, les capacités manquantes, ACP et la distribution gardent leurs propres
-lots et arbitrages. Tout choix structurant découvert reste à discuter ensemble.
+A.1–A.5 sont implémentés et recettés localement ; voir l’[index documentaire](docs/README.md)
+et le [bilan de clôture](docs/a5-closure-results.md). La qualification CI du
+candidat sur les trois systèmes reste distincte des résultats macOS locaux.
+Le socle ne constitue pas encore un outil de rédaction complet : les lots
+ci-dessous portent les fonctionnalités restantes et leurs arbitrages.
 
 ## B — Définir les types utiles et leurs contrats
 
@@ -317,23 +314,12 @@ Les choix fonctionnels détaillés sont dans le [plan technique](ROADMAP-ARCHITE
 **Sortie :** discuter, reformuler une sélection et préparer un document structuré,
 puis accepter/refuser un lot, avec au moins deux agents et sans configuration MCP manuelle.
 
-**Raccordement MCP à la validation locale commune d’A.4 :**
-
-- Le moteur de comparaison et d’application locale est construit une seule fois
-  dans A.4, puis utilisé pour les versions et les propositions MCP ; ne pas
-  reporter son implémentation à un second moteur propre à F.
-- Conserver la paire immuable « État de départ → Proposition », la garde du
-  document et les opérations nécessaires à la publication. Un regroupement
-  visuel ne suffit pas à établir un groupe applicable ; les dépendances entre
-  texte, structure, métadonnées et ressources imposent des décisions groupées.
-- Réutiliser les décisions locales, la progression et les refus du moteur
-  commun. Les choix restent provisoires jusqu’à la publication unique du résultat ;
-  une intervention extérieure impose un réexamen explicite. Ne jamais réactiver
-  une ancienne garde parce que le contenu est redevenu identique.
-- F précise les adaptations de protocole, les reçus/statuts et le cycle de vie
-  des propositions, sans donner à l’agent le droit d’accepter ses changements.
-  Le premier raccordement A.4 permet déjà les décisions locales. F.3 complète
-  les reçus et le cycle de vie sans introduire un second moteur.
+**Cycle de vie des propositions restant à préciser :** la comparaison et les
+reçus locaux sont livrés ; le [contrat courant](docs/a4-comparison-contract.md)
+est conservé. F doit décider de leur conservation durable après décision,
+des enrichissements de reçus utiles à ACP et du parcours de nouvelle proposition
+sur une base actualisée. Aucun second moteur de validation ni droit implicite
+de sauvegarde/export n’est à développer.
 
 ## G — Ajouter la collaboration distante
 
@@ -496,9 +482,9 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Clore **A.5** avec la recette depuis un checkout propre ; le
-   [bilan de clôture](docs/a5-closure-results.md) distingue résultats locaux et CI.
-2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
+1. Vérifier la qualification CI du candidat A.5, puis préciser ensemble le
+   prochain périmètre de types et capacités (**B/C**).
+2. Reprendre le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
 3. Engager ACP après stabilisation du contrat documentaire et validation de sa
    maquette (**F**), sans attendre la livraison de tous les types SHS/enseignement.

@@ -36,19 +36,17 @@ Le [contrat structuré](docs/structured-contract.md) et l’[index documentaire]
 sont les références du socle. Aucun maintien artificiel des anciens formats ou
 de la projection plate n’est demandé. Les bilans d’A.1–A.4 restent consultables.
 
-## A. Clôture du socle — A.5
+## Socle livré — références
 
-**En cours :** contrats et guide de développement à jour, diagnostics natifs
-réservés à `recipe-driver`, frontend de recette Vite distinct de la distribution,
-recette Courrier/Article depuis un checkout propre. Vérifier sauvegarde/réouverture,
-versions, comparaison/reprise annulable, ressources et exports communs Tauri/CLI/MCP.
-Conserver résultats, rapports, licences et références visuelles historiques, sans
-nouvelles captures. Les contrôles d’installation/signature et les claviers/IME
-matériels restent dans H. Voir le [bilan A.5](docs/a5-closure-results.md).
+A.1–A.5 sont implémentés et recettés localement. Les [contrats courants](docs/README.md)
+et le [bilan A.5](docs/a5-closure-results.md) décrivent les constructions normale/de
+recette, les gardes et le corpus Courrier/Article entre adaptateurs. La qualification
+CI complète du candidat doit encore être vérifiée avant fusion. Les contrôles
+matériels, de signature et de distribution restent dans H.
 
-Le travail livré ne doit plus figurer comme tâche à faire dans ces roadmaps.
 Les contrats du fichier CAS, de récupération et du comparateur restent courants,
-même lorsque leur nom conserve le numéro du lot qui les a définis.
+même lorsque leur nom conserve le numéro du lot qui les a définis. Le travail
+livré ne figure plus comme tâche à faire dans ces roadmaps.
 
 ## B. Types, paramètres et manifestes — P1
 
@@ -234,27 +232,14 @@ sans introduire par défaut une nouvelle origine de version « agent ».
 refus/acceptation, péremption, annulation, interruption et révocation. Ne pas
 supposer que les fonctions, forfaits et quotas sont identiques entre agents.
 
-### F.3 Raccordement MCP aux décisions locales communes
+### F.3 Cycle de vie et reçus des propositions
 
-Le moteur de comparaison et d’application locale est développé dans A.4 pour
-Versions et MCP. F.3 ne constitue plus un moteur de validation partielle séparé.
-Il raccorde les propositions, leurs reçus et leurs statuts au même contrat.
-
-Conserver base/candidat immuables et des choix de composition provisoires distincts.
-La validation unique met à jour les reçus des groupes retenus/écartés. Une garde
-périmée exige une nouvelle proposition ; aucune réapplication ni réancrage
-silencieux d’une intervention concurrente n’est autorisé.
-Les dépendances structurelles et de ressources imposent une décision atomique
-pour les éléments liés, même lorsqu’ils sont éloignés dans le document.
-
-Seul l’utilisateur décide. Le refus ne publie rien ; une application locale passe
-par le propriétaire documentaire et une étape d’annulation cohérente. Définir
-ensemble l’enveloppe de protocole et le cycle de vie après décision, sans modifier
-les états de comparaison ni accorder des droits implicites de sauvegarde/export.
-A.4 compose désormais les choix du comparateur et publie leur résultat une fois.
-Le bouton humain « Appliquer » produit une édition ordinaire sans sauvegarde ni
-snapshot automatique ; l’utilisateur garde la main sur ces deux actions. F.3 peut
-enrichir les reçus et le cycle de vie sans introduire un second moteur.
+La comparaison humaine et ses reçus par groupes sont livrés : voir le
+[contrat courant](docs/a4-comparison-contract.md). Il reste à préciser ensemble
+la conservation durable après décision, les reçus supplémentaires requis par ACP
+et le parcours de nouvelle proposition sur une base relue. Conserver les gardes,
+les groupes dépendants indivisibles et l’autorité humaine ; ne pas construire
+un second moteur ni accorder de droits implicites de sauvegarde/export.
 
 ## G. Collaboration et hébergement — P2
 
