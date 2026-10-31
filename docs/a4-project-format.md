@@ -83,6 +83,10 @@ correspondre aux valeurs documentaires partagées. Un arbre ou un source Typst
 isolé n’autorise pas à remplacer silencieusement un état partagé contradictoire.
 Les sources Typst sont conservées mais restent dérivées, hors de la voie d’édition.
 
+Le même descripteur complet sert aux versions conservées, aux références internes
+de relecture et aux états privés base/candidat MCP. Ce partage de forme ne leur
+donne ni la même visibilité, ni le même cycle de vie, ni les mêmes droits.
+
 Le checkpoint est obligatoire aussi en mode individuel ; une simple frontière
 causale, un vecteur d’état ou un différentiel dépendant d’un autre état ne suffit
 pas. Il conserve les identités nécessaires à Yjs/Yrs. La pile d’annulation en
@@ -162,6 +166,74 @@ stockage des suggestions/commentaires et la rétention après clôture restent �
 préciser dans J. Ce format n’impose ni nouvelle action « Comparer à l’état
 initial », ni usage de la modale Versions dans les outils de relecture.
 
+## Propositions MCP — paire d’états privés
+
+Une proposition soumise est fondée sur **deux états figés explicitement liés** :
+
+- `base` : l’état confirmé depuis lequel l’agent a travaillé, issu d’un snapshot
+  choisi ou capturé au début du lot, avec sa provenance et sa garde documentaire ;
+- `candidate` : l’état candidat complet, construit et vérifié par le moteur
+  lorsque l’agent soumet son travail ; il est explicitement fondé sur `base`.
+
+Ces noms décrivent les rôles du contrat cible, sans prétendre que le protocole
+MCP de production possède déjà ces nouveaux champs. L’enveloppe de proposition
+conserve identité du projet/session, garde document/révision et opérations
+documentaires nécessaires à sa publication. Une différence visuelle entre deux
+snapshots n’est pas à elle seule une autorisation ni un plan d’édition.
+
+Les états emploient les mêmes descripteurs et objets CAS que les versions, mais
+dans l’espace privé de la proposition, **hors de `versions.json` et du `.typsto`
+confirmé**. Le moteur peut réutiliser des objets confirmés en lecture seule ;
+la session doit en garder une vue complète et disponible jusqu’à la décision,
+y compris si un nettoyage du fichier conserve d’autres racines entre-temps.
+Aucun manifeste confirmé ne pointe vers des objets seulement privés.
+
+La soumission ne modifie pas le document courant et ne crée ni entrée Versions,
+ni relecture J, ni enregistrement implicite. Le candidat reste privé jusqu’à
+acceptation. Celle-ci passe par les commandes gardées du moteur ; sauvegarde et
+export conservent leurs autorisations distinctes. La conservation durable
+éventuelle d’une proposition après décision reste à préciser avec F : cette
+décision n’ajoute pas une origine visible « agent » ou une sauvegarde automatique.
+Le refus ne publie aucune modification. L’acceptation reste celle du lot entier
+jusqu’à F.3 ; les groupes indépendants y seront traités sans réécrire les états
+initiaux ou abandonner les vérifications de concurrence.
+
+La modale de consultation/comparaison est commune avec Versions, avec les
+onglets Contenu, Aperçu et Comparer. Son contexte MCP choisit par défaut
+**« État de départ → Proposition »**, et expose Accepter/Refuser plutôt que les
+actions de restauration/suppression d’une version conservée. Les aperçus et
+ressources des deux états restent isolés du document courant. Les intitulés
+ne prétendent pas que la base est encore le document actuel si celui-ci a évolué.
+
+Si la révision courante change, la proposition devient périmée pour publication ;
+la comparaison des deux états figés reste consultable, sans fusion ni réancrage
+automatique. Revenir au même contenu ou à la même empreinte par Annuler ne
+réactive pas la garde. Une proposition applicable doit être préparée à partir
+d’une base et d’une garde actualisées, conformément à la concurrence stricte
+existante. Ces règles ne relâchent pas les contrôles actuels de soumission.
+
+## Parcours utilisateur distincts
+
+La barre latérale distingue **Versions** et **Relectures** :
+
+- Versions affiche les états conservés par origine visible, avec ordre
+  chronologique dans chaque groupe. Le clic ouvre une modale centrée à 90 % de
+  la fenêtre, sur fond atténué et légèrement flouté ; Contenu, Aperçu et Comparer
+  occupent sa barre supérieure, et le sélecteur d’état apparaît en comparaison.
+  La comparaison d’une version prend le document courant par défaut ou une autre
+  version explicitement choisie. Restauration et suppression se confirment dans
+  la même modale, sans empiler un second dialogue.
+- Relectures conserve les outils d’annotations définis dans J. Le snapshot
+  technique initial ne détermine pas son interface et n’ajoute pas une action
+  de comparaison non validée.
+
+Les propositions MCP rejoignent le parcours de consultation d’états de Versions,
+avec la paire et les décisions propres au contexte MCP décrites ci-dessus ;
+elles ne sont pas assimilées à une relecture J par ce mécanisme. Échap ferme
+d’abord une confirmation, puis la consultation ; le focus revient à l’élément
+d’ouverture du contexte concerné. Ce partage porte sur la présentation et le
+calcul des différences, pas sur l’identité des opérations autorisées.
+
 ## Sauvegarde, création, restauration et suppression
 
 L’index des versions reste extérieur à l’arbre documentaire et au checkpoint
@@ -178,7 +250,8 @@ adaptateurs autorisés ; aucun adaptateur ne modifie directement le ZIP.
   refusées. Restaurer ne consiste pas à injecter l’ancien binaire Yjs ou à
   ramener une révision en arrière : le moteur publie un nouvel état courant en
   préservant les garanties de concurrence et les autres versions conservées.
-- **Supprimer** retire seulement une entrée autorisée, puis ne nettoie que les
+- **Supprimer une version** retire seulement une entrée autorisée de `snapshots`,
+  sans pouvoir détacher une référence active de `review_references`, puis ne nettoie que les
   objets devenus inaccessibles depuis l’état courant, tous les snapshots retenus
   et les références protégées. Aucun effacement automatique de versions.
 
@@ -217,6 +290,11 @@ autoriser jusqu’à 512 Mio sur disque et décompressés pour l’archive, 16 3
 et **100 versions affichées maximum** (`manual`, `before_restore`). Le quota
 porte sur les entrées de `snapshots`, pas sur le nombre d’objets CAS. L’état
 courant et les références internes de `review_references` n’y sont pas comptés.
+Les paires privées MCP sont également hors quota ; leurs limites et leur
+nettoyage relèvent de l’espace de proposition. Le plafond du fichier s’applique
+aux données qui y sont effectivement conservées, sans faire passer ce budget
+pour un budget global des espaces privés. Leurs bornes propres restent à
+préciser avec F avant intégration, en conservant les limites de session existantes.
 Un plafond est un refus explicite sans perte, jamais une autorisation de supprimer
 des versions. Ces budgets doivent être vérifiés lors de
 l’intégration ; ils ne sont pas une garantie de latence sur ces volumes.

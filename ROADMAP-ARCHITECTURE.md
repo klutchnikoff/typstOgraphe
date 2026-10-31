@@ -172,6 +172,20 @@ courant, sans modifier les snapshots. A.4 prépare les données nécessaires à 
 validation locale MCP, livrée séparément en F.3 et non requise pour clôturer A.4.
 Les outils d’annotations de J restent dédiés au mode relecture.
 
+**Convergence MCP :** une proposition associe deux états figés complets et
+vérifiés, la base depuis laquelle l’agent a travaillé et le candidat figé à sa
+soumission. Garder leur lien de provenance et la garde document/révision source.
+Réutiliser la même modale de consultation et comparaison, avec la paire
+« État de départ → Proposition » par défaut, et Accepter/Refuser comme décisions.
+Chaque aperçu utilise les ressources et le modèle de son propre état. La
+comparaison n’applique rien et ne produit pas implicitement un patch autorisé.
+Une révision courante différente rend la proposition périmée pour publication,
+même si les états figés restent consultables ; une égalité des empreintes après
+Annuler ne réactive pas une ancienne garde. La régénération passe par une base
+actualisée, pas par une fusion silencieuse. Le candidat et ses ressources restent
+privés jusqu’à acceptation, hors Versions et du `.typsto` confirmé ; voir le
+[contrat de format](docs/a4-project-format.md#propositions-mcp--paire-détats-privés).
+
 Étudier un stockage de ressources immuables identifiées par leur contenu,
 partagées entre états : une image remplacée doit rester accessible depuis
 son ancien snapshot. Le nettoyage prend en compte l’état courant et tous les
@@ -340,7 +354,7 @@ lors du passage courrier → article → courrier.
 
 **Séparation validée le 27 octobre 2026 :** l’accès **Projets** présente le
 catalogue global (récents, épinglés, recherche, création et ouverture) ; l’accès
-**Document** présente le plan, les références, les ressources et les versions du
+**Document** présente le plan, les références, les ressources, les versions et les relectures du
 projet actif, selon son type. Le catalogue référence les fichiers ; retirer une
 entrée ne les supprime pas. Préférences et bibliothèque globales restent
 distinctes des données du projet.
@@ -403,10 +417,18 @@ Une conversation par document et agent initialement ; aucun historique ajouté
 au .typsto dans le premier périmètre. La conservation éventuelle par l’agent
 doit être expliquée. Changer d’agent commence une nouvelle conversation.
 
-Un seul lot en attente, relecture et acceptation/refus explicites, révision
+Un seul lot en attente, consultation et acceptation/refus explicites, révision
 revalidée à l’acceptation. Distinguer interruption, masquage et terminaison ;
 terminer/fermer/remplacer révoque l’accès et retire les propositions en attente.
 Une reprise ne renvoie ni une demande ni une édition automatiquement.
+
+Le lot soumis prend la forme d’une paire privée base/candidat, avec garde et
+opérations documentaires sous-jacentes, telle que définie dans A.4. La soumission
+ne crée pas une version visible, n’ouvre pas une relecture J et ne sauvegarde
+pas implicitement le projet. Accepter publie via le moteur commun, sous contrôle
+de révision ; les écritures de fichiers gardent leurs permissions propres.
+La conservation durable éventuelle après décision reste à préciser dans F,
+sans introduire par défaut une nouvelle origine de version « agent ».
 
 **Sortie F :** deux agents compatibles vérifiés sur discussion, lecture, proposition,
 refus/acceptation, péremption, annulation, interruption et révocation. Ne pas
@@ -415,7 +437,9 @@ supposer que les fonctions, forfaits et quotas sont identiques entre agents.
 ### F.3 Validation locale des propositions MCP — lot distinct après A.4
 
 Réutiliser le contrat et l’interface de comparaison d’A.4 pour accepter/refuser
-des groupes indépendants. Le calcul de différences ne suffit pas à prouver cette
+des groupes indépendants à partir de la paire base/candidat. Ces états restent
+immuables ; le suivi du reliquat et de ses gardes ne se déduit pas d’un simple
+retour au même contenu. Le calcul de différences ne suffit pas à prouver cette
 indépendance : relier les groupes aux commandes et à leurs dépendances, y compris
 structurelles et de ressources. Des changements éloignés peuvent être liés
 (citation et référence bibliographique). Conserver une décision groupée lorsque

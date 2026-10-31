@@ -63,7 +63,7 @@ par un espace de stockage imposé.
   créer et ouvrir un projet. Retirer une entrée des récents ne supprime pas
   le fichier.
 - **Document** : naviguer dans le projet actif, avec son plan, ses références
-  bibliographiques, ses ressources et ses versions conservées. Les rubriques
+  bibliographiques, ses ressources, ses versions conservées et ses relectures. Les rubriques
   s’adaptent aux capacités du type ; l’arborescence technique reste masquée.
 
 La piste à maquetter s’appuie sur la barre verticale existante et un seul panneau
@@ -174,6 +174,14 @@ budgets de volume du projet et à une politique de rétention propre à J.
   une action explicite sur l’état courant, jamais sur le snapshot conservé.
   La validation partielle MCP relève du lot dédié F, sans conditionner la clôture
   d’A.4 ; le mode relecture J conserve ses outils dédiés.
+- **Propositions MCP comme paire d’états figés :** conserver l’état de départ
+  depuis lequel l’agent a travaillé et figer l’état candidat à la soumission du
+  lot, avec un lien explicite à sa base et à sa garde documentaire. La même
+  modale propose par défaut « État de départ → Proposition ». Le candidat reste
+  privé jusqu’à l’acceptation ; les décisions sont Accepter/Refuser, pas Restaurer.
+  Une modification du document courant rend la proposition périmée pour la
+  publication, sans rendre mensongère la comparaison des deux états figés.
+  Voir le [contrat du candidat privé](docs/a4-project-format.md#propositions-mcp--paire-détats-privés).
 - Séparer stockage CAS et calcul des différences : évaluer une bibliothèque de
   diff existante et l’adaptation au contenu structuré, sans introduire Git pour
   afficher les changements. Yjs/Yrs reste le moteur de l’édition collaborative.
@@ -436,8 +444,13 @@ MCP pour les capacités documentaires et l’acceptation explicite des propositi
   le document et la sélection confiés, sans suivre ensuite le curseur humain.
 - Distinguer masquer le panneau, interrompre une demande et terminer l’assistance ;
   préciser les erreurs, coupures et reprises sans renvoi automatique d’une demande.
-- Conserver un seul lot proposé en attente, sa relecture, sa péremption et son
+- Conserver un seul lot proposé en attente, sa consultation, sa péremption et son
   acceptation/refus explicites. L’assistance ne doit pas déplacer le focus de rédaction.
+- Représenter le lot soumis par une base figée et un candidat explicitement fondé
+  sur cette base. Réutiliser la consultation/comparaison de Versions, avec les
+  actions propres aux propositions. Les snapshots privés MCP ne deviennent ni
+  des versions conservées ni une relecture J par leur seule création. Conserver
+  garde stricte, commandes autorisées et autorisations de fichiers distinctes.
 - Préciser installation, authentification et distribution des agents/adaptateurs ;
   annoncer uniquement les fonctions et droits effectivement disponibles par agent.
 
@@ -450,6 +463,8 @@ puis accepter/refuser un lot, avec au moins deux agents et sans configuration MC
 
 **Lot dédié — Validation locale des propositions MCP, après la comparaison A.4 :**
 
+- Partir de la paire immuable « État de départ → Proposition » prévue dans A.4 ;
+  sa comparaison ne constitue pas à elle seule un plan d’édition applicable.
 - Permettre d’accepter ou de refuser les groupes de modifications indépendants,
   en réutilisant l’interface de comparaison commune. Les opérations liées restent
   soumises à une décision groupée ; à défaut d’indépendance garantie, conserver
