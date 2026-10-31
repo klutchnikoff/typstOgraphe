@@ -112,8 +112,8 @@ aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
 - Créer une version enregistre atomiquement l’état courant et son nouveau snapshot
   dans le `.typsto` ; demander l’emplacement si le document n’a pas encore de
   fichier. Une sauvegarde ordinaire ne crée pas de snapshot supplémentaire.
-- Reprendre une version complète via le comparateur : « Tout sélectionner à
-  gauche », puis « Appliquer ». La droite possède l’action symétrique et les
+- Reprendre une version complète via le comparateur : « Tout reprendre »,
+  puis « Reprendre N passages ». La droite possède l’action symétrique et les
   choix restent ajustables passage par passage. Aucun parcours Restaurer distinct
   ni snapshot automatique : le résultat est une édition ordinaire annulable.
   En collaboration, utiliser l’autorité commune et la garde de révision.
@@ -245,14 +245,15 @@ par passage, verts sélectionnés par défaut. Les choix ne publient rien.
 « Appliquer » compose depuis la droite et remplace le document courant en une
 opération annulable, sans écriture du `.typsto` ni snapshot automatique. Le résultat
 est une édition ordinaire, récupérable après incident ; l’utilisateur décide de
-l’enregistrement et des versions. Les deux états historiques deviennent également
-composables. Une édition extérieure bloque l’application sans perte du travail.
+l’enregistrement et des versions. Deux états historiques préparent une composition
+privée, obligatoirement comparée au document courant avant publication. Une édition extérieure bloque l’application sans perte du travail.
 Voir le [contrat](docs/a4-comparison-contract.md).
 
 **A.4.4 — Comparateur et décisions locales :** maquette validée et conservée,
 moteur commun Versions/MCP, comparaison figée avant/après, décisions gardées,
 annulation de la composition, changements documentaires liés groupés et aperçus
-isolés. Deux versions historiques permettent aussi de composer le document courant. Les paragraphes adjacents
+isolés. Deux versions historiques préparent une composition revue contre le
+courant avant toute édition. Les paragraphes adjacents
 modifiés ont des décisions distinctes lorsque leurs frontières sont conservées ;
 les widgets restent entiers, les fusions/scissions et correspondances ambiguës
 restent groupées. Le regroupement reste conservateur pour les réglages et
@@ -296,6 +297,26 @@ consultation, comparaison et reprise complète sont livrés. Les tests du worksp
 des contrats et des navigateurs vérifient ces parcours ; voir le
 [bilan](docs/a4-comparison-results.md). Les droits/réseaux distants restent dans G,
 le cycle de relecture dans J et la qualification de distribution dans H.
+
+**Validation selon le contexte (choix validés le 31 octobre 2026) :**
+Version / courant affiche « Reprendre » / « Garder l’actuel » et annonce le nombre
+de passages à reprendre ; sans reprise, la validation est désactivée. MCP affiche
+« Refuser » / « Accepter », le nombre de changements à appliquer et le bilan des
+choix ; tous les rouges refusent le lot sans édition. Pour deux versions A / B,
+les choix préparent Bnew, puis une seconde comparaison obligatoire **C → Bnew**
+montre les différences avec le document courant C avant toute publication.
+L’application directe A / B est interdite dans Rust. Revenir aux choix initiaux
+est possible ; une intervention concurrente impose une nouvelle comparaison.
+Le résultat final reste une édition annulable du même projet, sans sauvegarde
+ni version automatique. Les comptes représentent les groupes de décision.
+
+**Jalon d’export PDF — à implémenter ultérieurement :** proposer discrètement,
+après un export réussi, « Créer une version de cet export ». L’action reste
+volontaire et non modale ; elle doit capturer l’état exact qui a produit le PDF,
+même si la rédaction a continué entre-temps. Annulation ou échec d’export ne
+produit aucune proposition de version. Le quota de versions ne bloque jamais
+l’export. Ce déclencheur explicite ne crée aucun snapshot heuristique. La liste
+Versions et ses groupes restent inchangés ; comparaison entre fichiers différée.
 
 ### A.5 — Documentation, nettoyage et recette finale
 

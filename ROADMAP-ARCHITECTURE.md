@@ -134,14 +134,15 @@ documentaire ni une entrée d’annulation. Voir le [bilan A.4.3](docs/a4-versio
 servent à des choix temporaires exclusifs, initialement tous à droite. Une seule
 action humaine « Appliquer » remplace l’état courant comme une édition ordinaire,
 avec une étape d’annulation, sans écriture du `.typsto` ni snapshot automatique,
-y compris entre deux versions historiques. Enregistrement et création de version
+après une seconde comparaison avec le courant pour deux versions historiques.
+Enregistrement et création de version
 restent au choix de l’utilisateur. Les décisions immédiates du premier raccordement
 sont remplacées dans l’interface. Préparer/valider hors verrou, recontrôler sous
 verrou avant la publication atomique en mémoire, puis retourner et diffuser le
 delta confirmé. Préserver chemin, dernière révision enregistrée et récupération ;
 une sauvegarde ultérieure réutilise les protections ordinaires du fichier.
 
-**Reprise complète par le comparateur :** « Tout sélectionner à gauche » et son
+**Reprise complète par le comparateur :** « Tout reprendre » à gauche et son
 symétrique à droite affectent uniquement les choix provisoires. « Appliquer »
 publie le résultat par la voie ordinaire en une étape d’annulation, en conservant
 identité, chemin et versions. Aucun parcours Restaurer distinct ni snapshot
@@ -310,6 +311,26 @@ conservés selon le contrat ; une composition ne sauvegarde pas et ne crée pas 
 version. Le [bilan](docs/a4-comparison-results.md) réunit la recette locale et ses
 limites. La coordination réseau de G et le cycle de relecture de J ne sont pas
 déclarés livrés par ces tests.
+
+**Validation selon le contexte (choix validés le 31 octobre 2026) :**
+Version / courant affiche « Reprendre » / « Garder l’actuel » et annonce le nombre
+de passages à reprendre ; sans reprise, la validation est désactivée. MCP affiche
+« Refuser » / « Accepter », le nombre de changements à appliquer et le bilan des
+choix ; tous les rouges refusent le lot sans édition. Pour deux versions A / B,
+les choix préparent Bnew, puis une seconde comparaison obligatoire **C → Bnew**
+montre les différences avec le document courant C avant toute publication.
+L’application directe A / B est interdite dans Rust. Revenir aux choix initiaux
+est possible ; une intervention concurrente impose une nouvelle comparaison.
+Le résultat final reste une édition annulable du même projet, sans sauvegarde
+ni version automatique. Les comptes représentent les groupes de décision.
+
+**Jalon d’export PDF — à implémenter ultérieurement :** proposer discrètement,
+après un export réussi, « Créer une version de cet export ». L’action reste
+volontaire et non modale ; elle doit capturer l’état exact qui a produit le PDF,
+même si la rédaction a continué entre-temps. Annulation ou échec d’export ne
+produit aucune proposition de version. Le quota de versions ne bloque jamais
+l’export. Ce déclencheur explicite ne crée aucun snapshot heuristique. La liste
+Versions et ses groupes restent inchangés ; comparaison entre fichiers différée.
 
 ### A.5 Documentation, nettoyage et recette finale — clôture de A
 

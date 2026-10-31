@@ -12,24 +12,54 @@ rouge, après à droite en vert.** Deux versions historiques sont ordonnées par
 leur date ; une comparaison avec le document courant le capture à l’ouverture.
 MCP conserve sa base à gauche et son candidat à droite.
 
-Chaque groupe possède deux boutons « Sélectionner », un sous chaque colonne.
-Ils forment un choix exclusif accessible au clavier. Tous les verts sont actifs
-au départ ; cliquer le rouge le sélectionne et désélectionne le vert, et inversement.
-Le choix actif a un fond plein, un texte contrasté et une coche, sans dépendre de
-la couleur seule. Les groupes liés et les widgets restent des unités indivisibles.
+Chaque groupe possède deux boutons exclusifs accessibles au clavier, un dans
+l’en-tête de chaque colonne. Tous les verts sont actifs au départ ; cliquer le
+rouge le sélectionne et désélectionne le vert, et inversement. Le choix actif a
+un fond plein, un texte contrasté et une coche. Les groupes liés et les widgets
+restent des unités indivisibles.
 
 Les choix sont privés à la consultation. Ils persistent entre les onglets de
 cette consultation, sans modifier le document, le fichier, l’historique
 Annuler/Rétablir ou le reçu MCP. Fermer ou choisir une autre paire abandonne ces
 choix, sans publication. Aucun outil de l’agent ne peut les valider.
 
-**« Appliquer »** compose le résultat à partir de l’état de droite,
-en remplaçant les groupes choisis en rouge par ceux de gauche. Les parties
-inchangées proviennent également de droite, y compris entre deux états
-historiques lorsque le document courant est différent des deux. Ce résultat
-remplace le document courant comme une édition ordinaire, sans écrire son `.typsto`
-ni demander de destination. Le projet peut donc rester sans chemin. Enregistrer
-et créer une version restent deux actions distinctes, décidées par l’utilisateur.
+### Trois contextes, une mécanique de composition
+
+- **Version / document courant :** la version ancienne est à gauche, le courant
+  figé à droite. Les choix sont « Reprendre ce passage » / « Garder l’actuel »,
+  les actions globales « Tout reprendre » / « Tout conserver ». Le bouton annonce
+  « Reprendre N passages ». Avec tous les verts, « Aucun passage à reprendre »
+  est désactivé : aucune édition n’est nécessaire.
+- **Proposition MCP :** base à gauche, proposition à droite. Les choix deviennent
+  « Refuser » / « Accepter », avec « Tout refuser » / « Tout accepter ». Le bouton
+  annonce « Appliquer N changements » ; le résumé précise les changements retenus
+  et écartés. Tous les rouges conduisent à « Refuser la proposition » : le reçu
+  est terminé sans modification documentaire, ni révision ni étape d’annulation.
+- **Deux versions historiques A / B :** elles restent ordonnées par date. Choisir
+  dans chaque colonne prépare **Bnew**, à partir de B et des passages repris de A.
+  « Comparer la composition au document courant » ouvre obligatoirement une seconde
+  comparaison **C → Bnew**, avec le courant figé C à gauche. Toutes les différences
+  avec C sont ainsi visibles, y compris celles absentes d’A / B. L’utilisateur
+  choisit « Garder l’actuel » / « Reprendre ce passage » puis « Appliquer N
+  changements », ou « Conserver le document courant » si tout est écarté.
+
+Les comptes portent sur les unités de décision affichées, pas les mots modifiés
+ni le nombre d’appels de l’agent. Les formulations et pluriels suivent la langue
+de l’interface. L’ordre avant/après et les couleurs ne changent pas.
+
+Bnew et sa comparaison restent privés, hors `.typsto`, versions, récupération
+et historique. Contenu / Aperçu affichent Bnew pendant la vérification finale.
+« Modifier la composition » revient aux choix A / B conservés ; préparer de nouveau
+invalide le candidat précédent. Fermer abandonne les deux comparaisons. Même si
+A et B sont identiques, la vérification C / Bnew peut révéler des différences.
+Rust refuse toute application directe d’A / B : seule la comparaison finale peut
+publier. La garde de C est recontrôlée après la préparation hors verrou et avant
+publication ; aucun rebasage implicite n’est autorisé.
+
+La validation finale remplace le document courant comme une édition ordinaire,
+sans écrire son `.typsto` ni demander de destination. Le projet peut rester sans
+chemin. Enregistrer et créer une version restent des actions distinctes,
+décidées par l’utilisateur.
 
 La validation publie une seule opération annulable. **Aucun snapshot automatique
 n’est créé**, ni du résultat, ni « avant restauration » pour cette composition.
@@ -38,14 +68,14 @@ métadonnées restent intactes. Une composition qui change le contenu marque le
 document comme modifié ; conserver exactement l’état courant ne crée ni révision
 ni étape d’annulation superflue. Annuler revient à l’état précédent dans l’éditeur,
 Rétablir restaure la composition ; ces actions ne réécrivent pas le fichier.
-La reprise complète utilise « Tout sélectionner à gauche » puis « Appliquer » ;
+La reprise complète utilise « Tout reprendre » puis « Reprendre N passages » ;
 la droite dispose de l’action symétrique. Ces boutons affectent uniquement les
 choix provisoires, qui restent ajustables individuellement et conservés entre
 les onglets. Il n’existe pas de parcours Restaurer distinct ni d’origine de
 snapshot `before_restore`. La reprise reste possible au quota maximal de versions.
 Les actions globales sont désactivées pendant l’application, après la fin de la
-comparaison ou en l’absence de différences. Une comparaison sans différence
-peut toujours s’appliquer si ses états historiques diffèrent du document courant.
+comparaison ou en l’absence de différences. Une paire historique sans différence peut toujours préparer la comparaison
+finale si ses états diffèrent du document courant.
 
 Les états de comparaison restent figés après validation. La consultation indique
 que les choix ont été appliqués au document ; elle ne permet pas une seconde
@@ -104,7 +134,7 @@ les actions locales reprennent la maquette interactive validée. Les actions de
 chaque groupe sont alignées au-dessus de leurs colonnes dans son en-tête : rouge
 juste à gauche de la séparation centrale, vert à droite, avec le titre à gauche, sans
 répétition de « Choix provisoire » ni rangée de boutons sous le contenu. Les deux
-« Tout sélectionner » reprennent les couleurs rouge et verte de leurs colonnes.
+actions globales reprennent les couleurs rouge et verte de leurs colonnes.
 L’action principale reste à l’extrémité droite du pied du comparateur.
 Les dépendances sont indiquées dans la ligne de décision. Les états restent
 figés et les décisions sont affichées séparément. Une intervention

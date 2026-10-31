@@ -343,3 +343,45 @@ macOS ; il ne prétend pas qualifier les binaires Windows/Linux ni une nouvelle
 CI distante. La recette depuis un checkout propre et le nettoyage/documentation
 restent A.5 ; la distribution matérielle reste H. Le réseau et les droits distants
 restent G ; le cycle de vie des annotations et références de relecture reste J.
+
+### Validation contextualisée et composition historique en deux étapes
+
+Cette évolution remplace les libellés génériques et la publication directe des
+compositions historiques décrits dans les étapes précédentes du bilan.
+Le moteur de différences et ses unités restent communs ; le rapport expose un
+contexte explicite, sans déduire le parcours des noms de colonnes :
+
+- Version / courant : Reprendre ce passage / Garder l’actuel, actions globales
+  correspondantes et « Reprendre N passages ». Aucun passage à reprendre
+  désactive la validation ; le défaut vert conserve le courant.
+- MCP : Refuser / Accepter, Tout refuser / Tout accepter, compte des groupes
+  retenus et écartés et « Appliquer N changements ». Un refus complet termine
+  le reçu sans révision, annulation ou écriture du fichier.
+- A / B historiques : préparation privée de Bnew, puis comparaison obligatoire
+  C → Bnew avec le courant figé C. Contenu / Aperçu affichent Bnew dans la seconde
+  étape ; revenir à la composition conserve les choix A / B. Aucune publication
+  n’est possible sans la seconde comparaison. Rust interdit l’application
+  directe d’A / B, y compris si un client contourne les boutons.
+
+Le candidat est préparé et compilé hors des verrous de rédaction ; les gardes,
+l’identité du plan et le contexte humain sont recontrôlés à son admission et à
+la publication finale. Une nouvelle préparation invalide l’ancienne ; fermer
+le parent supprime ses comparaisons temporaires. Aucun état intermédiaire n’est
+ajouté au CAS, à Versions, à la récupération ou à l’historique Annuler/Rétablir.
+La validation finale reste une seule édition du projet actif sans sauvegarde
+ni version automatique. Les comptes représentent les groupes de décision, y
+compris les groupes documentaires indivisibles.
+
+La recette Rust couvre notamment A = B mais C différent, l’interdiction
+d’application directe, la préparation sans mutation, les fenêtres étrangères,
+les gardes périmées, le remplacement d’un candidat et le refus complet MCP.
+La recette navigateur suit A / B → C / Bnew, revient aux choix A / B, vérifie
+Contenu puis retient une modification tout en conservant un passage propre à C.
+Une seule annulation retrouve C. Les 18 parcours Versions/comparateur réussissent
+sous Chromium et WebKit, sans captures, vidéos ou traces. Les 29 tests du contrat
+partagé, les tests web et Node, les tests Rust du workspace, TypeScript/Vite,
+Clippy, Prettier et les contrôles de frontières et de taille sont également vérifiés.
+
+Le jalon volontaire après export PDF est consigné dans les deux feuilles de
+route pour un lot ultérieur : état exactement exporté, proposition non modale,
+aucune création sur échec/annulation, aucun blocage de l’export par le quota.

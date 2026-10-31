@@ -166,7 +166,11 @@ Les bibliothèques Typst restent celles de l’application selon le
 [contrat des dépendances](typst-dependencies.md), hors des décisions de l’agent.
 L’utilisateur choisit le rouge ou le vert pour chaque groupe, sans publication
 intermédiaire. Les verts sont retenus par défaut ; les éléments liés restent
-indivisibles. « Appliquer » compose depuis la droite et publie le résultat comme
+indivisibles. Les boutons sont « Refuser » / « Accepter » ; les actions globales
+« Tout refuser » / « Tout accepter ». La validation annonce « Appliquer N
+changements », avec un bilan des groupes acceptés et écartés. « Refuser la
+proposition » termine un lot entièrement écarté sans édition ni sauvegarde.
+La validation compose depuis la droite et publie le résultat comme
 une édition ordinaire en une étape d’annulation, sans enregistrer le document ni
 créer de snapshot. Un échec de validation conserve le document et les choix.
 Une intervention extérieure bloque la validation même si Annuler retrouve le même

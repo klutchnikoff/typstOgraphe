@@ -219,7 +219,9 @@ Le refus ne publie aucune modification. Le comparateur commun d’A.4 fournit
 les décisions locales et leur application gardée, pour Versions comme pour MCP.
 Les groupes indépendants font l’objet de choix rouge/vert provisoires ; les
 opérations liées restent indivisibles. Les états initiaux ne sont jamais réécrits.
-La validation humaine « Appliquer » publie la composition comme une édition
+La validation humaine « Appliquer N changements » annonce le nombre de groupes
+acceptés, avec un résumé des groupes écartés ; « Refuser la proposition » clôture
+un lot entièrement refusé sans édition. L’application publie la composition comme une édition
 ordinaire, sans écrire le fichier ni ajouter de snapshot. La garde capturée est
 revérifiée avant publication ; aucun réancrage implicite n’est autorisé après une
 intervention extérieure. La récupération conserve cette édition, puis
@@ -266,6 +268,18 @@ elles ne sont pas assimilées à une relecture J par ce mécanisme. Échap ferme
 d’abord une confirmation, puis la consultation ; le focus revient à l’élément
 d’ouverture du contexte concerné. Ce partage porte sur la présentation et le
 calcul des différences, pas sur l’identité des opérations autorisées.
+
+## Comparaisons privées et validation selon le contexte
+
+Versions / courant et MCP partagent les décisions locales, avec un vocabulaire
+et une validation explicites (Reprendre / Garder, Accepter / Refuser). Pour deux
+versions historiques A / B, la composition Bnew reste temporaire et n’est jamais
+publiée directement. Une seconde comparaison obligatoire C → Bnew expose toutes
+les différences avec le courant figé C. Elle seule peut publier une édition
+annulable du même projet ; aucune sauvegarde ni version n’est implicite.
+Ces comparaisons ne sont pas des entrées CAS persistées. Les gardes de révision,
+les autorisations et la validation du rendu restent applicables à chaque étape.
+Voir le [contrat du comparateur](a4-comparison-contract.md).
 
 ## Sauvegarde, création, reprise et suppression
 
