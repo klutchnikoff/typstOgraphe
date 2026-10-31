@@ -50,7 +50,7 @@ fn dispatch(
             ))
         }
 
-        "comparison_open" | "comparison_read" | "comparison_close" | "comparison_decide"
+        "comparison_open" | "comparison_read" | "comparison_close" | "comparison_apply"
         | "comparison_preview" => {
             let mut s = bridge.session.lock().map_err(|e| e.to_string())?;
             let mut a = bridge.agent.lock().map_err(|e| e.to_string())?;
@@ -82,25 +82,22 @@ fn dispatch(
                         .map_err(|e| e.to_string())
                 }
                 _ => {
-                    let ids: Vec<usize> = serde_json::from_value(args["groups"].clone())
-                        .map_err(|e| e.to_string())?;
-                    let prepared = if args["action"] == "apply" {
-                        let ready = crate::comparisons::prepare(&mut s, &a, peer, id, &ids)?;
-                        let archive = ready.archive();
-                        bridge.renderer.validate(
-                            &archive.validate().map_err(crate::project::error)?,
-                            &archive.assets,
-                            crate::rendering::RenderContext {
-                                settings: &archive.state().settings,
-                                dependencies: archive.dependencies.clone(),
-                            },
-                        )?;
-                        Some(ready)
-                    } else {
-                        None
-                    };
+                    let choices: Vec<typstographe_core::content::comparison::SourceSide> =
+                        serde_json::from_value(args["choices"].clone())
+                            .map_err(|e| e.to_string())?;
+                    let ready = crate::comparisons::prepare(&mut s, &a, peer, id, &choices)?;
+                    let archive = ready.archive();
+                    bridge.renderer.validate(
+                        &archive.validate().map_err(crate::project::error)?,
+                        &archive.assets,
+                        crate::rendering::RenderContext {
+                            settings: &archive.state().settings,
+                            dependencies: archive.dependencies.clone(),
+                        },
+                    )?;
+                    let destination = args["destination"].as_str().map(std::path::Path::new);
                     let (mut result, publication) =
-                        crate::comparisons::decide(&mut s, &mut a, peer, id, &ids, prepared)?;
+                        crate::comparisons::apply(&mut s, &mut a, peer, id, ready, destination)?;
                     result["publication"] =
                         serde_json::to_value(publication).map_err(|e| e.to_string())?;
                     Ok(result)

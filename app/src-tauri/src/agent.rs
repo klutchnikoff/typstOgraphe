@@ -113,18 +113,16 @@ pub fn agent_reject(
             .filter(|g| g.decision == typstographe_core::content::comparison::Decision::Pending)
             .map(|g| g.id)
             .collect::<Vec<_>>();
-        if groups.is_empty() {
-            reject(&mut agent, &id)?;
-        } else {
-            crate::comparisons::decide(
-                &mut session,
-                &mut agent,
-                window.label(),
-                &review,
-                &groups,
-                None,
-            )?;
+        if !groups.is_empty() {
+            session
+                .comparisons
+                .get_mut(&review)
+                .unwrap()
+                .plan
+                .refuse(&groups)
+                .map_err(crate::owner::error)?;
         }
+        reject(&mut agent, &id)?;
         let _ = app.emit("comparison:changed", json!({"id":review}));
     } else {
         reject(&mut agent, &id)?;

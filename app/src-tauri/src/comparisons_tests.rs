@@ -60,136 +60,174 @@ fn version(s: &mut Session, path: &std::path::Path) -> uuid::Uuid {
     serde_json::from_value(changed["versions"].as_array().unwrap().last().unwrap()["id"].clone())
         .unwrap()
 }
+fn review(s: &mut Session, a: &mut AgentState, id: uuid::Uuid) -> String {
+    let guard = s.guard();
+    open(s, a, "human", &guard, Origin::Version { id, against: None }).unwrap()["id"]
+        .as_str()
+        .unwrap()
+        .into()
+}
 #[test]
-fn local_version_reprises_preserve_the_file_and_snapshots_and_have_independent_undo() {
+fn choices_save_once_without_snapshots_and_have_one_undo_step() {
     let (root, mut s, mut a) = fixture();
     let path = root.path().join("project.typsto");
     let id = version(&mut s, &path);
     let disk = std::fs::read(&path).unwrap();
+    let versions = s.project.get().unwrap().owner.versions().to_vec();
+    let project_id = s.project.get().unwrap().owner.project_id();
     edit(&mut s, 0, "New ");
     edit(&mut s, 2, "New ");
-    let current = s.ensure_owner().unwrap().state().clone();
-    let guard = s.guard();
-    let view = open(
+    let initial = s.ensure_owner().unwrap().state().clone();
+    let r = review(&mut s, &mut a, id);
+    assert!(read(&s, &a, "other", &r).is_err());
+    let ready = prepare(
         &mut s,
-        &mut a,
+        &a,
         "human",
-        &guard,
-        Origin::Version { id, against: None },
+        &r,
+        &[SourceSide::Before, SourceSide::After],
     )
     .unwrap();
-    let review = view["id"].as_str().unwrap();
-    assert_eq!(view["report"]["groups"].as_array().unwrap().len(), 2);
-    assert!(read(&s, &a, "other", review).is_err());
-    for g in [1, 0] {
-        let ready = prepare(&mut s, &a, "human", review, &[g]).unwrap();
-        decide(&mut s, &mut a, "human", review, &[g], Some(ready)).unwrap();
-    }
     assert_eq!(std::fs::read(&path).unwrap(), disk);
+    assert_eq!(s.ensure_owner().unwrap().state(), &initial);
+    let (result, publication) = apply(&mut s, &mut a, "human", &r, ready, None).unwrap();
+    assert!(publication.changed);
+    assert_eq!(result["report"]["closed"], true);
+    assert_eq!(result["saved"]["revision"], s.revision);
+    let saved = typstographe_core::content::project::Project::read(&path).unwrap();
+    assert_eq!(saved.current().state(), *s.ensure_owner().unwrap().state());
     assert_eq!(
-        s.ensure_owner().unwrap().state().document.content[0].content[0]
+        saved.current().document.content[0].content[0]
             .text
             .as_deref(),
         Some("Old one")
     );
-    let frozen = s.comparisons[review].plan.after().state();
-    assert_eq!(frozen, current);
-    s.history("human", Direction::Undo).unwrap();
-    assert!(
-        read(&s, &a, "human", review).unwrap()["report"]["stale"]
-            .as_bool()
-            .unwrap()
-    );
-    assert!(prepare(&mut s, &a, "human", review, &[0]).is_err());
-    assert_eq!(std::fs::read(&path).unwrap(), disk);
-}
-#[test]
-fn external_edits_revocation_ime_and_late_refusal_never_publish_a_prepared_candidate() {
-    let (root, mut s, mut a) = fixture();
-    let id = version(&mut s, &root.path().join("p.typsto"));
-    edit(&mut s, 0, "New ");
-    let guard = s.guard();
-    let view = open(
-        &mut s,
-        &mut a,
-        "human",
-        &guard,
-        Origin::Version { id, against: None },
-    )
-    .unwrap();
-    let review = view["id"].as_str().unwrap().to_owned();
-    a.busy.insert("other".into());
-    assert!(prepare(&mut s, &a, "human", &review, &[0]).is_err());
-    a.busy.clear();
-    let ready = prepare(&mut s, &a, "human", &review, &[0]).unwrap();
-    let checkpoint = s.updates.clone();
-    decide(&mut s, &mut a, "human", &review, &[0], None).unwrap();
-    assert!(decide(&mut s, &mut a, "human", &review, &[0], Some(ready)).is_err());
-    assert_eq!(s.updates, checkpoint);
-    let guard = s.guard();
-    let view = open(
-        &mut s,
-        &mut a,
-        "human",
-        &guard,
-        Origin::Version { id, against: None },
-    )
-    .unwrap();
-    let review = view["id"].as_str().unwrap().to_owned();
-    let ready = prepare(&mut s, &a, "human", &review, &[0]).unwrap();
-    edit(&mut s, 2, "Human ");
-    let checkpoint = s.updates.clone();
-    assert!(decide(&mut s, &mut a, "human", &review, &[0], Some(ready)).is_err());
-    assert_eq!(s.updates, checkpoint);
-}
-#[test]
-fn mcp_uses_the_same_comparison_for_partial_decisions_without_replaying_the_original_batch() {
-    let (_root, mut s, mut a) = fixture();
-    a.token = Some("authorized".into());
-    let request = json!({"document":{"id":s.generation,"guard":s.guard()},"request_id":"local","summary":"Test","steps":[{"id":"text.insert","params":{"target":{"zone":{"kind":"body","path":[0]},"from":0,"to":0},"text":"New "}},{"id":"text.insert","params":{"target":{"zone":{"kind":"body","path":[2]},"from":0,"to":0},"text":"New "}}]});
-    let pending = crate::agent::dispatch(&mut s, &mut a, "proposals.submit", &request).unwrap();
-    let id = pending["outcome"]["id"].as_str().unwrap().to_owned();
-    let guard = s.guard();
-    let view = open(
-        &mut s,
-        &mut a,
-        "human",
-        &guard,
-        Origin::Proposal { id: id.clone() },
-    )
-    .unwrap();
-    assert_eq!(view["report"]["closed"], false);
-    let review = view["id"].as_str().unwrap().to_owned();
-    assert!(crate::agent::commit_accepted(&mut s, &mut a, &id, "human").is_err());
-    let ready = prepare(&mut s, &a, "human", &review, &[0]).unwrap();
-    decide(&mut s, &mut a, "human", &review, &[0], Some(ready)).unwrap();
-    assert!(prepare(&mut s, &a, "human", &review, &[1]).is_ok());
-    let retry =
-        crate::agent::dispatch(&mut s, &mut a, "proposals.get", &json!({"proposal":id})).unwrap();
-    assert_eq!(retry["outcome"]["status"], "pending");
-    decide(&mut s, &mut a, "human", &review, &[1], None).unwrap();
-    assert_eq!(a.proposal.as_ref().unwrap().status, "partially_accepted");
     assert_eq!(
-        s.ensure_owner().unwrap().state().document.content[2].content[0]
+        saved.current().document.content[2],
+        initial.document.content[2]
+    );
+    assert_eq!(saved.versions(), versions);
+    assert_eq!(saved.project_id(), project_id);
+    assert_eq!(s.clean_revision, Some(s.revision));
+    let disk = std::fs::read(&path).unwrap();
+    s.history("human", Direction::Undo).unwrap();
+    assert_eq!(s.ensure_owner().unwrap().state(), &initial);
+    assert_eq!(std::fs::read(&path).unwrap(), disk);
+    assert_ne!(s.clean_revision, Some(s.revision));
+    s.history("human", Direction::Redo).unwrap();
+    assert_eq!(s.ensure_owner().unwrap().state(), &saved.current().state());
+}
+#[test]
+fn stale_preparations_ime_invalid_choices_and_external_file_changes_never_publish() {
+    let (root, mut s, mut a) = fixture();
+    let path = root.path().join("project.typsto");
+    let id = version(&mut s, &path);
+    edit(&mut s, 0, "New ");
+    edit(&mut s, 2, "New ");
+    let r = review(&mut s, &mut a, id);
+    assert!(prepare(&mut s, &a, "human", &r, &[]).is_err());
+    a.busy.insert("other".into());
+    assert!(prepare(&mut s, &a, "human", &r, &[SourceSide::Before; 2]).is_err());
+    a.busy.clear();
+    let ready = capture(&mut s, &a, "human", &r, &[SourceSide::Before; 2]).unwrap();
+    edit(&mut s, 2, "Human ");
+    let work = s.updates.clone();
+    let disk = std::fs::read(&path).unwrap();
+    assert!(apply(&mut s, &mut a, "human", &r, ready.prepare().unwrap(), None).is_err());
+    assert_eq!(s.updates, work);
+    assert_eq!(std::fs::read(&path).unwrap(), disk);
+    let r = review(&mut s, &mut a, id);
+    let ready = prepare(&mut s, &a, "human", &r, &[SourceSide::Before; 2]).unwrap();
+    std::fs::write(&path, b"External change").unwrap();
+    assert!(apply(&mut s, &mut a, "human", &r, ready, None).is_err());
+    assert_eq!(s.updates, work);
+    assert_eq!(std::fs::read(&path).unwrap(), b"External change");
+    assert_eq!(
+        read(&s, &a, "human", &r).unwrap()["report"]["closed"],
+        false
+    );
+}
+#[test]
+fn failed_destination_preserves_the_choices_work_and_history_for_retry() {
+    let (root, mut s, mut a) = fixture();
+    let id = version(&mut s, &root.path().join("original.typsto"));
+    s.file_lease = None;
+    edit(&mut s, 0, "New ");
+    let r = review(&mut s, &mut a, id);
+    let choices = [SourceSide::Before];
+    let work = s.updates.clone();
+    let invalid = root.path().join("missing").join("file.typsto");
+    let ready = prepare(&mut s, &a, "human", &r, &choices).unwrap();
+    assert!(apply(&mut s, &mut a, "human", &r, ready, Some(&invalid)).is_err());
+    assert_eq!(s.updates, work);
+    assert!(s.file_lease.is_none());
+    let ready = prepare(&mut s, &a, "human", &r, &choices).unwrap();
+    let path = root.path().join("retry.typsto");
+    apply(&mut s, &mut a, "human", &r, ready, Some(&path)).unwrap();
+    let saved = typstographe_core::content::project::Project::read(&path).unwrap();
+    assert_eq!(saved.versions().len(), 1);
+    assert_eq!(
+        saved.current().document.content[0].content[0]
             .text
             .as_deref(),
-        Some("Old two")
+        Some("Old one")
     );
-    let view = read(&s, &a, "other", &review).unwrap();
-    assert_eq!(view["report"]["groups"][0]["decision"], "applied");
-    assert_eq!(view["report"]["groups"][1]["decision"], "refused");
-    a.token = None;
-    assert!(prepare(&mut s, &a, "human", &review, &[1]).is_err());
 }
-
 #[test]
-fn historical_pairs_are_read_only_even_if_the_current_document_happens_to_match() {
+fn historical_pairs_compose_from_the_right_and_replace_the_captured_live_state() {
     let (root, mut s, mut a) = fixture();
-    let first = version(&mut s, &root.path().join("p.typsto"));
-    edit(&mut s, 0, "New ");
-    let second = version(&mut s, &root.path().join("p.typsto"));
+    let path = root.path().join("history.typsto");
+    let first = version(&mut s, &path);
+    edit(&mut s, 0, "Second ");
+    edit(&mut s, 2, "Second ");
+    let second = version(&mut s, &path);
+    edit(&mut s, 0, "Current ");
     let guard = s.guard();
-    let view = open(
+    let value = open(
+        &mut s,
+        &mut a,
+        "human",
+        &guard,
+        Origin::Version {
+            id: second,
+            against: Some(first),
+        },
+    )
+    .unwrap();
+    let r = value["id"].as_str().unwrap();
+    let ready = prepare(
+        &mut s,
+        &a,
+        "human",
+        r,
+        &[SourceSide::Before, SourceSide::After],
+    )
+    .unwrap();
+    apply(&mut s, &mut a, "human", r, ready, None).unwrap();
+    let saved = typstographe_core::content::project::Project::read(&path).unwrap();
+    assert_eq!(saved.versions().len(), 2);
+    assert_eq!(
+        saved.current().document.content[0].content[0]
+            .text
+            .as_deref(),
+        Some("Old one")
+    );
+    assert_eq!(
+        saved.current().document.content[2].content[0]
+            .text
+            .as_deref(),
+        Some("Second Old two")
+    );
+}
+#[test]
+fn identical_historical_states_can_replace_a_different_current_document() {
+    let (root, mut s, mut a) = fixture();
+    let path = root.path().join("identical.typsto");
+    let first = version(&mut s, &path);
+    let second = version(&mut s, &path);
+    edit(&mut s, 0, "Current ");
+    let guard = s.guard();
+    let value = open(
         &mut s,
         &mut a,
         "human",
@@ -200,152 +238,94 @@ fn historical_pairs_are_read_only_even_if_the_current_document_happens_to_match(
         },
     )
     .unwrap();
-    let review = view["id"].as_str().unwrap();
-    assert_eq!(view["report"]["read_only"], true);
-    assert!(prepare(&mut s, &a, "human", review, &[0]).is_err());
-    assert!(decide(&mut s, &mut a, "human", review, &[0], None).is_err());
-}
-#[test]
-fn historical_packages_never_become_decisions_or_replace_application_libraries() {
-    let (_root, mut s, mut a) = fixture();
-    let mut archived = s.stored_project().unwrap().current().clone();
-    let libraries = typstographe_core::packages::for_template(&archived.template);
-    let mut old = (*libraries).clone();
-    old.insert(
-        "capabilities/dates.typ".into(),
-        b"#panic(\"Archived libraries must not run inside the application\")"
-            .as_slice()
-            .into(),
-    );
-    archived.dependencies = std::sync::Arc::new(old);
-    let project = typstographe_core::content::project::Project::new(archived.clone())
-        .unwrap()
-        .prepare_version(
-            SnapshotDetails::default(),
-            typstographe_core::content::project::SnapshotReason::Manual,
-        )
-        .unwrap();
-    let id = project.versions()[0].id;
-    s.project = std::sync::OnceLock::from(crate::project::Context::new(project, true));
-    s.owner = None;
-    let guard = s.guard();
-    let unchanged = open(
-        &mut s,
-        &mut a,
-        "human",
-        &guard,
-        Origin::Version { id, against: None },
-    )
-    .unwrap();
-    assert!(unchanged["report"]["groups"].as_array().unwrap().is_empty());
-    assert!(unchanged["report"]["files"].as_array().unwrap().is_empty());
-    crate::versions::preview(archived.clone()).unwrap();
-    edit(&mut s, 0, "New ");
-    edit(&mut s, 2, "New ");
-    let guard = s.guard();
-    let view = open(
-        &mut s,
-        &mut a,
-        "human",
-        &guard,
-        Origin::Version { id, against: None },
-    )
-    .unwrap();
-    assert_eq!(view["report"]["groups"].as_array().unwrap().len(), 2);
-    let review = view["id"].as_str().unwrap();
-    let ready = prepare(&mut s, &a, "human", review, &[0]).unwrap();
-    assert_eq!(ready.archive().dependencies, libraries);
-    decide(&mut s, &mut a, "human", review, &[0], Some(ready)).unwrap();
-    for direction in [Direction::Undo, Direction::Redo] {
-        s.history("human", direction).unwrap();
-        assert_eq!(s.dependencies_for(&s.settings), libraries);
-        assert_eq!(
-            s.stored_project().unwrap().current().dependencies,
-            libraries
-        );
-    }
-    let current = s.stored_project().unwrap().current().clone();
-    assert_eq!(current.document.content[0], archived.document.content[0]);
-    let backup = s
-        .project_recovery(current.state(), current.yjs.clone())
-        .unwrap();
-    let recovered = backup.archive.restore().unwrap();
-    assert_eq!(recovered.current().dependencies, libraries);
+    let r = value["id"].as_str().unwrap();
+    assert!(value["report"]["groups"].as_array().unwrap().is_empty());
+    let ready = prepare(&mut s, &a, "human", r, &[]).unwrap();
+    apply(&mut s, &mut a, "human", r, ready, None).unwrap();
     assert_eq!(
-        recovered.version(id).unwrap().dependencies,
-        archived.dependencies
+        s.ensure_owner().unwrap().state().document.content[0].content[0]
+            .text
+            .as_deref(),
+        Some("Old one")
     );
 }
-
 #[test]
-fn frozen_mcp_states_remain_consultable_after_a_human_edit_before_the_first_opening() {
-    let (_root, mut s, mut a) = fixture();
+fn mcp_choices_stay_private_until_save_then_produce_final_receipts_without_a_snapshot() {
+    let (root, mut s, mut a) = fixture();
     a.token = Some("authorized".into());
-    let request = json!({"document":{"id":s.generation,"guard":s.guard()},"request_id":"stale-view","steps":[{"id":"text.insert","params":{"target":{"zone":{"kind":"body","path":[0]},"from":0,"to":0},"text":"Proposal "}}]});
+    let request = json!({"document":{"id":s.generation,"guard":s.guard()},"request_id":"composed","steps":[{"id":"text.insert","params":{"target":{"zone":{"kind":"body","path":[0]},"from":0,"to":0},"text":"Proposal "}},{"id":"text.insert","params":{"target":{"zone":{"kind":"body","path":[2]},"from":0,"to":0},"text":"Proposal "}}]});
     let result = crate::agent::dispatch(&mut s, &mut a, "proposals.submit", &request).unwrap();
     let id = result["outcome"]["id"].as_str().unwrap().to_owned();
-    edit(&mut s, 0, "Human ");
-    let confirmed = s.ensure_owner().unwrap().state().clone();
     let guard = s.guard();
-    let view = open(&mut s, &mut a, "human", &guard, Origin::Proposal { id }).unwrap();
-    assert_eq!(view["report"]["stale"], true);
+    let value = open(&mut s, &mut a, "human", &guard, Origin::Proposal { id }).unwrap();
+    let r = value["id"].as_str().unwrap();
+    let ready = prepare(
+        &mut s,
+        &a,
+        "human",
+        r,
+        &[SourceSide::After, SourceSide::Before],
+    )
+    .unwrap();
+    assert_eq!(a.proposal.as_ref().unwrap().status, "pending");
+    assert_eq!(s.guard(), guard);
+    let path = root.path().join("proposal.typsto");
+    let duplicate = prepare(&mut s, &a, "human", r, &[SourceSide::After; 2]).unwrap();
+    apply(&mut s, &mut a, "human", r, ready, Some(&path)).unwrap();
+    assert_eq!(a.proposal.as_ref().unwrap().status, "partially_accepted");
     assert_eq!(
-        view["before"]["state"]["document"]["content"][0]["content"][0]["text"],
-        "Old one"
+        a.proposal.as_ref().unwrap().decisions[1]["decision"],
+        "refused"
     );
+    let saved = typstographe_core::content::project::Project::read(&path).unwrap();
+    assert!(saved.versions().is_empty());
     assert_eq!(
-        view["after"]["state"]["document"]["content"][0]["content"][0]["text"],
-        "Proposal Old one"
+        saved.current().document.content[2].content[0]
+            .text
+            .as_deref(),
+        Some("Old two")
     );
-    let review = view["id"].as_str().unwrap();
-    assert!(prepare(&mut s, &a, "human", review, &[0]).is_err());
-    assert_eq!(s.ensure_owner().unwrap().state(), &confirmed);
+    let disk = std::fs::read(&path).unwrap();
+    assert!(apply(&mut s, &mut a, "human", r, duplicate, None).is_err());
+    assert_eq!(std::fs::read(&path).unwrap(), disk);
 }
 #[test]
-fn a_delayed_close_cannot_remove_a_more_recent_frozen_view() {
+fn recovery_cleanup_failure_keeps_the_successful_save_and_publication() {
     let (root, mut s, mut a) = fixture();
-    let id = version(&mut s, &root.path().join("p.typsto"));
+    let path = root.path().join("committed.typsto");
+    let id = version(&mut s, &path);
     edit(&mut s, 0, "New ");
-    let guard = s.guard();
-    let one = open(
-        &mut s,
-        &mut a,
-        "human",
-        &guard,
-        Origin::Version { id, against: None },
-    )
-    .unwrap();
-    let two = open(
-        &mut s,
-        &mut a,
-        "human",
-        &guard,
-        Origin::Version { id, against: None },
-    )
-    .unwrap();
-    close(&mut s, "human", one["id"].as_str().unwrap()).unwrap();
-    assert!(read(&s, &a, "human", two["id"].as_str().unwrap()).is_ok());
+    let r = review(&mut s, &mut a, id);
+    let recovery = s.root.join("session.json");
+    std::fs::create_dir_all(&recovery).unwrap();
+    let ready = prepare(&mut s, &a, "human", &r, &[SourceSide::Before]).unwrap();
+    let (result, _) = apply(&mut s, &mut a, "human", &r, ready, None).unwrap();
+    assert!(result["saved"]["warning"].is_string());
+    assert_eq!(result["report"]["applied"], true);
+    assert_eq!(s.clean_revision, Some(s.revision));
+    let saved = typstographe_core::content::project::Project::read(&path).unwrap();
+    assert_eq!(saved.current().state(), *s.ensure_owner().unwrap().state());
+    assert_eq!(saved.versions().len(), 1);
+    s.file_lease.as_ref().unwrap().check().unwrap();
 }
-
 #[test]
-fn detached_preparation_cannot_publish_over_an_edit_made_after_checkpoint_capture() {
+fn a_rejected_private_draft_blocks_before_the_durable_commit() {
     let (root, mut s, mut a) = fixture();
-    let id = version(&mut s, &root.path().join("p.typsto"));
+    let path = root.path().join("pending.typsto");
+    let id = version(&mut s, &path);
     edit(&mut s, 0, "New ");
-    let guard = s.guard();
-    let view = open(
-        &mut s,
-        &mut a,
-        "human",
-        &guard,
-        Origin::Version { id, against: None },
-    )
-    .unwrap();
-    let id = view["id"].as_str().unwrap().to_owned();
-    let checkpoint = capture(&mut s, &a, "human", &id, &[0]).unwrap();
-    edit(&mut s, 2, "Human ");
-    let current = s.updates.clone();
-    let ready = checkpoint.prepare().unwrap();
-    assert!(decide(&mut s, &mut a, "human", &id, &[0], Some(ready)).is_err());
-    assert_eq!(s.updates, current);
+    let r = review(&mut s, &mut a, id);
+    let ready = prepare(&mut s, &a, "human", &r, &[SourceSide::Before]).unwrap();
+    let disk = std::fs::read(&path).unwrap();
+    let work = s.updates.clone();
+    assert!(
+        s.ensure_owner()
+            .unwrap()
+            .update("human", &[255], Some(99), true, None)
+            .is_err()
+    );
+    assert!(s.ensure_owner().unwrap().draft("human").unwrap().is_some());
+    assert!(apply(&mut s, &mut a, "human", &r, ready, None).is_err());
+    assert_eq!(std::fs::read(&path).unwrap(), disk);
+    assert_eq!(s.updates, work);
 }

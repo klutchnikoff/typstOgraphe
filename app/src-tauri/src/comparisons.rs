@@ -1,12 +1,20 @@
-//! Shared frozen viewer and guarded human decisions. No filesystem publication.
+//! Shared frozen viewer; staged choices are applied through the durable commit adapter.
 use crate::{Bridge, agent::AgentState, session::Session};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{Value, json};
 use tauri::{Emitter, State};
 use typstographe_core::content::{
-    comparison::{Comparison, Decision, PreparedDecision, SourceSide},
+    comparison::{Comparison, SourceSide},
     contract::Guard,
 };
+pub(crate) mod commit;
+#[cfg(any(test, feature = "recipe-driver"))]
+pub use commit::apply;
+#[cfg(test)]
+pub use commit::capture;
+#[cfg(any(test, feature = "recipe-driver"))]
+pub use commit::prepare;
+
 #[derive(Clone, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Origin {
@@ -24,7 +32,7 @@ pub struct Review {
     pub plan: Comparison,
     peer: Option<String>,
     origin: Origin,
-    read_only: bool,
+    finished: bool,
     before_name: Option<String>,
     after_name: Option<String>,
     created: std::time::Instant,
@@ -47,11 +55,13 @@ fn payload(
     content: bool,
 ) -> Result<Value, String> {
     let mut value = json!({"id":id,"report":r.plan.report(&s.guard())});
-    value["report"]["read_only"] = json!(r.read_only);
+    value["report"]["path"] = json!(s.file_lease.as_ref().map(|lease| lease.path()));
+    value["report"]["applied"] = json!(r.finished);
     value["report"]["before_name"] = json!(r.before_name);
     value["report"]["after_name"] = json!(r.after_name);
     value["report"]["closed"] = json!(
-        matches!(&r.origin, Origin::Proposal {id:proposal} if a.token.is_none() || !a.proposal.as_ref().is_some_and(|p|p.id==*proposal && p.review.as_deref()==Some(id) && p.status=="pending"))
+        r.finished
+            || matches!(&r.origin, Origin::Proposal {id:proposal} if a.token.is_none() || !a.proposal.as_ref().is_some_and(|p|p.id==*proposal && p.review.as_deref()==Some(id) && p.status=="pending"))
     );
     if content {
         value["before"] = r.plan.before().view().map_err(crate::project::error)?;
@@ -152,18 +162,11 @@ pub fn open(
         s.comparisons.remove(&oldest);
     }
     let id = uuid::Uuid::new_v4().to_string();
-    let read_only = matches!(
-        &origin,
-        Origin::Version {
-            against: Some(_),
-            ..
-        }
-    );
     let r = Review {
         plan,
         peer: owner,
         origin,
-        read_only,
+        finished: false,
         before_name,
         after_name,
         created: std::time::Instant::now(),
@@ -189,8 +192,8 @@ fn authorized(s: &Session, a: &AgentState, peer: &str, id: &str) -> Result<(), S
         .get(id)
         .ok_or_else(|| error("web-comparison-unavailable"))?;
     check(s, peer, r)?;
-    if r.read_only {
-        return Err(error("web-comparison-read-only"));
+    if r.finished {
+        return Err(error("web-comparison-unavailable"));
     }
     if !a.busy.is_empty() {
         return Err(error("web-comparison-composing"));
@@ -204,121 +207,6 @@ fn authorized(s: &Session, a: &AgentState, peer: &str, id: &str) -> Result<(), S
         return Err(error("web-comparison-unavailable"));
     }
     Ok(())
-}
-/// An immutable checkpoint can be prepared/compiled after releasing the live lock.
-pub struct Preparation {
-    plan: Comparison,
-    guard: Guard,
-    update: Vec<u8>,
-    assets: typstographe_core::assets::Assets,
-    groups: Vec<usize>,
-}
-impl Preparation {
-    pub fn prepare(self) -> Result<PreparedDecision, String> {
-        let engine = typstographe_core::content::editing::EditingSession::open(
-            self.guard,
-            &self.update,
-            self.assets,
-        )
-        .map_err(crate::owner::error)?;
-        self.plan
-            .prepare(&engine, &self.groups)
-            .map_err(|e| typstographe_i18n::content_error(&e))
-    }
-}
-pub fn capture(
-    s: &mut Session,
-    a: &AgentState,
-    peer: &str,
-    id: &str,
-    groups: &[usize],
-) -> Result<Preparation, String> {
-    authorized(s, a, peer, id)?;
-    let plan = s.comparisons[id].plan.clone();
-    let guard = s.guard();
-    plan.guard().check(&guard).map_err(crate::owner::error)?;
-    let owner = s.ensure_owner()?;
-    Ok(Preparation {
-        plan,
-        guard,
-        update: owner.update_bytes(),
-        assets: owner.assets().clone(),
-        groups: groups.to_vec(),
-    })
-}
-#[cfg(any(test, feature = "recipe-driver"))]
-pub fn prepare(
-    s: &mut Session,
-    a: &AgentState,
-    peer: &str,
-    id: &str,
-    groups: &[usize],
-) -> Result<PreparedDecision, String> {
-    capture(s, a, peer, id, groups)?.prepare()
-}
-pub fn decide(
-    s: &mut Session,
-    a: &mut AgentState,
-    peer: &str,
-    id: &str,
-    ids: &[usize],
-    prepared: Option<PreparedDecision>,
-) -> Result<
-    (
-        Value,
-        Option<typstographe_core::content::shared::Publication>,
-    ),
-    String,
-> {
-    authorized(s, a, peer, id)?;
-    let project = if let Some(p) = &prepared {
-        Some(
-            s.stored_project()?
-                .with_current(p.archive().clone())
-                .map_err(crate::project::error)?,
-        )
-    } else {
-        None
-    };
-    let mut review = s.comparisons.remove(id).unwrap();
-    let result = (|| {
-        let publication = if let Some(prepared) = prepared {
-            let pub_ = s
-                .ensure_owner()?
-                .publish_comparison(peer, &mut review.plan, prepared)?;
-            s.record(&pub_);
-            let saved = s.project.get().is_some_and(|c| c.saved_origin);
-            s.project =
-                std::sync::OnceLock::from(crate::project::Context::new(project.unwrap(), saved));
-            Some(pub_)
-        } else {
-            review.plan.refuse(ids).map_err(crate::owner::error)?;
-            None
-        };
-        if let Origin::Proposal { .. } = &review.origin {
-            let groups = review.plan.report(&s.guard()).groups;
-            let proposal = a.proposal.as_mut().unwrap();
-            proposal.decisions = groups
-                .iter()
-                .map(|g| json!({"group":g.id,"decision":g.decision}))
-                .collect();
-            proposal.working_revision = Some(s.revision);
-            if !groups.iter().any(|g| g.decision == Decision::Pending) {
-                a.proposal.as_mut().unwrap().status =
-                    if groups.iter().all(|g| g.decision == Decision::Applied) {
-                        "accepted"
-                    } else if groups.iter().all(|g| g.decision == Decision::Refused) {
-                        "rejected"
-                    } else {
-                        "partially_accepted"
-                    }
-                    .into();
-            }
-        }
-        Ok((payload(s, a, id, &review, false)?, publication))
-    })();
-    s.comparisons.insert(id.into(), review);
-    result
 }
 #[tauri::command(async)]
 pub fn comparison_open(
@@ -392,67 +280,6 @@ pub async fn comparison_preview(
         .await
         .map_err(|e| e.to_string())?
 }
-#[derive(Deserialize, Serialize, Clone, Copy)]
-#[serde(rename_all = "snake_case")]
-pub enum Action {
-    Apply,
-    Refuse,
-}
-#[tauri::command]
-pub async fn comparison_decide(
-    window: tauri::WebviewWindow,
-    app: tauri::AppHandle,
-    state: State<'_, Bridge>,
-    id: String,
-    groups: Vec<usize>,
-    action: Action,
-) -> Result<Value, String> {
-    let session = state.session.clone();
-    let agent = state.agent.clone();
-    let renderer = state.renderer.clone();
-    let peer = window.label().to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let prepared = if matches!(action, Action::Apply) {
-            let snapshot = capture(
-                &mut *session.lock().map_err(|e| e.to_string())?,
-                &*agent.lock().map_err(|e| e.to_string())?,
-                &peer, &id, &groups,
-            )?;
-            let ready = snapshot.prepare()?;
-            let archive = ready.archive();
-            renderer.validate(
-                &archive.validate().map_err(crate::project::error)?, &archive.assets,
-                crate::rendering::RenderContext {
-                    settings: &archive.state().settings,
-                    dependencies: archive.dependencies.clone(),
-                },
-            )?;
-            Some(ready)
-        } else { None };
-        let mut s = session.lock().map_err(|e| e.to_string())?;
-        let mut a = agent.lock().map_err(|e| e.to_string())?;
-        let (mut report, publication) = decide(&mut s, &mut a, &peer, &id, &groups, prepared)?;
-        // The response also carries the confirmed delta: the accepting window
-        // never depends on event delivery to install its publication.
-        report["publication"] = serde_json::to_value(&publication).map_err(|e|e.to_string())?;
-        if let Some(p) = publication {
-            for resource in p.resources {
-                let _ = app.emit("web-editor:asset", json!({
-                    "generation": p.guard.document, "path": resource.path,
-                    "data": base64::Engine::encode(&base64::engine::general_purpose::STANDARD, resource.data),
-                }));
-            }
-            let _ = app.emit("web-editor:change", json!({
-                "from": "comparison", "acceptedBy": peer, "generation": p.guard.document,
-                "revision": p.guard.revision, "update": p.update,
-            }));
-        }
-        let _ = app.emit("comparison:changed", json!({"id": id}));
-        let _ = app.emit("agent:changed", ());
-        Ok(report)
-    }).await.map_err(|e| e.to_string())?
-}
-
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 #[path = "comparisons_tests.rs"]

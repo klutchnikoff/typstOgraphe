@@ -669,7 +669,7 @@ fn main() {
             comparisons::comparison_open,
             comparisons::comparison_read,
             comparisons::comparison_preview,
-            comparisons::comparison_decide,
+            comparisons::commit::comparison_apply,
             comparisons::comparison_close,
             versions::versions_list,
             versions::versions_read,

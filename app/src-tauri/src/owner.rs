@@ -78,6 +78,19 @@ impl Owner {
         plan.publish(&mut self.engine, context, prepared)
             .map_err(|e| typstographe_i18n::content_error(&e))
     }
+    pub fn check_comparison(
+        &mut self,
+        peer: &str,
+        plan: &typstographe_core::content::comparison::Comparison,
+        prepared: &typstographe_core::content::comparison::PreparedDecision,
+    ) -> Result<(), String> {
+        plan.check_prepared(&self.engine, prepared)
+            .map_err(|e| typstographe_i18n::content_error(&e))?;
+        let context = self.context(peer)?;
+        self.engine
+            .check_publication_context(plan.guard(), context)
+            .map_err(error)
+    }
     pub fn prepare_agent_calls(
         &self,
         guard: &Guard,
