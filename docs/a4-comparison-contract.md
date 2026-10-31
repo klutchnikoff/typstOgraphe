@@ -13,7 +13,8 @@ seule fois pour Versions et les propositions MCP. « Tout appliquer » peut rest
 une commodité ; aucune validation globale n’est imposée par l’architecture.
 
 Les états de comparaison comprennent contenu structuré, métadonnées, options,
-modèle, dépendances et ressources. L’état courant choisi comme référence est
+modèle et ressources documentaires. Les copies de paquets transportées ne sont
+pas des modifications applicables. L’état courant choisi comme référence est
 capturé temporairement, sans créer une entrée dans Versions. Il ne change pas
 silencieusement pendant la lecture de la comparaison.
 
@@ -103,7 +104,7 @@ ordinaires, sans sauvegarde, export ou snapshot automatique. La restauration
 complète et son snapshot `before_restore` restent un lot distinct.
 
 Une différence de structure non identifiable sans ambiguïté reste groupée.
-Les changements de paramètres, de ressources et de dépendances sont regroupés
+Les changements de paramètres et de ressources documentaires sont regroupés
 avec le contenu associé lorsque leur indépendance n’est pas prouvée.
 
 ## Implémentation et limites explicites
@@ -125,7 +126,7 @@ regroupement conservateur ; elle n’autorise aucune correspondance approximativ
 
 Le premier découpage applique les différences entre ancrages de blocs identiques.
 Plusieurs modifications dans un même paragraphe ou widget restent une décision.
-Si les réglages, la bibliothèque bibliographique, les ressources ou les paquets
+Si les réglages, la bibliothèque bibliographique ou les ressources documentaires
 changent, le contenu associé est regroupé en une seule décision documentaire :
 le premier moteur ne prétend pas encore prouver des indépendances plus fines.
 Les caractères, espaces significatives, liens et mises en forme sont conservés ;
@@ -138,14 +139,14 @@ et revérifie garde, identité et décisions ; écrire entre la capture et la fi
 la compilation ne permet jamais d’écraser la nouvelle saisie. La fenêtre qui accepte
 reçoit aussi le delta confirmé dans la réponse, indépendamment des notifications.
 
-La référence aux dépendances épinglées participe au même historique causal que
-les réglages, y compris si seul le contenu d’un paquet change. Cette référence
-opaque est renouvelée pour chaque décision publiée : réutiliser une empreinte de
-contenu pourrait confondre deux jeux après réouverture d’un ancien checkpoint.
-Le propriétaire résout la référence avec la source du modèle et
-retient les jeux immuables nécessaires à Annuler/Rétablir. La récupération invalide
-son cache lors d’un changement de ce jeu. Les octets Yjs et ces références internes
-ne constituent pas la présentation des différences.
+Les paquets appartiennent au catalogue figé de la version installée de
+typstOgraphe, pas à l’historique documentaire. La comparaison ignore les
+différences de leurs copies transportées ; préparer une reprise résout les
+bibliothèques du modèle dans ce catalogue. Annuler/Rétablir ne change pas leurs
+versions et aucun jeton de paquet n’est ajouté à Yjs. Les deux aperçus emploient
+les mêmes bibliothèques applicatives avec leurs propres modèles et ressources.
+On garantit l’état documentaire, pas un PDF identique entre versions de
+typstOgraphe. Voir le [contrat des dépendances](typst-dependencies.md).
 
 La soumission MCP fige les archives complètes de base et de candidat, pas seulement
 leurs textes. Une proposition devenue périmée avant sa première consultation

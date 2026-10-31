@@ -106,8 +106,8 @@ aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
 - Conserver l’identité du projet lors d’une sauvegarde, d’un déplacement ou d’un
   renommage. Enregistrer sous / copie indépendante depuis l’application crée
   une nouvelle identité, avec conservation des versions et de leurs métadonnées.
-- Capturer l’état documentaire confirmé complet, avec modèle, dépendances et
-  ressources. Les formulaires ouverts et saisies non validées restent dans la
+- Capturer l’état documentaire confirmé complet, avec modèle et ressources
+  documentaires. Les formulaires ouverts et saisies non validées restent dans la
   récupération privée d’A.3, hors des snapshots documentaires.
 - Créer une version enregistre atomiquement l’état courant et son nouveau snapshot
   dans le `.typsto` ; demander l’emplacement si le document n’a pas encore de
@@ -143,11 +143,20 @@ restauration exigeant une nouvelle sauvegarde est refusée sans modification si
 les 100 places sont occupées. Les références de relecture restent soumises aux
 budgets de volume du projet et à une politique de rétention propre à J.
 
+**Conservation documentaire et dépendances :** chaque version de typstOgraphe
+fournit ses paquets Typst figés et validés derrière nos wrappers publics. Versions,
+MCP et Annuler/Rétablir ne restaurent pas de versions techniques de paquets.
+Le projet et l’export gardent leurs copies de transport pour l’autonomie hors
+ligne ; l’application utilise son catalogue. On garantit l’état documentaire,
+pas l’identité du PDF entre versions de typstOgraphe. Une future incompatibilité
+de format `.typsto` proposera clairement une importation/conversion ; ce parcours
+n’est pas à développer maintenant. Voir le [contrat](docs/typst-dependencies.md).
+
 - Préciser le contrat de conservation de l’arbre documentaire, de Yjs et du
   Typst généré avec les snapshots avant de stabiliser le format public du .typsto.
 - Conserver dans le projet des états cohérents et identifiables, consultables
   hors ligne. Chaque état doit retrouver son contenu, ses métadonnées et réglages, son modèle,
-  ses dépendances et les ressources nécessaires au rendu, y compris une image
+  les ressources documentaires nécessaires au rendu, y compris une image
   remplacée ou supprimée depuis. Chaque snapshot possède une date de création
   enregistrée automatiquement pour le classement chronologique, un nom libre
   modifiable (par exemple « v1 » ou « Soumission », avec un nom daté proposé par
@@ -235,7 +244,7 @@ ne bloquent pas A.4.1.
 
 **A.4.4 — Comparateur et décisions locales :** maquette validée et conservée,
 moteur commun Versions/MCP, comparaison figée avant/après, décisions gardées,
-annulation distincte, dépendances groupées et aperçus isolés. La comparaison de
+annulation distincte, changements documentaires liés groupés et aperçus isolés. La comparaison de
 deux versions historiques est en consultation seule. Le premier regroupement
 reste conservateur pour les réglages et ressources. La restauration complète
 avec snapshot `before_restore` reste le lot suivant. Voir le
@@ -245,14 +254,14 @@ avec snapshot `before_restore` reste le lot suivant. Voir le
 **A.4.1 livré dans le cœur :** format 11 et propriétaire `Project`, identité et
 copies indépendantes, états complets, versions immuables avec métadonnées
 modifiables, références internes de relecture, lecture sélective et réécriture
-atomique avec nettoyage des seuls objets inaccessibles. Les dépendances épinglées
-sont vérifiées sans le catalogue installé. Les tests couvrent conservation,
+atomique avec nettoyage des seuls objets inaccessibles. Les copies de dépendances
+transportées sont vérifiées sans le catalogue installé. Les tests couvrent conservation,
 corruption, cohérence Yjs/JSON/Typst, quotas et gardes de fichier.
 Voir le [bilan du lot](docs/a4-storage-core.md).
 **A.4.2 livré :** Tauri, CLI et MCP conservent désormais le propriétaire CAS,
 son identité et toutes ses racines retenues. Les sauvegardes utilisent le format 11 ;
 le lecteur/écrivain de format 10 est retiré. La récupération privée transporte
-l’historique et les dépendances épinglées, avec la saisie confirmée la plus récente.
+l’historique et les ressources transportées, avec la saisie confirmée la plus récente.
 Une copie indépendante reçoit un nouvel UUID en conservant ses versions.
 L’exemple Article est régénéré depuis sa version Git. Voir le
 [bilan de raccordement](docs/a4-storage-adapters.md).

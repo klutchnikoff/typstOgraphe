@@ -112,8 +112,9 @@ n’utilisent jamais directement les empreintes physiques de l’archive.
 
 Un manifeste identique est partagé entre les états. Remplacer une image crée un
 nouvel objet ; les snapshots précédents continuent à référencer l’ancienne.
-Modifier une dépendance ou le modèle suit la même règle, sans remplacement au
-chargement par la version du catalogue de l’application.
+Le modèle suit la même règle. Les copies de paquets historiques peuvent être
+conservées comme ressources de transport ; elles ne sélectionnent pas les
+bibliothèques exécutées par l’application.
 
 Le lecteur CAS utilise `packages::validate_embedded`, indépendant du catalogue
 installé : inventaire embarqué de schéma 1, identifiants et racines uniques,
@@ -123,16 +124,19 @@ licences et provenance conservés. Les références explicites du modèle doiven
 fichiers fournis, y compris les locales chargées dynamiquement.
 Une recette compile hors ligne un projet avec un package fictif absent du
 catalogue installé. `Archive` ne réalise plus d’entrées/sorties ; il valide une
-charge documentaire et son inventaire épinglé. La résolution du catalogue sert
-à un nouveau modèle, pas à la réouverture du projet. Les empreintes contrôlent
-l’intégrité des octets conservés ;
+charge documentaire et son inventaire transporté. À l’exécution, y compris après
+réouverture ou récupération, le catalogue de la version installée fournit les
+bibliothèques des capacités. Les empreintes contrôlent l’intégrité des octets conservés ;
 elles ne certifient pas l’origine ou l’authenticité d’un package.
 
 Conserver les sources et ressources ne revient pas à embarquer les binaires de
 Typst, l’ensemble des polices du système ou le système d’exploitation. Les
 polices dont un modèle exige l’embarquement devront être déclarées comme
-ressources du projet. Une identité absolue du PDF entre versions du moteur ou
-machines n’est pas promise par ce premier schéma.
+ressources du projet. On garantit l’état documentaire, pas l’identité du PDF
+entre versions de typstOgraphe. Une future incompatibilité de format demandera
+une importation/conversion explicite, sans construire ce parcours maintenant.
+Le [contrat des dépendances Typst](typst-dependencies.md) précise la séparation
+entre catalogue de l’application, état documentaire et autonomie des exports.
 
 ## Index des versions et références internes de relecture
 

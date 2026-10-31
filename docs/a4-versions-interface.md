@@ -38,8 +38,9 @@ sur fond atténué et légèrement flouté :
 - **Contenu** : projection DOM statique du schéma riche commun, sans éditeur,
   liaison Yjs ou commandes de widget. Les images viennent de la version ; les
   notes et citations gardent des badges distincts.
-- **Aperçu** : rendu Typst des sources, du modèle et des dépendances épinglées de
-  cet état. Son moteur isolé ne remplace pas le rendu ni la synchronisation du
+- **Aperçu** : rendu Typst des sources et du modèle de cet état, avec les
+  bibliothèques du [catalogue de l’application](typst-dependencies.md).
+  Son moteur isolé ne remplace pas le rendu ni la synchronisation du
   document en cours.
 - Nom/tags/description et suppression : bandeau de décision dans cette même
   modale, sans empiler un second dialogue.

@@ -27,6 +27,11 @@ Les objets ne sont jamais extraits vers les chemins indiqués par l’archive.
 `packages::validate_embedded` vérifie les dépendances conservées contre leur
 propre inventaire et les chemins autorisés, indépendamment du catalogue installé.
 Les octets des packages, wrappers, licences et provenances restent épinglés.
+Il s’agit de l’intégrité des copies transportées, pas de la sélection des
+bibliothèques à exécuter dans l’application : cette dernière suit désormais le
+[catalogue de la version installée](typst-dependencies.md). Le test de dépendance
+fictive ci-dessous vérifie l’autonomie des octets archivés pour un usage Typst
+extérieur, pas leur activation dans typstOgraphe.
 Les empreintes garantissent l’intégrité des contenus attendus ; aucune signature
 cryptographique d’éditeur de package n’est revendiquée.
 

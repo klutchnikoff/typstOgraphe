@@ -20,14 +20,17 @@ sans lecteur ni écrivain de l’ancien format 10.
 `document.inspect` expose `project_id`. Le catalogue des commandes Versions et
 leur interface ne sont pas ajoutés dans ce lot.
 
-## Ressources épinglées
+## Ressources et bibliothèques de l’application
 
-Aperçu, validation de modèle, politique de présentation, sauvegarde et export
-utilisent l’inventaire du projet. Une simple édition ne reconstruit pas ses
-packages depuis la version installée de l’application. Un changement explicite
-vers un modèle fourni résout les dépendances de ce nouveau modèle.
-Les tests utilisent un wrapper de dates absent du catalogue, puis vérifient sa
-compilation et sa conservation jusque dans l’export hors ligne.
+La [clarification du contrat](typst-dependencies.md) remplace la règle initiale
+d’exécution des bibliothèques épinglées du projet. Aperçu, validation de modèle,
+politique de présentation, sauvegarde de l’état courant et export utilisent le
+catalogue de la version installée de typstOgraphe. Les copies historiques restent
+des ressources de transport contrôlées par le stockage CAS. Le modèle et les
+ressources documentaires restent conservés, sans promesse d’identité du PDF entre
+versions de l’application. Les tests de cette clarification remplacent le wrapper
+historique par une copie défectueuse : son contenu n’est ni exécuté dans
+l’application ni propagé dans ses nouveaux exports.
 
 Les contrôles des anciennes archives plates ont été remplacés par ceux du CAS :
 intégrité des objets, cohérence des projections et des sources, inventaire des

@@ -114,8 +114,9 @@ sans dépendance au catalogue installé. Recettes et limites dans le
 le `Project` CAS au lieu de reconstruire une archive isolée à chaque sauvegarde.
 Un seul lecteur/écrivain de production subsiste : format 11. Sauvegarde ordinaire,
 copie indépendante, lots atomiques et récupération préservent identité/historique
-selon leur contrat. Aperçu, validation de modèle et export utilisent les dépendances
-épinglées du projet, sans les remplacer par le catalogue installé.
+selon leur contrat. Aperçu, validation de modèle et export utilisent les
+bibliothèques du catalogue de la version installée ; les copies historiques
+restent des ressources de transport pour l’autonomie du projet.
 La récupération privée conserve un contexte CAS autonome mis en cache et les
 JSON/Yjs confirmés les plus récents ; formulaires et propositions restent privés.
 Voir le [bilan A.4.2](docs/a4-storage-adapters.md).
@@ -227,8 +228,13 @@ les groupes et leur progression ; les candidats opaques sont liés à la paire,
 à l’époque des décisions et à la garde attendue. Tauri et la modale commune
 réutilisent la publication et l’historique par participant. Une publication connue
 fait avancer la garde de travail ; une intervention extérieure bloque la suite.
-Les références de paquets suivent Annuler/Rétablir, sans devenir des différences
-Yjs visibles. Voir le [bilan](docs/a4-comparison-results.md). La restauration complète
+Les paquets ne sont pas restaurables et n’ajoutent aucun historique Yjs. Chaque
+version de typstOgraphe fige et valide son catalogue derrière nos wrappers stables.
+La conservation porte sur l’état documentaire, sans garantir l’identité du PDF
+entre versions de l’application. Une future incompatibilité de format `.typsto`
+proposera une importation/conversion explicite ; ce parcours n’est pas à développer
+maintenant. Voir le [contrat des dépendances](docs/typst-dependencies.md) et le
+[bilan](docs/a4-comparison-results.md). La restauration complète
 et son snapshot `before_restore` restent à implémenter séparément.
 
 **Convergence MCP :** une proposition associe deux états figés complets et
