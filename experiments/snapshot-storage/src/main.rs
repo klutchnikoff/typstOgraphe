@@ -96,6 +96,7 @@ struct Record {
     tags: Vec<String>,
     author: String,
     entries: BTreeMap<String, String>,
+    resources: Option<String>,
     commit: Option<String>,
 }
 impl Record {
@@ -107,6 +108,7 @@ impl Record {
             tags: vec!["evaluation".into()],
             author: "Storage evaluation".into(),
             entries: files.iter().map(|(p, b)| (p.clone(), hash(b))).collect(),
+            resources: None,
             commit: None,
         }
     }
@@ -159,6 +161,21 @@ impl History {
                     .or_insert_with(|| data.clone());
             }
         }
+        // Keep the timeline compact: identical resource manifests are shared,
+        // rather than copying hundreds of package paths into every index row.
+        let resources: BTreeMap<_, _> = record
+            .entries
+            .iter()
+            .filter(|(p, _)| p.contains('/'))
+            .map(|(p, h)| (p.clone(), h.clone()))
+            .collect();
+        if !resources.is_empty() {
+            let bytes = serde_json::to_vec(&resources)?;
+            let digest = hash(&bytes);
+            self.objects.entry(digest.clone()).or_insert(bytes);
+            record.resources = Some(digest);
+            record.entries.retain(|p, _| !p.contains('/'));
+        }
         if let Some(tree) = tree {
             let repo = self.repo.as_ref().unwrap();
             let root = repo.find_tree(tree.write()?)?;
@@ -183,16 +200,9 @@ impl History {
             "history/index.json".into(),
             serde_json::to_vec(&self.records)?,
         );
-        let mut needed = BTreeSet::new();
-        for record in &self.records {
-            for (path, digest) in &record.entries {
-                if self.repo.is_none() || path.contains('/') {
-                    needed.insert(digest);
-                }
-            }
-        }
+        let needed = self.needed_objects()?;
         for digest in needed {
-            files.insert(format!("history/objects/{digest}"), self.object(digest)?);
+            files.insert(format!("history/objects/{digest}"), self.object(&digest)?);
         }
         if let Some(repo) = &self.repo {
             let mut builder = repo.packbuilder()?;
@@ -207,6 +217,47 @@ impl History {
             files.insert("history/git.pack".into(), pack.to_vec());
         }
         Ok(files)
+    }
+    fn entries_for(&self, record: &Record) -> Result<BTreeMap<String, String>> {
+        let mut entries = record.entries.clone();
+        if let Some(digest) = &record.resources {
+            for (path, digest) in self.resource_entries(digest)? {
+                if entries.insert(path, digest).is_some() {
+                    return Err("invalid resource manifest".into());
+                }
+            }
+        }
+        Ok(entries)
+    }
+    fn resource_entries(&self, digest: &str) -> Result<BTreeMap<String, String>> {
+        let bytes = self.object(digest)?;
+        if hash(&bytes) != digest {
+            return Err("resource manifest integrity mismatch".into());
+        }
+        let entries: BTreeMap<String, String> = serde_json::from_slice(&bytes)?;
+        if entries.keys().any(|p| !p.contains('/')) {
+            return Err("invalid resource manifest".into());
+        }
+        Ok(entries)
+    }
+    fn needed_objects(&self) -> Result<BTreeSet<String>> {
+        let mut needed = BTreeSet::new();
+        let mut manifests = BTreeSet::new();
+        for record in &self.records {
+            if let Some(digest) = &record.resources {
+                manifests.insert(digest);
+            }
+            for (path, digest) in &record.entries {
+                if self.repo.is_none() || path.contains('/') {
+                    needed.insert(digest.clone());
+                }
+            }
+        }
+        for digest in manifests {
+            needed.insert(digest.clone());
+            needed.extend(self.resource_entries(digest)?.into_values());
+        }
+        Ok(needed)
     }
     fn save(&self, path: &Path) -> Result<()> {
         publish(path, &self.envelope()?, false)
@@ -290,11 +341,11 @@ impl History {
             })
             .transpose()?;
         let mut files = Files::new();
-        for (path, expected) in &record.entries {
+        for (path, expected) in self.entries_for(record)? {
             let data = if let Some(tree) = &tree
                 && !path.contains('/')
             {
-                let entry = tree.get_name(path).ok_or("missing tree entry")?;
+                let entry = tree.get_name(&path).ok_or("missing tree entry")?;
                 self.repo
                     .as_ref()
                     .unwrap()
@@ -302,12 +353,12 @@ impl History {
                     .content()
                     .to_vec()
             } else {
-                self.object(expected)?
+                self.object(&expected)?
             };
-            if hash(&data) != *expected {
+            if hash(&data) != expected {
                 return Err("object integrity mismatch".into());
             }
-            files.insert(path.clone(), data);
+            files.insert(path, data);
         }
         Ok(files)
     }
@@ -384,12 +435,8 @@ fn verify_failures(history: &History, target: &Path, id: &str) -> Result<usize> 
     )?;
     let mut files = history.envelope()?;
     // A ZIP-valid but damaged content object must fail on read, not silently change content.
-    let object = history
-        .records
-        .iter()
-        .find(|r| r.id == id)
-        .unwrap()
-        .entries
+    let entries = history.entries_for(history.records.iter().find(|r| r.id == id).unwrap())?;
+    let object = entries
         .iter()
         .find(|(p, _)| history.repo.is_none() || p.contains('/'))
         .map(|(_, h)| h)
@@ -527,13 +574,7 @@ fn main() -> Result<()> {
                         return Err("deleted snapshot still listed".into());
                     }
                     // No orphan binary objects remain in the persisted envelope.
-                    let reachable: BTreeSet<_> = pruned
-                        .records
-                        .iter()
-                        .flat_map(|r| r.entries.iter())
-                        .filter(|(p, _)| pruned.repo.is_none() || p.contains('/'))
-                        .map(|(_, h)| h)
-                        .collect();
+                    let reachable = pruned.needed_objects()?;
                     if pruned.object_keys()?.iter().any(|h| !reachable.contains(h)) {
                         return Err("orphan object retained".into());
                     }
@@ -569,9 +610,9 @@ fn main() -> Result<()> {
     }
     let version = git2::Version::get();
     let report = serde_json::json!({
-        "schema": 2, "environment": corpus_metadata,
+        "schema": 3, "environment": corpus_metadata,
         "libgit2": {"version":version.libgit2_version(), "vendored":version.vendored(), "https":version.https(), "ssh":version.ssh()},
-        "policy": {"measured_samples":7,"warmup_samples":1,"git_pack_threads":1,"atomic_replacement":true,"zip_deflate":true,"git_pack_stored_without_recompression":true,"timing_excludes_fixture_generation_core_validation_and_typst":true,"warm_filesystem_cache":true,"selective_resource_loading":true},
+        "policy": {"measured_samples":7,"warmup_samples":1,"git_pack_threads":1,"atomic_replacement":true,"zip_deflate":true,"git_pack_stored_without_recompression":true,"timing_excludes_fixture_generation_core_validation_and_typst":true,"warm_filesystem_cache":true,"selective_resource_loading":true,"deduplicated_resource_manifests":true},
         "checks": {"byte_exact_snapshots":verified_states,"failure_checks":failure_checks,"prune_preserves_retained_states":true,"prune_removes_orphan_binary_objects":true},
         "measurements":measurements,
     });
