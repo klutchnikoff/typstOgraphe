@@ -129,16 +129,12 @@ it.each(['before', 'after'] as const)(
         .getAttribute('d')
     }
     expect(radio(0, 'after').querySelector('path')?.getAttribute('d')).toBe(iconPath('check'))
-    expect(radio(0, 'before').querySelector('path')?.getAttribute('d')).toBe(
-      iconPath('circle-minus'),
-    )
+    expect(radio(0, 'before').querySelector('path')?.getAttribute('d')).toBe(iconPath('x'))
     radio(0, 'before').click()
     expect(radio(0, 'before').getAttribute('aria-checked')).toBe('true')
     expect(radio(0, 'after').getAttribute('aria-checked')).toBe('false')
     expect(radio(0, 'before').querySelector('path')?.getAttribute('d')).toBe(iconPath('check'))
-    expect(radio(0, 'after').querySelector('path')?.getAttribute('d')).toBe(
-      iconPath('circle-minus'),
-    )
+    expect(radio(0, 'after').querySelector('path')?.getAttribute('d')).toBe(iconPath('x'))
     expect(f.api.apply).not.toHaveBeenCalled()
     radio(0, 'before').focus()
     radio(0, 'before').dispatchEvent(
