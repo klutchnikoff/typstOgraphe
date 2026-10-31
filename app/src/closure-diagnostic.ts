@@ -229,7 +229,14 @@ export async function closureDiagnostic(
       ;(document.querySelector('[data-action="select-all-before"]') as HTMLButtonElement).click()
       ;(document.querySelector('[data-action="validate-comparison"]') as HTMLButtonElement).click()
       await until(() => stableJSON(state()) === reference, 'version reprise')
+      await until(
+        () =>
+          document.querySelector('[data-comparison-summary]')?.textContent ===
+          'Choix appliqués. Vous pouvez enregistrer le document.',
+        'version application acknowledgement',
+      )
       viewer.destroy()
+      await until(() => !document.querySelector('dialog.version-dialog'), 'version modal close')
       editor.commands.undo()
       await until(() => stableJSON(state()) === modified, 'version undo')
       editor.commands.redo()
