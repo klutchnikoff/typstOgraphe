@@ -153,6 +153,38 @@ test('neighboring paragraph edits can be resumed and refused independently', asy
   expect(paragraphs.slice(0, 2)).toEqual(['Original one', 'New Stable anchor'])
   await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
 })
+test('keeping every green choice saves without a Yjs change or extra undo step', async ({
+  page,
+}) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await ready(page)
+  await page.locator('.side-rail [data-command="ui.versions"]').click()
+  await capture(page, 'Before')
+  await writing(page, 'Current one', 'Current two')
+  const initial = await page.evaluate(async () => {
+    const { provider, editor } = window.__spike!
+    const context = await provider.transport.invoke<{ undo_steps: number }>('editing_context', {
+      generation: provider.generation,
+    })
+    return { text: editor.getText(), revision: provider.revision, undo: context.undo_steps }
+  })
+  await page.locator('.versions-groups [data-version]').click()
+  const dialog = page.locator('.version-dialog[open]')
+  await dialog.getByRole('tab', { name: 'Comparer', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Appliquer et enregistrer', exact: true }).click()
+  await expect(dialog).toContainText('Choix appliqués et document enregistré.')
+  const result = await page.evaluate(async () => {
+    const { provider, editor } = window.__spike!
+    const context = await provider.transport.invoke<{ undo_steps: number }>('editing_context', {
+      generation: provider.generation,
+    })
+    return { text: editor.getText(), revision: provider.revision, undo: context.undo_steps }
+  })
+  expect(result).toEqual(initial)
+  expect(errors).toEqual([])
+  await dialog.getByRole('button', { name: 'Fermer', exact: true }).click()
+})
 test('Article snapshots show deleted and inserted words beside a citation in light and dark modes', async ({
   page,
 }) => {

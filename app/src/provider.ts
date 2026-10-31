@@ -253,7 +253,7 @@ export class Provider {
   private apply(event: Change) {
     if (event.generation && event.generation !== this.generation) return
     this.revision = Math.max(this.revision, event.revision)
-    if (event.from !== this.id)
+    if (event.from !== this.id && event.update.length)
       Y.applyUpdate(
         this.doc,
         new Uint8Array(event.update),

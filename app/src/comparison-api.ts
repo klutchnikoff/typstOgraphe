@@ -47,7 +47,12 @@ export function comparisonAPI(provider: Provider, transport: Transport): Compari
         if (provider.generation !== generation || provider.rejected) return result
         if (result.publication) {
           for (const resource of result.publication.resources) provider.addResource(resource)
-          Y.applyUpdate(provider.doc, new Uint8Array(result.publication.update), CONFIRMED_COMMAND)
+          if (result.publication.update.length)
+            Y.applyUpdate(
+              provider.doc,
+              new Uint8Array(result.publication.update),
+              CONFIRMED_COMMAND,
+            )
           provider.revision = Math.max(provider.revision, result.publication.guard.revision)
           await provider.refreshHistory().catch((error) => provider.onError(error))
         }

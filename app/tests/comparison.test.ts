@@ -251,6 +251,35 @@ it('canceling the first save leaves the native comparison untouched', async () =
   expect(invoke.mock.calls.some(([command]) => command === 'comparison_apply')).toBe(false)
   expect(provider.confirmSaved).not.toHaveBeenCalled()
 })
+it('acknowledges a successful save without attempting to decode an empty Yjs delta', async () => {
+  const doc = new Y.Doc()
+  const provider = {
+    doc,
+    generation: 'doc',
+    revision: 2,
+    composing: false,
+    flush: vi.fn(async () => {}),
+    commitCommand: vi.fn(async (run: () => Promise<unknown>) => run()),
+    confirmSaved: vi.fn(),
+    refreshHistory: vi.fn(async () => {}),
+  }
+  const invoke = vi.fn(async (command: string) =>
+    command === 'comparison_read'
+      ? { report: { path: '/saved.typsto' } }
+      : {
+          publication: { guard: { document: 'doc', revision: 2 }, update: [], resources: [] },
+          saved: { document: 'doc', path: '/saved.typsto', revision: 2 },
+        },
+  )
+  const api = comparisonAPI(
+    provider as unknown as Provider,
+    { invoke, listen: vi.fn(async () => () => {}) } as Transport,
+  )
+  await api.apply('review', ['after'])
+  expect(provider.confirmSaved).toHaveBeenCalledOnce()
+  expect(provider.revision).toBe(2)
+  doc.destroy()
+})
 it('captures the current comparison once across tab changes and closes a delayed opening without publishing it', async () => {
   HTMLDialogElement.prototype.showModal = function () {
     this.setAttribute('open', '')
