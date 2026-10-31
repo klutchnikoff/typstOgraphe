@@ -996,7 +996,6 @@ web-versions-19 = Aucune version conservée.
 
 web-versions-20 = Versions manuelles
 
-web-versions-21 = Avant restauration
 
 web-versions-22 = La limite de versions est atteinte. Supprimez une version pour en créer une nouvelle.
 
@@ -1077,3 +1076,6 @@ web-composition-choices-applied = Choix appliqués
 web-composition-choice-draft = Choix provisoire
 web-composition-applied = Choix appliqués. Vous pouvez enregistrer le document.
 web-composition-draft-notice = Choix provisoires · aucun changement avant validation.
+web-composition-select-all = Tout sélectionner
+web-composition-select-all-before = Tout sélectionner à gauche
+web-composition-select-all-after = Tout sélectionner à droite

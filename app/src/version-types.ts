@@ -12,7 +12,7 @@ export interface VersionRecord {
   id: string
   created_at: string
   details: VersionDetails
-  reason: 'manual' | 'before_restore'
+  reason: 'manual'
   state: string
 }
 export interface VersionCatalogue {

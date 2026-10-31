@@ -47,10 +47,7 @@ export function versionsPanel(
       empty.textContent = tr('Aucune version conservée.')
       content.append(empty)
     }
-    for (const [reason, label] of [
-      ['manual', 'Versions manuelles'],
-      ['before_restore', 'Avant restauration'],
-    ]) {
+    for (const [reason, label] of [['manual', 'Versions manuelles']]) {
       const rows = value.versions
         .filter((v) => v.reason === reason)
         .sort((a, b) => b.created_at.localeCompare(a.created_at))

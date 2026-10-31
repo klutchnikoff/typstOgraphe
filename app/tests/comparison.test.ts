@@ -120,6 +120,7 @@ it.each(['before', 'after'] as const)(
         `[data-group="${group}"] [data-side="${side}"]`,
       )!
     expect(radio(0, 'after').getAttribute('aria-checked')).toBe('true')
+    expect(radio(0, 'after').tabIndex).toBe(0)
     const iconPath = (name: string) => {
       const asset = availableIcon(name)
       expect(asset).toBeDefined()
@@ -153,6 +154,63 @@ it.each(['before', 'after'] as const)(
     expect(error).not.toHaveBeenCalled()
   },
 )
+it.each(['before', 'after'] as const)(
+  'selects every group on %s without publishing, including linked groups, until Apply',
+  async (source) => {
+    const f = fixture(source)
+    f.state.report.groups[1].linked = true
+    const view = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn() })
+    disposers.push(view.destroy)
+    document.body.append(view.element)
+    await tick()
+    const select = (side: string) =>
+      view.element.querySelector<HTMLButtonElement>(`[data-action="select-all-${side}"]`)!
+    select('before').focus()
+    select('before').click()
+    expect(document.activeElement).toBe(select('before'))
+    expect(view.element.querySelectorAll('[data-side="before"][aria-checked="true"]')).toHaveLength(
+      2,
+    )
+    expect(f.state.choices).toEqual(['before', 'before'])
+    await tick()
+    expect(
+      [...view.element.querySelectorAll<HTMLButtonElement>('[role=radio]')].every(
+        (b) => b.tabIndex === (b.getAttribute('aria-checked') === 'true' ? 0 : -1),
+      ),
+    ).toBe(true)
+    select('before').dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    expect(document.activeElement).toBe(select('after'))
+    select('after').click()
+    expect(f.state.choices).toEqual(['after', 'after'])
+    select('before').click()
+    expect(f.api.apply).not.toHaveBeenCalled()
+    button(view.element, 'Appliquer').click()
+    expect(select('before').disabled).toBe(true)
+    expect(select('after').disabled).toBe(true)
+    await tick()
+    expect(f.api.apply).toHaveBeenCalledExactlyOnceWith('review', ['before', 'before'])
+    expect(select('before').disabled).toBe(true)
+    expect(select('after').disabled).toBe(true)
+  },
+)
+it('disables bulk choices without differences while keeping identical historical states applicable', () => {
+  const f = fixture()
+  f.state.report.groups = []
+  const view = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn() })
+  disposers.push(view.destroy)
+  expect(
+    [...view.element.querySelectorAll<HTMLButtonElement>('[data-action^="select-all-"]')].every(
+      (b) => b.disabled,
+    ),
+  ).toBe(true)
+  expect(button(view.element, 'Appliquer').disabled).toBe(false)
+})
 it('preserves provisional choices after a refused publication and an external edit', async () => {
   const f = fixture(),
     error = vi.fn()

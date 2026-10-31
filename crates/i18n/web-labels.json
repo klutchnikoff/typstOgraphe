@@ -344,7 +344,6 @@
   "Seule cette version sera supprimée. Le document courant et les autres versions seront conservés.": "web-versions-18",
   "Aucune version conservée.": "web-versions-19",
   "Versions manuelles": "web-versions-20",
-  "Avant restauration": "web-versions-21",
   "La limite de versions est atteinte. Supprimez une version pour en créer une nouvelle.": "web-versions-22",
   "Versions enregistrées.": "web-versions-23",
   "Le fichier du projet est déjà choisi.": "web-versions-24",
@@ -400,5 +399,8 @@
   "Choix appliqués": "web-composition-choices-applied",
   "Choix provisoire": "web-composition-choice-draft",
   "Choix appliqués. Vous pouvez enregistrer le document.": "web-composition-applied",
-  "Choix provisoires · aucun changement avant validation.": "web-composition-draft-notice"
+  "Choix provisoires · aucun changement avant validation.": "web-composition-draft-notice",
+  "Tout sélectionner": "web-composition-select-all",
+  "Tout sélectionner à gauche": "web-composition-select-all-before",
+  "Tout sélectionner à droite": "web-composition-select-all-after"
 }

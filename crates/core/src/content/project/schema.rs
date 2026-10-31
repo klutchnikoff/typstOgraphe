@@ -60,7 +60,6 @@ pub(super) struct Manifest {
 #[serde(rename_all = "snake_case")]
 pub enum SnapshotReason {
     Manual,
-    BeforeRestore,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]

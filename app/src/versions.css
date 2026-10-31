@@ -313,10 +313,18 @@
   background: var(--panel);
   font-size: 0.9em;
 }
-.comparison-headings > strong {
+.comparison-column-heading {
   min-width: 0;
   overflow-wrap: anywhere;
   padding: 10px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.comparison-column-heading button {
+  margin-left: auto;
+  font-size: inherit;
 }
 .comparison-group {
   border: 1px solid var(--border);

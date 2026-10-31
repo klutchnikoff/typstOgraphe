@@ -4,7 +4,12 @@ import { actionRow, navigationGroup, composing, editingControl } from './keyboar
 import { icon } from './icons'
 import { tr } from './i18n'
 import type { Catalogue } from './shell'
-import type { ComparisonAPI, ComparisonState, ComparisonGroup } from './comparison-types'
+import type {
+  ComparisonAPI,
+  ComparisonState,
+  ComparisonGroup,
+  ComparisonSide,
+} from './comparison-types'
 import type { VersionContent } from './version-types'
 /** The same immutable comparison and decision controls serve Versions and MCP. */
 export function comparisonView(options: {
@@ -24,6 +29,7 @@ export function comparisonView(options: {
     serial = 0
   let disposeListener: (() => void) | undefined
   let disposers: (() => void)[] = []
+  const choiceNavigation = new Map<number, ReturnType<typeof navigationGroup>>()
   let previewMode = false,
     previewLoading = false
   let previews: { before?: string[]; after?: string[] } = {}
@@ -57,6 +63,26 @@ export function comparisonView(options: {
     b.textContent = tr(label)
     b.onclick = run
     return b
+  }
+  function paintChoice(button: HTMLButtonElement, selected: boolean) {
+    button.innerHTML = `${icon(selected ? 'check' : 'x')}<span>${tr('Sélectionner')}</span>`
+    button.setAttribute('aria-checked', String(selected))
+    button.tabIndex = selected ? 0 : -1
+  }
+  function refreshChoices() {
+    for (const button of element.querySelectorAll<HTMLButtonElement>('.comparison-choice')) {
+      const group = Number(button.closest<HTMLElement>('[data-group]')!.dataset.group)
+      const selected = choices[group] === button.dataset.side
+      paintChoice(button, selected)
+      if (selected) choiceNavigation.get(group)?.select(button)
+    }
+  }
+  function choose(side: ComparisonSide, group?: number) {
+    if (busy || !alive || state.report.closed || !state.report.groups.length) return
+    if (group === undefined) choices.fill(side)
+    else choices[group] = side
+    // Preserve live controls and focus, including WebKit's keyboard activation.
+    refreshChoices()
   }
   async function refresh() {
     const request = ++serial
@@ -155,6 +181,7 @@ export function comparisonView(options: {
       scrollTop = scroller?.scrollTop
     disposers.forEach((fn) => fn())
     disposers = []
+    choiceNavigation.clear()
     const toolbar = document.createElement('div')
     toolbar.className = 'comparison-toolbar'
     const caption = document.createElement('span')
@@ -204,11 +231,25 @@ export function comparisonView(options: {
       sourceBefore ? 'Avant · Version conservée' : 'Avant · État de départ',
       sourceBefore ? 'Après · Document courant figé' : 'Après · Proposition',
     ].entries()) {
-      const h = document.createElement('strong')
+      const column = document.createElement('div'),
+        h = document.createElement('strong')
+      column.className = 'comparison-column-heading'
       const name = index === 0 ? state.report.before_name : state.report.after_name
       h.textContent = name ? `${tr(index === 0 ? 'Avant' : 'Après')} · ${name}` : tr(label)
-      headings.append(h)
+      const side = index === 0 ? 'before' : 'after'
+      const select = button('Tout sélectionner', () => {
+        choose(side)
+        select.focus({ preventScroll: true })
+      })
+      const title = tr(index === 0 ? 'Tout sélectionner à gauche' : 'Tout sélectionner à droite')
+      select.setAttribute('aria-label', title)
+      select.title = title
+      select.dataset.action = `select-all-${side}`
+      select.disabled = busy || !!state.report.closed || !state.report.groups.length
+      column.append(h, select)
+      headings.append(column)
     }
+    disposers.push(navigationGroup(headings, { axis: 'horizontal' }).destroy)
     const rows = document.createElement('div')
     for (const g of previewMode ? [] : state.report.groups) {
       const row = document.createElement('section')
@@ -257,33 +298,30 @@ export function comparisonView(options: {
       selectors.setAttribute('role', 'radiogroup')
       selectors.setAttribute('aria-label', `${tr('Choisir la version du passage')} ${g.id + 1}`)
       for (const name of ['before', 'after'] as const) {
-        const selected = choices[g.id] === name
         const select = button('Sélectionner', () => {
-          choices[g.id] = name
-          render()
+          choose(name, g.id)
+          select.focus({ preventScroll: true })
         })
-        select.innerHTML = `${icon(selected ? 'check' : 'x')}<span>${tr('Sélectionner')}</span>`
         select.className = 'comparison-choice'
         select.dataset.side = name
         select.dataset.action = `select-${name}`
         select.setAttribute('role', 'radio')
-        select.setAttribute('aria-checked', String(selected))
+        paintChoice(select, choices[g.id] === name)
         select.setAttribute(
           'aria-label',
           tr(name === 'before' ? 'Sélectionner la version rouge' : 'Sélectionner la version verte'),
         )
-        select.tabIndex = selected ? 0 : -1
         select.disabled = busy || !!state.report.closed
         selectors.append(select)
       }
-      disposers.push(
-        navigationGroup(selectors, {
-          axis: 'horizontal',
-          roving: true,
-          activateOnMove: true,
-          itemRole: 'radio',
-        }).destroy,
-      )
+      const navigation = navigationGroup(selectors, {
+        axis: 'horizontal',
+        roving: true,
+        activateOnMove: true,
+        itemRole: 'radio',
+      })
+      choiceNavigation.set(g.id, navigation)
+      disposers.push(navigation.destroy)
       actions.hidden = !g.linked
       row.append(header, columns, summary, actions, selectors)
       rows.append(row)
@@ -376,6 +414,7 @@ export function comparisonView(options: {
       serial++
       disposeListener?.()
       disposers.forEach((fn) => fn())
+      choiceNavigation.clear()
     },
   }
 }

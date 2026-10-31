@@ -994,7 +994,6 @@ web-versions-19 = No saved versions.
 
 web-versions-20 = Manual versions
 
-web-versions-21 = Before restoration
 
 web-versions-22 = The version limit has been reached. Delete a version to create a new one.
 
@@ -1075,3 +1074,6 @@ web-composition-choices-applied = Choices applied
 web-composition-choice-draft = Provisional choice
 web-composition-applied = Choices applied. You can save the document.
 web-composition-draft-notice = Provisional choices · nothing changes until confirmation.
+web-composition-select-all = Select all
+web-composition-select-all-before = Select everything on the left
+web-composition-select-all-after = Select everything on the right
