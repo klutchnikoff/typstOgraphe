@@ -352,13 +352,18 @@
   max-width: none;
   margin: 0;
 }
+.comparison-side :is(del, ins) {
+  border-radius: 0.15em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
 .comparison-side del {
   color: light-dark(#9a302d, #ffb0aa);
-  background: light-dark(#fbeceb, #442d30);
+  background: light-dark(#ffd9d6, #56343b);
 }
 .comparison-side ins {
   color: light-dark(#22613c, #9cd7af);
-  background: light-dark(#e9f4ec, #243c30);
+  background: light-dark(#d4efd9, #304f3a);
   text-underline-offset: 3px;
 }
 .comparison-side :is(del, ins) :is(.footnote-ref, .citation-ref) {
