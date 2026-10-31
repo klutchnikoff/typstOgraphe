@@ -12,6 +12,7 @@ pub mod contract;
 pub mod editing;
 pub mod editorial;
 mod mapping;
+pub mod project;
 pub use mapping::source_mapped;
 mod schema;
 pub mod shared;

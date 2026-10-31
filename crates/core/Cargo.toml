@@ -40,3 +40,4 @@ regex.workspace = true
 spellbook.workspace = true
 unicode-normalization.workspace = true
 sha2.workspace = true
+uuid = { workspace = true, features = ["serde"] }

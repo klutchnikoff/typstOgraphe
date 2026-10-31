@@ -2,6 +2,7 @@
 //! Le catalogue est partagé avec les créateurs de modèles ; aucun téléchargement.
 use crate::errors::{CoreError, PackageError, StorageError};
 mod embedded;
+pub(crate) use embedded::valid_path as valid_embedded_path;
 pub use embedded::validate as validate_embedded;
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
