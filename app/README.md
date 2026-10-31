@@ -84,10 +84,11 @@ npm run test:browser:smoke
 `build:recipe` produit le frontend explicite dans `app/dist-recipe/`, puis compile
 l’application avec `recipe-driver` et la CLI, via l’overlay Tauri `TAURI_CONFIG`.
 Le frontend normal `app/dist/` n’est pas modifié. `--release` choisit les binaires
-optimisés ; les autres options sont transmises à Cargo. Les binaires sont dans
-`target/debug/` ou `target/release/` : une compilation normale ultérieure peut les
-remplacer. Copier les exécutables ou utiliser `TOG_SPIKE_BINARY` / `TOG_CLI_BINARY`
-pour protéger une recette d’une compilation simultanée.
+optimisés ; les autres options sont transmises à Cargo. Les exécutables sont
+copiés dans `target/recipes/debug/` ou `target/recipes/release/` et leur capacité
+STDIO est vérifiée. Une compilation normale ne les remplace donc pas, sans dupliquer
+le cache Cargo. `TOG_SPIKE_BINARY` / `TOG_CLI_BINARY` permettent aussi de choisir
+explicitement les exécutables (notamment avec `CARGO_TARGET_DIR`).
 
 Le navigateur utilise le mode Vite `browser-test`, un serveur distinct sur le
 port 1421 et un processus Rust STDIO isolé. `npm run test:browser` lance toute la

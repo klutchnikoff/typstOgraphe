@@ -10,7 +10,11 @@ const root = path.resolve(
 )
 const executable =
   process.env.TOG_SPIKE_BINARY ||
-  path.join(repo, 'target/debug', `typstographe${process.platform === 'win32' ? '.exe' : ''}`)
+  path.join(
+    repo,
+    'target/recipes/debug',
+    `typstographe${process.platform === 'win32' ? '.exe' : ''}`,
+  )
 await mkdir(root, { recursive: true })
 assert.equal((await readdir(root)).length, 0, 'Use a new empty recipe directory')
 const run = async (mode) => {

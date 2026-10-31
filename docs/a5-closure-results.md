@@ -22,7 +22,9 @@ Les rapports, résultats, licences et références visuelles existants sont cons
 - Frontend normal sans pont `__spike`, commande d’essai Rust ni modules de mesure.
   `check:distribution` contrôle les **assets réellement produits**, aussi en CI.
 - `build:recipe` associe `dist-recipe/` et `recipe-driver` ; il conserve `dist/`.
-  La CI native utilise ce même parcours. Les deux modes utilisent le même moteur
+  Les exécutables sont copiés dans `target/recipes/<profil>/` et leur capacité
+  STDIO est vérifiée, pour résister au remplacement de `target/debug` par une
+  compilation normale simultanée. La CI utilise ce même parcours. Les deux modes utilisent le même moteur
   documentaire ; aucune validation simplifiée n’est introduite pour la recette.
 - Commande `recover` sans appelant et commande d’essai `prepare_rust_edit` retirées ;
   la recette utilise maintenant `block.insert` du contrat public. `jsonschema`
@@ -43,3 +45,15 @@ comparées octet par octet entre adaptateurs ; les PDF sont identifiés et les
 dimensions de pages comparées, sans exiger l’identité de leurs métadonnées variables.
 
 Résultats, révisions qualifiées et limites seront consignés après exécution.
+
+### Problème de recette identifié et corrigé
+
+La première tentative native depuis le checkout propre a lancé un binaire
+normal à la place de celui de recette : une construction de développement
+concurrente peut remplacer la sortie Cargo conventionnelle. Les gardes ont
+refusé les options ; aucun document n’a été ouvert par erreur. Le lanceur copie
+désormais les artefacts dans `target/recipes/<profil>/`, puis contrôle le support
+STDIO avant de les annoncer utilisables. Tous les runners utilisent cet emplacement
+par défaut. Le cache des dépendances Cargo reste partagé. La recette obsolète
+qui cherchait « Accepter le lot » utilise désormais le comparateur et sa
+validation chiffrée, puis vérifie la reprise d’une version par la modale commune.

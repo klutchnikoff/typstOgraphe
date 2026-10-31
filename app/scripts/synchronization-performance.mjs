@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 const root = path.resolve(process.argv[2] || 'output/synchronization-performance')
-const binary = process.env.TOG_SPIKE_BINARY || path.resolve('target/debug/typstographe')
+const binary = process.env.TOG_SPIKE_BINARY || path.resolve('target/recipes/debug/typstographe')
 await mkdir(root, { recursive: true })
 const mode = process.env.TOG_SYNC_ACTIVE === '1' ? 'synchronization-active' : 'synchronization'
 const child = spawn(binary, [`--diagnostic-${mode}`, '--session-dir', root], {

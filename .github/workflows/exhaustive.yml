@@ -11,7 +11,7 @@ on:
         type: boolean
         default: false
       acceptance_only:
-        description: Exécuter uniquement les recettes natives A.3 sur les trois systèmes
+        description: Exécuter uniquement les recettes natives du socle sur les trois systèmes
         type: boolean
         default: false
 permissions:

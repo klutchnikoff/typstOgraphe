@@ -13,7 +13,10 @@ export function browserDriver(root: string): Plugin {
     configureServer(server) {
       const binary =
         process.env.TOG_SPIKE_BINARY ||
-        resolve(root, '../target/debug/typstographe' + (process.platform === 'win32' ? '.exe' : ''))
+        resolve(
+          root,
+          '../target/recipes/debug/typstographe' + (process.platform === 'win32' ? '.exe' : ''),
+        )
       const session = process.env.TOG_SPIKE_SESSION || mkdtempSync(join(tmpdir(), 'tog-web-spike-'))
       const child = spawn(binary, ['--stdio', '--session-dir', session], {
         stdio: ['pipe', 'pipe', 'inherit'],

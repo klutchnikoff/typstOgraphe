@@ -11,7 +11,11 @@ const root = path.resolve(
 )
 const binary =
   process.env.TOG_SPIKE_BINARY ||
-  path.join(repo, 'target/debug', `typstographe${process.platform === 'win32' ? '.exe' : ''}`)
+  path.join(
+    repo,
+    'target/recipes/debug',
+    `typstographe${process.platform === 'win32' ? '.exe' : ''}`,
+  )
 await mkdir(root, { recursive: true })
 const results = []
 for (const mode of ['full', 'restore']) {

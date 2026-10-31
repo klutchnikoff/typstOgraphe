@@ -22,9 +22,11 @@ await mkdir(root, { recursive: true })
 assert.equal((await readdir(root)).length, 0, 'Use a new, empty recipe directory')
 const extension = process.platform === 'win32' ? '.exe' : ''
 const binary =
-  process.env.TOG_SPIKE_BINARY || path.join(repo, 'target/debug', 'typstographe' + extension)
+  process.env.TOG_SPIKE_BINARY ||
+  path.join(repo, 'target/recipes/debug', 'typstographe' + extension)
 const cliBinary =
-  process.env.TOG_CLI_BINARY || path.join(repo, 'target/debug', 'typstographe-cli' + extension)
+  process.env.TOG_CLI_BINARY ||
+  path.join(repo, 'target/recipes/debug', 'typstographe-cli' + extension)
 const cli = cliClient(cliBinary, repo)
 const catalogue = cli(['commands', 'export'])
 const report = {

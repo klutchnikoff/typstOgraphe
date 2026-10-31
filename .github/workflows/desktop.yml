@@ -88,7 +88,7 @@ jobs:
           cargo +stable clippy --locked -p typstographe --all-targets --features recipe-driver -- -D warnings
       - name: Functional recipe driver
         if: '!inputs.native_conservation'
-        run: cargo +stable build --locked -p typstographe --features recipe-driver
+        run: npm run build:recipe
       - name: Native acceptance executables, with one shared dependency graph
         if: inputs.native_conservation
         run: npm run build:recipe
@@ -108,7 +108,7 @@ jobs:
       - name: Virtual native display on Linux
         if: runner.os == 'Linux' && inputs.native_conservation
         run: sudo apt-get install -y xvfb dbus-x11
-      - name: Native recovery and publication acceptance
+      - name: Native foundation, recovery and publication acceptance
         if: inputs.native_conservation
         shell: bash
         env:
@@ -117,9 +117,11 @@ jobs:
           if [ "$RUNNER_OS" = Linux ]; then
             xvfb-run -a dbus-run-session -- npm run test:draft-conservation-native -- "$GITHUB_WORKSPACE/output/a3-native-conservation"
             xvfb-run -a dbus-run-session -- npm run test:publication-native -- "$GITHUB_WORKSPACE/output/a3-native-publication"
+            xvfb-run -a dbus-run-session -- npm run test:closure-native -- "$GITHUB_WORKSPACE/output/a5-native-closure"
           else
             npm run test:draft-conservation-native -- "$GITHUB_WORKSPACE/output/a3-native-conservation"
             npm run test:publication-native -- "$GITHUB_WORKSPACE/output/a3-native-publication"
+            npm run test:closure-native -- "$GITHUB_WORKSPACE/output/a5-native-closure"
           fi
       - name: Retain native acceptance results, including failures
         uses: actions/upload-artifact@v7
@@ -130,6 +132,9 @@ jobs:
             output/a3-native-*/**/report.json
             output/a3-native-*/**/native-*-report.json
             output/a3-native-*/**/*.log
+            output/a5-native-closure/report.json
+            output/a5-native-closure/**/native-*-report.json
+            output/a5-native-closure/**/*.log
           if-no-files-found: error
           retention-days: 7
       - uses: taiki-e/install-action@v2

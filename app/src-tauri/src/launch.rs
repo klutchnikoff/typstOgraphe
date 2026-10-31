@@ -73,6 +73,9 @@ impl Options {
                 }
             }
         }
+        if result.root.is_some() && !result.stdio && result.diagnostic.is_none() {
+            return Err("An isolated session requires an explicit recipe mode.".into());
+        }
         if result.root.is_some() && result.initial_path.is_some() {
             return Err("A recipe session cannot also open a personal project at launch.".into());
         }
@@ -116,6 +119,7 @@ mod tests {
     fn recipes_require_a_mode_and_explicit_isolation_without_ambiguous_options() {
         assert!(parse(&["--diagnostic-closure"], true).is_err());
         assert!(parse(&["--session-dir"], true).is_err());
+        assert!(parse(&["--session-dir", "somewhere"], true).is_err());
         assert!(parse(&["--session-dir", ""], true).is_err());
         assert!(parse(&["--session-dir", "--stdio"], true).is_err());
         assert!(parse(&["--session-dir", "somewhere", "personal.typsto"], true).is_err());

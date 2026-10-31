@@ -156,7 +156,7 @@ beforeAll(async () => {
   directory = mkdtempSync(join(tmpdir(), 'tog-shared-contract-'))
   const binary =
     process.env.TOG_SPIKE_BINARY ||
-    resolve('../target/debug/typstographe' + (process.platform === 'win32' ? '.exe' : ''))
+    resolve('../target/recipes/debug/typstographe' + (process.platform === 'win32' ? '.exe' : ''))
   child = spawn(binary, ['--stdio', '--session-dir', directory], {
     stdio: ['pipe', 'pipe', 'pipe'],
   })

@@ -11,7 +11,11 @@ const root = path.resolve(
 )
 const binary =
   process.env.TOG_SPIKE_BINARY ||
-  path.join(repo, 'target/release', `typstographe${process.platform === 'win32' ? '.exe' : ''}`)
+  path.join(
+    repo,
+    'target/recipes/release',
+    `typstographe${process.platform === 'win32' ? '.exe' : ''}`,
+  )
 await mkdir(root, { recursive: true })
 const child = spawn(binary, ['--diagnostic-performance', '--session-dir', root], {
   stdio: ['ignore', 'pipe', 'pipe'],
