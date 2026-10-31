@@ -103,6 +103,9 @@ aux adaptateurs et conservation/reprise du travail. Leurs bilans restent dans
 
 **Choix validés le 31 octobre 2026 :**
 
+- Conserver l’identité du projet lors d’une sauvegarde, d’un déplacement ou d’un
+  renommage. Enregistrer sous / copie indépendante depuis l’application crée
+  une nouvelle identité, avec conservation des versions et de leurs métadonnées.
 - Capturer l’état documentaire confirmé complet, avec modèle, dépendances et
   ressources. Les formulaires ouverts et saisies non validées restent dans la
   récupération privée d’A.3, hors des snapshots documentaires.
@@ -211,6 +214,16 @@ d’une restauration et la rétention du snapshot de référence après la clôt
 d’une relecture. Ces règles restent à décider ; la référence initiale et les
 métadonnées des snapshots ci-dessus sont retenues.
 Aucune couche de rétrocompatibilité préventive pendant cette phase préliminaire.
+
+**Découpage d’implémentation :** commencer par A.4.1, propriétaire d’archive CAS
+dans le cœur : format 11, identité, états complets, index, déduplication,
+lecture sélective, publication atomique et tests d’intégrité/limites/conservation.
+Le raccordement des adaptateurs et de la récupération constitue A.4.2 : il
+supprime alors le lecteur/écrivain de format 10, sans couche de compatibilité.
+Ne pas activer le nouveau format dans l’application avant que ses parcours de
+sauvegarde conservent identité et historique. Les commandes et l’interface Versions,
+puis la comparaison commune, suivent ce socle ; les choix encore ouverts de J/F
+ne bloquent pas A.4.1.
 
 ### A.5 — Documentation, nettoyage et recette finale
 

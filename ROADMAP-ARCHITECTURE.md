@@ -96,6 +96,22 @@ et saisies non validées dans la récupération privée A.3. La création d’un
 enregistre atomiquement l’état courant et le snapshot dans le `.typsto`, après
 choix d’emplacement si nécessaire. Une sauvegarde ordinaire ne crée pas de version.
 
+Identité : sauvegarder, déplacer ou renommer conserve `project_id`. Enregistrer
+sous ou créer une copie indépendante dans l’application génère un nouvel UUID,
+en conservant les versions, leurs identifiants et leurs métadonnées.
+
+**A.4.1 — stockage dans le cœur :** construire un propriétaire d’archive CAS,
+réutilisant les valeurs documentaires existantes, avec lecture/écriture du format
+11, identité, index, états immuables, références internes, déduplication et gardes
+de publication. Tester conservation, corruption, lecture sélective et limites.
+**A.4.2 — raccordement :** faire conserver ce propriétaire par Tauri/CLI/MCP et
+la récupération, puis retirer le stockage de format 10. L’audit montre que les
+sauvegardes reconstruisent aujourd’hui une archive de l’état courant ; ne pas
+basculer le format avant de conserver aussi l’historique. Cette séquence de lots
+n’est pas une exigence de rétrocompatibilité : un seul lecteur de production
+reste après le raccordement. Les choix de restauration partagée et du diff
+seront validés avant leurs lots respectifs.
+
 Avant toute restauration, créer une version automatique de sauvegarde de l’état
 courant ; publier explicitement l’état restauré sans supprimer les autres versions.
 En collaboration, passer par l’autorité commune et les gardes documentaires,

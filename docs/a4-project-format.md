@@ -55,8 +55,12 @@ incorporée devient au contraire une ressource autonome du document.
 `versions.json` est l’index connu de cette version de conteneur ; le manifeste
 n’a pas à réénumérer les objets ou ressources. L’identité du projet ne remplace
 ni le verrou du fichier ni l’identité/révision d’une session d’édition.
-Déplacer ou renommer le fichier ne change pas son identité. La politique de
-nouvelle identité pour une copie indépendante reste à préciser avec ce parcours.
+Déplacer ou renommer le fichier ne change pas son identité. **Règle validée :**
+une sauvegarde ordinaire conserve `project_id` ; Enregistrer sous ou créer une
+copie indépendante depuis l’application produit un nouveau `project_id`, en
+conservant les versions, leurs identifiants et leurs métadonnées. Les identifiants
+de versions sont interprétés dans le projet concerné. Une copie externe du
+fichier ne constitue pas une autorisation de partager une session ou un verrou.
 
 ## Descripteur immuable d’un état
 
