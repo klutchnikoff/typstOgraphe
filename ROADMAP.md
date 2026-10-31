@@ -25,9 +25,9 @@ seule poussée par lot, sauf correction nécessaire d’une vérification distan
 le premier lot conserve les brouillons refusés, champs en attente et formulaires
 ouverts avec leurs ressources, séparément de l’état confirmé. La recette native
 macOS vérifie leur conservation après arrêt brutal. Le [parcours de reprise et de
-fermeture](docs/a3-recovery-interface.md) est validé. Prochaine étape : valider sa
-maquette avant implémentation et coordonner les transitions entre fenêtres ; compléter
-les recettes d’incident et de changement externe. A.3 reste ouvert. Ne pas confondre
+fermeture](docs/a3-recovery-interface.md) et la coordination entre fenêtres sont
+implémentés : [bilan de recette](docs/a3-recovery-results.md). Prochaine étape : compléter
+les recettes natives multisystèmes, d’incident et de changement externe. A.3 reste ouvert. Ne pas confondre
 récupération et snapshots durables (A.4).
 
 **A.2 est clos.** La [recette Courrier/Article](docs/a2-closure-results.md) valide
@@ -489,10 +489,9 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Après le premier lot **A.3 — Conservation des brouillons**, valider la maquette
-   de reprise selon le [parcours validé](docs/a3-recovery-interface.md) et le
-   [contrat et ses limites](docs/a3-conservation.md)
-   avant les parcours de fermeture et les recettes natives restantes.
+1. Après la conservation et la [reprise des brouillons livrées](docs/a3-recovery-results.md),
+   terminer les recettes natives multisystèmes, d’incident et de changement externe
+   d’**A.3**, selon le [contrat et ses limites](docs/a3-conservation.md).
 2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
 3. Engager ACP après stabilisation du contrat documentaire et validation de sa

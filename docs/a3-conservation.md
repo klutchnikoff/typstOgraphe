@@ -155,22 +155,47 @@ emplacements de récupération sont refusés. Les fichiers privés sont créés 
 le mode `0600` et leurs répertoires avec `0700` sous Unix. Il s’agit de données
 locales privées, sans chiffrement supplémentaire.
 
-### Limites de cette livraison
+### Reprise graphique et coordination livrées
 
-Le parcours existant reste capable de reprendre l’état confirmé. La collecte
-privée est livrée avant son interface de réouverture : les formulaires conservés
-ne sont pas encore réaffichés automatiquement. Leur présentation et les décisions
-explicites de fermeture restent à maquetter dans le deuxième lot. L’import doit
-revalider les données récupérées avant toute publication.
+Le [parcours validé](a3-recovery-interface.md) est implémenté. L’accueil liste les
+copies disponibles ; reprendre construit une copie indépendante avec sa file de
+saisies privées. Le fichier initial n’est pas ouvert ni verrouillé. Son premier
+Enregistrer demande un emplacement, avec une suggestion de nom distincte.
 
-Les copies déjà écrites survivent au changement de document. La coordination
-d’une transition provoquée depuis une autre fenêtre, avant que cette fenêtre-ci
-ait écrit sa toute dernière saisie, reste à traiter avec les décisions de fermeture
-et les recettes de concurrence. Une ancienne fenêtre ne peut pas écrire dans la
-génération du document suivant. La rétention et le nettoyage explicite des copies
-privées conservées restent à relier au parcours de reprise ; aucune copie privée
-n’est supprimée implicitement au seul motif que le document a été enregistré.
+Le collecteur et les interfaces de formulaire sont aussi ceux de la reprise :
+`ContextPanel` hydrate les contrôles et zones riches, puis laisse la validation à
+la commande ordinaire. Les champs simples passent par `MetadataCommands` en état
+manuel, sans publication au simple réaffichage. La file n’est consommée qu’après
+confirmation et copie durable ; un échec de conservation remet l’élément dans la
+file. Annuler la reprise du formulaire conserve la source récupérée.
 
-La recette native interrompt réellement le processus après conservation automatique,
-puis rouvre son archive confirmée sans publier le formulaire. Ce résultat local
-macOS ne remplace pas les recettes natives Windows/Linux.
+L’enveloppe conserve désormais aussi les éléments récupérés non encore traités,
+une indication de rétention explicite et, dans les formulaires/champs rouverts,
+l’identifiant de leur source. Un deuxième incident conserve la dernière saisie du
+formulaire repris, sans dupliquer son ancienne version. Les brouillons JSON
+exportés peuvent être importés ; le format historique de brouillon refusé reste
+isolé, et une base confirmée absente est remplacée par un document vide valide.
+Un contenu privé invalide n’entre jamais automatiquement dans le document.
+
+Les transitions Nouveau/Ouvrir/Reprendre/Fermer le document/Quitter attendent une
+barrière commune : toutes les fenêtres déclarées doivent conserver leur saisie
+avant le changement de génération. Les interfaces sont temporairement figées,
+y compris les fenêtres de formulaire détachées. Une erreur, une composition en
+cours, une annulation ou un changement de révision empêche la transition. L’abandon
+ne concerne que la copie de la fenêtre qui le demande. Fermer une fenêtre native
+ne remplace pas le document des autres fenêtres.
+
+Le catalogue ne propose pas les copies actives d’un processus encore vivant. Il
+refuse les identifiants sortant du répertoire autorisé, les liens symboliques et
+les sources non validables. Supprimer/reprendre une copie ne nettoie son résumé
+confirmé que si celui-ci désigne la même base et qu’aucune autre enveloppe ne reste.
+Les copies illisibles restent visibles et supprimables après confirmation.
+
+### Limites restantes d’A.3
+
+Le [bilan de reprise](a3-recovery-results.md) couvre les contrôles locaux de ce lot.
+Les recettes natives Windows/Linux, les incidents d’enregistrement/changement
+externe à l’échelle de l’application et la validation finale de publication restent
+à compléter avant clôture d’A.3. Les snapshots durables et l’historique entre
+séances restent dans A.4. Une préédition IME non validée n’est pas publiée ni
+promue en copie de saisie validée.

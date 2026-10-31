@@ -1,8 +1,8 @@
 # A.3 — Interface de reprise et décisions de fermeture
 
-**Choix de parcours validés le 31 octobre 2026.** La maquette interactive reste à
-valider visuellement avant de modifier l’interface de l’application. Ce document
-complète le [contrat de conservation](a3-conservation.md) et son
+**Parcours et maquette validés le 31 octobre 2026 ; implémentation livrée.**
+Le [bilan de recette](a3-recovery-results.md) précise les vérifications et limites.
+Ce document complète le [contrat de conservation](a3-conservation.md) et son
 [premier lot livré](a3-conservation-results.md).
 
 ## Accueil
@@ -77,18 +77,21 @@ supprime jamais les saisies privées d’une autre fenêtre.
 
 Une transition remplaçant le document de plusieurs fenêtres attend leur conservation
 avant de basculer. Une annulation ou un échec empêche cette transition. Ce mécanisme
-doit combler la limite du premier lot : une autre fenêtre ne doit pas perdre sa
-saisie parce qu’elle n’avait pas encore atteint le délai de copie automatique.
+complète le premier lot : chaque fenêtre conserve sa dernière saisie avant le
+basculement, même si le délai de copie automatique n’est pas encore atteint. Les
+interfaces sont temporairement bloquées après la fin d’une composition ; une
+composition encore active, un échec ou une annulation empêche le basculement.
 
 La fermeture de l’application avec plusieurs fenêtres doit expliciter la portée de
 la décision ; elle ne transforme pas l’abandon local en suppression globale des
 copies privées.
 
-## Maquette à examiner
+## Maquette validée
 
-Le parcours proposé permet d’explorer l’accueil, une reprise Article, les formulaires
+La maquette validée permet d’explorer l’accueil, une reprise Article, les formulaires
 d’auteur et de note, leur validation ou leur fermeture, puis les trois choix de
 fermeture. Les états de texte refusé, cible disparue et erreur de conservation font
 également partie de la revue. Les opérations y sont simulées et ne touchent pas les
-fichiers de l’utilisateur. La maquette ne vaut pas implémentation de ces parcours
-ni clôture d’A.3.
+fichiers de l’utilisateur. L’implémentation reprend ces parcours avec les formulaires
+et commandes ordinaires.
+Elle ne clôt pas les recettes natives multisystèmes restant dans A.3.

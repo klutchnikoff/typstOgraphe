@@ -57,7 +57,7 @@ Enregistrement explicite du `.typsto` ; secours indépendant après deux seconde
 sans modification, échéance de dix secondes en rédaction continue. Protéger aussi
 les saisies privées, champs en attente et formulaires ouverts, avec leurs ressources,
 sans publication automatique. Une copie par document/fenêtre ; reprise isolée et
-fermeture explicite à maquetter. L’annulation reste limitée à la séance.
+fermeture explicite livrées. L’annulation reste limitée à la séance.
 Premier lot livré : collecte commune des formulaires et zones riches, copies privées
 atomiques par document/fenêtre, conservation des refus et ressources, échéances et
 reprises d’écriture. La recette native macOS vérifie un arrêt brutal sans publication
@@ -65,9 +65,11 @@ d’un formulaire ouvert. Voir le [contrat et les limites](docs/a3-conservation.
 [bilan du premier lot](docs/a3-conservation-results.md).
 Le [parcours de reprise et de fermeture](docs/a3-recovery-interface.md) est validé :
 accueil sans ouverture automatique, copie indépendante, saisies privées reprises
-dans les interfaces existantes, conservation à la fermeture par défaut. Sa maquette
-reste à valider avant implémentation. La coordination des transitions entre fenêtres
-et les recettes natives multisystèmes restent aussi à traiter avant clôture d’A.3.
+dans les interfaces existantes, conservation à la fermeture par défaut. La maquette
+est validée et son implémentation livrée, avec une barrière de conservation de
+toutes les fenêtres avant remplacement du document. Voir le [bilan de reprise](docs/a3-recovery-results.md).
+Les recettes natives multisystèmes, les incidents et changements externes restent
+à compléter avant clôture d’A.3.
 
 Fixer les responsabilités de l’état Yjs, de l’arbre validé et du Typst généré.
 Tester identité/révision, sauvegarde pendant des éditions, récupération après

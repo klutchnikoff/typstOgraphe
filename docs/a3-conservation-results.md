@@ -2,8 +2,9 @@
 
 **31 octobre 2026.** La conservation privée est livrée ; A.3 reste ouvert.
 Le [contrat](a3-conservation.md) décrit la séparation entre état confirmé,
-saisie locale et reprise explicite. La reprise graphique des formulaires et les
-nouveaux choix de fermeture restent à maquetter avant implémentation.
+saisie locale et reprise explicite. Le [lot suivant](a3-recovery-results.md) livre la reprise graphique des formulaires,
+les choix de fermeture et la coordination des transitions entre fenêtres.
+Les limites ci-dessous décrivent ce premier lot historique.
 
 ## Garanties exercées
 
