@@ -107,6 +107,27 @@ Une différence de structure non identifiable sans ambiguïté reste groupée.
 Les changements de paramètres et de ressources documentaires sont regroupés
 avec le contenu associé lorsque leur indépendance n’est pas prouvée.
 
+### Découpage par paragraphe validé
+
+- Deux paragraphes modifiés consécutifs donnent deux décisions lorsque leurs
+  frontières sont conservées. Plusieurs changements dans un même paragraphe
+  restent une décision. Un titre conservant son identité suit la même règle.
+- Un widget entier constitue une unité : liste avec ses items, tableau avec sa
+  légende, citation en bloc avec son attribution, image avec sa légende. Aucun
+  découpage interne n’est introduit par cette évolution.
+- Une fusion, une scission, un changement de structure ou une correspondance
+  ambiguë reste groupé. Les dépendances documentaires (bibliographie, réglages,
+  ressources…) restent prioritaires sur le découpage visuel.
+
+Le moteur commence par les ancrages de blocs identiques. Dans un passage
+contenant plusieurs blocs modifiés, il sépare les paires lorsque les checkpoints
+conservent exactement les mêmes identités de blocs, dans le même ordre et en
+même nombre. Il ne déduit pas leur identité de la ressemblance des textes.
+Des frontières ajoutées, supprimées ou recréées, ou l’absence de checkpoints
+permettant cette preuve, conservent le passage groupé. Ces identités sont
+internes au calcul ; les décisions publiques continuent à utiliser leurs groupes
+et leurs gardes documentaires. Le même découpage sert Versions et MCP.
+
 ## Implémentation et limites explicites
 
 `content::comparison::Comparison` possède la paire privée, les groupes et la garde
@@ -124,7 +145,8 @@ sont les références. L’alignement exact des blocs et le détail des mots uti
 Myers avec échéance de 100 ms par alignement. Une limite atteinte produit un
 regroupement conservateur ; elle n’autorise aucune correspondance approximative.
 
-Le premier découpage applique les différences entre ancrages de blocs identiques.
+Le découpage applique les différences entre ancrages de blocs identiques, puis
+sépare les paragraphes ou widgets adjacents dont les frontières sont conservées.
 Plusieurs modifications dans un même paragraphe ou widget restent une décision.
 Si les réglages, la bibliothèque bibliographique ou les ressources documentaires
 changent, le contenu associé est regroupé en une seule décision documentaire :

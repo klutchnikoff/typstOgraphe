@@ -217,6 +217,13 @@ F.3 adapte le protocole des propositions à ce contrat, sans dupliquer le moteur
 Les outils d’annotations de J restent dédiés au mode relecture.
 Voir le [contrat du comparateur commun](docs/a4-comparison-contract.md).
 
+**Découpage confirmé :** une décision par paragraphe modifié, y compris entre
+voisins, lorsque les frontières des blocs sont conservées. Les widgets gardent
+une décision unique pour leur contenu complet. Les fusions/scissions,
+correspondances ambiguës et dépendances documentaires restent groupées. Le
+raffinement s’appuie sur les identités des checkpoints, sans rapprochement textuel
+approximatif, et s’applique au même moteur Versions/MCP.
+
 **Ordre confirmé : avant à gauche, après à droite.** Versions affiche la version
 historique à gauche et le document courant figé à droite ; la reprise prend sa
 source à gauche. MCP affiche la base à gauche et la proposition à droite ;

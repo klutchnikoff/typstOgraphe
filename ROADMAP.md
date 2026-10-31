@@ -245,8 +245,11 @@ ne bloquent pas A.4.1.
 **A.4.4 — Comparateur et décisions locales :** maquette validée et conservée,
 moteur commun Versions/MCP, comparaison figée avant/après, décisions gardées,
 annulation distincte, changements documentaires liés groupés et aperçus isolés. La comparaison de
-deux versions historiques est en consultation seule. Le premier regroupement
-reste conservateur pour les réglages et ressources. La restauration complète
+deux versions historiques est en consultation seule. Les paragraphes adjacents
+modifiés ont des décisions distinctes lorsque leurs frontières sont conservées ;
+les widgets restent entiers, les fusions/scissions et correspondances ambiguës
+restent groupées. Le regroupement reste conservateur pour les réglages et
+ressources documentaires. La restauration complète
 avec snapshot `before_restore` reste le lot suivant. Voir le
 [contrat et les limites](docs/a4-comparison-contract.md) et le
 [bilan de validation](docs/a4-comparison-results.md).
