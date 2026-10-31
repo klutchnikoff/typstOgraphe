@@ -131,12 +131,14 @@ documentaire ni une entrée d’annulation. Voir le [bilan A.4.3](docs/a4-versio
 
 **Composition rouge/vert confirmée :** le découpage et les dépendances ci-dessous
 servent à des choix temporaires exclusifs, initialement tous à droite. Une seule
-action humaine « Appliquer et enregistrer » remplace l’état courant et écrit le
-`.typsto`, avec une étape d’annulation et aucun snapshot automatique, y compris
-entre deux versions historiques. Les décisions immédiates du premier raccordement
+action humaine « Appliquer » remplace l’état courant comme une édition ordinaire,
+avec une étape d’annulation, sans écriture du `.typsto` ni snapshot automatique,
+y compris entre deux versions historiques. Enregistrement et création de version
+restent au choix de l’utilisateur. Les décisions immédiates du premier raccordement
 sont remplacées dans l’interface. Préparer/valider hors verrou, recontrôler sous
-verrou avant le commit durable, puis publier le delta confirmé et le statut
-enregistré. Un échec d’écriture ne doit pas modifier le document courant.
+verrou avant la publication atomique en mémoire, puis retourner et diffuser le
+delta confirmé. Préserver chemin, dernière révision enregistrée et récupération ;
+une sauvegarde ultérieure réutilise les protections ordinaires du fichier.
 
 **Découpage confirmé :** la comparaison commune, puis la restauration dans une
 session active, sont des lots distincts. L’onglet Comparer et l’action Restaurer
@@ -217,9 +219,10 @@ les gardes documentaires appartiennent au moteur de typstOgraphe.
 
 La consultation et les choix rouge/vert ne publient aucune modification. Le moteur
 commun construit un candidat à partir de tous les choix ; l’action explicite
-« Appliquer et enregistrer » le publie en une opération annulable et l’enregistre,
-sans snapshot automatique. Les changements dépendants restent indivisibles et
-une intervention extérieure impose un réexamen de la paire.
+« Appliquer » le publie en une opération annulable, sans enregistrement ni
+snapshot automatique. Le document modifié suit le parcours ordinaire de
+récupération, d’enregistrement et de création de version. Les changements dépendants
+restent indivisibles et une intervention extérieure impose un réexamen de la paire.
 F.3 adapte le protocole des propositions à ce contrat, sans dupliquer le moteur.
 Les outils d’annotations de J restent dédiés au mode relecture.
 Voir le [contrat du comparateur commun](docs/a4-comparison-contract.md).
@@ -539,9 +542,9 @@ par le propriétaire documentaire et une étape d’annulation cohérente. Défi
 ensemble l’enveloppe de protocole et le cycle de vie après décision, sans modifier
 les états de comparaison ni accorder des droits implicites de sauvegarde/export.
 A.4 compose désormais les choix du comparateur et publie leur résultat une fois.
-L’enregistrement est autorisé par le bouton humain « Appliquer et enregistrer »,
-sans snapshot automatique. F.3 peut enrichir les reçus et le cycle de vie sans
-introduire un second moteur.
+Le bouton humain « Appliquer » produit une édition ordinaire sans sauvegarde ni
+snapshot automatique ; l’utilisateur garde la main sur ces deux actions. F.3 peut
+enrichir les reçus et le cycle de vie sans introduire un second moteur.
 
 ## G. Collaboration et hébergement — P2
 

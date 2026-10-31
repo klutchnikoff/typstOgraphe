@@ -173,7 +173,7 @@ de l’autre, ainsi qu’acceptation/refus MCP entre deux voisins. TypeScript/Vi
 Clippy workspace/tous les targets, Prettier, formatage Rust, contrôle des longueurs
 et `git diff --check` réussissent. Aucune capture n’a été enregistrée.
 
-### Composition rouge/vert et enregistrement unique
+### Composition rouge/vert et enregistrement unique (étape remplacée)
 
 La règle validée ensuite remplace les publications immédiates de chaque groupe
 par deux choix exclusifs par passage. Tous les verts sont sélectionnés au départ.
@@ -252,3 +252,30 @@ La restauration complète avec snapshot `before_restore`, ses confirmations et s
 coordination avec les autres fenêtres restent le prochain lot A.4. Les relectures J
 conservent leurs outils dédiés. F.3 peut enrichir le cycle de vie et les reçus des
 propositions sans construire un second moteur de décisions.
+
+### Composition comme édition ordinaire — 31 octobre 2026
+
+Le contrat validé ensuite remplace l’enregistrement immédiat ci-dessus.
+« Appliquer » publie les choix en une seule édition annulable du document courant,
+sans sélecteur de fichier, sauvegarde ni snapshot. La dernière révision enregistrée
+et les copies de récupération restent intacts. Les reçus MCP décrivent la
+publication, sans prétendre que le fichier a été enregistré. Les choix et les
+états figés restent consultables après validation ; une garde périmée ou une
+saisie privée refusée empêche toujours la publication.
+
+Les recettes vérifient que le fichier reste identique après composition et
+Annuler/Rétablir, y compris si une autre application l’a modifié ; le contrôle
+du conflit reste actif lors d’une sauvegarde volontaire ultérieure. Une
+composition sur un projet sans chemin ne lie pas de fichier. La récupération
+conserve le résultat et l’historique CAS. Garder exactement le contenu courant
+ne crée ni révision ni étape d’annulation et ne salit pas un document propre.
+
+Validation locale : **114 tests Rust de l’application réussis**, un diagnostic
+ignoré ; les **10 tests du comparateur natif** et celui de sauvegarde explicite
+ont ensuite été relancés après la dernière simplification. **357 tests Vitest**,
+**6 tests Node** et **12 parcours Chromium/WebKit** réussissent. Les parcours MCP
+vérifient notamment l’absence de sélecteur, sauvegarde et création de version
+implicites, puis l’annulation de la publication. TypeScript/Vite, Clippy de
+l’application et tous ses targets, Prettier, formatage Rust, limites de taille,
+frontière des dépendances du cœur et `git diff --check` réussissent. Aucune
+capture, vidéo ou trace n’a été enregistrée.

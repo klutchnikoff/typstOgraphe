@@ -220,18 +220,18 @@ Le refus ne publie aucune modification. Le comparateur commun d’A.4 fournit
 les décisions locales et leur application gardée, pour Versions comme pour MCP.
 Les groupes indépendants font l’objet de choix rouge/vert provisoires ; les
 opérations liées restent indivisibles. Les états initiaux ne sont jamais réécrits.
-La validation humaine « Appliquer et enregistrer » publie la composition et
-l’enregistre sans ajouter de snapshot. La garde capturée est revérifiée avant
-l’écriture ; aucun réancrage implicite n’est autorisé après une intervention
-extérieure. Un échec d’écriture ne publie rien.
+La validation humaine « Appliquer » publie la composition comme une édition
+ordinaire, sans écrire le fichier ni ajouter de snapshot. La garde capturée est
+revérifiée avant publication ; aucun réancrage implicite n’est autorisé après une
+intervention extérieure. La récupération conserve cette édition, puis
+l’utilisateur décide de l’enregistrement et des versions.
 
 La modale de consultation/comparaison est commune avec Versions, avec les
 onglets Contenu, Aperçu et Comparer. MCP utilise **« État de départ → Proposition »** ;
 les verts sont sélectionnés au départ. Les aperçus des deux états et leurs
 ressources restent isolés du document courant. Les intitulés ne prétendent pas
-que la base est encore le document actuel si celui-ci a évolué. L’enregistrement
-provient de l’action humaine explicitement libellée ; ce n’est pas un droit
-supplémentaire accordé aux outils de l’agent.
+que la base est encore le document actuel si celui-ci a évolué. Aucun droit
+supplémentaire d’enregistrement n’est accordé aux outils de l’agent.
 
 Si une intervention extérieure change la révision courante, la proposition devient
 périmée pour publication ;

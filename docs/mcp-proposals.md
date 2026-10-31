@@ -166,9 +166,9 @@ Les bibliothèques Typst restent celles de l’application selon le
 [contrat des dépendances](typst-dependencies.md), hors des décisions de l’agent.
 L’utilisateur choisit le rouge ou le vert pour chaque groupe, sans publication
 intermédiaire. Les verts sont retenus par défaut ; les éléments liés restent
-indivisibles. « Appliquer et enregistrer » compose depuis la droite, publie le
-résultat en une étape d’annulation et enregistre le document sans créer de
-snapshot. Un échec de validation ou d’écriture conserve le document et les choix.
+indivisibles. « Appliquer » compose depuis la droite et publie le résultat comme
+une édition ordinaire en une étape d’annulation, sans enregistrer le document ni
+créer de snapshot. Un échec de validation conserve le document et les choix.
 Une intervention extérieure bloque la validation même si Annuler retrouve le même
 contenu ; les états comparés restent consultables.
 
@@ -177,8 +177,8 @@ unique, ils exposent `decisions` (`group`, `decision` : `applied` ou `refused`) 
 `workingRevision` ; `revision` conserve la révision initiale. Une combinaison de
 choix retenus et écartés se termine par `partially_accepted`. Les reçus terminaux
 restent consultables. Fermer avant validation ne décide rien. Aucun outil MCP ne
-peut accepter ni enregistrer ; l’enregistrement est ici autorisé explicitement par
-le bouton humain. Aucun export ni snapshot n’est implicite.
+peut accepter ni enregistrer. L’utilisateur décide séparément d’enregistrer ou de
+créer une version après l’application. Aucun export ni snapshot n’est implicite.
 
 Voir le [contrat commun et ses limites](a4-comparison-contract.md).
 

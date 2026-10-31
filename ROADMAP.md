@@ -183,8 +183,9 @@ n’est pas à développer maintenant. Voir le [contrat](docs/typst-dependencies
   Définir le contrat des groupes pour les décisions locales dans A.4 ; leur
   proximité visuelle ne prouve pas leur indépendance documentaire. La comparaison
   de snapshots reste immuable. Les choix rouge/vert sont provisoires et
-  « Appliquer et enregistrer » construit puis publie leur résultat en une seule
-  opération annulable, sans snapshot automatique. Les changements dépendants
+  « Appliquer » construit puis publie leur résultat en une seule opération
+  annulable, sans enregistrement ni snapshot automatique. L’utilisateur décide
+  séparément d’enregistrer et de créer une version. Les changements dépendants
   restent décidés ensemble. Le mode relecture J conserve
   ses outils dédiés. Voir le [contrat du comparateur](docs/a4-comparison-contract.md).
   **Ordre confirmé :** avant à gauche, après à droite. Pour Versions, la version
@@ -241,10 +242,11 @@ ne bloquent pas A.4.1.
 
 **Composition validée :** dans Comparer, choix rouge/gauche et vert/droite exclusifs
 par passage, verts sélectionnés par défaut. Les choix ne publient rien.
-« Appliquer et enregistrer » compose depuis la droite, remplace le document courant
-et l’enregistre en une opération annulable, sans aucun snapshot automatique.
-Les deux états historiques deviennent également composables. Une édition
-extérieure ou un échec d’écriture bloque l’application sans perte du travail.
+« Appliquer » compose depuis la droite et remplace le document courant en une
+opération annulable, sans écriture du `.typsto` ni snapshot automatique. Le résultat
+est une édition ordinaire, récupérable après incident ; l’utilisateur décide de
+l’enregistrement et des versions. Les deux états historiques deviennent également
+composables. Une édition extérieure bloque l’application sans perte du travail.
 Voir le [contrat](docs/a4-comparison-contract.md).
 
 **A.4.4 — Comparateur et décisions locales :** maquette validée et conservée,
@@ -553,7 +555,7 @@ puis accepter/refuser un lot, avec au moins deux agents et sans configuration MC
   visuel ne suffit pas à établir un groupe applicable ; les dépendances entre
   texte, structure, métadonnées et ressources imposent des décisions groupées.
 - Réutiliser les décisions locales, la progression et les refus du moteur
-  commun. Les choix restent provisoires jusqu’à la validation unique enregistrée ;
+  commun. Les choix restent provisoires jusqu’à la publication unique du résultat ;
   une intervention extérieure impose un réexamen explicite. Ne jamais réactiver
   une ancienne garde parce que le contenu est redevenu identique.
 - F précise les adaptations de protocole, les reçus/statuts et le cycle de vie

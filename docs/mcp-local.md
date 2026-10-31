@@ -35,9 +35,10 @@ ne constituent pas des droits disponibles dans Tauri.
 
 Seul l’utilisateur choisit les passages à retenir, via les boutons rouge/vert
 exclusifs du comparateur commun. Aucun outil MCP ne peut les valider. Les choix
-restent privés jusqu’à « Appliquer et enregistrer » : Rust revérifie identité,
-révision, IME et état du lot, revalide le rendu, enregistre et publie la composition
-en une seule étape d’annulation, sans snapshot automatique. Le navigateur reçoit le
+restent privés jusqu’à « Appliquer » : Rust revérifie identité, révision, IME et
+état du lot, revalide le rendu et publie la composition en une seule étape
+d’annulation, sans enregistrement ni snapshot automatique. L’utilisateur conserve
+le choix d’enregistrer et de créer une version. Le navigateur reçoit le
 delta Yrs confirmé ; il ne reconstruit plus une modification indépendante. Une
 seule contribution est ajoutée à l’historique de la fenêtre qui accepte ; les
 identités et sélections des zones non touchées sont conservées.

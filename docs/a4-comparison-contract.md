@@ -23,23 +23,25 @@ cette consultation, sans modifier le document, le fichier, l’historique
 Annuler/Rétablir ou le reçu MCP. Fermer ou choisir une autre paire abandonne ces
 choix, sans publication. Aucun outil de l’agent ne peut les valider.
 
-**« Appliquer et enregistrer »** compose le résultat à partir de l’état de droite,
+**« Appliquer »** compose le résultat à partir de l’état de droite,
 en remplaçant les groupes choisis en rouge par ceux de gauche. Les parties
 inchangées proviennent également de droite, y compris entre deux états
 historiques lorsque le document courant est différent des deux. Ce résultat
-remplace le document courant et est enregistré dans son `.typsto`. Si le projet
-n’a pas encore de chemin, le sélecteur Enregistrer propose une destination ; son
-annulation conserve le document et les choix.
+remplace le document courant comme une édition ordinaire, sans écrire son `.typsto`
+ni demander de destination. Le projet peut donc rester sans chemin. Enregistrer
+et créer une version restent deux actions distinctes, décidées par l’utilisateur.
 
 La validation publie une seule opération annulable. **Aucun snapshot automatique
 n’est créé**, ni du résultat, ni « avant restauration » pour cette composition.
 Créer une version reste une action volontaire. Les versions existantes et leurs
-métadonnées restent intactes. Annuler revient à l’état précédent dans l’éditeur,
-qui redevient alors modifié ; cela ne réécrit pas implicitement le fichier.
+métadonnées restent intactes. Une composition qui change le contenu marque le
+document comme modifié ; conserver exactement l’état courant ne crée ni révision
+ni étape d’annulation superflue. Annuler revient à l’état précédent dans l’éditeur,
+Rétablir restaure la composition ; ces actions ne réécrivent pas le fichier.
 Le futur parcours distinct de restauration complète n’est pas livré par ce lot.
 
 Les états de comparaison restent figés après validation. La consultation indique
-que les choix ont été appliqués et enregistrés ; elle ne permet pas une seconde
+que les choix ont été appliqués au document ; elle ne permet pas une seconde
 publication de la même préparation. La vue Contenu et les aperçus sont statiques,
 avec les ressources documentaires de chaque état et le catalogue Typst de la
 version installée. Les copies de paquets transportées ne sont pas restaurables.
@@ -54,15 +56,16 @@ de preuve d’indépendance impose un regroupement sûr, pas une application par
 hasardeuse. Cela peut exceptionnellement produire une seule unité si tout est lié,
 sans imposer ce traitement à tous les lots.
 
-## Préparation, enregistrement et concurrence
+## Préparation, publication et concurrence
 
 Le calcul des différences reste descriptif. Le candidat exécutable est lié à la
 paire, aux choix complets, à son identité/époque et à la révision courante capturée.
 L’adaptateur prépare le candidat et le compile hors du verrou de rédaction, puis
 recontrôle garde, autorisation humaine, contexte privé et composition IME avant
-l’écriture atomique. Une erreur de validation, un verrou de fichier, une
-modification externe du fichier ou un échec d’écriture ne publie rien et conserve
-les choix pour réessayer.
+la publication atomique en mémoire. Une erreur de validation, une garde périmée
+ou un contexte privé refusé ne publie rien et conserve les choix pour réessayer.
+Le verrou et les modifications externes du fichier sont contrôlés lors d’une
+sauvegarde explicite ultérieure, comme pour les autres éditions.
 
 Une intervention documentaire extérieure bloque la validation. Même un retour au
 même texte par Annuler ne réactive pas l’ancienne garde. Il faut ouvrir une nouvelle
@@ -70,11 +73,11 @@ comparaison, ou demander une nouvelle proposition MCP depuis une base relue.
 Les deux colonnes restent consultables. Les publications ne sont jamais
 réancrées ni rebasées implicitement.
 
-Après le commit durable, la publication confirmée et l’état enregistré sont
-retournés directement au client, ainsi que diffusés aux autres fenêtres. Une
-notification perdue ne doit pas faire perdre le résultat au validateur. Un échec
-de nettoyage de récupération après le commit produit un avertissement, sans
-présenter l’enregistrement déjà réussi comme un échec.
+La publication confirmée est retournée directement au client, ainsi que diffusée
+aux autres fenêtres. Une notification perdue ne doit pas faire perdre le résultat
+au validateur. Aucun reçu ni événement d’enregistrement n’est émis. La dernière
+révision enregistrée, le chemin et les copies de récupération restent intacts ;
+la composition bénéficie ensuite de la récupération ordinaire des éditions.
 
 ## Raccordement MCP
 
@@ -82,8 +85,9 @@ La soumission fige les archives complètes de base et de candidat. Les choix
 rouge/vert n’affectent pas la proposition avant validation. Après l’application
 unique, son reçu distingue les groupes retenus et écartés : `accepted`, `rejected`
 ou `partially_accepted`. La révision de travail est mise à jour ; la révision
-initiale reste celle de la base. L’enregistrement provient de l’action humaine
-explicitement libellée, jamais d’un outil de l’agent. Aucun export n’est implicite.
+initiale reste celle de la base. Accepter les choix n’accorde aucun droit
+d’enregistrement à l’agent et ne sauvegarde pas le fichier. L’utilisateur décide
+ensuite d’enregistrer ou de créer une version. Aucun export n’est implicite.
 Les propositions ne deviennent pas des snapshots, ni des annotations de relecture.
 
 ## Présentation commune
