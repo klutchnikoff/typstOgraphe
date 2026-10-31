@@ -20,12 +20,13 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** clôturer la qualification d’**A.3 — Conservation et
-publication**, puis préparer les choix d’**A.4 — Snapshots durables** ensemble.
+**Séquence immédiate :** préparer les choix d’**A.4 — Snapshots durables** ensemble,
+après validation de la dernière qualification d’A.3.
 Les copies privées, la reprise des formulaires et la fermeture sont implémentées.
 La [recette de clôture](docs/a3-closure-results.md) couvre les incidents de
 publication, changements externes et exports Courrier/Article ; sa qualification
-native sur les trois systèmes est la dernière garde avant A.4. Les résultats
+native a réussi sur les trois systèmes ; le workflow vérifie aussi le commit
+courant et conserve ses rapports. Les résultats
 macOS locaux et les résultats CI sont distingués. Ne pas confondre récupération
 et snapshots durables.
 

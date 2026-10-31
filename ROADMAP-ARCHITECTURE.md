@@ -50,7 +50,7 @@ presse-papiers physiques des trois systèmes restent une recette manuelle ; cett
 clôture n’en revendique pas une validation exhaustive. Le réseau reste dans G,
 la fusion de cellules et les listes imbriquées dans C.
 
-### A.3 Conservation et publication
+### A.3 Conservation et publication — clôture livrée
 
 **Décisions validées le 31 octobre 2026 :** [contrat de conservation et reprise](docs/a3-conservation.md).
 Enregistrement explicite du `.typsto` ; secours indépendant après deux secondes
@@ -71,7 +71,8 @@ toutes les fenêtres avant remplacement du document. Voir le [bilan de reprise](
 Les recettes d’incident, de changement externe et de publication Courrier/Article
 sont livrées, avec comparaison des états et exports Tauri/CLI. La [recette de
 clôture](docs/a3-closure-results.md) précise la qualification native des trois systèmes,
-dernière garde avant A.4, et les contrôles matériels de distribution restant dans H.
+réussie lors de la première passe CI, les contrôles finaux du commit courant et
+les contrôles matériels de distribution restant dans H.
 
 Fixer les responsabilités de l’état Yjs, de l’arbre validé et du Typst généré.
 Tester identité/révision, sauvegarde pendant des éditions, récupération après

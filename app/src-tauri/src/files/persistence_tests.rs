@@ -413,3 +413,52 @@ fn external_replacement_during_open_validation_cannot_publish_or_clean_the_curre
     assert!(DocumentLease::acquire(&f.path()).is_err());
     assert!(DocumentLease::acquire(&other.path()).is_ok());
 }
+
+#[test]
+fn failed_save_as_cleanup_keeps_the_original_binding_and_external_change_protection() {
+    let f = Fixture::new();
+    f.save(&f.path());
+    f.make_dirty();
+    let before = f.fingerprint();
+    let checkpoint = std::fs::read(f.recovery_path()).unwrap();
+    let backup = f.recovery_path().with_extension("backup");
+    std::fs::rename(f.recovery_path(), &backup).unwrap();
+    std::fs::create_dir(f.recovery_path()).unwrap();
+    std::fs::write(f.path(), b"A newer external original").unwrap();
+    let copy = f.directory.path().join("copy.typsto");
+    let (snapshot, update) = f.draft();
+    assert!(save_project(&f.session, &copy, snapshot, update, |_, _, _| Ok(())).is_err());
+    assert!(Archive::read(&copy).is_ok()); // The archive was written, but cleanup did not finish.
+    let after = f.fingerprint();
+    assert_eq!(after["lease"], before["lease"]);
+    assert!(after == before, "Refused Save As changed current work");
+    assert_eq!(std::fs::read(&backup).unwrap(), checkpoint);
+    std::fs::remove_dir(f.recovery_path()).unwrap();
+    std::fs::rename(backup, f.recovery_path()).unwrap();
+    let (snapshot, update) = f.draft();
+    assert!(save_project(&f.session, &f.path(), snapshot, update, |_, _, _| Ok(())).is_err());
+    assert_eq!(
+        std::fs::read(f.path()).unwrap(),
+        b"A newer external original"
+    );
+}
+
+#[test]
+fn retrying_an_in_place_save_after_cleanup_failure_recognizes_its_own_written_file() {
+    let f = Fixture::new();
+    f.save(&f.path());
+    f.make_dirty();
+    let path = f.recovery_path();
+    let backup = path.with_extension("backup");
+    std::fs::rename(&path, &backup).unwrap();
+    std::fs::create_dir(&path).unwrap();
+    let (snapshot, update) = f.draft();
+    let expected = snapshot.document.clone();
+    assert!(save_project(&f.session, &f.path(), snapshot, update, |_, _, _| Ok(())).is_err());
+    assert_eq!(Archive::read(&f.path()).unwrap().document, expected);
+    std::fs::remove_dir(&path).unwrap();
+    std::fs::rename(backup, &path).unwrap();
+    f.save(&f.path());
+    assert!(!path.exists());
+    assert!(DocumentLease::acquire(&f.path()).is_err());
+}

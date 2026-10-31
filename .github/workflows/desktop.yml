@@ -85,13 +85,19 @@ jobs:
           cargo +stable clippy --locked --workspace --all-targets -- -D warnings
           cargo +stable clippy --locked -p typstographe --all-targets --features recipe-driver -- -D warnings
       - name: Functional recipe driver
+        if: '!inputs.native_conservation'
         run: cargo +stable build --locked -p typstographe --features recipe-driver
+      - name: Native acceptance executables, with one shared dependency graph
+        if: inputs.native_conservation
+        run: cargo +stable build --locked -p typstographe -p typstographe-cli --features typstographe/recipe-driver
       - name: Yjs and Yrs shared contract recipes
         if: '!inputs.acceptance_only'
         run: npm run test:contract --workspace @typstographe/app
-      - name: CLI for native publication acceptance
-        if: inputs.native_conservation
-        run: cargo +stable build --locked -p typstographe-cli
+      - name: Targeted storage and recovery guards
+        if: inputs.native_conservation && inputs.acceptance_only
+        run: |
+          cargo +stable test --locked -p typstographe --features recipe-driver files::persistence_tests
+          cargo +stable test --locked -p typstographe --features recipe-driver recovery::
       - name: Virtual native display on Linux
         if: runner.os == 'Linux' && inputs.native_conservation
         run: sudo apt-get install -y xvfb dbus-x11
@@ -102,11 +108,11 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
-            xvfb-run -a dbus-run-session -- npm run test:draft-conservation-native -- output/a3-native-conservation
-            xvfb-run -a dbus-run-session -- npm run test:publication-native -- output/a3-native-publication
+            xvfb-run -a dbus-run-session -- npm run test:draft-conservation-native -- "$GITHUB_WORKSPACE/output/a3-native-conservation"
+            xvfb-run -a dbus-run-session -- npm run test:publication-native -- "$GITHUB_WORKSPACE/output/a3-native-publication"
           else
-            npm run test:draft-conservation-native -- output/a3-native-conservation
-            npm run test:publication-native -- output/a3-native-publication
+            npm run test:draft-conservation-native -- "$GITHUB_WORKSPACE/output/a3-native-conservation"
+            npm run test:publication-native -- "$GITHUB_WORKSPACE/output/a3-native-publication"
           fi
       - name: Retain native acceptance results, including failures
         uses: actions/upload-artifact@v7
@@ -117,7 +123,7 @@ jobs:
             output/a3-native-*/**/report.json
             output/a3-native-*/**/native-*-report.json
             output/a3-native-*/**/*.log
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 7
       - uses: taiki-e/install-action@v2
         if: runner.os == 'Linux' && inputs.audit && !inputs.acceptance_only

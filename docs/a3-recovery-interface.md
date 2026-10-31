@@ -94,4 +94,4 @@ fermeture. Les états de texte refusé, cible disparue et erreur de conservation
 également partie de la revue. Les opérations y sont simulées et ne touchent pas les
 fichiers de l’utilisateur. L’implémentation reprend ces parcours avec les formulaires
 et commandes ordinaires.
-Elle ne clôt pas les recettes natives multisystèmes restant dans A.3.
+Le [bilan de clôture](a3-closure-results.md) précise la qualification native multisystème.

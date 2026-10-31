@@ -1,10 +1,10 @@
 # A.3 — Recette de clôture et qualification native
 
 **31 octobre 2026.** L’implémentation et les recettes de sortie sont livrées.
-La qualification native de macOS, Windows et Linux est la dernière garde de
-clôture : elle est exécutée par le workflow [Validation complète](https://github.com/klutchnikoff/typstOgraphe/actions/workflows/exhaustive.yml).
-Un résultat local macOS ne remplace pas les deux autres systèmes. Le lot A.4
-commence après réussite de cette qualification et validation de ses propres choix.
+La première qualification native a réussi sous [macOS, Windows et Linux](https://github.com/klutchnikoff/typstOgraphe/actions/runs/41188235007).
+Les rapports sont conservés ci-dessous. La qualification du commit courant et
+l’archivage de ses rapports sont exécutés par le workflow [Validation complète](https://github.com/klutchnikoff/typstOgraphe/actions/workflows/exhaustive.yml).
+Le lot A.4 commence après réussite de cette qualification et validation de ses propres choix.
 
 Le [contrat de conservation](a3-conservation.md), les [parcours de reprise](a3-recovery-interface.md)
 et leur [première recette](a3-recovery-results.md) détaillent les étapes précédentes.
@@ -24,9 +24,24 @@ et leur [première recette](a3-recovery-results.md) détaillent les étapes pré
 | Ressources et export | Sources, dépendances et ressources des exports natifs, après réouverture et CLI comparées octet par octet ; octets de l’image vérifiés et dimensions des pages comparées. Les PDF sont vérifiés comme PDF, sans prétendre comparer leurs métadonnées variables. |
 | Reprise et fermeture | Accueil sans réouverture implicite, copie indépendante, file de saisies, formulaire habituel, annulation non destructive, validation explicite et consommation durable. |
 
-Les deux protections renforcées dans ce lot disposent de tests ciblés : une copie
+Les protections renforcées dans ce lot disposent de tests ciblés : une copie
 antérieure à la transition ne permet plus de l’acquitter ; une cible modifiée
-pendant l’ouverture ne permet plus de remplacer le document courant.
+pendant l’ouverture ne permet plus de remplacer le document courant. Un troisième
+cas vérifie qu’un échec de nettoyage après Enregistrer sous ne bascule pas déjà
+le document vers la copie : le verrou et l’empreinte du fichier d’origine restent
+protecteurs contre une modification externe. Pour un enregistrement sur place,
+la nouvelle tentative reconnaît au contraire les octets déjà écrits par elle-même.
+
+## Qualification native multisystème conservée
+
+La première passe native au commit `f7b3785` est réussie sur les trois systèmes :
+[Linux](../experiments/a3-closure/ci-linux.json),
+[macOS](../experiments/a3-closure/ci-macos.json) et
+[Windows](../experiments/a3-closure/ci-windows.json).
+Ces JSON proviennent des sorties des scripts natifs des jobs réussis, sans
+normalisation de leur contenu. Le chemin des artefacts a ensuite été corrigé :
+la passe finale doit également conserver les fichiers de rapport et ses tests
+de gardes ciblés. Un archivage manquant fait désormais échouer le job.
 
 ## Résultats locaux conservés
 
@@ -36,7 +51,7 @@ pendant l’ouverture ne permet plus de remplacer le document courant.
 - [Reprise après incident sous macOS](../experiments/a3-closure/recovery-macos.json) :
   retour à l’accueil, copie indépendante, restauration de note dans son bandeau,
   Échap sans perte, validation et export du brouillon.
-- **321 tests Rust** réussis, doctest inclus ; un diagnostic de performance ignoré.
+- **323 tests Rust** réussis, doctest inclus ; un diagnostic de performance ignoré.
 - **337 tests web**, **3 contrôles des langues natives**, **29 recettes du contrat
   partagé**, puis **20 parcours Chromium/WebKit** ciblés sur conservation/reprise.
 - TypeScript/Vite, Clippy avec et sans `recipe-driver`, rustfmt, Prettier,
@@ -71,7 +86,7 @@ Les recettes natives font partie des validations complètes hebdomadaires, des t
 et des lancements manuels. Elles ne sont pas ajoutées à chaque PR ou push ordinaire.
 Pour ne lancer que cette qualification, choisir **acceptance_only = true** et
 **packages = false** dans le workflow manuel. Ce mode compile l’application et la
-CLI, puis exécute les recettes natives ; il évite de répéter le workspace, Clippy,
+CLI, puis les gardes de stockage/récupération ciblés et les recettes natives ; il évite de répéter le workspace, Clippy,
 les audits, WebAssembly, tous les navigateurs et la construction des paquets.
 Les rapports et journaux sont conservés même après un échec.
 

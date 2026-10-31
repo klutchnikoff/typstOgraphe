@@ -1,0 +1,86 @@
+{
+  "run": "https://github.com/klutchnikoff/typstOgraphe/actions/runs/41188235007",
+  "commit": "f7b3785b5cd08794106bf5f4e9d3b9fd89e44e57",
+  "provenance": "Unmodified native recipe JSON extracted from the successful workflow job stdout",
+  "recovery": {
+    "root": "D:\\a\\typstOgraphe\\typstOgraphe\\app\\output\\a3-native-conservation",
+    "checks": [
+      "welcome lists interrupted work",
+      "resume creates independent project without original lease",
+      "ordinary band restores private note without publication",
+      "Escape retains recovered source",
+      "Cmd Enter publishes through typed command",
+      "consumption follows durable acknowledgement",
+      "native draft export preserves private input and confirmed base"
+    ],
+    "success": true,
+    "confirmedReopen": [
+      "private input survives process interruption",
+      "confirmed archive reopens without private publication",
+      "confirmed recovery checkpoint validates"
+    ],
+    "git": "f7b3785b5cd08794106bf5f4e9d3b9fd89e44e57",
+    "platform": "win32",
+    "interruption": "SIGKILL after automatic checkpoint and explicit confirmed save"
+  },
+  "publication": {
+    "root": "D:\\a\\typstOgraphe\\typstOgraphe\\app\\output\\a3-native-publication",
+    "success": true,
+    "platform": "win32",
+    "git": "f7b3785b5cd08794106bf5f4e9d3b9fd89e44e57",
+    "cases": [
+      {
+        "kind": "courrier",
+        "checks": [
+          "native project and confirmed editing state are ready",
+          "explicit archive save retains unconfirmed form",
+          "external modification refusal: state, revision, CRDT, private form, resources and lease preserved",
+          "storage failure: state, revision, CRDT, private form, resources and lease preserved",
+          "incoherent archive refusal: state, revision, CRDT, private form, resources and lease preserved",
+          "save as succeeds after refusal and retains the private note",
+          "native project and confirmed editing state are ready",
+          "confirmed copy reopens after interruption without publishing the private note",
+          "native exports match reopened archive and CLI export, including dependencies and resources"
+        ],
+        "pageSizes": [
+          [
+            595.2755905511812,
+            841.8897637795276
+          ]
+        ],
+        "archiveSha256": "81cde5e2d254d15d97a5de6f69b5391747f30f699e8303c866e3d8e661314023",
+        "exportedEntries": 790
+      },
+      {
+        "kind": "article",
+        "checks": [
+          "native project and confirmed editing state are ready",
+          "explicit archive save retains unconfirmed form",
+          "external modification refusal: state, revision, CRDT, private form, resources and lease preserved",
+          "storage failure: state, revision, CRDT, private form, resources and lease preserved",
+          "incoherent archive refusal: state, revision, CRDT, private form, resources and lease preserved",
+          "save as succeeds after refusal and retains the private note",
+          "native project and confirmed editing state are ready",
+          "confirmed copy reopens after interruption without publishing the private note",
+          "native exports match reopened archive and CLI export, including dependencies and resources"
+        ],
+        "pageSizes": [
+          [
+            595.2755905511812,
+            841.8897637795276
+          ],
+          [
+            595.2755905511812,
+            841.8897637795276
+          ],
+          [
+            595.2755905511812,
+            841.8897637795276
+          ]
+        ],
+        "archiveSha256": "b67af51587c5df62905c3bd9daf24d2482160e2b182a55f9e7d88665636fb27f",
+        "exportedEntries": 13
+      }
+    ]
+  }
+}

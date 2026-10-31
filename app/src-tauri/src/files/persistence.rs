@@ -34,7 +34,8 @@ pub(super) fn save_project(
             .map(|p| p.join(path.file_name().unwrap_or_default()))
     }
     .map_err(|e| e.to_string())?;
-    let mut lease = if s.file_lease.as_ref().is_some_and(|l| l.path() == canonical) {
+    let same_target = s.file_lease.as_ref().is_some_and(|l| l.path() == canonical);
+    let mut lease = if same_target {
         s.file_lease.as_ref().unwrap().clone()
     } else {
         DocumentLease::acquire(&canonical).map_err(|e| typstographe_i18n::command_error(&e))?
@@ -51,8 +52,17 @@ pub(super) fn save_project(
     archive
         .save(&mut lease)
         .map_err(|e| typstographe_i18n::archive_error(&e))?;
+    if let Err(error) = s.mark_clean() {
+        // The archive commit succeeded but cleanup failed. Keep the original
+        // binding after a refused Save As; otherwise a later ordinary Save
+        // could acquire the old path afresh and overwrite an external edit.
+        // For an in-place save only, retain our own newly written fingerprint.
+        if same_target {
+            s.file_lease = Some(lease);
+        }
+        return Err(error);
+    }
     s.file_lease = Some(lease);
-    s.mark_clean()?;
     s.recovered_name = None;
     Ok(())
 }
