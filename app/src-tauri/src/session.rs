@@ -75,6 +75,7 @@ pub struct Session {
     pub recovery: Option<crate::recovery::Store>,
     pub initial_path: Option<String>,
     pub clean_revision: Option<u64>,
+    pub(crate) draft_epochs: std::collections::HashMap<String, (u64, u64)>,
     pub offline: HashSet<String>,
     pub generation: String,
     pub opened: bool,
@@ -99,6 +100,7 @@ impl Session {
             recovery: None,
             initial_path: None,
             clean_revision: None,
+            draft_epochs: Default::default(),
             offline: HashSet::new(),
             generation: uuid::Uuid::new_v4().to_string(),
             opened: false,
@@ -197,6 +199,7 @@ impl Session {
         if let Some(store) = &self.recovery {
             store.clear()?;
         }
+        crate::recovery::drafts::clean_confirmed(&self.root, &self.generation);
         self.clean_revision = Some(self.revision);
         Ok(())
     }
@@ -449,6 +452,7 @@ impl Session {
         Ok(())
     }
     pub fn reset_document_generation(&mut self) {
+        self.draft_epochs.clear();
         self.generation = uuid::Uuid::new_v4().to_string();
         self.synchronization_enabled = false;
         self.synchronization_version = 0;

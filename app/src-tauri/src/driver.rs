@@ -37,6 +37,37 @@ fn dispatch(
     let peer = request["peer"].as_str().ok_or("Participant absent.")?;
     let command = request["command"].as_str().ok_or("Commande absente.")?;
     match command {
+        "open_private_recovery" => {
+            let generation = args["generation"].as_str().ok_or("generation missing")?;
+            Ok(serde_json::json!(
+                bridge
+                    .session
+                    .lock()
+                    .map_err(|e| e.to_string())?
+                    .open_private_recovery(peer, generation)?
+            ))
+        }
+        "conserve_private" => {
+            let input = serde_json::from_value(args["input"].clone()).map_err(|e| e.to_string())?;
+            Ok(serde_json::json!(
+                bridge
+                    .session
+                    .lock()
+                    .map_err(|e| e.to_string())?
+                    .conserve_private(peer, input)?
+            ))
+        }
+        "diagnostic_private_recovery" => {
+            let s = bridge.session.lock().map_err(|e| e.to_string())?;
+            let path = crate::recovery::drafts::path(&s.root, &s.generation, peer)?;
+            if path.exists() {
+                serde_json::to_value(crate::recovery::drafts::read(&path)?)
+                    .map_err(|e| e.to_string())
+            } else {
+                Ok(serde_json::Value::Null)
+            }
+        }
+
         "diagnostic_agent" => {
             let mut session = bridge.session.lock().map_err(|e| e.to_string())?;
             let mut agent = bridge.agent.lock().map_err(|e| e.to_string())?;

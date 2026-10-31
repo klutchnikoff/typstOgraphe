@@ -1,4 +1,5 @@
 //! Per-process crash recovery, distinct from durable project versions.
+pub mod drafts;
 use crate::{Bridge, session::Checkpoint};
 use serde::{Deserialize, Serialize};
 use std::{

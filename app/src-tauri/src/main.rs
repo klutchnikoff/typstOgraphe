@@ -456,6 +456,33 @@ fn diagnostic_confirmed(state: State<Bridge>) -> Result<serde_json::Value, Strin
     let value = session.ensure_owner()?.state().clone();
     Ok(serde_json::json!({"guard":session.guard(),"state":value}))
 }
+#[tauri::command(async)]
+fn diagnostic_private_records(
+    state: State<Bridge>,
+) -> Result<Vec<recovery::drafts::Record>, String> {
+    if state.diagnostic.is_none() {
+        return Err("Diagnostic inactive".into());
+    }
+    let s = state.session.lock().map_err(|e| e.to_string())?;
+    let mut records = vec![];
+    if let Ok(generations) = std::fs::read_dir(s.root.join("drafts")) {
+        for generation in generations.flatten() {
+            if generation.file_type().is_ok_and(|t| t.is_dir()) {
+                for entry in std::fs::read_dir(generation.path())
+                    .map_err(|e| e.to_string())?
+                    .flatten()
+                {
+                    if entry.path().extension().is_some_and(|e| e == "json") {
+                        let record = recovery::drafts::read(&entry.path())?;
+                        Session::from_checkpoint(s.root.clone(), record.confirmed.clone())?;
+                        records.push(record);
+                    }
+                }
+            }
+        }
+    }
+    Ok(records)
+}
 #[tauri::command]
 fn diagnostic_mode(state: State<Bridge>) -> Option<String> {
     state.diagnostic.clone()
@@ -545,6 +572,12 @@ fn main() {
         }
         if arg == "--diagnostic-performance" {
             diagnostic = Some("performance".to_owned());
+        }
+        if arg == "--diagnostic-draft-conservation" {
+            diagnostic = Some("draft-conservation".to_owned());
+        }
+        if arg == "--diagnostic-draft-verify" {
+            diagnostic = Some("draft-verify".to_owned());
         }
         if arg == "--diagnostic-closure" {
             diagnostic = Some("closure".to_owned());
@@ -653,6 +686,8 @@ fn main() {
             settings::validate_model,
             catalogue::content_catalogue,
             recover,
+            recovery::drafts::open_private_recovery,
+            recovery::drafts::conserve_private,
             recovery::recovery_list,
             recovery::recovery_restore,
             recovery::recovery_delete,
@@ -704,6 +739,7 @@ fn main() {
             prepare_rust_edit,
             diagnostic_mode,
             diagnostic_confirmed,
+            diagnostic_private_records,
             diagnostic_event,
             diagnostic_finish
         ])
