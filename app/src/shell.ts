@@ -1012,7 +1012,7 @@ export async function mountShell(s: Shell) {
     menu.append(details)
   }
   for (const [label, name, action] of [
-    [tr('Commandes'), 'pilcrow', 'ui.palette'],
+    [tr('Commandes'), 'command', 'ui.palette'],
     [tr('Rechercher'), 'search', 'ui.find'],
     [tr('Versions'), 'history', 'ui.versions'],
     [tr('Préférences'), 'settings-2', 'ui.preferences'],

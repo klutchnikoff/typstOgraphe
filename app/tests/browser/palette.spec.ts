@@ -46,7 +46,12 @@ test('les flèches parcourent les commandes filtrées sans quitter la recherche 
 test('la recherche reste visible pendant le défilement, sans action pour un résultat vide et fermeture avec Échap', async ({
   page,
 }) => {
-  await page.getByRole('button', { name: 'Commandes', exact: true }).click()
+  const palette = page.getByRole('button', { name: 'Commandes', exact: true })
+  await expect(palette.locator('svg path')).toHaveAttribute(
+    'd',
+    'M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3',
+  )
+  await palette.click()
   const input = page.getByRole('combobox', { name: 'Rechercher une commande', exact: true })
   const results = page.getByRole('listbox', { name: 'Commandes', exact: true })
   await expect(input).toBeFocused()
