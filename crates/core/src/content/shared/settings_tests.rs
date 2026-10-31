@@ -245,8 +245,14 @@ fn model_resources_roundtrip_in_an_autonomous_archive_and_wire_images_are_base64
         dependencies: crate::packages::for_template(&settings.template),
         yjs: s.update(),
     };
-    archive.save(&mut lease).unwrap();
-    let read = crate::content::archive::Archive::read(&path).unwrap();
+    crate::content::project::Project::new(archive.clone())
+        .unwrap()
+        .save(&mut lease)
+        .unwrap();
+    let read = crate::content::project::Project::read(&path)
+        .unwrap()
+        .current()
+        .clone();
     assert_eq!(read.assets[&image.path].as_ref(), image.data);
     let mut world = crate::rendering::TypstWorld::default();
     world.set_assets(&read.assets);

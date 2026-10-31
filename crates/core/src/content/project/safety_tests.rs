@@ -249,9 +249,13 @@ fn image_limit_is_checked_before_decoding_and_old_formats_are_not_migrated_impli
         matches!(Project::read(&path), Err(Error::Core(CoreError::StorageError(StorageError::EntryTooLarge { name }))) if name == "images/limit.svg")
     );
     let old_path = dir.path().join("v10.typsto");
-    fixture(DocumentType::Courrier, "Legacy prototype")
-        .save(&mut DocumentLease::acquire(&old_path).unwrap())
-        .unwrap();
+    write_zip(
+        &old_path,
+        std::collections::BTreeMap::from([(
+            "manifest.json".into(),
+            br#"{"format":"typstOgraphe","version":10}"#.to_vec(),
+        )]),
+    );
     assert!(matches!(
         Project::read(&old_path),
         Err(Error::Core(CoreError::StorageError(

@@ -63,7 +63,7 @@ fn valid_hashes_do_not_hide_mismatched_projections_sources_or_bibliography() {
     world.set_dependencies(&read.current().dependencies);
     world
         .compile_with_template(
-            &read.current().validate_embedded().unwrap(),
+            &read.current().validate().unwrap(),
             &read.current().metadata,
             &read.current().template,
         )
@@ -79,6 +79,8 @@ fn valid_hashes_do_not_hide_mismatched_projections_sources_or_bibliography() {
         "encoding",
         "schema",
         "bibliography",
+        "bibliography-changed",
+        "bibliography-unclaimed",
         "duplicate-resource",
         "path",
     ] {
@@ -107,6 +109,22 @@ fn valid_hashes_do_not_hide_mismatched_projections_sources_or_bibliography() {
                 let mut resources: schema::ResourceMap =
                     project.store.read_json(&d.resources).unwrap();
                 resources.retain(|p, _| !p.starts_with("bibliography/"));
+                d.resources = insert(files, serde_json::to_vec(&resources).unwrap());
+            }
+            "bibliography-changed" | "bibliography-unclaimed" => {
+                let mut resources: schema::ResourceMap =
+                    project.store.read_json(&d.resources).unwrap();
+                let path = if kind == "bibliography-changed" {
+                    resources
+                        .keys()
+                        .find(|p| p.starts_with("bibliography/"))
+                        .unwrap()
+                        .clone()
+                } else {
+                    "bibliography/unclaimed.bib".into()
+                };
+                let id = insert(files, b"@book{unclaimed, title={Unknown}}".to_vec());
+                resources.insert(path, id);
                 d.resources = insert(files, serde_json::to_vec(&resources).unwrap());
             }
             "duplicate-resource" => {

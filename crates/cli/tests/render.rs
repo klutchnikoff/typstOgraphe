@@ -4,9 +4,7 @@ use assert_cmd::{Command as ProcessCommand, cargo::cargo_bin_cmd};
 use serde_json::Value;
 use std::path::Path;
 use typstographe_core::{
-    DocumentLease, assets,
-    content::{api::Session, archive::Archive},
-    document_types::DocumentType,
+    DocumentLease, assets, content::api::Session, document_types::DocumentType,
     document_types::Metadata,
 };
 
@@ -27,7 +25,8 @@ fn fixture(path: &Path) {
     let mut stored = session.archive().unwrap();
     stored.template = "#let courrier(..args, body) = { set page(width: 120pt, height: 80pt, margin: 5pt); body; pagebreak(); [Seconde page.] }".into();
     stored.yjs.clear();
-    stored
+    typstographe_core::content::project::Project::new(stored)
+        .unwrap()
         .save(&mut DocumentLease::acquire(path).unwrap())
         .unwrap();
 }
@@ -44,7 +43,11 @@ fn a_selected_page_matches_the_engine_and_export_while_a_writer_is_active() {
         .unwrap();
     let expected = engine.page_png(2).unwrap();
     engine.execute("text.insert",serde_json::json!({"target":{"zone":{"kind":"body","path":[0]},"from":0,"to":0},"text":"Brouillon privé "})).unwrap();
-    let saved = Archive::read(&input).unwrap().state();
+    let saved = typstographe_core::content::project::Project::read(&input)
+        .unwrap()
+        .current()
+        .clone()
+        .state();
     let output = dir.path().join("résultat 日本.png");
     let result = response(
         cli()
@@ -78,7 +81,14 @@ fn a_selected_page_matches_the_engine_and_export_while_a_writer_is_active() {
         std::fs::read(exported.join("page-2.png")).unwrap(),
         expected
     );
-    assert_eq!(Archive::read(&input).unwrap().state(), saved);
+    assert_eq!(
+        typstographe_core::content::project::Project::read(&input)
+            .unwrap()
+            .current()
+            .clone()
+            .state(),
+        saved
+    );
 }
 
 #[test]
@@ -155,10 +165,14 @@ fn failed_render_or_publication_preserves_destinations_and_leaves_no_partial_out
         "cli_render_io"
     );
     assert!(!missing.parent().unwrap().exists());
-    let mut stored = Archive::read(&input).unwrap();
+    let mut stored = typstographe_core::content::project::Project::read(&input)
+        .unwrap()
+        .current()
+        .clone();
     stored.template = "#let courrier(..args, body) = panic(\"Compilation refusée\")".into();
     stored.yjs.clear();
-    stored
+    typstographe_core::content::project::Project::new(stored)
+        .unwrap()
         .save(&mut DocumentLease::acquire(&input).unwrap())
         .unwrap();
     let output = dir.path().join("failed.png");

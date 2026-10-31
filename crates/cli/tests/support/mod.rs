@@ -49,7 +49,12 @@ pub fn writer(path: &Path) -> Session {
     s
 }
 pub fn source(path: &Path) -> String {
-    Archive::read(path).unwrap().validate().unwrap()
+    typstographe_core::content::project::Project::read(path)
+        .unwrap()
+        .current()
+        .clone()
+        .validate()
+        .unwrap()
 }
 pub fn job(folder: &Path, value: Value) -> std::path::PathBuf {
     let p = folder.join("job.json");
@@ -66,5 +71,13 @@ pub fn has_mark(path: &Path, text: &str, kind: &str) -> bool {
             && n.marks.iter().any(|m| m.kind == kind)
             || n.content.iter().any(|n| walk(n, text, kind))
     }
-    walk(&Archive::read(path).unwrap().document, text, kind)
+    walk(
+        &typstographe_core::content::project::Project::read(path)
+            .unwrap()
+            .current()
+            .clone()
+            .document,
+        text,
+        kind,
+    )
 }

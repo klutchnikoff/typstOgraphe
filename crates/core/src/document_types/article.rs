@@ -467,8 +467,14 @@ mod tests {
             yjs: vec![],
         };
         let mut lease = crate::DocumentLease::acquire(&path).unwrap();
-        archive.save(&mut lease).unwrap();
-        let restored = crate::content::archive::Archive::read(&path).unwrap();
+        crate::content::project::Project::new(archive.clone())
+            .unwrap()
+            .save(&mut lease)
+            .unwrap();
+        let restored = crate::content::project::Project::read(&path)
+            .unwrap()
+            .current()
+            .clone();
         assert_eq!(restored.metadata, archive.metadata);
         assert_eq!(restored.document, archive.document);
         assert_eq!(restored.dependencies, archive.dependencies);

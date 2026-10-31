@@ -416,8 +416,14 @@ fn row_header_project_reopens_and_exports_with_its_own_typst_dependency() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("headers.typsto");
     let mut lease = crate::DocumentLease::acquire(&path).unwrap();
-    archive.save(&mut lease).unwrap();
-    let saved = crate::content::archive::Archive::read(&path).unwrap();
+    crate::content::project::Project::new(archive.clone())
+        .unwrap()
+        .save(&mut lease)
+        .unwrap();
+    let saved = crate::content::project::Project::read(&path)
+        .unwrap()
+        .current()
+        .clone();
     assert_eq!(saved.document, archive.document);
     assert_eq!(saved.yjs, archive.yjs);
     assert!(saved.dependencies.contains_key("capabilities/tables.typ"));

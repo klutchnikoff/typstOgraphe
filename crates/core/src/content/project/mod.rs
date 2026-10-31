@@ -1,5 +1,6 @@
 //! Autonomous format-11 CAS owner. Adapters must preserve this owner across saves.
 //! Preparing a candidate is pure: publish it only after `save` succeeds.
+mod backup;
 mod schema;
 mod state;
 mod store;
@@ -9,12 +10,17 @@ use crate::{
     DocumentLease,
     errors::{CoreError, StorageError},
 };
+pub use backup::Backup;
 pub use schema::{
     FORMAT_VERSION, MAX_ARCHIVE_BYTES, MAX_OBJECTS, MAX_SNAPSHOTS, ObjectId, ReviewReference,
     SnapshotDetails, SnapshotReason, SnapshotRecord,
 };
 use schema::{Manifest, VersionIndex};
-use std::{io::Write, path::Path};
+use std::{
+    io::{Cursor, Seek, Write},
+    path::Path,
+    sync::Arc,
+};
 use store::{Store, serialize};
 use uuid::Uuid;
 
@@ -51,6 +57,22 @@ impl Project {
     }
     pub fn current(&self) -> &Archive {
         &self.current
+    }
+    /// Preserve owned dependencies on ordinary edits; resolve the catalogue only for a new model.
+    pub fn dependencies_for(&self, template: &str) -> crate::packages::Dependencies {
+        if template == self.current.template {
+            return self.current.dependencies.clone();
+        }
+        let provided = crate::document_types::DocumentType::ALL
+            .into_iter()
+            .any(|kind| kind.models().any(|model| model.source == template));
+        if !provided
+            && crate::packages::validate_embedded(template, &self.current.dependencies).is_ok()
+        {
+            self.current.dependencies.clone()
+        } else {
+            crate::packages::for_template(template)
+        }
     }
     pub fn versions(&self) -> &[SnapshotRecord] {
         &self.index.snapshots
@@ -169,6 +191,13 @@ impl Project {
     }
     pub fn read(path: &Path) -> Result<Self, Error> {
         let (store, manifest, index) = Store::open(path)?;
+        Self::from_store(store, manifest, index)
+    }
+    pub fn from_bytes(bytes: impl Into<Arc<[u8]>>) -> Result<Self, Error> {
+        let (store, manifest, index) = Store::from_bytes(bytes.into())?;
+        Self::from_store(store, manifest, index)
+    }
+    fn from_store(store: Store, manifest: Manifest, index: VersionIndex) -> Result<Self, Error> {
         let current = state::decode(&store, &manifest.current)?;
         Ok(Self {
             project_id: manifest.project_id,
@@ -182,6 +211,41 @@ impl Project {
     /// Any error keeps the original file and the lease fingerprint unchanged.
     pub fn save(&self, lease: &mut DocumentLease) -> Result<(), Error> {
         lease.check()?;
+        let mut options = atomic_write_file::AtomicWriteFile::options();
+        options.read(true);
+        #[cfg(unix)]
+        let options = {
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut options = options;
+            options.mode(0o600);
+            options
+        };
+        let mut temporary = options.open(lease.path()).map_err(CoreError::external)?;
+        self.write_archive(&mut temporary)?;
+        if temporary
+            .as_file_mut()
+            .metadata()
+            .map_err(CoreError::external)?
+            .len()
+            > MAX_ARCHIVE_BYTES
+        {
+            return Err(StorageError::FileTooLarge.into());
+        }
+        lease.check()?;
+        let fingerprint = lease.prepare_fingerprint(temporary.as_file_mut())?;
+        temporary.commit().map_err(CoreError::external)?;
+        lease.record_fingerprint(fingerprint);
+        Ok(())
+    }
+    pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+        let mut output = Cursor::new(Vec::new());
+        self.write_archive(&mut output)?;
+        if output.get_ref().len() as u64 > MAX_ARCHIVE_BYTES {
+            return Err(StorageError::FileTooLarge.into());
+        }
+        Ok(output.into_inner())
+    }
+    fn write_archive(&self, output: &mut (impl Write + Seek)) -> Result<(), Error> {
         self.index.validate()?;
         let reachable = state::reachable(
             &self.store,
@@ -205,18 +269,8 @@ impl Project {
         if total > MAX_ARCHIVE_BYTES {
             return Err(StorageError::ExpandedTooLarge.into());
         }
-        let mut options = atomic_write_file::AtomicWriteFile::options();
-        options.read(true);
-        #[cfg(unix)]
-        let options = {
-            use std::os::unix::fs::OpenOptionsExt;
-            let mut options = options;
-            options.mode(0o600);
-            options
-        };
-        let mut temporary = options.open(lease.path()).map_err(CoreError::external)?;
         {
-            let mut zip = zip::ZipWriter::new(&mut temporary);
+            let mut zip = zip::ZipWriter::new(output);
             let options = zip::write::SimpleFileOptions::default()
                 .compression_method(zip::CompressionMethod::Deflated);
             for (path, bytes) in [("manifest.json", manifest), ("versions.json", versions)] {
@@ -231,23 +285,13 @@ impl Project {
             }
             zip.finish().map_err(CoreError::external)?;
         }
-        if temporary
-            .as_file_mut()
-            .metadata()
-            .map_err(CoreError::external)?
-            .len()
-            > MAX_ARCHIVE_BYTES
-        {
-            return Err(StorageError::FileTooLarge.into());
-        }
-        lease.check()?;
-        let fingerprint = lease.prepare_fingerprint(temporary.as_file_mut())?;
-        temporary.commit().map_err(CoreError::external)?;
-        lease.record_fingerprint(fingerprint);
         Ok(())
     }
 }
 
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod backup_tests;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod coherence_tests;

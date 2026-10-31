@@ -48,7 +48,7 @@ fn compile(archive: &Archive) {
     world.set_dependencies(&archive.dependencies);
     world
         .compile_with_template(
-            &archive.validate_embedded().unwrap(),
+            &archive.validate().unwrap(),
             &archive.metadata,
             &archive.template,
         )
@@ -210,7 +210,7 @@ fn superseded_packages_compile_from_their_embedded_inventory() {
         .template
         .push_str("\n#import \"packages/retired-0.0.1/main.typ\": old\n");
     archive.dependencies = Arc::new(files);
-    assert!(archive.validate().is_err());
+    archive.validate().unwrap();
     let project = Project::new(archive).unwrap();
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("pinned.typsto");

@@ -401,8 +401,14 @@ mod tests {
         };
         let path = root.path().join("article.typsto");
         let mut lease = DocumentLease::acquire(&path).unwrap();
-        archive.save(&mut lease).unwrap();
-        let restored = Archive::read(&path).unwrap();
+        crate::content::project::Project::new(archive.clone())
+            .unwrap()
+            .save(&mut lease)
+            .unwrap();
+        let restored = crate::content::project::Project::read(&path)
+            .unwrap()
+            .current()
+            .clone();
         assert_eq!(restored.metadata, archive.metadata);
         let mut broken = restored.clone();
         let Metadata::Article(m) = &mut broken.metadata else {
@@ -439,73 +445,5 @@ mod tests {
         // At the first object, the paragraph boundary and badge share an anchor.
         assert!(matches!(sync.backward(point), Some(0 | 1)));
         assert!(!sync.selection_highlights_exact(1..2).is_empty());
-    }
-
-    #[test]
-    fn archive_rejects_changed_missing_or_unclaimed_bibliography_files() {
-        use std::io::{Read, Write};
-        let root = tempfile::tempdir().unwrap();
-        let path = root.path().join("article.typsto");
-        let template = Model::ArticleWorking.source();
-        let mut meta = article::Metadata::demo();
-        meta.references = files();
-        let archive = Archive {
-            document: doc(),
-            metadata: Metadata::Article(meta),
-            dependencies: crate::packages::for_template(&template),
-            template,
-            assets: Default::default(),
-            model_id: Model::ArticleWorking.id().into(),
-            yjs: vec![],
-        };
-        let mut lease = DocumentLease::acquire(&path).unwrap();
-        archive.save(&mut lease).unwrap();
-        drop(lease);
-        let mut original = zip::ZipArchive::new(std::fs::File::open(&path).unwrap()).unwrap();
-        let entries: Vec<_> = (0..original.len())
-            .map(|index| {
-                let mut entry = original.by_index(index).unwrap();
-                let mut data = vec![];
-                entry.read_to_end(&mut data).unwrap();
-                (entry.name().unwrap().into_owned(), data)
-            })
-            .collect();
-        drop(original);
-        for alteration in ["changed", "missing", "unclaimed"] {
-            let output = root.path().join(format!("{alteration}.typsto"));
-            let mut zip = zip::ZipWriter::new(std::fs::File::create(&output).unwrap());
-            for (name, data) in &entries {
-                if alteration == "missing" && name == "bibliography/books.bib" {
-                    continue;
-                }
-                zip.start_file(name, zip::write::SimpleFileOptions::default())
-                    .unwrap();
-                zip.write_all(
-                    if alteration == "changed" && name == "bibliography/books.bib" {
-                        b"tampered"
-                    } else {
-                        data
-                    },
-                )
-                .unwrap();
-            }
-            if alteration == "unclaimed" {
-                zip.start_file(
-                    "bibliography/unclaimed.bib",
-                    zip::write::SimpleFileOptions::default(),
-                )
-                .unwrap();
-                zip.write_all(b"@book{unclaimed, title={Unknown}}").unwrap();
-            }
-            zip.finish().unwrap();
-            assert!(
-                Archive::read(&output)
-                    .err()
-                    .unwrap()
-                    .to_string()
-                    .contains("inconsistent_state: bibliography"),
-                "{alteration}"
-            );
-        }
     }
 }

@@ -8,13 +8,16 @@ use serde::{Serialize, de::DeserializeOwned};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs::File,
-    io::Read,
+    io::{Cursor, Read, Seek},
     path::Path,
     sync::{Arc, Mutex},
 };
 use zip::ZipArchive;
 
-type Source = Arc<Mutex<ZipArchive<File>>>;
+trait Reader: Read + Seek + Send {}
+impl<T: Read + Seek + Send> Reader for T {}
+type Input = ZipArchive<Box<dyn Reader>>;
+type Source = Arc<Mutex<Input>>;
 #[derive(Clone, Default)]
 pub(super) struct Store {
     source: Option<Source>,
@@ -33,7 +36,7 @@ pub(super) fn json<T: DeserializeOwned>(bytes: &[u8], name: &str) -> Result<T, E
 pub(super) fn serialize<T: Serialize>(value: &T) -> Result<Vec<u8>, Error> {
     serde_json::to_vec(value).map_err(|e| CoreError::external(e).into())
 }
-fn read_entry(zip: &mut ZipArchive<File>, name: &str, limit: u64) -> Result<Vec<u8>, Error> {
+fn read_entry(zip: &mut Input, name: &str, limit: u64) -> Result<Vec<u8>, Error> {
     let entry = zip
         .by_name(name)
         .map_err(|e| StorageError::EntryUnreadable {
@@ -62,10 +65,21 @@ impl Store {
         let file = File::open(path).map_err(|e| StorageError::OpenFailed {
             error: e.to_string(),
         })?;
-        if file.metadata().map_err(CoreError::external)?.len() > MAX_ARCHIVE_BYTES {
+        let size = file.metadata().map_err(CoreError::external)?.len();
+        Self::open_reader(Box::new(file), size)
+    }
+    pub fn from_bytes(bytes: Arc<[u8]>) -> Result<(Self, Manifest, VersionIndex), Error> {
+        let size = bytes.len() as u64;
+        Self::open_reader(Box::new(Cursor::new(bytes)), size)
+    }
+    fn open_reader(
+        reader: Box<dyn Reader>,
+        size: u64,
+    ) -> Result<(Self, Manifest, VersionIndex), Error> {
+        if size > MAX_ARCHIVE_BYTES {
             return Err(StorageError::FileTooLarge.into());
         }
-        let mut zip = ZipArchive::new(file).map_err(|e| StorageError::ZipUnreadable {
+        let mut zip = ZipArchive::new(reader).map_err(|e| StorageError::ZipUnreadable {
             error: e.to_string(),
         })?;
         if zip.len() > MAX_OBJECTS + 2 {

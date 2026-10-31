@@ -16,7 +16,7 @@ fn inconsistent(field: &str) -> Error {
     .into()
 }
 pub(super) fn prepare(mut archive: Archive, initialize: bool) -> Result<Archive, Error> {
-    archive.validate_embedded()?;
+    archive.validate()?;
     if archive.yjs.is_empty() {
         if !initialize {
             return Err(inconsistent("yjs"));
@@ -34,7 +34,7 @@ pub(super) fn prepare(mut archive: Archive, initialize: bool) -> Result<Archive,
     Ok(archive)
 }
 pub(super) fn encode(store: &mut Store, archive: &Archive) -> Result<ObjectId, Error> {
-    let body = archive.validate_embedded()?;
+    let body = archive.validate()?;
     let references = crate::bibliography::resources(&archive.metadata);
     let mut resources = ResourceMap::new();
     for (path, bytes) in archive
@@ -177,7 +177,7 @@ pub(super) fn decode(store: &Store, id: &ObjectId) -> Result<Archive, Error> {
     if crate::bibliography::resources(&archive.metadata) != bibliography {
         return Err(inconsistent("bibliography"));
     }
-    let body = archive.validate_embedded()?;
+    let body = archive.validate()?;
     if body != text(store, &descriptor.sources.body)? {
         return Err(inconsistent("source"));
     }
