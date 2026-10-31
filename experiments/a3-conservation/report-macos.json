@@ -1,0 +1,11 @@
+{
+  "checks": [
+    "private input survives process interruption",
+    "confirmed archive reopens without private publication",
+    "confirmed recovery checkpoint validates"
+  ],
+  "success": true,
+  "git": "1473bea7209511ee850ab7ea44905d3f857bdcbe",
+  "platform": "darwin",
+  "interruption": "SIGKILL after automatic checkpoint and explicit confirmed save"
+}

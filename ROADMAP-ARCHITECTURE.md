@@ -58,8 +58,13 @@ sans modification, échéance de dix secondes en rédaction continue. Protéger 
 les saisies privées, champs en attente et formulaires ouverts, avec leurs ressources,
 sans publication automatique. Une copie par document/fenêtre ; reprise isolée et
 fermeture explicite à maquetter. L’annulation reste limitée à la séance.
-Premier lot engagé : conservation des brouillons. Reprise graphique et recettes
-natives multisystèmes restent des lots distincts avant clôture d’A.3.
+Premier lot livré : collecte commune des formulaires et zones riches, copies privées
+atomiques par document/fenêtre, conservation des refus et ressources, échéances et
+reprises d’écriture. La recette native macOS vérifie un arrêt brutal sans publication
+d’un formulaire ouvert. Voir le [contrat et les limites](docs/a3-conservation.md) et le
+[bilan du premier lot](docs/a3-conservation-results.md).
+Reprise graphique, décisions de fermeture, coordination des transitions entre fenêtres
+et recettes natives multisystèmes restent à traiter avant clôture d’A.3.
 
 Fixer les responsabilités de l’état Yjs, de l’arbre validé et du Typst généré.
 Tester identité/révision, sauvegarde pendant des éditions, récupération après

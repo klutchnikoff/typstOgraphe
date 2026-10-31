@@ -103,3 +103,71 @@ mentions MIT si une reprise est décidée ultérieurement.
 Sources : [historique](https://github.com/davidbuenov/dbv-typst-editor/blob/48e65ceae0e3ad55e8cfe96263ac217c81b98e0e/src-tauri/src/history.rs),
 [règles de sauvegarde](https://github.com/davidbuenov/dbv-typst-editor/blob/48e65ceae0e3ad55e8cfe96263ac217c81b98e0e/src/app/autoSave.js).
 Les workflows de distribution étudiés relèvent du chantier H.
+
+## Premier lot : conservation privée
+
+Voir les [résultats et la recette native](a3-conservation-results.md).
+
+L’implémentation garde un fichier atomique par génération documentaire et fenêtre,
+sous `sessions/<session>/drafts/<generation>/<empreinte-fenetre>.json` dans les
+données locales de l’application. Le format `typstographe-private-recovery-v1`
+contient deux parties distinctes :
+
+- le checkpoint confirmé, construit par le propriétaire Rust avec ses ressources,
+  son état Yjs/Yrs, ses réglages et sa révision ;
+- la saisie privée : état partagé local complet, arbre visible, réglages éventuellement
+  invalides, champs en attente, formulaires identifiés avec leur cible et leurs
+  valeurs, ressources et indication de refus.
+
+Le collecteur commun des bandeaux et fenêtres de formulaire conserve les valeurs
+brutes des contrôles, les zones riches et les données typées complémentaires.
+Une image choisie mais non appliquée reste dans cette copie privée ; elle n’entre
+pas dans les ressources du document. Les auteurs/affiliations en cours d’ajout ou
+de modification restent également privés. Fermer leur interface sans validation
+ne fait pas disparaître leur dernière saisie ; une annulation explicite retire
+le brouillon correspondant. Les préférences globales du logiciel sont hors de
+ce mécanisme documentaire.
+
+Le contrôleur ne demande ni publication, ni validation, ni compilation avant la
+conservation. Il reste donc utilisable après un refus et en mode individuel.
+Les écritures attendent la pause de deux secondes ou l’échéance de dix secondes ;
+une transition déclenchée depuis la fenêtre attend aussi l’écriture nécessaire.
+La file d’écriture conserve les changements arrivés pendant une écriture. Un
+échec laisse la demande à réessayer et affiche une erreur localisée. Une vue
+obsolète, un mauvais document ou une séquence plus ancienne ne remplacent pas
+une copie plus récente. Un enregistrement explicite nettoie les copies entièrement
+confirmées, en conservant les copies privées ou illisibles.
+
+Recharger une vue ne vaut pas abandon : sa copie privée non reprise est retenue
+séparément avant de commencer la copie courante de la nouvelle vue. Cela ne crée
+pas de versions au fil de la frappe ; ces copies attendent une décision explicite
+dans le parcours de reprise.
+
+Les fichiers sont limités à 64 Mio, lus avec une borne effective, et le schéma est
+versionné. Les mises à jour Yjs sont décodées mais leur contenu privé n’a pas à
+satisfaire le contrat documentaire. Les ressources nouvelles sont contrôlées sans
+être admises ; les limites sont de 128 formulaires, 1 024 champs et 4 096 ressources
+par copie. Les écritures utilisent `atomic-write-file` ; les liens symboliques aux
+emplacements de récupération sont refusés. Les fichiers privés sont créés avec
+le mode `0600` et leurs répertoires avec `0700` sous Unix. Il s’agit de données
+locales privées, sans chiffrement supplémentaire.
+
+### Limites de cette livraison
+
+Le parcours existant reste capable de reprendre l’état confirmé. La collecte
+privée est livrée avant son interface de réouverture : les formulaires conservés
+ne sont pas encore réaffichés automatiquement. Leur présentation et les décisions
+explicites de fermeture restent à maquetter dans le deuxième lot. L’import doit
+revalider les données récupérées avant toute publication.
+
+Les copies déjà écrites survivent au changement de document. La coordination
+d’une transition provoquée depuis une autre fenêtre, avant que cette fenêtre-ci
+ait écrit sa toute dernière saisie, reste à traiter avec les décisions de fermeture
+et les recettes de concurrence. Une ancienne fenêtre ne peut pas écrire dans la
+génération du document suivant. La rétention et le nettoyage explicite des copies
+privées conservées restent à relier au parcours de reprise ; aucune copie privée
+n’est supprimée implicitement au seul motif que le document a été enregistré.
+
+La recette native interrompt réellement le processus après conservation automatique,
+puis rouvre son archive confirmée sans publier le formulaire. Ce résultat local
+macOS ne remplace pas les recettes natives Windows/Linux.

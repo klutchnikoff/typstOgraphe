@@ -22,9 +22,12 @@ seule poussée par lot, sauf correction nécessaire d’une vérification distan
 
 **Séquence immédiate :** mettre en œuvre **A.3 — Conservation et publication**, selon le
 [contrat validé](docs/a3-conservation.md) :
-conservation durable des brouillons refusés et des saisies en attente, récupération,
-fermeture et modifications externes. Commencer par la conservation des brouillons, y compris les formulaires ouverts.
-Maquetter ensuite la reprise ; ne pas confondre récupération et snapshots durables (A.4).
+le premier lot conserve les brouillons refusés, champs en attente et formulaires
+ouverts avec leurs ressources, séparément de l’état confirmé. La recette native
+macOS vérifie leur conservation après arrêt brutal. Prochaine étape : maquetter
+la reprise, les décisions de fermeture et la coordination entre fenêtres ; compléter
+les recettes d’incident et de changement externe. A.3 reste ouvert. Ne pas confondre
+récupération et snapshots durables (A.4).
 
 **A.2 est clos.** La [recette Courrier/Article](docs/a2-closure-results.md) valide
 le même projet entre Tauri, CLI et MCP, les propositions rattachées, l’historique,
@@ -485,8 +488,8 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Livrer le premier lot **A.3 — Conservation des brouillons**, selon le
-   [contrat validé](docs/a3-conservation.md), puis valider la maquette de reprise
+1. Après le premier lot **A.3 — Conservation des brouillons**, valider la maquette
+   de reprise selon le [contrat et ses limites](docs/a3-conservation.md)
    avant les parcours de fermeture et les recettes natives restantes.
 2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
