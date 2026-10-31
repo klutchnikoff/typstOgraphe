@@ -58,7 +58,7 @@ impl Session {
             .draft_epochs
             .get(window)
             .is_some_and(|(_, sequence)| *sequence > 0);
-        if ack.error.is_none() && !conserved {
+        if ack.error.is_none() && !conserved && self.opened {
             return Err("recovery_transition_not_conserved".into());
         }
         let value = self

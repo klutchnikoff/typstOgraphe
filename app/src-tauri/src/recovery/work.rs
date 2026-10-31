@@ -27,6 +27,7 @@ pub struct Entry {
     pub id: String,
     pub name: String,
     pub document_type: String,
+    pub document_type_label: String,
     pub saved_at: u64,
     pub window: String,
     pub original_path: Option<PathBuf>,
@@ -100,6 +101,9 @@ impl Session {
             )
         };
         let path = if parts[1] == "confirmed" && parts[2] == "session" {
+            if is_own && self.opened {
+                return Err("recovery_live_copy".into());
+            }
             directory.join("session.json")
         } else {
             if !uuid(parts[1]) || !file_name(parts[2]) {
@@ -124,14 +128,15 @@ impl Session {
     }
     pub fn work_list(&self) -> Result<Vec<Entry>, String> {
         let mut roots = vec![("current".to_owned(), self.root.clone())];
-        if let Some(store) = &self.recovery {
-            if let Ok(dirs) = fs::read_dir(store.base.join("sessions")) {
-                for entry in dirs.flatten().take(4096) {
-                    if entry.path() != self.root && entry.file_type().is_ok_and(|m| m.is_dir()) {
-                        if let Some(name) = entry.file_name().to_str().filter(|s| uuid(s)) {
-                            roots.push((name.into(), entry.path()));
-                        }
-                    }
+        if let Some(store) = &self.recovery
+            && let Ok(dirs) = fs::read_dir(store.base.join("sessions"))
+        {
+            for entry in dirs.flatten().take(4096) {
+                if entry.path() != self.root
+                    && entry.file_type().is_ok_and(|m| m.is_dir())
+                    && let Some(name) = entry.file_name().to_str().filter(|s| uuid(s))
+                {
+                    roots.push((name.into(), entry.path()));
                 }
             }
         }
@@ -185,6 +190,14 @@ impl Session {
                             .document_type()
                             .file_stem()
                             .into(),
+                        document_type_label: typstographe_i18n::text(
+                            record
+                                .confirmed
+                                .settings
+                                .metadata
+                                .document_type()
+                                .label_key(),
+                        ),
                         saved_at: record.saved_at,
                         window: record.window.clone(),
                         original_path: record.file_path.clone(),
@@ -195,6 +208,7 @@ impl Session {
                         id,
                         name: typstographe_i18n::text("recovery-unreadable"),
                         document_type: String::new(),
+                        document_type_label: String::new(),
                         saved_at: 0,
                         window: String::new(),
                         original_path: None,
@@ -208,7 +222,10 @@ impl Session {
         Ok(entries)
     }
     pub fn work_delete(&self, id: &str) -> Result<(), String> {
-        let (_claim, path) = self.claim_work(id)?;
+        let (claim, path) = self.claim_work(id)?;
+        let base = read_work(&path)
+            .ok()
+            .and_then(|record| serde_json::to_vec(&record.confirmed).ok());
         if path
             .symlink_metadata()
             .map_err(|e| e.to_string())?
@@ -217,25 +234,24 @@ impl Session {
         {
             return Err("recovery_invalid_file".into());
         }
-        fs::remove_file(path).map_err(|e| e.to_string())
+        fs::remove_file(path).map_err(|e| e.to_string())?;
+        if let Some(base) = base {
+            clean_summary(&claim.directory, &base);
+        }
+        Ok(())
     }
     pub fn work_restore(&mut self, window: &str, id: &str, revision: u64) -> Result<(), String> {
         self.lifecycle(revision)?;
         let (claim, path) = self.claim_work(id)?;
         let record = read_work(&path)?;
+        let base = serde_json::to_vec(&record.confirmed).map_err(|e| e.to_string())?;
         self.restore_work_record(window, record)?;
         // Destination is durable before the source is consumed. Retain unreadable siblings.
         fs::remove_file(path)
             .map_err(|e| eprintln!("Recovered copy retained: {e}"))
             .ok();
-        if claim.directory != self.root
-            && let Some(store) = &self.recovery
-        {
-            // A legacy summary is redundant only after all its private copies have been consumed.
-            if !has_envelopes(&claim.directory) {
-                let _ = fs::remove_file(claim.directory.join("session.json"));
-            }
-            let _ = store;
+        if claim.directory != self.root {
+            clean_summary(&claim.directory, &base);
         }
         Ok(())
     }
@@ -284,9 +300,9 @@ impl Session {
         copied.rejected_edition = None;
         fs::create_dir_all(&self.root).map_err(|e| e.to_string())?;
         drafts::write(&drafts::path(&self.root, &generation, window)?, &copied)?;
-        if let Some(store) = &self.recovery {
-            store.write(record.confirmed.clone(), name(&record))?;
-        }
+        // Cleanup belongs to the prepared transition, after the destination is durable.
+        // No fallible operation follows this cleanup before publication.
+        self.mark_clean()?;
         self.file_lease = None;
         self.replace(
             validated.fixture.unwrap(),
@@ -317,14 +333,29 @@ impl Session {
 }
 fn has_envelopes(root: &Path) -> bool {
     fs::read_dir(root.join("drafts")).is_ok_and(|dirs| {
-        dirs.flatten().any(|d| {
-            fs::read_dir(d.path()).is_ok_and(|files| {
-                files
-                    .flatten()
-                    .any(|f| f.path().extension().is_some_and(|e| e == "json"))
+        dirs.flatten()
+            .filter(|d| d.file_type().is_ok_and(|t| t.is_dir()))
+            .any(|d| {
+                fs::read_dir(d.path()).is_ok_and(|files| {
+                    files
+                        .flatten()
+                        .any(|f| f.path().extension().is_some_and(|e| e == "json"))
+                })
             })
-        })
     })
+}
+fn clean_summary(root: &Path, base: &[u8]) {
+    if has_envelopes(root) {
+        return;
+    }
+    let legacy = root.join("session.json");
+    if read_work(&legacy)
+        .ok()
+        .and_then(|record| serde_json::to_vec(&record.confirmed).ok())
+        .is_some_and(|bytes| bytes == base)
+    {
+        let _ = fs::remove_file(legacy);
+    }
 }
 fn name(record: &drafts::Record) -> String {
     record
@@ -371,7 +402,9 @@ pub fn items(record: &drafts::Record) -> Vec<Item> {
             ),
             _ => None,
         };
-        if let Some(base) = base {
+        if payload.get("base").is_none()
+            && let Some(base) = base
+        {
             payload["base"] = base;
         }
         if let Some(source) = field["sourceId"]

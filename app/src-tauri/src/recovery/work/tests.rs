@@ -132,3 +132,130 @@ fn abandonment_removes_only_the_current_windows_copy_and_retains_the_peer() {
     assert!(!drafts::path(&s.root, &generation, "main").unwrap().exists());
     assert!(s.work_delete("../../elsewhere").is_err());
 }
+
+#[test]
+fn a_second_incident_preserves_the_latest_resumed_form_without_duplicating_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut first = setup(dir.path());
+    conserve(&mut first, "main", "Original private");
+    drop(first);
+    let mut resumed = setup(dir.path());
+    let entry = resumed.work_list().unwrap().remove(0);
+    resumed
+        .work_restore("main", &entry.id, resumed.revision)
+        .unwrap();
+    let source = resumed.join("main").recovered_items[0].clone();
+    let generation = resumed.generation.clone();
+    let epoch = resumed.open_private_recovery("main", &generation).unwrap();
+    let cp = resumed.recovery_checkpoint().unwrap();
+    let mut form = source.payload.clone();
+    form["sourceId"] = json!(source.id);
+    form["data"]["name"] = json!("Latest private input");
+    resumed
+        .conserve_private(
+            "main",
+            drafts::Input {
+                generation,
+                epoch,
+                sequence: 1,
+                update: cp.update.clone(),
+                document: json!(cp.document),
+                settings: json!(cp.settings),
+                resources: cp.resources,
+                forms: vec![form],
+                fields: vec![],
+                rejected: false,
+                recovered: vec![source],
+                retain: false,
+            },
+        )
+        .unwrap();
+    drop(resumed);
+    let mut next = setup(dir.path());
+    let entry = next.work_list().unwrap().remove(0);
+    assert_eq!(entry.pending, 1);
+    next.work_restore("main", &entry.id, next.revision).unwrap();
+    let restored = next.join("main").recovered_items;
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].payload["data"]["name"], "Latest private input");
+}
+#[test]
+fn rejected_json_exports_open_as_isolated_input_without_publishing_their_invalid_body() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("old-export.json");
+    fs::write(&path,serde_json::to_vec(&json!({"format":"typstographe-rejected-draft-v1","content":{"document":{"type":"unknown","text":"Private rejected paragraph"}},"update":[255]})).unwrap()).unwrap();
+    let record = read_work(&path).unwrap();
+    let mut s = setup(dir.path());
+    s.restore_work_record("main", record).unwrap();
+    assert!(
+        !serde_json::to_string(s.ensure_owner().unwrap().state())
+            .unwrap()
+            .contains("Private rejected paragraph")
+    );
+    assert!(
+        serde_json::to_string(&s.join("main").recovered_items)
+            .unwrap()
+            .contains("Private rejected paragraph")
+    );
+    assert!(path.exists());
+}
+
+#[test]
+fn removing_one_copy_never_deletes_a_summary_for_a_different_document() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut old = setup(dir.path());
+    conserve(&mut old, "main", "First private form");
+    let mut other = old.recovery_checkpoint().unwrap();
+    other.document.content[0].content[0].text = Some("Another document".into());
+    other.update =
+        SharedDocument::from_state(&State::new(other.document.clone(), other.settings.clone()))
+            .unwrap()
+            .update();
+    old.recovery
+        .as_ref()
+        .unwrap()
+        .write(other, "Other project".into())
+        .unwrap();
+    drop(old);
+    let current = setup(dir.path());
+    let entry = current.work_list().unwrap().remove(0);
+    current.work_delete(&entry.id).unwrap();
+    let remaining = current.work_list().unwrap();
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].name, "Other project");
+}
+
+#[test]
+fn cancelling_the_last_form_of_an_already_saved_document_leaves_no_false_recovery() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = setup(dir.path());
+    s.mark_clean().unwrap();
+    conserve(&mut s, "main", "Temporary private input");
+    let path = drafts::path(&s.root, &s.generation, "main").unwrap();
+    let mut input = drafts::read(&path).unwrap().input;
+    input.sequence += 1;
+    input.forms.clear();
+    input.retain = false;
+    s.conserve_private("main", input).unwrap();
+    assert!(!path.exists());
+    assert!(!s.root.join("session.json").exists());
+    drop(s);
+    assert!(setup(dir.path()).work_list().unwrap().is_empty());
+}
+
+#[test]
+fn a_pending_field_keeps_its_original_base_when_a_later_checkpoint_contains_peer_edits() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut s = setup(dir.path());
+    conserve(&mut s, "main", "Private form");
+    let mut record = drafts::read(&drafts::path(&s.root, &s.generation, "main").unwrap()).unwrap();
+    record.input.fields = vec![json!({
+        "target":{"kind":"metadata","field":"letter.subject"},
+        "value":"Private changed subject", "base":"Subject before concurrent editing"
+    })];
+    let field = items(&record)
+        .into_iter()
+        .find(|i| i.kind == "field")
+        .unwrap();
+    assert_eq!(field.payload["base"], "Subject before concurrent editing");
+}

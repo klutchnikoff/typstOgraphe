@@ -83,6 +83,10 @@ pub fn work_import(
     let mut session = state.session.lock().map_err(|e| e.to_string())?;
     session.lifecycle(revision)?;
     session.restore_work_record(window.label(), record)?;
+    drop(session);
+    let mut agent = state.agent.lock().map_err(|e| e.to_string())?;
+    agent.token = None;
+    agent.proposal = None;
     app.emit("app:document", ()).map_err(|e| e.to_string())
 }
 #[tauri::command(async)]

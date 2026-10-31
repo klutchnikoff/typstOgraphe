@@ -478,6 +478,7 @@ impl Session {
         Ok(())
     }
     pub fn reset_document_generation(&mut self) {
+        self.offline.clear();
         self.draft_epochs.clear();
         self.recovered_name = None;
         self.recovered_items.clear();

@@ -289,6 +289,9 @@ impl Session {
             if path.exists() {
                 fs::remove_file(&path).map_err(|e| e.to_string())?;
             }
+            if let Some(store) = &self.recovery {
+                store.clear()?;
+            }
         } else {
             write(&path, &record)?;
             // Keep the existing confirmed-state recovery usable until the dedicated

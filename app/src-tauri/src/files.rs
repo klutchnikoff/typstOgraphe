@@ -26,12 +26,20 @@ pub fn set_window_title(window: tauri::WebviewWindow, title: String) -> Result<(
     window.set_title(&title).map_err(|e| e.to_string())
 }
 #[tauri::command]
-pub async fn choose_file(app: tauri::AppHandle, save: bool) -> Result<Option<String>, String> {
+pub async fn choose_file(
+    app: tauri::AppHandle,
+    save: bool,
+    default_name: Option<String>,
+) -> Result<Option<String>, String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     let dialog = app.dialog().file().add_filter("typstOgraphe", &["typsto"]);
     if save {
         dialog
-            .set_file_name("Sans titre.typsto")
+            .set_file_name(
+                default_name
+                    .filter(|s| s.len() <= 255 && !s.contains(['/', '\\', '\0']))
+                    .unwrap_or_else(|| "Sans titre.typsto".into()),
+            )
             .save_file(move |path| {
                 let _ = tx.send(path);
             });
