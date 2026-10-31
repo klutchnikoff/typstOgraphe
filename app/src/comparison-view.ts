@@ -262,7 +262,7 @@ export function comparisonView(options: {
           choices[g.id] = name
           render()
         })
-        select.innerHTML = `${selected ? icon('check') : ''}<span>${tr('Sélectionner')}</span>`
+        select.innerHTML = `${icon(selected ? 'check' : 'circle-minus')}<span>${tr('Sélectionner')}</span>`
         select.className = 'comparison-choice'
         select.dataset.side = name
         select.dataset.action = `select-${name}`

@@ -8,6 +8,7 @@ import type { Provider, Transport } from '../src/provider'
 import type { Catalogue } from '../src/shell'
 import type { VersionAPI } from '../src/version-types'
 import articleBadges from '../../fixtures/comparison-article-badges.json'
+import { availableIcon } from '../src/icons'
 const originalShowModal = HTMLDialogElement.prototype.showModal,
   originalClose = HTMLDialogElement.prototype.close
 
@@ -120,9 +121,25 @@ it.each(['before', 'after'] as const)(
         `[data-group="${group}"] [data-side="${side}"]`,
       )!
     expect(radio(0, 'after').getAttribute('aria-checked')).toBe('true')
+    const iconPath = (name: string) => {
+      const asset = availableIcon(name)
+      expect(asset).toBeDefined()
+      return new DOMParser()
+        .parseFromString(asset!, 'image/svg+xml')
+        .querySelector('path')!
+        .getAttribute('d')
+    }
+    expect(radio(0, 'after').querySelector('path')?.getAttribute('d')).toBe(iconPath('check'))
+    expect(radio(0, 'before').querySelector('path')?.getAttribute('d')).toBe(
+      iconPath('circle-minus'),
+    )
     radio(0, 'before').click()
     expect(radio(0, 'before').getAttribute('aria-checked')).toBe('true')
     expect(radio(0, 'after').getAttribute('aria-checked')).toBe('false')
+    expect(radio(0, 'before').querySelector('path')?.getAttribute('d')).toBe(iconPath('check'))
+    expect(radio(0, 'after').querySelector('path')?.getAttribute('d')).toBe(
+      iconPath('circle-minus'),
+    )
     expect(f.api.apply).not.toHaveBeenCalled()
     radio(0, 'before').focus()
     radio(0, 'before').dispatchEvent(

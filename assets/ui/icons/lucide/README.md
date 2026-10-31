@@ -14,3 +14,7 @@ Les icônes `paperclip`, `pen-line`, `undo-2`, `redo-2`, `search`, `chevron-up` 
 25 octobre 2026 depuis les fichiers officiels de Lucide 0.468.0
 (`https://raw.githubusercontent.com/lucide-icons/lucide/0.468.0/icons/<nom>.svg`),
 sans modification. Même masque monochrome que les autres.
+
+Les icônes `check` et `circle-minus` (choix retenu et non retenu du comparateur)
+proviennent également des SVG officiels de Lucide 0.468.0, sans modification,
+aux mêmes adresses versionnées `icons/check.svg` et `icons/circle-minus.svg`.
