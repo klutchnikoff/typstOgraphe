@@ -10,5 +10,5 @@ export default defineConfig(({ mode }) => ({
     ...(mode === 'browser-test' ? [browserDriver(root)] : []),
   ],
   server: { fs: { allow: [resolve(root, '..')] } },
-  build: { target: 'es2022' },
+  build: { target: 'es2022', outDir: mode === 'recipe' ? 'dist-recipe' : 'dist' },
 }))

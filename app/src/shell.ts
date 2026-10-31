@@ -158,7 +158,6 @@ export async function mountShell(s: Shell) {
   }
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T
   document.querySelector('.badge')?.remove()
-  $('rust-experiment').hidden = !s.diagnostic
   $('presence').hidden = !s.diagnostic
   $('synchronization').hidden = !active
   const header = document.querySelector('header')!

@@ -139,6 +139,7 @@ pub fn work_export(
     )
 }
 
+#[cfg(feature = "recipe-driver")]
 #[tauri::command(async)]
 pub fn diagnostic_private_records(
     state: tauri::State<Bridge>,
@@ -171,6 +172,7 @@ pub fn diagnostic_private_records(
 }
 
 /// Fixed handshake with the external native recipe runner. No arbitrary filesystem access.
+#[cfg(feature = "recipe-driver")]
 #[tauri::command(async)]
 pub fn diagnostic_external_ready(state: State<Bridge>) -> Result<bool, String> {
     if !state

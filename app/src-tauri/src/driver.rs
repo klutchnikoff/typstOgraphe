@@ -535,7 +535,6 @@ fn dispatch(
                 args["version"].as_u64().unwrap_or(0)
             )?))
         }
-        "prepare_rust_edit" => Ok(prepare_rust_edit()),
         "prepare_image" => serde_json::to_value(prepare_image(
             args["extension"]
                 .as_str()

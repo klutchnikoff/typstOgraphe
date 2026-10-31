@@ -4,7 +4,7 @@ import { draftRecovery } from './draft-recovery'
 import { historyFor } from './editing-history'
 import { documentContent } from './shared-inline-marks'
 import { initializeUI, tr } from './i18n'
-import { type Editor, getSchema, type JSONContent } from '@tiptap/core'
+import { type Editor, getSchema } from '@tiptap/core'
 import { EditorState } from '@tiptap/pm/state'
 import { normalizeWhitespace } from './document-whitespace'
 import { prosemirrorJSONToYDoc, yUndoPluginKey } from '@tiptap/y-tiptap'
@@ -46,10 +46,11 @@ declare global {
   }
 }
 
+const recipeBuild = import.meta.env.MODE === 'recipe' || import.meta.env.MODE === 'browser-test'
 const app = document.querySelector<HTMLDivElement>('#app')!
 installMenus()
 app.innerHTML = `
-  <header><div class="identity"><strong>typstOgraphe</strong><span class="badge">Diagnostic web</span></div>
+  <header><div class="identity"><strong>typstOgraphe</strong></div>
     <div class="session-tools"><button id="peer">Deuxième fenêtre</button><button id="connection" aria-pressed="true">Connecté</button><button id="save">Enregistrer</button><button id="export">Exporter</button></div></header>
   <main><section class="writing" aria-label="Éditeur du document">
     <nav id="toolbar" aria-label="Mise en forme"></nav>
@@ -71,7 +72,7 @@ const browserHost =
   !isTauri && import.meta.env.MODE === 'browser-test'
     ? await (await import('./browser-transport')).browserTransport()
     : undefined
-const host = window.__SPIKE_TRANSPORT__ ??
+const host = (recipeBuild ? window.__SPIKE_TRANSPORT__ : undefined) ??
   browserHost ?? {
     id: isTauri ? getCurrentWebviewWindow().label : 'browser',
     transport: {
@@ -80,9 +81,8 @@ const host = window.__SPIKE_TRANSPORT__ ??
         listen<T>(name, (event) => handler(event.payload)),
     } satisfies Transport,
   }
-const diagnosticMode = isTauri
-  ? await host.transport.invoke<string | null>('diagnostic_mode')
-  : null
+const diagnosticMode =
+  recipeBuild && isTauri ? await host.transport.invoke<string | null>('diagnostic_mode') : null
 const synchronizationMeter = diagnosticMode?.startsWith('synchronization')
   ? (await import('./synchronization-performance')).measureTransport(host.transport)
   : undefined
@@ -289,18 +289,6 @@ element<HTMLInputElement>('image-file').addEventListener('change', (event) =>
     element<HTMLInputElement>('image-file').value = ''
   }),
 )
-const rustButton = document.createElement('button')
-rustButton.id = 'rust-experiment'
-rustButton.type = 'button'
-rustButton.textContent = tr('Essai Rust')
-rustButton.title = 'Insérer une proposition préparée côté Rust dans l’état partagé'
-rustButton.addEventListener('click', () =>
-  action(async () => {
-    const content = await host.transport.invoke<JSONContent>('prepare_rust_edit')
-    editor.chain().focus().insertContentAt(editor.state.doc.content.size, content).run()
-  }),
-)
-element('statistics').after(rustButton)
 document.addEventListener('keydown', (event) => {
   if (event.defaultPrevented || event.isComposing || document.querySelector('dialog[open]')) return
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
@@ -359,9 +347,9 @@ splitter.addEventListener('keydown', (event) => {
 splitter.addEventListener('dblclick', () => resize(50))
 
 async function start() {
-  if (!isTauri && !window.__SPIKE_TRANSPORT__ && !browserHost)
+  if (!isTauri && !(recipeBuild && window.__SPIKE_TRANSPORT__) && !browserHost)
     throw new Error(
-      'Lancez ce diagnostic avec « npm run tauri dev ». Le navigateur seul ne fournit pas le cœur Rust.',
+      'Lancez l’application avec « npm start ». Le navigateur seul ne fournit pas le cœur Rust.',
     )
   contentCatalogue = await host.transport.invoke<Catalogue>('content_catalogue')
   initializeUI(contentCatalogue.messages)
@@ -538,6 +526,7 @@ async function start() {
     filePath: bootstrap.filePath,
     initialPath: bootstrap.initialPath,
     diagnostic:
+      recipeBuild &&
       !new URLSearchParams(location.search).has('welcome') &&
       !!(
         browserHost ||
@@ -600,7 +589,7 @@ async function start() {
   }
   provider.onSynchronization = refreshSynchronization
   provider.presence.observe(refreshSynchronization)
-  window.__spike = { editor, provider, save, ready: true }
+  if (recipeBuild) window.__spike = { editor, provider, save, ready: true }
   refresh()
   schedule()
   message(
@@ -610,7 +599,7 @@ async function start() {
         : 'Mode individuel · validation et historique actifs',
     ),
   )
-  if (isTauri) {
+  if (recipeBuild && isTauri) {
     const mode = diagnosticMode
     if (mode?.startsWith('synchronization') && synchronizationMeter) {
       void (await import('./synchronization-performance')).synchronizationPerformance(

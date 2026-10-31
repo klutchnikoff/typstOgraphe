@@ -1,4 +1,4 @@
-// Build first with npm run build, then cargo build --features custom-protocol.
+// Build first with npm run build:recipe -- --release.
 // Runs the real native app with embedded production frontend assets, never Vite/HTTP.
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'

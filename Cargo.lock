@@ -6459,7 +6459,6 @@ version = "0.1.0"
 dependencies = [
  "atomic-write-file",
  "base64 0.22.1",
- "jsonschema",
  "png",
  "serde",
  "serde_json",

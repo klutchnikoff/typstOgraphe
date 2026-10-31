@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+license.workspace = true
 description = "Éditeur visuel typstOgraphe avec Tauri et Typst"
 
 [lints]
@@ -12,24 +13,23 @@ workspace = true
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
-# STDIO transport for the browser and contract recipes; never in distributed builds.
+# Native diagnostics and STDIO recipes; never in distributed builds.
 recipe-driver = []
 
 [build-dependencies]
+serde_json.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tokio = { version = "1", features = ["sync", "rt", "net", "io-util", "time"] }
-zip.workspace = true
 typstographe-mcp = { workspace = true }
 uuid.workspace = true
 typstographe-core = { workspace = true }
 typstographe-i18n = { workspace = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-jsonschema = { version = "=0.60.1", default-features = false }
 base64 = "0.22"
 atomic-write-file = "0.3.1"
 sha2 = "0.11.1"
@@ -38,4 +38,5 @@ typst-svg = "=0.15.1"
 png = "0.18"
 
 [dev-dependencies]
+zip.workspace = true
 tempfile = "3"

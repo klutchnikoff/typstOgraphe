@@ -7,3 +7,4 @@ src-tauri/Info.plist
 test-results/
 playwright-report/
 *.local
+dist-recipe/

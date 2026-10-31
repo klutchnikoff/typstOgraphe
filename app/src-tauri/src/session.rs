@@ -101,6 +101,17 @@ pub struct Session {
     restored: Option<Node>,
     pub settings: crate::settings::Settings,
 }
+fn default_document() -> Node {
+    #[cfg(any(test, feature = "recipe-driver"))]
+    {
+        serde_json::from_str(include_str!("../../fixture.json")).expect("recipe fixture")
+    }
+    #[cfg(not(any(test, feature = "recipe-driver")))]
+    {
+        serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph"}]}))
+            .expect("empty document")
+    }
+}
 impl Session {
     pub fn fresh(root: PathBuf) -> Self {
         Self {
@@ -132,6 +143,7 @@ impl Session {
             settings: Default::default(),
         }
     }
+    #[cfg(any(test, feature = "recipe-driver"))]
     pub fn open(root: PathBuf) -> Result<Self, String> {
         let mut session = Self::fresh(root);
         let path = session.root.join("session.json");
@@ -266,9 +278,7 @@ impl Session {
                 .map(|lease| lease.path().to_string_lossy().into_owned()),
             revision: self.revision,
             updates: self.updates.clone(),
-            fixture: self.fixture.clone().unwrap_or_else(|| {
-                serde_json::from_str(include_str!("../../fixture.json")).expect("fixture")
-            }),
+            fixture: self.fixture.clone().unwrap_or_else(default_document),
             initialize,
             resources: self.resources(),
             restored_document: self.restored.take(),

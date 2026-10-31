@@ -76,6 +76,8 @@ jobs:
         run: npm test
       # Each native build embeds this frontend. Pure web tests run only on Linux.
       - run: npm run build:web
+      - name: Distributed frontend excludes diagnostic modules
+        run: npm run check:distribution
       - name: Workspace tests, including recovery and file conservation
         if: '!inputs.acceptance_only'
         run: cargo +stable test --locked --workspace --features typstographe/recipe-driver
@@ -89,7 +91,7 @@ jobs:
         run: cargo +stable build --locked -p typstographe --features recipe-driver
       - name: Native acceptance executables, with one shared dependency graph
         if: inputs.native_conservation
-        run: cargo +stable build --locked -p typstographe -p typstographe-cli --features typstographe/recipe-driver
+        run: npm run build:recipe
       - name: Yjs and Yrs shared contract recipes
         if: '!inputs.acceptance_only'
         run: npm run test:contract --workspace @typstographe/app

@@ -1,3 +1,4 @@
+import { executeStructured } from './structured-commands'
 import { historyFor } from './editing-history'
 import { documentContent } from './shared-inline-marks'
 import type { Editor, JSONContent } from '@tiptap/core'
@@ -134,8 +135,24 @@ export async function nativeDiagnostic(
         () => JSON.stringify(documentContent(editor.getJSON())).includes('Note relue à deux'),
         'Annotation distante absente.',
       )
-      const paragraph = await transport.invoke<JSONContent>('prepare_rust_edit')
-      editor.commands.insertContentAt(editor.state.doc.content.size, paragraph)
+      await executeStructured(editor, provider, transport, [
+        {
+          id: 'block.insert',
+          params: {
+            parent: { root: { kind: 'body' } },
+            index: editor.state.doc.childCount - 1,
+            node: {
+              type: 'paragraph',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Cette phrase a été préparée depuis Rust, puis insérée dans l’état partagé.',
+                },
+              ],
+            },
+          },
+        },
+      ])
       await provider.flush()
       await until(
         async () =>
