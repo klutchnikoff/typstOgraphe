@@ -1,3 +1,4 @@
+import { bindRecoveryPanel } from './form-recovery'
 import { trackForm } from './form-drafts'
 import { actionRow, initialNavigationGroup, keyboardScope, visible } from './keyboard-navigation'
 /** Shared panel anatomy. Only body and actions belong to a capability/corrector. */
@@ -57,7 +58,22 @@ export function contextPanel(options: {
   const panel = {
     element,
     recoveryData: (): unknown => null,
+    restoreRecoveryData: (_data: any): boolean => true,
+    recoveryApplied: async (): Promise<void> => {},
+    recoveryFailed: (reason: unknown) => {
+      error.textContent = String(reason)
+    },
+    committed() {
+      const done = panel.recoveryApplied,
+        failed = panel.recoveryFailed
+      queueMicrotask(() => void done().catch(failed))
+    },
+    bindRecoverySource(id: string) {
+      recovery?.source(id)
+    },
     trackRecovery(owner: object, context: unknown) {
+      panel.recoveryApplied = async () => {}
+      element.querySelector('.recovery-form-notice')?.remove()
       recovery?.detach()
       recovery = trackForm(owner, element, context, () => panel.recoveryData())
     },
@@ -130,7 +146,7 @@ export function contextPanel(options: {
     canConfirm: options.canConfirm,
     tab: true,
     tabLoop: options.modal,
-    modifiedEnter: options.modal,
+    modifiedEnter: true,
     tabExit: options.tabExit,
     enterMultiline: !options.modal,
     priority: options.modal ? 40 : 20,
@@ -140,6 +156,7 @@ export function contextPanel(options: {
     event.preventDefault()
     panel.submit()
   }
+  bindRecoveryPanel(panel)
   return panel
 }
 

@@ -35,11 +35,12 @@ export async function withCurrentSnapshot<T, R>(
   provider: SnapshotSession,
   capture: () => T,
   operation: (snapshot: T) => Promise<R>,
+  includeDocumentEdits = true,
 ): Promise<R> {
   const generation = provider.generation
   const identity = provider.doc.getMap('settings').get('identity')
   for (let attempt = 0; ; attempt++) {
-    await provider.flush()
+    await provider.flush(includeDocumentEdits)
     if (
       provider.generation !== generation ||
       provider.doc.getMap('settings').get('identity') !== identity

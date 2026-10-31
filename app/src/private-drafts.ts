@@ -1,6 +1,7 @@
 /** Private form state belongs to a window, never to its shared document. */
 export interface FormDraft {
   id: string
+  sourceId?: string
   form: string
   context: unknown
   data: unknown
@@ -22,6 +23,10 @@ export class PrivateDrafts {
     this.entries.set(entry.id, entry)
     this.notify()
     const handle = {
+      source: (id: string) => {
+        entry.sourceId = id
+        this.notify()
+      },
       changed: () => {
         if (!entry.composing && this.entries.has(entry.id)) this.notify()
       },
@@ -56,6 +61,7 @@ export class PrivateDrafts {
       }
       return {
         id: entry.id,
+        ...(entry.sourceId ? { sourceId: entry.sourceId } : {}),
         form: entry.form,
         context: structuredClone(entry.context),
         data: value,

@@ -1,3 +1,18 @@
+import { metadataInputBinding } from './metadata-input'
+import { recoveryError } from './recovery-errors'
+import { workList, type WorkEntry } from './work-list'
+import { recoveredPanel } from './recovered-panel'
+import { reopenBand } from './form-recovery'
+import {
+  consumeRecovered,
+  recoveredLabel,
+  RECOVERED_CHANGED,
+  type RecoveredItem,
+} from './recovered-work'
+import { privateDrafts } from './private-drafts'
+import { decideClose, type CloseChoice } from './close-decision'
+import { recoveryTransitions } from './recovery-transition'
+import { stableJSON } from './provider'
 import { privateRecovery } from './private-recovery'
 import { historyFor } from './editing-history'
 import { commandEditor } from './command-context'
@@ -25,7 +40,6 @@ import type { BandHost } from './band-layout'
 import { prepareImage, resourceCommand } from './resource-commands'
 import { documentType, settingsFor, setSetting, setDocument, type Settings } from './state'
 import { welcomeBrand } from './welcome-brand'
-import { recoveryPanel } from './recovery-panel'
 import type { StructuredMetadata } from './metadata-records'
 import { metadataCollections } from './metadata-collections'
 import { richZoneOwnsShortcut } from './rich-zone'
@@ -98,7 +112,7 @@ interface Shell {
   transport: Transport
   catalogue: Catalogue
   commands: Registry
-  save: () => Promise<void>
+  save: (includeDocumentEdits?: boolean) => Promise<void>
   schedule: () => void
   message: (s: string, error?: boolean) => void
   isTauri: boolean
@@ -112,10 +126,15 @@ export async function mountShell(s: Shell) {
   const { editor, provider, transport, catalogue, commands } = s
   const settings = provider.doc.getMap('settings')
   let active = !!(s.opened || s.diagnostic),
-    dirty = false,
+    dirty = !!provider.recoveredName,
     path: string | null = s.filePath || null,
     savedRevision = provider.revision
   let recovery: ReturnType<typeof privateRecovery> | undefined
+  let transitions: Awaited<ReturnType<typeof recoveryTransitions>> | undefined
+  let disposition: CloseChoice | null = null
+  let releaseRecoveredPanel: (() => void) | undefined
+  const switchDocument = <T>(task: (revision: number) => Promise<T>) =>
+    transitions ? transitions.run(task, disposition === 'discard') : task(provider.revision)
   let preferences: Preferences = (await transport.invoke('preferences_load').catch(() => ({
     appearance: 'system',
     font: 'serif',
@@ -159,7 +178,7 @@ export async function mountShell(s: Shell) {
   const brand = welcomeBrand()
   welcome.querySelector('.welcome-card')!.prepend(brand.element)
   workspace.before(welcome)
-  $<HTMLButtonElement>('resume-document').disabled = !s.hasRecovery
+  $<HTMLButtonElement>('resume-document').hidden = true
   for (const [id, label] of [
     ['create-document', 'Nouveau document'],
     ['open-document', 'Ouvrir…'],
@@ -193,7 +212,9 @@ export async function mountShell(s: Shell) {
   document.querySelector('.document-info')!.replaceWith(context)
   let tab: string | null = null
   let generalOptions: ReturnType<typeof documentOptions> | undefined
-  let recordPanel: { refresh: () => void; destroy: () => void } | undefined
+  let recordPanel:
+    | { refresh: () => void; destroy: () => void; resume?: (item: RecoveredItem) => boolean }
+    | undefined
   const metadataEditor = metadataCommands(editor, provider)
   const policies = new Map<string, ModelPolicy>(),
     loadingPolicies = new Set<string>()
@@ -247,9 +268,9 @@ export async function mountShell(s: Shell) {
   const guarded = (task: () => Promise<unknown> | void) => {
     try {
       const result = task()
-      if (result instanceof Promise) void result.catch((e) => s.message(String(e), true))
+      if (result instanceof Promise) void result.catch((e) => s.message(recoveryError(e), true))
     } catch (e) {
-      s.message(String(e), true)
+      s.message(recoveryError(e), true)
     }
   }
   const requiresDocument = new Set([
@@ -294,73 +315,62 @@ export async function mountShell(s: Shell) {
       path
         ?.split(/[\\/]/)
         .at(-1)
-        ?.replace(/\.typsto$/, '') || tr('Sans titre')
+        ?.replace(/\.typsto$/, '') ||
+      provider.recoveredName?.replace(/\.typsto$/, '') ||
+      tr('Sans titre')
     if (s.isTauri)
       void transport.invoke('set_window_title', {
         title: active ? `${title}${dirty ? ' *' : ''}` : 'typstOgraphe',
       })
     header.dataset.document = title
   }
-  function confirmDiscard(next: () => void) {
-    const advance = () =>
-      guarded(async () => {
-        await recovery?.flush()
-        next()
-      })
-    if (!active || (!dirty && !metadataEditor.dirty())) {
-      advance()
-      return
-    }
-    overlay.replaceChildren()
-    const heading = document.createElement('h2')
-    heading.textContent = tr('Conserver les modifications ?')
-    const text = document.createElement('p')
-    text.textContent = tr(
-      'Enregistrez le document avant de le remplacer, ou abandonnez les modifications de cette session.',
+  function pendingInputs() {
+    return (
+      provider.recoveredItems.length +
+      privateDrafts(provider)
+        .snapshot()
+        .filter((form) => !form.sourceId).length +
+      ((provider.documentEdits?.draft?.() as unknown[] | undefined)?.length || 0) +
+      (provider.rejected ? 1 : 0)
     )
-    const buttons = actionRow()
-    for (const [label, style, action] of [
-      [
-        tr('Abandonner'),
-        'danger',
-        () => {
-          overlay.close()
-          metadataEditor.discardAll()
-          advance()
+  }
+  function confirmDiscard(next: () => void, quitting = false) {
+    guarded(async () => {
+      const choice = await decideClose({
+        dirty: active && (dirty || metadataEditor.dirty()),
+        pending: active ? pendingInputs() : 0,
+        otherWindows: quitting
+          ? Math.max(0, (provider.synchronization?.windows.length || 1) - 1)
+          : 0,
+        save: () => saveFile(),
+        keep: async () => {
+          await recovery?.force()
         },
-      ],
-      [tr('Annuler'), '', () => overlay.close()],
-      [
-        tr('Enregistrer'),
-        'primary',
-        () =>
-          guarded(async () => {
-            if (!(await saveFile())) return
-            overlay.close()
-            advance()
-          }),
-      ],
-    ] as const) {
-      const b = document.createElement('button')
-      b.textContent = label
-      b.className = style
-      if (style === 'primary') b.dataset.default = ''
-      b.onclick = action
-      buttons.append(b)
-    }
-    overlay.append(heading, text, buttons)
-    overlay.showModal()
+        discard: async () => {},
+      })
+      if (!choice) return
+      disposition = choice
+      if (choice !== 'discard') await recovery?.force()
+      next()
+    })
   }
   async function saveFile(as = false) {
     await recovery?.flush()
-    await provider.flush()
+    await provider.flush(false)
     if (!s.isTauri) {
-      await s.save()
+      await s.save(false)
       dirty = false
       return true
     }
     const destination =
-      as || !path ? await transport.invoke<string | null>('choose_file', { save: true }) : path
+      as || !path
+        ? await transport.invoke<string | null>('choose_file', {
+            save: true,
+            defaultName: provider.recoveredName
+              ? `${provider.recoveredName.replace(/\.typsto$/, '')} — ${tr('récupéré')}.typsto`
+              : null,
+          })
+        : path
     if (!destination) return false
     const persistedRevision = await withCurrentSnapshot(
       provider,
@@ -376,11 +386,14 @@ export async function mountShell(s: Shell) {
         await transport.invoke('save_file', { path: destination, ...checkpoint })
         return checkpoint.snapshot.revision
       },
+      false,
     )
     path = destination
     savedRevision = persistedRevision
     await remember(destination)
     dirty = provider.revision !== persistedRevision
+    provider.recoveredName = null
+    document.querySelector('.recovered-document-line')?.remove()
     updateTitle()
     s.message(tr('Document enregistré.'))
     return true
@@ -393,13 +406,15 @@ export async function mountShell(s: Shell) {
     const selected = file || (await transport.invoke<string | null>('choose_file', { save: false }))
     if (!selected) return
     await recovery?.flush()
-    await provider.flush()
-    const opened = await transport.invoke<{
-      document: unknown
-      settings: Settings
-      resources: Resource[]
-    }>('open_file', { path: selected, revision: provider.revision })
-    if (s.isTauri) {
+    await provider.flush(false)
+    const opened = await switchDocument((revision) =>
+      transport.invoke<{
+        document: unknown
+        settings: Settings
+        resources: Resource[]
+      }>('open_file', { path: selected, revision }),
+    )
+    if (s.isTauri || provider.nativeEditing) {
       await remember(selected)
       return
     }
@@ -457,13 +472,16 @@ export async function mountShell(s: Shell) {
         if (t.id === 'courrier' && preferences.signature)
           metadata.fields.signature = preferences.signature.path
         guarded(async () => {
-          await provider.flush()
-          await recovery?.flush()
-          await transport.invoke('new_document', {
-            settings: { metadata, template: m.source, modelId: m.id },
-            resources: t.id === 'courrier' && preferences.signature ? [preferences.signature] : [],
-            revision: provider.revision,
-          })
+          await provider.flush(false)
+          await recovery?.force()
+          await switchDocument((revision) =>
+            transport.invoke('new_document', {
+              settings: { metadata, template: m.source, modelId: m.id },
+              resources:
+                t.id === 'courrier' && preferences.signature ? [preferences.signature] : [],
+              revision,
+            }),
+          )
         })
         return
       }
@@ -646,6 +664,8 @@ export async function mountShell(s: Shell) {
     }
   }
   function showPanel(title: string) {
+    releaseRecoveredPanel?.()
+    releaseRecoveredPanel = undefined
     searchState(editor, '')
     panel.hidden = false
     $('side-title').textContent = title
@@ -691,7 +711,7 @@ export async function mountShell(s: Shell) {
         applyPreferences()
         s.message(tr('Préférences enregistrées. Les documents existants conservent leurs données.'))
       },
-      (error) => s.message(String(error), true),
+      (error) => s.message(recoveryError(error), true),
     )
   }
   add('document.new', tr('Nouveau document'), () => confirmDiscard(create), 'Mod+N')
@@ -705,11 +725,9 @@ export async function mountShell(s: Shell) {
   )
   add('document.close', tr('Fermer le document'), () =>
     confirmDiscard(() => {
-      if (s.isTauri) {
+      if (s.isTauri || provider.nativeEditing) {
         guarded(async () => {
-          await provider.flush()
-          await recovery?.flush()
-          await transport.invoke('close_document', { revision: provider.revision })
+          await switchDocument((revision) => transport.invoke('close_document', { revision }))
         })
         return
       }
@@ -721,7 +739,18 @@ export async function mountShell(s: Shell) {
     add(
       'app.quit',
       tr('Quitter'),
-      () => confirmDiscard(() => guarded(() => transport.invoke('quit_app'))),
+      () =>
+        confirmDiscard(
+          () =>
+            guarded(async () => {
+              await switchDocument(async () => {
+                if (disposition === 'discard')
+                  await transport.invoke('work_abandon', { generation: provider.generation })
+                await transport.invoke('quit_app')
+              })
+            }),
+          true,
+        ),
       'Mod+Q',
     )
   add(
@@ -855,7 +884,7 @@ export async function mountShell(s: Shell) {
     requiresDocument,
     active: () => active,
     native: s.isTauri ? transport : undefined,
-    onError: (error) => s.message(String(error), true),
+    onError: (error) => s.message(recoveryError(error), true),
   })
   window.addEventListener('pagehide', () => commandSurfaces.destroy(), { once: true })
   for (const [title, ids] of [
@@ -959,56 +988,189 @@ export async function mountShell(s: Shell) {
     true,
   )
   $('create-document').onclick = () => confirmDiscard(create)
-  $('open-document').onclick = () => guarded(() => open())
-  const showRecovery = () => {
-    if (!s.isTauri) {
-      setActive(true)
-      renderMetadata()
-      return
-    }
-    overlay.replaceChildren()
-    const title = document.createElement('h2')
-    title.textContent = tr('Récupération après incident')
-    const body = document.createElement('div')
-    const close = document.createElement('button')
-    close.textContent = tr('Annuler')
-    close.onclick = () => overlay.close()
-    const actions = actionRow()
-    actions.append(close)
-    overlay.append(title, body, actions)
-    overlay.showModal()
-    guarded(() =>
-      recoveryPanel(
-        body,
-        transport,
-        (id) =>
-          confirmDiscard(() =>
-            guarded(async () => {
-              await provider.flush()
-              await transport.invoke('recovery_restore', { id, revision: provider.revision })
-            }),
-          ),
-        (error) => {
-          const message = document.createElement('p')
-          message.role = 'alert'
-          message.textContent = String(error)
-          body.append(message)
-        },
+  $('open-document').onclick = () => confirmDiscard(() => guarded(() => open()))
+  const resumeWork = (entry: WorkEntry) =>
+    confirmDiscard(() =>
+      guarded(() =>
+        switchDocument((revision) => transport.invoke('work_restore', { id: entry.id, revision })),
       ),
     )
+  const recoveryHome = document.createElement('section')
+  recoveryHome.className = 'recovery-home'
+  const recoveryHeading = document.createElement('h2')
+  recoveryHeading.textContent = tr('Travail à reprendre')
+  const recoveryList = document.createElement('div')
+  recoveryHome.append(recoveryHeading, recoveryList)
+  welcome.querySelector('.welcome-card')!.append(recoveryHome)
+  const refreshRecovery = async () => {
+    if (!provider.nativeEditing) return
+    await workList(recoveryList, transport, resumeWork, (error) =>
+      s.message(recoveryError(error), true),
+    )
+    recoveryHome.hidden = recoveryList.hidden
   }
-  add('recovery.list', tr('Récupération après incident'), showRecovery)
+  const showRecovery = () =>
+    guarded(async () => {
+      if (active)
+        await workList(showPanel(tr('Travail à reprendre')), transport, resumeWork, (error) =>
+          s.message(recoveryError(error), true),
+        )
+      else await refreshRecovery()
+    })
+  add('recovery.list', tr('Travail à reprendre'), showRecovery)
   $('resume-document').onclick = showRecovery
+  const reopenRecovered = (item: RecoveredItem) => {
+    const kind = documentType(provider)
+    if (item.kind === 'form') {
+      const context = item.payload.context
+      if (context?.kind === 'record') {
+        const definition = kind.structured?.panels?.find(
+          (panel) => panel.collection === context.collection,
+        )
+        if (!definition) return false
+        tab = definition.id
+        renderMetadata()
+        return recordPanel?.resume?.(item) || false
+      }
+      if (context?.kind === 'band') {
+        if (context.root?.kind === 'record') {
+          const definition = kind.structured?.panels?.find(
+            (panel) => panel.collection === context.root.collection,
+          )
+          if (definition) {
+            tab = definition.id
+            renderMetadata()
+          }
+        }
+        return reopenBand(provider, item)
+      }
+    }
+    if (item.kind === 'field') {
+      const { target, value, base } = item.payload
+      let read: (() => unknown) | undefined
+      if (target?.kind === 'metadata') {
+        const field = kind.fields.find((field) => field.field === target.field)
+        if (!field) return false
+        read = () => settingsFor(provider).metadata.fields[field.parameter]
+        tab =
+          kind.groups.find((group) =>
+            group.sections.some((section) => section.fields.includes(target.field)),
+          )?.id || field.group
+      } else if (target?.kind === 'option') {
+        read = () => settingsFor(provider).metadata.fields.options[target.name]
+        tab = 'general'
+      } else if (target?.kind === 'model') {
+        read = () => ({
+          modelId: settingsFor(provider).modelId,
+          template: settingsFor(provider).template,
+        })
+        tab = 'general'
+      }
+      if (!read || stableJSON(read()) !== stableJSON(base)) return false
+      renderMetadata()
+      const input = [
+        ...document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+          '#metadata-content input, #metadata-content textarea, #metadata-content select',
+        ),
+      ].find(
+        (control) =>
+          !control.disabled &&
+          !control.closest('[hidden]') &&
+          stableJSON(metadataInputBinding(control)?.target) === stableJSON(target),
+      )
+      if (!input) return false
+      metadataEditor.restore(
+        target,
+        value,
+        read,
+        () => consumeRecovered(provider, item.id),
+        item.id,
+      )
+      input.focus()
+      return true
+    }
+    return false
+  }
+  function showRecoveredItems() {
+    releaseRecoveredPanel?.()
+    releaseRecoveredPanel = recoveredPanel(
+      showPanel(tr('Saisies à reprendre')),
+      provider,
+      reopenRecovered,
+      s.isTauri,
+      (item) => {
+        const kind = documentType(provider),
+          target = item.payload.target
+        if (item.kind === 'field' && target?.kind === 'metadata')
+          return kind.fields.find((f) => f.field === target.field)?.label || recoveredLabel(item)
+        const context = item.payload.context
+        if (item.kind === 'form' && context?.kind === 'record')
+          return (
+            kind.structured?.collections.find((c) => c.field === context.collection)?.itemLabel ||
+            recoveredLabel(item)
+          )
+        return recoveredLabel(item)
+      },
+    )
+  }
+  add('ui.recovered', tr('Saisies à reprendre'), showRecoveredItems)
+  requiresDocument.add('ui.recovered')
+  const recoveredButton = document.createElement('button')
+  recoveredButton.innerHTML = icon('history')
+  recoveredButton.setAttribute('aria-label', tr('Saisies à reprendre'))
+  recoveredButton.onclick = showRecoveredItems
+  side.prepend(recoveredButton)
+  if (provider.recoveredName) {
+    const notice = document.createElement('div')
+    notice.className = 'recovered-document-line'
+    notice.textContent = tr('Document récupéré · copie indépendante')
+    context.before(notice)
+  }
+  const importWork = () =>
+    guarded(async () => {
+      const selected = await transport.invoke<string | null>('choose_work_file', { save: false })
+      if (selected)
+        confirmDiscard(() =>
+          guarded(() =>
+            switchDocument((revision) =>
+              transport.invoke('work_import', { path: selected, revision }),
+            ),
+          ),
+        )
+    })
+  add('recovery.import', tr('Ouvrir un brouillon de secours…'), importWork)
+  for (const id of ['recovery.list', 'recovery.import']) {
+    const button = document.createElement('button')
+    button.textContent = commands.get(id)!.label
+    button.dataset.command = id
+    button.onclick = () => {
+      menu.querySelectorAll('details').forEach((item) => (item.open = false))
+      runCommand(commands.get(id)!)
+    }
+    menu.querySelector('.tool-menu-content')?.append(button)
+  }
+  const importButton = document.createElement('button')
+  importButton.textContent = tr('Ouvrir un brouillon de secours…')
+  importButton.onclick = importWork
+  recoveryHome.append(importButton)
   recovery = provider.nativeEditing
     ? privateRecovery(
         editor,
         provider,
         () => active,
-        (error) => s.message(String(error), true),
+        (error) => s.message(recoveryError(error), true),
       )
     : undefined
   const scheduleRecovery = () => recovery?.changed()
+  if (provider.nativeEditing) transitions = await recoveryTransitions(provider, transport)
   if (active && !path) scheduleRecovery()
+  document.addEventListener(RECOVERED_CHANGED, (event) => {
+    if ((event as CustomEvent).detail === provider)
+      recoveredButton.hidden = !provider.recoveredItems.length
+  })
+  recoveredButton.hidden = !provider.recoveredItems.length
+  await refreshRecovery()
+  if (provider.recoveredItems.length) showRecoveredItems()
   let metadataRefreshQueued = false
   document.addEventListener('metadata:draft', () => {
     scheduleRecovery()
@@ -1035,6 +1197,20 @@ export async function mountShell(s: Shell) {
     dirty = true
     updateTitle()
   })
+  const closeView = () =>
+    confirmDiscard(() =>
+      guarded(async () => {
+        if (s.isTauri) {
+          if (disposition === 'discard')
+            await transport.invoke('work_abandon', { generation: provider.generation })
+          else await recovery?.force()
+          await getCurrentWindow().destroy()
+        } else await switchDocument((revision) => transport.invoke('close_document', { revision }))
+      }),
+    )
+  await transport.listen<{ window: string }>('app:request-close', (value) => {
+    if (value.window === provider.id) closeView()
+  })
   if (s.isTauri) {
     for (const [event, composing] of [
       ['compositionstart', true],
@@ -1050,13 +1226,7 @@ export async function mountShell(s: Shell) {
     if (!s.diagnostic)
       await getCurrentWindow().onCloseRequested((event) => {
         event.preventDefault()
-        confirmDiscard(() =>
-          guarded(async () => {
-            await recovery?.flush()
-            await transport.invoke('recovery_discard')
-            await getCurrentWindow().destroy()
-          }),
-        )
+        closeView()
       })
     await transport.listen<string>('app:command', (id) => {
       if (document.querySelector('dialog[open]')) return

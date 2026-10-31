@@ -1,6 +1,6 @@
 import { editingProvider } from './editing-history'
 import { formOwner } from './form-drafts'
-import { editorRoot, nodePath } from './editor-targets'
+import { editorRoot, nodePath, nodeOffset } from './editor-targets'
 import { historyFor } from './editing-history'
 import { Extension, type Editor } from '@tiptap/core'
 import {
@@ -181,6 +181,7 @@ export class BandHost {
         kind: 'band',
         root: editorRoot(this.editor) || { kind: 'body' },
         path: nodePath(this.editor, target.from),
+        offset: nodeOffset(this.editor, target.from),
         range: { from: target.from, to: target.to },
         placement: target.placement,
         original: this.editor.state.doc.slice(target.from, target.to).toJSON(),

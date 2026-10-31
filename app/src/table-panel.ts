@@ -293,6 +293,7 @@ export function tablePanel(
           positionAtPath(editor, [...path, 0, row, column, 0]) + 1,
         ).getBookmark()
       }
+      panel.committed()
       bands.close(true, returned)
     } catch (error) {
       if (bands.forPanel(panel.element)) bands.close(false)
@@ -417,7 +418,28 @@ export function tablePanel(
     available: canOpen,
     open: openAxis,
   })
+  panel.recoveryData = () =>
+    opened
+      ? { new: !opened.node, axis: opened.axis || null, row: opened.row, column: opened.column }
+      : null
   return {
+    resume(pos: number, data: any) {
+      const node = editor.state.doc.nodeAt(pos)
+      if (!node || node.type.name !== 'tableFigure') return false
+      if (data?.axis === 'row' || data?.axis === 'column') {
+        if (
+          !Number.isInteger(data.row) ||
+          !Number.isInteger(data.column) ||
+          data.row < 0 ||
+          data.column < 0 ||
+          data.row >= node.firstChild!.childCount ||
+          data.column >= node.firstChild!.firstChild!.childCount
+        )
+          return false
+        openAxis({ pos, node, row: data.row, column: data.column }, data.axis)
+      } else open(pos)
+      return !!bands.forPanel(panel.element)
+    },
     open,
     refresh,
     register(registry: Registry) {

@@ -13,16 +13,11 @@ const executable =
   path.join(repo, 'target/debug', `typstographe${process.platform === 'win32' ? '.exe' : ''}`)
 await mkdir(root, { recursive: true })
 assert.equal((await readdir(root)).length, 0, 'Use a new empty recipe directory')
-const run = async (verify) => {
-  const child = spawn(
-    executable,
-    [
-      verify ? '--diagnostic-draft-verify' : '--diagnostic-draft-conservation',
-      '--session-dir',
-      root,
-    ],
-    { stdio: ['ignore', 'pipe', 'pipe'] },
-  )
+const run = async (mode) => {
+  const verify = mode !== 'conservation'
+  const child = spawn(executable, [`--diagnostic-draft-${mode}`, '--session-dir', root], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
   let log = '',
     interrupted = false
   const collect = (bytes) => {
@@ -39,21 +34,28 @@ const run = async (verify) => {
     child.once('exit', resolve)
     child.once('error', reject)
   }).finally(() => clearTimeout(timeout))
-  await writeFile(path.join(root, verify ? 'verify.log' : 'interrupted.log'), log)
+  await writeFile(path.join(root, `${mode}.log`), log)
   if (!verify) {
     assert.ok(interrupted, log)
     return
   }
   const report = JSON.parse(
-    await readFile(path.join(root, 'native-draft-verify-report.json'), 'utf8'),
+    await readFile(path.join(root, `native-draft-${mode}-report.json`), 'utf8'),
   )
   assert.equal(code, 0, JSON.stringify(report))
   assert.equal(report.success, true, JSON.stringify(report))
   return report
 }
 try {
-  await run(false)
-  const report = await run(true)
+  await run('conservation')
+  const existing = await run('verify')
+  const report = await run('recover')
+  report.confirmedReopen = existing.checks
+  const exported = JSON.parse(await readFile(path.join(root, 'exported-draft.json'), 'utf8'))
+  assert.equal(exported.format, 'typstographe-private-recovery-v1')
+  assert.equal(exported.input.recovered.length, 1)
+  assert.ok(JSON.stringify(exported.input.recovered).includes('Native unconfirmed note'))
+  report.checks.push('native draft export preserves private input and confirmed base')
   report.git = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim()
   report.platform = process.platform
   report.interruption = 'SIGKILL after automatic checkpoint and explicit confirmed save'

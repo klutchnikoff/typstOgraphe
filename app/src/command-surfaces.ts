@@ -32,7 +32,8 @@ export function mountCommandSurfaces(options: {
   let nativeTextField = false,
     destroyed = false
   setCommandPolicy(commands, (command) => {
-    if (document.querySelector('dialog[open]')) return refused('modal')
+    if (document.querySelector('dialog[open]') || document.getElementById('app')?.inert)
+      return refused('modal')
     if (
       (options.requiresDocument.has(command.id) || editorial.has(command.id)) &&
       !options.active()
@@ -110,7 +111,7 @@ export function mountCommandSurfaces(options: {
   observer.observe(document.body, {
     subtree: true,
     attributes: true,
-    attributeFilter: ['open', 'hidden'],
+    attributeFilter: ['open', 'hidden', 'inert'],
   })
   return {
     refresh,

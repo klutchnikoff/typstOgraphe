@@ -13,6 +13,71 @@ export async function draftDiagnostic(
 ) {
   const marker = 'Native unconfirmed note é😀'
   try {
+    if (mode === 'draft-recover') {
+      const wait = async (test: () => unknown) => {
+        const deadline = Date.now() + 20000
+        while (!test()) {
+          if (Date.now() > deadline) throw new Error('Recovery interface timed out')
+          await new Promise((resolve) => setTimeout(resolve, 40))
+        }
+      }
+      if (!provider.recoveredName) {
+        await wait(() =>
+          document.querySelector<HTMLButtonElement>('.recovery-work-list button.primary'),
+        )
+        document.querySelector<HTMLButtonElement>('.recovery-work-list button.primary')!.click()
+        return // The ordinary document transition reloads this webview.
+      }
+      if ((await transport.invoke<Bootstrap>('join')).filePath)
+        throw new Error('Recovered document still owns the original file')
+      if (JSON.stringify(editor.getJSON()).includes(marker))
+        throw new Error('Private form was published during recovery')
+      const resume = () => document.querySelector<HTMLButtonElement>('[data-recovered-id]')!.click()
+      await wait(() => document.querySelector('[data-recovered-id]'))
+      await transport.invoke('work_export', {
+        id: provider.recoveredItems[0].id,
+        path: `${provider.sessionPath}/exported-draft.json`,
+      })
+      resume()
+      const input = () =>
+        document.querySelector<HTMLTextAreaElement>('[aria-label="Texte de la note"]')!
+      await wait(() => input()?.value === marker)
+      input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      if (provider.recoveredItems.length !== 1) throw new Error('Cancel consumed recovered form')
+      resume()
+      await wait(() => input()?.value === marker)
+      input().dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }),
+      )
+      await wait(() => !provider.recoveredItems.length)
+      if (!JSON.stringify(editor.getJSON()).includes(marker))
+        throw new Error('Validated note absent')
+      await provider.privateRecovery!.force()
+      const records = await transport.invoke<any[]>('diagnostic_private_records')
+      if (
+        !records.some(
+          (r) =>
+            !r.input.recovered.length &&
+            !r.input.forms.length &&
+            JSON.stringify(r.confirmed.document).includes(marker),
+        )
+      )
+        throw new Error('Validated recovery was not durable')
+      await transport.invoke('diagnostic_finish', {
+        report: {
+          success: true,
+          checks: [
+            'welcome lists interrupted work',
+            'resume creates independent project without original lease',
+            'ordinary band restores private note without publication',
+            'Escape retains recovered source',
+            'Cmd Enter publishes through typed command',
+            'consumption follows durable acknowledgement',
+          ],
+        },
+      })
+      return
+    }
     if (mode === 'draft-verify') {
       const joined = await transport.invoke<Bootstrap>('join')
       if (!joined.opened) {

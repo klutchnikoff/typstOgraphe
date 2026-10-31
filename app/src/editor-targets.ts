@@ -60,3 +60,12 @@ export function positionAtPath(editor: Editor, path: number[]): number {
   }
   return pos
 }
+
+/** Insertion points at a zone boundary have no child node to index yet. */
+export function nodeOffset(editor: Editor, pos: number) {
+  try {
+    return pos - positionAtPath(editor, nodePath(editor, pos))
+  } catch {
+    return 0
+  }
+}

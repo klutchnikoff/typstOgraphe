@@ -94,6 +94,8 @@ export function browserDriver(root: string): Plugin {
             if (lease && lease.token === input.token) lease.generation = bootstrap.generation
             broadcast('web-editor:synchronization', bootstrap.synchronization)
           }
+          if (input.command === 'diagnostic_request_close')
+            broadcast('app:request-close', { window: input.peer })
           if (input.command === 'connection' || input.command === 'set_synchronization')
             broadcast('web-editor:synchronization', result)
           if (
@@ -130,7 +132,15 @@ export function browserDriver(root: string): Plugin {
                 update: receipt.update,
               })
           }
-          if (input.command === 'new_document') broadcast('app:document', null)
+          if (
+            ['new_document', 'close_document', 'work_restore', 'work_import', 'open_file'].includes(
+              input.command,
+            )
+          )
+            broadcast('app:document', null)
+          if (input.command === 'transition_begin') broadcast('recovery:prepare-transition', result)
+          if (input.command === 'transition_end')
+            broadcast('recovery:end-transition', input.args.id)
           if (input.command === 'awareness' && result === true)
             broadcast('web-editor:awareness', { from: input.peer, ...input.args })
           if (input.command === 'preview_frame') {

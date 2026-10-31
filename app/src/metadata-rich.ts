@@ -1,3 +1,4 @@
+import { registerRecoveryOpener } from './form-recovery'
 import { editingProvider } from './editing-history'
 import { bindFormOwner, formOwner } from './form-drafts'
 import { historyFor } from './editing-history'
@@ -89,6 +90,13 @@ export function metadataRich(
   if (recoveryOwner) bindFormOwner(editor, recoveryOwner)
   const bands = new BandHost(editor, parent.closest<HTMLElement>('#metadata-content')!, input, main)
   properties = propertyPanel(editor, bands, catalogue, () => {}, `metadata-${crypto.randomUUID()}-`)
+  if (recoveryOwner)
+    registerRecoveryOpener(recoveryOwner, editor, (pos, draft) => {
+      bands.close(false)
+      const data = (draft.data as any)?.data
+      properties.open(pos, data?.kind || 'link', !!data?.remove)
+      return bands.isOpen
+    })
   refresh(editor)
   return {
     updateLanguage(value: string) {

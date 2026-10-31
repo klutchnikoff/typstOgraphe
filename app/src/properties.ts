@@ -96,6 +96,15 @@ export function propertyPanel(
           resource: opened.resource || null,
         }
       : null
+  panel.restoreRecoveryData = (data) => {
+    if (!opened || !data || data.kind !== opened.kind) return false
+    opened.drafts = structuredClone(data.drafts || {})
+    opened.resource = data.resource || undefined
+    if (typeof data.selected === 'string') opened.selected = data.selected
+    render()
+    if (opened.resource) fields.replaceImage(opened.resource.path)
+    return true
+  }
   function valid() {
     const anchor = bands.target,
       current = opened
@@ -161,8 +170,10 @@ export function propertyPanel(
     removeAction.disabled = true
     try {
       await change(current)
-      if (current()) bands.close(true, editor.state.selection.getBookmark())
-      else if (!bands.isOpen && document.activeElement === document.body)
+      if (current()) {
+        panel.committed()
+        bands.close(true, editor.state.selection.getBookmark())
+      } else if (!bands.isOpen && document.activeElement === document.body)
         focusEditorSelection(editor)
     } catch (error) {
       if (current())

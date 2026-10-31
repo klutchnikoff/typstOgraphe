@@ -56,6 +56,8 @@ function mount() {
     set,
     value: (_target: unknown, confirmed: unknown) => confirmed,
     error: () => undefined,
+    recovering: () => false,
+    confirm: set,
     watch: () => () => {},
     composing: () => {},
   } as unknown as MetadataCommands

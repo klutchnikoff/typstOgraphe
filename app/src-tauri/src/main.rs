@@ -501,6 +501,7 @@ fn diagnostic_finish(
         serde_json::to_vec_pretty(&report).map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
+    drop(session);
     app.exit(if report["success"].as_bool() == Some(true) {
         0
     } else {
@@ -549,6 +550,9 @@ fn main() {
         if arg == "--diagnostic-draft-conservation" {
             diagnostic = Some("draft-conservation".to_owned());
         }
+        if arg == "--diagnostic-draft-recover" {
+            diagnostic = Some("draft-recover".to_owned());
+        }
         if arg == "--diagnostic-draft-verify" {
             diagnostic = Some("draft-verify".to_owned());
         }
@@ -585,14 +589,16 @@ fn main() {
         typstographe_i18n::initialize(&["fr".parse().expect("French locale")]);
     }
     let global_session = !custom_root && !stdio && diagnostic.is_none();
-    let mut session = if global_session {
+    let mut session = if diagnostic.as_deref() == Some("draft-recover") {
+        Session::fresh(root.clone())
+    } else if global_session {
         Session::fresh(PathBuf::new())
     } else {
         Session::open(root).expect("Impossible de rouvrir la session de recette")
     };
     if diagnostic
         .as_deref()
-        .is_some_and(|mode| mode.starts_with("closure"))
+        .is_some_and(|mode| mode.starts_with("closure") || mode == "draft-recover")
     {
         // Match the normal welcome document, not the rich historic demo fixture.
         session.fixture = Some(

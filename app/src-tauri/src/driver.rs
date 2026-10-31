@@ -37,6 +37,7 @@ fn dispatch(
     let peer = request["peer"].as_str().ok_or("Participant absent.")?;
     let command = request["command"].as_str().ok_or("Commande absente.")?;
     match command {
+        "diagnostic_request_close" => Ok(serde_json::Value::Null),
         "work_list" => serde_json::to_value(
             bridge
                 .session

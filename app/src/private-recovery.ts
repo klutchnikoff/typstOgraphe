@@ -1,3 +1,4 @@
+import { RECOVERED_CHANGED } from './recovered-work'
 import * as Y from 'yjs'
 import type { Editor } from '@tiptap/core'
 import type { Provider } from './provider'
@@ -19,6 +20,7 @@ export function privateRecovery(
   const forms = privateDrafts(provider)
   let sequence = 0,
     last = '',
+    forced = false,
     frozen: ReturnType<typeof capture> | undefined,
     composingTarget: Node | undefined
   let epoch: Promise<number> | undefined
@@ -38,6 +40,8 @@ export function privateRecovery(
       forms: forms.snapshot(),
       resources: [...provider.resources.values()],
       rejected: !!provider.rejected,
+      recovered: structuredClone(provider.recoveredItems),
+      retain: provider.retainRecovery,
     }
   }
   const scheduler = new RecoveryScheduler(
@@ -51,7 +55,8 @@ export function privateRecovery(
       }
       const input = frozen || capture(),
         key = stableJSON(input)
-      if (key === last) return
+      if (key === last && !forced) return
+      forced = false
       const saved = await provider.transport.invoke<boolean>('conserve_private', {
         input: { generation, epoch: version, sequence: ++sequence, ...input },
       })
@@ -85,6 +90,7 @@ export function privateRecovery(
   provider.doc.on('update', changed)
   document.addEventListener('metadata:draft', fieldChanged)
   document.addEventListener(DRAFT_CHANGED, formChanged)
+  document.addEventListener(RECOVERED_CHANGED, formChanged)
   document.addEventListener('compositionstart', begin, true)
   document.addEventListener('compositionend', end)
   const release = () => {
@@ -92,6 +98,7 @@ export function privateRecovery(
     provider.doc.off('update', changed)
     document.removeEventListener('metadata:draft', fieldChanged)
     document.removeEventListener(DRAFT_CHANGED, formChanged)
+    document.removeEventListener(RECOVERED_CHANGED, formChanged)
     document.removeEventListener('compositionstart', begin, true)
     document.removeEventListener('compositionend', end)
   }
@@ -104,6 +111,11 @@ export function privateRecovery(
           `${tr('La copie de secours n’a pas pu être enregistrée. Votre travail reste dans cette fenêtre.')} ${String(error)}`,
         )
       }),
+    force: async () => {
+      forced = true
+      changed()
+      await result.flush()
+    },
     stop: release,
   }
   provider.privateRecovery = result

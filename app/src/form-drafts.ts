@@ -69,5 +69,10 @@ export function trackForm(
     element.removeEventListener('compositionend', end)
     for (const editor of editors) editor.off('update', changed)
   }
-  return { changed, discard: () => dispose(true), detach: () => dispose(false) }
+  return {
+    changed,
+    source: handle.source,
+    discard: () => dispose(true),
+    detach: () => dispose(false),
+  }
 }

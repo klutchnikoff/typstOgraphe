@@ -53,7 +53,16 @@ export function citationPanel(
   choices.role = 'listbox'
   choices.setAttribute('aria-label', tr('Références'))
   input.setAttribute('aria-controls', choices.id)
-  panel.recoveryData = () => (opened ? { items: opened.items, form: opened.form } : null)
+  panel.recoveryData = () =>
+    opened ? { new: !opened.node, items: opened.items, form: opened.form } : null
+  panel.restoreRecoveryData = (data) => {
+    if (!opened || !data || !Array.isArray(data.items)) return false
+    opened.items = structuredClone(data.items)
+    opened.form = data.form
+    form.value = data.form
+    renderChosen()
+    return true
+  }
   const chosen = document.createElement('div')
   chosen.className = 'citation-selected'
   const formLabel = document.createElement('label')
@@ -195,6 +204,7 @@ export function citationPanel(
         focus: false,
         current: () => opened === state,
       })
+      panel.committed()
       bands.close(true, editor.state.selection.getBookmark())
     } catch (error) {
       if (opened === state) panel.error.textContent = String(error)

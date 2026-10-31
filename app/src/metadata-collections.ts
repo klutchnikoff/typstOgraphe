@@ -1,3 +1,6 @@
+import { hydrateForm } from './form-recovery'
+import type { RecoveredItem } from './recovered-work'
+import { stableJSON } from './provider'
 import { bindFormOwner } from './form-drafts'
 import { historyFor } from './editing-history'
 import type { Editor } from '@tiptap/core'
@@ -19,6 +22,7 @@ import {
   setRecordField,
   recordMap,
   recordIds,
+  readRecord,
   type StructuredMetadata,
   type MetadataPanel,
   type RecordStore,
@@ -519,6 +523,7 @@ export function metadataCollections(
     after?: string,
     editing?: string,
     trigger?: HTMLElement,
+    resumed?: RecoveredItem,
   ) {
     const state = collections.get(definition)!
     if (state.draft) {
@@ -538,6 +543,17 @@ export function metadataCollections(
       after,
       defaults: langKey ? { [langKey]: next } : {},
     })
+    if (resumed) {
+      const data = resumed.payload.data?.data?.record
+      if (!data || typeof data.id !== 'string') {
+        draft.destroy()
+        return
+      }
+      for (const field of definition.fields)
+        if (field.key in data)
+          setRecordField({ doc: draft.doc }, draft.record, field.key, data[field.key])
+      draft.record.set('id', data.id)
+    }
     // Rich drafts have their own local history. Only confirmation publishes one document transaction.
     const owner = fields(definition).some(
       (field) => field.kind === 'rich' || field.kind === 'rich_inline',
@@ -595,7 +611,7 @@ export function metadataCollections(
       collection: definition.parameter,
       record: editing || null,
       after: after || null,
-      base: draft.value(),
+      base: resumed?.payload.context?.base || draft.value(),
     })
     form.action({ label: tr('Annuler'), run: () => discard() })
     let pending = false
@@ -625,7 +641,10 @@ export function metadataCollections(
         void commands
           .run(result.commands!, () => active() && result.current!())
           .then(() => {
-            if (active()) discard(result.id)
+            if (active()) {
+              form.committed()
+              discard(result.id)
+            }
           })
           .catch((error: unknown) => {
             if (active())
@@ -671,6 +690,7 @@ export function metadataCollections(
     refresh()
     if (dialog) dialog.open()
     else state.draft.focus()
+    if (resumed) hydrateForm(provider, form.element, resumed)
   }
   for (const definition of schema.collections.filter(
     (collection) => collection.parameter === panel.collection,
@@ -739,6 +759,25 @@ export function metadataCollections(
   }
   refresh()
   return {
+    resume(item: RecoveredItem) {
+      const context = item.payload.context
+      const definition = schema.collections.find((c) => c.parameter === context?.collection)
+      if (!definition || !collections.has(definition)) return false
+      if (context.record) {
+        const record = recordMap(provider, definition).get(context.record)
+        if (!record || stableJSON(readRecord(record, definition)) !== stableJSON(context.base))
+          return false
+      } else if (recordMap(provider, definition).has(item.payload.data?.data?.record?.id))
+        return false
+      startDraft(
+        definition,
+        context.after || undefined,
+        context.record || undefined,
+        undefined,
+        item,
+      )
+      return !!collections.get(definition)?.draft
+    },
     refresh,
     destroy() {
       for (const state of collections.values()) {
