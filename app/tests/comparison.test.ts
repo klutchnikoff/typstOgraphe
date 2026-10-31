@@ -61,12 +61,17 @@ function fixture(source: 'before' | 'after' = 'before') {
     read: vi.fn(async () => structuredClone(state)),
     close: vi.fn(async () => {}),
     preview: vi.fn(async () => ({ pages: [] })),
-    decide: vi.fn(async (_id, ids, action) => {
+    apply: vi.fn(async (_id, choices) => {
       state.report.guard.revision++
+      state.report.closed = true
+      state.report.applied = true
       state.report.groups.forEach((g) => {
-        if (ids.includes(g.id)) g.decision = action === 'apply' ? 'applied' : 'refused'
+        g.decision = choices[g.id] === state.report.source ? 'applied' : 'refused'
       })
-      return structuredClone(state)
+      return {
+        ...structuredClone(state),
+        saved: { document: 'doc', path: '/saved.typsto', revision: state.report.guard.revision },
+      }
     }),
     listen: vi.fn(async (fn) => {
       listener = fn
@@ -102,62 +107,73 @@ function button(root: Element, text: string) {
   )!
 }
 it.each(['before', 'after'] as const)(
-  'keeps frozen content and independent decisions for source %s',
+  'stages exclusive red/green choices for %s and publishes only once',
   async (source) => {
     const f = fixture(source),
       error = vi.fn()
-    const view = comparisonView({ state: structuredClone(f.state), api: f.api, catalogue, error })
+    const view = comparisonView({ state: f.state, api: f.api, catalogue, error })
     disposers.push(view.destroy)
     document.body.append(view.element)
     await tick()
-    expect(view.element.querySelectorAll('del')).toHaveLength(2)
-    expect(view.element.querySelectorAll('ins')).toHaveLength(2)
-    const apply =
-      source === 'before' ? 'Reprendre ce passage de la version' : 'Appliquer cette modification'
-    button(view.element, apply).click()
-    await tick()
-    expect(f.api.decide).toHaveBeenCalledExactlyOnceWith('review', [0], 'apply')
-    expect(view.element.textContent).toContain(
-      source === 'before' ? 'Repris dans le document' : 'Appliqué au document',
+    const radio = (group: number, side: string) =>
+      view.element.querySelector<HTMLButtonElement>(
+        `[data-group="${group}"] [data-side="${side}"]`,
+      )!
+    expect(radio(0, 'after').getAttribute('aria-checked')).toBe('true')
+    radio(0, 'before').click()
+    expect(radio(0, 'before').getAttribute('aria-checked')).toBe('true')
+    expect(radio(0, 'after').getAttribute('aria-checked')).toBe('false')
+    expect(f.api.apply).not.toHaveBeenCalled()
+    radio(0, 'before').focus()
+    radio(0, 'before').dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }),
     )
+    expect(radio(0, 'after').getAttribute('aria-checked')).toBe('true')
+    expect(document.activeElement).toBe(radio(0, 'after'))
+    radio(0, 'before').click()
+    button(view.element, 'Appliquer et enregistrer').click()
+    await tick()
+    expect(f.api.apply).toHaveBeenCalledExactlyOnceWith('review', ['before', 'after'])
+    expect(button(view.element, 'Appliquer et enregistrer').disabled).toBe(true)
+    expect(radio(0, 'before').disabled).toBe(true)
     expect(view.element.querySelector('del')!.textContent).toBe('Old')
     expect(view.element.querySelector('ins')!.textContent).toBe('New')
-    expect(button(view.element, apply).disabled).toBe(false)
-    button(view.element, source === 'before' ? 'Conserver le passage actuel' : 'Refuser').click()
-    await tick()
-    expect(f.api.decide).toHaveBeenLastCalledWith('review', [1], 'refuse')
     expect(error).not.toHaveBeenCalled()
   },
 )
-it('blocks pending applications after an external edit but preserves decisions and refuses safely', async () => {
+it('preserves provisional choices after cancellation, failure and an external edit', async () => {
   const f = fixture(),
-    view = comparisonView({
-      state: structuredClone(f.state),
-      api: f.api,
-      catalogue,
-      error: vi.fn(),
-    })
+    error = vi.fn()
+  vi.mocked(f.api.apply).mockResolvedValueOnce(null).mockRejectedValueOnce(new Error('disk full'))
+  const view = comparisonView({ state: f.state, api: f.api, catalogue, error })
   disposers.push(view.destroy)
   document.body.append(view.element)
   await tick()
-  button(view.element, 'Reprendre ce passage de la version').click()
+  view.element.querySelector<HTMLButtonElement>('[data-group="0"] [data-side="before"]')!.click()
+  for (let i = 0; i < 2; i++) {
+    button(view.element, 'Appliquer et enregistrer').click()
+    await tick()
+  }
+  expect(error).toHaveBeenCalledOnce()
+  expect(view.element.querySelector('[data-side="before"]')?.getAttribute('aria-checked')).toBe(
+    'true',
+  )
+  f.change((state) => {
+    state.report.stale = true
+  })
   await tick()
-  f.change((s) => (s.report.stale = true))
-  await tick()
+  expect(button(view.element, 'Appliquer et enregistrer').disabled).toBe(true)
   expect(view.element.querySelector('.comparison-notice')!.hasAttribute('hidden')).toBe(false)
-  expect(button(view.element, 'Reprendre ce passage de la version').disabled).toBe(true)
-  expect(button(view.element, 'Reprendre le reste').disabled).toBe(true)
-  expect(view.element.textContent).toContain('Repris dans le document')
-  expect(button(view.element, 'Conserver le passage actuel').disabled).toBe(false)
 })
-it('does not expose decisions in historical read-only pairs or completed proposals', () => {
+it('disables composition once the comparison is finished', () => {
   const f = fixture()
-  f.state.report.read_only = true
+  f.state.report.closed = true
   const view = comparisonView({ state: f.state, api: f.api, catalogue, error: vi.fn() })
   disposers.push(view.destroy)
-  document.body.append(view.element)
-  expect(view.element.querySelectorAll('.comparison-decisions button')).toHaveLength(0)
-  expect(button(view.element, 'Reprendre le reste').hidden).toBe(true)
+  expect(button(view.element, 'Appliquer et enregistrer').disabled).toBe(true)
+  expect(
+    [...view.element.querySelectorAll<HTMLButtonElement>('[role=radio]')].every((b) => b.disabled),
+  ).toBe(true)
 })
 it('preserves linked groups and isolates late responses from a destroyed comparison', async () => {
   const f = fixture()
@@ -180,33 +196,60 @@ it('preserves linked groups and isolates late responses from a destroyed compari
   await tick()
   expect(error).not.toHaveBeenCalled()
 })
-it('sends only the review ID and group IDs, flushes confirmed writing without committing forms, and blocks IME or replacement', async () => {
-  const invoke = vi.fn(async () => ({})),
+it('sends only the review ID and side choices, flushes confirmed writing without committing forms, and blocks IME or replacement', async () => {
+  const invoke = vi.fn(async (command: string) =>
+      command === 'comparison_read'
+        ? { report: { path: '/saved.typsto' } }
+        : { saved: { document: 'doc', path: '/saved.typsto', revision: 2 } },
+    ),
     provider = {
       generation: 'doc',
       revision: 2,
       composing: false,
       flush: vi.fn(async () => {}),
+      confirmSaved: vi.fn(),
       commitCommand: vi.fn(async (run: () => Promise<unknown>) => run()),
     }
   const api = comparisonAPI(
     provider as unknown as Provider,
     { invoke, listen: vi.fn(async () => () => {}) } as Transport,
   )
-  await api.decide('trusted', [1], 'apply')
+  await api.apply('trusted', ['after', 'before'])
   expect(provider.flush).toHaveBeenCalledWith(false)
-  expect(invoke).toHaveBeenLastCalledWith('comparison_decide', {
+  expect(provider.flush).toHaveBeenCalledTimes(1)
+  expect(invoke).toHaveBeenLastCalledWith('comparison_apply', {
     id: 'trusted',
-    groups: [1],
-    action: 'apply',
+    choices: ['after', 'before'],
+    destination: undefined,
   })
   provider.composing = true
-  await expect(api.decide('trusted', [1], 'apply')).rejects.toThrow()
-  expect(invoke).toHaveBeenCalledTimes(1)
+  await expect(api.apply('trusted', ['after', 'before'])).rejects.toThrow()
+  expect(invoke).toHaveBeenCalledTimes(2)
   provider.composing = false
   provider.generation = 'other'
   await expect(api.open({ kind: 'version', id: 'old' })).rejects.toThrow()
-  expect(invoke).toHaveBeenCalledTimes(1)
+  expect(invoke).toHaveBeenCalledTimes(2)
+})
+it('canceling the first save leaves the native comparison untouched', async () => {
+  const invoke = vi.fn(async (command: string) =>
+    command === 'comparison_read' ? { report: { path: null } } : null,
+  )
+  const provider = {
+    generation: 'doc',
+    revision: 2,
+    composing: false,
+    flush: vi.fn(async () => {}),
+    commitCommand: vi.fn(async (run: () => Promise<unknown>) => run()),
+    confirmSaved: vi.fn(),
+  }
+  const api = comparisonAPI(
+    provider as unknown as Provider,
+    { invoke, listen: vi.fn(async () => () => {}) } as Transport,
+  )
+  expect(await api.apply('review', ['before'])).toBeNull()
+  expect(invoke).toHaveBeenLastCalledWith('choose_file', { save: true })
+  expect(invoke.mock.calls.some(([command]) => command === 'comparison_apply')).toBe(false)
+  expect(provider.confirmSaved).not.toHaveBeenCalled()
 })
 it('captures the current comparison once across tab changes and closes a delayed opening without publishing it', async () => {
   HTMLDialogElement.prototype.showModal = function () {
@@ -240,12 +283,16 @@ it('captures the current comparison once across tab changes and closes a delayed
   await tick()
   button(document.body, 'Comparer').click()
   await tick()
+  document.querySelector<HTMLButtonElement>('[data-group="0"] [data-side="before"]')!.click()
   button(document.body, 'Contenu').click()
   await tick()
   button(document.body, 'Comparer').click()
   await tick()
   expect(f.api.open).toHaveBeenCalledTimes(1)
   expect(document.querySelectorAll('.comparison')).toHaveLength(1)
+  expect(
+    document.querySelector('[data-group="0"] [data-side="before"]')?.getAttribute('aria-checked'),
+  ).toBe('true')
   viewer.destroy()
   expect(f.api.close).toHaveBeenCalledExactlyOnceWith('review')
 })
@@ -263,26 +310,30 @@ it.each([false, true])(
       revision: 2,
       composing: false,
       flush: vi.fn(async () => {}),
+      confirmSaved: vi.fn(),
       commitCommand: vi.fn(async (run: () => Promise<unknown>) => run()),
       refreshHistory: vi.fn(async () => {}),
       addResource: vi.fn(),
     }
     const f = fixture(),
-      invoke = vi.fn(async () => {
+      invoke = vi.fn(async (command: string) => {
+        if (command === 'comparison_read') return { report: { path: '/saved.typsto' } }
         if (replaced) provider.generation = 'new-document'
         return {
           ...f.state,
           publication: { guard: { document: 'doc', revision: 3 }, update, resources: [] },
+          saved: { document: 'doc', path: '/saved.typsto', revision: 3 },
         }
       })
     const api = comparisonAPI(
       provider as unknown as Provider,
       { invoke, listen: vi.fn(async () => () => {}) } as Transport,
     )
-    await api.decide('review', [0], 'apply')
+    await api.apply('review', ['before', 'after'])
     expect(draft.getText('test').toString()).toBe(replaced ? '' : 'Confirmed')
     expect(provider.refreshHistory).toHaveBeenCalledTimes(replaced ? 0 : 1)
-    expect(provider.commitCommand).toHaveBeenCalledWith(expect.any(Function), false)
+    expect(provider.confirmSaved).toHaveBeenCalledTimes(replaced ? 0 : 1)
+    expect(provider.commitCommand).toHaveBeenCalledWith(expect.any(Function))
     draft.destroy()
     confirmed.destroy()
   },
@@ -300,7 +351,7 @@ it('navigates groups with up/down without applying a modification or leaving saf
   )
   expect(view.element.querySelector('[data-active=true]')?.getAttribute('data-group')).toBe('1')
   expect(document.activeElement).toBe(view.element.querySelector('[data-next]'))
-  expect(f.api.decide).not.toHaveBeenCalled()
+  expect(f.api.apply).not.toHaveBeenCalled()
 })
 
 it('shows general options and the archived signature in documentary groups', async () => {

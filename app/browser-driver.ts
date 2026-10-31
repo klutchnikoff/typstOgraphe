@@ -88,7 +88,7 @@ export function browserDriver(root: string): Plugin {
           }
           const input = JSON.parse(Buffer.concat(chunks).toString('utf8'))
           const result = await call(input)
-          if (input.command === 'comparison_decide') {
+          if (input.command === 'comparison_apply') {
             const outcome = result as {
               id: string
               publication?: {
@@ -112,6 +112,7 @@ export function browserDriver(root: string): Plugin {
                 update: publication.update,
               })
             }
+            broadcast('web-editor:saved', (result as { saved: unknown }).saved)
             broadcast('comparison:changed', { id: outcome.id })
             broadcast('agent:changed', {})
           }

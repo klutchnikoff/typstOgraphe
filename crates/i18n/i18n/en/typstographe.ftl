@@ -1066,3 +1066,13 @@ web-comparison-composing = Finish the current text composition before deciding.
 web-comparison-read-only = Comparing two saved versions is read only.
 web-comparison-use-review = This proposal is open in the comparator. Use its local decisions.
 web-comparison-stale-proposal = The document changed elsewhere. Ask the agent for a new proposal.
+
+web-composition-select = Select
+web-composition-choose-passage = Choose the passage version
+web-composition-select-before = Select the red version
+web-composition-select-after = Select the green version
+web-composition-choices-applied = Choices applied
+web-composition-choice-draft = Provisional choice
+web-composition-saved = Choices applied and document saved.
+web-composition-draft-notice = Provisional choices · nothing changes until confirmation.
+web-composition-apply-save = Apply and save

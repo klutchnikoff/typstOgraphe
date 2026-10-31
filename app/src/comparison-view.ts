@@ -13,6 +13,7 @@ export function comparisonView(options: {
   catalogue: Catalogue
   error(reason: unknown): void
   picker?: HTMLElement
+  busy?(value: boolean): void
 }) {
   const element = document.createElement('section')
   element.className = 'comparison'
@@ -47,6 +48,7 @@ export function comparisonView(options: {
       navigate(event.key === 'ArrowDown' ? 1 : -1)
     }
   })
+  const choices = (options.state.choices ||= state.report.groups.map(() => 'after' as const))
   const sourceBefore = state.report.source === 'before'
   const button = (label: string, run: () => void) => {
     const b = document.createElement('button')
@@ -76,15 +78,14 @@ export function comparisonView(options: {
       if (alive && request === serial) options.error(e)
     }
   }
-  async function decide(groups: number[], action: 'apply' | 'refuse') {
-    if (busy || !alive) return
+  async function apply() {
+    if (busy || !alive || state.report.stale || state.report.closed) return
     busy = true
+    options.busy?.(true)
     render()
-    const request = ++serial
     try {
-      const result = await options.api.decide(state.id, groups, action)
-      if (!alive || request !== serial) return
-      state = { ...state, report: result.report }
+      const result = await options.api.apply(state.id, [...choices])
+      if (alive && result) state = { ...state, report: result.report }
     } catch (e) {
       if (alive) {
         options.error(e)
@@ -93,8 +94,8 @@ export function comparisonView(options: {
     } finally {
       if (alive) {
         busy = false
+        options.busy?.(false)
         render()
-        element.querySelector<HTMLButtonElement>('[data-next]')?.focus({ preventScroll: true })
       }
     }
   }
@@ -219,18 +220,12 @@ export function comparisonView(options: {
         status = document.createElement('span')
       title.textContent = `${g.id + 1}. ${tr(g.section === 'document' ? 'Document et éléments liés' : 'Passage')}`
       status.textContent = tr(
-        g.decision === 'pending'
-          ? 'À décider'
-          : g.decision === 'applied'
-            ? sourceBefore
-              ? 'Repris dans le document'
-              : 'Appliqué au document'
-            : sourceBefore
-              ? 'Passage actuel conservé'
-              : 'Refusé',
+        state.report.applied
+          ? 'Choix appliqués'
+          : state.report.closed
+            ? 'Proposition terminée ou connexion révoquée.'
+            : 'Choix provisoire',
       )
-      status.hidden =
-        g.decision === 'pending' && (!!state.report.read_only || !!state.report.closed)
       header.append(title, status)
       const columns = document.createElement('div')
       columns.className = 'comparison-columns'
@@ -257,21 +252,40 @@ export function comparisonView(options: {
         linked.textContent = tr('Éléments liés · une décision')
         actions.append(linked)
       }
-      if (g.decision === 'pending' && !state.report.read_only && !state.report.closed) {
-        const refuse = button(
-          sourceBefore ? 'Conserver le passage actuel' : 'Refuser',
-          () => void decide([g.id], 'refuse'),
+      const selectors = document.createElement('div')
+      selectors.className = 'comparison-columns comparison-selectors'
+      selectors.setAttribute('role', 'radiogroup')
+      selectors.setAttribute('aria-label', `${tr('Choisir la version du passage')} ${g.id + 1}`)
+      for (const name of ['before', 'after'] as const) {
+        const selected = choices[g.id] === name
+        const select = button('Sélectionner', () => {
+          choices[g.id] = name
+          render()
+        })
+        select.innerHTML = `${selected ? icon('check') : ''}<span>${tr('Sélectionner')}</span>`
+        select.className = 'comparison-choice'
+        select.dataset.side = name
+        select.dataset.action = `select-${name}`
+        select.setAttribute('role', 'radio')
+        select.setAttribute('aria-checked', String(selected))
+        select.setAttribute(
+          'aria-label',
+          tr(name === 'before' ? 'Sélectionner la version rouge' : 'Sélectionner la version verte'),
         )
-        const apply = button(
-          sourceBefore ? 'Reprendre ce passage de la version' : 'Appliquer cette modification',
-          () => void decide([g.id], 'apply'),
-        )
-        apply.className = 'primary'
-        apply.disabled = busy || state.report.stale
-        refuse.disabled = busy
-        actions.append(refuse, apply)
+        select.tabIndex = selected ? 0 : -1
+        select.disabled = busy || !!state.report.closed
+        selectors.append(select)
       }
-      row.append(header, columns, summary, actions)
+      disposers.push(
+        navigationGroup(selectors, {
+          axis: 'horizontal',
+          roving: true,
+          activateOnMove: true,
+          itemRole: 'radio',
+        }).destroy,
+      )
+      actions.hidden = !g.linked
+      row.append(header, columns, summary, actions, selectors)
       rows.append(row)
     }
     if (previewMode) {
@@ -303,23 +317,20 @@ export function comparisonView(options: {
     }
     const footer = actionRow()
     footer.classList.add('comparison-progress')
-    footer.hidden = !!state.report.read_only
     const progress = document.createElement('span')
     progress.setAttribute('role', 'status')
     progress.setAttribute('aria-live', 'polite')
-    const done = state.report.groups.filter((g) => g.decision !== 'pending').length
-    progress.textContent = `${done} / ${state.report.groups.length} · ${tr('décisions prises · états affichés inchangés')}`
-    const all = button(
-      sourceBefore ? 'Reprendre le reste' : 'Appliquer le reste',
-      () =>
-        void decide(
-          state.report.groups.filter((g) => g.decision === 'pending').map((g) => g.id),
-          'apply',
-        ),
+    progress.textContent = tr(
+      state.report.applied
+        ? 'Choix appliqués et document enregistré.'
+        : state.report.closed
+          ? 'Proposition terminée ou connexion révoquée.'
+          : 'Choix provisoires · aucun changement avant validation.',
     )
-    all.disabled = busy || state.report.stale || done === state.report.groups.length
-    all.hidden = !!state.report.read_only || !!state.report.closed
-    footer.append(progress, all)
+    const validate = button('Appliquer et enregistrer', () => void apply())
+    validate.className = 'primary'
+    validate.disabled = busy || state.report.stale || !!state.report.closed
+    footer.append(progress, validate)
     const files = document.createElement('details')
     files.className = 'comparison-files'
     files.hidden = !state.report.files?.length
@@ -337,15 +348,7 @@ export function comparisonView(options: {
       }
       files.append(row)
     }
-    const readOnly = document.createElement('p')
-    readOnly.className = 'comparison-details'
-    readOnly.hidden = !state.report.read_only && !state.report.closed
-    readOnly.textContent = tr(
-      state.report.read_only
-        ? 'Consultation seule · deux versions conservées'
-        : 'Proposition terminée ou connexion révoquée.',
-    )
-    element.replaceChildren(toolbar, notice, readOnly, headings, rows, files, footer)
+    element.replaceChildren(toolbar, notice, headings, rows, files, footer)
     navigationGroup(navigation, { axis: 'horizontal' })
     if (action) {
       const candidate = [...element.querySelectorAll<HTMLButtonElement>('[data-action]')].find(

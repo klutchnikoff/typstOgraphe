@@ -790,6 +790,20 @@ export async function mountShell(s: Shell) {
       }),
     'Mod+E',
   )
+  provider.onSaved = (result) => {
+    if (result.document !== provider.generation || result.revision < savedRevision) return
+    const duplicate = path === result.path && savedRevision === result.revision && !dirty
+    path = result.path
+    savedRevision = result.revision
+    dirty = provider.revision !== result.revision
+    updateTitle()
+    if (!duplicate) {
+      void remember(result.path).catch((error) => s.message(recoveryError(error), true))
+      if (result.warning) s.message(result.warning, true)
+      else s.message(tr('Document enregistré.'))
+    }
+    void versionPanel?.refresh()
+  }
   add('ui.versions', tr('Versions'), () => {
     const api = versionsAPI({
       creator: preferences.profile['sender.name'] || null,

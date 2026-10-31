@@ -392,5 +392,14 @@
   "Aperçus des deux états": "web-comparison-previews",
   "Voir les changements": "web-comparison-changes",
   "Chargement des aperçus…": "web-comparison-loading-previews",
-  "Le document a changé ailleurs. Demandez une nouvelle proposition à l’agent.": "web-comparison-stale-proposal"
+  "Le document a changé ailleurs. Demandez une nouvelle proposition à l’agent.": "web-comparison-stale-proposal",
+  "Sélectionner": "web-composition-select",
+  "Choisir la version du passage": "web-composition-choose-passage",
+  "Sélectionner la version rouge": "web-composition-select-before",
+  "Sélectionner la version verte": "web-composition-select-after",
+  "Choix appliqués": "web-composition-choices-applied",
+  "Choix provisoire": "web-composition-choice-draft",
+  "Choix appliqués et document enregistré.": "web-composition-saved",
+  "Choix provisoires · aucun changement avant validation.": "web-composition-draft-notice",
+  "Appliquer et enregistrer": "web-composition-apply-save"
 }

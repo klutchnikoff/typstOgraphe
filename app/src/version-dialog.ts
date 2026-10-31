@@ -191,6 +191,7 @@ function stateDialog(options: {
     }
     display.setAttribute('aria-labelledby', `version-tab-${view}`)
     display.setAttribute('aria-busy', 'true')
+    display.inert = true
     try {
       if (view === 'compare') {
         const value = await frozenComparison()
@@ -228,6 +229,17 @@ function stateDialog(options: {
           api: comparisonAPI!,
           catalogue: options.catalogue,
           picker: options.proposal ? undefined : picker,
+          busy: (value) => {
+            busy = value
+            if (value) error.textContent = ''
+            tabs.inert = value
+            close.disabled =
+              done.disabled =
+              edit.disabled =
+              remove.disabled =
+              select.disabled =
+                value
+          },
           error: (reason) => {
             error.textContent = String(reason)
           },
@@ -267,7 +279,10 @@ function stateDialog(options: {
       display.replaceChildren()
       error.textContent = String(reason)
     } finally {
-      if (alive && request === ticket) display.removeAttribute('aria-busy')
+      if (alive && request === ticket) {
+        display.removeAttribute('aria-busy')
+        display.inert = !!band
+      }
     }
   }
   function openBand(kind: 'metadata' | 'delete') {

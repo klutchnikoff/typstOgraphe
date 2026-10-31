@@ -44,6 +44,12 @@ interface Change {
   acceptedBy?: string
 }
 
+export interface DocumentSaved {
+  document: string
+  path: string
+  revision: number
+  warning?: string | null
+}
 export interface HistoryState {
   guard?: { document: string; revision: number }
   selection?: ViewSelection | null
@@ -87,6 +93,7 @@ export class Provider {
   generation = ''
   onChange = () => {}
   onStatus = () => {}
+  onSaved = (_saved: DocumentSaved) => {}
   documentEdits?: { flush: () => Promise<void>; dirty: () => boolean; draft?: () => unknown }
   onResource = () => {}
   onError = (_error: unknown) => {}
@@ -146,6 +153,11 @@ export class Provider {
     )
   }
 
+  confirmSaved(saved: DocumentSaved) {
+    if (saved.document !== this.generation || this.destroyed) return
+    this.recoveredName = null
+    this.onSaved(saved)
+  }
   private updateSynchronization(status: Synchronization) {
     if (!this.generation) {
       this.earlySynchronization = status
@@ -212,6 +224,11 @@ export class Provider {
           else if (!resource.generation || resource.generation === this.generation)
             this.addResource(resource)
         },
+      ),
+    )
+    this.disposers.push(
+      await this.transport.listen<DocumentSaved>('web-editor:saved', (saved) =>
+        this.confirmSaved(saved),
       ),
     )
     const bootstrap = await this.transport.invoke<Bootstrap>('join')

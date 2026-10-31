@@ -1068,3 +1068,13 @@ web-comparison-composing = Terminez la saisie en cours avant de décider.
 web-comparison-read-only = La comparaison de deux versions conservées est en consultation seule.
 web-comparison-use-review = Cette proposition est ouverte dans le comparateur. Utilisez ses décisions locales.
 web-comparison-stale-proposal = Le document a changé ailleurs. Demandez une nouvelle proposition à l’agent.
+
+web-composition-select = Sélectionner
+web-composition-choose-passage = Choisir la version du passage
+web-composition-select-before = Sélectionner la version rouge
+web-composition-select-after = Sélectionner la version verte
+web-composition-choices-applied = Choix appliqués
+web-composition-choice-draft = Choix provisoire
+web-composition-saved = Choix appliqués et document enregistré.
+web-composition-draft-notice = Choix provisoires · aucun changement avant validation.
+web-composition-apply-save = Appliquer et enregistrer

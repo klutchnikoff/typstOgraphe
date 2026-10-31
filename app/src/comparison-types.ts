@@ -1,6 +1,7 @@
 import type { VersionContent } from './version-types'
 export type ComparisonOrigin =
   { kind: 'version'; id: string; against?: string } | { kind: 'proposal'; id: string }
+export type ComparisonSide = 'before' | 'after'
 export interface ContentHighlight {
   path: number[]
   from: number
@@ -22,8 +23,9 @@ export interface ComparisonReport {
   source: 'before' | 'after'
   groups: ComparisonGroup[]
   stale: boolean
-  read_only?: boolean
+  path?: string | null
   closed?: boolean
+  applied?: boolean
   before_name?: string | null
   after_name?: string | null
   files?: {
@@ -36,17 +38,19 @@ export interface ComparisonReport {
 export interface ComparisonState {
   id: string
   report: ComparisonReport
+  choices?: ComparisonSide[]
   before: VersionContent
   after: VersionContent
 }
 export interface ComparisonAPI {
   open(origin: ComparisonOrigin): Promise<ComparisonState>
   read(id: string): Promise<Pick<ComparisonState, 'id' | 'report'>>
-  decide(
+  apply(
     id: string,
-    groups: number[],
-    action: 'apply' | 'refuse',
-  ): Promise<Pick<ComparisonState, 'id' | 'report'>>
+    choices: ComparisonSide[],
+  ): Promise<
+    (Pick<ComparisonState, 'id' | 'report'> & { saved: import('./provider').DocumentSaved }) | null
+  >
   close(id: string): Promise<unknown>
   preview(id: string, side: 'before' | 'after'): Promise<{ pages: string[] }>
   listen(changed: () => void): Promise<() => void>

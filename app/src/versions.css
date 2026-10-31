@@ -383,6 +383,38 @@
 .comparison-linked {
   margin-right: auto;
 }
+.comparison-selectors {
+  padding: 8px 14px 12px;
+  gap: 28px;
+}
+.comparison-choice {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 128px;
+  border: 1px solid currentColor;
+  color: var(--choice-ink);
+  background: transparent;
+}
+.comparison-choice[data-side='before'] {
+  --choice-ink: light-dark(#9a302d, #ffb0aa);
+  --choice-text: light-dark(#fff, #2c151b);
+}
+.comparison-choice[data-side='after'] {
+  --choice-ink: light-dark(#22613c, #9cd7af);
+  --choice-text: light-dark(#fff, #12271a);
+}
+.comparison-choice[aria-checked='true'] {
+  background: var(--choice-ink);
+  border-color: var(--choice-ink);
+  color: var(--choice-text);
+}
+.comparison-choice svg {
+  width: 16px;
+  height: 16px;
+}
 .comparison-progress {
   flex-wrap: wrap;
 }
