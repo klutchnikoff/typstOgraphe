@@ -264,3 +264,120 @@ fn one_note_is_always_applied_with_its_text_and_identical_snapshots_have_no_grou
     let p = Comparison::new(before.clone(), before, SourceSide::After, e.guard().clone()).unwrap();
     assert!(p.report(e.guard()).groups.is_empty());
 }
+
+#[test]
+fn prepared_decisions_are_bound_to_their_frozen_pair_even_under_the_same_guard() {
+    let before = archive(&["a", ""]);
+    let after = archive(&["b", ""]);
+    let (mut e, c) = engine(&before);
+    let one = Comparison::new(
+        before.clone(),
+        after.clone(),
+        SourceSide::After,
+        e.guard().clone(),
+    )
+    .unwrap();
+    let mut other = Comparison::new(before, after, SourceSide::After, e.guard().clone()).unwrap();
+    let ready = one.prepare(&e, &[0]).unwrap();
+    let bytes = e.update();
+    assert!(other.publish(&mut e, c, ready).is_err());
+    assert_eq!(e.update(), bytes);
+    assert_eq!(other.groups[0].decision, Decision::Pending);
+}
+#[test]
+fn unchanged_branches_keep_selection_and_typing_styles_through_a_structural_reprise() {
+    use crate::content::{
+        commands::{Style, TextZone},
+        editing::{Selection, TextPoint},
+    };
+    let before = archive(&["first", "stable", ""]);
+    let after = archive(&["inserted", "first", "stable", ""]);
+    let (mut e, c) = engine(&before);
+    let point = TextPoint {
+        zone: TextZone::Body { path: vec![1] },
+        offset: 2,
+    };
+    let selection = Selection::Text {
+        anchor: point.clone(),
+        head: point,
+    };
+    e.set_context(
+        &e.guard().clone(),
+        c,
+        Some(selection.clone()),
+        vec![Style::Italic],
+    )
+    .unwrap();
+    let mut plan = Comparison::new(before, after, SourceSide::After, e.guard().clone()).unwrap();
+    let ready = plan.prepare(&e, &[0]).unwrap();
+    plan.publish(&mut e, c, ready).unwrap();
+    let context = e.context(&e.guard().clone(), c).unwrap();
+    assert_eq!(context.typing_styles, vec![Style::Italic]);
+    assert!(!context.selection_lost);
+    let point = TextPoint {
+        zone: TextZone::Body { path: vec![2] },
+        offset: 2,
+    };
+    assert_eq!(
+        context.selection,
+        Some(Selection::Text {
+            anchor: point.clone(),
+            head: point
+        })
+    );
+    e.history(&e.guard().clone(), c, Direction::Undo).unwrap();
+    assert_eq!(
+        e.context(&e.guard().clone(), c).unwrap().selection,
+        Some(selection)
+    );
+}
+
+#[test]
+fn article_frontmatter_citations_and_bibliography_are_published_and_undone_as_one_coherent_group() {
+    use crate::{
+        bibliography::ReferenceFile,
+        content::editorial::RichText,
+        document_types::{DocumentType, Metadata},
+    };
+    let mut before = archive(&["Article", ""]);
+    before.metadata = Metadata::demo(DocumentType::Article);
+    before.template = DocumentType::Article.default_model();
+    before.model_id = "article.model.working".into();
+    before.dependencies = crate::packages::for_template(&before.template);
+    let mut after = before.clone();
+    let Metadata::Article(metadata) = &mut after.metadata else {
+        unreachable!()
+    };
+    metadata
+        .affiliations
+        .push(crate::document_types::article::Affiliation {
+            id: "official".into(),
+            text: "Official free-text affiliation".into(),
+        });
+    metadata.localizations[0].summary = RichText::plain("A revised abstract é😀");
+    metadata.references.push(ReferenceFile {
+        id: "local".into(),
+        name: "sources.bib".into(),
+        contents: "@book{sample, author={Martin, Camille}, title={A source}, year={2020}}".into(),
+    });
+    after.document.content[0].content.push(serde_json::from_value(json!({"type":"citation","attrs":{"items":[{"file_id":"local","key":"sample","supplement":""}],"form":"normal"}})).unwrap());
+    let (mut e, c) = engine(&before);
+    let mut plan = Comparison::new(
+        before.clone(),
+        after.clone(),
+        SourceSide::After,
+        e.guard().clone(),
+    )
+    .unwrap();
+    let report = plan.report(e.guard());
+    assert_eq!(report.groups.len(), 1);
+    assert!(report.groups[0].linked);
+    assert!(report.files.iter().any(|f| f.kind == "bibliography"));
+    let ready = plan.prepare(&e, &[0]).unwrap();
+    plan.publish(&mut e, c, ready).unwrap();
+    assert_eq!(e.state(), &after.state());
+    e.history(&e.guard().clone(), c, Direction::Undo).unwrap();
+    assert_eq!(e.state(), &before.state());
+    e.history(&e.guard().clone(), c, Direction::Redo).unwrap();
+    assert_eq!(e.state(), &after.state());
+}

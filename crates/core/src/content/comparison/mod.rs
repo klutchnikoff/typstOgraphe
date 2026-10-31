@@ -74,20 +74,28 @@ pub struct Report {
 /// Holds private immutable states. Reports are descriptive, never executable patches.
 #[derive(Clone)]
 pub struct Comparison {
+    identity: uuid::Uuid,
     before: Archive,
     after: Archive,
     target: Archive,
     guard: Guard,
     source: SourceSide,
     groups: Vec<Group>,
+    files: Vec<FileChange>,
     epoch: u64,
 }
 pub struct PreparedDecision {
     update: PreparedUpdate,
-    pub archive: Archive,
+    archive: Archive,
+    comparison: uuid::Uuid,
     ids: Vec<usize>,
     epoch: u64,
     guard: Guard,
+}
+impl PreparedDecision {
+    pub fn archive(&self) -> &Archive {
+        &self.archive
+    }
 }
 fn invalid(reason: &str) -> Error {
     Error::InvalidParameters {
@@ -110,19 +118,25 @@ impl Comparison {
             return Err(invalid("comparison_document_type"));
         }
         let groups = diff::groups(&before, &after);
+        let files = diff::files(&before, &after);
         let target = match source {
             SourceSide::Before => after.clone(),
             SourceSide::After => before.clone(),
         };
         Ok(Self {
+            identity: uuid::Uuid::new_v4(),
             before,
             after,
             target,
             guard,
             source,
             groups,
+            files,
             epoch: 0,
         })
+    }
+    pub fn guard(&self) -> &Guard {
+        &self.guard
     }
     pub fn before(&self) -> &Archive {
         &self.before
@@ -136,7 +150,7 @@ impl Comparison {
             source: self.source,
             groups: self.groups.clone(),
             stale: self.guard != *current,
-            files: diff::files(&self.before, &self.after),
+            files: self.files.clone(),
         }
     }
     fn ids(&self, ids: &[usize]) -> Result<Vec<usize>, Error> {
@@ -201,6 +215,7 @@ impl Comparison {
         let update = engine.prepare_comparison(&self.guard, &desired)?;
         desired.yjs = update.checkpoint();
         Ok(PreparedDecision {
+            comparison: self.identity,
             update,
             archive: desired,
             ids,
@@ -215,6 +230,9 @@ impl Comparison {
         context: ContextId,
         prepared: PreparedDecision,
     ) -> Result<Publication, Error> {
+        if prepared.comparison != self.identity {
+            return Err(invalid("comparison_identity"));
+        }
         if prepared.epoch != self.epoch {
             return Err(invalid("comparison_decision_changed"));
         }

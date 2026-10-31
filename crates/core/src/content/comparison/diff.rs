@@ -75,6 +75,12 @@ pub(super) fn words(before: &[Node], after: &[Node]) -> Vec<TextChange> {
         })
         .collect()
 }
+fn linked(node: &Node) -> bool {
+    !matches!(
+        node.kind.as_str(),
+        "paragraph" | "heading" | "text" | "softBreak" | "hardBreak"
+    ) || node.content.iter().any(linked)
+}
 pub(super) fn groups(before: &Archive, after: &Archive) -> Vec<Group> {
     let a: Vec<_> = before
         .document
@@ -118,7 +124,7 @@ pub(super) fn groups(before: &Archive, after: &Archive) -> Vec<Group> {
                 linked: before.document.content[ar.clone()]
                     .iter()
                     .chain(&after.document.content[br.clone()])
-                    .any(|n| !matches!(n.kind.as_str(), "paragraph" | "heading")),
+                    .any(linked),
                 before: ar,
                 after: br,
                 section: Section::Body,

@@ -348,6 +348,10 @@ impl EditingSession {
         self.contexts.get_mut(&id).unwrap().receive(&publication)?;
         Ok(publication)
     }
+    /// Opaque pinned-package reference carried by the same undoable settings map.
+    pub fn bundle_token(&self) -> String {
+        self.owner.bundle_token()
+    }
     pub(in crate::content) fn prepare_comparison(
         &self,
         guard: &Guard,

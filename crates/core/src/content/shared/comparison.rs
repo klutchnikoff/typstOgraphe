@@ -5,8 +5,20 @@ use crate::content::{
     commands::ImageResource,
     contract::{Error, Guard},
 };
-use yrs::{Transact, XmlFragment};
+use yrs::{Any, Map, Out, Transact, XmlFragment};
+const BUNDLE: &str = "comparison:bundle";
 impl SharedSession {
+    pub(in crate::content) fn bundle_token(&self) -> String {
+        match self
+            .shared
+            .doc
+            .get_or_insert_map("settings")
+            .get(&self.shared.doc.transact(), BUNDLE)
+        {
+            Some(Out::Any(Any::String(value))) => value.to_string(),
+            _ => String::new(),
+        }
+    }
     pub(in crate::content) fn prepare_comparison(
         &self,
         guard: &Guard,
@@ -64,6 +76,23 @@ impl SharedSession {
         let state = archive.state();
         if state.settings != self.state.settings {
             seed::write_settings(&candidate.doc, &state)?;
+        }
+        // A pinned package switch must be visible to causal history even when
+        // the model source and the projected documentary state are identical.
+        use sha2::{Digest, Sha256};
+        let mut hash = Sha256::new();
+        hash.update(archive.template.as_bytes());
+        for (path, bytes) in archive.dependencies.iter() {
+            hash.update((path.len() as u64).to_le_bytes());
+            hash.update(path.as_bytes());
+            hash.update((bytes.len() as u64).to_le_bytes());
+            hash.update(bytes);
+        }
+        let token: String = hash.finalize().iter().map(|b| format!("{b:02x}")).collect();
+        let settings = candidate.doc.get_or_insert_map("settings");
+        let same = matches!(settings.get(&candidate.doc.transact(),BUNDLE),Some(Out::Any(Any::String(value))) if value.as_ref()==token);
+        if !same {
+            settings.insert(&mut candidate.doc.transact_mut(), BUNDLE, token);
         }
         structure::validate(&state)?;
         // Pinned packages belong to the compared state, not the installed catalogue.
