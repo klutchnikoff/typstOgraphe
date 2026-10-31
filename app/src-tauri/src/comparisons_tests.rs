@@ -206,14 +206,30 @@ fn historical_pairs_are_read_only_even_if_the_current_document_happens_to_match(
     assert!(decide(&mut s, &mut a, "human", review, &[0], None).is_err());
 }
 #[test]
-fn pinned_packages_follow_comparison_undo_redo_and_project_recovery() {
-    let (root, mut s, mut a) = fixture();
-    let path = root.path().join("packages.typsto");
-    let id = version(&mut s, &path);
-    // The starting checkpoint already carries a reference from a previous reprise.
-    edit(&mut s, 0, "Temporary ");
+fn historical_packages_never_become_decisions_or_replace_application_libraries() {
+    let (_root, mut s, mut a) = fixture();
+    let mut archived = s.stored_project().unwrap().current().clone();
+    let libraries = typstographe_core::packages::for_template(&archived.template);
+    let mut old = (*libraries).clone();
+    old.insert(
+        "capabilities/dates.typ".into(),
+        b"#panic(\"Archived libraries must not run inside the application\")"
+            .as_slice()
+            .into(),
+    );
+    archived.dependencies = std::sync::Arc::new(old);
+    let project = typstographe_core::content::project::Project::new(archived.clone())
+        .unwrap()
+        .prepare_version(
+            SnapshotDetails::default(),
+            typstographe_core::content::project::SnapshotReason::Manual,
+        )
+        .unwrap();
+    let id = project.versions()[0].id;
+    s.project = std::sync::OnceLock::from(crate::project::Context::new(project, true));
+    s.owner = None;
     let guard = s.guard();
-    let initial = open(
+    let unchanged = open(
         &mut s,
         &mut a,
         "human",
@@ -221,30 +237,11 @@ fn pinned_packages_follow_comparison_undo_redo_and_project_recovery() {
         Origin::Version { id, against: None },
     )
     .unwrap();
-    let review = initial["id"].as_str().unwrap();
-    let ready = prepare(&mut s, &a, "human", review, &[0]).unwrap();
-    decide(&mut s, &mut a, "human", review, &[0], Some(ready)).unwrap();
-    let id = version(&mut s, &path);
-    let original = s.dependencies_for(&s.settings);
-    let mut changed = (*original).clone();
-    let key = changed
-        .keys()
-        .find(|p| p.starts_with("capabilities/"))
-        .unwrap()
-        .clone();
-    let mut bytes = changed[&key].to_vec();
-    bytes.extend_from_slice(b"\n// Project-specific pinned revision\n");
-    changed.insert(key, bytes.into());
-    let changed = std::sync::Arc::new(changed);
-    let mut archive = s.stored_project().unwrap().current().clone();
-    archive.dependencies = changed.clone();
-    let old = s.project.get().unwrap();
-    s.project = std::sync::OnceLock::from(crate::project::Context::new(
-        old.owner.with_current(archive).unwrap(),
-        true,
-    ));
-    // A reopen owns this pinned baseline; histories start empty, as in production.
-    s.owner = None;
+    assert!(unchanged["report"]["groups"].as_array().unwrap().is_empty());
+    assert!(unchanged["report"]["files"].as_array().unwrap().is_empty());
+    crate::versions::preview(archived.clone()).unwrap();
+    edit(&mut s, 0, "New ");
+    edit(&mut s, 2, "New ");
     let guard = s.guard();
     let view = open(
         &mut s,
@@ -254,23 +251,30 @@ fn pinned_packages_follow_comparison_undo_redo_and_project_recovery() {
         Origin::Version { id, against: None },
     )
     .unwrap();
-    let review = view["id"].as_str().unwrap().to_owned();
-    assert_eq!(view["report"]["files"].as_array().unwrap().len(), 1);
-    let ready = prepare(&mut s, &a, "human", &review, &[0]).unwrap();
-    let (_, publication) = decide(&mut s, &mut a, "human", &review, &[0], Some(ready)).unwrap();
-    assert!(publication.unwrap().changed);
-    assert_eq!(s.dependencies_for(&s.settings), original);
-    s.history("human", Direction::Undo).unwrap();
-    assert_eq!(s.dependencies_for(&s.settings), changed);
-    assert_eq!(s.stored_project().unwrap().current().dependencies, changed);
-    s.history("human", Direction::Redo).unwrap();
-    assert_eq!(s.dependencies_for(&s.settings), original);
+    assert_eq!(view["report"]["groups"].as_array().unwrap().len(), 2);
+    let review = view["id"].as_str().unwrap();
+    let ready = prepare(&mut s, &a, "human", review, &[0]).unwrap();
+    assert_eq!(ready.archive().dependencies, libraries);
+    decide(&mut s, &mut a, "human", review, &[0], Some(ready)).unwrap();
+    for direction in [Direction::Undo, Direction::Redo] {
+        s.history("human", direction).unwrap();
+        assert_eq!(s.dependencies_for(&s.settings), libraries);
+        assert_eq!(
+            s.stored_project().unwrap().current().dependencies,
+            libraries
+        );
+    }
     let current = s.stored_project().unwrap().current().clone();
+    assert_eq!(current.document.content[0], archived.document.content[0]);
     let backup = s
         .project_recovery(current.state(), current.yjs.clone())
         .unwrap();
     let recovered = backup.archive.restore().unwrap();
-    assert_eq!(recovered.current().dependencies, original);
+    assert_eq!(recovered.current().dependencies, libraries);
+    assert_eq!(
+        recovered.version(id).unwrap().dependencies,
+        archived.dependencies
+    );
 }
 
 #[test]

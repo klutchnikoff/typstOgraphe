@@ -12,7 +12,7 @@ use typstographe_core::{
 };
 
 #[test]
-fn native_preview_policy_export_and_recovery_use_pinned_resources() {
+fn native_preview_policy_export_and_recovery_use_application_libraries() {
     let state = State::new(serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Courrier de test"}]}]})).unwrap(), Default::default());
     let mut current = archive(
         state,
@@ -21,22 +21,13 @@ fn native_preview_policy_export_and_recovery_use_pinned_resources() {
         typstographe_core::packages::for_template(&DocumentType::Courrier.default_model()),
     );
     current.metadata = Metadata::demo(DocumentType::Courrier);
-    current.template = current
-        .template
-        .replace("capabilities/dates.typ", "capabilities/pinned-dates.typ");
+    let application_libraries = current.dependencies.clone();
     let mut dependencies = (*current.dependencies).clone();
-    let dates = dependencies.remove("capabilities/dates.typ").unwrap();
-    dependencies.insert("capabilities/pinned-dates.typ".into(), dates);
-    let mut inventory: serde_json::Value =
-        serde_json::from_slice(&dependencies["dependencies.json"]).unwrap();
-    for capability in inventory["capabilities"].as_array_mut().unwrap() {
-        if capability["id"] == "dates" {
-            capability["entrypoint"] = "capabilities/pinned-dates.typ".into();
-        }
-    }
     dependencies.insert(
-        "dependencies.json".into(),
-        serde_json::to_vec(&inventory).unwrap().into(),
+        "capabilities/dates.typ".into(),
+        b"#panic(\"Old transport copy must not run\")"
+            .as_slice()
+            .into(),
     );
     current.dependencies = std::sync::Arc::new(dependencies);
     current.yjs = SharedDocument::from_state(&current.state())
@@ -60,6 +51,10 @@ fn native_preview_policy_export_and_recovery_use_pinned_resources() {
     };
     let restored = Session::from_checkpoint(root.path().join("session"), checkpoint).unwrap();
     crate::bibliography::policy(&restored, current.template.clone()).unwrap();
+    assert_eq!(
+        restored.dependencies_for(&restored.settings),
+        application_libraries
+    );
     let renderer = Renderer::default();
     let source = current.validate().unwrap();
     renderer
@@ -84,8 +79,8 @@ fn native_preview_policy_export_and_recovery_use_pinned_resources() {
         )
         .unwrap();
     assert_eq!(
-        std::fs::read(export.join("capabilities/pinned-dates.typ")).unwrap(),
-        current.dependencies["capabilities/pinned-dates.typ"].as_ref()
+        std::fs::read(export.join("capabilities/dates.typ")).unwrap(),
+        application_libraries["capabilities/dates.typ"].as_ref()
     );
     assert_eq!(
         restored.project.get().unwrap().owner.versions(),

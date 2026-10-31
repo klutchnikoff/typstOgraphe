@@ -1,4 +1,4 @@
-//! Validate a project's pinned inventory, independently of the installed catalogue.
+//! Validate transport inventory integrity, independently of the runtime catalogue.
 use super::{Catalog, Dependencies, INVENTORY, references};
 use crate::errors::{CoreError, PackageError, StorageError};
 use std::collections::BTreeSet;

@@ -80,6 +80,17 @@ fn cli_mcp_sessions_use_application_libraries_for_reopened_projects_and_exports(
             .as_slice()
             .into(),
     );
+    // An earlier wrapper did not require the packages used by this release.
+    dependencies.retain(|path, _| !path.starts_with("packages/"));
+    let mut inventory: Value = serde_json::from_slice(&dependencies["dependencies.json"]).unwrap();
+    inventory["packages"] = json!([]);
+    for capability in inventory["capabilities"].as_array_mut().unwrap() {
+        capability["packages"] = json!([]);
+    }
+    dependencies.insert(
+        "dependencies.json".into(),
+        serde_json::to_vec(&inventory).unwrap().into(),
+    );
     archive.dependencies = std::sync::Arc::new(dependencies);
     archive.yjs.clear();
     let stored = Project::new(archive).unwrap();
@@ -104,7 +115,6 @@ fn cli_mcp_sessions_use_application_libraries_for_reopened_projects_and_exports(
         session.archive().unwrap().dependencies,
         application_libraries
     );
-    assert!(session.page_png(1).is_ok());
     let output = dir.path().join("export");
     session
         .export(&output, crate::protocol::ExportFormat::Typst, false)

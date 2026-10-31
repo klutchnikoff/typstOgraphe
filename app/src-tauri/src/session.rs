@@ -188,8 +188,8 @@ impl Session {
             .restore()
             .map_err(crate::project::error)?;
         let dependencies = base.dependencies_for(&session.settings.template);
-        // The envelope may overlay a newer confirmed body, but its model must have
-        // been pinned in the cached context; never resolve recovery from the catalogue.
+        // The envelope may overlay a newer confirmed body, but its model must
+        // match the cached context. Runtime libraries come from this release.
         if base.current().template != session.settings.template
             || base.current().model_id != session.settings.model_id
         {
@@ -380,16 +380,11 @@ impl Session {
             let shared =
                 typstographe_core::content::shared::SharedDocument::from_updates(&self.updates)
                     .map_err(crate::owner::error)?;
-            let dependencies = self.dependencies_for(&self.settings);
             self.owner = Some(crate::owner::Owner::open(
                 self.guard(),
                 &shared.update(),
                 self.assets.clone(),
             )?);
-            self.owner
-                .as_mut()
-                .unwrap()
-                .bind_dependencies(self.settings.template.clone(), dependencies);
         }
         Ok(self.owner.as_mut().unwrap())
     }
@@ -469,12 +464,6 @@ impl Session {
                 update,
                 self.assets.clone(),
             )?);
-            let settings = self.owner.as_ref().unwrap().state().settings.clone();
-            let dependencies = self.dependencies_for(&settings);
-            self.owner
-                .as_mut()
-                .unwrap()
-                .bind_dependencies(settings.template, dependencies);
             self.revision = guard.revision;
             self.bytes = update.len();
             self.updates.push(update.to_vec());

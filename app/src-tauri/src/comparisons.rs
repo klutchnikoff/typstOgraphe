@@ -237,10 +237,7 @@ pub fn capture(
     let plan = s.comparisons[id].plan.clone();
     let guard = s.guard();
     plan.guard().check(&guard).map_err(crate::owner::error)?;
-    let settings = s.ensure_owner()?.state().settings.clone();
-    let dependencies = s.dependencies_for(&settings);
     let owner = s.ensure_owner()?;
-    owner.bind_dependencies(settings.template, dependencies);
     Ok(Preparation {
         plan,
         guard,

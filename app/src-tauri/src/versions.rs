@@ -101,7 +101,7 @@ pub fn preview(
         None,
         Some(crate::rendering::RenderContext {
             settings: &archive.state().settings,
-            dependencies: archive.dependencies.clone(),
+            dependencies: typstographe_core::packages::for_template(&archive.template),
         }),
         None,
     )
