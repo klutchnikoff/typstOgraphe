@@ -377,11 +377,16 @@ impl EditingSession {
         id: ContextId,
         prepared: super::shared::PreparedUpdate,
     ) -> Result<Publication, Error> {
-        self.check(guard, id)?;
-        self.contexts.get_mut(&id).unwrap().sync(&self.owner)?;
+        self.check_publication_context(guard, id)?;
         let publication = self.owner.publish(prepared)?;
         self.contexts.get_mut(&id).unwrap().receive(&publication)?;
         Ok(publication)
+    }
+    /// Hosts may perform durable IO after this preflight while serializing access
+    /// to the owner. Rejected private work must fail before any durable commit.
+    pub fn check_publication_context(&mut self, guard: &Guard, id: ContextId) -> Result<(), Error> {
+        self.check(guard, id)?;
+        self.contexts.get_mut(&id).unwrap().sync(&self.owner)
     }
     pub fn availability(&self, guard: &Guard, command: &Command) -> super::commands::Availability {
         self.owner.availability(guard, command)

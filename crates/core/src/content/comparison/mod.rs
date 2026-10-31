@@ -100,7 +100,7 @@ pub struct PreparedDecision {
     update: PreparedUpdate,
     archive: Archive,
     comparison: uuid::Uuid,
-    ids: Vec<usize>,
+    decisions: Vec<(usize, Decision)>,
     epoch: u64,
     guard: Guard,
 }
@@ -232,10 +232,86 @@ impl Comparison {
             comparison: self.identity,
             update,
             archive: desired,
-            ids,
+            decisions: ids.into_iter().map(|id| (id, Decision::Applied)).collect(),
             epoch: self.epoch,
             guard: self.guard.clone(),
         })
+    }
+    /// Compose once from the right state and all explicit red/green choices.
+    /// Choosing a side has no publication or history effect until this candidate is published.
+    pub fn prepare_choices(
+        &self,
+        engine: &EditingSession,
+        choices: &[SourceSide],
+    ) -> Result<PreparedDecision, Error> {
+        self.guard.check(engine.guard())?;
+        if choices.len() != self.groups.len()
+            || self.groups.iter().any(|g| g.decision != Decision::Pending)
+        {
+            return Err(invalid("comparison_choices"));
+        }
+        let mut desired = self.after.clone();
+        desired.yjs.clear();
+        for group in self
+            .groups
+            .iter()
+            .rev()
+            .filter(|g| choices[g.id] == SourceSide::Before)
+        {
+            if matches!(group.section, Section::Document) {
+                desired = self.before.clone();
+                desired.yjs.clear();
+            } else {
+                desired.document.content.splice(
+                    group.after.clone(),
+                    self.before.document.content[group.before.clone()]
+                        .iter()
+                        .cloned(),
+                );
+            }
+        }
+        desired.dependencies = crate::packages::for_template(&desired.template);
+        let update = engine.prepare_comparison(&self.guard, &desired)?;
+        desired.yjs = update.checkpoint();
+        Ok(PreparedDecision {
+            comparison: self.identity,
+            update,
+            archive: desired,
+            decisions: choices
+                .iter()
+                .enumerate()
+                .map(|(id, side)| {
+                    (
+                        id,
+                        if *side == self.source {
+                            Decision::Applied
+                        } else {
+                            Decision::Refused
+                        },
+                    )
+                })
+                .collect(),
+            epoch: self.epoch,
+            guard: self.guard.clone(),
+        })
+    }
+    pub fn check_prepared(
+        &self,
+        engine: &EditingSession,
+        prepared: &PreparedDecision,
+    ) -> Result<(), Error> {
+        if prepared.comparison != self.identity {
+            return Err(invalid("comparison_identity"));
+        }
+        if prepared.epoch != self.epoch {
+            return Err(invalid("comparison_decision_changed"));
+        }
+        self.guard.check(&prepared.guard)?;
+        self.guard.check(engine.guard())?;
+        if prepared.update.changed() && self.guard.revision == u64::MAX {
+            return Err(Error::StateLimitExceeded);
+        }
+        Ok(())
     }
     /// The owner's single publication/history path also protects IME, anchors and undo.
     pub fn publish(
@@ -244,22 +320,19 @@ impl Comparison {
         context: ContextId,
         prepared: PreparedDecision,
     ) -> Result<Publication, Error> {
-        if prepared.comparison != self.identity {
-            return Err(invalid("comparison_identity"));
-        }
-        if prepared.epoch != self.epoch {
-            return Err(invalid("comparison_decision_changed"));
-        }
-        self.guard.check(&prepared.guard)?;
+        self.check_prepared(engine, &prepared)?;
         let result = engine.publish_prepared(&prepared.guard, context, prepared.update)?;
-        for id in prepared.ids {
-            self.groups[id].decision = Decision::Applied;
+        for (id, decision) in prepared.decisions {
+            self.groups[id].decision = decision;
         }
         self.guard = result.guard.clone();
         self.epoch += 1;
         Ok(result)
     }
 }
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod composition_tests;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod grouping_tests;
