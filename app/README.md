@@ -34,6 +34,12 @@ Cargo lance désormais Tauri avec les fichiers web embarqués, sans serveur Vite
 Reconstruire le frontend après une modification HTML/CSS/TypeScript ; `npm start`
 est le parcours habituel pour travailler sur l’interface. Le script de build
 Rust génère les mêmes langues natives que le lanceur Tauri.
+Sur macOS, elles sont aussi embarquées dans l’exécutable autonome ; elles ne
+dépendent pas de la présence d’un répertoire `.app`. Pour vérifier le binaire :
+
+```sh
+node app/scripts/check-native-locales.mjs target/debug/typstographe
+```
 
 `npm run build` produit le binaire optimisé. Pour produire un paquet natif :
 
