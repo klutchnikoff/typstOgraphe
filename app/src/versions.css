@@ -326,6 +326,9 @@
   margin-left: auto;
   font-size: inherit;
 }
+.comparison-select-all {
+  color: var(--choice-ink);
+}
 .comparison-group {
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -344,9 +347,7 @@
   padding: 9px 14px;
   background: var(--panel);
   font-size: 0.85em;
-}
-.comparison-group > header > span {
-  color: var(--muted);
+  flex-wrap: wrap;
 }
 .comparison-side {
   padding: 14px;
@@ -392,25 +393,25 @@
   margin-right: auto;
 }
 .comparison-selectors {
-  padding: 8px 14px 12px;
-  gap: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
 }
 .comparison-choice {
-  justify-self: end;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 128px;
   border: 1px solid currentColor;
   color: var(--choice-ink);
   background: transparent;
 }
-.comparison-choice[data-side='before'] {
+:is(.comparison-choice, .comparison-select-all)[data-side='before'] {
   --choice-ink: light-dark(#9a302d, #ffb0aa);
   --choice-text: light-dark(#fff, #2c151b);
 }
-.comparison-choice[data-side='after'] {
+:is(.comparison-choice, .comparison-select-all)[data-side='after'] {
   --choice-ink: light-dark(#22613c, #9cd7af);
   --choice-text: light-dark(#fff, #12271a);
 }

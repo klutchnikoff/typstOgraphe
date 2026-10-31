@@ -101,9 +101,12 @@ Les propositions ne deviennent pas des snapshots, ni des annotations de relectur
 
 La modale à 90 %, ses onglets Contenu / Aperçu / Comparer, ses deux colonnes et
 les actions locales reprennent la maquette interactive validée. Les actions de
-chaque groupe sont alignées à droite ; l’action principale est à l’extrémité
-droite. Les dépendances sont indiquées dans la ligne de décision. Les états
-restent figés et les décisions sont affichées séparément. Une intervention
+chaque groupe sont alignées à droite dans son en-tête, à côté du titre, sans
+répétition de « Choix provisoire » ni rangée de boutons sous le contenu. Les deux
+« Tout sélectionner » reprennent les couleurs rouge et verte de leurs colonnes.
+L’action principale reste à l’extrémité droite du pied du comparateur.
+Les dépendances sont indiquées dans la ligne de décision. Les états restent
+figés et les décisions sont affichées séparément. Une intervention
 extérieure conserve la consultation et les choix, mais bloque leur validation.
 
 Une différence de structure non identifiable sans ambiguïté reste groupée.

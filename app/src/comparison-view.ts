@@ -242,6 +242,8 @@ export function comparisonView(options: {
         select.focus({ preventScroll: true })
       })
       const title = tr(index === 0 ? 'Tout sélectionner à gauche' : 'Tout sélectionner à droite')
+      select.className = 'comparison-select-all'
+      select.dataset.side = side
       select.setAttribute('aria-label', title)
       select.title = title
       select.dataset.action = `select-all-${side}`
@@ -257,17 +259,8 @@ export function comparisonView(options: {
       row.dataset.active = String(g.id === active)
       row.dataset.group = String(g.id)
       const header = document.createElement('header'),
-        title = document.createElement('strong'),
-        status = document.createElement('span')
+        title = document.createElement('strong')
       title.textContent = `${g.id + 1}. ${tr(g.section === 'document' ? 'Document et éléments liés' : 'Passage')}`
-      status.textContent = tr(
-        state.report.applied
-          ? 'Choix appliqués'
-          : state.report.closed
-            ? 'Proposition terminée ou connexion révoquée.'
-            : 'Choix provisoire',
-      )
-      header.append(title, status)
       const columns = document.createElement('div')
       columns.className = 'comparison-columns'
       columns.append(side(state.before, g, 'before'), side(state.after, g, 'after'))
@@ -294,7 +287,7 @@ export function comparisonView(options: {
         actions.append(linked)
       }
       const selectors = document.createElement('div')
-      selectors.className = 'comparison-columns comparison-selectors'
+      selectors.className = 'comparison-selectors'
       selectors.setAttribute('role', 'radiogroup')
       selectors.setAttribute('aria-label', `${tr('Choisir la version du passage')} ${g.id + 1}`)
       for (const name of ['before', 'after'] as const) {
@@ -323,7 +316,8 @@ export function comparisonView(options: {
       choiceNavigation.set(g.id, navigation)
       disposers.push(navigation.destroy)
       actions.hidden = !g.linked
-      row.append(header, columns, summary, actions, selectors)
+      header.append(title, selectors)
+      row.append(header, columns, summary, actions)
       rows.append(row)
     }
     if (previewMode) {

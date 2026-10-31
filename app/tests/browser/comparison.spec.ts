@@ -296,6 +296,16 @@ test('Article snapshots show deleted and inserted words beside a citation in lig
     await page.emulateMedia({ colorScheme })
     const red = dialog.locator('[data-group="0"] [data-side="before"]')
     const green = dialog.locator('[data-group="0"] [data-side="after"]')
+    const header = dialog.locator('[data-group="0"] > header')
+    await expect(header.getByRole('radio')).toHaveCount(2)
+    await expect(header).not.toContainText('Choix provisoire')
+    for (const [name, mark] of [
+      ['Tout sélectionner à gauche', before.locator('del').first()],
+      ['Tout sélectionner à droite', after.locator('ins').first()],
+    ] as const) {
+      const color = await mark.evaluate((node) => getComputedStyle(node).color)
+      await expect(dialog.getByRole('button', { name, exact: true })).toHaveCSS('color', color)
+    }
     await expect(green).toHaveAttribute('aria-checked', 'true')
     await expect(green.locator('svg path')).toHaveAttribute('d', 'M20 6 9 17l-5-5')
     await expect(red.locator('svg path')).toHaveCount(2)

@@ -119,6 +119,10 @@ it.each(['before', 'after'] as const)(
       view.element.querySelector<HTMLButtonElement>(
         `[data-group="${group}"] [data-side="${side}"]`,
       )!
+    expect(view.element.querySelectorAll('.comparison-group > header [role=radio]')).toHaveLength(4)
+    expect(view.element.querySelector('.comparison-group > header')!.textContent).not.toContain(
+      'Choix provisoire',
+    )
     expect(radio(0, 'after').getAttribute('aria-checked')).toBe('true')
     expect(radio(0, 'after').tabIndex).toBe(0)
     const iconPath = (name: string) => {
@@ -223,9 +227,11 @@ it('preserves provisional choices after a refused publication and an external ed
   button(view.element, 'Appliquer').click()
   await tick()
   expect(error).toHaveBeenCalledOnce()
-  expect(view.element.querySelector('[data-side="before"]')?.getAttribute('aria-checked')).toBe(
-    'true',
-  )
+  expect(
+    view.element
+      .querySelector('.comparison-choice[data-side="before"]')
+      ?.getAttribute('aria-checked'),
+  ).toBe('true')
   f.change((state) => {
     state.report.stale = true
   })
