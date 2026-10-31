@@ -1,0 +1,59 @@
+{
+  "success": true,
+  "platform": "darwin",
+  "git": "282f1350f28aeaf6a70381b61863915ecfec5333",
+  "cases": [
+    {
+      "kind": "courrier",
+      "checks": [
+        "native project and confirmed editing state are ready",
+        "explicit archive save retains unconfirmed form",
+        "external modification refusal: state, revision, CRDT, private form, resources and lease preserved",
+        "storage failure: state, revision, CRDT, private form, resources and lease preserved",
+        "incoherent archive refusal: state, revision, CRDT, private form, resources and lease preserved",
+        "save as succeeds after refusal and retains the private note",
+        "native project and confirmed editing state are ready",
+        "confirmed copy reopens after interruption without publishing the private note",
+        "native exports match reopened archive and CLI export, including dependencies and resources"
+      ],
+      "pageSizes": [
+        [
+          595.2755905511812,
+          841.8897637795276
+        ]
+      ],
+      "archiveSha256": "85a27c4242948c9c91a45ec3293edef4c90ffe3af5ed25db58bc714b56af266b",
+      "exportedEntries": 790
+    },
+    {
+      "kind": "article",
+      "checks": [
+        "native project and confirmed editing state are ready",
+        "explicit archive save retains unconfirmed form",
+        "external modification refusal: state, revision, CRDT, private form, resources and lease preserved",
+        "storage failure: state, revision, CRDT, private form, resources and lease preserved",
+        "incoherent archive refusal: state, revision, CRDT, private form, resources and lease preserved",
+        "save as succeeds after refusal and retains the private note",
+        "native project and confirmed editing state are ready",
+        "confirmed copy reopens after interruption without publishing the private note",
+        "native exports match reopened archive and CLI export, including dependencies and resources"
+      ],
+      "pageSizes": [
+        [
+          595.2755905511812,
+          841.8897637795276
+        ],
+        [
+          595.2755905511812,
+          841.8897637795276
+        ],
+        [
+          595.2755905511812,
+          841.8897637795276
+        ]
+      ],
+      "archiveSha256": "f18cfb4b11fcd072fc6e726cbdaf65df6cfb9182aead192c4ecd5fee9bf2608d",
+      "exportedEntries": 13
+    }
+  ]
+}

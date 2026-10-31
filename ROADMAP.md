@@ -20,15 +20,14 @@ du plan ce qui est terminé. Rechercher les bibliothèques et services existants
 avant de créer une nouvelle brique. Faire plusieurs commits cohérents et une
 seule poussée par lot, sauf correction nécessaire d’une vérification distante.
 
-**Séquence immédiate :** mettre en œuvre **A.3 — Conservation et publication**, selon le
-[contrat validé](docs/a3-conservation.md) :
-le premier lot conserve les brouillons refusés, champs en attente et formulaires
-ouverts avec leurs ressources, séparément de l’état confirmé. La recette native
-macOS vérifie leur conservation après arrêt brutal. Le [parcours de reprise et de
-fermeture](docs/a3-recovery-interface.md) et la coordination entre fenêtres sont
-implémentés : [bilan de recette](docs/a3-recovery-results.md). Prochaine étape : compléter
-les recettes natives multisystèmes, d’incident et de changement externe. A.3 reste ouvert. Ne pas confondre
-récupération et snapshots durables (A.4).
+**Séquence immédiate :** clôturer la qualification d’**A.3 — Conservation et
+publication**, puis préparer les choix d’**A.4 — Snapshots durables** ensemble.
+Les copies privées, la reprise des formulaires et la fermeture sont implémentées.
+La [recette de clôture](docs/a3-closure-results.md) couvre les incidents de
+publication, changements externes et exports Courrier/Article ; sa qualification
+native sur les trois systèmes est la dernière garde avant A.4. Les résultats
+macOS locaux et les résultats CI sont distingués. Ne pas confondre récupération
+et snapshots durables.
 
 **A.2 est clos.** La [recette Courrier/Article](docs/a2-closure-results.md) valide
 le même projet entre Tauri, CLI et MCP, les propositions rattachées, l’historique,
@@ -489,9 +488,9 @@ acceptées ou refusées, aperçu corrigé compilé, sans modification directe du
 
 ## Prochain lot proposé
 
-1. Après la conservation et la [reprise des brouillons livrées](docs/a3-recovery-results.md),
-   terminer les recettes natives multisystèmes, d’incident et de changement externe
-   d’**A.3**, selon le [contrat et ses limites](docs/a3-conservation.md).
+1. Après réussite de la [qualification native d’A.3](docs/a3-closure-results.md),
+   préciser ensemble A.4 : contenu, stockage, rétention et restauration des snapshots,
+   puis évaluer Git embarqué et les alternatives avant de choisir un moteur.
 2. Reprendre ensuite le périmètre administratif restant, un type à la fois,
    avec un modèle utile et une recette représentative.
 3. Engager ACP après stabilisation du contrat documentaire et validation de sa

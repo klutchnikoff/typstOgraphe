@@ -68,16 +68,18 @@ accueil sans ouverture automatique, copie indépendante, saisies privées repris
 dans les interfaces existantes, conservation à la fermeture par défaut. La maquette
 est validée et son implémentation livrée, avec une barrière de conservation de
 toutes les fenêtres avant remplacement du document. Voir le [bilan de reprise](docs/a3-recovery-results.md).
-Les recettes natives multisystèmes, les incidents et changements externes restent
-à compléter avant clôture d’A.3.
+Les recettes d’incident, de changement externe et de publication Courrier/Article
+sont livrées, avec comparaison des états et exports Tauri/CLI. La [recette de
+clôture](docs/a3-closure-results.md) précise la qualification native des trois systèmes,
+dernière garde avant A.4, et les contrôles matériels de distribution restant dans H.
 
 Fixer les responsabilités de l’état Yjs, de l’arbre validé et du Typst généré.
 Tester identité/révision, sauvegarde pendant des éditions, récupération après
 incident, fermeture, changement externe et refus d’une archive incohérente.
 Les copies de récupération Tauri sont désormais isolées par processus,
 protégées par un verrou et restaurées explicitement ; ne pas les confondre avec
-les snapshots durables. Étendre les recettes aux systèmes et situations réelles
-encore non couverts.
+les snapshots durables. Les recettes natives sont exécutables sur les trois systèmes dans la validation
+complète ; les rapports locaux et les résultats CI sont distingués.
 Conserver en séance les ressources utiles à l’annulation ; conserver dans
 l’archive celles requises par l’état courant et tous les snapshots retenus.
 Un export Typst/PDF de l’état choisi ne requiert pas les ressources propres

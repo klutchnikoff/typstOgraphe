@@ -1,8 +1,9 @@
 # A.3 — Reprise des brouillons et fermeture
 
 **31 octobre 2026.** Le lot d’interface validé est livré sur
-`feat/a3-draft-conservation`. A.3 reste ouvert pour les recettes natives
-multisystèmes, les incidents d’enregistrement et les changements externes.
+`feat/a3-draft-conservation`. Le [lot de clôture](a3-closure-results.md) complète
+ce bilan historique avec les incidents d’enregistrement, changements externes et
+la qualification native multisystème.
 Le [contrat](a3-conservation.md) et les [parcours validés](a3-recovery-interface.md)
 restent les références ; les snapshots durables relèvent d’A.4.
 
@@ -105,5 +106,5 @@ Ces contrôles locaux ne valent pas une validation native Windows/Linux, une
 recette de clavier IME matériel ni un résultat de CI. Les compositions web sont
 synthétiques. L’import JSON est exercé via le transport de recette et l’interface
 réelle de consultation ; le sélecteur de fichiers natif reste un contrôle manuel.
-Les scénarios d’incident/changement externe et la publication multisystème doivent
-encore compléter A.3 avant sa clôture.
+Le [lot de clôture](a3-closure-results.md) complète ces scénarios et précise la
+qualification native multisystème requise.

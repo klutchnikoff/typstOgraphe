@@ -58,15 +58,10 @@ explicite ; le nettoyage des snapshots et ressources historiques reste dans A.4.
 
 ## Reprise et décisions explicites
 
-Le [parcours de reprise et les choix de fermeture](a3-recovery-interface.md) sont
-validés ; leur présentation graphique reste à valider sur maquette.
-
-Le prochain lot présentera à l’accueil le nom, la date et la présence de saisies
-non confirmées. Le document confirmé peut être repris normalement ; un brouillon
-refusé revient dans un espace de récupération isolé permettant de retrouver et
-copier son travail. Aucune fusion automatique ni écrasement du fichier d’origine.
-Un brouillon exporté manuellement doit également pouvoir être rouvert depuis
-l’interface. Ce parcours doit être maquetté et validé avant implémentation.
+Le [parcours de reprise et les choix de fermeture](a3-recovery-interface.md), sa
+maquette et son implémentation sont validés/livrés. L’accueil présente les copies
+indépendantes et leurs saisies privées. Le brouillon refusé reste isolé et les
+brouillons exportés peuvent être importés sans publication automatique.
 
 En présence d’un brouillon non confirmé, fermer propose explicitement de le
 conserver pour reprendre plus tard, de l’abandonner ou d’annuler. Un changement
@@ -89,9 +84,9 @@ comparaisons historiques ne sont pas introduits par A.3.
    parcours natifs sur macOS, Windows et Linux sans confondre les tests locaux
    avec la couverture multisystème de la CI.
 
-La livraison du premier lot ne vaut pas clôture d’A.3. L’interface de reprise,
-les décisions de fermeture et les recettes natives restantes restent à traiter
-dans les lots suivants.
+Les trois lots sont implémentés. La [recette de clôture](a3-closure-results.md)
+relie les critères aux contrôles locaux et à la qualification native des trois
+systèmes. La réussite de cette qualification est requise avant de passer à A.4.
 
 ## Référence étudiée
 
@@ -191,11 +186,13 @@ les sources non validables. Supprimer/reprendre une copie ne nettoie son résum�
 confirmé que si celui-ci désigne la même base et qu’aucune autre enveloppe ne reste.
 Les copies illisibles restent visibles et supprimables après confirmation.
 
-### Limites restantes d’A.3
+### Clôture et limites de qualification
 
-Le [bilan de reprise](a3-recovery-results.md) couvre les contrôles locaux de ce lot.
-Les recettes natives Windows/Linux, les incidents d’enregistrement/changement
-externe à l’échelle de l’application et la validation finale de publication restent
-à compléter avant clôture d’A.3. Les snapshots durables et l’historique entre
-séances restent dans A.4. Une préédition IME non validée n’est pas publiée ni
-promue en copie de saisie validée.
+La [recette de clôture](a3-closure-results.md) exerce les incidents d’enregistrement,
+les changements externes, la réouverture et l’export de Courrier et Article. Les
+recettes natives sont disponibles dans la validation complète des trois systèmes ;
+leurs résultats CI font foi pour Windows/Linux. Les saisies IME matérielles et
+les sélecteurs système restent des contrôles manuels de distribution.
+
+Les snapshots durables et l’historique entre séances restent dans A.4. Une
+préédition IME non validée n’est pas publiée ni promue en copie de saisie validée.
