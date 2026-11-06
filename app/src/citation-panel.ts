@@ -1,3 +1,4 @@
+import { openBibliography } from './bibliography-manager'
 import { focusEditorSelection } from './editor-focus'
 import { editingAvailability } from './command-availability'
 import { editingProvider } from './editing-history'
@@ -9,7 +10,8 @@ import { navigationGroup, actionRow } from './keyboard-navigation'
 import type { BandHost } from './band-layout'
 import type { Provider, Transport } from './provider'
 import {
-  referenceFiles,
+  referenceRecords,
+  citationEntry,
   type ReferenceEntry,
   type CitationItem,
   type Citation,
@@ -83,8 +85,8 @@ export function citationPanel(
     onActivate: (element) => {
       const result = results[Number(element.dataset.entry)]
       if (!result || !opened) return
-      if (!opened.items.some((item) => item.file_id === result.file_id && item.key === result.key))
-        opened.items.push({ file_id: result.file_id, key: result.key, supplement: '' })
+      if (!opened.items.some((item) => item.record_id === result.record_id))
+        opened.items.push({ record_id: result.record_id, supplement: '' })
       renderChosen()
       input.focus()
       void search()
@@ -98,7 +100,7 @@ export function citationPanel(
     navigation.refresh(true)
     try {
       const entries = await transport.invoke<ReferenceEntry[]>('bibliography_search', {
-        files: referenceFiles(provider),
+        files: referenceRecords(provider),
         query: input.value,
       })
       if (current !== ticket || !opened) return
@@ -112,11 +114,9 @@ export function citationPanel(
         const title = document.createElement('strong'),
           detail = document.createElement('span')
         title.textContent = entry.title || entry.key
-        detail.textContent = `${entry.authors} · ${entry.year} · ${entry.file_name}`
+        detail.textContent = `${entry.authors} · ${entry.year} · ${entry.key}`
         button.append(title, detail)
-        button.disabled = opened.items.some(
-          (item) => item.file_id === entry.file_id && item.key === entry.key,
-        )
+        button.disabled = opened.items.some((item) => item.record_id === entry.record_id)
         choices.append(button)
       }
       navigation.refresh(true)
@@ -132,17 +132,20 @@ export function citationPanel(
       const row = document.createElement('div')
       row.className = 'citation-selected-row'
       const label = document.createElement('span')
-      label.textContent = item.key
+      label.textContent =
+        citationEntry(editor, item.record_id)?.key ||
+        results.find((entry) => entry.record_id === item.record_id)?.key ||
+        '?'
       const supplement = document.createElement('input')
       supplement.placeholder = tr('Pages ou chapitre (facultatif)')
-      supplement.setAttribute('aria-label', `${tr('Pages ou chapitre')} · ${item.key}`)
+      supplement.setAttribute('aria-label', `${tr('Pages ou chapitre')} · ${label.textContent}`)
       supplement.value = item.supplement
       supplement.oninput = () => (item.supplement = supplement.value)
       const actions = actionRow(),
         remove = document.createElement('button')
       remove.type = 'button'
       remove.textContent = '×'
-      remove.setAttribute('aria-label', `${tr('Retirer de la citation')} · ${item.key}`)
+      remove.setAttribute('aria-label', `${tr('Retirer de la citation')} · ${label.textContent}`)
       remove.onclick = () => {
         if (opened) opened.items = opened.items.filter((candidate) => candidate !== item)
         renderChosen()
@@ -157,6 +160,34 @@ export function citationPanel(
     if (opened && transaction.getMeta('bibliography-index')) void search()
   })
   input.oninput = () => void search()
+  panel.action({
+    label: tr('Créer une notice…'),
+    run: () => {
+      const state = opened,
+        target = bands.target
+      if (!state || !target || pending) return
+      openBibliography(editor, provider, transport, {
+        create: true,
+        cite: {
+          node: {
+            type: 'citation',
+            attrs: { items: structuredClone(state.items), form: state.form },
+            marks: state.node?.marks.map((mark) => mark.toJSON()),
+          },
+          target: inlineTarget(editor, target.from, target.to) as unknown as Record<
+            string,
+            unknown
+          >,
+          document: documentContent(editor.getJSON()),
+          position: target.from,
+        },
+        done: () => {
+          panel.committed()
+          bands.close(true, editor.state.selection.getBookmark())
+        },
+      })
+    },
+  })
   panel.action({
     label: tr('Annuler'),
     run: () => {

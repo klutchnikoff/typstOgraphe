@@ -78,6 +78,7 @@ pub(super) fn apply(doc: &Doc, state: &State, command: &Command) -> Result<(), E
         | Command::MoveRecord { collection, id, .. } => (collection, id),
         _ => unreachable!(),
     };
+    super::bibliography::check_generic(state, name)?;
     let (records, order, definition) = collection(&doc.transact(), state, name)?;
     let visible = ids(&order, &records, &doc.transact());
     match command {

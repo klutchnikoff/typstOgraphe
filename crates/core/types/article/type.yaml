@@ -12,6 +12,7 @@ structures:
 order:
   collections:
   - references
+  - reference_sources
   - authors
   - affiliations
   - localizations
@@ -37,9 +38,17 @@ fields:
   control: outline
 collections:
 - id: references
-  kind: reference-files
+  kind: bibliographic-records
   identity: stable-id
-  max-items: 32
+  max-items: 10000
+  label-key: field-bibliography
+  item-label-key: field-reference-file
+  summary-field: key
+  fields: []
+- id: reference_sources
+  kind: bibliographic-sources
+  identity: stable-id
+  max-items: 1000
   label-key: field-bibliography
   item-label-key: field-reference-file
   summary-field: name
@@ -103,6 +112,10 @@ bindings:
   typst-parameter: localizations
 - collection: references
   typst-parameter: references
+# Storage binding only: bibliographic-sources never becomes a Typst model argument.
+- collection: reference_sources
+  typst-parameter: reference-sources
+  metadata-key: reference_sources
 - field: article.citation_style
   typst-parameter: citation-style
   metadata-key: citation_style

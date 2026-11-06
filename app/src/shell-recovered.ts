@@ -1,3 +1,4 @@
+import { resumeBibliography } from './bibliography-manager'
 import { reopenBand } from './form-recovery'
 import { tr } from './i18n'
 import { metadataInputBinding } from './metadata-input'
@@ -47,6 +48,8 @@ export function shellRecovered(
     const kind = documentType(provider)
     if (item.kind === 'form') {
       const context = item.payload.context
+      if (context?.kind === 'bibliography')
+        return resumeBibliography(provider, ctx.editor, ctx.transport, item)
       if (context?.kind === 'record') {
         const definition = kind.structured?.panels?.find(
           (panel) =>

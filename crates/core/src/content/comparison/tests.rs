@@ -141,14 +141,11 @@ fn word_highlights_are_attached_to_source_leaves_even_beside_inline_badges() {
     let Metadata::Article(metadata) = &mut before.metadata else {
         unreachable!()
     };
-    metadata
-        .references
-        .push(crate::bibliography::ReferenceFile {
-            id: "demo-books".into(),
-            name: "books.bib".into(),
-            contents: "@book{lefevre2021, author={Lefèvre, Camille}, title={Écrire}, year={2021}}"
-                .into(),
-        });
+    metadata.references.push(crate::bibliography::test_record(
+        "demo-books",
+        "books.bib",
+        "@book{lefevre2021, author={Lefèvre, Camille}, title={Écrire}, year={2021}}",
+    ));
     before.template = DocumentType::Article.default_model();
     before.model_manifest = DocumentType::Article.default_model_manifest().into();
     before.model_id = "article.model.working".into();
@@ -457,7 +454,6 @@ fn unchanged_branches_keep_selection_and_typing_styles_through_a_structural_repr
 #[test]
 fn article_frontmatter_citations_and_bibliography_are_published_and_undone_as_one_coherent_group() {
     use crate::{
-        bibliography::ReferenceFile,
         content::editorial::RichText,
         document_types::{DocumentType, Metadata},
     };
@@ -478,12 +474,12 @@ fn article_frontmatter_citations_and_bibliography_are_published_and_undone_as_on
             text: "Official free-text affiliation".into(),
         });
     metadata.localizations[0].summary = RichText::plain("A revised abstract é😀");
-    metadata.references.push(ReferenceFile {
-        id: "local".into(),
-        name: "sources.bib".into(),
-        contents: "@book{sample, author={Martin, Camille}, title={A source}, year={2020}}".into(),
-    });
-    after.document.content[0].content.push(serde_json::from_value(json!({"type":"citation","attrs":{"items":[{"file_id":"local","key":"sample","supplement":""}],"form":"normal"}})).unwrap());
+    metadata.references.push(crate::bibliography::test_record(
+        "local",
+        "sources.bib",
+        "@book{sample, author={Martin, Camille}, title={A source}, year={2020}}",
+    ));
+    after.document.content[0].content.push(serde_json::from_value(json!({"type":"citation","attrs":{"items":[{"record_id":"local","supplement":""}],"form":"normal"}})).unwrap());
     let (mut e, c) = engine(&before);
     let mut plan = Comparison::new(
         before.clone(),

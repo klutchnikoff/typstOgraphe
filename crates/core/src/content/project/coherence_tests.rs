@@ -1,9 +1,6 @@
 use super::tests::{entries, fixture, version};
 use super::*;
-use crate::{
-    bibliography::ReferenceFile,
-    document_types::{DocumentType, Metadata},
-};
+use crate::document_types::{DocumentType, Metadata};
 use std::{collections::BTreeMap, fs, io::Write};
 
 fn insert(files: &mut BTreeMap<String, Vec<u8>>, bytes: Vec<u8>) -> ObjectId {
@@ -44,12 +41,12 @@ fn valid_hashes_do_not_hide_mismatched_projections_sources_or_bibliography() {
     let Metadata::Article(metadata) = &mut archive.metadata else {
         unreachable!()
     };
-    metadata.references.push(ReferenceFile {
-        id: "research".into(),
-        name: "references.bib".into(),
-        contents: "@book{example, author={Martin, Camille}, title={Une étude}, year={2020}}".into(),
-    });
-    archive.document.content[0].content.push(serde_json::from_value(serde_json::json!({"type":"citation","attrs":{"items":[{"file_id":"research","key":"example","supplement":"p. 2"}],"form":"normal"}})).unwrap());
+    metadata.references.push(crate::bibliography::test_record(
+        "research",
+        "references.bib",
+        "@book{example, author={Martin, Camille}, title={Une étude}, year={2020}}",
+    ));
+    archive.document.content[0].content.push(serde_json::from_value(serde_json::json!({"type":"citation","attrs":{"items":[{"record_id":"research","supplement":"p. 2"}],"form":"normal"}})).unwrap());
     let project = Project::new(archive).unwrap();
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("coherence.typsto");

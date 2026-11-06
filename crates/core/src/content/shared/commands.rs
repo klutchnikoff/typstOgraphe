@@ -122,6 +122,9 @@ fn set_field(
             presentation = true;
         }
     }
+    if let FieldTarget::Record { collection, .. } = target {
+        super::bibliography::check_generic(state, collection)?;
+    }
     let (map, key, before, kind) = targets::field(doc, &doc.transact(), state, target)?;
     let valid = match kind.as_str() {
         "text" | "multiline" | "source" | "language" | "choice" => value.is_string(),
@@ -403,6 +406,9 @@ fn format(
 }
 pub(super) fn apply(doc: &Doc, state: &State, command: &Command) -> Result<(), Error> {
     match command {
+        Command::Bibliography { expected, change } => {
+            super::bibliography::apply(doc, state, expected, change)
+        }
         Command::SetModel { .. } => super::settings::apply(doc, state, command),
         Command::AddResource { .. } => {
             unreachable!("resource commands are prepared with their private assets")

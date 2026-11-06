@@ -1,5 +1,5 @@
 //! Validated document payload; CAS ownership and IO live in `content::project`.
-use super::{Node, source};
+use super::Node;
 use crate::{
     assets::Assets,
     document_types::Metadata,
@@ -69,12 +69,16 @@ impl Archive {
     }
     fn validate_content(&self) -> Result<String, Error> {
         self.metadata.validate().map_err(Error::document)?;
+        if let Metadata::Article(meta) = &self.metadata {
+            crate::bibliography::validate_sources(meta).map_err(Error::document)?;
+        }
         crate::bibliography::validate_document(&self.document, &self.metadata)
             .map_err(Error::document)?;
         crate::resources::validate_pool(&self.assets)?;
         crate::resources::validate_references(&self.metadata, &self.assets)
             .map_err(CoreError::from)?;
-        let source = source(&self.document, &self.assets).map_err(Error::document)?;
+        let source = super::source_with_metadata(&self.document, &self.assets, &self.metadata)
+            .map_err(Error::document)?;
         let state = self.state();
         state.settings.validate()?;
         super::catalogue::validate_document(self.metadata.document_type(), &self.document)?;

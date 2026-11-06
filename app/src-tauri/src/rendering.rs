@@ -467,14 +467,11 @@ mod tests {
     #[test]
     fn structured_export_includes_original_bibliography_files_and_retained_images() {
         let mut meta = typstographe_core::document_types::article::Metadata::demo();
-        let reference = typstographe_core::bibliography::ReferenceFile {
-            id: "books".into(),
-            name: "books.bib".into(),
-            contents:
-                "@book{key,author={Bourdieu, Pierre},title={Le sens pratique},year={1980}}\r\n"
-                    .into(),
-        };
-        meta.references.push(reference.clone());
+        let prepared=typstographe_core::bibliography::editions::prepare(serde_json::from_value(serde_json::json!({"id":"books","name":"books.bib","format":"biblatex","contents":"@book{key,author={Bourdieu, Pierre},title={Le sens pratique},year={1980}}\r\n"})).unwrap()).unwrap();
+        let reference = prepared.source;
+        let record_id = prepared.records[0].id().clone();
+        meta.references = prepared.records;
+        meta.reference_sources.push(reference.clone());
         let settings = crate::settings::Settings {
             metadata: typstographe_core::document_types::Metadata::Article(meta),
             model_manifest: typstographe_core::document_types::DocumentType::Article
@@ -492,8 +489,10 @@ mod tests {
         )]
         .into_iter()
         .collect();
-        let node = serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"citation","attrs":{"items":[{"file_id":"books","key":"key"}],"form":"normal"}}]},{"type":"figure","attrs":{"src":image,"alt":"Un parc"}}]})).unwrap();
-        let source = typstographe_core::content::source(&node, &assets).unwrap();
+        let node = serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"citation","attrs":{"items":[{"record_id":record_id}],"form":"normal"}}]},{"type":"figure","attrs":{"src":image,"alt":"Un parc"}}]})).unwrap();
+        let source =
+            typstographe_core::content::source_with_metadata(&node, &assets, &settings.metadata)
+                .unwrap();
         let root = tempfile::tempdir().unwrap();
         Renderer::default()
             .render(
@@ -506,8 +505,8 @@ mod tests {
             )
             .unwrap();
         assert_eq!(
-            std::fs::read(root.path().join(reference.path())).unwrap(),
-            reference.contents.as_bytes()
+            std::fs::read(root.path().join("bibliography/sources/books.bib")).unwrap(),
+            reference.contents().as_bytes()
         );
         assert!(root.path().join(image).is_file());
         assert!(root.path().join("capabilities/references.typ").is_file());
@@ -515,7 +514,7 @@ mod tests {
         assert!(
             std::fs::read_to_string(root.path().join("main.typ"))
                 .unwrap()
-                .contains("path(\"bibliography/books.bib\")")
+                .contains("path(\"bibliography/references.yaml\")")
         );
     }
 

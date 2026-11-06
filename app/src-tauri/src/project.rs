@@ -81,9 +81,13 @@ pub fn archive(
     assets: Assets,
     dependencies: Dependencies,
 ) -> Archive {
-    let dependencies = typstographe_core::content::source(&state.document, &assets)
-        .map(|source| typstographe_core::packages::including_source(&dependencies, &source))
-        .unwrap_or(dependencies);
+    let dependencies = typstographe_core::content::source_with_metadata(
+        &state.document,
+        &assets,
+        &state.settings.metadata,
+    )
+    .map(|source| typstographe_core::packages::including_source(&dependencies, &source))
+    .unwrap_or(dependencies);
     Archive {
         document: state.document,
         metadata: state.settings.metadata,

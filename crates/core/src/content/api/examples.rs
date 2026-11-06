@@ -13,6 +13,60 @@ fn at() -> Value {
 }
 pub fn for_id(id: &str) -> Vec<Call> {
     let node = match id {
+        "bibliography.browse" => {
+            return vec![Call {
+                id: id.into(),
+                params: json!({"query":"Doe"}),
+            }];
+        }
+        "bibliography.form" | "bibliography.prepare_form" => {
+            return vec![Call {
+                id: id.into(),
+                params: json!({"record":{"id":"notice-draft","key":"draft","entry":{"type":"book","title":"A book"},"provenance":[]},"values":{"/title":"A revised book"}}),
+            }];
+        }
+        "bibliography.review_import" => {
+            return vec![Call {
+                id: id.into(),
+                params: json!({"source":{"id":"source-draft","name":"library.yaml","format":"hayagriva","contents":"example: {type: book, title: A book}"},"expected":typstographe_bibliography::Library::default().fingerprint(),"decisions":[]}),
+            }];
+        }
+        "bibliography.usage" => {
+            return vec![Call {
+                id: id.into(),
+                params: json!({"id":"example-record"}),
+            }];
+        }
+        "bibliography.apply" => {
+            return vec![Call {
+                id: id.into(),
+                params: json!({"expected":typstographe_bibliography::Library::default().fingerprint(),"change":{"kind":"create","record":{"id":"example-record","key":"example2026","entry":{"type":"book","title":"An example"},"provenance":[]}}}),
+            }];
+        }
+        "bibliography.inspect" => {
+            return vec![Call {
+                id: id.into(),
+                params: json!({}),
+            }];
+        }
+        "bibliography.profiles" => {
+            return vec![Call {
+                id: id.into(),
+                params: json!({}),
+            }];
+        }
+        "bibliography.prepare_record" => {
+            return vec![Call {
+                id: id.into(),
+                params: json!({"id":"notice-draft","profile":"book","entry":{"title":"A book","author":"Doe, Jane","date":2026}}),
+            }];
+        }
+        "bibliography.prepare_import" => {
+            return vec![Call {
+                id: id.into(),
+                params: json!({"id":"source-draft","name":"library.yaml","format":"hayagriva","contents":"example: {type: book, title: A book, author: 'Doe, Jane', date: 2026}"}),
+            }];
+        }
         "block.bullet" => {
             json!({"type":"bulletList","content":[{"type":"listItem","content":[paragraph("Item")]}]})
         }
@@ -42,7 +96,7 @@ pub fn for_id(id: &str) -> Vec<Call> {
         }
         "insert.footnote" => json!({"type":"footnote","attrs":{"text":"A plain-text note."}}),
         "insert.citation" => {
-            json!({"type":"citation","attrs":{"items":[{"file_id":"main","key":"example2026"}],"form":"normal"}})
+            json!({"type":"citation","attrs":{"items":[{"record_id":"example-record"}],"form":"normal"}})
         }
         "insert.image" => {
             json!({"type":"figure","attrs":{"src":"images/example.svg","alt":"Describe the image"},"content":[{"type":"text","text":"Optional caption"}]})

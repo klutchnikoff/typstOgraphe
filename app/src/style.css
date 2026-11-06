@@ -2310,3 +2310,149 @@ li:has(.interline-band-gap[data-marker])::marker {
   width: auto;
   margin: 0;
 }
+
+/* Project bibliography: compact independent browser and native-value form. */
+.form-dialog.bibliography-dialog {
+  width: 92vw;
+  height: 90vh;
+  max-width: 95vw;
+  max-height: 94vh;
+  overflow: hidden;
+}
+.bibliography-dialog .dialog-form {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.bibliography-dialog .context-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.bibliography-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, 32%) minmax(0, 1fr);
+  height: 100%;
+  gap: 20px;
+}
+.bibliography-browser {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+  border-right: 1px solid var(--border);
+  padding-right: 16px;
+}
+.bibliography-browser > input {
+  width: 100%;
+}
+.bibliography-browser > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.bibliography-list {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+.bibliography-list-row {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+.bibliography-list-row span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.bibliography-list-row span:first-child {
+  font-weight: 600;
+  font-size: 13px;
+}
+.bibliography-list-row span:last-child {
+  color: var(--muted);
+  font-size: 12px;
+}
+.bibliography-list-row[aria-selected='true'] {
+  background: var(--soft);
+  border-color: var(--accent);
+}
+.bibliography-detail {
+  overflow-y: auto;
+  min-width: 0;
+  padding: 0 8px 16px 0;
+}
+.bibliography-detail .metadata-section-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.bibliography-detail .field:has(input[id$='-title']),
+.bibliography-people {
+  grid-column: 1 / -1;
+}
+.bibliography-people {
+  padding: 8px;
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+.bibliography-person {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.bibliography-person button svg {
+  width: 15px;
+  height: 15px;
+}
+.bibliography-detail details {
+  margin-block: 12px;
+}
+.bibliography-detail details > summary {
+  cursor: pointer;
+  color: var(--muted);
+  padding-block: 8px;
+}
+.bibliography-notice-heading {
+  margin-bottom: 12px;
+}
+.bibliography-import-item {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+}
+.bibliography-import-item > input,
+.bibliography-import-item > select {
+  margin: 4px;
+  max-width: 100%;
+}
+.bibliography-completeness,
+.bibliography-diagnostics {
+  color: var(--muted);
+  font-size: 12px;
+}
+.bibliography-detail pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+@media (max-width: 800px) {
+  .bibliography-layout {
+    grid-template-columns: minmax(190px, 35%) minmax(0, 1fr);
+    gap: 12px;
+  }
+  .bibliography-detail .metadata-section-fields,
+  .bibliography-person {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

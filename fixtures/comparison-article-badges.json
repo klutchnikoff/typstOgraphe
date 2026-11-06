@@ -29,8 +29,7 @@
               "form": "normal",
               "items": [
                 {
-                  "file_id": "demo-books",
-                  "key": "lefevre2021",
+                  "record_id":"demo-books",
                   "supplement": "p. 18–21"
                 }
               ]
@@ -106,8 +105,7 @@
               "form": "normal",
               "items": [
                 {
-                  "file_id": "demo-books",
-                  "key": "lefevre2021",
+                  "record_id":"demo-books",
                   "supplement": "p. 18–21"
                 }
               ]

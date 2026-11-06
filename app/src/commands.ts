@@ -4,7 +4,12 @@ import { tr } from './i18n'
 import { runFormatting, type Formatting } from './formatting'
 import { insertInlineObject } from './object-commands'
 import { editingProvider } from './editing-history'
-import { CommandRegistry, refreshCommandButton, runCommand } from './public-commands'
+import {
+  CommandRegistry,
+  commandVisible,
+  refreshCommandButton,
+  runCommand,
+} from './public-commands'
 import {
   capabilityAvailability,
   refused,
@@ -41,6 +46,7 @@ export interface PublicCommand {
   shortcut?: string
   availability?: () => Availability
   enabled?: () => boolean
+  visible?: () => boolean
   active?: () => boolean
   run: () => void
 }
@@ -57,7 +63,19 @@ export function createRegistry(
   table: () => void = () => {},
   reference: () => void = () => {},
 ): Registry {
-  const registry: Registry = new CommandRegistry()
+  const owners = new Map(
+    capabilities.flatMap(
+      (capability) =>
+        [
+          [capability.id, capability.id],
+          ...(capability.editor?.actions || []).map((action) => [action.id, capability.id]),
+        ] as [string, string][],
+    ),
+  )
+  const registry: Registry = new CommandRegistry((command) => {
+    const owner = owners.get(command.id)
+    return !owner || available()?.includes(owner) !== false
+  })
   bindCommandCapabilities(editor, capabilities, available)
   const target = () => commandEditor(editor)
   const actions: Record<string, () => void> = {
@@ -152,6 +170,7 @@ export function createRegistry(
 }
 export function toolbar(element: HTMLElement, registry: Registry, capabilities: Capability[]) {
   element.replaceChildren()
+  element.dataset.commandToolbar = ''
   navigationGroup(element, { axis: 'horizontal' })
   const button = (command: PublicCommand) => {
     const el = document.createElement('button')
@@ -173,6 +192,7 @@ export function toolbar(element: HTMLElement, registry: Registry, capabilities: 
   const group = (id: string, label: string, iconName: string) => {
     const menu = document.createElement('details')
     menu.className = 'tool-menu'
+    menu.dataset.commandGroup = id
     const summary = document.createElement('summary')
     summary.setAttribute('role', 'button')
     summary.setAttribute('aria-label', label)
@@ -205,12 +225,30 @@ export function toolbar(element: HTMLElement, registry: Registry, capabilities: 
   spacer.className = 'toolbar-spacer'
   element.append(spacer)
   for (const id of ['history.undo', 'history.redo']) element.append(button(registry.get(id)!))
+  refreshCommands(registry)
 }
 export function refreshCommands(registry: Registry) {
   for (const el of document.querySelectorAll<HTMLButtonElement>('button[data-command]')) {
     const command = registry.get(el.dataset.command!)
-    if (command) refreshCommandButton(el, command)
+    if (command) {
+      refreshCommandButton(el, command)
+      // Only editorial toolbar entries are hidden here; application menus keep
+      // their own layout. Availability still guards every trigger and shortcut.
+      if (el.closest('[data-command-toolbar]')) {
+        const hidden = !commandVisible(command)
+        if (el.hidden !== hidden) el.hidden = hidden
+      }
+    }
     if (command?.active) el.setAttribute('aria-pressed', String(command.active()))
+  }
+  for (const menu of document.querySelectorAll<HTMLDetailsElement>('[data-command-group]')) {
+    const hidden = ![...menu.querySelectorAll<HTMLButtonElement>('button[data-command]')].some(
+      (button) => !button.hidden,
+    )
+    // The shell observes hidden/open. Rewriting an unchanged attribute would
+    // schedule another interface refresh, indefinitely, for unsupported tools.
+    if (menu.hidden !== hidden) menu.hidden = hidden
+    if (hidden && menu.open) menu.open = false
   }
   document.dispatchEvent(new Event('commands:availability'))
 }

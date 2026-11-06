@@ -158,7 +158,11 @@ fn reference_files_use_the_registered_bibliography_validator() {
     let loaded = DocumentType::Article.definition();
     let raw = serde_json::to_value(Metadata::blank(DocumentType::Article)).unwrap();
     let mut values = super::super::runtime::values(DocumentType::Article, &raw["fields"]);
-    values["references"] = json!([{"id":"books","name":"books.bib","contents":"@book{example,title={A book},author={Doe, Jane},year={2020}}"}]);
+    values["references"] = json!([crate::bibliography::test_record(
+        "books",
+        "books.bib",
+        "@book{example,title={A book},author={Doe, Jane},year={2020}}"
+    )]);
     loaded.validate_values(&values).unwrap();
     let file = values["references"][0].clone();
     values["references"].as_array_mut().unwrap().push(file);

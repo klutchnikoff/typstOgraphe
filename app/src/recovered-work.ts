@@ -29,6 +29,7 @@ export function recoveredLabel(item: RecoveredItem) {
   if (item.kind === 'field') return tr('Champ d’en-tête')
   const form = item.payload as FormDraft,
     context = form.context as any
+  if (context?.kind === 'bibliography') return tr('Notice bibliographique')
   if (context?.kind === 'record')
     return context.collection === 'authors'
       ? tr('Auteur')

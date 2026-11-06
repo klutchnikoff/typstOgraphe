@@ -33,8 +33,8 @@ def plan(paths):
 
 RECIPES = Path("app/tests/browser")
 
-# Graphical recipes a pull request runs beyond @smoke, by edited area. A source
-# missing here only runs @smoke on the PR; the full suite runs after merging.
+# Targeted graphical recipes used by the local pre-push check. Full graphical
+# verification is explicit; neither routine PR nor main checks launch browsers.
 BROWSER_AREAS = (
     (("app/src/mathematics.ts", "app/src/cross-reference-index.ts", "crates/core/src/content/mathematics*",
       "crates/core/templates/capabilities/mathematics.typ", "crates/core/templates/packages/mitex-*/**"), ("mathematics",)),
@@ -51,7 +51,9 @@ BROWSER_AREAS = (
      ("document-types", "metadata", "article", "bibliography")),
     (("app/src/side-rail.ts", "app/src/shell-layout.ts", "app/src/resizable-separator.ts"),
      ("sidebar", "splitter")),
-    (("app/src/bibliography-panel.ts", "app/src/citation-*.ts"), ("bibliography",)),
+    (("app/src/bibliography-*.ts", "app/src/citation-*.ts",
+      "crates/bibliography/**", "crates/core/src/bibliography.rs",
+      "crates/core/src/content/api/bibliography*.rs"), ("bibliography",)),
     (("app/src/comparison-*.ts",), ("comparison",)),
     (("app/src/version*", "app/src/versions*"), ("versions",)),
     (("app/src/preview*.ts", "app/src/render-queue.ts", "app/src/proposal-preview.ts"), ("preview",)),
@@ -59,7 +61,7 @@ BROWSER_AREAS = (
     (("app/src/*recover*", "app/src/private-*.ts", "app/src/draft-*.ts", "app/src/form-drafts.ts"),
      ("recovery-resume", "draft-conservation")),
     (("app/src/metadata-*.ts", "app/src/shell-metadata.ts", "app/src/record-card.ts",
-      "app/src/sortable-cards.ts", "app/src/form-dialog.ts", "app/src/parameter-fields.ts"),
+      "app/src/sortable-cards.ts", "app/src/form-dialog.ts", "app/src/form-field.ts", "app/src/parameter-fields.ts"),
      ("metadata", "metadata-dialogs", "structured-metadata", "record-cards", "abstract-dialogs",
       "title-dialogs")),
     (("app/src/table-*.ts", "app/src/cell-paste.ts"), ("tables",)),
@@ -148,6 +150,9 @@ def main():
     args = parser.parse_args()
     paths = None if args.force else changed_paths(args.base)
     result = plan(paths)
+    result["rust"] = paths is None or any(
+        name.endswith((".rs", "Cargo.toml", "Cargo.lock"))
+        or name.startswith((".cargo/", ".github/")) for name in paths)
     recipes = " ".join(browser_recipes(paths))
     if output := os.environ.get("GITHUB_OUTPUT"):
         with open(output, "a", encoding="utf-8") as stream:

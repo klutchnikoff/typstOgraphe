@@ -125,7 +125,8 @@ reste compilé et n’autorise aucun chemin de fichier fourni par un manifeste.
 | `rich-text` | Contenu éditorial structuré, vide par défaut ; profil `inline-text` ou `rich-text` commun. |
 | `record-references` | Liste d’identifiants vers une collection existante ; `unique: true`, `on-target-remove: restrict`, défaut vide. |
 | `ordered-records` | Collection à identités stables et ordre distinct des libellés ; champs décrits par les genres ci-dessus. |
-| `reference-files` | Structure métier enregistrée pour les fichiers bibliographiques actuels ; elle fournit ses champs, son formulaire et sa validation Hayagriva. |
+| `bibliographic-records` | Notices natives, clés et provenance validées par la crate commune ; éditions par `bibliography.apply`. |
+| `bibliographic-sources` | Sources originales immuables, identités et digests vérifiés ; aucune composition directe par le modèle. |
 
 Les identifiants de déclarations sont des noms ASCII commençant par une lettre
 minuscule, suivie de lettres minuscules, chiffres, tirets, soulignés ou points,
@@ -160,9 +161,9 @@ L’en-tête permet trois vues :
 - `record-cards` : cartes d’une collection avec champ de résumé et édition
   `dialog`. Une liste `fields` facultative limite les champs édités par cette vue ;
   absente ou vide, elle sélectionne tous les champs.
-- `bibliography` : gestionnaire enregistré des fichiers bibliographiques, relié
-  à une collection `reference-files` et au champ de choix du style. Le futur lot
-  C.3 fera évoluer cette structure vers les notices et un fichier Hayagriva unique.
+- `bibliography` : vue enregistrée reliée aux `bibliographic-records` et au champ
+  de choix du style. Les sources immuables sont des `bibliographic-sources`
+  séparées ; un seul Hayagriva dérivé est transmis au modèle.
 
 Plusieurs vues peuvent éditer des sous-ensembles de la même collection, comme
 Titres et Résumés. Les références des vues sont vérifiées et chaque champ doit

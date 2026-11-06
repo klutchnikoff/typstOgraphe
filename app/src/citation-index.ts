@@ -1,14 +1,15 @@
 import type { Editor } from '@tiptap/core'
 import type { Provider } from './provider'
 import { documentType, settingsFor } from './state'
-export interface ReferenceFile {
+export interface BibliographicRecord {
   id: string
-  name: string
-  contents: string
+  key: string
+  entry: Record<string, unknown>
+  retained_parents?: Record<string, unknown>[]
+  provenance: unknown[]
 }
 export interface ReferenceEntry {
-  file_id: string
-  file_name: string
+  record_id: string
   key: string
   title: string
   authors: string
@@ -16,8 +17,7 @@ export interface ReferenceEntry {
   label: string
 }
 export interface CitationItem {
-  file_id: string
-  key: string
+  record_id: string
   supplement: string
 }
 export interface Citation {
@@ -25,11 +25,14 @@ export interface Citation {
   form: 'normal' | 'prose'
 }
 const indexes = new WeakMap<Editor, ReferenceEntry[]>()
-export function referenceFiles(provider: Provider): ReferenceFile[] {
+export function referenceRecords(provider: Provider): BibliographicRecord[] {
   const descriptor = documentType(provider).structured?.bibliography
   return descriptor
-    ? (settingsFor(provider).metadata.fields[descriptor.files] as ReferenceFile[]) || []
+    ? (settingsFor(provider).metadata.fields[descriptor.files] as BibliographicRecord[]) || []
     : []
+}
+export function citationEntry(editor: Editor, id: string) {
+  return indexes.get(editor)?.find((entry) => entry.record_id === id)
 }
 export function setCitationEntries(editor: Editor, entries: ReferenceEntry[]) {
   indexes.set(editor, entries)
@@ -48,11 +51,7 @@ export function formatCitationLabel(
   form: Citation['form'] = 'normal',
 ) {
   const label = items
-    .map(
-      (item) =>
-        entries.find((entry) => entry.file_id === item.file_id && entry.key === item.key)?.label ||
-        item.key,
-    )
+    .map((item) => entries.find((entry) => entry.record_id === item.record_id)?.label || '?')
     .join(' ; ')
   return label && form === 'normal' ? `(${label})` : label
 }

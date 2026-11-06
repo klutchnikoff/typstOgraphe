@@ -64,7 +64,7 @@ function fixture(article: boolean): JSONContent {
                 {
                   type: 'citation',
                   attrs: {
-                    items: [{ file_id: 'main', key: 'test2026', supplement: 'p. 12' }],
+                    items: [{ record_id: 'main', supplement: 'p. 12' }],
                     form: 'normal',
                   },
                 },
@@ -165,8 +165,10 @@ function seed(type: 'courrier' | 'article') {
     settings.metadata.fields.references = [
       {
         id: 'main',
-        name: 'references.bib',
-        contents: '@book{test2026, author={Martin, Camille}, title={Un ouvrage}, year={2026}}',
+
+        key: 'test2026',
+        provenance: [],
+        entry: { type: 'book', title: 'Un ouvrage', author: 'Martin, Camille', date: 2026 },
       },
     ]
   const value = doc()

@@ -1,7 +1,12 @@
 import type { PublicCommand, Registry } from './commands'
 import { allowed, refused, availabilityLabel, type Availability } from './command-availability'
 
+/** Type support is distinct from temporary contextual availability. */
+export function commandVisible(command: PublicCommand) {
+  return command.visible?.() !== false
+}
 export function commandAvailability(command: PublicCommand): Availability {
+  if (!commandVisible(command)) return refused('unsupported_document_type')
   return (
     command.availability?.() || (command.enabled?.() === false ? refused('unavailable') : allowed)
   )
@@ -26,15 +31,21 @@ export function refreshCommandButton(button: HTMLButtonElement, command: PublicC
  * triggers. The shell adds document/modal policy once, after registering its tools.
  */
 export class CommandRegistry extends Map<string, PublicCommand> {
+  constructor(private readonly supports: (command: PublicCommand) => boolean = () => true) {
+    super()
+  }
   policy: (command: PublicCommand) => Availability = () => allowed
   override set(id: string, command: PublicCommand) {
     const own = () => commandAvailability(command)
+    const visible = () => this.supports(command) && commandVisible(command)
     const availability = () => {
+      if (!visible()) return refused('unsupported_document_type')
       const global = this.policy(command)
       return global.enabled ? own() : global
     }
     return super.set(id, {
       ...command,
+      visible,
       availability,
       enabled: () => availability().enabled,
       run: () => {

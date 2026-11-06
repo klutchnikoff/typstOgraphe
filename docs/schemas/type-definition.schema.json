@@ -148,7 +148,8 @@
     "CollectionKind": {
       "enum": [
         "ordered-records",
-        "reference-files"
+        "bibliographic-records",
+        "bibliographic-sources"
       ],
       "type": "string"
     },

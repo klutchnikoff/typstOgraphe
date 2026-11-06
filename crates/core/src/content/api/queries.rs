@@ -364,6 +364,20 @@ pub fn run(
             }
             json!({"available":available,"language":language,"issues":issues})
         }
+        "bibliography.review_import"
+        | "bibliography.form"
+        | "bibliography.prepare_form"
+        | "bibliography.browse"
+        | "bibliography.usage" => super::bibliography::manager(state, id, p)?,
+        "bibliography.inspect" => {
+            let meta = crate::bibliography::editions::metadata(state, id)?;
+            let library = crate::bibliography::editions::library(state, id)?;
+            json!({"records":meta.references,"fingerprint":library.fingerprint(),"sources":meta.reference_sources.iter().map(|s|json!({"id":s.id(),"name":s.name(),"digest":s.digest(),"format":s.format()})).collect::<Vec<_>>()})
+        }
+        "bibliography.record"
+        | "bibliography.profiles"
+        | "bibliography.prepare_import"
+        | "bibliography.prepare_record" => super::bibliography::run(state, id, p)?,
         "bibliography.search" => {
             let crate::document_types::Metadata::Article(metadata) = &state.settings.metadata
             else {

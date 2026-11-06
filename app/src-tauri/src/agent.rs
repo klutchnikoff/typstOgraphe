@@ -182,7 +182,7 @@ pub async fn agent_accept(
             |candidate, assets| {
                 let context = session.lock()?.render_context(&candidate.settings);
                 renderer.validate(
-                    &crate::schema::source(&candidate.after, assets)?,
+                    &typstographe_core::content::source_with_metadata(&candidate.after, assets,&candidate.settings.metadata)?,
                     assets,
                     context,
                 )

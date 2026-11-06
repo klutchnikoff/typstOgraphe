@@ -1,5 +1,5 @@
 //! Values shared by native and headless adapters. No UI or transport types.
-use super::{Node, source};
+use super::Node;
 use crate::{
     assets::Assets,
     document_types::{DocumentType, Metadata},
@@ -35,6 +35,10 @@ pub enum Error {
     InvalidDocument { reason: String },
     #[error("invalid_settings: {reason}")]
     InvalidSettings { reason: String },
+    #[error("bibliography: {error}")]
+    Bibliography {
+        error: typstographe_bibliography::Error,
+    },
     #[error("inconsistent_state: {field}")]
     InconsistentState { field: String },
     #[error("wrong_document")]
@@ -43,6 +47,11 @@ pub enum Error {
     StaleRevision { expected: u64, actual: u64 },
     #[error("state_limit_exceeded")]
     StateLimitExceeded,
+}
+impl Error {
+    pub(crate) fn bibliography(error: typstographe_bibliography::Error) -> Self {
+        Self::Bibliography { error }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -160,7 +169,8 @@ impl State {
                 reason: format!("missing_resource: {error:?}"),
             },
         )?;
-        source(&self.document, assets).map_err(|reason| Error::InvalidDocument { reason })
+        super::source_with_metadata(&self.document, assets, &self.settings.metadata)
+            .map_err(|reason| Error::InvalidDocument { reason })
     }
 }
 

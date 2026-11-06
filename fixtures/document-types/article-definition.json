@@ -1,30 +1,249 @@
 {
-  "bindings": [
+  "contract-version": 1,
+  "id": "article",
+  "label-key": "article-type",
+  "description-key": "type-card-article-description",
+  "composition": {
+    "function": "article"
+  },
+  "settings-heading-key": "article-settings-heading",
+  "export-requirements": [
     {
-      "collection": "authors",
-      "typst-parameter": "authors"
-    },
-    {
-      "collection": "affiliations",
-      "typst-parameter": "affiliations"
-    },
-    {
+      "kind": "primary-language",
       "collection": "localizations",
-      "typst-parameter": "localizations"
+      "language-field": "language",
+      "value-field": "title"
+    }
+  ],
+  "fields": [
+    {
+      "kind": "choice",
+      "id": "article.citation_style",
+      "label-key": "field-citation-style",
+      "required-for-export": false,
+      "presentation": "citation-style",
+      "statistics": false,
+      "choices": [
+        "chicago-author-date",
+        "apa",
+        "ieee"
+      ]
     },
     {
-      "collection": "references",
-      "typst-parameter": "references"
+      "kind": "boolean",
+      "id": "article.show_outline",
+      "label-key": "field-show-outline",
+      "required-for-export": false,
+      "control": "outline",
+      "presentation": "outline",
+      "statistics": false,
+      "default": false
+    }
+  ],
+  "collections": [
+    {
+      "id": "references",
+      "kind": "bibliographic-records",
+      "identity": "stable-id",
+      "max-items": 10000,
+      "label-key": "field-bibliography",
+      "item-label-key": "field-reference-file",
+      "summary-field": "key",
+      "summary": [],
+      "unique-by": [],
+      "fields": []
     },
     {
-      "field": "article.citation_style",
-      "metadata-key": "citation_style",
-      "typst-parameter": "citation-style"
+      "id": "reference_sources",
+      "kind": "bibliographic-sources",
+      "identity": "stable-id",
+      "max-items": 1000,
+      "label-key": "field-bibliography",
+      "item-label-key": "field-reference-file",
+      "summary-field": "name",
+      "summary": [],
+      "unique-by": [],
+      "fields": []
     },
     {
-      "field": "article.show_outline",
-      "metadata-key": "show_outline",
-      "typst-parameter": "show-outline"
+      "id": "authors",
+      "kind": "ordered-records",
+      "identity": "stable-id",
+      "max-items": 100,
+      "label-key": "field-article-authors",
+      "item-label-key": "article-author",
+      "summary-field": "name",
+      "summary": [
+        "corresponding"
+      ],
+      "unique-by": [],
+      "fields": [
+        {
+          "kind": "text",
+          "id": "name",
+          "label-key": "field-full-name",
+          "required-for-export": true,
+          "statistics": false,
+          "multiline": false,
+          "default": ""
+        },
+        {
+          "kind": "record-references",
+          "id": "affiliation-ids",
+          "label-key": "field-article-affiliations",
+          "required-for-export": false,
+          "statistics": false,
+          "target-collection": "affiliations",
+          "unique": true,
+          "on-target-remove": "restrict",
+          "default": []
+        },
+        {
+          "kind": "text",
+          "id": "email",
+          "label-key": "field-email",
+          "required-for-export": false,
+          "statistics": false,
+          "multiline": false,
+          "default": ""
+        },
+        {
+          "kind": "text",
+          "id": "orcid",
+          "label-key": "field-orcid",
+          "required-for-export": false,
+          "statistics": false,
+          "multiline": false,
+          "default": ""
+        },
+        {
+          "kind": "boolean",
+          "id": "corresponding",
+          "label-key": "field-corresponding",
+          "required-for-export": false,
+          "statistics": false,
+          "default": false
+        }
+      ]
+    },
+    {
+      "id": "affiliations",
+      "kind": "ordered-records",
+      "identity": "stable-id",
+      "max-items": 100,
+      "label-key": "field-article-affiliations",
+      "item-label-key": "article-affiliation",
+      "summary-field": "text",
+      "summary": [],
+      "unique-by": [],
+      "fields": [
+        {
+          "kind": "text",
+          "id": "text",
+          "label-key": "field-official-affiliation",
+          "required-for-export": true,
+          "statistics": false,
+          "multiline": true,
+          "default": ""
+        }
+      ]
+    },
+    {
+      "id": "localizations",
+      "kind": "ordered-records",
+      "identity": "stable-id",
+      "max-items": 7,
+      "label-key": "field-article-localizations",
+      "item-label-key": "article-localization",
+      "summary-field": "language",
+      "summary": [],
+      "language-key": "language",
+      "removal-notice-key": "article-localization-removal-notice",
+      "unique-by": [
+        "language"
+      ],
+      "fields": [
+        {
+          "kind": "language",
+          "id": "language",
+          "label-key": "field-language",
+          "required-for-export": false,
+          "statistics": false,
+          "default": "fr"
+        },
+        {
+          "kind": "rich-text",
+          "id": "title",
+          "label-key": "field-article-title",
+          "required-for-export": false,
+          "statistics": false,
+          "profile": "inline-text",
+          "default": {
+            "type": "doc",
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "rich-text",
+          "id": "short-title",
+          "label-key": "field-short-title",
+          "required-for-export": false,
+          "statistics": false,
+          "profile": "inline-text",
+          "default": {
+            "type": "doc",
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "rich-text",
+          "id": "subtitle",
+          "label-key": "field-subtitle",
+          "required-for-export": false,
+          "statistics": false,
+          "profile": "inline-text",
+          "default": {
+            "type": "doc",
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "rich-text",
+          "id": "abstract",
+          "label-key": "field-abstract",
+          "required-for-export": false,
+          "statistics": true,
+          "profile": "rich-text",
+          "default": {
+            "type": "doc",
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tokens",
+          "id": "keywords",
+          "label-key": "field-keywords",
+          "required-for-export": false,
+          "statistics": false,
+          "default": []
+        }
+      ]
     }
   ],
   "capabilities": [
@@ -47,297 +266,95 @@
     "math.block",
     "insert.footnote"
   ],
-  "collections": [
+  "bindings": [
     {
-      "fields": [],
-      "id": "references",
-      "identity": "stable-id",
-      "item-label-key": "field-reference-file",
-      "kind": "reference-files",
-      "label-key": "field-bibliography",
-      "max-items": 32,
-      "summary": [],
-      "summary-field": "name",
-      "unique-by": []
+      "collection": "authors",
+      "typst-parameter": "authors"
     },
     {
-      "fields": [
-        {
-          "default": "",
-          "id": "name",
-          "kind": "text",
-          "label-key": "field-full-name",
-          "multiline": false,
-          "required-for-export": true,
-          "statistics": false
-        },
-        {
-          "default": [],
-          "id": "affiliation-ids",
-          "kind": "record-references",
-          "label-key": "field-article-affiliations",
-          "on-target-remove": "restrict",
-          "required-for-export": false,
-          "statistics": false,
-          "target-collection": "affiliations",
-          "unique": true
-        },
-        {
-          "default": "",
-          "id": "email",
-          "kind": "text",
-          "label-key": "field-email",
-          "multiline": false,
-          "required-for-export": false,
-          "statistics": false
-        },
-        {
-          "default": "",
-          "id": "orcid",
-          "kind": "text",
-          "label-key": "field-orcid",
-          "multiline": false,
-          "required-for-export": false,
-          "statistics": false
-        },
-        {
-          "default": false,
-          "id": "corresponding",
-          "kind": "boolean",
-          "label-key": "field-corresponding",
-          "required-for-export": false,
-          "statistics": false
-        }
-      ],
-      "id": "authors",
-      "identity": "stable-id",
-      "item-label-key": "article-author",
-      "kind": "ordered-records",
-      "label-key": "field-article-authors",
-      "max-items": 100,
-      "summary": [
-        "corresponding"
-      ],
-      "summary-field": "name",
-      "unique-by": []
+      "collection": "affiliations",
+      "typst-parameter": "affiliations"
     },
-    {
-      "fields": [
-        {
-          "default": "",
-          "id": "text",
-          "kind": "text",
-          "label-key": "field-official-affiliation",
-          "multiline": true,
-          "required-for-export": true,
-          "statistics": false
-        }
-      ],
-      "id": "affiliations",
-      "identity": "stable-id",
-      "item-label-key": "article-affiliation",
-      "kind": "ordered-records",
-      "label-key": "field-article-affiliations",
-      "max-items": 100,
-      "summary": [],
-      "summary-field": "text",
-      "unique-by": []
-    },
-    {
-      "fields": [
-        {
-          "default": "fr",
-          "id": "language",
-          "kind": "language",
-          "label-key": "field-language",
-          "required-for-export": false,
-          "statistics": false
-        },
-        {
-          "default": {
-            "content": [
-              {
-                "type": "paragraph"
-              }
-            ],
-            "type": "doc"
-          },
-          "id": "title",
-          "kind": "rich-text",
-          "label-key": "field-article-title",
-          "profile": "inline-text",
-          "required-for-export": false,
-          "statistics": false
-        },
-        {
-          "default": {
-            "content": [
-              {
-                "type": "paragraph"
-              }
-            ],
-            "type": "doc"
-          },
-          "id": "short-title",
-          "kind": "rich-text",
-          "label-key": "field-short-title",
-          "profile": "inline-text",
-          "required-for-export": false,
-          "statistics": false
-        },
-        {
-          "default": {
-            "content": [
-              {
-                "type": "paragraph"
-              }
-            ],
-            "type": "doc"
-          },
-          "id": "subtitle",
-          "kind": "rich-text",
-          "label-key": "field-subtitle",
-          "profile": "inline-text",
-          "required-for-export": false,
-          "statistics": false
-        },
-        {
-          "default": {
-            "content": [
-              {
-                "type": "paragraph"
-              }
-            ],
-            "type": "doc"
-          },
-          "id": "abstract",
-          "kind": "rich-text",
-          "label-key": "field-abstract",
-          "profile": "rich-text",
-          "required-for-export": false,
-          "statistics": true
-        },
-        {
-          "default": [],
-          "id": "keywords",
-          "kind": "tokens",
-          "label-key": "field-keywords",
-          "required-for-export": false,
-          "statistics": false
-        }
-      ],
-      "id": "localizations",
-      "identity": "stable-id",
-      "item-label-key": "article-localization",
-      "kind": "ordered-records",
-      "label-key": "field-article-localizations",
-      "language-key": "language",
-      "max-items": 7,
-      "removal-notice-key": "article-localization-removal-notice",
-      "summary": [],
-      "summary-field": "language",
-      "unique-by": [
-        "language"
-      ]
-    }
-  ],
-  "composition": {
-    "function": "article"
-  },
-  "contract-version": 1,
-  "description-key": "type-card-article-description",
-  "export-requirements": [
     {
       "collection": "localizations",
-      "kind": "primary-language",
-      "language-field": "language",
-      "value-field": "title"
-    }
-  ],
-  "fields": [
-    {
-      "choices": [
-        "chicago-author-date",
-        "apa",
-        "ieee"
-      ],
-      "id": "article.citation_style",
-      "kind": "choice",
-      "label-key": "field-citation-style",
-      "required-for-export": false,
-      "statistics": false,
-      "presentation": "citation-style"
+      "typst-parameter": "localizations"
     },
     {
-      "control": "outline",
-      "default": false,
-      "id": "article.show_outline",
-      "kind": "boolean",
-      "label-key": "field-show-outline",
-      "required-for-export": false,
-      "statistics": false,
-      "presentation": "outline"
+      "collection": "references",
+      "typst-parameter": "references"
+    },
+    {
+      "collection": "reference_sources",
+      "typst-parameter": "reference-sources",
+      "metadata-key": "reference_sources"
+    },
+    {
+      "field": "article.citation_style",
+      "typst-parameter": "citation-style",
+      "metadata-key": "citation_style"
+    },
+    {
+      "field": "article.show_outline",
+      "typst-parameter": "show-outline",
+      "metadata-key": "show_outline"
     }
   ],
   "header": {
     "tabs": [
       {
+        "view": "record-cards",
+        "id": "titles",
+        "label-key": "group-article-titles",
         "collection": "localizations",
-        "editing": "dialog",
+        "summary-field": "title",
         "fields": [
           "language",
           "title",
           "subtitle",
           "short-title"
         ],
-        "id": "titles",
-        "item-label-key": "field-article-title",
-        "label-key": "group-article-titles",
-        "summary-field": "title",
-        "view": "record-cards"
+        "editing": "dialog",
+        "item-label-key": "field-article-title"
       },
       {
+        "view": "record-cards",
+        "id": "abstracts",
+        "label-key": "group-article-abstracts",
         "collection": "localizations",
-        "editing": "dialog",
+        "summary-field": "language",
         "fields": [
           "language",
           "abstract",
           "keywords"
         ],
-        "id": "abstracts",
-        "item-label-key": "field-abstract",
-        "label-key": "group-article-abstracts",
-        "summary-field": "language",
-        "view": "record-cards"
+        "editing": "dialog",
+        "item-label-key": "field-abstract"
       },
       {
-        "collection": "affiliations",
-        "editing": "dialog",
-        "fields": [],
+        "view": "record-cards",
         "id": "affiliations",
         "label-key": "field-article-affiliations",
+        "collection": "affiliations",
         "summary-field": "text",
-        "view": "record-cards"
+        "fields": [],
+        "editing": "dialog"
       },
       {
-        "collection": "authors",
-        "editing": "dialog",
-        "fields": [],
+        "view": "record-cards",
         "id": "authors",
         "label-key": "field-article-authors",
+        "collection": "authors",
         "summary-field": "name",
-        "view": "record-cards"
+        "fields": [],
+        "editing": "dialog"
       },
       {
-        "collection": "references",
+        "view": "bibliography",
         "id": "bibliography",
         "label-key": "field-bibliography",
-        "style-field": "article.citation_style",
-        "view": "bibliography"
+        "collection": "references",
+        "style-field": "article.citation_style"
       }
     ]
-  },
-  "id": "article",
-  "label-key": "article-type",
-  "settings-heading-key": "article-settings-heading"
+  }
 }

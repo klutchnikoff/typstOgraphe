@@ -319,29 +319,39 @@ impl Definition {
         for (i, collection) in self.collections.iter().enumerate() {
             let at = format!("/collections/{i}");
             if collection.max_items == 0
-                || collection.max_items > 100
+                || collection.max_items
+                    > if collection.kind == CollectionKind::OrderedRecords {
+                        100
+                    } else {
+                        10000
+                    }
                 || (collection.kind == CollectionKind::OrderedRecords
                     && collection.fields.is_empty())
             {
                 check.issue(
                     DiagnosticCode::InvalidLimit,
                     &at,
-                    "1–100 records and at least one field required",
+                    "collection size outside its registered bounds or missing record fields",
                 );
             }
             check.name(&collection.label_key, format!("{at}/label-key"));
             check.name(&collection.item_label_key, format!("{at}/item-label-key"));
-            if collection.kind == CollectionKind::ReferenceFiles {
+            if collection.kind != CollectionKind::OrderedRecords {
                 if !collection.fields.is_empty()
                     || !collection.unique_by.is_empty()
                     || collection.language_key.is_some()
-                    || collection.summary_field != "name"
+                    || collection.summary_field
+                        != if collection.kind == CollectionKind::BibliographicRecords {
+                            "key"
+                        } else {
+                            "name"
+                        }
                     || !collection.summary.is_empty()
                 {
                     check.issue(
                         DiagnosticCode::UnsupportedPolicy,
                         &at,
-                        "reference-files owns its registered fields and validation",
+                        "bibliographic collections own their registered fields and validation",
                     );
                 }
             } else {
@@ -519,7 +529,7 @@ fn check_views(definition: &Definition, check: &mut Check) {
                     check.issue(
                         DiagnosticCode::UnsupportedPolicy,
                         &at,
-                        "reference-files requires its registered bibliography view",
+                        "bibliographic records require their registered bibliography view",
                     );
                 }
                 if let Some(key) = item_label_key {
@@ -563,7 +573,7 @@ fn check_views(definition: &Definition, check: &mut Check) {
                 if !definition
                     .collections
                     .iter()
-                    .any(|c| c.id == *collection && c.kind == CollectionKind::ReferenceFiles)
+                    .any(|c| c.id == *collection && c.kind == CollectionKind::BibliographicRecords)
                 {
                     check.issue(
                         DiagnosticCode::UnknownReference,
@@ -691,7 +701,7 @@ fn check_registered(definition: &Definition, check: &mut Check) {
     for collection in definition
         .collections
         .iter()
-        .filter(|c| c.kind == CollectionKind::ReferenceFiles)
+        .filter(|c| c.kind == CollectionKind::BibliographicRecords)
     {
         if !definition
             .header

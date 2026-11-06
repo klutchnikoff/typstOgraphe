@@ -1,3 +1,4 @@
+import { labeledField } from './form-field'
 import type { Field, MetadataGroup } from './shell'
 import type { MetadataCommands } from './metadata-commands'
 import { bindMetadataInput, metadataInputBinding } from './metadata-input'
@@ -64,10 +65,6 @@ function metadataField(
     resources?: ResourceContext
   },
 ) {
-  const row = document.createElement('div')
-  row.className = 'field'
-  const label = document.createElement('label')
-  label.textContent = definition.label
   const date = definition.resource
     ? metadataResource(definition, value, change, binding)
     : definition.kind === 'date'
@@ -75,9 +72,8 @@ function metadataField(
       : undefined
   const { controls, input } =
     date ?? metadataControl(definition, String(value ?? ''), change, editInput)
+  const row = labeledField(definition.label, input, controls)
   if (definition.resource) row.classList.add('metadata-resource-field')
-  label.htmlFor = input.id
-  row.append(label, controls)
   date?.bind()
   return row
 }

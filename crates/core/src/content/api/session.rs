@@ -212,9 +212,10 @@ impl Session {
         assets: Assets,
         dependencies: packages::Dependencies,
     ) -> Archive {
-        let dependencies = crate::content::source(&s.document, &assets)
-            .map(|source| packages::including_source(&dependencies, &source))
-            .unwrap_or(dependencies);
+        let dependencies =
+            crate::content::source_with_metadata(&s.document, &assets, &s.settings.metadata)
+                .map(|source| packages::including_source(&dependencies, &source))
+                .unwrap_or(dependencies);
         Archive {
             document: s.document.clone(),
             metadata: s.settings.metadata.clone(),

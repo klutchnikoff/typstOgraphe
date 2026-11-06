@@ -57,8 +57,12 @@ fn ranges(state: &State) -> Vec<(TextZone, usize, usize)> {
 impl Session {
     pub(super) fn render_query(&mut self, id: &str, p: &Value) -> Result<Value, CommandError> {
         let archive = self.archive()?;
-        let (source, map) = crate::content::source_mapped(&archive.document, &archive.assets)
-            .map_err(|_| content_error(invalid("source_map")))?;
+        let (source, map) = crate::content::source_mapped_with_metadata(
+            &archive.document,
+            &archive.assets,
+            &archive.metadata,
+        )
+        .map_err(|_| content_error(invalid("source_map")))?;
         self.world.set_assets(&archive.assets);
         self.world.set_dependencies(&archive.dependencies);
         let doc = self

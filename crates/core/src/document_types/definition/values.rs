@@ -64,12 +64,32 @@ impl LoadedDefinition {
                     "collection size exceeds its contract",
                 ));
             }
-            if collection.kind == CollectionKind::ReferenceFiles {
-                let result = serde_json::from_value::<Vec<crate::bibliography::ReferenceFile>>(
-                    Value::Array(records.clone()),
-                )
-                .map_err(|e| e.to_string())
-                .and_then(|files| crate::bibliography::index(&files).map(|_| ()));
+            if collection.kind != CollectionKind::OrderedRecords {
+                let result = match collection.kind {
+                    CollectionKind::BibliographicRecords => {
+                        serde_json::from_value::<Vec<typstographe_bibliography::Record>>(
+                            Value::Array(records.clone()),
+                        )
+                        .map_err(|e| e.to_string())
+                        .and_then(|records| {
+                            typstographe_bibliography::Library::new(records)
+                                .map(|_| ())
+                                .map_err(|e| e.to_string())
+                        })
+                    }
+                    _ => serde_json::from_value::<Vec<typstographe_bibliography::ImportSource>>(
+                        Value::Array(records.clone()),
+                    )
+                    .map_err(|e| e.to_string())
+                    .and_then(|sources| {
+                        let ids: BTreeSet<_> = sources.iter().map(|s| s.id()).collect();
+                        if ids.len() == sources.len() {
+                            Ok(())
+                        } else {
+                            Err("Duplicate bibliography source identity".into())
+                        }
+                    }),
+                };
                 if let Err(detail) = result {
                     issues.push(issue(DiagnosticCode::InvalidValue, &path, detail));
                 }

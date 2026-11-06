@@ -55,7 +55,33 @@ impl Node {
 pub fn source(document: &Node, assets: &Assets) -> Result<String, String> {
     generate(document, assets, false)
 }
+pub fn source_with_metadata(
+    document: &Node,
+    assets: &Assets,
+    metadata: &crate::document_types::Metadata,
+) -> Result<String, String> {
+    generate_resolved(document, assets, false, &citation_keys(metadata))
+}
+pub(super) type CitationKeys = std::collections::BTreeMap<String, String>;
+pub(super) fn citation_keys(metadata: &crate::document_types::Metadata) -> CitationKeys {
+    match metadata {
+        crate::document_types::Metadata::Article(meta) => meta
+            .references
+            .iter()
+            .map(|r| (String::from(r.id().clone()), r.key().into()))
+            .collect(),
+        _ => Default::default(),
+    }
+}
 pub(super) fn generate(document: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
+    generate_resolved(document, assets, mapped, &Default::default())
+}
+pub(super) fn generate_resolved(
+    document: &Node,
+    assets: &Assets,
+    mapped: bool,
+    keys: &CitationKeys,
+) -> Result<String, String> {
     if document.kind != "doc" || document.text.is_some() || !document.marks.is_empty() {
         return Err("Un document structuré est attendu.".into());
     }
@@ -63,7 +89,7 @@ pub(super) fn generate(document: &Node, assets: &Assets, mapped: bool) -> Result
     limits(document, 0, &mut count, mapped)?;
     super::references::validate(document)?;
     super::mathematics::validate(document)?;
-    let mut result = blocks(&document.content, assets, mapped)?;
+    let mut result = blocks(&document.content, assets, mapped, keys)?;
     fn notes(node: &Node) -> bool {
         matches!(node.kind.as_str(), "postscript" | "attachment") || node.content.iter().any(notes)
     }
@@ -132,17 +158,27 @@ fn limits(node: &Node, depth: usize, count: &mut usize, mapped: bool) -> Result<
     }
     Ok(())
 }
-fn blocks(nodes: &[Node], assets: &Assets, mapped: bool) -> Result<String, String> {
+fn blocks(
+    nodes: &[Node],
+    assets: &Assets,
+    mapped: bool,
+    keys: &CitationKeys,
+) -> Result<String, String> {
     nodes
         .iter()
-        .map(|node| block(node, assets, mapped))
+        .map(|node| block(node, assets, mapped, keys))
         .collect::<Result<Vec<_>, _>>()
         .map(|s| s.join("\n\n"))
 }
-fn block(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
+fn block(
+    node: &Node,
+    assets: &Assets,
+    mapped: bool,
+    keys: &CitationKeys,
+) -> Result<String, String> {
     let result = match node.kind.as_str() {
         "mathBlock" => mapped_math(node, mapped)?,
-        "paragraph" => format!("#par[{}]", inline(&node.content, mapped)?),
+        "paragraph" => format!("#par[{}]", inline_resolved(&node.content, mapped, keys)?),
         "heading" => {
             let level = node.integer("level", 1);
             if !(1..=3).contains(&level) {
@@ -150,7 +186,7 @@ fn block(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
             }
             format!(
                 "#heading(level: {level})[{}]",
-                inline(&node.content, mapped)?
+                inline_resolved(&node.content, mapped, keys)?
             )
         }
         "bulletList" | "orderedList" => {
@@ -162,7 +198,10 @@ fn block(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
                 {
                     return Err("Seules les listes non imbriquées sont prises en charge.".into());
                 }
-                items.push(format!("[{}]", blocks(&item.content, assets, mapped)?));
+                items.push(format!(
+                    "[{}]",
+                    blocks(&item.content, assets, mapped, keys)?
+                ));
             }
             let function = if node.kind == "bulletList" {
                 "list"
@@ -186,9 +225,10 @@ fn block(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
                 &format!("image({}, alt: {alt})", typst_string(path)),
                 &node.content,
                 mapped,
+                keys,
             )?
         }
-        "table" => table_figure(node, &[], assets, mapped)?,
+        "table" => table_figure(node, &[], assets, mapped, keys)?,
         "tableFigure" => {
             if node.content.len() != 2
                 || node.content[0].kind != "table"
@@ -196,7 +236,13 @@ fn block(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
             {
                 return Err("Tableau et légende attendus.".into());
             }
-            table_figure(&node.content[0], &node.content[1].content, assets, mapped)?
+            table_figure(
+                &node.content[0],
+                &node.content[1].content,
+                assets,
+                mapped,
+                keys,
+            )?
         }
         "quote" => {
             let annotation = node
@@ -204,7 +250,7 @@ fn block(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
                 .last()
                 .filter(|child| child.kind == "quoteAttribution")
                 .ok_or("Attribution attendue dans la citation.")?;
-            let attribution = inline(&annotation.content, mapped)?;
+            let attribution = inline_resolved(&annotation.content, mapped, keys)?;
             let option = if attribution.is_empty() {
                 String::new()
             } else {
@@ -212,7 +258,12 @@ fn block(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
             };
             format!(
                 "#quote(block: true{option})[{}]",
-                blocks(&node.content[..node.content.len() - 1], assets, mapped)?
+                blocks(
+                    &node.content[..node.content.len() - 1],
+                    assets,
+                    mapped,
+                    keys
+                )?
             )
         }
         "descriptionList" => {
@@ -227,14 +278,18 @@ fn block(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
                 }
                 items.push(format!(
                     "terms.item([{}], [{}])",
-                    inline(&item.content[0].content, mapped)?,
-                    inline(&item.content[1].content, mapped)?
+                    inline_resolved(&item.content[0].content, mapped, keys)?,
+                    inline_resolved(&item.content[1].content, mapped, keys)?
                 ));
             }
             format!("#terms({})", items.join(", "))
         }
         "postscript" | "attachment" => {
-            format!("#{}[{}]", node.kind, inline(&node.content, mapped)?)
+            format!(
+                "#{}[{}]",
+                node.kind,
+                inline_resolved(&node.content, mapped, keys)?
+            )
         }
         other => return Err(format!("Structure non prise en charge : {other}")),
     };
@@ -252,17 +307,24 @@ fn table_figure(
     caption: &[Node],
     assets: &Assets,
     mapped: bool,
+    keys: &CitationKeys,
 ) -> Result<String, String> {
-    let grid = table(node, assets, mapped)?;
+    let grid = table(node, assets, mapped, keys)?;
     figure(
         grid.strip_prefix('#').expect("table expression"),
         caption,
         mapped,
+        keys,
     )
 }
 /// Common native figure envelope; accessibility descriptions remain on the image body.
-fn figure(body: &str, caption: &[Node], mapped: bool) -> Result<String, String> {
-    let caption = inline(caption, mapped)?;
+fn figure(
+    body: &str,
+    caption: &[Node],
+    mapped: bool,
+    keys: &CitationKeys,
+) -> Result<String, String> {
+    let caption = inline_resolved(caption, mapped, keys)?;
     let option = if caption.is_empty() {
         String::new()
     } else {
@@ -271,7 +333,12 @@ fn figure(body: &str, caption: &[Node], mapped: bool) -> Result<String, String> 
     Ok(format!("#figure({body}{option})"))
 }
 
-fn table(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
+fn table(
+    node: &Node,
+    assets: &Assets,
+    mapped: bool,
+    keys: &CitationKeys,
+) -> Result<String, String> {
     let width = node.content.first().map_or(0, |r| r.content.len());
     if !(1..=12).contains(&width) || node.content.len() > 100 {
         return Err("Tableau limité à 12 colonnes et 100 lignes.".into());
@@ -308,7 +375,7 @@ fn table(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
             {
                 return Err("Invalid table header scope.".into());
             }
-            let body = format!("[{}]", blocks(&cell.content, assets, mapped)?);
+            let body = format!("[{}]", blocks(&cell.content, assets, mapped, keys)?);
             content.push(match scope {
                 Some("row" | "both") => format!(
                     "table-header-cell({body}, scope: {})",
@@ -325,7 +392,7 @@ fn table(node: &Node, assets: &Assets, mapped: bool) -> Result<String, String> {
     }
     Ok(format!("#table(columns: {width}, {})", cells.join(", ")))
 }
-pub(super) fn inline(nodes: &[Node], mapped: bool) -> Result<String, String> {
+fn inline_resolved(nodes: &[Node], mapped: bool, keys: &CitationKeys) -> Result<String, String> {
     nodes
         .iter()
         .map(|node| {
@@ -356,17 +423,24 @@ pub(super) fn inline(nodes: &[Node], mapped: bool) -> Result<String, String> {
                         .items
                         .iter()
                         .map(|item| {
-                            format!(
+                            Ok(format!(
                                 "#cite(label({}), supplement: {})",
-                                typst_string(&item.key),
+                                typst_string(
+                                    keys.get(&String::from(item.record_id.clone())).ok_or_else(
+                                        || format!(
+                                            "Missing bibliography record: {}",
+                                            String::from(item.record_id.clone())
+                                        )
+                                    )?
+                                ),
                                 if item.supplement.is_empty() {
                                     "none".into()
                                 } else {
                                     format!("[{}]", super::mapping::literal(&item.supplement))
                                 }
-                            )
+                            ))
                         })
-                        .collect::<String>();
+                        .collect::<Result<String, String>>()?;
                     let expression =
                         format!("#citation(form: {})[{items}]", typst_string(&citation.form));
                     if mapped {
@@ -452,6 +526,10 @@ fn mapped_math(node: &Node, mapped: bool) -> Result<String, String> {
     } else {
         expression
     })
+}
+
+pub(super) fn inline(nodes: &[Node], mapped: bool) -> Result<String, String> {
+    inline_resolved(nodes, mapped, &Default::default())
 }
 
 #[cfg(test)]

@@ -6714,6 +6714,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "typstographe-bibliography"
+version = "0.1.0"
+dependencies = [
+ "biblatex",
+ "hayagriva",
+ "regex",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "strsim",
+ "thiserror 2.0.21",
+ "unicode-normalization",
+ "yaml_serde",
+]
+
+[[package]]
 name = "typstographe-cli"
 version = "0.1.0"
 dependencies = [
@@ -6739,7 +6756,6 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "comemo",
- "hayagriva",
  "jsonschema",
  "png",
  "regex",
@@ -6751,7 +6767,6 @@ dependencies = [
  "sha2 0.11.1",
  "similar",
  "spellbook",
- "strsim",
  "tempfile",
  "thiserror 2.0.21",
  "typst",
@@ -6762,6 +6777,7 @@ dependencies = [
  "typst-pdf",
  "typst-render",
  "typst-syntax",
+ "typstographe-bibliography",
  "unicode-normalization",
  "unicode-segmentation",
  "uuid",

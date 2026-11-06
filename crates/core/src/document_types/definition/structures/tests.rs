@@ -159,6 +159,7 @@ fn explicit_orders_are_complete_permutations_and_cannot_hide_content() {
         "authors",
         "localizations",
         "references",
+        "reference_sources",
         "article.citation_style",
         "article.show_outline"
     ]);

@@ -1,6 +1,6 @@
 import { navigationGroup } from './keyboard-navigation'
 import type { PublicCommand, Registry } from './commands'
-import { commandAvailability, refreshCommandButton } from './public-commands'
+import { commandAvailability, commandVisible, refreshCommandButton } from './public-commands'
 import { tr } from './i18n'
 
 let nextId = 0
@@ -41,11 +41,14 @@ export function commandPalette(
       refreshCommandButton(button, command)
     })
   }
+  const visibleCommands = () => [...commands.values()].filter(commandVisible)
+  let displayed: PublicCommand[] = []
   const fill = () => {
     results.replaceChildren()
     rows = []
     const query = input.value.toLocaleLowerCase()
-    for (const command of commands.values()) {
+    displayed = visibleCommands()
+    for (const command of displayed) {
       if (!command.label.toLocaleLowerCase().includes(query)) continue
       const button = document.createElement('button')
       button.type = 'button'
@@ -64,11 +67,24 @@ export function commandPalette(
   }
   const refresh = () => {
     if (!input.isConnected) {
-      document.removeEventListener('commands:availability', refresh)
+      destroy()
       return
     }
-    refreshAvailability()
-    navigation.refresh()
+    const next = visibleCommands()
+    if (
+      next.length !== displayed.length ||
+      next.some((command, index) => command !== displayed[index])
+    )
+      fill()
+    else {
+      refreshAvailability()
+      navigation.refresh()
+    }
+  }
+  const destroy = () => {
+    document.removeEventListener('commands:availability', refresh)
+    navigation.destroy()
+    input.oninput = null
   }
   document.addEventListener('commands:availability', refresh)
   input.oninput = fill
@@ -76,4 +92,5 @@ export function commandPalette(
   fill()
   navigation.refresh(true)
   input.focus()
+  return { destroy }
 }

@@ -246,7 +246,7 @@ it('renders archived image bytes and citation labels without sharing the active 
               {
                 type: 'citation',
                 attrs: {
-                  items: [{ file_id: 'books', key: 'key', supplement: '' }],
+                  items: [{ record_id: 'books', supplement: '' }],
                   form: 'normal',
                 },
               },
@@ -269,8 +269,7 @@ it('renders archived image bytes and citation labels without sharing the active 
     },
     references: [
       {
-        file_id: 'books',
-        file_name: 'books.bib',
+        record_id: 'books',
         key: 'key',
         title: 'Une étude',
         authors: 'Martin',

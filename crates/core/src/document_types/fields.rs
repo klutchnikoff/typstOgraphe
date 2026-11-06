@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub enum MetadataField {
     #[serde(rename = "article.references")]
     ArticleReferences,
+    #[serde(rename = "article.reference_sources")]
+    ArticleReferenceSources,
     #[serde(rename = "article.citation_style")]
     ArticleCitationStyle,
     #[serde(rename = "article.show_outline")]

@@ -2,8 +2,8 @@ name: Validation complète
 on:
   push:
     tags: ['v*']
-  schedule:
-    - cron: '41 3 * * 1'
+  pull_request:
+    types: [labeled]
   workflow_dispatch:
     inputs:
       packages:
@@ -18,10 +18,11 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: exhaustive-${{ github.ref }}
+  group: exhaustive-${{ github.ref }}-${{ github.event_name == 'pull_request' && github.event.label.name || 'requested' }}
   cancel-in-progress: ${{ github.ref_type != 'tag' }}
 jobs:
   scope:
+    if: github.event_name != 'pull_request' || github.event.label.name == 'full-ci'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -51,27 +52,8 @@ jobs:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
         run: node .github/scripts/release-publish.mjs check
-      - name: Last successful validation on main
-        if: github.event_name == 'schedule'
-        id: previous
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if base=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/exhaustive.yml/runs?branch=main&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty'); then
-            echo "base=$base" >> "$GITHUB_OUTPUT"
-          else
-            echo '::warning::Historique indisponible ; validation complète par précaution.'
-          fi
       - id: plan
-        env:
-          CI_BASE_SHA: ${{ steps.previous.outputs.base }}
-          CI_EVENT: ${{ github.event_name }}
-        run: |
-          if [ "$CI_EVENT" = schedule ]; then
-            python3 .github/scripts/ci_plan.py --base "$CI_BASE_SHA"
-          else
-            python3 .github/scripts/ci_plan.py --force
-          fi
+        run: python3 .github/scripts/ci_plan.py --force
   verify:
     needs: scope
     if: needs.scope.outputs.code == 'true'

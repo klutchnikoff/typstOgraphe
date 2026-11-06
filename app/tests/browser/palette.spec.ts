@@ -16,8 +16,12 @@ test('les flèches parcourent les commandes filtrées sans quitter la recherche 
     window.__spike!.editor.commands.setContent('<p>Un titre à appliquer</p>')
     window.__spike!.editor.commands.focus('start')
   })
+  // Tiptap focus() resolves on an animation frame. The user starts from a
+  // focused editor; opening the palette before that frame lets this test's
+  // delayed setup steal focus back from the search field.
+  await expect(page.getByRole('textbox', { name: 'Corps du document', exact: true })).toBeFocused()
   const before = await page.evaluate(() => window.__spike!.editor.getJSON())
-  await page.keyboard.press('Control+Shift+P')
+  await page.keyboard.press('ControlOrMeta+Shift+P')
   const input = page.getByRole('combobox', { name: 'Rechercher une commande', exact: true })
   await expect(input).toBeFocused()
   await input.fill('Titre')

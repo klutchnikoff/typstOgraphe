@@ -9,7 +9,7 @@ const repo = fileURLToPath(new URL('../../', import.meta.url))
 const manual = process.argv.includes('--manual')
 const input = path.resolve(
   process.argv.slice(2).find((arg) => !arg.startsWith('--')) ||
-    path.join(repo, 'examples/article-working.typsto'),
+    path.join(repo, 'fixtures/projects/article-working.typsto'),
 )
 const root = path.join(repo, 'output/paragraph-input-native', `run-${Date.now()}`)
 await mkdir(root, { recursive: true })

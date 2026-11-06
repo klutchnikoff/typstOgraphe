@@ -1,5 +1,23 @@
 # Exemples
 
+## Bibliographie et profils natifs — format courant
+
+[article-bibliography-profiles.typsto](article-bibliography-profiles.typsto)
+est un article au format **CAS 16**, avec citations et bibliothèque native.
+Il reprend le contenu de l’exemple bibliographique versionné ; un livre conserve
+également une revue inactive de démonstration. Dans Bibliographie → Gérer les
+références, changer son type en Article de revue retrouve cette publication ;
+les autres champs restent conservés. Une validation constitue une seule édition
+annulable, sans sauvegarde automatique.
+
+La [recette CLI](cli/article-bibliography.json) le reconstruit vers une destination
+libre. Le fichier actif `bibliography/references.yaml` sert au rendu ;
+`bibliography/retained.json` conserve séparément les publications inactives dans
+le CAS et l’export Typst. Aucun document local existant n’est converti.
+
+Les exemples ci-dessous restent des références de lots antérieurs ; leurs anciens
+formats ne sont pas annoncés compatibles avec CAS 16.
+
 [article-working.typsto](article-working.typsto) est un article de démonstration
 au format CAS 14, avec le générateur Typst 4 (guillemets et apostrophes typographiques, manifeste du modèle embarqué),
 régénéré depuis le contenu versionné : auteurs et affiliations, résumés bilingues, sommaire, titres, citation

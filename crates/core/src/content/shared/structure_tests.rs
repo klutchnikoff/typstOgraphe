@@ -141,7 +141,7 @@ fn object_commands_refuse_invalid_boundaries_private_attributes_and_bibliography
         &article,
         vec![command(
             "inline.replace",
-            json!({"target":body(json!([0]),1,1),"node":{"type":"citation","attrs":{"items":[{"file_id":"absent","key":"missing","supplement":""}],"form":"normal"}}}),
+            json!({"target":body(json!([0]),1,1),"node":{"type":"citation","attrs":{"items":[{"record_id":"absent","supplement":""}],"form":"normal"}}}),
         )],
     );
 }

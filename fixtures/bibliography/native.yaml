@@ -1,0 +1,59 @@
+# Synthetic native probes. No application metadata belongs in this file.
+minimal:
+  type: article
+
+formatted-paper:
+  type: article
+  title:
+    value: "Estimation of {DNA} and $x^2$"
+    short: "{DNA} estimation"
+  author:
+    - name: Martin
+      given-name: Camille
+    - name: Example Research Group
+  date: 2024-03-12
+  language: fr
+  serial-number:
+    doi: 10.5555/bibliography-example
+  parent:
+    type: periodical
+    title: Journal of Bibliographic Examples
+    volume: 12
+    issue: 2
+
+chapter:
+  type: anthos
+  title: Un chapitre d'exemple
+  author: "Martin, Camille"
+  page-range: 21-40
+  parent:
+    type: anthology
+    title: Méthodes et exemples
+    editor: "Durand, Élise"
+    publisher: Example Press
+    date: 2024
+
+preprint:
+  type: article
+  title: A preliminary study
+  author: "Martin, Camille"
+  date: 2023
+  serial-number:
+    arxiv: 2306.16091v2
+  parent:
+    type: repository
+    title: arXiv
+
+manuscript:
+  type: manuscript
+  title: An unpublished manuscript
+  author: "Martin, Camille"
+
+software:
+  type: repository
+  title:
+    value: ExampleSoftware
+    verbatim: true
+  author: Example Research Group
+  edition: 1.2.0
+  url: https://example.org/software

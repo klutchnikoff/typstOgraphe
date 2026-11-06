@@ -187,7 +187,11 @@ export function browserDriver(root: string): Plugin {
           }
         } catch (error) {
           response.setHeader('Content-Type', 'application/json')
-          response.end(JSON.stringify({ error: String(error) }))
+          response.end(
+            JSON.stringify({
+              error: error && typeof error === 'object' && 'code' in error ? error : String(error),
+            }),
+          )
         }
       })
       server.httpServer?.on('close', () => {

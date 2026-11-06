@@ -265,7 +265,11 @@ fn dispatch(
                 peer,
                 |candidate, assets| {
                     bridge.renderer.validate(
-                        &crate::schema::source(&candidate.after, assets)?,
+                        &typstographe_core::content::source_with_metadata(
+                            &candidate.after,
+                            assets,
+                            &candidate.settings.metadata,
+                        )?,
                         assets,
                         bridge.session()?.render_context(&candidate.settings),
                     )
@@ -288,6 +292,18 @@ fn dispatch(
             })
             .map_err(CommandError::from)
         }
+        "bibliography_query" => bibliography::bibliography_query(
+            serde_json::from_value(args["metadata"].clone())?,
+            args["operation"].as_str().unwrap_or("").into(),
+            serde_json::from_value(
+                args.get("document")
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null),
+            )?,
+            args.get("params")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!({})),
+        ),
         "validate_bibliography" => {
             bibliography::validate_bibliography(
                 serde_json::from_value(args["document"].clone())?,
@@ -540,8 +556,16 @@ fn dispatch(
             let encoding = serde_json::from_value(args["encoding"].clone())?;
             let session = bridge.session()?;
             let source = session.validate(&snapshot)?;
-            let map =
-                typstographe_core::content::source_mapped(&snapshot.document, &session.assets)?.1;
+            let map = typstographe_core::content::source_mapped_with_metadata(
+                &snapshot.document,
+                &session.assets,
+                &snapshot
+                    .settings
+                    .as_ref()
+                    .unwrap_or(&session.settings)
+                    .metadata,
+            )?
+            .1;
             let bytes = bridge.renderer.frame(
                 source,
                 session.assets.clone(),
@@ -570,8 +594,16 @@ fn dispatch(
             });
             let map = if command == "preview" {
                 Some(
-                    typstographe_core::content::source_mapped(&snapshot.document, &session.assets)?
-                        .1,
+                    typstographe_core::content::source_mapped_with_metadata(
+                        &snapshot.document,
+                        &session.assets,
+                        &snapshot
+                            .settings
+                            .as_ref()
+                            .unwrap_or(&session.settings)
+                            .metadata,
+                    )?
+                    .1,
                 )
             } else {
                 None

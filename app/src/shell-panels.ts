@@ -17,9 +17,12 @@ export type SidePanels = ReturnType<typeof sidePanels>
  */
 export function sidePanels(ctx: ShellContext, layout: Pick<ShellLayout, 'side' | 'panel'>) {
   const { editor, commands } = ctx
+  let palette: ReturnType<typeof commandPalette> | undefined
   let versions: ReturnType<typeof versionsPanel> | undefined
   let releaseRecovered: (() => void) | undefined
   const release = () => {
+    palette?.destroy()
+    palette = undefined
     versions?.destroy()
     versions = undefined
     releaseRecovered?.()
@@ -74,7 +77,8 @@ export function sidePanels(ctx: ShellContext, layout: Pick<ShellLayout, 'side' |
       releaseRecovered?.()
     },
     palette() {
-      commandPalette(show(tr('Commandes'), 'ui.palette'), commands, (command) => {
+      palette = commandPalette(show(tr('Commandes'), 'ui.palette'), commands, (command) => {
+        release()
         railMode.close()
         runCommand(command)
       })

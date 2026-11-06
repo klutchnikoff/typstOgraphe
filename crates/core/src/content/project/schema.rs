@@ -5,8 +5,8 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
-pub const FORMAT_VERSION: u32 = 14;
-pub(super) const SOURCE_GENERATOR_VERSION: u32 = 4;
+pub const FORMAT_VERSION: u32 = 16;
+pub(super) const SOURCE_GENERATOR_VERSION: u32 = 5;
 pub const MAX_SNAPSHOTS: usize = 100;
 pub const MAX_ARCHIVE_BYTES: u64 = 512 * 1024 * 1024;
 pub const MAX_OBJECTS: usize = 16_384;

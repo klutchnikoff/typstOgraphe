@@ -129,13 +129,18 @@ fn article_reopening_preserves_original_bibliography_image_caption_and_citation(
         unreachable!()
     };
     let contents = "@book{martin2026, author={Martin, Camille}, title={Étude des archives}, year={2026}}\n% Conserver aussi ce commentaire\n";
-    article.references = vec![typstographe_core::bibliography::ReferenceFile {
-        id: "sources".into(),
-        name: "archives.bib".into(),
-        contents: contents.into(),
-    }];
+    let prepared = typstographe_core::bibliography::editions::prepare(
+        serde_json::from_value(
+            json!({"id":"sources","name":"archives.bib","format":"biblatex","contents":contents}),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let record_id = prepared.records[0].id().clone();
+    article.references = prepared.records;
+    article.reference_sources = vec![prepared.source];
     let state = State::new(serde_json::from_value(json!({"type":"doc","content":[
-        {"type":"paragraph","content":[{"type":"text","text":"Une référence "},{"type":"citation","attrs":{"items":[{"file_id":"sources","key":"martin2026"}],"form":"normal"}}]},
+        {"type":"paragraph","content":[{"type":"text","text":"Une référence "},{"type":"citation","attrs":{"items":[{"record_id":record_id}],"form":"normal"}}]},
         {"type":"figure","attrs":{"src":"images/signature.svg","alt":"Illustration"},"content":[{"type":"text","text":"Légende"}]},
         {"type":"paragraph"}
     ]})).unwrap(), Settings { metadata, model_manifest:DocumentType::Article.default_model_manifest().into(), template:DocumentType::Article.default_model(), model_id:DocumentType::Article.models().next().unwrap().model.id().into() });
@@ -164,6 +169,6 @@ fn article_reopening_preserves_original_bibliography_image_caption_and_citation(
     let Metadata::Article(article) = &reopened.settings.metadata else {
         unreachable!()
     };
-    assert_eq!(article.references[0].contents, contents);
+    assert_eq!(article.reference_sources[0].contents(), contents);
     assert_eq!(reopened.assets.len(), 1);
 }

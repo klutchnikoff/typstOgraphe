@@ -1,4 +1,5 @@
 //! Yjs-compatible state owned by Rust. Shared types never cross this boundary.
+mod bibliography;
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod break_tests;

@@ -24,6 +24,34 @@ pub fn types() -> Value {
 }
 const QUERIES: &[(&str, &str)] = &[
     (
+        "bibliography.review_import",
+        "Resolve explicit decisions against the frozen library fingerprint; return the reviewed plan without publication. No silent rebase of import decisions.",
+    ),
+    (
+        "bibliography.form",
+        "Project native record fields into simple editable controls, preserving unexposed metadata. The supplied record is a frozen draft base, never a write instruction.",
+    ),
+    (
+        "bibliography.prepare_form",
+        "Validate changed form controls against a frozen native record, then optionally change its native classification with profile. Returns the proposed native record and its derived editing profile, preserving inactive publication containers. Does not publish. Use bibliography.apply (replace) with the original record fingerprint for a prepared form, or create for a new notice; a sequence of private form changes still publishes one undoable edit.",
+    ),
+    (
+        "bibliography.browse",
+        "Search all project notices by title/authors with compact summaries, derived profile and completeness. No 80-item suggestion limit.",
+    ),
+    (
+        "bibliography.usage",
+        "Return typed tree targets of a notice’s citations in the document body, including widget text. Header profiles currently exclude citation objects.",
+    ),
+    (
+        "bibliography.record",
+        "Read one native record by stable id, its content fingerprint and completeness diagnostics. Use its fingerprint as the record guard for edit, rename or remove within bibliography.apply.",
+    ),
+    (
+        "bibliography.inspect",
+        "Read active native records with stable identities, editable keys and library fingerprint, plus immutable source summaries. Article-only. Use bibliography.apply for guarded, undoable changes; create-and-cite uses one atomic batch with inline.replace. Imports require the reviewed preparation fingerprint and explicit conflict decisions; no direct file write occurs.",
+    ),
+    (
         "references.list",
         "List cross-reference targets in document order with stable opaque IDs, kinds, titles and current paths. IDs survive title edits; paths are revision-scoped. Use inline.replace with a crossReference node (target, include_label, include_page). Labels and page formatting belong to the model; at least one component is required. Deleting a referenced target requires removing or retargeting its references in the same atomic batch.",
     ),
@@ -102,6 +130,18 @@ const QUERIES: &[(&str, &str)] = &[
     (
         "bibliography.search",
         "Search the project bibliography by title and author.",
+    ),
+    (
+        "bibliography.profiles",
+        "Describe common editing profiles derived from native Hayagriva types and active parents. Profiles are never stored as independent classifications. Article-only; completeness recommendations are not mandatory bibliographic fields.",
+    ),
+    (
+        "bibliography.prepare_import",
+        "Prepare an in-memory BibLaTeX/Hayagriva import with stable proposal identities, source digest and conversion diagnostics. UTF-8 contents are supplied explicitly, never a disk path. Does not add active references, create a citation, publish, save or change undo history. Returned IDs identify candidates: reconciliation can keep an existing target ID. Inspect diagnostics and plan; pass the report fingerprint, library_fingerprint and explicit decisions to bibliography.apply, then read inspect/search for active citation targets.",
+    ),
+    (
+        "bibliography.prepare_record",
+        "Prepare a new native bibliographic notice with a proposed available key and nonblocking completeness diagnostics. Does not edit active project notices or create a citation. Native fields overlay the profile's starting structure; the returned profile is derived from the resulting native entry; unexposed fields are retained. Explicit occupied keys and invalid fields are refused. Publish through bibliography.apply (create) before using record_id in a citation, or do both in one atomic batch.",
     ),
     (
         "context.get",
@@ -186,6 +226,9 @@ fn object(properties: Value, required: &[&str]) -> Value {
     json!({"type":"object","properties":properties,"required":required,"additionalProperties":false})
 }
 fn extra_schema(id: &str) -> Value {
+    if let Some(schema) = super::bibliography::parameter_schema(id) {
+        return schema;
+    }
     let string = json!({"type":"string"});
     let mut defs = commands::schema()["$defs"].clone();
     let mut s = match id {
@@ -282,6 +325,9 @@ fn build_catalogue() -> Value {
             "description":command_description(id)})
     }).collect();
     entries.extend(QUERIES.iter().chain(ACTIONS).map(|(id, description)|json!({"id":id,"family":if is_query(id){"query"}else{"session"},"batch_step":false,"description":description,"params_schema":extra_schema(id)})));
+    for entry in &mut entries {
+        super::prune_schema(&mut entry["params_schema"]);
+    }
     entries.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
     json!({"version":super::super::contract::VERSION,"target_offsets":"utf16","entries":entries})
 }
@@ -300,6 +346,10 @@ pub fn describe(id: &str) -> Option<Value> {
         .cloned()
         .or_else(|| capabilities::describe(id))?;
     value["examples"] = json!(super::examples::for_id(id));
+    if let Some(schema) = super::bibliography::result_schema(id) {
+        value["result_schema"] = schema;
+        value["result_schema_scope"] = json!("query_outcome");
+    }
     if capabilities::find(id).is_some() {
         value["capability"] = json!(capabilities::find(id).unwrap());
         value["editor"] = capabilities::editor(id);
@@ -313,6 +363,7 @@ pub fn describe(id: &str) -> Option<Value> {
 
 fn command_description(id: &str) -> String {
     match id {
+        "bibliography.apply" => "Publish one guarded native-library change in memory, never save. expected is the library fingerprint from bibliography.inspect. Edit, replace, rename and remove also require the record fingerprint from bibliography.record. Edit profile changes native type/parents; no independent genre is stored. Replace accepts a prepared native record while preserving identity/provenance, including retained inactive parents. Import requires the reviewed preparation fingerprint and explicit same/distinct/skip decisions; unresolved plans are refused. Use one atomic batch with inline.replace for create-and-cite. Undo restores notices, citations and provenance together.",
         "text.insert" => "Insert/replace literal prose in one typed range; marks are explicit and default to none. No Typst/Markdown input rules.",
         "block.join" => "Join explicit adjacent left/right paragraphs or headings in the same container. Two nonempty paragraphs retain a single soft break at the seam (a Typst space); an existing break is reused. Joins involving headings concatenate directly. The nonempty left block keeps its kind and attributes. Remove an empty neighbor without converting its survivor. Widgets, cells and annotation boundaries are protected; the mandatory final editing slot is a no-op.",
         "list.item.split" => "Split a flat bullet/numbered list item at one paragraph range, or a description item at its definition range. Preserve the left item and prefix; the suffix and following paragraphs become a new item. Description terms remain separate, and the new term is empty. Empty-item exit is a separate operation.",

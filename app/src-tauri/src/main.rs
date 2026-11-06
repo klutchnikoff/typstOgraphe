@@ -298,7 +298,12 @@ async fn preview(state: State<'_, Bridge>, snapshot: Snapshot) -> Result<Preview
     tauri::async_runtime::spawn_blocking(move || {
         let (source, assets, settings, dependencies) =
             session.lock()?.render_snapshot(&snapshot)?;
-        let map = typstographe_core::content::source_mapped(&snapshot.document, &assets)?.1;
+        let map = typstographe_core::content::source_mapped_with_metadata(
+            &snapshot.document,
+            &assets,
+            &settings.metadata,
+        )?
+        .1;
         let result = renderer.render(
             source,
             assets,
@@ -329,7 +334,12 @@ async fn preview_frame(
     let bytes = tauri::async_runtime::spawn_blocking(move || -> Result<Vec<u8>, CommandError> {
         let (source, assets, settings, dependencies) =
             session.lock()?.render_snapshot(&snapshot)?;
-        let map = typstographe_core::content::source_mapped(&snapshot.document, &assets)?.1;
+        let map = typstographe_core::content::source_mapped_with_metadata(
+            &snapshot.document,
+            &assets,
+            &settings.metadata,
+        )?
+        .1;
         let bytes = renderer.frame(
             source,
             assets,
@@ -619,6 +629,7 @@ fn main() {
             files::save_file,
             files::open_file,
             bibliography::bibliography_search,
+            bibliography::bibliography_query,
             bibliography::bibliography_index,
             bibliography::validate_bibliography,
             bibliography::model_policy,

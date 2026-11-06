@@ -88,7 +88,8 @@ pub struct Collection {
 #[serde(rename_all = "kebab-case")]
 pub enum CollectionKind {
     OrderedRecords,
-    ReferenceFiles,
+    BibliographicRecords,
+    BibliographicSources,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

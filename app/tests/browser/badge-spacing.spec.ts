@@ -26,9 +26,8 @@ test.beforeEach(async ({ page, request }) => {
     const { setCitationEntries } = await import(referenceModule)
     setCitationEntries(editor, [
       {
-        file_id: 'demo',
+        record_id: 'demo',
         key: 'imaginaire1200',
-        file_name: 'demo.bib',
         title: 'Théorème de représentation',
         authors: 'Imaginaire',
         year: '1200',
@@ -70,7 +69,7 @@ for (const kind of ['footnote', 'citation'] as const) {
                     ...(kind === 'citation'
                       ? {
                           attrs: {
-                            items: [{ file_id: 'demo', key: 'imaginaire1200', supplement: '' }],
+                            items: [{ record_id: 'demo', supplement: '' }],
                             form: 'normal',
                           },
                         }
@@ -116,7 +115,7 @@ for (const kind of ['footnote', 'citation'] as const) {
                 ...(kind === 'citation'
                   ? {
                       attrs: {
-                        items: [{ file_id: 'demo', key: 'imaginaire1200', supplement: '' }],
+                        items: [{ record_id: 'demo', supplement: '' }],
                         form: 'normal',
                       },
                     }

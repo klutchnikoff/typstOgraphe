@@ -19,6 +19,33 @@ pub fn content_error_with(loader: &FluentLanguageLoader, error: &Error) -> Strin
         Error::InvalidParameters { parameter } => {
             return arg("content-invalid-parameter", "parameter", parameter.clone());
         }
+        Error::Bibliography { error } => {
+            use typstographe_core::bibliography::NoticeErrorCode as Code;
+            match error.code {
+                Code::InvalidIdentity | Code::DuplicateIdentity => "content-bibliography-identity",
+                Code::InvalidKey => "content-bibliography-key",
+                Code::DuplicateKey => {
+                    return arg(
+                        "content-bibliography-key-used",
+                        "key",
+                        error.key.clone().unwrap_or_default(),
+                    );
+                }
+                Code::InvalidSyntax => "content-bibliography-source",
+                Code::InvalidField | Code::UnsupportedField => {
+                    return arg(
+                        "content-bibliography-field",
+                        "field",
+                        error.field.clone().unwrap_or_else(|| "…".into()),
+                    );
+                }
+                Code::LimitExceeded => "content-bibliography-limit",
+                Code::MissingRecord => "content-bibliography-missing",
+                Code::StaleBase => "content-bibliography-stale",
+                Code::UnresolvedConflict | Code::InvalidDecision => "content-bibliography-decision",
+                _ => "content-bibliography-invalid",
+            }
+        }
         Error::CommandUnavailable {
             command,
             reason: typstographe_core::content::contract::UnavailableReason::UnsupportedDocumentType,
@@ -54,6 +81,9 @@ pub fn content_error_with(loader: &FluentLanguageLoader, error: &Error) -> Strin
         Error::InvalidDocument { reason } if reason == "duplicate_equation_alias" => {
             "content-equation-alias-duplicate"
         }
+        Error::InvalidDocument { reason } if reason.starts_with("bibliography_record_missing:") => {
+            "content-bibliography-cited-missing"
+        }
         Error::InvalidDocument { .. } => "content-document-invalid",
         Error::InvalidSettings { reason } => match reason.as_str() {
             "template_too_large" => "model-too-large",
@@ -81,6 +111,74 @@ pub fn archive_error_with(loader: &FluentLanguageLoader, error: &archive::Error)
         archive::Error::Access(error) => command_error_with(loader, error),
     };
     loader.get_args("storage-project-error", HashMap::from([("error", detail)]))
+}
+
+#[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
+mod bibliography_tests {
+    use super::*;
+    use typstographe_core::bibliography::{NoticeError, NoticeErrorCode as Code};
+    #[test]
+    fn bibliographic_causes_have_translated_labels_and_keep_machine_details_separate() {
+        for (language, word) in [("fr", "clé"), ("en", "key"), ("it", "key")] {
+            let loader = crate::loader_for(&[language.parse().unwrap()]);
+            let error = Error::Bibliography {
+                error: NoticeError {
+                    code: Code::DuplicateKey,
+                    key: Some("existing2026".into()),
+                    field: Some("key".into()),
+                    detail: "Untranslated technical detail".into(),
+                },
+            };
+            let payload = serde_json::to_value(&error).unwrap();
+            let message = content_error_with(&loader, &error);
+            assert!(
+                message.contains(word) && message.contains("existing2026"),
+                "{message}"
+            );
+            assert!(!message.contains("technical detail"));
+            assert_eq!(serde_json::to_value(&error).unwrap(), payload);
+            let field = Error::Bibliography {
+                error: NoticeError {
+                    code: Code::UnsupportedField,
+                    key: None,
+                    field: Some("/title/unknown".into()),
+                    detail: "Technical data".into(),
+                },
+            };
+            let message = content_error_with(&loader, &field);
+            assert!(message.contains("/title/unknown"));
+            assert!(!message.contains("Technical data"));
+            for code in [
+                Code::InvalidIdentity,
+                Code::DuplicateIdentity,
+                Code::InvalidKey,
+                Code::InvalidSyntax,
+                Code::LimitExceeded,
+                Code::MissingRecord,
+                Code::StaleBase,
+                Code::UnresolvedConflict,
+                Code::InvalidDecision,
+                Code::TypeMapping,
+            ] {
+                let error = Error::Bibliography {
+                    error: NoticeError {
+                        code,
+                        key: None,
+                        field: None,
+                        detail: "Technical data".into(),
+                    },
+                };
+                let message = content_error_with(&loader, &error);
+                assert!(
+                    !message.is_empty()
+                        && !message.contains("content-bibliography-")
+                        && !message.contains("Technical data"),
+                    "{message}"
+                );
+            }
+        }
+    }
 }
 
 #[cfg(test)]

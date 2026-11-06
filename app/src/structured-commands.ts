@@ -85,6 +85,15 @@ export async function executeStructured(
       if (
         value.code === 'invalid_document' &&
         typeof value.reason === 'string' &&
+        value.reason.startsWith('bibliography_record_missing:')
+      )
+        throw new Error(
+          tr('Une citation vise une notice absente. Retirez-la ou choisissez une autre notice.'),
+          { cause: error },
+        )
+      if (
+        value.code === 'invalid_document' &&
+        typeof value.reason === 'string' &&
         messages[value.reason]
       )
         throw new Error(tr(messages[value.reason]), { cause: error })

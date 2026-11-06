@@ -17,16 +17,28 @@ pub(super) fn main(loaded: &LoadedDefinition, raw: &Value, options: &DocumentOpt
                     .iter()
                     .find(|c| c.id == *collection)
                     .unwrap();
+                if c.kind == CollectionKind::BibliographicSources {
+                    continue;
+                }
+                if c.kind == CollectionKind::BibliographicRecords {
+                    let text = if value.as_array().is_none_or(|v| v.is_empty()) {
+                        "()".into()
+                    } else {
+                        format!(
+                            "(path({}),)",
+                            typst_string(crate::bibliography::ACTIVE_PATH)
+                        )
+                    };
+                    source.push_str(&format!("  {}: {text},\n", binding.parameter()));
+                    continue;
+                }
                 let text = value
                     .as_array()
                     .expect("typed ordered records")
                     .iter()
                     .map(|record| {
-                        if c.kind == CollectionKind::ReferenceFiles {
-                            let file: crate::bibliography::ReferenceFile =
-                                serde_json::from_value(record.clone())
-                                    .expect("typed reference file");
-                            format!("path({}),", typst_string(&file.path()))
+                        if c.kind != CollectionKind::OrderedRecords {
+                            unreachable!("native collection handled above")
                         } else {
                             let fields = c
                                 .fields

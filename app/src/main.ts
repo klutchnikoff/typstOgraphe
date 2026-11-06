@@ -40,7 +40,7 @@ import { prepareImage, resourceCommand } from './resource-commands'
 import { inlineObjectTarget } from './inline-objects'
 import { activeInlineObject } from './inline-object-focus'
 import { citationPanel } from './citation-panel'
-import { referenceFiles, setCitationEntries, type ReferenceEntry } from './citation-index'
+import { referenceRecords, setCitationEntries, type ReferenceEntry } from './citation-index'
 import './style.css'
 import './versions.css'
 import { errorText } from './command-error'
@@ -408,7 +408,7 @@ async function start() {
     referenceTicket = 0
   const refreshReferences = () => {
     if (stopping) return
-    const files = referenceFiles(provider),
+    const files = referenceRecords(provider),
       key = JSON.stringify(files)
     if (key === referenceKey) return
     referenceKey = key

@@ -146,6 +146,9 @@ impl Metadata {
             .is_empty()
     }
     pub fn validate(&self) -> Result<(), String> {
+        if let Self::Article(meta) = self {
+            crate::bibliography::validate_sources(meta)?;
+        }
         let kind = self.document_type();
         let data = serde_json::to_value(self).expect("typed metadata");
         kind.definition()

@@ -36,7 +36,9 @@ impl Localization {
 pub struct Metadata {
     pub options: DocumentOptions,
     #[serde(default)]
-    pub references: Vec<crate::bibliography::ReferenceFile>,
+    pub references: Vec<typstographe_bibliography::Record>,
+    #[serde(default)]
+    pub reference_sources: Vec<typstographe_bibliography::ImportSource>,
     #[serde(default = "default_citation_style")]
     pub citation_style: Option<String>,
     #[serde(default)]
@@ -149,7 +151,9 @@ mod tests {
             assert!(panels.iter().any(|panel| panel["id"] == group.id));
         }
         for collection in descriptor["collections"].as_array().unwrap() {
-            if collection["parameter"] == "references" {
+            if ["references", "reference_sources"]
+                .contains(&collection["parameter"].as_str().unwrap())
+            {
                 continue;
             }
             for field in collection["fields"].as_array().unwrap() {

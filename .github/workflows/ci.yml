@@ -1,21 +1,19 @@
 name: CI
 on:
   pull_request:
-    # `labeled` lets the full-ci label request the exhaustive suite on a PR.
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened]
   push:
     branches: [main]
 permissions:
   contents: read
 jobs:
   scope:
-    if: github.event.action != 'labeled' || github.event.label.name == 'full-ci'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       code: ${{ steps.plan.outputs.code }}
       dependencies: ${{ steps.plan.outputs.dependencies }}
-      recipes: ${{ steps.plan.outputs.recipes }}
+      rust: ${{ steps.plan.outputs.rust }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -28,24 +26,17 @@ jobs:
   verify:
     needs: scope
     if: needs.scope.outputs.code == 'true'
-    uses: ./.github/workflows/desktop.yml
+    uses: ./.github/workflows/routine.yml
     concurrency:
       group: ci-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
     with:
-      platforms: ${{ github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest","macos-latest","windows-latest"]' }}
-      # PR: @smoke plus the recipes of the edited areas, or everything with full-ci.
-      # main: the whole suite on Chromium after each merge; WebKit stays weekly.
-      browsers: >-
-        ${{ github.event_name != 'pull_request' && 'chromium'
-        || contains(github.event.pull_request.labels.*.name, 'full-ci') && 'full'
-        || 'smoke' }}
-      recipes: ${{ needs.scope.outputs.recipes }}
-      audit: ${{ needs.scope.outputs.dependencies == 'true' }}
+      level: ${{ github.event_name == 'pull_request' && 'pr' || 'main' }}
+      rust: ${{ needs.scope.outputs.rust == 'true' }}
   result:
     name: Résultat
     needs: [scope, verify]
-    if: always() && (github.event.action != 'labeled' || github.event.label.name == 'full-ci')
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

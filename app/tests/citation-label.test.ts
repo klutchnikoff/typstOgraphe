@@ -6,8 +6,7 @@ import { richZoneExtensions } from '../src/rich-zone'
 const editors: Editor[] = []
 afterEach(() => editors.splice(0).forEach((editor) => editor.destroy()))
 const entry: ReferenceEntry = {
-  file_id: 'books',
-  file_name: 'books.bib',
+  record_id: 'books',
   key: 'imaginaire1200',
   authors: 'Imaginaire',
   title: 'Théorème de représentation',
@@ -28,8 +27,8 @@ function create(form: Citation['form'], multiple = false) {
               attrs: {
                 form,
                 items: [
-                  { file_id: entry.file_id, key: entry.key, supplement: '' },
-                  ...(multiple ? [{ file_id: 'books', key: 'unresolved', supplement: '' }] : []),
+                  { record_id: entry.record_id, supplement: '' },
+                  ...(multiple ? [{ record_id: 'unresolved', supplement: '' }] : []),
                 ],
               },
             },
@@ -45,9 +44,9 @@ function create(form: Citation['form'], multiple = false) {
 
 it.each([
   ['normal', false, '(Imaginaire, 1200)'],
-  ['normal', true, '(Imaginaire, 1200 ; unresolved)'],
+  ['normal', true, '(Imaginaire, 1200 ; ?)'],
   ['prose', false, 'Imaginaire, 1200'],
-  ['prose', true, 'Imaginaire, 1200 ; unresolved'],
+  ['prose', true, 'Imaginaire, 1200 ; ?'],
 ] as const)(
   'présente la citation %s (groupe : %s) sans modifier son contenu',
   (form, multiple, label) => {

@@ -1,0 +1,1105 @@
+{
+  "format": "typstographe-bibliography-contract-cases",
+  "version": 1,
+  "status": "identity_cases_executed_by_rust_crate",
+  "reference": {
+    "project": "citekeep",
+    "commit": "935efc9b207e318805e1eaa270b01a5db3324fd2",
+    "license": "MIT"
+  },
+  "cases": [
+    {
+      "id": "doi-case-and-key-independent",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_duplicates.py::test_same_doi_groups_despite_unrelated_keys",
+          "tests/test_library.py::test_a_different_key_is_no_obstacle"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "unrelated",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/ESTIMATE"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "action": "unchanged",
+        "target": "r1",
+        "keep_key": "doe2019"
+      }
+    },
+    {
+      "id": "missing-fields-enrichment",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_library.py::test_a_matching_entry_with_more_fields_enriches"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "foreign",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            },
+            "volume": 47,
+            "page-range": "1-20"
+          }
+        }
+      ],
+      "expected": {
+        "action": "enrich",
+        "target": "r1",
+        "added_fields": ["volume", "page-range"],
+        "keep_key": "doe2019"
+      }
+    },
+    {
+      "id": "known-value-not-overwritten",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_library.py::test_enrichment_never_overwrites_the_library"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            },
+            "publisher": "Known Press"
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "foreign",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            },
+            "publisher": "Other Press",
+            "volume": 47
+          }
+        }
+      ],
+      "expected": {
+        "added_fields": ["volume"],
+        "preserve_fields": {
+          "publisher": "Known Press"
+        },
+        "replacement_requires_decision": true
+      }
+    },
+    {
+      "id": "distinct-works-same-derived-key",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_library.py::test_two_works_sharing_a_normalised_key_need_no_arbitration"
+        ]
+      },
+      "existing": [],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "one",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive density estimation",
+            "author": ["Bertin, Karine"],
+            "date": "2020",
+            "serial-number": {
+              "doi": "10.5555/density"
+            }
+          }
+        },
+        {
+          "id": "i2",
+          "key": "two",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive stationary estimation",
+            "author": ["Bertin, Karine"],
+            "date": "2020",
+            "serial-number": {
+              "doi": "10.5555/stationary"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "action": "new",
+        "new_count": 2,
+        "distinct_keys": true,
+        "identity_conflict": false
+      }
+    },
+    {
+      "id": "existing-key-collision",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_library.py::test_a_new_work_landing_on_a_used_key_is_a_conflict"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe_adaptive_2019",
+          "entry": {
+            "type": "article",
+            "title": "Wavelets",
+            "author": ["Zed, Zoe"],
+            "date": "1990"
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "doe_adaptive_2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "rename_existing": false,
+        "identity_from_key": false,
+        "key_choice_required": true
+      }
+    },
+    {
+      "id": "same-title-two-dois",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_duplicates.py::test_conflicting_dois_are_not_merged_silently",
+          "tests/test_library.py::test_a_contradictory_doi_is_a_conflict"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "other",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/other"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "action": "conflict",
+        "reason": "contradictory_identifiers",
+        "publish_before_decision": false
+      }
+    },
+    {
+      "id": "same-doi-different-title",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_library.py::test_a_disagreeing_title_is_a_conflict_not_a_merge"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "other",
+          "entry": {
+            "type": "article",
+            "title": "Minimax rates under dependence",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "action": "conflict",
+        "reason": "contradictory_titles"
+      }
+    },
+    {
+      "id": "different-dois-distinct-description",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_duplicates.py::test_different_dois_and_different_work_refute_each_other"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "other",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive stationary estimation",
+            "author": ["Roe, Richard"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/other"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "action": "new",
+        "merge": false
+      }
+    },
+    {
+      "id": "two-arxiv-identifiers",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_duplicates.py::test_two_arxiv_identifiers_are_two_works"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "one",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "arxiv": "1005.4444"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "two",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "arxiv": "2108.06507"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "merge": false,
+        "reason": "contradictory_identifiers"
+      }
+    },
+    {
+      "id": "missing-doi-is-not-contradiction",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_duplicates.py::test_a_missing_doi_refutes_nothing"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "other",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019"
+          }
+        }
+      ],
+      "expected": {
+        "candidate_target": "r1",
+        "identifier_contradiction": false
+      }
+    },
+    {
+      "id": "subtitle-prefix",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_duplicates.py::test_a_missing_subtitle_stays_mergeable",
+          "tests/test_library.py::test_a_prefix_title_still_counts_as_one_work"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "other",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation: a new approach",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "candidate_target": "r1",
+        "reason_to_reject_from_subtitle_alone": false,
+        "replace_existing_title": false
+      }
+    },
+    {
+      "id": "truncated-authorship",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_duplicates.py::test_an_author_set_truncated_by_et_al_still_agrees"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "one",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane", "Roe, Richard"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "foreign-key",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "candidate_target": "r1",
+        "reason_to_reject_from_subset_alone": false,
+        "preserve_complete_authorship": true
+      }
+    },
+    {
+      "id": "untitled-unidentified-not-evidence",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_duplicates.py::test_a_record_without_a_title_vouches_for_nothing"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "untitled",
+          "entry": {
+            "type": "article",
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/unrelated"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "merge": false,
+        "record_storable": true,
+        "completeness_warning": true
+      }
+    },
+    {
+      "id": "untitled-shared-doi",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_duplicates.py::test_a_shared_doi_vouches_even_without_a_title"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "untitled",
+          "entry": {
+            "type": "article",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "candidate_target": "r1",
+        "preserve_existing_title": true,
+        "missing_title_is_not_contradiction": true
+      }
+    },
+    {
+      "id": "transitive-group-not-proof",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_duplicates.py::test_chaining_pulls_in_a_different_paper",
+          "tests/test_duplicates.py::test_a_third_record_resembling_both_still_makes_one_group"
+        ]
+      },
+      "existing": [],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "a",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation of density",
+            "author": ["Doe, Jane"],
+            "date": "2019"
+          }
+        },
+        {
+          "id": "i2",
+          "key": "b",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation of density",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/density"
+            }
+          }
+        },
+        {
+          "id": "i3",
+          "key": "c",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation of conditional density",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/conditional"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "whole_group_coherence_required": true,
+        "automatic_merge_all": false
+      }
+    },
+    {
+      "id": "preprint-published-shared-arxiv",
+      "provenance": {
+        "kind": "adapted_with_explicit_decision",
+        "tests": [
+          "tests/test_library.py::test_a_preprint_matches_the_published_version_by_arxiv",
+          "tests/test_duplicates.py::test_a_reworded_preprint_is_grouped_with_its_published_version"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "published",
+          "entry": {
+            "type": "article",
+            "title": "Confidence bands for densities",
+            "author": ["Doe, Jane"],
+            "date": "2010",
+            "serial-number": {
+              "doi": "10.5555/bands",
+              "arxiv": "1005.4444"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "preprint",
+          "entry": {
+            "type": "manuscript",
+            "title": "Confidence bands",
+            "author": ["Doe, Jane"],
+            "date": "2009",
+            "serial-number": {
+              "arxiv": "1005.4444v1"
+            },
+            "parent": {
+              "type": "repository",
+              "title": "arXiv"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "candidate_target": "r1",
+        "decision_required": true,
+        "preserve_publication_states": true
+      }
+    },
+    {
+      "id": "arxiv-overlapping-two-dois",
+      "provenance": {
+        "kind": "adapted_with_explicit_decision",
+        "tests": [
+          "tests/test_duplicates.py::test_a_shared_arxiv_identifier_outranks_two_dois",
+          "tests/test_duplicates.py::test_conflicting_dois_are_not_merged_silently"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "published",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/published",
+              "arxiv": "1005.4444"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "deposit",
+          "entry": {
+            "type": "manuscript",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/deposit",
+              "arxiv": "1005.4444"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "candidate_target": "r1",
+        "decision_required": true,
+        "automatic_identifier_overwrite": false
+      }
+    },
+    {
+      "id": "incoming-variants-meet",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_library.py::test_planned_additions_meet_each_other",
+          "tests/test_library.py::test_a_second_incoming_variant_completes_a_planned_addition"
+        ]
+      },
+      "existing": [],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "foreign-key",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        },
+        {
+          "id": "i2",
+          "key": "other",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            },
+            "page-range": "1-30"
+          }
+        }
+      ],
+      "expected": {
+        "new_count": 1,
+        "preserve_fields": ["page-range"],
+        "repeat_import_no_change": true
+      }
+    },
+    {
+      "id": "incoming-enrichments-contradict",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_library.py::test_two_incoming_enrichments_with_different_dois_conflict"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "existing",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019"
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "foreign-key",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        },
+        {
+          "id": "i2",
+          "key": "other",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/other"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "action": "conflict",
+        "publish_before_decision": false
+      }
+    },
+    {
+      "id": "resolved-same-explicit-target",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_library.py::test_same_needs_to_say_which_when_several_entries_match",
+          "tests/test_library.py::test_same_accepts_the_entry_it_is_told"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        },
+        {
+          "id": "r2",
+          "key": "second",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/second"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "other",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019"
+          }
+        }
+      ],
+      "expected": {
+        "target": "r1",
+        "other_record_unchanged": "r2"
+      },
+      "decision": {
+        "kind": "same",
+        "incoming": "i1",
+        "target": "r1"
+      }
+    },
+    {
+      "id": "resolved-distinct-new-key",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_library.py::test_distinct_gives_it_a_key_of_its_own",
+          "tests/test_library.py::test_distinct_suffixes_when_the_key_is_taken"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/other"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "new_count": 1,
+        "new_key": "doe2019a",
+        "existing_unchanged": true
+      },
+      "decision": {
+        "kind": "distinct",
+        "incoming": "i1",
+        "key": "doe2019a"
+      }
+    },
+    {
+      "id": "resolved-skip-no-mutation",
+      "provenance": {
+        "kind": "adapted",
+        "tests": [
+          "tests/test_library.py::test_skip_leaves_it_out_altogether",
+          "tests/test_sync.py::test_identity_conflict_can_be_skipped_without_changing_either_file"
+        ]
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "doe2019",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/estimate"
+            }
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "other",
+          "entry": {
+            "type": "article",
+            "title": "Adaptive estimation",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "serial-number": {
+              "doi": "10.5555/other"
+            }
+          }
+        }
+      ],
+      "expected": {
+        "new_count": 0,
+        "existing_unchanged": true
+      },
+      "decision": {
+        "kind": "skip",
+        "incoming": "i1"
+      }
+    },
+    {
+      "id": "software-versions-distinct",
+      "provenance": {
+        "kind": "typstographe_extension",
+        "tests": []
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "tool1",
+          "entry": {
+            "type": "repository",
+            "title": "Example software",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "edition": "1.0"
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "tool2",
+          "entry": {
+            "type": "repository",
+            "title": "Example software",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "edition": "2.0"
+          }
+        }
+      ],
+      "expected": {
+        "automatic_merge": false,
+        "preserve_versions": ["1.0", "2.0"]
+      }
+    },
+    {
+      "id": "software-identical-version-candidate",
+      "provenance": {
+        "kind": "typstographe_extension",
+        "tests": []
+      },
+      "existing": [
+        {
+          "id": "r1",
+          "key": "tool1",
+          "entry": {
+            "type": "repository",
+            "title": "Example software",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "edition": "1.0"
+          }
+        }
+      ],
+      "incoming": [
+        {
+          "id": "i1",
+          "key": "foreign",
+          "entry": {
+            "type": "repository",
+            "title": "Example software",
+            "author": ["Doe, Jane"],
+            "date": "2019",
+            "edition": "1.0"
+          }
+        }
+      ],
+      "expected": {
+        "candidate_target": "r1",
+        "identity_from_key": false
+      }
+    }
+  ]
+}

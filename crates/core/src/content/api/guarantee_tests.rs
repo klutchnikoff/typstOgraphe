@@ -58,10 +58,24 @@ fn search_and_replacement_keep_exact_utf16_targets_in_notes_cells_captions_and_a
 #[test]
 fn bibliography_search_uses_project_authors_and_titles_without_mutating_the_document() {
     let mut s = new("article");
-    s.batch(&[
-        call("record.add",json!({"collection":"references","id":"books","values":{"name":"ouvrages.bib","contents":"@book{martin2026, author={Martin, Camille}, title={Les archives municipales}, year={2026}}"}})),
-        call("record.add",json!({"collection":"references","id":"papers","values":{"name":"articles.bib","contents":"@article{durand2025, author={Durand, Alex}, title={Une autre étude}, year={2025}, journal={Revue}}"}})),
-    ],None).unwrap();
+    for (id, text) in [
+        (
+            "books",
+            "@book{martin2026, author={Martin, Camille}, title={Les archives municipales}, year={2026}}",
+        ),
+        (
+            "papers",
+            "@article{durand2025, author={Durand, Alex}, title={Une autre étude}, year={2025}, journal={Revue}}",
+        ),
+    ] {
+        let record = crate::bibliography::test_record(id, "in.bib", text);
+        let library = s.query("bibliography.inspect", json!({})).unwrap();
+        s.execute(
+            "bibliography.apply",
+            json!({"expected":library["fingerprint"],"change":{"kind":"create","record":record}}),
+        )
+        .unwrap();
+    }
     let before = s.archive().unwrap().yjs;
     for query in ["Camille", "archives municipales", "archivs municiples"] {
         let result = s
@@ -70,7 +84,7 @@ fn bibliography_search_uses_project_authors_and_titles_without_mutating_the_docu
         let entries = result["entries"].as_array().unwrap();
         assert!(!entries.is_empty(), "{query}: {result}");
         assert_eq!(entries[0]["key"], "martin2026");
-        assert_eq!(entries[0]["file_id"], "books");
+        assert_eq!(entries[0]["record_id"], "books");
     }
     assert_eq!(s.archive().unwrap().yjs, before);
     let mut letter = new("courrier");

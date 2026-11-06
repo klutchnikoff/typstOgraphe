@@ -7,6 +7,35 @@ use typstographe_core::{
 };
 
 #[test]
+fn bibliographic_preparation_is_read_only_and_describes_results_in_both_modes() {
+    for attached in [false, true] {
+        for id in [
+            "bibliography.profiles",
+            "bibliography.prepare_import",
+            "bibliography.prepare_record",
+        ] {
+            let tool = crate::tools(attached)
+                .into_iter()
+                .find(|t| t.name == id)
+                .unwrap();
+            assert_eq!(tool.annotations.unwrap().read_only_hint, Some(true));
+            let details = describe(id, attached).unwrap();
+            assert_eq!(details["execution"]["direct_tool"], true);
+            assert_eq!(details["execution"]["proposal_step"], false);
+            assert_eq!(details["result_schema_scope"], "query_outcome");
+            jsonschema::validator_for(&details["result_schema"]).unwrap();
+            assert!(!details["examples"].as_array().unwrap().is_empty());
+            if id != "bibliography.profiles" {
+                assert_eq!(
+                    details["result_schema"]["properties"]["active"]["const"],
+                    false
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn type_indexes_lead_to_exact_metadata_and_capability_details_without_eager_schemas() {
     let listing = types();
     for profile in &profiles::catalogue().types {
@@ -132,13 +161,12 @@ fn schema_pruning_keeps_recursive_transitive_definitions_and_input_validation() 
     ] {
         assert_eq!(before.is_valid(&input), after.is_valid(&input));
     }
-    let mut reduced = 0;
     for entry in api::catalogue()["entries"].as_array().unwrap() {
         let original = &entry["params_schema"];
         let mut compact = original.clone();
         prune_schema(&mut compact);
-        reduced += serde_json::to_vec(original).unwrap().len()
-            - serde_json::to_vec(&compact).unwrap().len();
+        // The common catalogue is already compact; repeated adapter pruning is idempotent.
+        assert_eq!(&compact, original);
         let before = jsonschema::validator_for(original).unwrap();
         let after = jsonschema::validator_for(&compact).unwrap();
         for example in api::describe(entry["id"].as_str().unwrap()).unwrap()["examples"]
@@ -156,7 +184,6 @@ fn schema_pruning_keeps_recursive_transitive_definitions_and_input_validation() 
             assert_eq!(before.is_valid(&input), after.is_valid(&input));
         }
     }
-    assert!(reduced > 100_000);
 }
 
 #[test]

@@ -134,10 +134,11 @@ fn structured(loaded: &LoadedDefinition) -> Value {
     let values_schema = loaded.values_schema();
     let collections:Vec<_>=def.collections.iter().map(|c| {
         let binding=def.bindings.iter().find(|b|matches!(b,Binding::Collection {collection,..} if collection==&c.id)).unwrap();
-        let fields:Vec<Value>=if c.kind==CollectionKind::ReferenceFiles {
-            vec![json!({"key":"name","label_key":"field-reference-file","kind":"text","default":""}),
-                 json!({"key":"contents","label_key":"field-reference-source","kind":"source","default":""})]
-        } else {c.fields.iter().map(record_field).collect()};
+        let fields:Vec<Value>= match c.kind {
+            CollectionKind::BibliographicRecords => ["key","entry","retained_parents","provenance"].iter().map(|key|json!({"key":key,"label_key":"field-bibliography","kind":"native","default":if *key=="retained_parents" || *key=="provenance" {json!([])} else {Value::Null}})).collect(),
+            CollectionKind::BibliographicSources => ["name","format","contents","digest"].iter().map(|key|json!({"key":key,"label_key":"field-reference-source","kind":"native","default":null})).collect(),
+            _ => c.fields.iter().map(record_field).collect(),
+        };
         let mut schema=values_schema["properties"][&c.id].clone();
         schema["$defs"]=values_schema["$defs"].clone();
         let mut value=json!({"field":format!("{}.{}",def.id,c.id),"parameter":binding.metadata_key(),
@@ -202,7 +203,7 @@ fn structured(loaded: &LoadedDefinition) -> Value {
                 .iter()
                 .find(|b| b.source() == style_field)
                 .unwrap();
-            result["bibliography"] = json!({"tab":id,"files":files.metadata_key(),"field":format!("{}.{}",def.id,collection),"style":style.metadata_key(),"style_field":style_field});
+            result["bibliography"] = json!({"tab":id,"files":files.metadata_key(),"field":format!("{}.{}",def.id,collection),"style":style.metadata_key(),"style_field":style_field,"sources":"reference_sources"});
         }
     }
     for field in &def.fields {

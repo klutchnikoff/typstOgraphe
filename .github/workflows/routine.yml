@@ -1,0 +1,63 @@
+# Routine checks deliberately exclude browsers, coverage and installers.
+name: Routine verification
+on:
+  workflow_call:
+    inputs:
+      level:
+        type: string
+        required: true
+      rust:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+env:
+  CARGO_BUILD_JOBS: '2'
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --no-audit
+      - name: Formatting toolchain
+        if: inputs.level == 'pr'
+        run: rustup component add rustfmt
+      - name: Quick static checks
+        if: inputs.level == 'pr'
+        run: python3 scripts/verify.py quick
+      - name: Linux Tauri libraries
+        if: inputs.level == 'main' || inputs.rust
+        run: >-
+          sudo apt-get update && sudo apt-get install -y
+          build-essential pkg-config libwebkit2gtk-4.1-dev libxdo-dev
+          libayatana-appindicator3-dev librsvg2-dev patchelf
+      - name: Rust toolchain
+        if: inputs.level == 'main' || inputs.rust
+        run: rustup toolchain install stable --profile minimal --component clippy
+      - uses: actions/cache@v6
+        if: inputs.level == 'main' || inputs.rust
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: routine-linux-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+          restore-keys: |
+            routine-linux-${{ hashFiles('Cargo.lock') }}-
+            routine-linux-
+            checks-Linux-
+      - name: Rust lint on changed Rust sources or build configuration
+        if: inputs.level == 'pr' && inputs.rust
+        run: python3 scripts/verify.py lint
+      - name: Linux Rust and web tests
+        if: inputs.level == 'main'
+        run: python3 scripts/verify.py test

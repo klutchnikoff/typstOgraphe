@@ -1,0 +1,937 @@
+{
+  "version": 1,
+  "document": {
+    "kind": "new",
+    "type": "article",
+    "params": {
+      "metadata": {
+        "type": "article",
+        "fields": {
+          "options": {
+            "paper": "a4",
+            "landscape": false,
+            "language": "fr",
+            "bullet_marker": null,
+            "spelling_ignored": {}
+          },
+          "references": [
+            {
+              "id": "ref-337161b49a1fe3580ec14dec01ba436420b0640fefbe17566c311fb45465e79e",
+              "key": "lefevre2021",
+              "entry": {
+                "author": "Lefèvre, Alice",
+                "date": 2021,
+                "publisher": {
+                  "location": "Rennes",
+                  "name": "Éditions fictives de l’Exemple"
+                },
+                "title": "Écrire la recherche : pratiques et méthodes",
+                "type": "book"
+              },
+              "provenance": [
+                {
+                  "source_id": "demo-books",
+                  "source_digest": "15bc9953ef13ce8f5b899a67cf575038f181a06e58f49c3a0aefa6b2cad65836",
+                  "original_key": "lefevre2021"
+                }
+              ],
+              "retained_parents": [
+                {
+                  "type": "periodical",
+                  "title": "Revue de démonstration",
+                  "volume": 12,
+                  "issue": 2
+                }
+              ]
+            },
+            {
+              "id": "ref-ca7e457adeb555f5d3f5562f19d94f1de1caeac2d7c41f6fd4094c009b799492",
+              "key": "moreau2023",
+              "entry": {
+                "author": "Moreau, Julien",
+                "date": 2023,
+                "publisher": {
+                  "location": "Lyon",
+                  "name": "Presses fictives du Collectif"
+                },
+                "title": "Le texte en commun : formes et outils du travail scientifique",
+                "type": "book"
+              },
+              "provenance": [
+                {
+                  "source_id": "demo-books",
+                  "source_digest": "15bc9953ef13ce8f5b899a67cf575038f181a06e58f49c3a0aefa6b2cad65836",
+                  "original_key": "moreau2023"
+                }
+              ],
+              "retained_parents": []
+            },
+            {
+              "id": "ref-553b6f50314963c4afa3c112fddccaea8373183e553894292ff47581007be102",
+              "key": "unused2025",
+              "entry": {
+                "author": "Exemple, Auteur",
+                "date": 2025,
+                "publisher": "Éditions de démonstration",
+                "title": "Notice fictive non citée",
+                "type": "book"
+              },
+              "provenance": [
+                {
+                  "source_id": "demo-books",
+                  "source_digest": "15bc9953ef13ce8f5b899a67cf575038f181a06e58f49c3a0aefa6b2cad65836",
+                  "original_key": "unused2025"
+                }
+              ],
+              "retained_parents": []
+            },
+            {
+              "id": "ref-179cc0fc8df166748d9703775ae23b241909ddcaa9d805b3e0bdfb0b1149e37b",
+              "key": "bernard-petit2024",
+              "entry": {
+                "author": ["Bernard, Léa", "Petit, Marc"],
+                "date": 2024,
+                "page-range": "45-68",
+                "parent": [
+                  {
+                    "issue": 2,
+                    "title": "Cahiers fictifs des pratiques de recherche",
+                    "type": "periodical",
+                    "volume": 7
+                  }
+                ],
+                "title": "Relire ensemble les textes scientifiques",
+                "type": "article"
+              },
+              "provenance": [
+                {
+                  "source_id": "demo-papers",
+                  "source_digest": "134e35553948f74b5341bee4a6fd6ac1c458941021f8021fb26c4feefa4b7631",
+                  "original_key": "bernard-petit2024"
+                }
+              ],
+              "retained_parents": []
+            }
+          ],
+          "reference_sources": [
+            {
+              "id": "demo-books",
+              "name": "ouvrages-fictifs.bib",
+              "format": "biblatex",
+              "contents": "% Toutes les notices de cet exemple sont fictives.\n@book{lefevre2021,\n  author = {Lefèvre, Alice},\n  title = {Écrire la recherche : pratiques et méthodes},\n  year = {2021},\n  publisher = {Éditions fictives de l’Exemple},\n  location = {Rennes}\n}\n\n@book{moreau2023,\n  author = {Moreau, Julien},\n  title = {Le texte en commun : formes et outils du travail scientifique},\n  year = {2023},\n  publisher = {Presses fictives du Collectif},\n  location = {Lyon}\n}\n\n@book{unused2025,\n  author = {Exemple, Auteur},\n  title = {Notice fictive non citée},\n  year = {2025},\n  publisher = {Éditions de démonstration}\n}\n",
+              "digest": "15bc9953ef13ce8f5b899a67cf575038f181a06e58f49c3a0aefa6b2cad65836"
+            },
+            {
+              "id": "demo-papers",
+              "name": "articles-fictifs.yaml",
+              "format": "hayagriva",
+              "contents": "# Toutes les notices de cet exemple sont fictives.\nbernard-petit2024:\n  type: Article\n  title: Relire ensemble les textes scientifiques\n  author:\n    - Bernard, Léa\n    - Petit, Marc\n  date: 2024\n  page-range: 45-68\n  parent:\n    type: Periodical\n    title: Cahiers fictifs des pratiques de recherche\n    volume: 7\n    issue: 2\n",
+              "digest": "134e35553948f74b5341bee4a6fd6ac1c458941021f8021fb26c4feefa4b7631"
+            }
+          ],
+          "citation_style": "chicago-author-date",
+          "show_outline": true,
+          "authors": [
+            {
+              "id": "camille",
+              "name": "Camille Martin",
+              "affiliation-ids": ["irmar"],
+              "email": "camille.martin@example.org",
+              "orcid": "",
+              "corresponding": true
+            },
+            {
+              "id": "alex",
+              "name": "Alex Dupont",
+              "affiliation-ids": ["irmar", "research"],
+              "email": "",
+              "orcid": "",
+              "corresponding": false
+            }
+          ],
+          "affiliations": [
+            {
+              "id": "irmar",
+              "text": "Univ Rennes, CNRS, IRMAR (Institut de Recherche Mathématique de Rennes) - UMR 6625, F-35000 Rennes, France"
+            },
+            {
+              "id": "research",
+              "text": "Centre d’étude des pratiques de recherche, France"
+            }
+          ],
+          "localizations": [
+            {
+              "id": "fr",
+              "language": "fr",
+              "title": {
+                "type": "doc",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Écrire et transmettre les savoirs"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "short-title": {
+                "type": "doc",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Écrire et transmettre"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "subtitle": {
+                "type": "doc",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Pratiques éditoriales et travail collectif dans la recherche"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "abstract": {
+                "type": "doc",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "L’écriture scientifique ne se réduit pas à la restitution de résultats. Elle organise un travail de sélection, de mise en relation et de discussion des connaissances. Cet article de démonstration propose une réflexion sur les conditions matérielles de cette activité et sur la place des outils de composition dans le travail collectif. Il distingue les choix qui relèvent des auteurs de ceux qui appartiennent à la présentation éditoriale, afin de faciliter la lecture et la circulation des textes."
+                      }
+                    ]
+                  }
+                ]
+              },
+              "keywords": [
+                "écriture scientifique",
+                "travail collectif",
+                "édition",
+                "sciences humaines et sociales"
+              ]
+            },
+            {
+              "id": "en",
+              "language": "en",
+              "title": {
+                "type": "doc",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Writing and sharing knowledge"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "short-title": {
+                "type": "doc",
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              },
+              "subtitle": {
+                "type": "doc",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Editorial practices and collective work in research"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "abstract": {
+                "type": "doc",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Scholarly writing involves more than reporting results. It brings together the selection, organisation and discussion of knowledge. This demonstration article considers the material conditions of this activity and the role of document tools in collaborative work. It distinguishes authors’ decisions from editorial presentation choices, with a view to making texts easier to read, review and share."
+                      }
+                    ]
+                  }
+                ]
+              },
+              "keywords": ["scholarly writing", "collaboration", "publishing"]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "block.splice",
+      "params": {
+        "parent": {
+          "root": {
+            "kind": "body"
+          }
+        },
+        "index": 0,
+        "delete_count": 1,
+        "nodes": [
+          {
+            "type": "heading",
+            "attrs": {
+              "anchor": "05d52454-6607-4f1a-947c-ec51caee0e05",
+              "level": 1
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Introduction"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "anchor": "d53b4e35-a609-4473-b0c7-5a15cc21cc4f"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Écrire un article "
+              },
+              {
+                "type": "text",
+                "text": "suppose",
+                "marks": [
+                  {
+                    "type": "italic",
+                    "attrs": {}
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " de donner une forme lisible à une démarche qui ne s’est pas nécessairement déroulée dans le même ordre. Les notes de terrain, les échanges entre collègues et les premières analyses constituent un ensemble hétérogène. Le texte final établit entre ces matériaux des relations que le lecteur doit pouvoir comprendre sans avoir participé à leur élaboration "
+              },
+              {
+                "type": "citation",
+                "attrs": {
+                  "form": "normal",
+                  "items": [
+                    {
+                      "record_id": "ref-337161b49a1fe3580ec14dec01ba436420b0640fefbe17566c311fb45465e79e",
+                      "supplement": "p. 18–21"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "text": "."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "anchor": "76d9a742-f246-428b-835c-2076ddbb74be"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Ce document sert d’exemple de composition : les personnes et la seconde affiliation sont fictives. Il permet d’examiner les titres, les résumés en deux langues et la continuité du texte sur plusieurs pages, sans prétendre présenter les résultats d’une enquête. La signature institutionnelle illustre, quant à elle, la nécessité de conserver une affiliation officielle en texte libre. Toutes les références bibliographiques sont également fictives : elles servent uniquement à illustrer les citations et la bibliographie automatique."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "anchor": "ebcb3f4d-d626-49d8-aaac-086e7d5710d0",
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Distinguer contenu et présentation"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "anchor": "fbafc35c-e8a8-4b96-9db9-ac91d708809f"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Le contenu porte le raisonnement ; la "
+              },
+              {
+                "type": "text",
+                "text": "présentation",
+                "marks": [
+                  {
+                    "type": "bold",
+                    "attrs": {}
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " en facilite le parcours. Un changement de modèle peut modifier la taille des titres ou la disposition des coordonnées sans transformer les auteurs, leurs affiliations ou les paragraphes. Cette séparation devient particulièrement utile lorsqu’un même texte circule entre plusieurs espaces de publication."
+              },
+              {
+                "type": "footnote",
+                "attrs": {
+                  "text": "La présente note est un exemple de note de bas de page. Elle appartient au contenu de l’article et suit la numérotation du document."
+                }
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "anchor": "9c51b793-a09d-4340-9b6c-8b887bcb60e5"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Il ne s’agit pas de rendre la forme indifférente. Au contraire, une hiérarchie régulière, des marges suffisantes et des espacements mesurés soutiennent la compréhension. La mise en page reste discrète lorsqu’elle rend les articulations du texte évidentes sans attirer l’attention sur ses propres procédés."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "anchor": "4fb474ba-78bc-49b0-ba29-3179fed9e6e9",
+              "level": 1
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Des pratiques individuelles au travail collectif"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "anchor": "e8e76433-89b1-4359-a8e2-7690873b8160"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "La rédaction engage plusieurs temporalités. Certaines décisions interviennent dans l’instant, au moment de choisir un mot ou de reformuler une phrase. D’autres s’inscrivent dans une durée plus longue : déplacer une section, rapprocher deux observations ou reprendre une hypothèse après discussion. L’outil doit permettre ces opérations sans imposer à chaque étape une décision de mise en page "
+              },
+              {
+                "type": "citation",
+                "attrs": {
+                  "form": "normal",
+                  "items": [
+                    {
+                      "record_id": "ref-337161b49a1fe3580ec14dec01ba436420b0640fefbe17566c311fb45465e79e",
+                      "supplement": ""
+                    },
+                    {
+                      "record_id": "ref-ca7e457adeb555f5d3f5562f19d94f1de1caeac2d7c41f6fd4094c009b799492",
+                      "supplement": "chap. 2"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "text": "."
+              }
+            ]
+          },
+          {
+            "type": "quote",
+            "attrs": {
+              "anchor": "3f519e4d-de3c-4325-b419-f5026a54dd6c"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "anchor": "0723aace-a2d2-4e84-84bd-646cf008de25"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Une présentation réussie laisse au premier plan le texte et les relations que son auteur souhaite rendre visibles."
+                  }
+                ]
+              },
+              {
+                "type": "quoteAttribution",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Principe de composition de cet exemple"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "anchor": "39418db4-3c81-47ae-b6fd-7ca481f2d1d0",
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Relire, discuter et transmettre"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "anchor": "f590819c-c1a3-4da9-aa2d-08af86544f35"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "La relecture ne consiste pas seulement à repérer des erreurs. Elle éprouve la solidité des transitions et la précision des termes. Un lecteur extérieur au projet peut ainsi signaler qu’un passage suppose une connaissance implicite ou qu’une conclusion apparaît avant les éléments qui la justifient "
+              },
+              {
+                "type": "citation",
+                "attrs": {
+                  "form": "normal",
+                  "items": [
+                    {
+                      "record_id": "ref-179cc0fc8df166748d9703775ae23b241909ddcaa9d805b3e0bdfb0b1149e37b",
+                      "supplement": "p. 47–49"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "text": "."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "anchor": "823b7fcd-b7d7-4a35-a9b2-2b09e82ce4f6"
+            },
+            "content": [
+              {
+                "type": "citation",
+                "attrs": {
+                  "form": "prose",
+                  "items": [
+                    {
+                      "record_id": "ref-179cc0fc8df166748d9703775ae23b241909ddcaa9d805b3e0bdfb0b1149e37b",
+                      "supplement": ""
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "text": " rappellent que les versions successives doivent conserver la possibilité de comprendre les choix effectués. Une proposition de modification gagne à être examinée dans son ensemble, en rapport avec la consigne qui l’a motivée. Cette continuité importe pour le travail partagé, mais aussi pour une personne qui reprend un texte après plusieurs semaines d’interruption."
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "anchor": "3b9e3b0c-da2e-4232-bd7c-afb504fdbfe3",
+              "level": 3
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Trois repères pour la rédaction"
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "attrs": {
+              "anchor": "47df2c93-86c6-45a6-b6f3-95022f9881e4"
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "anchor": "7ab7e7f7-54fe-4666-b84e-cdb7693bc447"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Une structure explicite permet de retrouver les étapes du raisonnement."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "anchor": "506dc061-d7f5-41ab-b011-adae012fb2c8"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Des informations éditoriales organisées évitent les doubles saisies."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "anchor": "675fc17b-61f1-4be4-9059-1af893e1fcc3"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Un rendu stable facilite la relecture et la transmission du document."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "anchor": "ba78e5b6-c936-4000-8662-cdf70ec4ac48"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Le tableau suivant rassemble les éléments utilisés dans cette démonstration"
+              },
+              {
+                "type": "citation",
+                "attrs": {
+                  "form": "normal",
+                  "items": [
+                    {
+                      "record_id": "ref-ca7e457adeb555f5d3f5562f19d94f1de1caeac2d7c41f6fd4094c009b799492",
+                      "supplement": ""
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "text": ". Il s’agit d’un inventaire de présentation, sans données expérimentales."
+              }
+            ]
+          },
+          {
+            "type": "tableFigure",
+            "attrs": {
+              "anchor": "f7957c4e-ca11-4c52-b087-ad3f76c1986e"
+            },
+            "content": [
+              {
+                "type": "table",
+                "content": [
+                  {
+                    "type": "tableRow",
+                    "content": [
+                      {
+                        "type": "tableHeader",
+                        "attrs": {
+                          "colspan": 1,
+                          "rowspan": 1
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "anchor": "e8829a26-7dab-457e-a7c0-9df794987f28"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Élément",
+                                "marks": [
+                                  {
+                                    "type": "bold",
+                                    "attrs": {}
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableHeader",
+                        "attrs": {
+                          "colspan": 1,
+                          "rowspan": 1
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "anchor": "263cad8f-c02e-455d-8c25-e5e78d77e9d8"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Rôle dans le document",
+                                "marks": [
+                                  {
+                                    "type": "bold",
+                                    "attrs": {}
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "colspan": 1,
+                          "rowspan": 1
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "anchor": "998926e5-7106-4c37-a2b0-36d58780fd2f"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Titre court"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "colspan": 1,
+                          "rowspan": 1
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "anchor": "4b3a8c4c-bb41-435f-9d2c-e083e6a771f7"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Identifier l’article dans l’en-tête courant."
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "colspan": 1,
+                          "rowspan": 1
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "anchor": "86ac48e5-2ab7-4281-a223-9cd2c013bc08"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Affiliation"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "colspan": 1,
+                          "rowspan": 1
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "anchor": "3b1928ed-a66d-4701-9356-ac75042de7e1"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Conserver la signature officielle de chaque auteur."
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "colspan": 1,
+                          "rowspan": 1
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "anchor": "19555fcb-8ab6-482b-94e6-de8bdd7d78d0"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Résumé"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "colspan": 1,
+                          "rowspan": 1
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "anchor": "d0d743d5-c2b7-49e9-bc83-e4ad7a46912b"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Présenter la démarche dans chacune des langues retenues."
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCaption",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Éléments éditoriaux présents dans l’exemple."
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "anchor": "042c62b4-60d2-4029-889a-79035d1ad7b5",
+              "level": 1
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Conclusion"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "anchor": "ae6dc6bc-b1a4-4bce-9247-bb6768becc30"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Un document de travail doit rester agréable à lire alors même que son contenu évolue. Une composition sobre n’exige pas de figer prématurément le texte : elle fournit des repères assez stables pour accompagner ses transformations. Les choix du modèle peuvent ensuite s’adapter aux exigences d’une revue ou aux préférences d’un collectif, tandis que les informations demeurent structurées."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "anchor": "1767c126-460e-40fd-a404-e94ac2bdf283"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "L’enjeu est de rendre cette organisation accessible sans demander à chacun de maîtriser un langage de composition. Le titre, les auteurs et les résumés constituent des informations à part entière ; leur présentation doit aider à les reconnaître, puis laisser la place au développement de l’argumentation."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "anchor": "89dc8f0a-1621-4c6b-bab7-fd15dae3177f"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "save": {
+    "kind": "as",
+    "path": "../article-bibliography-profiles.typsto"
+  }
+}

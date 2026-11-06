@@ -142,6 +142,11 @@ pub const MAX_BATCH_STEPS: usize = 256;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "id", content = "params", deny_unknown_fields)]
 pub enum Command {
+    #[serde(rename = "bibliography.apply")]
+    Bibliography {
+        expected: typstographe_bibliography::Fingerprint,
+        change: crate::bibliography::editions::Change,
+    },
     #[serde(rename = "resource.add")]
     AddResource { resource: ImageResource },
     #[serde(rename = "document.set_model")]
@@ -274,6 +279,7 @@ pub enum Command {
 impl Command {
     pub fn id(&self) -> &'static str {
         match self {
+            Self::Bibliography { .. } => "bibliography.apply",
             Self::AddResource { .. } => "resource.add",
             Self::SetModel { .. } => "document.set_model",
             Self::Insert { .. } => "text.insert",
@@ -313,6 +319,7 @@ impl Command {
     }
 }
 pub const IDS: &[&str] = &[
+    "bibliography.apply",
     "resource.add",
     "document.set_model",
     "insert.table",

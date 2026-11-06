@@ -1,6 +1,6 @@
 # Plan technique de développement
 
-Révisé le **4 novembre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
+Révisé le **6 novembre 2026**. Ce document accompagne la [roadmap produit](ROADMAP.md)
 et distingue le socle livré des décisions et travaux techniques restants.
 Les réalisations détaillées et les inventaires historiques sont
 dans les bilans de docs/ et l’historique Git.
@@ -126,8 +126,11 @@ de l’export déplacé dans un environnement sans cache de paquets.
 
 **Dépendance satisfaite :** B.1 est clôturé et ses contrats préparatoires sont
 consignés. C.1 (renvois) et le premier périmètre de C.2 (mathématiques) sont
-implémentés et vérifiés localement ; le prochain lot est C.3 (bibliographie du
-projet), avant C.4 (bibliothèque personnelle). Préciser ensemble les paramètres,
+implémentés et vérifiés localement, comme C.3 (gestionnaire complet, profils
+natifs Hayagriva et **CAS 16**). La CI et la recette utilisateur restent requises
+avant fusion. La consolidation frontend / E.1 est également livrée localement ;
+le prochain lot est C.4 (bibliothèque personnelle), avant les extensions lourdes
+de D, F et J. Préciser ensemble les paramètres,
 commandes/cibles et maquettes avant chaque implémentation ;
 la livraison de tous les types de B n’est pas un prérequis.
 
@@ -236,40 +239,111 @@ la livraison de tous les types de B n’est pas un prérequis.
   suffixe préserve les renvois par identité. Le sélecteur reconnaît `eq:` et
   `$` comme filtres d’équations ; le badge utilise le contenu composé par
   Typst, par exemple `(12)`, sans reconstruire son numéro dans l’adaptateur.
-- **C.3 — Notices du projet.** Remplacer les multiples fichiers originaux par
+- **C.3 — Notices du projet — livré localement (CAS 16).** Remplacer les multiples fichiers originaux par
   une bibliothèque Hayagriva unique, matérialisée dans le `.typsto` et l’export.
   Réutiliser la crate Hayagriva pour import et sérialisation ; évaluer la
   conversion BibLaTeX (champs, macros, relations, accents et contenu riche),
   signaler les pertes et arbitrer les collisions sans écrasement silencieux.
-  Décider la conservation éventuelle des sources importées comme provenance,
+  Conserver les sources importées intactes en lecture seule comme provenance,
   sans seconde autorité active. Préserver les identités/clés des notices et les
   liens des citations ; remplacer les cibles actuelles `file_id`/`key` par le
   contrat retenu, sans couche de compatibilité artificielle.
   Le gestionnaire utilise une grande modale commune : liste filtrée et recherche
   fuzzy titre/auteurs à gauche, formulaire par genre à droite, création par +.
   Les éditions restent des brouillons récupérables avant validation ; changement
-  de notice ou fermeture propose enregistrer, abandonner ou continuer.
+  de notice ou fermeture propose valider, abandonner ou continuer. Valider est
+  une édition annulable et ne sauvegarde pas immédiatement le fichier.
   « Créer et citer » valide la notice et l’insertion dans un seul lot annulable.
   La suppression d’une notice citée est protégée. UI, CLI et MCP partagent
   les validations et opérations ; aucun second formulaire pour l’insertion.
+  **Contrat du 6 novembre 2026 :** [crate bibliographique](docs/c3-bibliography-contract.md),
+  [corpus de qualification](fixtures/bibliography/README.md). Créer
+  `typstographe-bibliography`, dépendante de Hayagriva et indépendante du cœur,
+  des interfaces, du stockage et de Fluent. `core → bibliography → hayagriva` ;
+  les mutations documentaires restent dans le moteur commun. Modèle natif
+  intégral, `RecordId` opaque, clé lisible distincte, provenance et profils de
+  formulaire déduits des types/parents natifs ; les citations ciblent l'identité. État structuré confirmé
+  comme autorité, un seul Hayagriva dérivé actif pour Typst, originaux hors de la
+  compilation et conservés avec leurs références documentaires/historiques.
+  Descripteurs de genre et diagnostics typés communs : erreurs structurelles,
+  complétude non bloquante, pertes de conversion explicites. Hayagriva 0.10.1
+  n'exige pas titre/auteur/date par genre ; son parseur exige le type racine.
+  Inclure prépublications et logiciels ; qualifier les composites, `@software`
+  importé en `misc` et `repository` composé comme CSL logiciel, avec profils
+  déduits du type et des parents natifs, sans genre persistant indépendant.
+  Plans purs avec empreinte attendue et décisions ciblées avant publication
+  atomique ; pas de fusion par clé, score fuzzy ou transitivité des candidats.
+  Porter les garanties de Citekeep une seule fois, avec les adaptations explicites
+  pour les états de publication et versions de logiciels. Le corpus documentaire
+  contient des entrées et assertions ; les chemins CAS 16 sont raccordés.
+  Le [premier lot](docs/c3-bibliography-foundation.md) livre la crate pure, les
+  24 scénarios d'identité exécutables, ses tests complémentaires et le partage
+  de lecture/synthèse/recherche avec le cœur. Le format et les cibles de citations
+  utilisés à cette étape ont depuis été remplacés par les identités de notices.
+  Le [lot de préparation](docs/c3-bibliography-preparation.md) ajoute les requêtes
+  communes `bibliography.genres`, `bibliography.prepare_record` et
+  `bibliography.prepare_import`, découvertes et exécutées par CLI/MCP, avec
+  schémas de paramètres/résultats et erreurs typées présentées par Fluent.
+  Les préparations restent inactives et ne modifient ni révision ni historique ;
+  leurs empreintes ne valent pas autorisation de publication.
+  La [présentation validée](docs/c3-bibliography-interface.md) utilise une liste
+  compacte à deux lignes et les composants communs de dialogues, champs,
+  collections et navigation. Le [raccordement documentaire](docs/c3-bibliography-document-state.md)
+  livre l’état partagé par notice/source, `bibliography.apply`, les gardes, les
+  citations par identité et le CAS, désormais en version 16, avec contrôle de la projection Hayagriva.
+  Le [gestionnaire et ses codecs](docs/c3-bibliography-manager.md) sont raccordés :
+  champs natifs préservés, décisions d’import explicites, formulaires privés
+  récupérables, création/citation atomique et garde de notice concurrente. Les
+  requêtes communes projettent et préparent les formulaires, parcourent toute
+  la bibliothèque, localisent les citations et revoient les imports sans
+  publication. Les profils sont déduits des types/parents natifs ; les
+  transitions conservent champs et conteneurs inactifs, avec remplacement de
+  notice gardé, annulation, récupération et projection autonome CAS 16.
+  **Classification native :** [décision C.3](docs/c3-native-bibliography-profiles.md).
+  Retirer le genre persistant ; déduire les profils du type/parents Hayagriva.
+  Mutualiser transitions natives, conservation des conteneurs inactifs et
+  publication gardée dans la crate commune ; qualifier CAS, reprise et rendu.
 - **C.4 — Bibliothèque personnelle.** Recherche locale au projet avant recherche
   personnelle ; copie d’une notice lors de son utilisation, liens de provenance
   conservés et échanges de corrections explicites. Les deux stockages ont leurs
   révisions et protections contre l’écrasement ; aucune transaction atomique entre
   eux n’est présumée. Aucune modification personnelle ne réécrit silencieusement
   un projet. Le gestionnaire de C.3 est réutilisé avec un choix de bibliothèque.
-  Les principes de citekeep (identités, clés locales stables, conflits explicites,
-  planification avant écriture) servent de référence ; son moteur Python et son
-  format BibTeX ne sont pas retenus implicitement. Évaluer leur réutilisation
-  séparément, ainsi que le stockage et le format personnels.
+  Réutiliser la crate et les tests C.3 pour les principes de Citekeep (identités,
+  clés locales stables, conflits explicites, planification avant écriture).
+  Son moteur Python et son stockage BibTeX ne sont pas retenus ; le stockage et
+  le format personnels restent à décider. Ne pas refaire le rapprochement en C.4.
 
-Les contrats actuels de bibliographie restent exécutables jusqu’à leur
-remplacement par C.3. Ces décisions décrivent le futur lot ; elles ne changent
-pas à elles seules le format courant. Recherche en ligne et gestion de PDF ne
-sont pas nécessaires à ce premier parcours.
+Le contrat bibliographique C.3 et le CAS 16 sont courants ; les anciens lots
+de raccordement restent des bilans datés. Recherche en ligne et gestion de PDF
+restent hors de ce premier parcours.
 
 **Sortie C :** contrat partagé GUI/CLI/MCP, recette clavier et aller-retour du
 fichier ; absence de logique spécifique dupliquée dans les déclencheurs.
+
+### Consolidation frontend et E.1 — 6 novembre 2026
+
+Avant C.4, séparer les responsabilités des contrôleurs existants : rendu et
+liaisons des champs d’en-tête, liste bibliographique et navigation, requêtes
+asynchrones liées à une génération documentaire, préparation pure des lots,
+puis orchestration des formulaires et de leur récupération. Réutiliser les
+composants de dialogue/champ/clavier ; ne pas introduire de framework ni de
+seconde logique métier bibliographique dans le frontend.
+
+Étendre le contrôle bloquant des **800 lignes** au TypeScript de production
+(`app/src/**/*.ts` et `.tsx`), hors tests, fixtures et code généré. Découper par
+responsabilité, sans déplacer artificiellement du code pour satisfaire le seuil.
+`provider.ts` conserve la coordination des révisions, de la composition et des
+contextes d’édition ; `main.ts` reste le point de composition des services.
+Leur taille seule ne justifie pas une extraction couplée à leurs états internes.
+
+E.1 utilise le catalogue commun pour exposer les capacités du type actif dans
+la barre d’outils et la palette, y compris les actions dérivées. Aucun nom de
+type dans ce filtrage : un futur type composé de capacités existantes hérite
+du comportement. Capacités absentes masquées, groupes vides masqués, commandes
+prises en charge mais indisponibles au curseur visibles et désactivées ;
+commandes générales conservées. Qualifier les changements de type, un type
+fictif, les brouillons, les réponses tardives et le clavier sans captures.
 
 ## D. Modèles et bibliothèque — P1
 
@@ -303,14 +377,14 @@ l’utilisateur ; [constats, essais retirés et piste dbv-typst-editor](docs/nat
 Comparer les parcours de développement et de bundle et le service natif réel.
 Un contrôle de métadonnées ou du titre du panneau ne valide pas ses boutons.
 
-**À faire — adaptation de la barre d’outils et de la palette au type (30 octobre 2026) :** filtrer
+**E.1 — adaptation de la barre d’outils et de la palette au type — livré localement :** filtrer
 les capacités exposées à partir du catalogue du type actif et supprimer les
 groupes sans entrée. Ne pas coder « article » ou « courrier » dans la
 présentation : « Fin de lettre » disparaît automatiquement d’un article parce
 que ses capacités P.-S./P.J. n’y sont pas disponibles. Distinguer cette absence
 structurelle de l’indisponibilité contextuelle d’une capacité du type, qui reste
-visible mais désactivée par le registre commun. Reconstruire la barre à la
-création/ouverture ; vérifier le passage courrier → article → courrier et la
+visible mais désactivée par le registre commun. Actualiser la visibilité à la
+création/ouverture sans perdre la recherche ni le focus ; vérifier le passage courrier → article → courrier et la
 navigation au clavier sans groupe vide ni commande étrangère au type.
 La palette réutilise ce même filtrage du catalogue et la même disponibilité
 contextuelle, sans maintenir sa propre liste de capacités. Ses résultats

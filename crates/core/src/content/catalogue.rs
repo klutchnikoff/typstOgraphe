@@ -151,7 +151,7 @@ pub const ALL: &[Capability] = &[
         "insert",
         Some("citation"),
         None,
-        "Article-only bibliographic citation. Choose references from the published project metadata; items use file_id and key, with optional literal supplement. Rendering belongs to Typst and the model."
+        "Article-only bibliographic citation. Choose references from the published project metadata; items use record_id, with optional literal supplement. Rendering belongs to Typst and the model."
     ),
     capability!(
         "insert.reference",

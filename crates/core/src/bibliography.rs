@@ -1,193 +1,131 @@
-//! Original bibliography files are authoritative. Parsed entries and fuzzy results are caches.
-use crate::content::Node;
+//! Document integration of the shared native bibliography. Imports are immutable provenance.
+pub mod editions;
+use crate::{content::Node, document_types::Metadata};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque},
-    sync::{Arc, Mutex, OnceLock},
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
 };
-use unicode_normalization::{UnicodeNormalization, char::is_combining_mark};
-const MAX_FILES: usize = 32;
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ReferenceFile {
-    pub id: String,
-    pub name: String,
-    pub contents: String,
-}
-impl ReferenceFile {
-    pub fn path(&self) -> String {
-        format!(
-            "bibliography/{}.{}",
-            self.id,
-            if self.name.to_ascii_lowercase().ends_with(".bib") {
-                "bib"
-            } else {
-                "yaml"
-            }
-        )
-    }
-}
+pub use typstographe_bibliography::Record;
+pub use typstographe_bibliography::{Code as NoticeErrorCode, Error as NoticeError};
+use typstographe_bibliography::{Library, RecordId, SearchQuery, summarize};
+pub const RETAINED_PATH: &str = "bibliography/retained.json";
+pub const ACTIVE_PATH: &str = "bibliography/references.yaml";
 pub fn valid_path(path: &str) -> bool {
-    path.strip_prefix("bibliography/")
-        .and_then(|s| s.strip_suffix(".bib").or_else(|| s.strip_suffix(".yaml")))
-        .is_some_and(valid_id)
+    path == ACTIVE_PATH
+        || path == RETAINED_PATH
+        || path
+            .strip_prefix("bibliography/sources/")
+            .and_then(|s| s.strip_suffix(".bib").or_else(|| s.strip_suffix(".yaml")))
+            .is_some_and(|id| RecordId::new(id).is_ok())
 }
-fn valid_id(id: &str) -> bool {
-    !id.is_empty()
-        && id.len() <= 64
-        && id
-            .bytes()
-            .all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
-}
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Entry {
-    pub file_id: String,
-    pub file_name: String,
+    pub record_id: RecordId,
     pub key: String,
     pub title: String,
     pub authors: String,
     pub year: String,
     pub label: String,
 }
-type Cache = VecDeque<([u8; 32], Arc<Vec<Entry>>)>;
-fn parse(file: &ReferenceFile) -> Result<Arc<Vec<Entry>>, String> {
-    if !valid_id(&file.id)
-        || file.name.len() > 256
-        || file.name.contains(['/', '\\'])
-        || file.name.chars().any(char::is_control)
-        || ![".bib", ".yaml", ".yml"]
-            .iter()
-            .any(|ext| file.name.to_ascii_lowercase().ends_with(ext))
-        || file.contents.len() > 2 * 1024 * 1024
-    {
-        return Err(format!("Fichier bibliographique invalide : {}", file.name));
-    }
-    static CACHE: OnceLock<Mutex<Cache>> = OnceLock::new();
-    let digest: [u8; 32] = Sha256::digest(serde_json::to_vec(file).unwrap()).into();
-    let cache = CACHE.get_or_init(Default::default);
-    if let Some((_, result)) = cache.lock().unwrap().iter().find(|(key, _)| *key == digest) {
-        return Ok(result.clone());
-    }
-    let library = if file.name.to_ascii_lowercase().ends_with(".bib") {
-        hayagriva::io::from_biblatex_str(&file.contents)
-            .map_err(|e| format!("{} : {e:?}", file.name))?
-    } else {
-        hayagriva::io::from_yaml_str(&file.contents).map_err(|e| format!("{} : {e}", file.name))?
-    };
-    if library.len() > 10000 {
-        return Err("Bibliothèque trop volumineuse.".into());
-    }
-    let result: Arc<Vec<Entry>> = Arc::new(
-        library
-            .iter()
-            .map(|entry| {
-                let title = entry
-                    .title()
-                    .map(|v| v.value.to_string())
-                    .unwrap_or_default();
-                let people = entry.authors().or_else(|| entry.editors()).unwrap_or(&[]);
-                let authors = people
-                    .iter()
-                    .map(|a| a.name_first(false, false))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let names = match people {
-                    [] => {
-                        if title.is_empty() {
-                            entry.key().into()
-                        } else {
-                            title.clone()
-                        }
-                    }
-                    [a] => a.name.clone(),
-                    [a, b] => format!("{} & {}", a.name, b.name),
-                    [a, ..] => format!("{} et al.", a.name),
-                };
-                let year = entry
-                    .date_any()
-                    .map(|d| d.year.to_string())
-                    .unwrap_or_else(|| "s. d.".into());
-                Entry {
-                    file_id: file.id.clone(),
-                    file_name: file.name.clone(),
-                    key: entry.key().into(),
-                    title,
-                    authors,
-                    label: format!("{names}, {year}"),
-                    year,
-                }
-            })
-            .collect(),
-    );
-    let mut guard = cache.lock().unwrap();
-    // Cover a whole project: a smaller cache would reparse every file on each
-    // validation when iterating a library at the supported file limit.
-    if guard.len() >= MAX_FILES {
-        guard.pop_front();
-    }
-    guard.push_back((digest, result.clone()));
-    Ok(result)
-}
-pub fn index(files: &[ReferenceFile]) -> Result<Vec<Entry>, String> {
-    if files.len() > MAX_FILES
-        || files.iter().map(|f| f.contents.len()).sum::<usize>() > 8 * 1024 * 1024
-    {
-        return Err("Bibliothèque trop volumineuse.".into());
-    }
-    let mut keys = BTreeMap::new();
-    let mut ids = BTreeSet::new();
-    let mut entries = vec![];
-    for file in files {
-        if !ids.insert(&file.id) {
-            return Err("Identité de fichier bibliographique dupliquée.".into());
-        }
-        for entry in parse(file)?.iter() {
-            if let Some(other) = keys.insert(entry.key.clone(), file.name.clone()) {
-                return Err(format!(
-                    "Clé bibliographique « {} » dupliquée dans « {} » et « {} ».",
-                    entry.key, other, file.name
-                ));
+pub fn index(records: &[Record]) -> Result<Vec<Entry>, String> {
+    Library::new(records.to_vec()).map_err(|e| e.to_string())?;
+    Ok(records
+        .iter()
+        .map(|r| {
+            let summary = summarize(r.entry());
+            Entry {
+                record_id: r.id().clone(),
+                key: r.key().into(),
+                title: summary.title,
+                authors: summary.authors,
+                year: summary
+                    .year
+                    .map(|y| y.to_string())
+                    .unwrap_or_else(|| "s. d.".into()),
+                label: format!(
+                    "{}, {}",
+                    summary.names,
+                    summary
+                        .year
+                        .map(|y| y.to_string())
+                        .unwrap_or_else(|| "s. d.".into())
+                ),
             }
-            entries.push(entry.clone());
+        })
+        .collect())
+}
+pub fn validate_sources(meta: &crate::document_types::article::Metadata) -> Result<(), String> {
+    Library::new(meta.references.clone()).map_err(|e| e.to_string())?;
+    let sources: BTreeMap<_, _> = meta.reference_sources.iter().map(|s| (s.id(), s)).collect();
+    if sources.len() != meta.reference_sources.len()
+        || sources.len() > 1000
+        || meta
+            .reference_sources
+            .iter()
+            .map(|s| s.contents().len())
+            .sum::<usize>()
+            > 8 * 1024 * 1024
+    {
+        return Err("Invalid bibliography source collection".into());
+    }
+    for record in &meta.references {
+        for origin in record.provenance() {
+            if !sources
+                .get(&origin.source_id)
+                .is_some_and(|s| s.digest() == &origin.source_digest)
+            {
+                return Err("Bibliographic provenance source missing or inconsistent".into());
+            }
         }
     }
-    Ok(entries)
+    Ok(())
 }
-fn normalized(value: &str) -> String {
-    value
-        .nfd()
-        .filter(|c| !is_combining_mark(*c))
-        .flat_map(char::to_lowercase)
-        .collect()
+pub fn resources(metadata: &Metadata) -> BTreeMap<String, Arc<[u8]>> {
+    let Metadata::Article(meta) = metadata else {
+        return BTreeMap::new();
+    };
+    let mut resources = BTreeMap::new();
+    if !meta.references.is_empty() {
+        let yaml = Library::new(meta.references.clone())
+            .and_then(|l| l.to_hayagriva())
+            .expect("validated bibliography");
+        resources.insert(ACTIVE_PATH.into(), Arc::from(yaml.as_bytes()));
+    }
+    let retained: Vec<_> = meta.references.iter().filter(|r| !r.retained_parents().is_empty()).map(|r| {
+        let value=serde_json::to_value(r).expect("validated record");
+        serde_json::json!({"id":r.id(),"key":r.key(),"retained_parents":value["retained_parents"]})
+    }).collect();
+    if !retained.is_empty() {
+        resources.insert(
+            RETAINED_PATH.into(),
+            Arc::from(serde_json::to_vec_pretty(&retained).expect("retained native bibliography")),
+        );
+    }
+    for source in &meta.reference_sources {
+        let ext = match source.format() {
+            typstographe_bibliography::ImportFormat::Biblatex => "bib",
+            _ => "yaml",
+        };
+        resources.insert(
+            format!(
+                "bibliography/sources/{}.{}",
+                String::from(source.id().clone()),
+                ext
+            ),
+            Arc::from(source.contents().as_bytes()),
+        );
+    }
+    resources
 }
 pub fn search(entries: &[Entry], query: &str) -> Vec<Entry> {
-    if query.len() > 512 {
-        return vec![];
-    }
-    let query = normalized(query);
-    let tokens: Vec<_> = query.split_whitespace().collect();
+    let query = SearchQuery::new(query);
     let mut scored: Vec<_> = entries
         .iter()
         .filter_map(|entry| {
-            let haystack = normalized(&format!("{} {}", entry.title, entry.authors));
-            let mut score = 0.0;
-            for token in &tokens {
-                let best = if haystack.contains(token) {
-                    1.0
-                } else {
-                    haystack
-                        .split(|c: char| !c.is_alphanumeric())
-                        .map(|s| strsim::jaro_winkler(token, s))
-                        .fold(0.0, f64::max)
-                };
-                if best < 0.84 {
-                    return None;
-                }
-                score += best;
-            }
-            Some((score, entry))
+            query
+                .score(&entry.title, &entry.authors)
+                .map(|score| (score, entry))
         })
         .collect();
     scored.sort_by(|a, b| {
@@ -204,10 +142,8 @@ pub fn search(entries: &[Entry], query: &str) -> Vec<Entry> {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CitationItem {
-    /// Stable project file identity returned by bibliography.search, not a disk path.
-    pub file_id: String,
-    /// Exact citation key returned by bibliography.search; keys are case-sensitive.
-    pub key: String,
+    /// Stable project notice identity; keys can change without breaking citations.
+    pub record_id: RecordId,
     /// Optional literal locator, for example "p. 23–25" or "chap. 2"; never Typst code.
     #[serde(default)]
     pub supplement: String,
@@ -234,13 +170,9 @@ impl Citation {
         }
         let mut unique = BTreeSet::new();
         for item in &self.items {
-            if !valid_id(&item.file_id)
-                || item.key.is_empty()
-                || item.key.len() > 1024
-                || item.key.chars().any(char::is_control)
-                || item.supplement.len() > 1000
+            if item.supplement.len() > 1000
                 || item.supplement.chars().any(char::is_control)
-                || !unique.insert((&item.file_id, &item.key))
+                || !unique.insert(&item.record_id)
             {
                 return Err("Référence de citation invalide ou dupliquée.".into());
             }
@@ -263,11 +195,11 @@ pub fn validate_document(
                 .map_err(|e| e.to_string())?;
             citation.validate()?;
             for item in &citation.items {
-                if !entries
-                    .iter()
-                    .any(|e| e.file_id == item.file_id && e.key == item.key)
-                {
-                    return Err(format!("Référence citée absente : {}", item.key));
+                if !entries.iter().any(|e| e.record_id == item.record_id) {
+                    return Err(format!(
+                        "bibliography_record_missing:{}",
+                        String::from(item.record_id.clone())
+                    ));
                 }
             }
         }
@@ -278,69 +210,67 @@ pub fn validate_document(
     }
     visit(document, &entries)
 }
-pub fn resources(metadata: &crate::document_types::Metadata) -> BTreeMap<String, Arc<[u8]>> {
-    match metadata {
-        crate::document_types::Metadata::Article(meta) => meta
-            .references
-            .iter()
-            .map(|file| (file.path(), Arc::from(file.contents.as_bytes())))
-            .collect(),
-        _ => BTreeMap::new(),
-    }
+#[cfg(test)]
+pub(crate) fn test_record(id: &str, name: &str, contents: &str) -> Record {
+    let format = if name.ends_with(".bib") {
+        typstographe_bibliography::ImportFormat::Biblatex
+    } else {
+        typstographe_bibliography::ImportFormat::Hayagriva
+    };
+    let library = typstographe_bibliography::parse_native(contents, format).unwrap();
+    Record::new(
+        RecordId::new(id).unwrap(),
+        library.iter().next().unwrap().clone(),
+    )
+    .unwrap()
 }
-
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::{
         DocumentLease,
-        content::{archive::Archive, source, source_mapped},
+        content::archive::Archive,
         document_types::{Metadata, article, models::Model},
         rendering::{RenderRequest, TypstWorld},
     };
-    fn files() -> Vec<ReferenceFile> {
+    fn files() -> Vec<Record> {
         vec![
-        ReferenceFile { id:"books".into(),name:"books.bib".into(),contents:"@book{bourdieu1980, author={Bourdieu, Pierre}, title={Le sens pratique}, year={1980}, publisher={Minuit}}".into() },
-        ReferenceFile { id:"papers".into(),name:"papers.yaml".into(),contents:"durand2020:\n  type: Article\n  title: Une enquête collective\n  author: Durand, Camille\n  date: 2020\n  parent:\n    type: Periodical\n    title: Revue exemple\n".into() },
-    ]
+            crate::bibliography::test_record(
+                "books",
+                "books.bib",
+                "@book{bourdieu1980, author={Bourdieu, Pierre}, title={Le sens pratique}, year={1980}, publisher={Minuit}}",
+            ),
+            crate::bibliography::test_record(
+                "papers",
+                "papers.yaml",
+                "durand2020:\n  type: Article\n  title: Une enquête collective\n  author: Durand, Camille\n  date: 2020\n  parent:\n    type: Periodical\n    title: Revue exemple\n",
+            ),
+        ]
     }
     fn doc() -> Node {
-        serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Introduction"}]},{"type":"paragraph","content":[{"type":"text","text":"Une étude "},{"type":"citation","attrs":{"items":[{"file_id":"books","key":"bourdieu1980","supplement":"p. 23"},{"file_id":"papers","key":"durand2020","supplement":""}],"form":"normal"}}]}]})).unwrap()
+        serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Introduction"}]},{"type":"paragraph","content":[{"type":"text","text":"Une étude "},{"type":"citation","attrs":{"items":[{"record_id":"books","supplement":"p. 23"},{"record_id":"papers","supplement":""}],"form":"normal"}}]}]})).unwrap()
     }
     #[test]
-    fn original_files_index_fuzzy_authors_titles_and_collisions_are_validated() {
+    fn native_index_fuzzy_authors_titles_and_collisions_are_validated() {
         let files = files();
         let entries = index(&files).unwrap();
         assert_eq!(search(&entries, "sens bordieu")[0].key, "bourdieu1980");
         assert_eq!(search(&entries, "enquete DURAND")[0].key, "durand2020");
         assert!(search(&entries, "introuvable").is_empty());
         let mut collision = files.clone();
-        collision.push(ReferenceFile {
-            id: "copy".into(),
-            ..files[0].clone()
-        });
-        assert!(index(&collision).unwrap_err().contains("bourdieu1980"));
-        collision[2].id = "../../escape".into();
+        collision.push(
+            Record::from_native(
+                RecordId::new("copy").unwrap(),
+                files[0].key(),
+                files[0].native_value(),
+            )
+            .unwrap(),
+        );
         assert!(index(&collision).is_err());
-        assert!(valid_path("bibliography/books.bib"));
+        assert!(valid_path(ACTIVE_PATH));
+        assert!(valid_path("bibliography/sources/books.bib"));
         assert!(!valid_path("bibliography/../escape.bib"));
-        for file in &files {
-            let mut duplicate = file.clone();
-            duplicate.contents.push('\n');
-            duplicate.contents.push_str(&file.contents);
-            assert!(
-                index(&[duplicate]).is_err(),
-                "duplicate within {}",
-                file.name
-            );
-            let mut uppercase = file.clone();
-            uppercase.name = uppercase.name.to_ascii_uppercase();
-            assert_eq!(index(&[uppercase]).unwrap().len(), 1);
-        }
-        let mut invalid = files[0].clone();
-        invalid.contents = "@book{broken".into();
-        assert!(index(&[invalid]).is_err());
     }
     #[test]
     fn citations_archive_export_outline_and_each_supported_style_compile_offline() {
@@ -358,7 +288,12 @@ mod tests {
             meta.citation_style = Some(style.into());
             let metadata = Metadata::Article(meta.clone());
             validate_document(&node, &metadata).unwrap();
-            let (body, map) = source_mapped(&node, &Default::default()).unwrap();
+            let (body, map) = crate::content::source_mapped_with_metadata(
+                &node,
+                &Default::default(),
+                &Metadata::Article(meta.clone()),
+            )
+            .unwrap();
             assert!(
                 map.characters
                     .iter()
@@ -388,8 +323,11 @@ mod tests {
             )
             .unwrap();
             assert_eq!(
-                std::fs::read_to_string(export.join("bibliography/books.bib")).unwrap(),
-                meta.references[0].contents
+                std::fs::read_to_string(export.join(ACTIVE_PATH)).unwrap(),
+                Library::new(meta.references.clone())
+                    .unwrap()
+                    .to_hayagriva()
+                    .unwrap()
             );
         }
         assert!(pages > 0);
@@ -421,28 +359,32 @@ mod tests {
             unreachable!()
         };
         m.references.remove(0);
-        assert!(
-            broken
-                .validate()
-                .unwrap_err()
-                .to_string()
-                .contains("bourdieu1980")
-        );
+        assert!(broken.validate().unwrap_err().to_string().contains("books"));
         assert_eq!(
-            source(&restored.document, &restored.assets).unwrap(),
+            crate::content::source_with_metadata(
+                &restored.document,
+                &restored.assets,
+                &restored.metadata
+            )
+            .unwrap(),
             restored.validate().unwrap()
         );
     }
 
     #[test]
     fn citation_badge_has_real_preview_geometry() {
-        let node: Node = serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"citation","attrs":{"items":[{"file_id":"books","key":"bourdieu1980"}],"form":"normal"}}]}]})).unwrap();
+        let node: Node = serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"citation","attrs":{"items":[{"record_id":"books"}],"form":"normal"}}]}]})).unwrap();
         let mut meta = article::Metadata::demo();
         meta.references = files();
         let template = Model::ArticleWorking.source();
         let mut world = TypstWorld::default();
         world.set_dependencies(&crate::packages::for_template(&template));
-        let (body, map) = source_mapped(&node, &Default::default()).unwrap();
+        let (body, map) = crate::content::source_mapped_with_metadata(
+            &node,
+            &Default::default(),
+            &Metadata::Article(meta.clone()),
+        )
+        .unwrap();
         let compiled = world
             .compile_with_template(&body, &Metadata::Article(meta), &template)
             .unwrap();

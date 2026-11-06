@@ -25,6 +25,7 @@ export interface RecordField {
     | 'rich'
     | 'rich_inline'
     | 'source'
+    | 'native'
   default: unknown
   references?: string
   statistics?: boolean
@@ -52,6 +53,7 @@ export interface MetadataPanel {
 export interface BibliographyDescriptor {
   tab: string
   files: string
+  sources: string
   field: string
   style: string
   style_field: string

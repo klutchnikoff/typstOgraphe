@@ -27,7 +27,12 @@
     "test:draft-conservation-native": "npm run test:draft-conservation-native --workspace @typstographe/app --",
     "test:publication-native": "npm run test:publication-native --workspace @typstographe/app --",
     "build:recipe": "node app/scripts/build-recipe.mjs",
-    "check:distribution": "node app/scripts/check-distribution.mjs"
+    "check:distribution": "node app/scripts/check-distribution.mjs",
+    "hooks:install": "python3 scripts/install_hooks.py",
+    "verify:quick": "python3 scripts/verify.py quick",
+    "verify:lint": "python3 scripts/verify.py lint",
+    "verify:test": "python3 scripts/verify.py test",
+    "verify:push": "python3 scripts/verify.py push"
   },
   "devDependencies": {
     "patch-package": "8.0.1"

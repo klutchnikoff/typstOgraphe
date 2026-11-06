@@ -69,7 +69,7 @@ class CIPlanTests(unittest.TestCase):
             result = subprocess.check_output(
                 ["python3", str(SCRIPT), "--base", base], cwd=root, env=env)
             self.assertTrue(json.loads(result)["code"])
-            self.assertEqual(output.read_text(), "code=true\ndependencies=false\nrecipes=\n")
+            self.assertEqual(output.read_text(), "code=true\ndependencies=false\nrust=false\nrecipes=\n")
 
     def test_pull_requests_run_recipes_of_the_edited_areas_only(self):
         root = SCRIPT.parents[2]
@@ -95,6 +95,13 @@ class CIPlanTests(unittest.TestCase):
         for source in ["crates/core/src/dates.rs", "crates/core/templates/capabilities/dates.typ"]:
             self.assertEqual(planner.browser_recipes([source]), [
                 "tests/browser/metadata.spec.ts", "tests/browser/structured-metadata.spec.ts"])
+
+    def test_shared_bibliography_engine_selects_the_bibliography_recipe(self):
+        for source in ["crates/bibliography/src/import.rs", "crates/bibliography/src/search.rs",
+                       "app/src/bibliography-manager.ts", "app/src/bibliography-fields.ts",
+                       "crates/core/src/bibliography.rs", "crates/core/src/content/api/bibliography.rs"]:
+            self.assertEqual(planner.browser_recipes([source]),
+                             ["tests/browser/bibliography.spec.ts"])
 
     def test_resource_contract_changes_cover_metadata_and_recovery(self):
         for source in ["crates/core/src/resources.rs", "app/src/metadata-resource.ts"]:

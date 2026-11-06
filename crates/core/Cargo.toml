@@ -14,8 +14,7 @@ workspace = true
 similar.workspace = true
 jsonschema = { version = "=0.60.1", default-features = false }
 yrs.workspace = true
-hayagriva.workspace = true
-strsim.workspace = true
+typstographe-bibliography.workspace = true
 resvg.workspace = true
 unicode-segmentation.workspace = true
 serde.workspace = true

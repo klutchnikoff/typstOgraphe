@@ -22,7 +22,7 @@ les décisions, mesures et limites des étapes livrées.
 | Architecture, adaptateurs et autorité | [Contrat général](interface-contract.md), [contrat structuré](structured-contract.md), [adaptateurs](structured-adapters.md) |
 | Commandes et paramètres exécutables | [Catalogue généré](commands.md), [schémas JSON](commands.json), `typstographe-cli commands describe ID` |
 | Cibles, texte, structures et contextes | [Commandes structurées](structured-commands.md), [contextes privés](structured-editing-contexts.md), [transformations](a2-transformations-inventory.md) |
-| Projet autonome et Versions | [Format CAS 14](a4-project-format.md), [comparateur et validation contextualisée](a4-comparison-contract.md) |
+| Projet autonome et Versions | [Format CAS 16](a4-project-format.md), [comparateur et validation contextualisée](a4-comparison-contract.md) |
 | Conservation et récupération | [Contrat de conservation](a3-conservation.md), [parcours de reprise](a3-recovery-interface.md) |
 | Éditeur et interactions | [Zones riches](rich-zones.md), [widgets/bandeaux](editor-widgets.md), [navigation clavier](keyboard-navigation.md), [dialogues](metadata-dialogs.md), [retours/jointures](paragraph-join.md) |
 | Catalogue des usages | [Groupes, types et fiches](document-type-catalogue.md) |
@@ -43,6 +43,24 @@ reste indépendante. Les noms publics de capacités sont anglais ou latins.
 
 Le [contrat des ancres et renvois C.1](c1-cross-references.md) décrit les identités,
 les composantes des renvois, leur composition Typst et les interactions communes.
+
+## Bibliographie du projet — C.3 livré localement
+
+Le [contrat commun](c3-bibliography-contract.md), les
+[profils natifs Hayagriva](c3-native-bibliography-profiles.md), le
+[gestionnaire compact](c3-bibliography-manager.md) et le
+[format CAS 16](a4-project-format.md) décrivent l’implémentation courante.
+Le [corpus inspiré de Citekeep](../fixtures/bibliography/README.md) conserve les
+24 scénarios d’identité et les garanties de rapprochement. Les bilans de
+[fondation](c3-bibliography-foundation.md), de
+[préparation CLI/MCP](c3-bibliography-preparation.md) et de
+[raccordement documentaire](c3-bibliography-document-state.md) décrivent leurs
+étapes historiques ; ils ne remplacent pas le contrat courant.
+
+Le [lot frontend / E.1](frontend-consolidation.md) sépare rendu, requêtes et
+publication, et expose les commandes selon les capacités du type actif.
+C.4 reste préparatoire : bibliothèque personnelle, stockage et échanges à
+valider ensemble. Qualification CI et recette utilisateur requises avant fusion.
 
 ## Bilans et références historiques
 

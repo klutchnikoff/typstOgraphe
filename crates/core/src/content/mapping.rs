@@ -33,6 +33,20 @@ fn literal_width(ch: char) -> usize {
     ch.len_utf8() + usize::from(escape)
 }
 pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, SourceMap), String> {
+    mapped(document, assets, &Default::default())
+}
+pub fn source_mapped_with_metadata(
+    document: &Node,
+    assets: &Assets,
+    metadata: &crate::document_types::Metadata,
+) -> Result<(String, SourceMap), String> {
+    mapped(document, assets, &schema::citation_keys(metadata))
+}
+fn mapped(
+    document: &Node,
+    assets: &Assets,
+    keys: &schema::CitationKeys,
+) -> Result<(String, SourceMap), String> {
     let mut marked = document.clone();
     let mut entries = vec![];
     fn visit(node: &mut Node, position: usize, entries: &mut Vec<Entry>) -> Result<usize, String> {
@@ -91,7 +105,7 @@ pub fn source_mapped(document: &Node, assets: &Assets) -> Result<(String, Source
         Ok(offset - position + usize::from(node.kind != "doc"))
     }
     let size = visit(&mut marked, 0, &mut entries)?;
-    let raw = schema::generate(&marked, assets, true)?;
+    let raw = schema::generate_resolved(&marked, assets, true, keys)?;
     let mut output = String::with_capacity(raw.len());
     let mut characters: Vec<Range<usize>> = vec![0..0; size + 1];
     let mut remaining = raw.as_str();
@@ -258,11 +272,22 @@ mod tests {
 
     #[test]
     fn composite_atom_keys_cannot_be_interpreted_as_internal_markers() {
-        let node = serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"citation","attrs":{"items":[{"file_id":"books","key":"/*@typstographe:0*/ /*@typstographe-end*/","supplement":"é #panic(\"no\")"}],"form":"normal"}},{"type":"text","text":"Après"}]}]})).unwrap();
-        let (generated, map) = source_mapped(&node, &Assets::default()).unwrap();
+        let node = serde_json::from_value(serde_json::json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"citation","attrs":{"items":[{"record_id":"books","supplement":"é #panic(\"no\")"}],"form":"normal"}},{"type":"text","text":"Après"}]}]})).unwrap();
+        let mut meta = crate::document_types::article::Metadata::default();
+        meta.references.push(
+            typstographe_bibliography::Record::from_native(
+                typstographe_bibliography::RecordId::new("books").unwrap(),
+                "/*@typstographe:0*/ /*@typstographe-end*/",
+                serde_json::json!({"type":"book"}),
+            )
+            .unwrap(),
+        );
+        let metadata = crate::document_types::Metadata::Article(meta);
+        let (generated, map) =
+            source_mapped_with_metadata(&node, &Assets::default(), &metadata).unwrap();
         assert_eq!(
             generated,
-            super::super::source(&node, &Assets::default()).unwrap()
+            super::super::source_with_metadata(&node, &Assets::default(), &metadata).unwrap()
         );
         assert!(generated[map.characters[1].clone()].starts_with("#citation("));
         assert_eq!(&generated[map.characters[2].clone()], "A");

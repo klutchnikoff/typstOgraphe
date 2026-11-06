@@ -37,3 +37,37 @@ class ProductionLengthTests(unittest.TestCase):
 
     def test_empty_test_function_does_not_hide_the_next_function(self):
         self.assertEqual(checker.production_lines("#[cfg(test)]\nfn helper() {}\nfn real() {}\n"), 1)
+
+
+class TypeScriptLengthTests(unittest.TestCase):
+    def test_nested_modules_obey_the_same_limit_and_exclude_nonproduction(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ["nested/controller.ts", "nested/view.tsx", "generated/schema.ts",
+                         "fixtures/model.ts", "__tests__/case.ts", "nested/case.test.ts",
+                         "nested/case.spec.tsx"]:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("line\n" * 3, encoding="utf-8")
+            self.assertEqual(checker.typescript_violations(root, 2),
+                             [(root / "nested/controller.ts", 3), (root / "nested/view.tsx", 3)])
+            self.assertEqual(checker.typescript_violations(root, 3), [])
+
+    def test_repository_defaults_check_typescript_and_rust_and_fail_on_either(self):
+        from unittest.mock import patch
+        from contextlib import redirect_stdout
+        from io import StringIO
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "crates").mkdir()
+            (root / "app/src").mkdir(parents=True)
+            (root / "crates/main.rs").write_text("fn main() {}\n")
+            path = root / "app/src/controller.ts"
+            path.write_text("line\n" * 801)
+            with patch.object(checker, "ROOT", root), patch("sys.argv", ["check_file_length"]):
+                with redirect_stdout(StringIO()) as output:
+                    self.assertEqual(checker.main(), 1)
+                self.assertIn(str(path), output.getvalue())
+                path.write_text("line\n" * 800)
+                with redirect_stdout(StringIO()):
+                    self.assertEqual(checker.main(), 0)

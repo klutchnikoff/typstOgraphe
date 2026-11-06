@@ -58,6 +58,9 @@ export function contextPanel(options: {
   let preferred: HTMLButtonElement | undefined
   const panel = {
     element,
+    get composing() {
+      return compositions > 0
+    },
     recoveryData: (): unknown => null,
     restoreRecoveryData: (_data: any): boolean => true,
     recoveryApplied: async (): Promise<void> => {},

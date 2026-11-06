@@ -1,5 +1,5 @@
 use crate::error::CommandError;
-use crate::schema::{self, Node};
+use crate::schema::Node;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -557,7 +557,12 @@ impl Session {
             .validate()
             .map_err(CommandError::localized_content)?;
         typstographe_core::bibliography::validate_document(&snapshot.document, &settings.metadata)?;
-        schema::source(&snapshot.document, &self.assets).map_err(CommandError::Message)
+        typstographe_core::content::source_with_metadata(
+            &snapshot.document,
+            &self.assets,
+            &settings.metadata,
+        )
+        .map_err(CommandError::Message)
     }
     pub fn resources(&self) -> Vec<Resource> {
         self.assets

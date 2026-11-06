@@ -55,7 +55,12 @@ pub fn render(
     if !current(rendering::Stage::Start) {
         return Err("stale".into());
     }
-    let map = typstographe_core::content::source_mapped(&snapshot.document, &assets)?.1;
+    let map = typstographe_core::content::source_mapped_with_metadata(
+        &snapshot.document,
+        &assets,
+        &settings.metadata,
+    )?
+    .1;
     let (bytes, record) = bridge.renderer.delta_frame(
         source,
         assets,

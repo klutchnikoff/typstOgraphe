@@ -88,7 +88,7 @@ try {
     await mkdir(directory)
     const project = path.join(directory, 'project.typsto')
     if (kind === 'article')
-      await copyFile(path.join(repo, 'examples/article-working.typsto'), project)
+      await copyFile(path.join(repo, 'fixtures/projects/article-working.typsto'), project)
     else {
       const job = JSON.parse(await readFile(path.join(repo, 'examples/cli/courrier.json'), 'utf8'))
       job.save.path = project

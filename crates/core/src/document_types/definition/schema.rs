@@ -31,13 +31,24 @@ impl LoadedDefinition {
 
         let mut properties = field_properties(&self.0.fields);
         for collection in &self.0.collections {
-            if collection.kind == super::CollectionKind::ReferenceFiles {
+            if collection.kind != super::CollectionKind::OrderedRecords {
+                let mut native = match collection.kind {
+                    super::CollectionKind::BibliographicRecords => serde_json::to_value(
+                        schemars::schema_for!(typstographe_bibliography::Record),
+                    )
+                    .unwrap(),
+                    _ => serde_json::to_value(schemars::schema_for!(
+                        typstographe_bibliography::ImportSource
+                    ))
+                    .unwrap(),
+                };
+                if let Some(Value::Object(defs)) = native.as_object_mut().unwrap().remove("$defs") {
+                    definitions.extend(defs);
+                }
+                native.as_object_mut().unwrap().remove("$schema");
                 properties.insert(
                     collection.id.clone(),
-                    json!({
-                        "type":"array", "maxItems":collection.max_items,
-                        "items":schemars::schema_for!(crate::bibliography::ReferenceFile)
-                    }),
+                    json!({"type":"array","maxItems":collection.max_items,"items":native}),
                 );
                 continue;
             }
@@ -87,11 +98,8 @@ impl LoadedDefinition {
             .iter()
             .find(|c| c.id == collection)
             .map(|c| {
-                if c.kind == super::CollectionKind::ReferenceFiles {
-                    return Map::from_iter([
-                        ("name".into(), json!("")),
-                        ("contents".into(), json!("")),
-                    ]);
+                if c.kind != super::CollectionKind::OrderedRecords {
+                    return Map::new(); // Native records are created through bibliography commands.
                 }
                 c.fields
                     .iter()
